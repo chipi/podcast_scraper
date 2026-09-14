@@ -50,6 +50,39 @@ def _kg(persons) -> Dict[str, Any]:
     }
 
 
+def _meta_with_sidecar(root, *, speakers, raw_voices, feed="Show"):
+    """Metadata artifact plus the segments sidecar that PROVES the voice count (#2070).
+
+    `voices_heard` reads the sidecar rather than `diarization_num_speakers`, because the field
+    cannot distinguish a real diarizer count from a fallback derived from the roster's length.
+    A test that wants route (b) to fire therefore has to supply the evidence route (b) requires.
+    """
+    import json as _json
+
+    meta_dir = root / "metadata"
+    tx_dir = root / "transcripts"
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    tx_dir.mkdir(parents=True, exist_ok=True)
+    (tx_dir / "e1.segments.json").write_text(
+        _json.dumps([{"speaker": f"SPEAKER_{i:02d}"} for i in range(raw_voices)]), encoding="utf-8"
+    )
+    path = meta_dir / "e1.metadata.json"
+    path.write_text(
+        _json.dumps(
+            {
+                "feed": {"title": feed},
+                "content": {
+                    "speakers": speakers,
+                    "diarization_num_speakers": raw_voices,
+                    "transcript_file_path": "transcripts/e1.txt",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 class TestReadingTheRoster:
     def test_host_and_guest_are_keyed_by_person_id(self) -> None:
         roles = roster_roles(
@@ -410,16 +443,14 @@ class TestDemotionRequiresACompleteRoster:
             ]
         )
 
-    def test_a_complete_roster_still_demotes(self) -> None:
-        meta = {
-            "content": {
-                "speakers": [{"name": "Elad Gil", "role": "host"}],
-                "diarization_num_speakers": 1,
-            }
-        }
+    def test_a_complete_roster_still_demotes(self, tmp_path: Path) -> None:
+        path = _meta_with_sidecar(
+            tmp_path, speakers=[{"name": "Elad Gil", "role": "host"}], raw_voices=1
+        )
+        meta = json.loads(path.read_text(encoding="utf-8"))
         kg = self._kg_with_a_stranger()
         promoted, demoted, _u = promote_person_roles(
-            kg, roster_roles(meta), voices_heard=voices_heard(meta)
+            kg, roster_roles(meta), voices_heard=voices_heard(meta, path)
         )
         assert (promoted, demoted) == (1, 1)
 
@@ -455,11 +486,9 @@ class TestReadingTheVoiceCountFromTheArtifact:
     `promote_person_roles`, because a roster can name a voice with something no one can place.
     """
 
-    def test_the_diarization_count_is_returned(self) -> None:
-        meta = {
-            "content": {"speakers": [{"name": "A", "role": "host"}], "diarization_num_speakers": 3}
-        }
-        assert voices_heard(meta) == 3
+    def test_the_count_comes_from_the_sidecar(self, tmp_path: Path) -> None:
+        path = _meta_with_sidecar(tmp_path, speakers=[{"name": "A", "role": "host"}], raw_voices=3)
+        assert voices_heard(json.loads(path.read_text(encoding="utf-8")), path) == 3
 
     def test_a_missing_voice_count_is_unknowable(self) -> None:
         # 6.6% of production episodes carry no `diarization_num_speakers`, and when diarization
@@ -644,9 +673,7 @@ class TestARosterEntryNobodyCanFindIsNotEvidence:
                 ("person:sarah-guo", "Sarah Guo", "host"),
             ]
         )
-        promoted, demoted, _u = promote_person_roles(
-            kg, roster_roles(meta), voices_heard=voices_heard(meta)
-        )
+        promoted, demoted, _u = promote_person_roles(kg, roster_roles(meta), voices_heard=2)
         assert (promoted, demoted) == (2, 1)
         roles = {n["id"]: n["properties"]["role"] for n in kg["nodes"]}
         assert roles["person:sarah-guo"] == "mentioned"
@@ -927,3 +954,108 @@ class TestAnAmbiguousMatchIsNotAMatch:
         ambiguous: list[str] = []
         promote_person_roles(kg, roles, voices_heard=2, ambiguous=ambiguous)
         assert ambiguous and "John" in ambiguous[0]
+
+
+class TestTheCountComesFromTheMeasurementNotTheFallback:
+    """``diarization_num_speakers`` cannot tell a measurement from a fallback (#2070).
+
+    ``metadata_generation.py:1007``::
+
+        num_speakers = len(raw_ids) or (len(named_order) or None)
+
+    A real diarizer count and a count derived from the roster's LENGTH land in the same field and
+    look identical on disk. That matters here because route (b) demotes on "the roster accounted
+    for every voice", and it fires only when ``voices_heard <= len(matched)`` — and since
+    ``matched ⊆ roster``, only ever inside the ``heard == named`` bucket. Which is exactly the
+    bucket a fallback count also produces. Measured: all 4 route-(b) demotions on the staging copy
+    have ``heard == named``.
+
+    So the earlier "the field means heard-voices, measured on 287 artifacts" was an over-read: the
+    measurement covers the 186 episodes where ``heard > named`` — where route (b) never fires — and
+    is silent where it does.
+
+    THE MEASUREMENT IS ALREADY ON DISK. The segments sidecar carries a RAW diarizer id per segment
+    (``speaker``: ``SPEAKER_00`` / ``SPEAKER_01`` / …), independent of any naming. Counting
+    distinct values there is the real number, and its absence is honest ignorance rather than a
+    plausible-looking guess.
+
+    Sampled 40 production episodes: 40 had a reachable sidecar, and on all 34 that also carried a
+    numeric field, the raw distinct count equalled the field exactly.
+    """
+
+    @staticmethod
+    def _corpus(root: Path, *, segments, heard, speakers):
+        meta_dir = root / "metadata"
+        tx_dir = root / "transcripts"
+        meta_dir.mkdir(parents=True, exist_ok=True)
+        tx_dir.mkdir(parents=True, exist_ok=True)
+        (meta_dir / "e1.metadata.json").write_text(
+            json.dumps(
+                {
+                    "feed": {"title": "Show"},
+                    "content": {
+                        "speakers": speakers,
+                        "diarization_num_speakers": heard,
+                        "transcript_file_path": "transcripts/e1.txt",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        if segments is not None:
+            (tx_dir / "e1.segments.json").write_text(json.dumps(segments), encoding="utf-8")
+        return meta_dir / "e1.metadata.json"
+
+    def test_the_sidecar_is_preferred_over_the_field(self, tmp_path: Path) -> None:
+        # The field says 2 (which would let route (b) fire); the sidecar heard 5.
+        path = self._corpus(
+            tmp_path,
+            segments=[{"speaker": f"SPEAKER_0{i % 5}"} for i in range(20)],
+            heard=2,
+            speakers=[{"name": "A", "role": "host"}, {"name": "B", "role": "guest"}],
+        )
+        meta = json.loads(path.read_text(encoding="utf-8"))
+        assert voices_heard(meta, metadata_path=path) == 5
+
+    def test_no_sidecar_is_no_evidence_not_the_field(self, tmp_path: Path) -> None:
+        # The strict rule: unknown provenance does not count as a measurement. Returning the field
+        # here is what let a fallback masquerade as a diarizer count.
+        path = self._corpus(
+            tmp_path,
+            segments=None,
+            heard=2,
+            speakers=[{"name": "A", "role": "host"}, {"name": "B", "role": "guest"}],
+        )
+        meta = json.loads(path.read_text(encoding="utf-8"))
+        assert voices_heard(meta, metadata_path=path) is None
+
+    def test_a_sidecar_with_no_raw_ids_is_no_evidence(self, tmp_path: Path) -> None:
+        path = self._corpus(
+            tmp_path,
+            segments=[{"speaker": None, "speaker_label": "Alice"} for _ in range(5)],
+            heard=2,
+            speakers=[{"name": "A", "role": "host"}],
+        )
+        meta = json.loads(path.read_text(encoding="utf-8"))
+        assert voices_heard(meta, metadata_path=path) is None
+
+    def test_without_a_path_there_is_no_evidence_either(self, tmp_path: Path) -> None:
+        # A caller that cannot resolve the sidecar gets None, not a guess.
+        meta = {
+            "content": {"speakers": [{"name": "A", "role": "host"}], "diarization_num_speakers": 2}
+        }
+        assert voices_heard(meta) is None
+
+    def test_route_b_cannot_fire_without_a_sidecar(self, tmp_path: Path) -> None:
+        # The behavioural consequence, stated as a test: with no provable voice count, the
+        # "roster accounted for everyone" demotion has no denominator and must not run.
+        kg = _kg(
+            [
+                ("person:sarah-guo", "Sarah Guo", "host"),
+                ("person:elad-gil", "Elad Gil", "mentioned"),
+            ]
+        )
+        promoted, demoted, _u = promote_person_roles(
+            kg, {"person:elad-gil": "host"}, voices_heard=None
+        )
+        assert promoted == 1 and demoted == 0

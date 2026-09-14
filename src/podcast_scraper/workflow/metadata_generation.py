@@ -39,6 +39,7 @@ from pydantic import BaseModel, computed_field, Field, field_serializer, Validat
 
 from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
+from ..identity.roster_provenance import roster_source
 from ..speaker_detectors.hosts import looks_like_publisher
 
 if TYPE_CHECKING:
@@ -615,6 +616,17 @@ class ContentMetadata(BaseModel):
     diarization_num_speakers: Optional[int] = Field(
         default=None,
         description="Distinct speaker voices the diarizer resolved for this episode (#876).",
+    )
+    speakers_source: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where `speakers` came from: 'diarized' (resolved from the audio) or 'hint' (the "
+            "pre-diarization guess from the feed and show notes). #2065's root cause was that "
+            "these two landed in the same field and were indistinguishable on disk, so the graph "
+            "could be fed the hint for months with nobody able to tell by reading an artifact. "
+            "Absent on any artifact written before #2070 — and absent means UNKNOWN, not "
+            "'diarized'."
+        ),
     )
     normalized_entities: List[EntityAlias] = Field(
         default_factory=list,
@@ -2126,6 +2138,7 @@ def _build_content_metadata(
     episode_description: Optional[str] = None,
     output_dir: Optional[str] = None,
     diarization_num_speakers: Optional[int] = None,
+    speakers_source: Optional[str] = None,
 ) -> ContentMetadata:
     """Build ContentMetadata object.
 
@@ -2245,6 +2258,7 @@ def _build_content_metadata(
         whisper_model=whisper_model,
         speakers=speakers,
         diarization_num_speakers=diarization_num_speakers,
+        speakers_source=speakers_source,
         normalized_entities=normalized_entities,
         expectations=expectations,
         qa_flags=qa_flags,
@@ -3647,7 +3661,7 @@ def _prepare_base_metadata_objects(
     detected_guests: Optional[List[str]],
     pipeline_metrics=None,
     transcript_file_path: Optional[str] = None,
-) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], Optional[int]]:
+) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], Optional[int], Optional[str]]:
     """Prepare base metadata objects (feed, episode, speakers).
 
     ProcessingMetadata (including stage_timings) is built after summarization so
@@ -3708,7 +3722,12 @@ def _prepare_base_metadata_objects(
     speakers = diarized_speakers or _build_speakers_from_detected_names(
         detected_hosts, detected_guests
     )
-    return feed_metadata, episode_metadata, speakers, num_speakers
+    # #2070: RECORD WHICH ONE THIS IS. The roster and the hint land in the same field and were
+    # indistinguishable on disk, which is how the graph could be fed the hint for months with
+    # nobody able to tell by reading an artifact. `speakers_source` is written on the metadata
+    # object below; this returns the flag so the caller can attach it without re-deriving it.
+    speakers_source = roster_source(speakers, diarized=bool(diarized_speakers))
+    return feed_metadata, episode_metadata, speakers, num_speakers, speakers_source
 
 
 def _get_nlp_model_for_reconciliation(
@@ -4434,7 +4453,7 @@ def generate_episode_metadata(  # noqa: C901
     except Exception:  # never block metadata generation on correlation
         pass
 
-    feed_metadata, episode_metadata, speakers, diarization_num_speakers = (
+    feed_metadata, episode_metadata, speakers, diarization_num_speakers, speakers_source = (
         _prepare_base_metadata_objects(
             feed,
             episode,
@@ -4544,6 +4563,7 @@ def generate_episode_metadata(  # noqa: C901
         episode_description=episode_description,
         output_dir=output_dir,
         diarization_num_speakers=diarization_num_speakers,
+        speakers_source=speakers_source,
     )
 
     # Determine output path (needed for skip_existing check and for GIL path)

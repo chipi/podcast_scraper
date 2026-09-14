@@ -237,27 +237,65 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
     return out
 
 
-def voices_heard(metadata_payload: dict) -> Optional[int]:
-    """How many distinct voices diarization HEARD on this episode, or ``None`` when unknowable.
+def _segments_sidecar(metadata_path: Path, content: dict) -> Optional[Path]:
+    """The segments sidecar beside the transcript, or ``None``.
 
-    This is the denominator for "does the roster account for everyone who spoke". It is NOT the
-    same question as "did diarization name every voice": ``content.speakers`` can name a voice
-    with something no one can resolve to a human — see
-    :func:`promote_person_roles`, which compares this count against the roster entries the
-    episode graph can actually place.
+    ``transcript_file_path`` is relative to the RUN root, and the metadata artifact lives in
+    ``<run>/metadata/``, so the run root is the metadata file's grandparent. Prefers the ad-free
+    sidecar when present — it carries the same ``speaker`` ids.
+    """
+    rel = str((content or {}).get("transcript_file_path") or "")
+    if not rel:
+        return None
+    run_root = metadata_path.parent.parent
+    for suffix in (".adfree.segments.json", ".segments.json"):
+        candidate = run_root / rel.replace(".txt", suffix)
+        if candidate.is_file():
+            return candidate
+    return None
 
-    Unknowable counts as no evidence. 6.6% of production episodes carry no
-    ``diarization_num_speakers``, and when diarization names nobody the pipeline substitutes the
-    PRE-DIARIZATION HINT into ``content.speakers`` wholesale (``metadata_generation``:
-    ``speakers = diarized_speakers or _build_speakers_from_detected_names(...)``), which is
-    indistinguishable on disk from a real roster. With no count there is nothing to reconcile, so
-    the roster may not deny anyone.
+
+def voices_heard(metadata_payload: dict, metadata_path: Optional[Path] = None) -> Optional[int]:
+    """How many distinct voices diarization HEARD, or ``None`` when that cannot be PROVEN.
+
+    THE FIELD CANNOT BE TRUSTED ON ITS OWN (#2070). ``metadata_generation`` computes it as
+    ``len(raw_ids) or (len(named_order) or None)``, so a real diarizer count and a count derived
+    from the ROSTER'S LENGTH land in the same field and look identical on disk. That is fatal
+    precisely here: route (b) fires only when ``voices_heard <= len(matched)`` and
+    ``matched ⊆ roster``, so only inside the ``heard == named`` bucket — which is exactly what the
+    fallback produces. All 4 route-(b) demotions on the 287-artifact staging copy have
+    ``heard == named``.
+
+    (An earlier measurement — ``heard > named`` on 186 of 267 — was read as proof the field means
+    heard-voices. It is not: it covers the episodes where route (b) NEVER fires and is silent
+    where it does.)
+
+    THE MEASUREMENT IS ALREADY ON DISK. The segments sidecar carries a RAW diarizer id per
+    segment (``speaker``: ``SPEAKER_00`` / ``SPEAKER_01`` / …) independent of any naming, so
+    counting distinct values there is the real number. Sampled 40 production episodes: 40 had a
+    reachable sidecar, and on all 34 that also carried a numeric field the counts were equal.
+
+    No sidecar, or a sidecar with no raw ids, returns ``None`` — honest ignorance rather than a
+    plausible-looking guess. A caller with no path to resolve gets ``None`` for the same reason.
+    Route (b) then has no denominator and does not run, which is the safe direction.
     """
     content = metadata_payload.get("content") or {}
-    heard = content.get("diarization_num_speakers")
-    if isinstance(heard, bool) or not isinstance(heard, int) or heard <= 0:
+    if metadata_path is None:
         return None
-    return heard
+    sidecar = _segments_sidecar(Path(metadata_path), content)
+    if sidecar is None:
+        return None
+    try:
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    rows = payload if isinstance(payload, list) else (payload.get("segments") or [])
+    raw = {
+        str(r.get("speaker"))
+        for r in rows
+        if isinstance(r, dict) and r.get("speaker") not in (None, "")
+    }
+    return len(raw) or None
 
 
 def _is_not_a_person(name: str, feed_title: str) -> bool:
@@ -606,7 +644,7 @@ class BackfillSpeakerRolesMigration(Migration):
                 promoted, demoted, missing = promote_person_roles(
                     payload,
                     roles,
-                    voices_heard=voices_heard(meta_payload),
+                    voices_heard=voices_heard(meta_payload, meta_path),
                     feed_title=feed_title,
                     ambiguous=ambiguous_nodes,
                     changes=episode_changes,

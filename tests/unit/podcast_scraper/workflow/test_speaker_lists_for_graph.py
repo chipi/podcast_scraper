@@ -18,6 +18,11 @@ from __future__ import annotations
 
 import pytest
 
+from podcast_scraper.identity.roster_provenance import (
+    build_content_speakers_block,
+    roster_provenance,
+    roster_source,
+)
 from podcast_scraper.workflow.metadata_generation import (
     _speaker_lists_for_graph,
     SpeakerInfo,
@@ -168,3 +173,73 @@ class TestEveryCallerPassesTheFeedTitle:
         assert (
             "feed_title" in src[idx : idx + 500]
         ), "enrich-edges must pass feed_title or the show-name guard is inert on that path"
+
+
+class TestTheArtifactRecordsWhereTheRosterCameFrom:
+    """`content.speakers` must say whether it is a MEASUREMENT or a FALLBACK (#2070).
+
+    `metadata_generation.py`::
+
+        speakers = diarized_speakers or _build_speakers_from_detected_names(detected_hosts, ...)
+
+    **This is #2065's root cause.** The real diarization roster and the pre-diarization HINT — read
+    from the feed and the show notes before a second of audio is processed — land in the same field
+    and are indistinguishable on disk. That is precisely why the graph could be fed the hint for
+    months while nobody could tell by looking at an artifact: there was nothing in the artifact to
+    look at.
+
+    Every downstream reader then treats a guess as evidence. `_speaker_lists_for_graph`'s own
+    docstring says "the roster is the ONLY source used when it heard the episode" — a rule it
+    cannot actually enforce, because it cannot tell which it was handed.
+
+    The fix is one field, written where the choice is made. A reader that cares can then refuse to
+    treat a hint as a roster; one that does not is unaffected.
+    """
+
+    def test_a_diarized_roster_is_labelled_diarized(self) -> None:
+        assert (
+            roster_source(_speaker_infos_like([{"name": "A", "role": "host"}]), diarized=True)
+            == "diarized"
+        )
+
+    def test_a_hint_fallback_is_labelled_hint(self) -> None:
+        roster = _speaker_infos_like([{"name": "A", "role": "host"}])
+        assert roster_source(roster, diarized=False) == "hint"
+
+    def test_an_empty_roster_has_no_source_to_claim(self) -> None:
+        assert roster_source([], diarized=True) is None
+
+    def test_the_field_lands_on_the_artifact(self) -> None:
+        # The property that matters: a reader can tell the two apart from the artifact ALONE,
+        # which is exactly what does not hold today.
+        content = build_content_speakers_block(
+            speakers=[{"name": "A", "role": "host"}], diarized=True, num_speakers=2
+        )
+        assert content["speakers_source"] == "diarized"
+        hint = build_content_speakers_block(
+            speakers=[{"name": "A", "role": "host"}], diarized=False, num_speakers=None
+        )
+        assert hint["speakers_source"] == "hint"
+
+    def test_an_unlabelled_artifact_reads_as_unknown_not_as_trusted(self) -> None:
+        # Every artifact already on disk predates the field. Unknown must be its own answer —
+        # treating it as "diarized" is the assumption that produced #2065.
+        assert (
+            roster_provenance({"content": {"speakers": [{"name": "A", "role": "host"}]}})
+            == "unknown"
+        )
+
+    def test_a_labelled_artifact_reads_back(self) -> None:
+        assert (
+            roster_provenance({"content": {"speakers": [{"name": "A"}], "speakers_source": "hint"}})
+            == "hint"
+        )
+
+    def test_no_speakers_at_all_is_its_own_answer(self) -> None:
+        assert roster_provenance({"content": {"speakers": []}}) == "absent"
+
+
+def _speaker_infos_like(rows):
+    from types import SimpleNamespace
+
+    return [SimpleNamespace(name=r["name"], role=r["role"]) for r in rows]
