@@ -338,7 +338,8 @@ class BackfillSpeakerRolesMigration(Migration):
         files = list(_iter_kg_files(ctx.corpus_root))
         changed: List[str] = []
         promoted_total = 0
-        demoted_total = 0
+        demoted_absent = 0
+        demoted_non_person = 0
         no_roster = 0
         already_correct = 0
         unmatched: List[str] = []
@@ -358,33 +359,35 @@ class BackfillSpeakerRolesMigration(Migration):
                 unparsable.append(f"{meta_path.name}: {meta_err}")
                 continue
             feed_title = str((meta_payload.get("feed") or {}).get("title") or "")
+
+            # Route 1 — the node is not a human. Needs no roster, so it runs on EVERY episode,
+            # including the ones whose roster `roster_roles` discards entirely (usually because
+            # every entry in it WAS a show name). Running it first also means the count below is
+            # cleanly split: whatever `promote_person_roles` demotes afterwards is the roster
+            # route alone, and the operator can see which rule moved what before trusting either.
+            non_person = demote_non_persons(payload, feed_title)
+
+            # Route 2 — the roster accounts for every voice and this person is not among them.
             roles = roster_roles(meta_payload)
-            if not roles:
-                # No usable roster — usually because every entry in it was a show name or a role
-                # word (see `roster_roles`). There is no evidence here about who spoke, so nothing
-                # is promoted and no human is demoted. But a node that is not a human never held a
-                # microphone in any episode, and those are exactly the episodes where one is
-                # sitting in the host seat, so that sweep still runs.
-                stripped = demote_non_persons(payload, feed_title)
+            promoted = demoted = 0
+            if roles:
+                promoted, demoted, missing = promote_person_roles(
+                    payload,
+                    roles,
+                    voices_heard=voices_heard(meta_payload),
+                    feed_title=feed_title,
+                )
+                unmatched.extend(f"{path.name}: {pid}" for pid in missing)
+            else:
                 no_roster += 1
-                if stripped:
-                    demoted_total += stripped
-                    changed.append(str(path.relative_to(ctx.corpus_root)))
-                    if not ctx.dry_run:
-                        _write_atomic(path, payload)
-                continue
-            promoted, demoted, missing = promote_person_roles(
-                payload,
-                roles,
-                voices_heard=voices_heard(meta_payload),
-                feed_title=feed_title,
-            )
-            unmatched.extend(f"{path.name}: {pid}" for pid in missing)
-            if not promoted and not demoted:
-                already_correct += 1
+
+            if not promoted and not demoted and not non_person:
+                if roles:
+                    already_correct += 1
                 continue
             promoted_total += promoted
-            demoted_total += demoted
+            demoted_absent += demoted
+            demoted_non_person += non_person
             changed.append(str(path.relative_to(ctx.corpus_root)))
             if not ctx.dry_run:
                 _write_atomic(path, payload)
@@ -392,10 +395,12 @@ class BackfillSpeakerRolesMigration(Migration):
         message = (
             f"{'would promote' if ctx.dry_run else 'promoted'} {promoted_total} Person node(s) to "
             f"their roster role and {'would demote' if ctx.dry_run else 'demoted'} "
-            f"{demoted_total} that the roster says never spoke, across {len(changed)} "
+            f"{demoted_absent + demoted_non_person} from a speaking role "
+            f"({demoted_non_person} that are not a person at all, {demoted_absent} the roster "
+            f"accounts for every voice without naming), across {len(changed)} "
             f"artifact(s); {already_correct} already "
-            f"correct, {no_roster} with no roster on disk, {len(unmatched)} roster name(s) with no "
-            f"matching node (name variants — these need a re-enrich, not this migration), "
+            f"correct, {no_roster} with no usable roster on disk, {len(unmatched)} roster name(s) "
+            f"with no matching node (name variants — these need a re-enrich, not this migration), "
             f"{len(unparsable)} unparsable"
         )
         return MigrationResult(
@@ -407,7 +412,9 @@ class BackfillSpeakerRolesMigration(Migration):
                 "artifacts_scanned": len(files),
                 "changed": len(changed),
                 "persons_promoted": promoted_total,
-                "persons_demoted": demoted_total,
+                "persons_demoted": demoted_absent + demoted_non_person,
+                "persons_demoted_not_a_person": demoted_non_person,
+                "persons_demoted_roster_denies": demoted_absent,
                 "already_correct": already_correct,
                 "no_roster": no_roster,
                 "unmatched_roster_names": len(unmatched),
