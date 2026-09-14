@@ -260,11 +260,21 @@ class AppEntity(BaseModel):
 
     id: str = Field(description="Canonical entity id (person:{slug} / org:{slug}).")
     name: str = Field(description="Display name.")
-    kind: Literal["person", "org"] = Field(description="Entity kind.")
+    kind: Literal["person", "org", "object"] = Field(
+        description="Entity kind. `object` (KG schema 2.1, #2057) is a named thing that is "
+        "neither a person nor a body of people — an event, place, creative work or product."
+    )
     role: str | None = Field(
         default=None,
         description="Speaker role in this episode's KG (host / guest / mentioned); null when "
         "the node carries no role (orgs, older artifacts).",
+    )
+    episode_scoped: bool = Field(
+        default=False,
+        description="True when this person is identified only WITHIN this episode — a single-token "
+        "name (#1685) that names one person here and nobody globally, so there is no corpus-wide "
+        "entity behind it. Render the chip, but do not offer a tap into an entity card: the card "
+        "would be empty. False for everyone with a global identity.",
     )
     image_url: str | None = Field(
         default=None,
@@ -364,6 +374,13 @@ class AppEntitiesResponse(BaseModel):
     episode_slug: str = Field(description="Stable episode slug.")
     persons: list[AppEntity] = Field(default_factory=list)
     orgs: list[AppEntity] = Field(default_factory=list)
+    objects: list[AppEntity] = Field(
+        default_factory=list,
+        description="Named things that are neither people nor organisations (#2057). Additive: "
+        "a client that does not render them simply ignores the field. The backend must not "
+        "silently DROP a first-class entity kind — deciding not to show something is a client "
+        "choice, not a projection accident.",
+    )
     topics: list[AppTopic] = Field(default_factory=list)
 
 

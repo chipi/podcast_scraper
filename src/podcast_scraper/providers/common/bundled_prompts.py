@@ -13,7 +13,7 @@ lands in one place and applies to all providers, not six.
 
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 EXTRACT_QUOTES_BUNDLED_SYSTEM = (
     "For EACH insight below, extract 3-5 short verbatim quotes from the "
@@ -36,9 +36,9 @@ SCORE_ENTAILMENT_BUNDLED_SYSTEM = (
 def extract_quotes_bundled_user(transcript: str, insight_texts: List[str]) -> str:
     """Render the user message for ``extract_quotes_bundled``.
 
-    Caller is responsible for clipping ``transcript`` to a budget appropriate
-    for the provider's context window (Gemini uses 50_000 chars; smaller
-    models may need less).
+    Caller is responsible for clipping ``transcript`` to a budget derived from the
+    deployment's SERVED context window (#2050). This used to name a per-vendor literal;
+    there is no such default any more — the window is declared, discovered or learned.
     """
     numbered_insights = "\n".join(
         f"{idx}: {text.strip()}" for idx, text in enumerate(insight_texts)
@@ -141,6 +141,21 @@ def score_entailment_bundled_max_tokens(chunk_size: int) -> int:
     return max(256, min(8192, 30 * max(1, chunk_size)))
 
 
-def transcript_clip(transcript: str, max_chars: int = 50_000) -> str:
-    """Clip transcript to provider-appropriate budget. Default matches Gemini's 50k."""
+def transcript_clip(transcript: str, max_chars: Optional[int] = None) -> str:
+    """Clip a transcript to what the caller's deployment can actually hold.
+
+    ``max_chars`` comes from the provider's ``transcript_budget_chars()``, which derives it from
+    the served context window (#2050).
+
+    ``None`` means the window is NOT KNOWN — nothing declared one, the server advertised none, no
+    400 has taught us one — and the transcript is returned uncut. There used to be a 50,000-char
+    default here, which meant every caller that omitted the window silently got a clip sized for
+    no model in particular: the bundled quote path saw roughly the first 60 minutes of every
+    episode while the staged path on the SAME model used 106,905 chars. A default is
+    indistinguishable from knowledge at the call site, and that is the bug.
+    """
+    if max_chars is None:
+        return transcript.strip()
+    if max_chars <= 0:
+        return ""
     return transcript.strip()[:max_chars]

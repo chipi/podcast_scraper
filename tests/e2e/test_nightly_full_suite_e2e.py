@@ -22,6 +22,7 @@ import pytest
 
 from podcast_scraper import config
 from tests.conftest import create_test_config
+from tests.e2e.conftest import requires
 
 
 def create_nightly_config(output_dir: str, rss_url: str):
@@ -84,6 +85,7 @@ class TestNightlyFullSuite:
             "podcast5",  # p05 - Investing
         ],
     )
+    @requires("torch")  # builds a real index / runs the ML pipeline
     def test_nightly_podcast_full_pipeline(self, podcast_name, e2e_server, tmpdir):
         """Test full pipeline for a single podcast with all episodes.
 

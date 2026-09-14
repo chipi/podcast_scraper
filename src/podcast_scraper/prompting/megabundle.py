@@ -78,7 +78,7 @@ def build_megabundle_prompt(
     num_insights: int = DEFAULT_MEGA_BUNDLE_INSIGHTS,
     num_topics: int = DEFAULT_MEGA_BUNDLE_TOPICS,
     max_entities: int = DEFAULT_MEGA_BUNDLE_ENTITIES_MAX,
-    max_transcript_chars: int = 25_000,
+    max_transcript_chars: Optional[int] = None,
     cache_transcript_prefix: bool = False,
 ) -> Tuple[str, str]:
     """Return (system_prompt, user_prompt) for a mega-bundle request.
@@ -95,7 +95,8 @@ def build_megabundle_prompt(
             (autoresearch sweet spot = 12).
         num_topics: Exact number of KG topic labels (autoresearch sweet spot = 10).
         max_entities: Upper bound on entities (not a hard minimum).
-        max_transcript_chars: Input transcript cap, default 25K chars.
+        max_transcript_chars: Input transcript cap in chars, from the caller's
+            context budget. ``None`` = the window is unknown; do not clip (#2050).
 
     Returns:
         (system_prompt, user_prompt) tuple of strings.
@@ -103,7 +104,10 @@ def build_megabundle_prompt(
     # Truncate input to keep token cost bounded. Providers that want the full
     # transcript can pass a larger ``max_transcript_chars`` or override
     # client-side.
-    if len(transcript) > max_transcript_chars:
+    # #2050: ``None`` means the caller does not know its window and the transcript is sent whole,
+    # so the server's own 400 can name the real limit. The old 25,000-char default was applied by
+    # every caller that omitted it — a number fitted to no model in particular.
+    if max_transcript_chars is not None and len(transcript) > max_transcript_chars:
         transcript = transcript[:max_transcript_chars]
 
     system = (
@@ -153,7 +157,7 @@ def build_extraction_bundle_prompt(
     num_insights: int = DEFAULT_MEGA_BUNDLE_INSIGHTS,
     num_topics: int = DEFAULT_MEGA_BUNDLE_TOPICS,
     max_entities: int = DEFAULT_MEGA_BUNDLE_ENTITIES_MAX,
-    max_transcript_chars: int = 25_000,
+    max_transcript_chars: Optional[int] = None,
     cache_transcript_prefix: bool = False,
 ) -> Tuple[str, str]:
     """Build the extraction-only half of a 2-call pipeline (#643 extraction_bundled).
@@ -163,7 +167,10 @@ def build_extraction_bundle_prompt(
     bundle insights + topics + entities. Suitable for OpenAI, Gemini, Mistral,
     Grok — providers where full mega-bundle compresses the summary too much.
     """
-    if len(transcript) > max_transcript_chars:
+    # #2050: ``None`` means the caller does not know its window and the transcript is sent whole,
+    # so the server's own 400 can name the real limit. The old 25,000-char default was applied by
+    # every caller that omitted it — a number fitted to no model in particular.
+    if max_transcript_chars is not None and len(transcript) > max_transcript_chars:
         transcript = transcript[:max_transcript_chars]
 
     system = (

@@ -53,19 +53,27 @@ def test_the_real_speakers_still_attribute() -> None:
 
 def test_only_real_turn_markers_become_speakers() -> None:
     """Musk and Altman are named in the transcript. Neither may appear as a speaker."""
-    speakers = {label for _off, label in build_unverified_named_turns(TRANSCRIPT)}
+    speakers = {label for _off, label in build_unverified_named_turns(TRANSCRIPT) if label}
     assert speakers == {"Kevin Roose", "Casey Newton", "Dr. Adam Rodman"}
     assert "Elon Musk" not in speakers
     assert "Sam Altman" not in speakers
 
 
 def test_prose_colons_and_publishers_are_not_speakers() -> None:
-    """``Note:`` is not a person and ``Bloomberg:`` is not a mouth."""
+    """``Note:`` is not a person and ``Bloomberg:`` is not a mouth.
+
+    Since #2062 a non-person label is still a turn BOUNDARY — it is recorded with a ``None`` name
+    so it ends the previous speaker's span instead of letting it swallow the line. It is a speaker
+    that it must never become, and that is what this asserts.
+    """
     noisy = (
         "Note: the following is sponsored.\nBloomberg: a network, not a person.\nKevin Roose: Hi.\n"
     )
-    speakers = {label for _off, label in build_unverified_named_turns(noisy)}
+    turns = build_unverified_named_turns(noisy)
+    speakers = {label for _off, label in turns if label}
     assert speakers == {"Kevin Roose"}
+    # Both rejected labels are present as boundaries, naming nobody.
+    assert [label for _off, label in turns] == [None, None, "Kevin Roose"]
 
 
 def test_cleaning_v4_destroys_attribution_and_v5_preserves_it() -> None:
@@ -82,12 +90,14 @@ def test_cleaning_v4_destroys_attribution_and_v5_preserves_it() -> None:
     # v4 must anonymise EVERY speaker. Writing this fixture is what exposed that it didn't: the
     # honorific in "Dr. Adam Rodman:" defeated the pattern, so the guest's name — the one name a
     # summary must never parrot — sailed through while the hosts' names were scrubbed.
-    assert not build_unverified_named_turns(v4), (
+    # #2062: an anonymised transcript is full of ``SPEAKER_NN:`` markers, which are now recorded as
+    # None-named boundaries. "Anonymised" therefore means no turn carries a NAME, not no turns.
+    assert not any(name for _off, name in build_unverified_named_turns(v4)), (
         "cleaning_v4 is expected to anonymise speakers away — if it no longer does, GI's profile "
         "choice needs revisiting, and so does the summariser's speaker-leak rate."
     )
     assert "Rodman" not in v4 and "Kevin" not in v4
 
-    v5_speakers = {label for _off, label in build_unverified_named_turns(v5)}
+    v5_speakers = {label for _off, label in build_unverified_named_turns(v5) if label}
     assert "Kevin Roose" in v5_speakers, "cleaning_v5 must preserve the names GI attributes from"
     assert "Dr. Adam Rodman" in v5_speakers

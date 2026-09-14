@@ -6,9 +6,12 @@ worse than not having it: a gap is measurable and backfillable the day chunk/map
 whereas silently degraded data pollutes both the corpus and the gates that decide which feeds to
 onboard.
 
-The ceiling is derived from ``GI_QUOTE_TRANSCRIPT_MAX_CHARS`` — exactly what the extractor can
-read — not chosen by taste. It happens to land within 6% of the independent §5h operator rule of
-two hours.
+The ceiling is DERIVED from the window the deployment serves — exactly what the extractor can
+read — never chosen by taste.
+
+#2050 removed the global fallback. If no StageOption declares a window we do not know it, and a
+permanent editorial decision must not rest on a guess: nothing is skipped, and an episode that
+turns out not to fit gets a 400 naming the real limit for the provider to clamp against.
 """
 
 from __future__ import annotations
@@ -35,23 +38,43 @@ def _item(title: str, duration: str | None) -> ET.Element:
     return el
 
 
+#: The DGX window, as `prod_dgx_full` materializes it from the summary StageOption.
+_SERVED_WINDOW = 32_768
+
+
+def _ceiling(window: int = _SERVED_WINDOW) -> int:
+    budget = config_constants.transcript_budget_chars(
+        window, response_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS
+    )
+    assert budget is not None
+    return int((budget / config_constants.CHARS_PER_MINUTE_OF_SPEECH) * 60)
+
+
 class _Cfg:
     max_episode_seconds = 0
+    llm_served_context_tokens = _SERVED_WINDOW
 
 
-def _drop(items):
-    return scraping._drop_unprocessably_long(items, _Cfg())
+class _CfgNoWindowDeclared:
+    """A profile whose StageOption declares nothing — so the window is unknown."""
+
+    max_episode_seconds = 0
+    llm_served_context_tokens = 0
+
+
+def _drop(items, cfg=None):
+    return scraping._drop_unprocessably_long(items, cfg or _Cfg())
 
 
 def test_an_episode_over_the_ceiling_is_dropped() -> None:
-    over = config_constants.MAX_PROCESSABLE_EPISODE_SECONDS + 600
+    over = _ceiling() + 600
     kept = _drop([_item("short", "1800"), _item("epic", str(over))])
     assert [_title(i) for i in kept] == ["short"]
 
 
 def test_an_episode_at_the_ceiling_is_kept() -> None:
     """The boundary must not silently shrink the corpus by one episode."""
-    at = config_constants.MAX_PROCESSABLE_EPISODE_SECONDS
+    at = _ceiling()
     assert len(_drop([_item("boundary", str(at))])) == 1
 
 
@@ -67,21 +90,34 @@ def test_hhmmss_and_mmss_are_both_understood() -> None:
     assert len(_drop([_item("fifty minutes", "50:00")])) == 1
 
 
-def test_the_ceiling_matches_what_the_extractor_can_actually_read() -> None:
-    """Derived, not chosen — so it moves with the budget instead of drifting from it."""
-    expected = int(
-        (
-            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS
-            / config_constants.CHARS_PER_MINUTE_OF_SPEECH
-        )
-        * 60
+def test_nothing_is_skipped_when_no_window_is_declared() -> None:
+    """#2050: a guess is not grounds for a permanent editorial decision.
+
+    Before this, an undeclared profile inherited a ceiling derived from the narrowest model in the
+    fleet — so a 1M-token deployment silently refused episodes because of a DGX serving flag.
+    """
+    ten_hours = str(10 * 3600)
+    items = [_item("short", "1800"), _item("enormous", ten_hours)]
+    kept = _drop(items, _CfgNoWindowDeclared())
+    assert [_title(i) for i in kept] == ["short", "enormous"]
+
+
+def test_the_ceiling_moves_with_the_served_window() -> None:
+    """The whole point of #2050: raise the window (#1985) and the ceiling follows, no code edit."""
+    assert _ceiling(65_536) > _ceiling(32_768)
+    at_64k = _ceiling(65_536)
+    kept = _drop(
+        [_item("141 minute dwarkesh", str(141 * 60))],
+        type("Cfg", (), {"max_episode_seconds": 0, "llm_served_context_tokens": 65_536})(),
     )
-    assert config_constants.MAX_PROCESSABLE_EPISODE_SECONDS == expected
+    assert (
+        len(kept) == 1
+    ), f"a 141-minute episode must fit a 64k window (ceiling {at_64k // 60} min)"
 
 
-def test_the_ceiling_is_near_the_two_hour_operator_rule() -> None:
+def test_the_ceiling_is_near_the_two_hour_operator_rule_at_the_dgx_window() -> None:
     """§5h independently set 2 hours on editorial grounds; the two should not wildly disagree."""
-    assert 6600 <= config_constants.MAX_PROCESSABLE_EPISODE_SECONDS <= 8400
+    assert 6000 <= _ceiling() <= 8400
 
 
 def _title(item: ET.Element) -> str:

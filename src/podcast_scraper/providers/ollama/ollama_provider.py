@@ -361,8 +361,25 @@ class OllamaProvider:
         # set explicitly. 32768 is the research-recommended safe default on 48GB.
         # gemma2 is structurally capped at 8192 regardless; Ollama silently clamps.
         self.summary_num_ctx: int = int(getattr(cfg, "ollama_num_ctx", 32768) or 32768)
-        # Modern Ollama models support 128k context window
-        self.max_context_tokens = 128000  # Conservative estimate
+        # The window this deployment SERVES is `num_ctx` — the value we send on every request —
+        # not what the model could support in principle (#2050).
+        #
+        # This was 128000 ("modern Ollama models support 128k"), which is a statement about the
+        # model, not about the server we are talking to. Once transcript budgets started deriving
+        # from `max_context_tokens`, that 4x overstatement became dangerous HERE specifically,
+        # because Ollama does not reject an over-long prompt — it TRUNCATES SILENTLY and returns
+        # 200 (see the num_ctx note in this module's docstring). And ollama is prod's summary
+        # failover tier (`summary_fallback_providers: [ollama]`), so the path is:
+        #
+        #   vLLM 400s on a long episode -> fail over to ollama -> ollama silently drops most of
+        #   the transcript -> a "successful" reply is recorded as a valid extraction.
+        #
+        # Silently degraded corpus data is worse than a missing episode: a gap is measurable and
+        # backfillable, bad data is neither. At num_ctx=32768 the bundled-quote budget is 83,865
+        # chars; the 128000 figure made it 383,846.
+        self.max_context_tokens = (
+            int(getattr(cfg, "ollama_max_context_tokens", 0) or 0) or self.summary_num_ctx
+        )
 
         # Initialization state
         self._speaker_detection_initialized = False
@@ -1096,7 +1113,10 @@ class OllamaProvider:
     ) -> Dict[str, Any]:
         """Summarize text using Ollama API.
 
-        Can handle full transcripts directly due to large context window (128k tokens).
+        The transcript is clipped to what num_ctx actually holds (#2050). This docstring used
+        to claim a 128k window and send the transcript whole — Ollama does not reject an
+        over-long prompt, it truncates and returns 200, so the claim cost the tail of every long
+        episode on the failover tier.
         No chunking needed for most podcast transcripts.
 
         Key advantage: Fully offline, zero cost, complete privacy.
@@ -1376,6 +1396,20 @@ class OllamaProvider:
 
         max_out = int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384)
 
+        # #2050 / advisor M2: the bundled path renders its own prompt and never reaches
+        # `_build_summarization_prompts`, so it needs its own clip. Ollama truncates silently
+        # rather than 400ing, and this is prod's summary failover tier.
+        _budget = config_constants.transcript_budget_chars(
+            getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+        )
+        if _budget is not None and len(text or "") > _budget:
+            logger.warning(
+                "ollama: bundled-summary transcript %d chars exceeds the %d-char budget; "
+                "clipping (#2050)",
+                len(text),
+                _budget,
+            )
+            text = text[:_budget]
         tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
         system_prompt = render_prompt(
             "ollama/summarization/bundled_clean_summary_system_v1",
@@ -1554,6 +1588,29 @@ class OllamaProvider:
         custom_prompt: Optional[str],
     ) -> tuple[str, str, Optional[str], str, int, int]:
         """Build system and user prompts for summarization using prompt_store."""
+
+        # #2050 / advisor M2: Ollama TRUNCATES SILENTLY rather than returning a 400 (see the
+        # num_ctx note in this module's docstring), and it is prod's summary failover
+        # (`summary_fallback_providers: [ollama]`). The base class clips in `summarize()`, but
+        # Ollama overrides `summarize()`, so that fix never applied here — the exact path the
+        # #2050 commit claimed to have closed. This builder is reached only by `summarize`;
+        # `summarize_bundled` renders its own prompt and is clipped separately at its own call.
+        #
+        # The gap widened when the DGX went to 64k: the episode gate now admits ~197k chars
+        # against an Ollama window of num_ctx=32768, roughly 2x what it can hold.
+        _budget = config_constants.transcript_budget_chars(
+            getattr(self, "max_context_tokens", None), response_tokens=int(max_length)
+        )
+        if _budget is not None and len(text or "") > _budget:
+            logger.warning(
+                "ollama: summarization transcript %d chars exceeds the %d-char budget for a "
+                "%s-token window; clipping (#2050). Ollama truncates silently rather than "
+                "rejecting, so without this the tail was dropped with no error.",
+                len(text),
+                _budget,
+                getattr(self, "max_context_tokens", None),
+            )
+            text = text[:_budget]
         from ...prompts.store import render_prompt
 
         # Try model-specific prompts first, fallback to generic
@@ -1816,8 +1873,16 @@ class OllamaProvider:
         # so evals could not pin it and the pipeline was not reproducible.
         insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "ollama")
         text_slice = (text or "").strip()
-        if len(text_slice) > 120000:
-            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+        # #2050: derive the clip from the window this deployment actually serves, not from a
+        # literal. 120,000 chars is ~34,000 tokens at the 3.5 chars/token prod ratio — ALREADY
+        # over the DGX's 32,768-token window, so this site was handing the server a prompt it
+        # had to reject. A wider model (Gemini ~1M) was equally wrongly clipped downward.
+        _budget = config_constants.transcript_budget_chars(
+            getattr(self, "max_context_tokens", None),
+            response_tokens=insight_max_tokens,
+        )
+        if _budget and len(text_slice) > _budget:
+            text_slice = text_slice[:_budget] + "\n\n[Transcript truncated.]"
 
         try:
             # The prompt decides what an insight IS, so it is a tuned parameter like any other.
@@ -1992,6 +2057,7 @@ class OllamaProvider:
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
+            KG_RESPONSE_TOKENS,
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
@@ -1999,7 +2065,17 @@ class OllamaProvider:
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)
@@ -2275,7 +2351,17 @@ class OllamaProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        clipped = transcript_clip(transcript)  # RFC-115: relocate exact embedded string
+        # #2050: the reply budget is computed first because it is what the clip must leave room
+        # for. Both used to be sized in ignorance of each other and of the served window.
+        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
+        # RFC-115: relocate the CLIPPED transcript (exact embedded string) for prefix caching.
+        clipped = transcript_clip(
+            transcript,
+            max_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=max_out,
+            ),
+        )
         user = extract_quotes_bundled_user(clipped, insight_texts)
         messages = _openai_style_messages(
             clipped, system, user, enabled=self._cache_transcript_prefix
@@ -2283,7 +2369,6 @@ class OllamaProvider:
         call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("ollama")
         pm = kwargs.get("pipeline_metrics")
-        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
         def _make_api_call() -> Any:
             return self.client.chat.completions.create(

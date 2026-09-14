@@ -115,13 +115,18 @@ def inspect_summary(
             if isinstance(td, str) and td.strip():
                 trow["description"] = td.strip()
             topics.append(trow)
-        elif nt in ("Entity", "Person", "Organization"):
+        elif nt in ("Entity", "Person", "Organization", "Object"):
             # RFC-097: v1.x Entity + v2.0 Person/Organization roll up together.
             ed = props.get("description")
             if nt == "Person":
                 ek_disp: Optional[str] = "person"
             elif nt == "Organization":
                 ek_disp = "organization"
+            elif nt == "Object":
+                # v2.1 (#2057). Without this branch an Object fell to the person default below
+                # and the rollup keyed it as `person:{name}` — re-creating, one layer down, the
+                # "everything is a person" bug the Object type exists to end.
+                ek_disp = "object"
             else:
                 ek_disp = _kg_entity_kind_display(props)
             erow: Dict[str, Any] = {
@@ -180,7 +185,7 @@ def build_embedding_document_for_kg_node(
         desc = props.get("description")
         if isinstance(desc, str) and desc.strip():
             parts.append(desc.strip())
-    elif nt in ("Entity", "Person", "Organization"):
+    elif nt in ("Entity", "Person", "Organization", "Object"):
         # RFC-097: v1.x Entity + v2.0 Person/Organization embed the same fields.
         name = props.get("name")
         if name:
@@ -237,7 +242,7 @@ def entity_rollup(
         for n in art.get("nodes", []):
             nt = n.get("type")
             # RFC-097: rollup covers v1.x Entity + v2.0 Person/Organization.
-            if nt not in ("Entity", "Person", "Organization"):
+            if nt not in ("Entity", "Person", "Organization", "Object"):
                 continue
             props = n.get("properties") or {}
             name = str(props.get("name", "")).strip()

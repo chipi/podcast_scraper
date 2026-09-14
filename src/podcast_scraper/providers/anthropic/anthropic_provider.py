@@ -247,7 +247,13 @@ class AnthropicProvider:
         self.summary_model = getattr(cfg, "anthropic_summary_model", "claude-3-5-sonnet-20241022")
         self.summary_temperature = getattr(cfg, "anthropic_temperature", 0.3)
         # Claude 3.5 Sonnet supports 200K context window
-        self.max_context_tokens = 200000
+        # The window this DEPLOYMENT serves (#2050). Claude publishes 200k, but a
+        # gateway or a self-hosted stand-in can serve less — and a budget derived from an
+        # overstated window is a prompt the server rejects or silently truncates. So the
+        # published figure is the FALLBACK, and a profile/StageOption can declare the real one.
+        self.max_context_tokens = (
+            int(getattr(cfg, "anthropic_max_context_tokens", 0) or 0) or 200000
+        )
 
         # Models known to reject `temperature` (see _TEMPERATURE_DEPRECATED_SEED). Grows at runtime
         # when the API teaches us a new one. Shared across instances so the lesson is learned once.
@@ -1027,7 +1033,13 @@ class AnthropicProvider:
             or 16384
         )
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_megabundle_prompt(
+            text,
+            language=language,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1113,7 +1125,13 @@ class AnthropicProvider:
             or 16384
         )
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_extraction_bundle_prompt(
+            text,
+            language=language,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1640,8 +1658,16 @@ class AnthropicProvider:
         # so evals could not pin it and the pipeline was not reproducible.
         insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "anthropic")
         text_slice = (text or "").strip()
-        if len(text_slice) > 120000:
-            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+        # #2050: derive the clip from the window this deployment actually serves, not from a
+        # literal. 120,000 chars is ~34,000 tokens at the 3.5 chars/token prod ratio — ALREADY
+        # over the DGX's 32,768-token window, so this site was handing the server a prompt it
+        # had to reject. A wider model (Gemini ~1M) was equally wrongly clipped downward.
+        _budget = config_constants.transcript_budget_chars(
+            getattr(self, "max_context_tokens", None),
+            response_tokens=insight_max_tokens,
+        )
+        if _budget and len(text_slice) > _budget:
+            text_slice = text_slice[:_budget] + "\n\n[Transcript truncated.]"
 
         try:
             # The prompt decides what an insight IS, so it is a tuned parameter like any
@@ -1849,6 +1875,7 @@ class AnthropicProvider:
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
+            KG_RESPONSE_TOKENS,
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
@@ -1856,7 +1883,17 @@ class AnthropicProvider:
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)
@@ -1938,7 +1975,10 @@ class AnthropicProvider:
             "anthropic",
             transcript,
             insight_text,
-            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS,
+            config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
+            ),
         )
         try:
             from ...utils.provider_metrics import (
@@ -2155,7 +2195,17 @@ class AnthropicProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        clipped = transcript_clip(transcript)  # RFC-115: relocate exact embedded string
+        # #2050: the reply budget is computed first because it is what the clip must leave room
+        # for. Both used to be sized in ignorance of each other and of the served window.
+        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
+        # RFC-115: relocate the CLIPPED transcript (exact embedded string) for prefix caching.
+        clipped = transcript_clip(
+            transcript,
+            max_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=max_out,
+            ),
+        )
         user = extract_quotes_bundled_user(clipped, insight_texts)
         _sys, _usr = _anthropic_style_system(
             clipped, system, user, enabled=self._cache_transcript_prefix
@@ -2165,7 +2215,6 @@ class AnthropicProvider:
         call_metrics.set_provider_name("anthropic")
         call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
-        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
         def _make_api_call() -> Any:
             return self._messages_create(

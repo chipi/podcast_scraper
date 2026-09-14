@@ -16,6 +16,7 @@ from podcast_scraper.providers.ml import embedding_loader  # noqa: E402
 from podcast_scraper.search import hybrid_search as hs  # noqa: E402
 from podcast_scraper.search.backend import InsightDocument, SegmentDocument  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
+from tests.integration.conftest import requires
 
 _MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
@@ -56,6 +57,7 @@ def corpus(tmp_path):
     return tmp_path / "corpus"
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_maps_both_tiers_with_doc_type_and_timestamps(corpus):
     rows = hs.hybrid_candidates(corpus, "AI scaling", top_k=5)
     by_id = {r.doc_id: r for r in rows}
@@ -66,6 +68,7 @@ def test_maps_both_tiers_with_doc_type_and_timestamps(corpus):
     assert seg.metadata["episode_id"] == "ep1"
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_tier_scoping(corpus):
     assert [
         r.doc_id for r in hs.hybrid_candidates(corpus, "AI", top_k=5, doc_types=["insight"])
@@ -80,6 +83,7 @@ def test_missing_index_returns_none(tmp_path):
     assert hs.hybrid_candidates(tmp_path / "nope", "AI", top_k=5) is None
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_grounded_flag_roundtrips_through_lancedb(tmp_path):
     """#19 end-to-end: the insight ``derived`` field round-trips through REAL LanceDB storage →
     hybrid_candidates → grounded metadata, so grounded_only can drop ungrounded insights (the unit

@@ -38,7 +38,7 @@ _HARD_STAGES: Dict[str, Dict[str, Tuple[str, ...]]] = {
         "kills": ("show_episodes",),
     },
     "relational edges — typed MENTIONS_PERSON/ORG (make enrich-relational-edges)": {
-        "any_of": ("MENTIONS_PERSON", "MENTIONS_ORG"),
+        "any_of": ("MENTIONS_PERSON", "MENTIONS_ORG", "MENTIONS_OBJECT"),
         "kills": (
             "entities_in_topic",
             "insights_about_entity",

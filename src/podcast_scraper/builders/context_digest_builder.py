@@ -58,7 +58,14 @@ def _iter_nodes(*artifacts: Optional[Mapping[str, Any]]) -> List[Mapping[str, An
 
 
 def _is_bare_voice(node: Mapping[str, Any]) -> bool:
-    """True when a Person node is an unresolved diarization speaker (SPEAKER_NN)."""
+    """True when a Person node is an unresolved voice — ``SPEAKER_NN`` or a ROLE word.
+
+    Role words joined in #2059: a Person literally named "Host" or "Guest" is a position in the
+    conversation, not a human, and belongs in ``bare_labels`` with the numbered voices rather than
+    in ``people``. That is a deliberate behaviour change for digests of episodes whose host the
+    roster never named — the digest now says "an unnamed host spoke" instead of naming a person
+    called Host.
+    """
     if node.get("type") != "Person":
         return False
     return bool(is_bare_speaker_label(_node_name(node)) or is_bare_speaker_label(node.get("id")))

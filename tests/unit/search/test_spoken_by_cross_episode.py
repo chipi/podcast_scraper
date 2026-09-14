@@ -25,7 +25,10 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.gi.speakers import person_id
+# Imported from its real home. It used to be pulled transitively through `gi.speakers`, which
+# stopped re-exporting it when that module switched to the placeholder-aware `entity_node_id`
+# (#2059 / review H1). The two are byte-identical for real names like this test's.
+from podcast_scraper.identity.slugify import person_id
 from podcast_scraper.search.cli_handlers import parse_enrich_edges_argv, run_enrich_edges_cli
 from podcast_scraper.search.corpus_graph import CorpusGraph
 

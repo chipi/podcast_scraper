@@ -216,6 +216,10 @@ class TestGetProviderCapabilities(unittest.TestCase):
         self.assertTrue(caps.supports_tool_calls)
         self.assertTrue(caps.supports_system_prompt)
         self.assertEqual(caps.provider_name, "openai")
+        # #2050: 128,000 here is the VENDOR-PUBLISHED window for the `openai` namespace
+        # (_PUBLISHED_CONTEXT_TOKENS), used only as the fallback when nothing declared one. It is
+        # no longer a single global default applied to every provider on this transport — vllm
+        # deliberately has no published entry, because a self-hosted window can only be discovered.
         self.assertEqual(caps.max_context_tokens, 128000)
         self.assertTrue(caps.supports_gi_segment_timing)
 

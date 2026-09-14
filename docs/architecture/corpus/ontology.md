@@ -75,6 +75,7 @@ should we add it) does not change this contract.
 | `Episode` | target of `HAS_EPISODE`, source of `HAS_INSIGHT` | `podcast_id`, `title`, `publish_date` (ISO-8601) | `audio_url`, `duration_ms`, `feed_id` |
 | `Person` | target of `SPOKEN_BY` / `MENTIONS_PERSON`, source of `SPOKE_IN` / `HOSTS` / `GUESTS_ON` | `name` | `aliases[]` |
 | `Organization` | target of `MENTIONS_ORG` / KG `MENTIONS` | `name` | `aliases[]` |
+| `Object` | target of KG `MENTIONS` | `name` | `aliases[]`, `description` |
 | `Topic` | target of `ABOUT` / KG `MENTIONS` | `label`, `slug` | `aliases[]`, `description` |
 | `Insight` | source of `SUPPORTED_BY` / `ABOUT` / `MENTIONS_PERSON` / `MENTIONS_ORG`, target of `HAS_INSIGHT` | `text`, `episode_id`, `grounded` | `confidence`, `insight_type`, `position_hint` |
 | `Quote` | target of `SUPPORTED_BY`, source of `SPOKEN_BY` | `text` (**verbatim**), `episode_id`, `char_start`, `char_end`, `timestamp_start_ms`, `timestamp_end_ms`, `transcript_ref` | `speaker_id` (`person:{slug}` when diarization aligned) |
@@ -84,6 +85,50 @@ discriminator is replaced by first-class `Person` and `Organization`
 node types. Permissive schemas (v2.0 KG / v3.0 GI) accept both shapes
 during the bake window; chunk 9 of the v2 migration drops legacy
 support (gated on ADR-101).
+
+### `Object` — the third kind (v2.1, #2057)
+
+A **named thing that is neither a person nor a body of people**: an event, a
+place, a creative work, a product, a podcast, a book, a standard.
+
+The test for `Organization` is *could it employ someone or hold a position?* A
+company, university, band or agency can. The Norman Conquest cannot, and neither
+can a podcast episode — those are `Object`.
+
+`Object` is also the **catch-all**. An entity whose `entity_kind` the extractor
+omitted, or gave outside the vocabulary, becomes an `Object`. This is deliberate
+and is the whole reason the type exists:
+
+> Before v2.1 the vocabulary was `person | organization` and the normaliser was two
+> branches — a handful of organisation synonyms, then `return "person"` for
+> everything else. So `event`, `podcast`, `show`, `place`, `book`, `film`,
+> `product`, `concept` **and a missing kind** all became people. Measured on prod
+> `top_people` 2026-09-13, 7 of the corpus's top 40 "voices" were not people: two
+> podcasts, three organisations, an 11th-century event and a placeholder.
+
+**Causal caveat.** `top_people` ranks by insights supported by quotes `SPOKEN_BY` a
+Person in `gi.json`, and the KG pipeline emits no `SPOKEN_BY` edges. So this default
+explains non-people occupying Person **nodes**; it does not explain the 2,720 grounded
+insights the Norman Conquest carries, which required the GI speaker-attribution path
+to name a quote cluster after it. The two are separate defects that produced one
+symptom.
+
+Two rules follow, and they are the point of the type:
+
+1. **`person` is never a fallback.** It is returned only when the extractor says
+   so. Defaulting an untrusted value to the most specific and most user-visible
+   type is backwards.
+2. **Unknown does not mean drop.** An unplaceable entity is still a real referent;
+   `Object` keeps it addressable without asserting something false about it.
+
+`Object` carries no role beyond `mentioned` — it cannot host or guest — and takes
+`object:{slug}` ids.
+
+**Existing corpora.** Migration `0008` stamps artifacts as schema 2.1 so readers
+accept `Object`, but it does **not** reclassify existing `Person` nodes. The
+extractor's original `entity_kind` was coerced away at write time and is not
+recoverable from disk; recovering it by guessing from the name would be inventing
+data. Cleaning historical pollution is a **re-enrichment**, not a migration.
 
 ---
 

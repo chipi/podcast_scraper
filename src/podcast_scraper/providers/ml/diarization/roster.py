@@ -1165,6 +1165,8 @@ def _name_guest_voices(
             forced = spare[0]
             unassigned = remaining
 
+    #: How many anonymous voices have already spent a guest name as their evidence (#2062).
+    spent_unnamed_guest_evidence = 0
     for v in voices_by_total:
         if v in assigned:
             continue
@@ -1181,8 +1183,30 @@ def _name_guest_voices(
             # evidence: detected guest names, or a self-intro from a NON-host voice.
             # ``voice_intro`` is episode-wide and includes the host's own intro, so a
             # host-only-intro show must leave leftovers "unknown", not "guest" (#1170).
-            has_guest_intro = any(vid not in assigned for vid in voice_intro)
-            role = "guest" if (guest_names or has_guest_intro) else "unknown"
+            #
+            # #2062: that evidence is CONSUMED, not shared. ``guest_names`` is episode-wide, so
+            # testing it directly meant one guest anywhere in the episode made EVERY anonymous
+            # voice a guest — including after that guest had already been matched to their own
+            # voice. A fresh ingest produced ten voices with seven unnamed, and all seven came back
+            # "guest"; across production it is 41.1% of unnamed voices. Archival tape, a caller and
+            # a diarization over-split are not guests of the show.
+            #
+            # N unclaimed names can explain at most N anonymous voices. Past that the evidence is
+            # spent and the honest label is "unknown" — which costs a SPEAKER_01 on screen, where
+            # the alternative tells the listener a stranger was the guest.
+            unclaimed_names = [g for g in guest_names if g.lower() not in used_lower]
+            # Same consumption rule for intros: an intro that has already explained ITS OWN voice
+            # (that voice is in ``out`` now) is spent evidence and cannot vouch for a second voice.
+            has_guest_intro = any(vid not in assigned and vid not in out for vid in voice_intro)
+            # Consumption is tracked LOCALLY. ``used_lower`` means "this NAME is on the roster",
+            # and the voice-type pass reads it to decide whether a declared guest is still going
+            # spare — i.e. whether we FAILED to name a voice we should have. Spending a name here
+            # would erase that signal and report a naming failure as an unidentifiable voice.
+            if len(unclaimed_names) > spent_unnamed_guest_evidence:
+                role = "guest"
+                spent_unnamed_guest_evidence += 1
+            else:
+                role = "guest" if has_guest_intro else "unknown"
             out[v] = SpeakerRole(name=v, role=role, named=False, source="raw")
     return out
 
@@ -1689,6 +1713,32 @@ def _select_host_voices(
                 and v in voice_intro
             ):
                 host_voices.append(v)
+
+    # 6. A STAND-IN INTERVIEWER (#2061). The feed names hosts, none of them turned up, and every
+    #    step above declined — yet somebody ran the interview. On WSJ's "The Journal." the "My
+    #    Monday Morning" strand is presented by a reporter who is not one of the show's two stated
+    #    hosts, so the episode came out with no host and BOTH people labelled guests.
+    #
+    #    Step 2 is the one that should have caught it. It declines because `stated_non_host_voices`
+    #    treats a voice that says a name outside the host pool as evidence it is not a host. That
+    #    guard is right about what it was built for — stopping a GUEST from filling a seat its
+    #    stated host merely vacated (No Priors: Andy Fang over an absent Sarah Guo) — but "not one
+    #    of the feed's hosts" is not "not hosting this episode".
+    #
+    #    So: behaviour outranks a feed-level roster that does not describe this episode, but only
+    #    once that roster has produced NOTHING. Conditions are the union of every guard above —
+    #    performs host speech acts, never heard as a guest, not an ad, and NAMED (the same
+    #    anti-vox-pop rule step 5 applies, and the reason this cannot promote anonymous tape).
+    if host_pool and not host_voices:
+        for v in conv_hosts:
+            if (
+                v not in conv_guests
+                and v not in ad_voices
+                and v not in llm_guest_voices
+                and v in voice_intro
+            ):
+                host_voices.append(v)
+                break
 
     return host_voices
 

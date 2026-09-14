@@ -41,16 +41,27 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
         'or relevance here"}]}\n'
         "Omit description keys when not useful.\n\n"
         "ENTITY vs TOPIC — CRITICAL DISTINCTION:\n"
-        'entity_kind must be "person" or "organization" only. An ENTITY is a '
-        "specific, named, proper-noun referent — a real-world individual, "
-        "company, brand, podcast, product, or institution that has a name. "
-        "If you cannot capitalize it as a proper noun and point to one specific "
-        "real-world thing, it is NOT an entity — put it in topics instead.\n\n"
+        'entity_kind must be exactly one of "person", "organization" or "object". '
+        "An ENTITY is a specific, named, proper-noun referent — a real-world "
+        "individual, company, brand, podcast, product, place, event or institution "
+        "that has a name. If you cannot capitalize it as a proper noun and point to "
+        "one specific real-world thing, it is NOT an entity — put it in topics "
+        "instead.\n\n"
+        "CHOOSING THE KIND:\n"
+        '  - "person": a human being.\n'
+        '  - "organization": a body of people acting collectively. Test — could it '
+        "employ someone or hold a position? A company, university, band or agency "
+        "can.\n"
+        '  - "object": a named thing that is NEITHER of those — an event, place, '
+        "creative work, product, podcast, book or standard.\n"
+        "Use object when unsure. NEVER default to person: a wrong person makes a "
+        "battle or a podcast appear in the show's list of human voices.\n\n"
         "Correct entity examples (extract these into entities):\n"
         '  - {"name":"Maya","entity_kind":"person"}\n'
         '  - {"name":"Cascadia Alliance","entity_kind":"organization"}\n'
         '  - {"name":"Strava","entity_kind":"organization"}\n'
-        '  - {"name":"Singletrack Sessions","entity_kind":"organization"}\n\n'
+        '  - {"name":"Singletrack Sessions","entity_kind":"object"}\n'
+        '  - {"name":"The Norman Conquest","entity_kind":"object"}\n\n'
         "Common mistakes — these are TOPICS not ENTITIES (do NOT put them in entities):\n"
         '  - "error budgets" → topic (concept), not entity\n'
         '  - "security practices" → topic (concept), not entity\n'
@@ -156,10 +167,76 @@ def _truncate_kg_description(text: Optional[str], limit: int = 2000) -> Optional
     return s[:limit] if len(s) > limit else s
 
 
-def truncate_transcript_for_kg(text: str, limit: int = 120000) -> str:
-    """Trim transcript for LLM context windows."""
+#: Reply budget for the KG extraction call, mirrored from the providers' ``_token_kwarg(2048)``.
+KG_RESPONSE_TOKENS = 2048
+
+
+#: Display names are capped at the same 500 chars the raw path used.
+_ENTITY_NAME_MAX_CHARS = 500
+
+
+def clean_entity_display_name(name: Optional[str]) -> str:
+    """Strip extractor punctuation debris from an entity's DISPLAY name (#2055).
+
+    The KG has a documented asymmetry (`kg/pipeline.py:511`): a node's ID is slugified, so
+    ``"lukasz kaiser)"`` and ``"lukasz kaiser"`` both become ``person:lukasz-kaiser`` — but the
+    LABEL was stored raw. `_dedupe_nodes_by_id` keeps the FIRST node's label, so whichever
+    extraction happened to run first decided whether users saw ``Lukasz Kaiser`` or
+    ``Lukasz Kaiser)``. Observed in prod: ``Sophia Dew)``, ``Ben Mildenhall)``, ``Lukasz Kaiser)``.
+
+    The debris is almost always an UNBALANCED paren, from a parenthetical alias whose other half
+    was consumed upstream. So only unbalanced edges are stripped:
+
+        "Lukasz Kaiser)"            -> "Lukasz Kaiser"
+        "(Lukasz Kaiser"            -> "Lukasz Kaiser"
+        "Bell Labs (Murray Hill)"   -> unchanged, the parens are balanced and meaningful
+
+    Deliberately conservative about everything else. Real names carry punctuation that a
+    broad-brush strip would destroy — ``Jean-Luc Picard``, ``O'Brien``, ``J.R.R. Tolkien``,
+    ``will.i.am``, ``Sam Altman, Jr.`` — and silently rewriting a person's name is a worse bug
+    than the stray bracket this fixes.
+    """
+    text = (name or "").strip()
+    if not text:
+        return ""
+    # Repeat: "(Lukasz Kaiser))" needs two passes, and each pass must re-check balance.
+    for _ in range(4):
+        before = text
+        opens, closes = text.count("("), text.count(")")
+        if closes > opens and text.endswith(")"):
+            text = text[:-1].strip()
+        elif opens > closes and text.startswith("("):
+            text = text[1:].strip()
+        elif opens == closes and text.startswith("(") and text.endswith(")"):
+            # Wholly parenthesised — the parens are wrapping, not part of the name.
+            inner = text[1:-1].strip()
+            if inner and "(" not in inner and ")" not in inner:
+                text = inner
+        if text == before:
+            break
+    # Collapse internal whitespace so "Aaron   Levie" and "Aaron Levie" are one person.
+    text = " ".join(text.split())
+    # A "name" with no letter or digit left in it is punctuation, not a person. Returning it would
+    # put an entity called ")" or "()" on a person card; the caller drops an empty name.
+    if not any(ch.isalnum() for ch in text):
+        return ""
+    return text[:_ENTITY_NAME_MAX_CHARS]
+
+
+def truncate_transcript_for_kg(text: str, limit: Optional[int] = None) -> str:
+    """Trim a transcript to what the CALLER's deployment can hold (#2050).
+
+    ``limit`` comes from the provider's context budget. ``None`` means the window is not known —
+    nothing declared one, no server to ask — and the transcript is returned uncut so the server's
+    own 400 can name the real limit.
+
+    This used to default to ``120000``, applied identically by all six providers regardless of the
+    window each was talking to: ~34,000 tokens at the 3.5 chars/token real corpus transcripts
+    exhibit, which does not fit a 32,768-token DGX at all, while clipping a 1M-token Gemini to a
+    fraction of what it could hold.
+    """
     text_slice = (text or "").strip()
-    if len(text_slice) > limit:
+    if limit is not None and len(text_slice) > limit:
         return text_slice[:limit] + "\n\n[Transcript truncated.]"
     return text_slice
 
@@ -210,11 +287,156 @@ def _strip_json_fence(raw: str) -> str:
     return content
 
 
+#: The three entity kinds. A person, a body of people, or a NAMED THING that is neither.
+#:
+#: ``object`` is the catch-all, added 2026-09-13 (#2057). Before it existed the vocabulary was
+#: person|organization and the normaliser was two branches — five organisation synonyms, then
+#: ``return "person"`` — so ``event``, ``podcast``, ``show``, ``place``, ``book``, ``film``,
+#: ``product``, ``concept`` and a MISSING kind all became people. Measured on prod ``top_people``
+#: 2026-09-13: 7 of the corpus's top 40 "voices" were not people — two podcasts, three
+#: organisations, an 11th-century event and a placeholder.#:
+#: CAUSAL CAVEAT — an earlier version of this note claimed more than the evidence supports.
+#: ``top_people`` ranks by insights supported by quotes ``SPOKEN_BY`` a Person in ``gi.json``,
+#: and the KG pipeline emits NO ``SPOKEN_BY`` edges (verified). So the default fixed here explains
+#: non-people occupying Person NODES; it does NOT explain the Norman Conquest's 2,720 grounded
+#: insights, which required the GI speaker-attribution path to name a quote cluster after it.
+#: Fixing this may not remove that entry — see the open question on #2057.
+#:
+#: Forcing those into ``organization`` instead would only move the pollution: a battle is not a
+#: company, and "top organizations" would inherit what "top voices" is being cleaned of. The
+#: model needed a third bucket, so it has one.
+ENTITY_KIND_PERSON = "person"
+ENTITY_KIND_ORGANIZATION = "organization"
+ENTITY_KIND_OBJECT = "object"
+ENTITY_KINDS = (ENTITY_KIND_PERSON, ENTITY_KIND_ORGANIZATION, ENTITY_KIND_OBJECT)
+
+#: Words for an actual human being.
+_PERSON_KINDS = frozenset({"person", "people", "individual", "human", "speaker", "guest", "host"})
+
+#: Words for a BODY OF PEOPLE acting collectively. The test is "could it employ someone or hold a
+#: position?" — a company, university or band can; a podcast episode or a battle cannot.
+_ORGANIZATION_KINDS = frozenset(
+    {
+        "organization",
+        "organisation",
+        "org",
+        "company",
+        "corporation",
+        "institution",
+        "institute",
+        "agency",
+        "foundation",
+        "university",
+        "college",
+        "school",
+        "publisher",
+        "network",
+        "studio",
+        "label",
+        "band",
+        "team",
+        "group",
+        "firm",
+        "startup",
+        "nonprofit",
+        "ngo",
+        "government",
+        "ministry",
+        "department",
+        "committee",
+        "party",
+        "union",
+        "club",
+    }
+)
+
+#: Words for a NAMED THING that is neither a person nor a body of people: events, places,
+#: creative works, products, concepts. Listed rather than inferred so the mapping is reviewable —
+#: but the list is not load-bearing, because anything unlisted lands here too.
+_OBJECT_KINDS = frozenset(
+    {
+        "object",
+        "thing",
+        "event",
+        "conflict",
+        "war",
+        "battle",
+        "place",
+        "location",
+        "gpe",
+        "country",
+        "city",
+        "region",
+        "facility",
+        "work",
+        "work_of_art",
+        "book",
+        "film",
+        "movie",
+        "album",
+        "song",
+        "podcast",
+        "show",
+        "program",
+        "programme",
+        "series",
+        "publication",
+        "magazine",
+        "newspaper",
+        "paper",
+        "product",
+        "platform",
+        "brand",
+        "technology",
+        "tool",
+        "concept",
+        "theory",
+        "law",
+        "language",
+        "standard",
+        "protocol",
+        "award",
+        "document",
+    }
+)
+
+
 def _normalize_entity_kind(kind: Optional[str]) -> str:
-    k = (kind or "person").strip().lower()
-    if k in ("organization", "org", "company", "corporation", "institution"):
-        return "organization"
-    return "person"
+    """Map the extractor's ``entity_kind`` onto :data:`ENTITY_KINDS`.
+
+    ``person`` is returned ONLY when the extractor says so. It is never the fallback — defaulting
+    an untrusted value to the most specific, most user-visible type is backwards, and doing exactly
+    that is what put an 11th-century military campaign into the person node space at all. (The
+    2,720 grounded insights it carries in ``top_people`` come through the GI speaker-attribution
+    path, not this one — see the caveat on _ORGANIZATION_KINDS.)
+
+    Everything unrecognised — including an ABSENT kind — becomes ``object``. Absence is not
+    evidence of personhood; it is evidence of nothing, and ``object`` is the bucket for "a named
+    thing we cannot place more precisely". That keeps the entity (no data loss, unlike dropping
+    it) while keeping it out of the person and organization surfaces.
+
+    Unrecognised values are logged, so drift between this map and the extraction prompt shows up
+    as a countable number rather than as silent misclassification.
+    """
+    raw = (kind or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if raw in _PERSON_KINDS:
+        return ENTITY_KIND_PERSON
+    if raw in _ORGANIZATION_KINDS:
+        return ENTITY_KIND_ORGANIZATION
+    if raw in _OBJECT_KINDS:
+        return ENTITY_KIND_OBJECT
+    if not raw:
+        logger.info(
+            "kg: entity_kind absent — classifying as object, not person (#2057). The extraction "
+            "prompt asks for it on every entity, so this counts prompt non-compliance."
+        )
+    else:
+        logger.warning(
+            "kg: unrecognised entity_kind %r — classifying as object (#2057). If this appears "
+            "often, the extraction prompt and this map have drifted apart.",
+            raw,
+        )
+    return ENTITY_KIND_OBJECT
 
 
 def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
@@ -316,12 +538,19 @@ def parse_kg_graph_response(
             if not isinstance(item, dict):
                 continue
             name = item.get("name") or item.get("label")
-            if not isinstance(name, str) or not name.strip():
+            if not isinstance(name, str):
+                continue
+            # Guard on the CLEANED name, not the raw one (#2055): ")" and "()" are non-empty raw
+            # but clean to nothing, and an entity with an empty label lands on a person card.
+            name = clean_entity_display_name(name)
+            if not name:
                 continue
             ek_raw = item.get("entity_kind")
             ek_in = ek_raw if isinstance(ek_raw, str) else None
             erow: Dict[str, str] = {
-                "name": name.strip()[:500],
+                "name": name,  # already cleaned above (#2055)
+                # Never None: an unplaceable kind becomes `object` rather than being dropped or
+                # guessed as a person (#2057).
                 "entity_kind": _normalize_entity_kind(ek_in),
             }
             edesc = item.get("description")

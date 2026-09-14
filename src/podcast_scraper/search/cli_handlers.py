@@ -9,6 +9,7 @@ import os
 from argparse import Namespace
 from datetime import date, datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast, Dict, List, Optional, Sequence, Tuple
 
 from podcast_scraper import config
@@ -1547,10 +1548,34 @@ def run_index_two_tier_cli(args: Namespace, logger: logging.Logger) -> int:
     return EXIT_SUCCESS
 
 
+def _speaker_infos(raw: Any) -> List[SimpleNamespace]:
+    """Persisted ``content.speakers`` dicts as attribute-bearing objects (#2062).
+
+    The artifact on disk carries plain dicts; ``_speaker_lists_for_graph`` reads ``.name`` /
+    ``.role`` so the pipeline and this pass can share ONE merge rule instead of two that drift.
+    """
+    out: List[SimpleNamespace] = []
+    for s in raw or []:
+        if isinstance(s, dict):
+            out.append(SimpleNamespace(name=s.get("name") or "", role=s.get("role") or ""))
+    return out
+
+
 def parse_enrich_edges_argv(argv: Sequence[str]) -> Namespace:
     """Parse ``enrich-edges`` args (#874: derive relational edges into each gi.json)."""
     parser = argparse.ArgumentParser(prog="podcast_scraper enrich-edges")
     parser.add_argument("--output-dir", required=True, help="Corpus root (parent of feeds/).")
+    parser.add_argument(
+        "--replace-speakers",
+        action="store_true",
+        help=(
+            "Rebuild Quote->SPOKEN_BY->Person from scratch instead of only adding missing edges "
+            "(#2062). Without this, a re-run cannot correct an episode that was attributed wrongly "
+            "the first time: the pass skips edges that already exist and removes none, so it "
+            "reports SPOKEN_BY=0 and leaves the wrong speaker in place. Use after an attribution "
+            "fix; it rewrites historical artifacts, so pair it with --retro-audit."
+        ),
+    )
     parser.add_argument(
         "--no-speaker",
         action="store_true",
@@ -1596,6 +1621,43 @@ def parse_enrich_edges_argv(argv: Sequence[str]) -> Namespace:
     return args
 
 
+def _apply_bare_name_scope(gi_payload: dict, kg_payload: Any, episode_id: str) -> int:
+    """Episode-scope any bare single-token person id this pass just minted (#2062).
+
+    Delegates to ``identity.bare_name_scope`` — the same functions the pipeline runs over finished
+    payloads and the m0007 migration runs over the corpus — so enrich-edges cannot drift into its
+    own answer about who "Sam" is. Mutates *gi_payload* in place; returns how many ids changed.
+
+    ``candidate_ids`` stays narrow (node-backed only) for the same reason #1868 gives: healing
+    writes a REAL person's id onto content and has no cheap undo, so an id with no node behind it
+    is a dangling reference, not evidence.
+    """
+    if not episode_id:
+        return 0
+    try:
+        from podcast_scraper.identity.bare_name_scope import (
+            person_ids_in,
+            person_node_ids_in,
+            plan_bare_name_ids,
+            rewrite_ids,
+        )
+    except ImportError:  # pragma: no cover - defensive
+        return 0
+    roster = set(person_ids_in(gi_payload))
+    candidates = set(person_node_ids_in(gi_payload))
+    if isinstance(kg_payload, dict):
+        roster |= set(person_ids_in(kg_payload))
+        candidates |= set(person_node_ids_in(kg_payload))
+    id_map = plan_bare_name_ids(roster, episode_id, heal=True, candidate_ids=candidates)
+    if not id_map:
+        return 0
+    rewritten, changes = rewrite_ids(gi_payload, id_map)
+    if changes:
+        gi_payload.clear()
+        gi_payload.update(rewritten)
+    return int(changes)
+
+
 def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     """Derive relational edges into each gi.json (#874): Podcast→HAS_EPISODE→Episode,
     Insight→MENTIONS→Entity, and (unless --no-speaker) Quote→SPOKEN_BY→Person.
@@ -1617,6 +1679,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     from podcast_scraper.gi.speakers import add_spoken_by_edges
     from podcast_scraper.search.corpus_scope import episode_root_from_metadata_path
     from podcast_scraper.search.indexer import _gi_path, _load_metadata_file, _transcript_path
+    from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
 
     # #1076 chunk 4-A — operator-controlled flag. ``--use-ner`` on the
     # CLI flips the typed-MENTIONS post-pass to also run a spaCy PERSON
@@ -1661,7 +1724,13 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
 
     corpus = Path(output_dir)
     include_speaker = not bool(getattr(args, "no_speaker", False))
-    totals = {"episodes": 0, "has_episode": 0, "mentions": 0, "spoken_by": 0}
+    replace_speakers = bool(getattr(args, "replace_speakers", False))
+    if replace_speakers:
+        logger.info(
+            "enrich-edges: --replace-speakers on — SPOKEN_BY will be REBUILT, not "
+            "merely topped up; wrong speakers from earlier runs are removed"
+        )
+    totals = {"episodes": 0, "has_episode": 0, "mentions": 0, "spoken_by": 0, "scoped": 0}
     for meta_path in discover_metadata_files(corpus):
         doc = _load_metadata_file(meta_path)
         if not doc:
@@ -1675,6 +1744,10 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         except (OSError, ValueError) as exc:
             logger.warning("enrich-edges: skip %s (%s)", gi_path, format_exception_for_log(exc))
             continue
+        episode_id_for_scope = (
+            artifact.get("episode_id") or (doc.get("episode") or {}).get("episode_id") or ""
+        )
+        kg_artifact_for_scope = None
         show_title = (doc.get("feed") or {}).get("title") or ""
         per_episode_has_episode = add_episode_show_edges(artifact, show_title)
         totals["has_episode"] += per_episode_has_episode
@@ -1683,6 +1756,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         if kg_path.is_file():
             try:
                 kg_artifact = json.loads(kg_path.read_text(encoding="utf-8"))
+                kg_artifact_for_scope = kg_artifact
                 per_episode_mentions = add_insight_entity_edges(
                     artifact, kg_entity_index(kg_artifact), nlp=nlp
                 )
@@ -1694,11 +1768,21 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             transcript_path = _transcript_path(episode_root, doc)
             if transcript_path and transcript_path.is_file():
                 content = doc.get("content") or {}
+                # #2062: `content.speakers` is the DIARIZATION ROSTER (present on 97.2% of a
+                # 330-episode production sample); `detected_*` is the pre-diarization hint, present
+                # on 61-83% and wrong about the guest whenever the roster disagrees. Prefer the
+                # roster and fall back to the hint, exactly as the pipeline now does.
+                roster_hosts, roster_guests = _speaker_lists_for_graph(
+                    _speaker_infos(content.get("speakers")),
+                    content.get("detected_hosts") or [],
+                    content.get("detected_guests") or [],
+                )
                 per_episode_spoken_by = add_spoken_by_edges(
                     artifact,
                     transcript_path.read_text(encoding="utf-8", errors="replace"),
-                    hosts=content.get("detected_hosts") or [],
-                    guests=content.get("detected_guests") or [],
+                    hosts=roster_hosts,
+                    guests=roster_guests,
+                    replace=replace_speakers,
                 )
                 totals["spoken_by"] += per_episode_spoken_by
         # Retro-audit marker — stamp ONLY when --retro-audit set AND we
@@ -1723,12 +1807,24 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
                     **audit_entry,
                 }
             )
+        # #2062: this CLI runs AFTER the pipeline's bare-name scoping pass, so any speaker id it
+        # just minted is UNSCOPED and sits beside the already-scoped node for the same human —
+        # `person:twiggy` next to `person:unresolved-twiggy-{ep}`, one voice with two identities and
+        # a full set of SPOKEN_BY edges on each (a fresh ingest produced 116 edges for 59 quotes).
+        #
+        # The rule is deliberately NOT applied inside any mint function: it needs the episode's
+        # whole roster, and three mint families would drift if one of them freelanced. So run the
+        # SAME pass the pipeline and the m0007 migration run, over the finished payloads.
+        _scoped = _apply_bare_name_scope(artifact, kg_artifact_for_scope, str(episode_id_for_scope))
+        if _scoped:
+            totals["scoped"] += _scoped
         write_artifact(gi_path, artifact, validate=True)
         totals["episodes"] += 1
 
     msg = (
         f"enrich-edges: episodes={totals['episodes']} HAS_EPISODE={totals['has_episode']} "
-        f"MENTIONS={totals['mentions']} SPOKEN_BY={totals['spoken_by']}"
+        f"MENTIONS={totals['mentions']} SPOKEN_BY={totals['spoken_by']} "
+        f"scoped_bare_names={totals['scoped']}"
     )
     logger.info(msg)
     print(msg)

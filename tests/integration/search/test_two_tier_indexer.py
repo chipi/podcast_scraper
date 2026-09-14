@@ -18,6 +18,7 @@ pytest.importorskip("lancedb")
 from podcast_scraper.search import hybrid_search as hs, two_tier_indexer as tti  # noqa: E402
 from podcast_scraper.search.backends import lancedb_backend as lancedb_backend  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
+from tests.integration.conftest import requires
 
 
 def _stub_extraction(monkeypatch, tmp_path, rows):
@@ -28,6 +29,7 @@ def _stub_extraction(monkeypatch, tmp_path, rows):
     monkeypatch.setattr(tti, "_collect_docs_for_episode", lambda *a, **k: rows)
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_builds_both_tiers_and_is_queryable(tmp_path, monkeypatch):
     rows = [
         (
@@ -75,6 +77,7 @@ def test_builds_both_tiers_and_is_queryable(tmp_path, monkeypatch):
 
 
 @pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_writes_metadata_json_sidecar_with_char_offsets(tmp_path, monkeypatch):
     """#1010 regression: GIL offset verify reads ``search/metadata.json`` (doc_id -> meta with
     char_start/char_end). FAISS wrote it; the LanceDB build must re-emit it from chunk meta.
@@ -121,6 +124,7 @@ def test_writes_metadata_json_sidecar_with_char_offsets(tmp_path, monkeypatch):
     assert "text" not in meta_map["chunk:0"], "sidecar should not carry full chunk text"
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_linking_populates_compounds(tmp_path, monkeypatch):
     """Native index links insight↔segment so dedup actually produces a CompoundResult."""
     import json
@@ -186,6 +190,7 @@ def test_linking_populates_compounds(tmp_path, monkeypatch):
     assert compounds, "linked insight+segment must dedup into a CompoundResult"
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_faiss_metadata_parity_publish_date_and_source_id(tmp_path, monkeypatch):
     """Regression: hybrid hits must carry FAISS-parity metadata fields.
 
@@ -235,6 +240,7 @@ def test_faiss_metadata_parity_publish_date_and_source_id(tmp_path, monkeypatch)
     assert topic_hit.metadata.get("source_id") == "topic:monetary-policy"
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_stale_schema_is_detected_and_read_falls_back(tmp_path, monkeypatch):
     """A pre-schema-bump index is flagged stale, so the read path skips it (FAISS)."""
     from podcast_scraper.search.backends import lancedb_backend as lb
@@ -264,6 +270,7 @@ def test_stale_schema_is_detected_and_read_falls_back(tmp_path, monkeypatch):
 
 
 @pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_stale_schema_build_clears_index_and_sidecar_then_rebuilds(tmp_path, monkeypatch):
     """A present-but-stale index (no drop_existing) is wiped via _clear_index — including the
     sibling metadata.json sidecar — then rebuilt fresh (covers the stale-schema reindex path)."""
@@ -320,6 +327,7 @@ def test_limit_episodes_caps_walk(tmp_path, monkeypatch):
     assert stats.episodes == 0 and stats.insights == 0
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_repeated_reindex_stays_bounded_via_compaction(tmp_path, monkeypatch):
     """Repeated (incremental) reindex must not grow the index unboundedly.
 
@@ -380,6 +388,7 @@ def test_repeated_reindex_stays_bounded_via_compaction(tmp_path, monkeypatch):
     assert health["insights"] == 1 and health["segments"] == 1
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_configurable_batch_size_flushes_in_chunks(tmp_path, monkeypatch):
     """A small ``upsert_batch_size`` flushes mid-build, but every row still lands."""
     rows = [
@@ -411,6 +420,7 @@ def test_configurable_batch_size_flushes_in_chunks(tmp_path, monkeypatch):
     assert health["insights"] == 5 and health["segments"] == 5  # nothing dropped across flushes
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_aux_buffer_flushes_mid_build_at_batch_size(tmp_path, monkeypatch):
     """A build with more aux rows than upsert_batch_size flushes the aux tier mid-walk
     (covers the len(aux_buf) >= batch aux-flush branch) and lands every row."""
@@ -433,6 +443,7 @@ def test_aux_buffer_flushes_mid_build_at_batch_size(tmp_path, monkeypatch):
     assert LanceDBBackend(str(lance)).health()["aux"] == 5  # nothing dropped across flushes
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_grounding_quote_texts_links_insight_to_segment(tmp_path, monkeypatch):
     """Text-containment grounding (verbatim quote text) links an insight to the segment that
     contains it — the primary linking path that needs no segment timestamps."""
@@ -503,6 +514,7 @@ def test_grounding_quotes_handles_unreadable_gi(tmp_path):
     assert tti._insight_grounding_quotes(bad) == {}
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_limit_episodes_breaks_after_first_episode(tmp_path, monkeypatch):
     """limit_episodes=1 over two metadata files processes one then breaks on the second
     (covers the mid-walk break after a prior episode was counted)."""
@@ -520,6 +532,7 @@ def test_limit_episodes_breaks_after_first_episode(tmp_path, monkeypatch):
     assert stats.episodes == 1 and stats.insights == 1  # second file skipped by the break
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_skips_episode_with_empty_metadata(tmp_path, monkeypatch):
     """An episode whose metadata fails to load is skipped (the `if not doc: continue` path)
     without bumping the episode count or producing rows."""
@@ -541,6 +554,7 @@ def test_skips_episode_with_empty_metadata(tmp_path, monkeypatch):
     assert stats.episodes == 1 and stats.insights == 1  # only the loadable episode counted
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_unknown_doc_type_rows_are_ignored(tmp_path, monkeypatch):
     """A row whose doc_type is none of insight/transcript/aux falls through the dispatch
     and contributes to no tier (covers the if/elif chain's implicit else)."""
@@ -583,6 +597,7 @@ def test_grounding_quote_text_edge_without_matching_quote(tmp_path):
 
 
 @pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_drop_existing_clears_before_full_reindex(tmp_path, monkeypatch):
     """``drop_existing=True`` wipes the prior index so a full reindex starts clean."""
     corpus = tmp_path / "corpus"
@@ -613,6 +628,7 @@ def test_drop_existing_clears_before_full_reindex(tmp_path, monkeypatch):
 
 
 @pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_full_reindex_leaves_open_reader_handle_intact(tmp_path, monkeypatch):
     """#1206 regression: a full reindex must not strand an in-flight api reader.
 
@@ -656,6 +672,7 @@ def test_full_reindex_leaves_open_reader_handle_intact(tmp_path, monkeypatch):
 
 
 @pytest.mark.critical_path  # runs in test-integration-fast so codecov/patch covers the diff
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_full_reindex_empties_a_tier_absent_from_new_corpus(tmp_path, monkeypatch):
     """#1206 finalize path: a tier present before but absent from the new corpus is
     MVCC-emptied, not left with stale rows. The old rmtree dropped the whole dir; the MVCC

@@ -8,7 +8,10 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set
 
 logger = logging.getLogger(__name__)
 
-_CIL_PREFIXES = ("person:", "org:", "topic:")
+#: Canonical CIL id prefixes. ``object:`` joined in KG schema 2.1 (#2057) — an Object
+#: is a first-class referent with a stable id, so anything keyed on this tuple
+#: (resolution, bridging, cross-layer joins) must see it or Objects silently drop out.
+_CIL_PREFIXES = ("person:", "org:", "object:", "topic:")
 
 # Fuzzy reconciliation: cosine similarity threshold for merging single-layer
 # identities whose exact IDs don't match.  Only applied to identities of the

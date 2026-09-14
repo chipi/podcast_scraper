@@ -125,7 +125,14 @@ function componentTestids(): { exact: Set<string>; prefixes: string[] } {
   }
   // Computed testid helpers that return the id as a bare literal, e.g. NodeDetail.vue's
   // `if (isInsightNode.value) return 'node-detail-full-insight'`.
-  for (const m of allComponentSrc.matchAll(/return\s+'([a-z][a-z0-9]*(?:-[a-z0-9]+)+)'/g)) {
+  //
+  // Quote-agnostic, like every sibling pattern above. It was single-quote-only, so when
+  // NodeDetail.vue was reformatted to double quotes these eight live selectors started reading as
+  // dead and this check failed for a reason that had nothing to do with the surfaces it guards —
+  // the exact "fails like a product bug" outcome its own message warns about.
+  for (const m of allComponentSrc.matchAll(
+    /return\s+['"`]([a-z][a-z0-9]*(?:-[a-z0-9]+)+)['"`]/g
+  )) {
     raw.add(m[1])
   }
 

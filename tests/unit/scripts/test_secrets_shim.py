@@ -27,6 +27,19 @@ FAKE_ENTRYPOINT = (
 
 def _run(secrets_dir: str | None, entrypoint: Path, *argv: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
+    # The shim's whole job is to report which secrets it found, so the child must not INHERIT any.
+    # `tests/e2e/conftest.py` sets dummy provider keys at module-import scope and pytest imports
+    # every conftest during collection, so in a full-suite run these were already in `os.environ`
+    # and the child reported OPENAI_API_KEY set when the test's premise is that nothing set it.
+    for leaked in (
+        "OPENAI_API_KEY",
+        "GEMINI_API_KEY",
+        "MISTRAL_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "GROQ_API_KEY",
+        "ANTHROPIC_API_KEY",
+    ):
+        env.pop(leaked, None)
     env["WRAPPED_ENTRYPOINT"] = str(entrypoint)
     if secrets_dir is not None:
         env["SECRETS_DIR"] = secrets_dir

@@ -85,7 +85,9 @@ def test_person_node_id_diacritic_normalizes_like_cil() -> None:
 
 
 def test_person_org_node_types_constant() -> None:
-    assert PERSON_ORG_NODE_TYPES == frozenset({"Entity", "Person", "Organization"})
+    # `Object` joined in KG schema 2.1 (#2057): the catch-all for a named thing that is neither
+    # a person nor a body of people. `Entity` remains for pre-v2.0 reads.
+    assert PERSON_ORG_NODE_TYPES == frozenset({"Entity", "Person", "Organization", "Object"})
 
 
 def test_is_person_or_org_node_recognizes_v2_typed_nodes() -> None:

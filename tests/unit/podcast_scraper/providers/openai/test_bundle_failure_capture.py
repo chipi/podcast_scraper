@@ -169,3 +169,96 @@ class TestCaptureCanNeverBreakThePipeline:
             )
             < 20_000
         )
+
+
+class TestTailDegeneracySeesWhatTheNgramSignalCannot:
+    """`_repetition_signal` is whitespace-tokenised, so two runaway shapes score 0 on it (#2053).
+
+    Both are real risks on this call specifically: `320f2db0` turned on schema-less
+    `json_object` guided decoding, whose documented failure mode is padding to `max_tokens` with
+    whitespace once the object closes. A capture that reported only the 12-gram count would call
+    that "genuine over-generation" and send the fix toward a bigger output budget, when the model
+    was in fact stuck.
+    """
+
+    def test_a_whitespace_tail_scores_zero_on_the_ngram_signal(self) -> None:
+        runaway = '{"0": ["a quote"]}' + ("\n" * 5_000)
+        assert _repetition_signal(runaway)[0] == 0, "this is the blind spot being covered"
+
+    def test_but_the_tail_signal_catches_it(self) -> None:
+        from podcast_scraper.providers.openai.openai_provider import _tail_degeneracy
+
+        sig = _tail_degeneracy('{"0": ["a quote"]}' + ("\n" * 5_000))
+        assert sig["tail_nonspace_fraction"] == 0.0
+        assert sig["tail_distinct_chars"] == 1
+
+    def test_a_single_repeated_token_with_no_spaces_is_caught(self) -> None:
+        from podcast_scraper.providers.openai.openai_provider import _tail_degeneracy
+
+        sig = _tail_degeneracy('{"0": ["' + "ha" * 10_000)
+        assert sig["tail_nonspace_fraction"] == 1.0
+        assert sig["tail_distinct_chars"] <= 3, "one repeated run has almost no distinct chars"
+
+    def test_a_healthy_reply_looks_healthy_on_both_signals(self) -> None:
+        from podcast_scraper.providers.openai.openai_provider import _tail_degeneracy
+
+        sig = _tail_degeneracy(HEALTHY)
+        assert sig["tail_nonspace_fraction"] > 0.5
+        assert sig["tail_distinct_chars"] > 10
+
+    def test_empty_input_reports_nothing_rather_than_a_spurious_verdict(self) -> None:
+        from podcast_scraper.providers.openai.openai_provider import _tail_degeneracy
+
+        assert _tail_degeneracy("") == {
+            "tail_nonspace_fraction": None,
+            "tail_distinct_chars": None,
+        }
+
+
+class TestCaptureRecordsTheRealCharsPerTokenRatio:
+    """The budget derives at 3.5 chars/token and nobody has measured it on prod content."""
+
+    def test_the_servers_own_token_count_is_recorded_with_the_ratio(self, tmp_path) -> None:
+        cfg = types.SimpleNamespace(output_dir=str(tmp_path))
+        _capture_bundle_failure(
+            cfg=cfg,
+            content=LOOPING,
+            error="e",
+            finish_reason="length",
+            out_tok=5120,
+            max_out=5120,
+            insight_texts=[],
+            model="NVFP4/Qwen3-30B",
+            prompt_chars=70_000,
+            in_tok=20_000,
+        )
+        doc = json.loads(
+            open(
+                glob.glob(str(tmp_path / ".podcast_scraper/quote-bundle-failures/*.json"))[0],
+                encoding="utf-8",
+            ).read()
+        )
+        assert doc["prompt_tokens_reported"] == 20_000
+        assert doc["measured_chars_per_token"] == 3.5
+
+    def test_a_missing_token_count_yields_none_not_a_divide_by_zero(self, tmp_path) -> None:
+        cfg = types.SimpleNamespace(output_dir=str(tmp_path))
+        _capture_bundle_failure(
+            cfg=cfg,
+            content=HEALTHY,
+            error="e",
+            finish_reason="stop",
+            out_tok=10,
+            max_out=100,
+            insight_texts=[],
+            model=None,
+            prompt_chars=1000,
+            in_tok=0,
+        )
+        doc = json.loads(
+            open(
+                glob.glob(str(tmp_path / ".podcast_scraper/quote-bundle-failures/*.json"))[0],
+                encoding="utf-8",
+            ).read()
+        )
+        assert doc["measured_chars_per_token"] is None

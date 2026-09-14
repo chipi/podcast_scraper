@@ -17,6 +17,10 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.enrichment.protocol import EpisodeArtifactBundle
+from podcast_scraper.graph_id_utils import (
+    is_bare_speaker_label,
+    is_scoped_placeholder_person_id,
+)
 
 _SPEAKER_PLACEHOLDER_PATTERN = re.compile(
     r"^(?:person:)?speaker[_\-]?\d+$"  # global: SPEAKER_03 / person:speaker-03
@@ -192,7 +196,17 @@ def is_unresolved_speaker_placeholder(person_id: str, name: str | None = None) -
     """
     if person_id and _SPEAKER_PLACEHOLDER_PATTERN.match(person_id):
         return True
+    # ROLE placeholders (#2059): `person:speaker-{ep}-host` and the legacy global `person:host`.
+    # The regex above requires trailing DIGITS, so it matched neither — and this predicate is
+    # consulted in twelve modules, so the gap would have surfaced one followable "Host" person
+    # per episode, strictly worse than the single phantom it replaced. The rule lives in
+    # graph_id_utils beside the id BUILDER and the label set, so filter and builder cannot drift.
+    if is_scoped_placeholder_person_id(person_id):
+        return True
     if name and _SPEAKER_PLACEHOLDER_PATTERN.match(name):
+        return True
+    # A raw role word as the display NAME, for artifacts whose id was minted before #2059.
+    if name and is_bare_speaker_label(name):
         return True
     return False
 

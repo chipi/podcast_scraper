@@ -334,7 +334,11 @@ class GeminiProvider:
         self.summary_model = getattr(cfg, "gemini_summary_model", "gemini-2.5-flash-lite")
         self.summary_temperature = getattr(cfg, "gemini_temperature", 0.3)
         # Gemini 1.5 Pro supports 2M context window
-        self.max_context_tokens = 2000000  # Conservative estimate
+        # The window this DEPLOYMENT serves (#2050). Gemini 1.5/2.x publish a 1M-2M window, but a
+        # gateway or a self-hosted stand-in can serve less — and a budget derived from an
+        # overstated window is a prompt the server rejects or silently truncates. So the
+        # published figure is the FALLBACK, and a profile/StageOption can declare the real one.
+        self.max_context_tokens = int(getattr(cfg, "gemini_max_context_tokens", 0) or 0) or 2000000
 
         # RFC-115: Gemini EXPLICIT context caching (cachedContent). Off by default (stateful +
         # storage-billed, unlike the auto-cache providers). ``_gemini_cache_handles`` maps
@@ -1471,7 +1475,13 @@ class GeminiProvider:
         )
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_megabundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_megabundle_prompt(
+            text,
+            language=language,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1563,7 +1573,13 @@ class GeminiProvider:
         )
         max_out = cloud_structured_max_output_tokens(self.cfg, max_out)
         language = getattr(self.cfg, "language", "en") or None
-        system_prompt, user_prompt = build_extraction_bundle_prompt(text, language=language)
+        system_prompt, user_prompt = build_extraction_bundle_prompt(
+            text,
+            language=language,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
+        )
 
         if call_metrics is None:
             call_metrics = ProviderCallMetrics()
@@ -1906,8 +1922,16 @@ class GeminiProvider:
         # so evals could not pin it and the pipeline was not reproducible.
         insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "gemini")
         text_slice = (text or "").strip()
-        if len(text_slice) > 120000:
-            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+        # #2050: derive the clip from the window this deployment actually serves, not from a
+        # literal. 120,000 chars is ~34,000 tokens at the 3.5 chars/token prod ratio — ALREADY
+        # over the DGX's 32,768-token window, so this site was handing the server a prompt it
+        # had to reject. A wider model (Gemini ~1M) was equally wrongly clipped downward.
+        _budget = config_constants.transcript_budget_chars(
+            getattr(self, "max_context_tokens", None),
+            response_tokens=insight_max_tokens,
+        )
+        if _budget and len(text_slice) > _budget:
+            text_slice = text_slice[:_budget] + "\n\n[Transcript truncated.]"
 
         try:
             # The prompt decides what an insight IS, so it is a tuned parameter like any
@@ -2143,6 +2167,7 @@ class GeminiProvider:
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
+            KG_RESPONSE_TOKENS,
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
@@ -2150,7 +2175,17 @@ class GeminiProvider:
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)
@@ -2238,7 +2273,10 @@ class GeminiProvider:
             "gemini",
             transcript,
             insight_text,
-            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS,
+            config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
+            ),
         )
         try:
             from ...utils.provider_metrics import (
@@ -2385,7 +2423,17 @@ class GeminiProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
-        clipped = transcript_clip(transcript)  # RFC-115: relocate exact embedded string
+        # #2050: the reply budget is computed first because it is what the clip must leave room
+        # for. Both used to be sized in ignorance of each other and of the served window.
+        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
+        # RFC-115: relocate the CLIPPED transcript (exact embedded string) for prefix caching.
+        clipped = transcript_clip(
+            transcript,
+            max_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=max_out,
+            ),
+        )
         user = extract_quotes_bundled_user(clipped, insight_texts)
 
         from ...utils.provider_metrics import (
@@ -2403,7 +2451,6 @@ class GeminiProvider:
         pm = kwargs.get("pipeline_metrics")
 
         # Bundled call may need a larger output budget than the per-insight call.
-        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
         _contents, _cfg_over = self._gemini_stage_request(  # RFC-115
             clipped, system, user, self.summary_model
         )

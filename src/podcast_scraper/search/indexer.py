@@ -203,7 +203,7 @@ def _kg_vector_rows_from_path(
                         },
                     )
                 )
-        elif nt in ("Entity", "Person", "Organization"):
+        elif nt in ("Entity", "Person", "Organization", "Object"):
             # RFC-097: v1.x Entity + v2.0 Person/Organization all index as kg_entity.
             ktext = _kg_embed_text_entity(props)
             if ktext:
@@ -211,6 +211,10 @@ def _kg_vector_rows_from_path(
                     ek: Optional[str] = "person"
                 elif nt == "Organization":
                     ek = "organization"
+                elif nt == "Object":
+                    # v2.1 (#2057). Without this an Object indexed with kind=None, so a
+                    # kind-filtered search silently could not reach it.
+                    ek = "object"
                 else:
                     ek = _kg_entity_kind_for_meta(props)
                 rows.append(

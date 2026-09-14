@@ -57,13 +57,65 @@ _BUNDLE_CAPTURE_MAX_CHARS = 64_000
 _BUNDLE_CAPTURE_DIR = ".podcast_scraper/quote-bundle-failures"
 
 
+#: Vendor-published context windows, used ONLY as the fallback when nothing declared one and the
+#: server cannot be asked (#2050).
+#:
+#: This is not the global constant that was deleted. That one applied ONE model's window to EVERY
+#: provider — a 32,768 DGX serving flag clipping a 1M-token Gemini. These are per-namespace figures
+#: the vendor publishes for the models on that endpoint, which is knowledge, not a guess.
+#:
+#: Two namespaces are deliberately absent, and ``None`` for them means "do not bound":
+#:   ``vllm``    — self-hosted; the window is whatever ``--max-model-len`` was set to, which no
+#:                 published figure can tell us. Discovered from ``GET /v1/models`` instead.
+#:   ``litellm`` — a gateway in front of arbitrary upstream models; there is no single window.
+#:                 Declare ``litellm_max_context_tokens`` per profile if the upstream is pinned.
+#:
+#: Prefer declaring the real served window over relying on these: a budget derived from an
+#: overstated window is a prompt the server rejects, or — on a backend that truncates silently —
+#: a corpus artifact built from half a transcript.
+_PUBLISHED_CONTEXT_TOKENS: Dict[str, int] = {
+    "openai": 128_000,
+    "qwen": 131_072,
+    "groq": 131_072,
+}
+
+
+def _tail_degeneracy(text: str, window: int = 2_000) -> Dict[str, Any]:
+    """Signals for the degenerate modes :func:`_repetition_signal` is BLIND to (#2053).
+
+    That function splits on whitespace, so two classic runaway shapes score exactly 0 and would be
+    misreported as "the model genuinely had more to say" — sending the fix in the wrong direction:
+
+    * a **whitespace/newline tail** — the model stops emitting content but never emits EOS and pads
+      to ``max_tokens``. This is the documented failure mode of schema-less
+      ``response_format={"type": "json_object"}`` guided decoding, where the grammar admits only
+      whitespace once the object closes. `320f2db0` ENABLED that guided decoding on this very call,
+      so it is the mode most likely to appear next.
+    * a **single repeated token with no spaces** — one enormous "word", so there are no whitespace
+      n-grams to count at all.
+
+    ``tail_nonspace_fraction`` near 0 is the first; ``tail_distinct_chars`` of 1-3 is the second.
+    """
+    tail = (text or "")[-window:]
+    if not tail:
+        return {"tail_nonspace_fraction": None, "tail_distinct_chars": None}
+    nonspace = sum(1 for c in tail if not c.isspace())
+    return {
+        "tail_nonspace_fraction": round(nonspace / len(tail), 3),
+        "tail_distinct_chars": len(set(tail)),
+    }
+
+
 def _repetition_signal(text: str, n: int = 12) -> Tuple[int, str]:
     """``(count, gram)`` for the most-repeated ``n``-word run — the loop tell.
 
     Computed AT CAPTURE TIME so the signal survives even if the reply itself is truncated by
     the size cap. A healthy JSON reply repeats a 12-gram once or twice (shared phrasing); a
     decoding loop repeats one run dozens of times, which is what separates "the model got stuck"
-    from "the model genuinely had more to say" (#1893).
+    from "the model genuinely had more to say" (#2053).
+
+    NOT sufficient alone — it is whitespace-tokenised and therefore blind to two degenerate shapes.
+    Always read it alongside :func:`_tail_degeneracy`.
     """
     words = (text or "").split()
     if len(words) < n * 3:
@@ -78,6 +130,50 @@ def _repetition_signal(text: str, n: int = 12) -> Tuple[int, str]:
     return count, gram[:200]
 
 
+#: Ceiling on the episode description handed to speaker detection (#2011).
+#:
+#: That call sends title + description + known hosts and asks for 300 output tokens — no
+#: transcript. So the ONLY thing that can overflow a context window is the description, and some
+#: publishers put an entire show-notes dump in it. Measured 2026-09-13 across the live corpus:
+#:
+#:     Latent Space        max 137,398 chars   median 41,590   (~39,000 tokens)
+#:     Peter Attia           max 4,069
+#:     Dwarkesh              max 4,024
+#:     In Moscow's Shadows   max 1,919
+#:
+#: Against Qwen3-30B's 32,768-token window that is a guaranteed 400, and the episode then gets NO
+#: speaker attribution at all — the stage fails outright rather than degrading.
+#:
+#: 8,000 chars (~2,300 tokens) is ~2x the largest description on any feed that has never
+#: overflowed, so nothing that works today changes. It is generous for the purpose: speaker
+#: detection is looking for NAMES, and show notes lead with the guest — the tail is timestamps,
+#: sponsor copy and links.
+#:
+#: Unlike every other clip in this file, this one is NOT derived from the served window and must
+#: not become so: the call sends no transcript, so 8,000 chars (~2,300 tokens) fits every window
+#: in the fleet. Deriving it would make the bound grow with the window for no reason (#2050).
+_SPEAKER_DESCRIPTION_MAX_CHARS = 8_000
+
+
+def _clip_speaker_description(description: Optional[str], episode_title: str = "") -> str:
+    """Bound the description so speaker detection cannot overflow the context window.
+
+    Truncating loses nothing that matters here — see ``_SPEAKER_DESCRIPTION_MAX_CHARS``. The
+    alternative is not "a longer prompt", it is a 400 and zero speakers for that episode.
+    """
+    text = description or ""
+    if len(text) <= _SPEAKER_DESCRIPTION_MAX_CHARS:
+        return text
+    logger.info(
+        "speaker detection: episode description clipped %d -> %d chars for %r (#2011); "
+        "the full text would overflow the model context and fail the stage outright",
+        len(text),
+        _SPEAKER_DESCRIPTION_MAX_CHARS,
+        (episode_title or "")[:60],
+    )
+    return text[:_SPEAKER_DESCRIPTION_MAX_CHARS]
+
+
 def _capture_bundle_failure(
     *,
     cfg: Any,
@@ -89,6 +185,7 @@ def _capture_bundle_failure(
     insight_texts: List[str],
     model: Optional[str],
     prompt_chars: Optional[int] = None,
+    in_tok: Optional[int] = None,
 ) -> None:
     """Persist one bundled-quote parse failure for offline diagnosis. Never raises.
 
@@ -126,6 +223,16 @@ def _capture_bundle_failure(
             # The loop tell, precomputed so it survives truncation of `reply` below.
             "repeated_12gram_count": rep_count,
             "repeated_12gram": rep_gram,
+            # The two shapes the 12-gram signal cannot see — see _tail_degeneracy.
+            **_tail_degeneracy(content),
+            # The server's OWN prompt-token count, so every capture yields a real chars/token
+            # ratio for prod content. The budget derives at 3.5 (CHARS_PER_TOKEN_BUDGET_RATIO)
+            # and nobody has measured it on screenplay+diarized transcripts — this settles it
+            # with data instead of another argument.
+            "prompt_tokens_reported": in_tok,
+            "measured_chars_per_token": (
+                round(prompt_chars / in_tok, 2) if (prompt_chars and in_tok) else None
+            ),
             "insight_texts": [t[:400] for t in (insight_texts or [])],
             "reply_truncated_for_capture": len(content or "") > _BUNDLE_CAPTURE_MAX_CHARS,
             "reply": (content or "")[:_BUNDLE_CAPTURE_MAX_CHARS],
@@ -331,6 +438,8 @@ def _record_openai_summarization_call(
 _TEMPERATURE_FIXED_MODELS = frozenset({"gpt-5.5", "gpt-5.5-pro"})
 
 
+from ..common.token_budget import fit_text_to_token_budget
+
 # RFC-115: transcript-prefix caching lives in the shared, provider-family-agnostic module so every
 # provider (base siblings + grok/mistral/ollama/anthropic/gemini) relocates the transcript
 # identically.
@@ -492,19 +601,38 @@ class OpenAICompatibleProvider:
         # False}`` to produce a clean summary instead of leaking reasoning prose.
         # Wrapping the client method here avoids fanning the kwarg through 17
         # call sites scattered across the provider.
+        # #2051: the vendor's researched sampling knob, routed from the registry rather than
+        # hand-copied into a profile. `presence_penalty` is the documented mitigation for the
+        # endless repetition behind #2053; it sat declared-but-unread for the life of the DGX
+        # deployment because `summary_extra` had no consumer.
+        #
+        # `setdefault` semantics, NOT override: a call site that has a reason to pass its own
+        # penalty keeps it. Nothing does today, but a provider-wide default that silently wins
+        # over an explicit argument is the same class of bug as the one being fixed.
+        _presence_penalty = getattr(cfg, f"{ns}_presence_penalty", None)
         _fixed_extra_body = getattr(cfg, f"{ns}_extra_body", None)
-        if _fixed_extra_body:
+        if _fixed_extra_body or _presence_penalty is not None:
             _orig_chat_create = self.client.chat.completions.create
-            _frozen_extra = dict(_fixed_extra_body)
+            _frozen_extra = dict(_fixed_extra_body or {})
+            _frozen_penalty = _presence_penalty
 
-            def _chat_create_with_extra_body(**kwargs: Any) -> Any:
-                merged = dict(kwargs.get("extra_body") or {})
-                merged.update(_frozen_extra)
-                kwargs["extra_body"] = merged
+            def _chat_create_with_vendor_defaults(**kwargs: Any) -> Any:
+                if _frozen_extra:
+                    merged = dict(kwargs.get("extra_body") or {})
+                    merged.update(_frozen_extra)
+                    kwargs["extra_body"] = merged
+                if _frozen_penalty is not None:
+                    kwargs.setdefault("presence_penalty", _frozen_penalty)
                 return _orig_chat_create(**kwargs)
 
-            _patched = _chat_create_with_extra_body
+            _patched = _chat_create_with_vendor_defaults
             self.client.chat.completions.create = _patched  # type: ignore[method-assign]
+            if _frozen_penalty is not None:
+                logger.info(
+                    "%s: presence_penalty=%s applied to every chat call from the registry (#2051)",
+                    self._PROVIDER_LABEL,
+                    _frozen_penalty,
+                )
 
         # Log non-sensitive provider metadata (for debugging)
         # Extract region from base_url if possible
@@ -533,8 +661,17 @@ class OpenAICompatibleProvider:
         self.summary_temperature = getattr(cfg, f"{ns}_temperature", 0.3)
         _seed = getattr(cfg, f"{ns}_summary_seed", None)
         self.summary_seed: Optional[int] = int(_seed) if _seed is not None else None
-        # GPT-4o-mini supports 128k context window - can handle full transcripts
-        self.max_context_tokens = 128000  # Conservative estimate
+        # The served context window, in tokens.
+        #
+        # 128,000 is the OpenAI-native default and is WRONG for every other deployment on this
+        # transport — the DGX vLLM serves 32,768 (#2050). It is a starting value, not a fact:
+        # subclasses that can ask their server override it (VLLMProvider reads `max_model_len`
+        # off `GET /v1/models`), and `_context_limits` corrects it again from any 400 that names
+        # a real limit. Budget from `transcript_budget_chars()`, never from this attribute
+        # directly, so the correction is always applied.
+        self.max_context_tokens: Optional[int] = int(
+            getattr(cfg, f"{ns}_max_context_tokens", 0) or 0
+        ) or _PUBLISHED_CONTEXT_TOKENS.get(ns)
 
         # Initialization state
         self._transcription_initialized = False
@@ -596,17 +733,42 @@ class OpenAICompatibleProvider:
             # tells us the true number — it just tells us by failing. Learn it once, clamp
             # every subsequent call for that model, and retry this one.
             learned = _learn_context_limit_from_error(msg)
-            if learned and isinstance(model, str) and self._context_limits.get(model) != learned:
-                self._context_limits[model] = learned
-                logger.warning(
-                    "%s: context limit for %s learned as %d from a 400 (prompt + requested "
-                    "output exceeded it). Clamping the output budget and retrying; later calls "
-                    "for this model are clamped up front.",
-                    self._PROVIDER_LABEL,
-                    model,
-                    learned,
+            if learned:
+                # LEARNING and RETRYING are separate concerns, and conflating them was a bug
+                # (#1893). This used to retry only when `learned` DIFFERED from the cached value,
+                # so the FIRST 400 for a model recovered and every subsequent one fell straight
+                # through to `raise`. Against 565 rejections over 30 days the recovery could fire
+                # at most once per process.
+                #
+                # It is exactly backwards. Once the limit is known, a 400 means the up-front clamp
+                # UNDER-counted this particular prompt — and the server's message carries its exact
+                # token count, so that is when a retry is most likely to succeed, not least.
+                newly_learned = (
+                    isinstance(model, str) and self._context_limits.get(model) != learned
                 )
+                if isinstance(model, str):
+                    self._context_limits[model] = learned
+                if newly_learned:
+                    logger.warning(
+                        "%s: context limit for %s learned as %d from a 400 (prompt + requested "
+                        "output exceeded it). Clamping the output budget and retrying; later "
+                        "calls for this model are clamped up front.",
+                        self._PROVIDER_LABEL,
+                        model,
+                        learned,
+                    )
+                # `prompt_hint=msg` makes the clamp use the server's EXACT prompt size instead of
+                # our 3.5 chars/token estimate — the one place the budget is measured, not guessed.
                 if _context_clamp_token_budget(kwargs, learned, prompt_hint=msg):
+                    if not newly_learned:
+                        logger.warning(
+                            "%s: 400 on %s despite a known %d-token limit — the up-front estimate "
+                            "under-counted this prompt. Re-clamping from the server's exact count "
+                            "and retrying.",
+                            self._PROVIDER_LABEL,
+                            model,
+                            learned,
+                        )
                     return self.client.chat.completions.create(**kwargs)
             if (
                 "temperature" in kwargs
@@ -622,6 +784,79 @@ class OpenAICompatibleProvider:
                 kwargs.pop("temperature", None)
                 return self.client.chat.completions.create(**kwargs)
             raise
+
+    def count_tokens(self, text: str) -> Optional[int]:
+        """Exact token count from the backend's tokenizer, or ``None`` if it has none (#2050).
+
+        ``None`` is not a failure — most backends expose no tokenizer, and the caller falls back
+        to a pessimistic character estimate. Overridden by VLLMProvider, which has ``/tokenize``.
+        """
+        return None
+
+    def served_context_tokens(self) -> Optional[int]:
+        """The best available figure for this deployment's context window, in tokens.
+
+        Three sources, most-authoritative first (#2050):
+
+        1. ``_context_limits[model]`` — learned from a 400 that named the real limit. The server
+           said this, so nothing beats it.
+        2. ``max_context_tokens`` — declared: discovered from ``GET /v1/models`` where the backend
+           advertises it (VLLMProvider), else configured, else the OpenAI-native default.
+
+        Before this existed the declared value was the hardcoded 128,000 on this class, the learned
+        value started empty and was consulted only inside the retry path, and neither was ever used
+        to size a prompt. So the transport knew the real window and budgeted from a constant anyway.
+        """
+        learned = self._context_limits.get(self.summary_model) if self.summary_model else None
+        if isinstance(learned, int) and learned > 0:
+            return learned
+        return self.max_context_tokens
+
+    def clip_transcript_to_budget(
+        self,
+        text: str,
+        *,
+        response_tokens: int,
+        instruction_tokens: int = config_constants.GI_QUOTE_INSTRUCTION_TOKEN_RESERVE,
+        label: str = "transcript",
+    ) -> str:
+        """Clip *text* to what this deployment can actually hold — COUNTED where possible (#2050).
+
+        Prefers the backend's own tokenizer over any chars-per-token constant. That rate varies
+        with content (3.48 on real corpus transcripts vs 4.44 on the simpler-vocabulary fixtures),
+        and every context-overflow bug in this repo came from a constant being fractionally wrong
+        in the optimistic direction — 508 rejections in 30 days, each over by exactly one token.
+
+        Returns *text* unchanged when the served window is unknown: not knowing is self-correcting
+        via the server's 400, whereas guessing is not.
+        """
+        window = self.served_context_tokens()
+        if not window:
+            return text
+        max_prompt_tokens = window - response_tokens - instruction_tokens
+        return fit_text_to_token_budget(
+            text,
+            max_prompt_tokens,
+            self.count_tokens,
+            label=label,
+        )
+
+    def transcript_budget_chars(
+        self,
+        *,
+        response_tokens: int,
+        instruction_tokens: int = config_constants.GI_QUOTE_INSTRUCTION_TOKEN_RESERVE,
+    ) -> Optional[int]:
+        """Chars of transcript this deployment can actually hold for a call of this shape.
+
+        Every transcript clip in this provider goes through here, so raising the served window
+        raises all of them at once and none of them can drift apart again (#2050).
+        """
+        return config_constants.transcript_budget_chars(
+            self.served_context_tokens(),
+            response_tokens=response_tokens,
+            instruction_tokens=instruction_tokens,
+        )
 
     def _token_kwarg(self, n: int, model: Optional[str] = None) -> Dict[str, Any]:
         """The right token-limit kwarg for this model, as a dict to spread into a create() call.
@@ -1402,7 +1637,7 @@ class OpenAICompatibleProvider:
         # Merge config params with template params
         template_params = {
             "episode_title": episode_title,
-            "episode_description": episode_description or "",
+            "episode_description": _clip_speaker_description(episode_description, episode_title),
             "known_hosts": ", ".join(sorted(known_hosts)) if known_hosts else "",
         }
         template_params.update(self.cfg.ner_prompt_params)
@@ -1533,8 +1768,12 @@ class OpenAICompatibleProvider:
     ) -> Dict[str, Any]:
         """Summarize text using OpenAI GPT API.
 
-        Can handle full transcripts directly due to large context window (128k+ tokens).
-        No chunking needed for most podcast transcripts.
+        The transcript is clipped to what THIS deployment's window can hold (#2050). This method
+        used to be unbounded, on the docstring's own reasoning that it "can handle full
+        transcripts directly due to large context window (128k+ tokens)" — an OpenAI-native
+        assumption that is simply false on the DGX, which serves 32,768. Of the six sites that
+        build a prompt from a transcript, this was the ONLY one with no limit at all, which makes
+        it the prime suspect for the 565 server-side context rejections measured over 30 days.
 
         Args:
             text: Transcript text to summarize
@@ -1588,6 +1827,14 @@ class OpenAICompatibleProvider:
             or 100
         )
         custom_prompt = params.get("prompt") if params else None
+
+        # #2050: bound the transcript against the served window. `max_length` is the reply budget
+        # and is only known here, which is why the clip lives at this point and not at the caller.
+        # A None budget means the window is not known — send it, and let a 400 name the real limit
+        # for the retry path to clamp against. Never guess a window here.
+        text = self.clip_transcript_to_budget(
+            text, response_tokens=int(max_length), label="summarization transcript"
+        )
 
         logger.debug(
             "Summarizing text via OpenAI API (model: %s, max_tokens: %d)",
@@ -1852,7 +2099,12 @@ class OpenAICompatibleProvider:
         )
         language = getattr(self.cfg, "language", "en") or None
         system_prompt, user_prompt = build_megabundle_prompt(
-            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+            text,
+            language=language,
+            cache_transcript_prefix=self._cache_transcript_prefix,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
         )
 
         _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
@@ -1954,7 +2206,12 @@ class OpenAICompatibleProvider:
         )
         language = getattr(self.cfg, "language", "en") or None
         system_prompt, user_prompt = build_extraction_bundle_prompt(
-            text, language=language, cache_transcript_prefix=self._cache_transcript_prefix
+            text,
+            language=language,
+            cache_transcript_prefix=self._cache_transcript_prefix,
+            max_transcript_chars=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None), response_tokens=int(max_out)
+            ),
         )
 
         _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
@@ -2232,8 +2489,15 @@ class OpenAICompatibleProvider:
         # so evals could not pin it and the pipeline was not reproducible.
         insight_temperature = _insight_salvage.resolve_insight_temperature(self.cfg, "openai")
         text_slice = (text or "").strip()
-        if len(text_slice) > 120000:
-            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+        # #2050: derive the clip from the window this deployment actually serves, not from a
+        # literal. 120,000 chars is ~34,000 tokens at the 3.5 chars/token prod ratio — ALREADY
+        # over the DGX's 32,768-token window, so this site was handing the server a prompt it
+        # had to reject. A wider model (Gemini ~1M) was equally wrongly clipped downward.
+        _fitted = self.clip_transcript_to_budget(
+            text_slice, response_tokens=insight_max_tokens, label="insight-extraction transcript"
+        )
+        if len(_fitted) < len(text_slice):
+            text_slice = _fitted + "\n\n[Transcript truncated.]"
 
         try:
             # The prompt decides what an insight IS, so it is a tuned parameter like any
@@ -2467,6 +2731,7 @@ class OpenAICompatibleProvider:
         from ...kg.llm_extract import (
             build_kg_transcript_system_prompt,
             build_kg_user_prompt,
+            KG_RESPONSE_TOKENS,
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
@@ -2474,7 +2739,17 @@ class OpenAICompatibleProvider:
 
         max_topics = min(max(1, max_topics), 20)
         max_entities = min(max(1, max_entities), 50)
-        text_slice = truncate_transcript_for_kg(text or "")
+        # #2050: derive the KG clip from this deployment's window, not a shared 120,000 literal
+        # that fit no model in particular. Char-derived rather than tokenizer-counted: the KG path
+        # accounts for 0 of the 565 measured context rejections, so a /tokenize round trip per
+        # call is not justified here.
+        text_slice = truncate_transcript_for_kg(
+            text or "",
+            limit=config_constants.transcript_budget_chars(
+                getattr(self, "max_context_tokens", None),
+                response_tokens=KG_RESPONSE_TOKENS,
+            ),
+        )
         if not text_slice.strip():
             return None
         model = resolve_kg_model_id(self, params)
@@ -2558,9 +2833,13 @@ class OpenAICompatibleProvider:
 
         system, user = render_extract_quote_prompt(
             "openai",
-            transcript,
+            self.clip_transcript_to_budget(
+                transcript,
+                response_tokens=config_constants.GI_QUOTE_RESPONSE_TOKENS,
+                label="staged-quote transcript",
+            ),
             insight_text,
-            config_constants.GI_QUOTE_TRANSCRIPT_MAX_CHARS,
+            None,  # already fitted by COUNT above; no char budget to re-apply on top
         )
         try:
             from ...utils.provider_metrics import (
@@ -2765,7 +3044,6 @@ class OpenAICompatibleProvider:
             extract_quotes_bundled_max_tokens,
             EXTRACT_QUOTES_BUNDLED_SYSTEM,
             extract_quotes_bundled_user,
-            transcript_clip,
         )
         from ...utils.provider_metrics import (
             _safe_openai_retryable,
@@ -2776,11 +3054,18 @@ class OpenAICompatibleProvider:
         )
 
         system = EXTRACT_QUOTES_BUNDLED_SYSTEM
+        # The reply budget has to be known BEFORE the clip, because it is what the clip has to
+        # leave room for (#2050). It used to be computed thirty lines further down, which is how
+        # a 50,000-char clip and a reply budget scaled by insight count ended up sized in total
+        # ignorance of each other and of the window they both had to fit.
+        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
         # RFC-115: relocate the CLIPPED transcript (the exact string the builder embeds) so the
-        # quote stage shares one cached prefix with summary/GI/KG. NB the clip (transcript_clip,
-        # ~50k) can differ from those stages' window, so sharing only holds for episodes under the
-        # clip; longer ones send a clipped block once (cold) — never wrong, just not shared.
-        clipped = transcript_clip(transcript)
+        # quote stage shares one cached prefix with summary/GI/KG. Now that every stage derives
+        # its clip from the same served window, episodes share the prefix far more often — the
+        # old note here ("the clip can differ from those stages' window") described the bug.
+        clipped = self.clip_transcript_to_budget(
+            (transcript or "").strip(), response_tokens=max_out, label="bundled-quote transcript"
+        )
         user = extract_quotes_bundled_user(clipped, insight_texts)
         messages = self._build_stage_messages(
             transcript=clipped, system_prompt=system, user_prompt=user
@@ -2790,7 +3075,6 @@ class OpenAICompatibleProvider:
         call_metrics.set_provider_name(self._TELEMETRY_PROVIDER)
         call_metrics.set_breaker_config_from_cfg(self.cfg)
         pm = kwargs.get("pipeline_metrics")
-        max_out = extract_quotes_bundled_max_tokens(len(insight_texts))
 
         # Constrain decoding to JSON. This call asked for a nested JSON document in free-form
         # text while the summary / GI / value-gate calls in this same class all set
@@ -2883,6 +3167,7 @@ class OpenAICompatibleProvider:
                 insight_texts=list(insight_texts or []),
                 model=self.summary_model,
                 prompt_chars=sum(len(str(m.get("content") or "")) for m in messages),
+                in_tok=in_tok,
             )
             # ``finish_reason == "length"`` is the one signal that PROVES the budget ran out
             # rather than the model writing bad JSON. Re-raise as the caller-recoverable type
@@ -3412,7 +3697,10 @@ class OpenAICompatibleProvider:
             supports_semantic_cleaning=True,  # OpenAI supports LLM-based cleaning
             supports_audio_input=True,  # Whisper API accepts audio files
             supports_json_mode=True,  # GPT models support JSON mode
-            max_context_tokens=self.max_context_tokens,
+            # 0 means "not declared" in the capability report — the same thing DeepgramProvider
+            # reports for a backend with no chat window at all. It is a DESCRIPTION, not a budget:
+            # nothing sizes a prompt from here (#2050).
+            max_context_tokens=self.max_context_tokens or 0,
             supports_tool_calls=True,  # GPT models support function calling
             supports_system_prompt=True,  # GPT models support system prompts
             supports_streaming=True,  # OpenAI API supports streaming

@@ -41,7 +41,10 @@ from .slugify import slugify
 
 logger = logging.getLogger(__name__)
 
-CIL_PREFIXES = ("person:", "org:", "topic:")
+#: Canonical CIL id prefixes. ``object:`` joined in KG schema 2.1 (#2057) — an Object
+#: is a first-class referent with a stable id, so anything keyed on this tuple
+#: (resolution, bridging, cross-layer joins) must see it or Objects silently drop out.
+CIL_PREFIXES = ("person:", "org:", "object:", "topic:")
 _TYPE_PRECEDENCE = ("person", "org", "topic")
 DEFAULT_FUZZY_THRESHOLD = 0.75
 DEFAULT_EMBED_MODEL_ID = "minilm-l6"

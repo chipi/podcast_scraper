@@ -1259,6 +1259,20 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         extra_settings={
             "api_key_env": "VLLM_API_KEY",
             "chat_template_kwargs": {"enable_thinking": False},
+            # The window this DEPLOYMENT serves (#2050/#1985). Verified live against
+            # GET /v1/models on 2026-09-13: max_model_len=65536, matching the
+            # `--max-model-len=65536` in agentic-ai-homelab's autoresearch compose.
+            #
+            # It was 32768, set for an eval harness — "autoresearch summary inputs cap at ~30k
+            # tokens so we don't need the full 128k window" — and became this pipeline's
+            # episode-length policy when the pipeline started sharing the endpoint. The model
+            # does 256k natively (max_position_embeddings 262144, rope_scaling null), so 64k
+            # needs no RoPE scaling; it costs ~3 GiB/request, dropping concurrency 6.10x -> ~3x.
+            #
+            # This number is the ONLY place the window is declared. The episode ceiling and every
+            # transcript clip derive from it, and the provider prefers what the server advertises
+            # over it — so a further raise is this line plus the compose flag, nothing else.
+            "max_context_tokens": 65536,
             "vendor_sampling": {
                 "temperature": 0.7,
                 "top_p": 0.8,
@@ -2055,6 +2069,16 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "vllm_summary_model",
     "vllm_speaker_model",
     "vllm_api_base",
+    # #2051: the vendor's researched sampling knob. Governed for the same reason as the wire model
+    # — an ungoverned value is one a hand-authored profile can silently disagree with, and this one
+    # spent the whole DGX deployment declared in the registry and unread.
+    "vllm_presence_penalty",
+    # #2050: the served window. Governed so the episode gate and every transcript clip read the
+    # SAME number, and so raising the serving flag is a registry edit rather than six code edits.
+    "vllm_max_context_tokens",
+    # Provider-agnostic mirror, read by the episode gate at scrape time (before any provider
+    # exists). Governed alongside its namespaced twin so the two can never disagree.
+    "llm_served_context_tokens",
     # ollama is symmetric with vllm (ADR-147): its wire model + endpoint are governed too, whether
     # ollama is the primary (experiment_dgx_only) or the airgapped summary fallback.
     "ollama_summary_model",
@@ -2827,6 +2851,102 @@ def _emit_summary_model(sm: StageOption, settings: Dict[str, Any]) -> None:
         settings[f"{ns}_api_base"] = _endpoint_to_env_template(sm.endpoint)
 
 
+#: The ONLY ``vendor_sampling`` keys this resolver plumbs, and why the rest are held.
+#:
+#: ``vendor_sampling`` on the vLLM options carries the vendor's four researched knobs
+#: (``temperature``, ``top_p``, ``top_k``, ``presence_penalty``). Plumbing all four at once would
+#: bundle a measured repetition fix together with three changes to how every summary in the corpus
+#: is sampled — and #2051's whole point is that a value nobody can see the effect of is worse than
+#: no value. So each knob is plumbed when it has been A/B'd, not when it is noticed.
+#:
+#: ``presence_penalty`` is first because it is the vendor's documented mitigation for the endless
+#: repetition that produces #2053 (215 of 293 bundled-quote failures ran to ``max_tokens``).
+#:
+#: CAVEAT, because an earlier version of this comment claimed otherwise: it DOES change a healthy
+#: reply's content. Discouraging re-emission is a content change by definition, and it applies to
+#: every chat call on this provider — not only summaries but speaker detection, the value gate,
+#: entailment, KG, and VERBATIM quote extraction, where the tokens being penalised are exactly the
+#: ones the model is supposed to reproduce. It is plumbed ahead of the other three knobs because
+#: it targets a measured failure class, not because it is risk-free; the A/B in the arc doc is
+#: INCONCLUSIVE (zero truncations in its control arm). Treat the post-deploy `length`-rate
+#: measurement as the real evidence, and watch quote verbatimness alongside it.
+#:
+#: HELD, deliberately, each needing its own A/B and its own recorded decision:
+#:   ``temperature`` 0.7  -- prod summarizes at the 0.3 default today (``vllm_temperature``,
+#:                           unset in every profile). This is a 0.3 -> 0.7 change on EVERY episode,
+#:                           and no gate in the repo can see a summary getting blander.
+#:   ``top_p`` 0.8, ``top_k`` 20 -- same argument; they reshape the sampling distribution itself.
+_VENDOR_SAMPLING_PLUMBED: Tuple[str, ...] = ("presence_penalty",)
+_VENDOR_SAMPLING_HELD = frozenset({"temperature", "top_p", "top_k"})
+
+
+def _emit_vendor_sampling(sm: StageOption, settings: Dict[str, Any]) -> None:
+    """Route the summary option's researched sampling knobs to the provider's namespaced fields.
+
+    Before #2051 these were written to ``settings["summary_extra"]``, which **nothing read** — one
+    producer, zero consumers. So ``presence_penalty: 1.5`` sat in the registry for the life of the
+    DGX deployment and never reached a single request.
+
+    Only the keys in :data:`_VENDOR_SAMPLING_PLUMBED` are emitted. An unrecognised key RAISES
+    rather than being dropped, because being dropped silently is the bug this function exists to
+    close.
+    """
+    vendor = (sm.extra_settings or {}).get("vendor_sampling")
+    if not vendor:
+        return
+    if not isinstance(vendor, dict):
+        raise RuntimeError(
+            f"Summary option '{sm.option_id}' sets vendor_sampling to {type(vendor).__name__}, "
+            "not a dict. The resolver cannot route it, and a value it cannot route is a setting "
+            "production silently does not run."
+        )
+    unknown = sorted(set(vendor) - set(_VENDOR_SAMPLING_PLUMBED) - _VENDOR_SAMPLING_HELD)
+    if unknown:
+        # NOT ValueError: Config._resolve_profile catches ValueError to mean "not a registry
+        # preset" and silently drops to YAML-only, so a typo here would disable the whole registry
+        # for this profile without a word.
+        raise RuntimeError(
+            f"Summary option '{sm.option_id}' sets vendor_sampling keys {unknown}, which this "
+            "resolver neither plumbs nor explicitly holds. A param the registry records but never "
+            "plumbs is a setting production silently does not run — add it to "
+            "_VENDOR_SAMPLING_PLUMBED (with an A/B behind it) or to _VENDOR_SAMPLING_HELD (with "
+            "the reason it is not applied yet)."
+        )
+    ns = sm.provider
+    if ns not in ("openai", "vllm", "ollama", "litellm", "qwen", "groq"):
+        return
+    for key in _VENDOR_SAMPLING_PLUMBED:
+        if key in vendor:
+            settings[f"{ns}_{key}"] = vendor[key]
+
+
+def _emit_served_context_window(sm: StageOption, settings: Dict[str, Any]) -> None:
+    """Route the deployment's served context window to the provider's namespaced field (#2050).
+
+    A context window is a property of the model AS DEPLOYED, and a ``StageOption`` is already a
+    provider/model/**endpoint** triple — a deployment. So this is where the served figure belongs,
+    rather than in ``LLM_NARROWEST_CONTEXT_TOKENS``, a global sized to the narrowest model in the
+    fleet, which turned one eval harness's ``--max-model-len=32768`` into corpus policy for every
+    provider including the 1M-token ones.
+
+    Declaring it is what lets the EPISODE GATE see the window: that gate runs at scrape time,
+    before any provider is resolved, so it cannot ask a server and must read a materialized value.
+    The provider still prefers what the server advertises — declared is a floor, not a claim.
+    """
+    window = (sm.extra_settings or {}).get("max_context_tokens")
+    if window is None:
+        return
+    if not isinstance(window, int) or window <= 0:
+        raise RuntimeError(
+            f"Summary option '{sm.option_id}' declares max_context_tokens={window!r}, which is not "
+            "a positive integer. A window the resolver cannot use is a budget nothing derives from."
+        )
+    ns = sm.provider
+    if ns in ("openai", "vllm", "ollama", "litellm", "qwen", "groq"):
+        settings[f"{ns}_max_context_tokens"] = window
+    settings["llm_served_context_tokens"] = window
+
+
 def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
     """Route the naming/NER model + endpoint to the OpenAI-compatible provider's namespaced fields.
 
@@ -2894,7 +3014,11 @@ def resolve_profile_to_settings(
     if resolved_sm_endpoint is not None:
         settings["summary_endpoint"] = resolved_sm_endpoint
     if sm.extra_settings:
+        # Kept for profile introspection only. NOTHING reads this key — that was #2051's bug, and
+        # it is why the researched values below are emitted to real Config fields instead.
         settings["summary_extra"] = dict(sm.extra_settings)
+    _emit_vendor_sampling(sm, settings)
+    _emit_served_context_window(sm, settings)
     # Route the wire model + endpoint to the provider-namespaced governed fields (ADR-147 B2).
     _emit_summary_model(sm, settings)
 

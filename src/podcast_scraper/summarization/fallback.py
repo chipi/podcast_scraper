@@ -90,6 +90,22 @@ _NEVER_WRAPPED = frozenset(
         # ladders on one call and fail over twice by different rules.
         "transcribe",
         "transcribe_with_segments",
+        # Context-budget surface (#2050). These must NEVER fail over, for a reason specific to
+        # what they compute rather than the generic "no LLM call" one above:
+        #
+        # A context window and a token count are properties of THIS deployment's model. Answering
+        # either from a fallback provider returns a number for a DIFFERENT model — a budget sized
+        # against Gemini's 1M window, handed to a request about to be sent to a 65,536-token vLLM.
+        # That is worse than an error, because it succeeds and overflows later.
+        #
+        # `count_tokens` and `clip_transcript_to_budget` do make a network call (vLLM's /tokenize),
+        # so they are not "no LLM call" in the sense above; they already degrade internally to a
+        # pessimistic character estimate when the tokenizer is unreachable, which is the correct
+        # local behaviour and not something a provider swap should override.
+        "count_tokens",
+        "served_context_tokens",
+        "transcript_budget_chars",
+        "clip_transcript_to_budget",
     }
 )
 

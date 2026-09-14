@@ -188,7 +188,51 @@ def split_author_names(author: str) -> list[str]:
     return merged
 
 
-def normalize_host_names(names: Iterable[str]) -> Set[str]:
+#: A trailing "with <Name>" in a TITLE names the host, not the show — "Invest Like the Best with
+#: Patrick O'Shaughnessy". Stripped before comparing a candidate against the show's name, or the
+#: host would look like part of it.
+_TITLE_WITH_SUFFIX = re.compile(r"\s+with\s+.+$", re.IGNORECASE)
+
+
+def _fold_title(text: Optional[str]) -> str:
+    """Lowercase, drop punctuation, collapse whitespace."""
+    return " ".join(re.sub(r"[^\w\s]", " ", str(text or "").lower()).split())
+
+
+def names_the_show(candidate: str, feed_title: Optional[str]) -> bool:
+    """True when *candidate* is the SHOW's own name rather than a person on it (#2064).
+
+    Measured on production: 19 speaker entries across 279 episodes are a show seated as a host —
+    "Africa Tech Summit", "Trivium China", "Conversations with Tyler", "Machine Learning Street".
+    None is caught by :func:`is_network_or_org_author`, because none carries an org marker, is a
+    known network, or is a mononym. The feed's own title is the one piece of evidence that tells a
+    show apart from a person, and it is already on the artifact — so this is a comparison, not a
+    wordlist that needs feeding forever.
+
+    The trailing ``with <Name>`` is removed from the title first, because that is exactly where a
+    real host lives: without it "Patrick O'Shaughnessy" would look like part of "Invest Like the
+    Best with Patrick O'Shaughnessy" and the fix would throw away the 18 legitimate cases in the
+    same sample.
+
+    Matches the whole show name or a multi-token PREFIX of it ("Machine Learning Street" of
+    "Machine Learning Street Talk"). A prefix rather than any substring, so a host whose name
+    happens to appear late in a title is untouched. No title means no opinion: absence of evidence
+    is not evidence that the candidate is the show.
+    """
+    cand = _fold_title(candidate)
+    title = _fold_title(feed_title)
+    if not cand or not title:
+        return False
+    show = _fold_title(_TITLE_WITH_SUFFIX.sub("", str(feed_title or ""))) or title
+    if cand == title or cand == show:
+        return True
+    cand_tokens = cand.split()
+    if len(cand_tokens) < 2:
+        return False
+    return show.split()[: len(cand_tokens)] == cand_tokens
+
+
+def normalize_host_names(names: Iterable[str], *, feed_title: Optional[str] = None) -> Set[str]:
     """The single gate every host-name source must pass through (#1652).
 
     Four independent code paths can seed ``known_hosts`` — the deterministic feed parse, the
@@ -222,6 +266,13 @@ def normalize_host_names(names: Iterable[str]) -> Set[str]:
         for candidate in split_author_names(text):
             candidate = candidate.strip()
             if not candidate or is_network_or_org_author(candidate):
+                continue
+            # #2064: the SHOW is not a person on it. Only checkable when the caller knows the
+            # title, which is why it is a keyword rather than a silent no-op.
+            if names_the_show(candidate, feed_title):
+                logger.debug(
+                    "host candidate '%s' names the show '%s' — not a person", candidate, feed_title
+                )
                 continue
             out.add(candidate)
     return out
@@ -409,18 +460,28 @@ _NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){1,5})"
 _NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME}){{0,9}}"
 # Presenting verbs — what a show's own description says its hosts DO.
 _PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
+#: Patterns safe to run over a TITLE as well as a description.
 _HOST_PHRASES = [
     re.compile(p, re.IGNORECASE)
     for p in (
         rf"\bhosted\s+by\s+(?P<names>{_NAMES})",
         rf"\bco-?hosts?\s+(?P<names>{_NAMES})",
         rf"\bjournalists?\s+(?P<names>{_NAMES})",
-        # "Joe Weisenthal and Tracy Alloway explore..." / "Katie Martin, Robert Armstrong and other
-        # markets nerds at the Financial Times explain..." — names, then a presenting verb. The
-        # filler between them is bounded so the verb belongs to THESE names.
-        rf"(?P<names>{_NAMES})[\w\s,'’\-]{{0,60}}?\s+{_PRESENTS}",
         rf"\bwith\s+(?P<names>{_NAME})\s*$",  # the show title: "... with Patrick O'Shaughnessy"
     )
+]
+
+#: DESCRIPTION-ONLY. "Joe Weisenthal and Tracy Alloway explore..." / "Katie Martin, Robert Armstrong
+#: and other markets nerds at the Financial Times explain..." — names, then a presenting verb, with
+#: bounded filler so the verb belongs to THESE names.
+#:
+#: It must never run over a TITLE (#2064). A title is a NAME, not a sentence, and `_PRESENTS`
+#: contains ordinary words that end show names — so "Machine Learning Street Talk" parsed as the
+#: names "Machine Learning Street" followed by the verb "Talk", and the show became the host of
+#: itself on 6 production episodes. The host does appear in a title, but in a different shape:
+#: "... with Patrick O'Shaughnessy", which the `with` pattern above already reads.
+_HOST_PHRASES_DESCRIPTION_ONLY = [
+    re.compile(rf"(?P<names>{_NAMES})[\w\s,'’\-]{{0,60}}?\s+{_PRESENTS}", re.IGNORECASE)
 ]
 _NAME_RE = re.compile(_NAME)
 
@@ -438,7 +499,8 @@ def hosts_from_feed_statement(
     for is_title, text in ((True, feed_title or ""), (False, feed_description or "")):
         if not text.strip():
             continue
-        for pat in _HOST_PHRASES:
+        patterns = _HOST_PHRASES if is_title else _HOST_PHRASES + _HOST_PHRASES_DESCRIPTION_ONLY
+        for pat in patterns:
             m = pat.search(text)
             if not m:
                 continue
@@ -863,7 +925,21 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
     if not re.fullmatch(r"[A-Z][A-Za-z'’\-]+", t):
         return False
     tl = t.lower()
-    return tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
+    if tl in _NOT_A_NAME_TOKEN or tl in _NOT_A_MONONYM or tl in HONORIFIC_TITLES:
+        return False
+    # A HYPHENATED COMPOUND is judged by its parts. "Pan-African" reached the graph as a guest with
+    # 363s of talk time on a freshly ingested episode: `african` is in the demonym list, but
+    # `pan-african` is not, and the compound was compared whole. The same shape covers
+    # "Afro-Caribbean", "Anglo-Irish", "Sino-American". Checking the parts against the list we
+    # already have beats adding one entry per compound, which is a list that needs feeding forever.
+    #
+    # A hyphenated real surname ("Crebo-Rediker", "Smith-Jones") is unaffected: neither part is a
+    # demonym or an ordinary word, so it still passes.
+    if "-" in tl:
+        parts = [x for x in tl.split("-") if x]
+        if any(x in _NOT_A_MONONYM or x in _NOT_A_NAME_TOKEN for x in parts):
+            return False
+    return True
 
 
 def is_publishable_speaker_name(name: Optional[str]) -> bool:
@@ -975,6 +1051,18 @@ def detect_hosts_from_feed(
                 # #1646's damage on exactly those shows.
                 for candidate in split_author_names(author_clean):
                     if not candidate:
+                        continue
+                    # #2064: an <itunes:author> equal to the show's own name is the SHOW. It trips
+                    # none of the checks below (no org marker, not a known network, not a mononym),
+                    # so "Africa Tech Summit" and "Trivium China" were accepted as host people —
+                    # and `_validate_hosts_with_first_episode` then confirmed them, because a
+                    # show's name is always spoken in its own opening.
+                    if names_the_show(candidate, feed_title):
+                        logger.debug(
+                            "RSS author '%s' names the show '%s', not a person on it",
+                            candidate,
+                            feed_title,
+                        )
                         continue
                     if is_network_or_org_author(candidate):
                         logger.debug(

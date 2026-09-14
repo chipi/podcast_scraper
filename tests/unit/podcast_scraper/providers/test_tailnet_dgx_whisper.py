@@ -60,7 +60,14 @@ def test_config_rejects_dgx_without_fallback() -> None:
         )
 
 
-def test_gemini_fallback_requires_api_key() -> None:
+def test_gemini_fallback_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test that asserts "no key -> error" must GUARANTEE the key is absent rather than hope the
+    environment is clean. `tests/e2e/conftest.py` sets dummy provider keys at MODULE IMPORT
+    scope, and pytest imports every conftest during collection — so merely collecting the full
+    suite puts `GEMINI_API_KEY` et al. into `os.environ` before any test runs, and these passed
+    alone while failing in the suite. Controlling the precondition here is the test's own job."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     with pytest.raises(ValueError, match="transcription_fallback"):
         Config.model_validate(
             {
@@ -72,7 +79,9 @@ def test_gemini_fallback_requires_api_key() -> None:
         )
 
 
-def test_mistral_fallback_requires_api_key() -> None:
+def test_mistral_fallback_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same precondition as the Gemini case above — the key must be absent to assert on absence."""
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
     with pytest.raises(ValueError, match="transcription_fallback"):
         Config.model_validate(
             {

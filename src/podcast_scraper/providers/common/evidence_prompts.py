@@ -31,20 +31,22 @@ copies, so a provider can still diverge deliberately — but it can no longer di
 from __future__ import annotations
 
 import logging
-from typing import Tuple
+from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# The transcript we can actually show the model. Cloud context windows are large; the local path
-# computes its own budget from num_ctx and passes it in.
-DEFAULT_TRANSCRIPT_BUDGET_CHARS = 120_000
+# No default transcript budget lives here (#2050). There was one — 120,000 chars, justified as
+# "cloud context windows are large" — and it was the fallback that let every caller omit the
+# window and still get a clip, which is the same class of global bound as the deleted
+# LLM_NARROWEST_CONTEXT_TOKENS. Callers pass what their deployment declares, or None for
+# "not known, do not bound".
 
 
 def render_extract_quote_prompt(
     provider: str,
     transcript: str,
     insight: str,
-    budget_chars: int = DEFAULT_TRANSCRIPT_BUDGET_CHARS,
+    budget_chars: Optional[int] = None,
 ) -> Tuple[str, str]:
     """``(system, user)`` for GIL quote extraction, from ``<provider>/evidence/extract_quote/v1``.
 
@@ -54,7 +56,12 @@ def render_extract_quote_prompt(
     from ...prompts.store import render_prompt
 
     text = (transcript or "").strip()
-    if len(text) > budget_chars:
+    # ``budget_chars is None`` means the caller does not KNOW this deployment's window (#2050) —
+    # no StageOption declared one, the server advertised none, no 400 has taught us one. Do not
+    # clip: send it, and let the server's 400 name the real limit for the retry path to clamp
+    # against. Substituting a default here is how a 32,768 serving flag became the clip for a
+    # 1M-token model.
+    if budget_chars is not None and len(text) > budget_chars:
         logger.warning(
             "transcript %d chars exceeds the %d-char budget; quote extraction will not see the "
             "tail of this episode",

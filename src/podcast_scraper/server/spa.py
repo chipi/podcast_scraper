@@ -60,6 +60,7 @@ class SpaStaticFiles(StaticFiles):
         return self._index_cache
 
     async def get_response(self, path: str, scope: Any) -> Response:
+        """Serve *path*, falling back to the SPA index so client-side routes resolve."""
         try:
             response = await super().get_response(path, scope)
         except StarletteHTTPException as exc:

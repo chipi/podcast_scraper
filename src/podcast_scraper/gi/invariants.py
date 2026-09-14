@@ -49,7 +49,7 @@ def _supported_by(artifact: Dict[str, Any]) -> Dict[str, List[str]]:
 def check_artifact_invariants(
     artifact: Dict[str, Any],
     transcript_text: Optional[str] = None,
-    turns: Optional[Sequence[Tuple[int, str]]] = None,
+    turns: Optional[Sequence[Tuple[int, Optional[str]]]] = None,
 ) -> List[str]:
     """Return the violated postconditions of *artifact*. Empty list means structurally sound.
 
@@ -132,10 +132,12 @@ def check_artifact_invariants(
 
     # 4. A speaker who never holds the microphone. This is the Elon Musk bug: a name that appears
     #    only in the episode description, assigned to a diarized voice cluster.
-    if turns:
-        known = {label.lower() for _off, label in turns}
+    # #2062: `turns` now also carries None boundaries (an unrecognised line-start marker still ENDS
+    # a turn). Only the NAMED entries say who holds the microphone, and a None would crash .lower().
+    named_labels = {label.lower() for _off, label in turns or () if label}
+    if named_labels:
         ghosts = sorted(
-            {str(s) for s in speakers if s and str(s).lower() not in known}  # noqa: E501
+            {str(s) for s in speakers if s and str(s).lower() not in named_labels}  # noqa: E501
         )
         if ghosts:
             violations.append(
@@ -159,7 +161,7 @@ _GROUNDING_DISCONNECT_MIN_INSIGHTS = 5
 def log_artifact_invariants(
     artifact: Dict[str, Any],
     transcript_text: Optional[str] = None,
-    turns: Optional[Sequence[Tuple[int, str]]] = None,
+    turns: Optional[Sequence[Tuple[int, Optional[str]]]] = None,
 ) -> List[str]:
     """Check *artifact* and log every violation. Returns the violations.
 
@@ -171,9 +173,10 @@ def log_artifact_invariants(
     That message already names two possible causes (see check 3 above): a genuinely anonymised
     transcript (every voice is ``SPEAKER_NN`` / no roster names — nothing for attribution to have
     resolved against) versus the real GI attribution-never-ran bug (named turns WERE available and
-    attribution still produced zero speakers). ``turns`` (``named_turns`` upstream, built by
-    ``build_unverified_named_turns``) is empty in exactly the first case — it only contains markers
-    that already look like a person name, so an anonymised transcript yields no turns to give it.
+    attribution still produced zero speakers). Since #2062 ``turns`` also carries ``None`` entries
+    for markers that name nobody, so "anonymised" is now "no turn carries a NAME" rather than "no
+    turns at all" — an anonymised transcript is full of ``SPEAKER_NN`` boundaries and would
+    otherwise look like the bug.
     Downgrading THAT combination to a warning stops a valid, privacy-scrubbed transcript from
     logging as a pipeline error; every other violation (including this same message when named
     turns *did* exist) still logs at ERROR.
@@ -181,7 +184,7 @@ def log_artifact_invariants(
     violations = check_artifact_invariants(artifact, transcript_text, turns)
     n_insights = len(_nodes_of(artifact, "Insight"))
     for v in violations:
-        if _ATTRIBUTION_EMPTY_MARKER in v and not turns:
+        if _ATTRIBUTION_EMPTY_MARKER in v and not any(label for _off, label in turns or ()):
             logger.warning(
                 "GI invariant (expected — anonymised transcript) [%s]: %s",
                 artifact.get("episode_id", "?"),

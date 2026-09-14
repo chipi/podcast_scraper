@@ -2008,7 +2008,7 @@ def _speaker_for_insight(
     quotes: Sequence[Any],
     transcript_text: str,
     transcript_segments: Optional[List[Dict[str, Any]]],
-    named_turns: Sequence[Tuple[int, str]],
+    named_turns: Sequence[Tuple[int, Optional[str]]],
 ) -> Optional[str]:
     """Who said this insight — the speaker of the turn its first grounded quote sits in.
 
@@ -2154,7 +2154,9 @@ def _artifact_from_multi_insight(
     # (backfill_transcript_segments is false everywhere, and enabling it forces a re-transcription),
     # so every quote has shipped with speaker_id=None and no insight has ever known who said it —
     # while the name sat in the transcript, unread.
-    named_turns: List[Tuple[int, str]] = []
+    # #2062: entries may carry a None name — an unrecognised line-start marker is still a turn
+    # boundary, so it ends the previous speaker's span instead of letting it swallow the turn.
+    named_turns: List[Tuple[int, Optional[str]]] = []
     if not use_segments and (transcript_text or "").strip():
         named_turns = build_unverified_named_turns(transcript_text or "")
 

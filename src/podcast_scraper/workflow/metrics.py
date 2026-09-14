@@ -932,7 +932,7 @@ class Metrics:
                 self.kg_topic_nodes_total += 1
             # RFC-097: v1.x Entity + v2.0 Person/Organization roll up to the
             # same kg_entity_nodes_total counter (semantic equivalents).
-            elif t in ("Entity", "Person", "Organization"):
+            elif t in ("Entity", "Person", "Organization", "Object"):
                 self.kg_entity_nodes_total += 1
             elif t == "Episode":
                 self.kg_episode_nodes_total += 1

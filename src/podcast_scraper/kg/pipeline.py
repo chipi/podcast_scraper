@@ -16,7 +16,21 @@ from ..graph_id_utils import (
     slugify_label,
     topic_node_id_from_slug,
 )
-from .llm_extract import _enforce_noun_phrase_label, _normalize_entity_kind
+from .llm_extract import (
+    _enforce_noun_phrase_label,
+    _normalize_entity_kind,
+    ENTITY_KIND_OBJECT,
+    ENTITY_KIND_ORGANIZATION,
+    ENTITY_KIND_PERSON,
+)
+
+#: entity_kind -> KG node type. ``Object`` is new in schema 2.1 (#2057): the catch-all for named
+#: things that are neither a person nor a body of people.
+_NODE_TYPE_BY_KIND = {
+    ENTITY_KIND_PERSON: "Person",
+    ENTITY_KIND_ORGANIZATION: "Organization",
+    ENTITY_KIND_OBJECT: "Object",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -404,8 +418,21 @@ def build_artifact(
             name = e.get("name")
             if not isinstance(name, str) or not name.strip():
                 continue
-            kind = e.get("kind") or e.get("entity_kind") or "person"
-            norm_entities.append({"name": name.strip(), "entity_kind": str(kind).strip().lower()})
+            # #2057 / advisor M1: `or "person"` was the last place the old "everything is a
+            # person" default survived. It is the bundled prefill path (mega_bundled /
+            # extraction_bundled), so prod's `staged` mode never hit it — but the invariant is
+            # "person is never a fallback", and an eval arm silently disagreeing with prod about
+            # what a person is defeats the point of having the arm.
+            #
+            # Pass the raw value straight through; `_normalize_entity_kind` downstream owns the
+            # decision, and it answers `object` for absent and unrecognised alike.
+            kind = e.get("kind") or e.get("entity_kind")
+            norm_entities.append(
+                {
+                    "name": name.strip(),
+                    "entity_kind": str(kind).strip().lower() if kind else None,
+                }
+            )
         llm_partial = {"topics": norm_topics, "entities": norm_entities}
     elif source == "provider":
         llm_partial = _try_provider_extraction(
@@ -429,6 +456,11 @@ def build_artifact(
             _max_topics(cfg),
             _max_entities(cfg),
             episode_id=episode_id,
+            known_person_names={
+                n.strip().casefold()
+                for n in list(detected_hosts or []) + list(detected_guests or [])
+                if isinstance(n, str) and n.strip()
+            },
         )
         if resolved_model is None:
             mid = None
@@ -518,7 +550,8 @@ def build_artifact(
 
     return {
         # RFC-097 v2.0: typed Person / Organization / Podcast nodes + HAS_EPISODE.
-        "schema_version": "2.0",
+        # 2.1 (#2057): adds the Object node type. See docs/architecture/corpus/ontology.md.
+        "schema_version": "2.1",
         "episode_id": episode_id,
         "extraction": {
             "model_version": resolved_model,
@@ -617,8 +650,11 @@ def _typed_person_org_node(
     unnamed voice never merges across episodes into a phantom person (#1b).
     """
     name_s = (name or "").strip()[:500]
-    ek = _normalize_entity_kind(entity_kind)
-    node_type = "Organization" if ek == "organization" else "Person"
+    ek: str = _normalize_entity_kind(entity_kind)
+    # No `.get` default that says Person: `_normalize_entity_kind` only ever returns a member of
+    # ENTITY_KINDS, all three of which are mapped. A default here would silently re-introduce the
+    # person fallback the type system exists to prevent (#2057).
+    node_type = _NODE_TYPE_BY_KIND[ek]
     props: Dict[str, Any] = {
         "name": name_s,
         "label": name_s[:200],
@@ -754,6 +790,7 @@ def _append_topics_and_entities_from_partial(
     max_topics: int,
     max_entities: int,
     episode_id: Optional[str] = None,
+    known_person_names: Optional[Set[str]] = None,
 ) -> None:
     topics = partial.get("topics") or []
     entities = partial.get("entities") or []
@@ -813,6 +850,23 @@ def _append_topics_and_entities_from_partial(
                 continue
             name_s = name.strip()[:500]
             ek = _normalize_entity_kind(item.get("entity_kind"))
+            # METADATA BEATS THE TRANSCRIPT when the transcript has no opinion (#2060). The
+            # speaker pipeline knows this episode's hosts and guests; the LLM only knows a name
+            # was said, and it mis-kinds people — more so now that the prompt says "use object
+            # when unsure" (#2057). Without this, a host the model called an `event` became
+            # `object:{slug}` while the pipeline's `person:{slug}` node was skipped as a duplicate
+            # by NAME, leaving the episode with no Person node for its own host.
+            #
+            # Scoped to `object` — the catch-all, i.e. "the model could not place this" — and
+            # NOT to `organization`. An org is a positive assertion about a different referent
+            # that happens to share a name: a show hosted by "ACME" does not make the company
+            # ACME a person. Widening this to every kind did exactly that in an existing test.
+            if (
+                ek == ENTITY_KIND_OBJECT
+                and known_person_names
+                and name_s.casefold() in known_person_names
+            ):
+                ek = ENTITY_KIND_PERSON
             key = _entity_dedup_key(name=name_s, entity_kind=ek)
             if key in seen_entity_keys:
                 continue
@@ -843,6 +897,24 @@ def _append_topics_and_entities_from_partial(
             len(dropped_propositions),
             dropped_propositions[:3],
         )
+
+
+def _upgrade_person_role(nodes: List[Dict[str, Any]], node_id: str, role: str) -> None:
+    """Promote an existing person node's role from the ``mentioned`` default to a stated one.
+
+    Only ever upgrades, and only from ``mentioned`` — a role the speaker pipeline actually stated
+    must never be overwritten by another, and a genuine mention must never be promoted to a
+    participant. Mirrors the precedence rule in :func:`_dedupe_nodes_by_id` (#2060).
+    """
+    if role not in ("host", "guest"):
+        return
+    for node in nodes:
+        if node.get("id") != node_id:
+            continue
+        props = node.get("properties")
+        if isinstance(props, dict) and props.get("role") == "mentioned":
+            props["role"] = role
+        return
 
 
 def _append_pipeline_entities(
@@ -885,6 +957,17 @@ def _append_pipeline_entities(
                 )
             key = _entity_dedup_key(name=n, entity_kind=kind)
             if key in existing_entity_keys:
+                # The LLM already extracted this person from the transcript, where every entity is
+                # `role="mentioned"` (:func:`_typed_person_org_node` call above the LLM loop). The
+                # node therefore already exists and we must NOT append a second one — but skipping
+                # outright is what shipped the host of a show rendered as merely "mentioned" on its
+                # own episode (#2060).
+                #
+                # WHO a person is comes from the speaker pipeline and the feed metadata; the
+                # transcript only says a name was said. So the stated role wins over the default,
+                # in place. `_dedupe_nodes_by_id` has the same precedence rule and could not apply
+                # it here: merging needs two nodes, and the skip guaranteed there was only one.
+                _upgrade_person_role(nodes, v2_node["id"], role)
                 continue
             existing_entity_keys.add(key)
             nodes.append(v2_node)

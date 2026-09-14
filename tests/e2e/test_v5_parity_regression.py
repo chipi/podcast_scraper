@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.e2e.conftest import requires
+
 pytestmark = [
     pytest.mark.nightly,
     pytest.mark.ml_models,
@@ -64,6 +66,7 @@ def fresh_qa_baseline(tmp_path_factory) -> Path:
     return Path(out)
 
 
+@requires("sentence_transformers")  # builds a real index / runs the ML pipeline
 def test_qa_parity_regression_text_match_stable(fresh_qa_baseline: Path) -> None:
     """Fresh QA capture matches the shipped v5_post baseline on answer text.
 
@@ -139,6 +142,7 @@ def test_shipped_parity_report_still_passes() -> None:
     )
 
 
+@requires("sentence_transformers")  # builds a real index / runs the ML pipeline
 def test_full_ml_surface_recheck_no_regressions(tmp_path_factory) -> None:
     """Full data-quality regression across every #382-touched ML surface.
 

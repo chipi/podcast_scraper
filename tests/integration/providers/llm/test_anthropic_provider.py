@@ -885,6 +885,14 @@ class TestAnthropicProviderGIL(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt", return_value="insight prompt")
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_generate_insights_truncates_long_transcript(self, mock_anthropic, mock_render):
+        """Long transcripts are sliced before the insight prompt — but ONLY when this
+        deployment's context window is known (#2050).
+
+        The clip used to be a flat 120,000 chars applied to every provider regardless of its
+        window. It now derives from the served window, so a provider that has not been told
+        its window and has no server to ask does not clip at all — guessing a window is what
+        made one DGX serving flag into corpus policy for the entire fleet.
+        """
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
         mock_resp = Mock()
@@ -893,6 +901,8 @@ class TestAnthropicProviderGIL(unittest.TestCase):
         provider = AnthropicProvider(self.cfg)
         provider.initialize()
         long_text = "w" * 120_001
+        # Declare the window this 'deployment' serves, as a StageOption would.
+        provider.max_context_tokens = 32_768
         provider.generate_insights(long_text, max_insights=3)
         transcript_arg = next(
             c.kwargs["transcript"] for c in mock_render.call_args_list if "transcript" in c.kwargs

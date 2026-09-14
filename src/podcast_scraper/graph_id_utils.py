@@ -18,17 +18,98 @@ from typing import Any, Dict, Optional
 from podcast_scraper.identity.slugify import slugify as canonical_slugify
 
 #: v2.0 (RFC-097) plus legacy: node types treated as Person/Org "entity-like".
-PERSON_ORG_NODE_TYPES = frozenset({"Entity", "Person", "Organization"})
+#: Node types carrying a named real-world referent. ``Object`` joined in v2.1 (#2057) as the
+#: catch-all for named things that are neither a person nor a body of people — events, places,
+#: creative works, products. ``Entity`` is the pre-v2.0 legacy type, retained for reads.
+PERSON_ORG_NODE_TYPES = frozenset({"Entity", "Person", "Organization", "Object"})
 
-#: A bare diarization label the roster never resolved to a real person: ``SPEAKER_00``,
-#: ``Speaker 3``, ``speaker-12``. Diarization numbers are assigned per-episode and are NOT
-#: stable across episodes, so a bare label must be episode-scoped, never a global id (#1b).
+#: A numbered diarization label the roster never resolved: ``SPEAKER_00``, ``Speaker 3``,
+#: ``speaker-12``. Diarization numbers are assigned per-episode and are NOT stable across
+#: episodes, so such a label must be episode-scoped, never a global id (#1b).
 _BARE_SPEAKER_LABEL_RE = re.compile(r"^\s*speaker[\s_\-]*\d+\s*$", re.IGNORECASE)
+
+#: ROLE words that name a position in the conversation, not a human being.
+#:
+#: Identical failure to the numbered labels above, and it went unnoticed because the regex only
+#: matched digits. "Host" is not one person: every episode whose host the pipeline failed to
+#: resolve produced the id ``person:host``, and slugification merged them ALL into one global
+#: node. Measured on prod 2026-09-13: ``person:host`` spanned **54 episodes** with **1,437
+#: grounded insights** and ranked #2 in "top voices" — a phantom human assembled from dozens of
+#: unrelated shows' hosts, its top topics (meaning-of-life, happiness science, AI) simply several
+#: different people's material fused together.
+#:
+#: Scoping these per episode does not give the person a name, but it stops one node impersonating
+#: many people. Resolving them to the real human is a separate problem.
+#:
+#: Deliberately NOT included: "narrator", "announcer", "caller", "audience". Those can be a
+#: show's actual recurring credited role; the four here are pure conversational positions.
+_ROLE_LABELS = frozenset(
+    {
+        "host",
+        "co-host",
+        "cohost",
+        "guest",
+        "speaker",
+        "interviewer",
+        "interviewee",
+        "moderator",
+        "panelist",
+        "the host",
+        "the guest",
+        "unknown",
+        "unknown speaker",
+        "unidentified",
+        "unidentified speaker",
+    }
+)
+
+
+#: Slug forms of :data:`_ROLE_LABELS`, i.e. the discriminators a role-scoped person id can end
+#: with. Derived, never hand-listed: the placeholder FILTER and the id BUILDER must agree, and
+#: they did not when role labels were first added — `person:speaker-{ep}-host` was minted as a
+#: placeholder and then failed `_SPEAKER_PLACEHOLDER_PATTERN`, which requires trailing digits.
+#: Twelve modules consult that predicate, so the mismatch would have surfaced one followable
+#: "Host" person PER EPISODE — strictly worse than the single global phantom it replaced (#2059).
+ROLE_LABEL_SLUGS = frozenset(canonical_slugify(r) or r for r in _ROLE_LABELS)
+
+
+def is_scoped_placeholder_person_id(person_id: Optional[str]) -> bool:
+    """True for an episode-scoped placeholder id: ``person:speaker-{ep}-{n|role}``.
+
+    The counterpart to :func:`is_bare_speaker_label` on the ID side. A numbered discriminator is
+    matched by shape; a role discriminator is matched against :data:`ROLE_LABEL_SLUGS` rather
+    than a wildcard, because ``person:speaker-john-knight`` is a real person named "Speaker John
+    Knight" and must not be swept up.
+    """
+    if not person_id:
+        return False
+    # LEGACY, pre-#2059: a role word that was slugified straight into a global id. These are on
+    # disk right now — `person:host` spans 54 episodes and 1,437 grounded insights — and stay
+    # there until those episodes are re-derived. Recognising them here filters the phantom off
+    # every surface immediately, without waiting for a corpus pass.
+    if person_id.startswith("person:") and person_id[len("person:") :] in ROLE_LABEL_SLUGS:
+        return True
+    if not person_id.startswith("person:speaker-"):
+        return False
+    tail = person_id.rsplit("-", 1)[-1]
+    return tail.isdigit() or tail in ROLE_LABEL_SLUGS
 
 
 def is_bare_speaker_label(name: Optional[str]) -> bool:
-    """True when *name* is an unresolved diarization label (``SPEAKER_03``), not a real name."""
-    return bool(name and _BARE_SPEAKER_LABEL_RE.match(str(name)))
+    """True when *name* is a placeholder rather than a real person.
+
+    Covers two shapes, both of which must be episode-scoped rather than given a global id:
+
+    * a numbered diarization label — ``SPEAKER_03`` (#1b);
+    * a ROLE word — ``Host``, ``Guest``, ``Interviewer`` (#2059). Same bug, missed for a year
+      because the regex required digits.
+    """
+    if not name:
+        return False
+    text = str(name).strip()
+    if _BARE_SPEAKER_LABEL_RE.match(text):
+        return True
+    return text.casefold() in _ROLE_LABELS
 
 
 #: Words dropped when canonicalising a TOPIC label (#1933). Prepositions and articles are what
@@ -103,15 +184,22 @@ def canonical_topic_slug(label: str, max_len: int = 80) -> str:
 
 
 def _scoped_speaker_person_id(label: str, episode_id: str) -> str:
-    """Episode-scoped person id for an unnamed diarization voice: ``person:speaker-{ep}-{n}``.
+    """Episode-scoped person id for an unnamed voice: ``person:speaker-{ep}-{n|role}``.
 
-    Keyed on (episode, label number) so ``SPEAKER_00`` in two different episodes — which may be
-    two different people — never collapses into one phantom cross-episode person (#1b). Stays
-    recognisable as a placeholder (``speaker-…-\\d+``) for the corpus-scope drop filters.
+    Keyed on (episode, label) so ``SPEAKER_00`` in two different episodes — which may be two
+    different people — never collapses into one phantom cross-episode person (#1b). Stays
+    recognisable as a placeholder (``person:speaker-...``) for the corpus-scope drop filters.
+
+    The discriminator is the NUMBER for a numbered label and the ROLE WORD for a role label
+    (#2059). Deriving it from digits alone was correct while only ``SPEAKER_<n>`` reached here;
+    once ``Host`` and ``Guest`` did, both stripped to no digits, fell back to ``0``, and produced
+    the SAME id — merging one episode's host and guest into a single person. That would have
+    traded a cross-episode phantom for a within-episode one.
     """
-    num = re.sub(r"\D", "", label) or "0"
     ep_slug = slugify_label(str(episode_id))
-    return f"person:speaker-{ep_slug}-{num}"
+    digits = re.sub(r"\D", "", label)
+    discriminator = digits if digits else (slugify_label(label) or "0")
+    return f"person:speaker-{ep_slug}-{discriminator}"
 
 
 def slugify_label(label: str, max_len: int = 80) -> str:
@@ -142,19 +230,25 @@ def topic_node_id_from_slug(slug: str) -> str:
 
 
 def entity_node_id(entity_kind: str, name: str, episode_id: Optional[str] = None) -> str:
-    """KG entity node id: ``person:{slug}`` or ``org:{slug}``.
+    """KG entity node id: ``person:{slug}``, ``org:{slug}`` or ``object:{slug}``.
 
     When ``episode_id`` is given and ``name`` is a bare diarization label (``SPEAKER_03``), the
     person id is episode-scoped so the same anonymous label in different episodes never merges
     into one phantom person (#1b). Real names and orgs keep their global slug id.
     """
-    ek = entity_kind if entity_kind in ("person", "organization") else "person"
+    # `object` is the catch-all kind (#2057). This function used to read
+    # `... else "person"`, so an entity typed anything other than person/organization was given a
+    # PERSON id — the id-level twin of the extraction bug, and the reason a battle could occupy a
+    # person node. Unknown now lands on `object:`, never on `person:`.
+    ek = entity_kind if entity_kind in ("person", "organization", "object") else "object"
     base = (name or "").strip()
     if episode_id and ek == "person" and is_bare_speaker_label(base):
         return _scoped_speaker_person_id(base, episode_id)
     slug = slugify_label(base) if base else "unknown"
     if ek == "organization":
         return f"org:{slug}"
+    if ek == "object":
+        return f"object:{slug}"
     return f"person:{slug}"
 
 
@@ -206,17 +300,27 @@ def is_person_or_org_node(node_type: Any) -> bool:
 
 
 def normalized_entity_kind_from_node(node: Dict[str, Any]) -> str:
-    """Return ``"person"`` | ``"organization"`` regardless of v1.x or v2.0 shape.
+    """Return ``"person"`` | ``"organization"`` | ``"object"`` regardless of artifact shape.
 
     v1.x: ``Entity`` node with ``properties.kind`` = ``"person"`` / ``"org"`` (v1.2)
     or ``properties.entity_kind`` = ``"person"`` / ``"organization"`` (legacy).
     v2.0 (RFC-097): ``Person`` or ``Organization`` node (kind encoded in node type).
+    v2.1 (#2057): ``Object`` — a named thing that is neither.
+
+    The ``Object`` branch is not cosmetic. Without it an Object node fell through to the
+    ``"person"`` tail below, and because ``Object`` was simultaneously added to
+    :data:`PERSON_ORG_NODE_TYPES`, the GI relational-edge pass picked Objects up and wrote
+    ``{"id": "object:...", "type": "Person"}`` into ``gi.json`` — a node type that file's schema
+    does not define. The Norman Conquest would have been re-materialised as a person one layer
+    down from the fix that stopped calling it one.
     """
     nt = node.get("type") if isinstance(node, dict) else None
     if nt == "Person":
         return "person"
     if nt == "Organization":
         return "organization"
+    if nt == "Object":
+        return "object"
     props = node.get("properties") if isinstance(node, dict) else None
     if not isinstance(props, dict):
         return "person"

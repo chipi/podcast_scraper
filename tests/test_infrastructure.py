@@ -93,7 +93,12 @@ def test_makefile_test_integration_runs_tests():
         ["make", "test-integration"],
         capture_output=True,
         text=True,
-        timeout=300,  # 5 minute timeout
+        # The budget is a GUARD AGAINST HANGING, not an assertion about speed — this test only
+        # checks that the Makefile target runs tests at all. The integration suite measured 314s
+        # for 3,446 tests on 2026-09-14, so a 5-minute cap made it fail by timeout for a reason
+        # that has nothing to do with what it guards, and the failure reads like a broken Makefile.
+        # Raise this when the suite legitimately grows; shrink the SUITE if it becomes slow.
+        timeout=1800,
         cwd=Path(__file__).parent.parent,
     )
     # Should not fail, but also should not be empty

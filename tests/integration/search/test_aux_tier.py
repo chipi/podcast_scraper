@@ -12,6 +12,7 @@ from podcast_scraper.providers.ml import embedding_loader  # noqa: E402
 from podcast_scraper.search import two_tier_indexer as tti  # noqa: E402
 from podcast_scraper.search.backend import AuxDocument, SearchQuery  # noqa: E402
 from podcast_scraper.search.backends.lancedb_backend import LanceDBBackend  # noqa: E402
+from tests.integration.conftest import requires
 
 _MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
@@ -20,6 +21,7 @@ def _emb(t):
     return list(embedding_loader.encode(t, _MODEL, return_numpy=False))
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_backend_upsert_search_delete_aux(tmp_path):
     b = LanceDBBackend(str(tmp_path / "lance"), embed_dim=384)
     b.upsert_aux(
@@ -47,6 +49,7 @@ def test_backend_upsert_search_delete_aux(tmp_path):
     assert b.health()["aux"] == 0
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_indexer_routes_aux_doc_types(tmp_path, monkeypatch):
     rows = [
         ("kg_topic:1", "oil markets", {"doc_type": "kg_topic", "episode_id": "e1", "feed_id": "s"}),
@@ -76,6 +79,7 @@ def test_indexer_routes_aux_doc_types(tmp_path, monkeypatch):
     assert LanceDBBackend(str(corpus / "search" / "lance_index")).health()["aux"] == 4
 
 
+@requires("sentence_transformers")  # builds a real LanceDB index / embeds text
 def test_indexer_routes_episode_metadata_doc_types_into_aux_tier(tmp_path, monkeypatch):
     """2026-07-22: episode-level metadata surfaces (``episode_title`` /
     ``episode_description`` / ``summary_short``) added to ``_AUX_DOC_TYPES``

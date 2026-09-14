@@ -171,10 +171,22 @@ class TestScoreEntailmentBundledMaxTokens:
 
 
 class TestTranscriptClip:
-    def test_default_50k_chars(self) -> None:
+    def test_there_is_no_default_budget(self) -> None:
+        """#2050 removed the 50,000-char default.
+
+        It was sized for no model in particular and applied to every caller that omitted a
+        window — so the bundled quote path saw roughly the first 60 minutes of each episode while
+        the staged path on the SAME model used 106,905 chars. A default is indistinguishable from
+        knowledge at the call site, which is the whole bug.
+        """
         long = "x" * 100_000
-        clipped = transcript_clip(long)
-        assert len(clipped) == 50_000
+        assert len(transcript_clip(long)) == 100_000
+
+    def test_an_explicit_budget_is_honoured(self) -> None:
+        assert len(transcript_clip("x" * 100_000, max_chars=50_000)) == 50_000
+
+    def test_a_zero_budget_clips_to_empty_not_to_everything(self) -> None:
+        assert transcript_clip("x" * 100_000, max_chars=0) == ""
 
     def test_strips_leading_trailing_whitespace_before_clip(self) -> None:
         # "   xxx   " → strip → "xxx", then clip — strip happens first.
