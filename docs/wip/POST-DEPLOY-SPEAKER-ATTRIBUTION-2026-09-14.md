@@ -32,49 +32,80 @@ A migration cannot fix class B. There is no correct answer on disk for it to cop
 ## Step 0 — Pre-flight
 
 ```bash
-make upgrade-status CORPUS_DIR=<prod corpus>          # confirm pending is EXACTLY [0008, 0009]
+make upgrade-status CORPUS_DIR=<prod corpus>
 make speaker-migration-preview CORPUS_DIR=<prod corpus>
+make speaker-coherence CORPUS_DIR=<prod corpus>          # record the BEFORE number
 ```
 
-An unstamped ledger would run all nine migrations, including the 0002 Lance index rebuild that has
-never been exercised on this corpus. And read the SUSPECT / AMBIGUOUS lists before step 2, not
-after.
+**EXPECT ALL NINE MIGRATIONS PENDING, not two.** An earlier version of this file said "confirm
+pending is exactly [0008, 0009]". That is wrong: production carries **no `upgrade_ledger.json` at
+all**, so `upgrade status` reports `Applied: none` and all nine pending, at version `2.7.0.dev0`.
+The artifacts are nonetheless already modern — kg schema `2.0`, gi schema `3.1`, m0007 scoped ids
+present — because the pipeline writes those natively and re-ingestion satisfied the migrations
+without recording them. Rehearsed against the real `snapshot-prod-20260914` corpus (2,257
+artifacts) on 2026-09-14.
+
+What each pending migration actually does on that corpus:
+
+| migration | effect |
+| --- | --- |
+| 0001, 0004 | no-op |
+| 0002 | **no-op on prod** — skips when a healthy index with its sidecar exists. It reports a build locally only because the backup deliberately prunes `search/` as regenerable |
+| 0003, 0005, 0006 | genuine no-ops — 2,257 already-current |
+| **0007** | **rewrites 153 episodes** (18 healed, 255 scoped) — see the numbers below, this is not a formality |
+| 0008 | stamps all 2,257 as schema 2.1 |
+| **0009** | 3,177 promoted, 195 demoted, 1,844 artifacts |
 
 ## Step 1 — Deploy
 
 Images publish only from `main`, and one tag pins all three services. This fixes every future
 ingest and changes nothing already stored.
 
-## Step 2 — Migrate the corpus (fixes class A)
+## Step 2 — Migrate (fixes class A)
 
 ```bash
-# --snapshot-dir MUST be a persistent path. The default is a sibling of the corpus root, which is
-# container-ephemeral on a volume mount — the rollback story is only real if the snapshot outlives
-# the container (advisor S8). Capture the path it prints.
+# SNAPSHOT_DIR must be a persistent path — the default is a sibling of the corpus root, which is
+# container-ephemeral on a volume mount. Capture the path it prints.
 make upgrade-corpus CORPUS_DIR=<prod corpus> SNAPSHOT_DIR=<persistent path>
 ```
 
-Confirm no ingest job is running (`GET /api/jobs`) before snapshotting: a mid-ingest snapshot is an
-inconsistent one.
+Confirm no ingest job is running (`GET /api/jobs`) first: a mid-ingest snapshot is inconsistent.
 
-Reads `content.speakers` and rewrites Person roles in `kg.json`. Takes a pre-upgrade snapshot by
-default and **aborts before touching anything if the snapshot fails**, so it is recoverable — keep
-the snapshot until step 4 passes.
+### 0007 does more good than 0009 on the coherence measure — do not skip it
 
-Expected (287-artifact sample):
+Measured on the real corpus, in order:
 
 ```
-promoted 380 · demoted 21 (17 not-a-person, 4 roster-denied) · 239 artifacts written
-roles   mentioned 89.5% → 68.1%   host 9.9% → 19.7%   guest 0.6% → 12.2%
-coherence  82 violations → 56     26 FIXED, 0 NEW
+coherence violations   3,783   before anything
+                       3,556   after m0009 alone     (-227)
+                       1,229   after m0009 + m0007   (-2,554 total, -67%)
 ```
 
-Idempotent — a second run writes nothing (verified byte-identical).
+The 2,702-violation class m0009 cannot touch is `quote_two_speakers` — a quote pointing at BOTH a
+bare id and its episode-scoped twin (`person:selena` and
+`person:unresolved-selena-<episode>`), which is bare-name-scope residue, not a role problem. 0007
+is the migration for exactly that.
 
-**Sanity check before trusting it:** run `--dry-run` first and read the demotion split in the
-summary line. If `not a person` is ~80% of demotions, that matches the sample. If the
-`roster accounts for every voice without naming` number is large, stop and look at them
-individually — that is the route that can, in principle, unseat a real speaker.
+### What the roles look like afterwards
+
+| role | after | before the arc |
+| --- | ---: | ---: |
+| mentioned | 67.6% | 89.5% |
+| host | 21.5% | 9.9% |
+| **guest** | **10.9%** | **0.6%** |
+
+That guest column is the operator's original report, fixed at production scale.
+
+### Two classes needing a human, from the real preview
+
+- **49 SUSPECT demotions** — the node had a voice, which is also what an eponymous-show host looks
+  like. All 49 on this corpus are genuine show names: `Machine Learning Street` ×29,
+  `Conversations with Tyler` ×18, `Turkey Book` (feed *Turkey Book Talk*), `Africa Tech Summit`.
+  **If a real person appears in this list, stop.**
+- **2 AMBIGUOUS nodes**, left untouched and both correctly refused: `William de Rimpel` (an ASR
+  mangling of *William Dalrymple*, but the roster also holds a bare `person:william`) and
+  `Jill Lepore` (the roster holds `jill-laporte` AND `jill-lapour`). Guessing either would have
+  been wrong.
 
 ## Step 3 — Re-label the rest (fixes class B)
 
@@ -184,8 +215,21 @@ make upgrade-undo-roles CORPUS_DIR=<prod corpus>              # replay every rol
 python scripts/ops/undo_speaker_roles.py --corpus-dir <c> --show   # read it, change nothing
 ```
 
-Verified on the 287-artifact staging copy: 401 changes applied, 401 restored, 0 skipped, 0 refused,
-corpus sha256 **byte-identical** to before the migration.
+Verified twice. On a 287-artifact staging copy with nothing else touching it: 401 changes applied,
+401 restored, 0 refused, corpus sha256 **byte-identical**.
+
+And on the real `snapshot-prod-20260914` corpus with 0007 run afterwards — the realistic case:
+
+```
+ledger rows : 3,372
+restored    : 3,277
+refused     :    54     <- the episodes 0007 rewrote after m0009
+```
+
+Those 54 refusals are CORRECT and are the whole point of the file-hash predicate. 0007 rewrote 153
+episodes after m0009 wrote them; a role-only check would have seen matching roles, demoted all of
+them, reported zero refusals and called it a clean rollback — destroying 0007's repair. The
+rollback is partial, and says so; the CLI exits non-zero.
 
 Undo refuses an episode whose FILE sha256 differs from what the migration wrote — not merely a node
 whose role changed. Role-equality is blind to "something rewrote this file and happened to agree",
