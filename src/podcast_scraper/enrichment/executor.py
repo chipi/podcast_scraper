@@ -111,6 +111,7 @@ from podcast_scraper.enrichment.staleness import (
     StalenessDecision,
 )
 from podcast_scraper.enrichment.status import write_idle, write_status
+from podcast_scraper.obs.events import emit_event
 
 logger = logging.getLogger(__name__)
 
@@ -1064,12 +1065,46 @@ class EnrichmentExecutor:
         return result, unavailable
 
     def _safe_append_event(self, path: Path, payload: dict[str, Any]) -> None:
-        """JSONL append wrapper that downgrades I/O errors to WARNING."""
+        """Append the event to ``run.jsonl`` AND put it on the canonical telemetry stream.
+
+        Both, deliberately. ``run.jsonl`` is what ``/api/enrichment/*`` and the run-summary read;
+        ``emit_event(sink="log")`` is what Alloy ships to VictoriaLogs. Enrichment had only the
+        first, so it was observable ON DEMAND but invisible to alerting: measured on prod
+        2026-09-14, a 24h VictoriaLogs window held ZERO enrichment lines (vs 138 pipeline_stage
+        series in VictoriaMetrics), and the only hits for /api/enrichment were HTTP access logs —
+        the fact that someone asked, never what the run did. A failing enricher left no trail
+        off-box at all: org_web's ``NameError: name 'qid' is not defined`` existed solely in this
+        file while the central stack showed a 202 and nothing else. See #2071.
+
+        This is the single chokepoint for all nine emission sites in the executor, which is why
+        the fix lives here rather than at each call site. Additive: no consumer of run.jsonl sees
+        any change, and the emit is guarded so telemetry can never fail a run.
+        """
         try:
             append_event(path, payload)
         except OSError as exc:
             logger.warning(
                 "enrichment event append failed: %s (event=%s)",
+                exc,
+                payload.get("event_type"),
+            )
+        # Mirror onto stdout for the shipping agent. Reuse the payload's own ts so the file row
+        # and the shipped row carry the SAME timestamp and can be correlated; event_type is passed
+        # positionally because emit_event sets it itself.
+        fields = {k: v for k, v in payload.items() if k not in ("event_type", "ts")}
+        try:
+            emit_event(
+                str(payload.get("event_type") or "enrichment.event"),
+                sink="log",
+                ts=payload.get("ts"),
+                **fields,
+            )
+        except Exception as exc:  # noqa: BLE001 - telemetry must never fail a run
+            # emit_event swallows its OWN errors, but this call site must not depend on that:
+            # a bad payload or a future change there would otherwise turn an observability
+            # detail into a failed enrichment. Observability is strictly additive to the run.
+            logger.warning(
+                "enrichment event emit failed: %s (event=%s)",
                 exc,
                 payload.get("event_type"),
             )
