@@ -244,6 +244,19 @@ def rewrite_ids(payload: Mapping, id_map: Mapping[str, str]) -> Tuple[dict, int]
                 existing_props = dict(merged[key].get("properties") or {})
                 for k, v in (node.get("properties") or {}).items():
                     existing_props.setdefault(k, v)
+                # ROLE IS THE EXCEPTION TO setdefault. The survivor usually HAS a role — the
+                # `mentioned` default — so folding only-what-is-missing threw away a stated
+                # `host`/`guest` carried by the duplicate, silently demoting a real speaker at the
+                # moment two ids for one human were reconciled. Found on a fresh ingest: The
+                # Journal's roster said `Ryan Knutson` was a host, the extractor emitted the ASR
+                # variant `Ryan Knudsen`, and uniting them produced a `mentioned` host.
+                #
+                # Same precedence `kg/pipeline._upgrade_person_role` and `_dedupe_nodes_by_id`
+                # already use (#2060): a stated speaking role beats `mentioned`, and one stated
+                # role never overwrites another — this pass does not arbitrate between two claims.
+                incoming_role = str((node.get("properties") or {}).get("role") or "")
+                if incoming_role in ("host", "guest") and existing_props.get("role") == "mentioned":
+                    existing_props["role"] = incoming_role
                 merged[key] = {**merged[key], "properties": existing_props}
                 continue
             merged[key] = node

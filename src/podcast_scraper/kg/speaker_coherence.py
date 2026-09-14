@@ -232,6 +232,23 @@ def check_not_collapsed_onto_one_speaker(
     attribution was sticky across markers it could not recognise. A MULTI-VOICE episode whose every
     attributed quote lands on one person is that signature; a genuine monologue is not, so an
     episode the roster heard as one voice is exempt.
+
+    KNOWN FALSE POSITIVE — measured on a fresh ingest after the fix (2026-09-14). This rule ALSO
+    fires on a legitimate shape: an interview where one voice says everything quotable. Talk
+    Eastern Europe, "Book Talk: Betrayal" — roster ``[Adam Reichardt host, Luke Harding guest]``,
+    diarization cleanly separated them (273 / 118 segments), and all 82 quotes went to the guest.
+    Checking every quote's char offset against the transcript's own speaker markers: **81 of 82
+    are correctly attributed**. The host asks questions; questions are not claims; claims are what
+    become quotes.
+
+    So the 36.9% figure above conflates two populations — the sticky-attribution defect AND
+    interview-shaped episodes — and this rule cannot separate them, because the edges alone do not
+    say whether the other speaker had anything quotable to say.
+
+    TREAT A HIT AS "look at this episode", not as "attribution is broken". The discriminator that
+    would settle it is a quote's char offset against the transcript's markers (the check above),
+    which needs the transcript this function is not given. Tightening it that way is worth doing
+    and is not done here.
     """
     if len(roster_names(metadata)) < 2:
         return []
