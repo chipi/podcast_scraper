@@ -123,14 +123,23 @@ def corpus_mtime(root: Path | str) -> float:
     """Ingest signal: the corpus run-summary mtime (rewritten each run), falling
     back to the manifest, then the corpus dir mtime."""
     root = Path(root)
-    for name in ("corpus_run_summary.json", "corpus_manifest.json"):
+    stamps = []
+    for name in ("corpus_run_summary.json", "corpus_manifest.json", "upgrade_ledger.json"):
         try:
             # callers pass a validated corpus root (platform anchor or _resolve_corpus output);
             # name is a constant; getmtime only stats it for the cache token.
             # codeql[py/path-injection] -- validated corpus root + constant filename (Type 1).
-            return os.path.getmtime(root / name)
+            stamps.append(os.path.getmtime(root / name))
         except OSError:
             continue
+    if stamps:
+        # MAX, not first-found. A corpus MIGRATION rewrites `*.kg.json` and the upgrade ledger and
+        # touches neither run-summary nor manifest (#2065 advisor S6), so tokening on the first
+        # file present left every projection serving pre-migration roles until the next ingest or
+        # a process restart — the KG entity index, the catalog, momentum person-roles (the exact
+        # field m0009 changes), top-persons and the per-artifact loader. An operator who migrated
+        # and then looked at the app would see nothing change and conclude it had done nothing.
+        return max(stamps)
     try:
         # codeql[py/path-injection] -- same validated corpus root; getmtime stats only (Type 1).
         return os.path.getmtime(root)

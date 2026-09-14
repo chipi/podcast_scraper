@@ -273,21 +273,35 @@ def _is_not_a_person(name: str, feed_title: str) -> bool:
     return bool(feed_title and names_the_show(name, feed_title))
 
 
+#: Returned by :func:`_fuzzy_roster_hit` when a node plausibly names MORE THAN ONE roster entry.
+#: Distinct from "no match": no match is evidence the person did not speak, ambiguity is evidence
+#: of nothing at all, and the two must not be treated the same.
+AMBIGUOUS = "<ambiguous>"
+
+
 def _fuzzy_roster_hit(name: str, roles: Dict[str, str]) -> Tuple[Optional[str], Optional[str]]:
-    """``(roster_key, role)`` for the roster entry that plausibly names the same human, else
-    ``(None, None)``.
+    """``(roster_key, role)`` for the roster entry that plausibly names the same human.
+
+    ``(None, None)`` when nothing matches, and ``(AMBIGUOUS, None)`` when more than one entry does.
 
     The roster keys are ``person_id`` slugs, so the name is recovered from the slug to compare
     against — good enough for a spelling comparison, and it keeps this migration reading the same
     ``content.speakers`` the rest of the pass reads.
+
+    AMBIGUITY IS NOT A MATCH. This used to return the FIRST hit, and ``same_person`` treats a token
+    subset as one human (``same_person('John', 'John Smith')`` is True), so a bare-mononym node was
+    promoted to whichever John the dict yielded first — a role landed on the wrong person while the
+    real full-name node kept its own. That is #2056's duplicate symptom manufactured BY the repair,
+    irreversible, and invisible to the coherence checks because they share this predicate.
     """
     if not name.strip():
         return None, None
-    for key in roles:
-        candidate = key.split(":", 1)[-1].replace("-", " ")
-        if same_person(name, candidate):
-            return key, roles[key]
-    return None, None
+    hits = [key for key in roles if same_person(name, key.split(":", 1)[-1].replace("-", " "))]
+    if not hits:
+        return None, None
+    if len(hits) > 1:
+        return AMBIGUOUS, None
+    return hits[0], roles[hits[0]]
 
 
 def demote_non_persons(
@@ -354,6 +368,7 @@ def promote_person_roles(
     *,
     voices_heard: Optional[int] = None,
     feed_title: str = "",
+    ambiguous: Optional[List[str]] = None,
 ) -> Tuple[int, int, List[str]]:
     """Align Person roles in *kg_payload* with the roster. ``(promoted, demoted, unmatched)``.
 
@@ -391,6 +406,7 @@ def promote_person_roles(
     if not roles:
         raise ValueError("promote_person_roles requires a non-empty roster; see the docstring")
 
+    ambiguous_out = ambiguous if ambiguous is not None else []
     persons = [n for n in (kg_payload.get("nodes") or []) if n.get("type") == "Person"]
 
     # PASS 1 — which roster entries does this episode's graph actually account for?
@@ -405,7 +421,11 @@ def promote_person_roles(
         if role is None:
             key, role = _fuzzy_roster_hit(name, roles)
         resolved[idx] = (key, role)
-        if role is not None and key:
+        if key == AMBIGUOUS:
+            # Neither promote nor demote, and do NOT consume a roster key: leaving it unmatched
+            # would let route (b) read the gap as "nobody spoke" and demote someone real.
+            ambiguous_out.append(f"{name!r} matches more than one roster entry: {sorted(roles)}")
+        elif role is not None and key:
             matched.add(key)
 
     roster_accounts_for_every_voice = voices_heard is not None and voices_heard <= len(matched)
@@ -418,6 +438,8 @@ def promote_person_roles(
         name = str(props.get("name") or "")
         key, role = resolved[idx]
         current = str(props.get("role") or "").strip().lower()
+        if key == AMBIGUOUS:
+            continue  # evidence of nothing — see `_fuzzy_roster_hit`
         if current in _SPEAKER_ROLES and _is_not_a_person(name, feed_title):
             props["role"] = "mentioned"
             demoted += 1
@@ -465,6 +487,7 @@ class BackfillSpeakerRolesMigration(Migration):
         already_correct = 0
         unmatched: List[str] = []
         suspect_demotions: List[str] = []
+        ambiguous_nodes: List[str] = []
         unparsable: List[str] = []
 
         for path in files:
@@ -501,6 +524,7 @@ class BackfillSpeakerRolesMigration(Migration):
                     roles,
                     voices_heard=voices_heard(meta_payload),
                     feed_title=feed_title,
+                    ambiguous=ambiguous_nodes,
                 )
                 unmatched.extend(f"{path.name}: {pid}" for pid in missing)
             else:
@@ -533,6 +557,12 @@ class BackfillSpeakerRolesMigration(Migration):
                 if suspect_demotions
                 else ""
             )
+            + (
+                f"; {len(ambiguous_nodes)} node(s) matched MORE THAN ONE roster entry and were "
+                f"left untouched"
+                if ambiguous_nodes
+                else ""
+            )
         )
         return MigrationResult(
             self.id,
@@ -547,6 +577,7 @@ class BackfillSpeakerRolesMigration(Migration):
                 "persons_demoted_not_a_person": demoted_non_person,
                 "persons_demoted_roster_denies": demoted_absent,
                 "suspect_demotions": suspect_demotions,
+                "ambiguous_nodes": ambiguous_nodes,
                 "already_correct": already_correct,
                 "no_roster": no_roster,
                 "unmatched_roster_names": len(unmatched),

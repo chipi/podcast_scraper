@@ -29,6 +29,17 @@ A migration cannot fix class B. There is no correct answer on disk for it to cop
 
 ---
 
+## Step 0 — Pre-flight
+
+```bash
+make upgrade-status CORPUS_DIR=<prod corpus>          # confirm pending is EXACTLY [0008, 0009]
+make speaker-migration-preview CORPUS_DIR=<prod corpus>
+```
+
+An unstamped ledger would run all nine migrations, including the 0002 Lance index rebuild that has
+never been exercised on this corpus. And read the SUSPECT / AMBIGUOUS lists before step 2, not
+after.
+
 ## Step 1 — Deploy
 
 Images publish only from `main`, and one tag pins all three services. This fixes every future
@@ -37,8 +48,14 @@ ingest and changes nothing already stored.
 ## Step 2 — Migrate the corpus (fixes class A)
 
 ```bash
-make upgrade-corpus CORPUS_DIR=<prod corpus>
+# --snapshot-dir MUST be a persistent path. The default is a sibling of the corpus root, which is
+# container-ephemeral on a volume mount — the rollback story is only real if the snapshot outlives
+# the container (advisor S8). Capture the path it prints.
+make upgrade-corpus CORPUS_DIR=<prod corpus> SNAPSHOT_DIR=<persistent path>
 ```
+
+Confirm no ingest job is running (`GET /api/jobs`) before snapshotting: a mid-ingest snapshot is an
+inconsistent one.
 
 Reads `content.speakers` and rewrites Person roles in `kg.json`. Takes a pre-upgrade snapshot by
 default and **aborts before touching anything if the snapshot fails**, so it is recoverable — keep
@@ -91,14 +108,53 @@ Run per-feed on the affected feeds rather than the whole corpus.
 
 ## Step 4 — Verify
 
-1. Re-run the migration. Expect **0 promoted / 0 demoted** — it is idempotent, so anything else
-   means step 3 changed rosters and you should re-read the diff.
-2. Re-run the coherence check over the corpus (`kg.speaker_coherence.check_corpus`). Violations
-   should approach 0. That is the pass/fail signal, not the migration's own counters.
-3. Rebuild the search index — step 3 regenerates insights. `make index-two-tier-docker` (the host
-   target cannot run on an Intel Mac: no x86_64 ML wheels).
+Every step here is a runnable command. An earlier version of this section named a function with no
+CLI and told you to "re-run the migration", which the upgrade ledger blocks — it was a description,
+not a procedure (advisor S5).
 
----
+```bash
+# What m0009 would do, bypassing the ledger. Run this BEFORE step 2 as the pre-flight, and again
+# after step 3 to confirm it has nothing left to do.
+make speaker-migration-preview CORPUS_DIR=<prod corpus>
+
+# Is the corpus self-consistent now?
+make speaker-coherence CORPUS_DIR=<prod corpus>
+```
+
+**Read the preview's two human classes before running anything.** They exist because the
+predicates are imperfect and say so:
+
+- **SUSPECT demotions** — the node being demoted also had a voice. That is exactly what a host of
+  an eponymous show (`Lex Fridman Podcast`, `Rich Roll Podcast`) looks like. On the 287-artifact
+  sample all 6 are genuine show names; on a corpus containing such a feed, the host would appear
+  here. **If a real person is in this list, stop.**
+- **AMBIGUOUS nodes** — matched more than one roster entry, so they were left untouched. 0 on the
+  sample; the guard is for the 85% of production not sampled.
+
+**Read the ROLE TRANSITION table, not the violation count.** The coherence checks share the
+migration's own predicates, so a wrongful demotion scores as a violation **FIXED**, not introduced.
+`82 -> 56 violations` cannot detect the damage this migration is most likely to cause. The
+transition table reports what changed per node:
+
+```
+mentioned -> guest      195
+mentioned -> host       185
+host      -> mentioned   21     <- the only destructive direction
+guest     -> mentioned    0
+```
+
+Expected on the sample: 380 promoted, 21 demoted. Anything in `guest -> mentioned`, or a demotion
+count far above 21, means look before proceeding.
+
+**Restart the API after step 2.** Not optional. The migration rewrites `*.kg.json` and the upgrade
+ledger; `perf_cache.corpus_mtime` now includes the ledger so the mtime-tokened projections do
+invalidate, and `corpus_graph` / `cil_queries` now carry the token too — but a restart is still the
+only thing that guarantees every in-process cache is gone.
+
+**Reindex only if needed.** `relabel_only` reindexes incrementally on its own (advisor S7): the
+finalize path calls `maybe_index_corpus`, and `prod_dgx_full.yaml` sets `vector_search: true` with
+no skip flag. Check `vector_index_seconds` in the run summary; a full `make index-two-tier-docker`
+is only needed if that is 0.
 
 ## Known limits — read before declaring victory
 

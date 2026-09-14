@@ -868,3 +868,62 @@ class TestANameThatCannotBeSluggedDoesNotKillTheRun:
             kg, {"person:heyang-zhang": "host"}, voices_heard=1
         )
         assert (promoted, demoted) == (0, 0)
+
+
+class TestAnAmbiguousMatchIsNotAMatch:
+    """A node that plausibly matches TWO roster entries matches neither (advisor S4).
+
+    `_fuzzy_roster_hit` iterated the roster and returned the FIRST `same_person` hit. `same_person`
+    treats a token subset as the same human — ``same_person('John', 'John Smith')`` is True — so a
+    bare-mononym node was promoted to whichever John the dict happened to yield first, landing a
+    role on the wrong person while the real full-name node kept its own.
+
+    That is the #2056 duplicate symptom manufactured BY the repair, which is the worst class of
+    bug this migration can have: it is irreversible, and the coherence checks cannot see it because
+    they share the migration's own predicate.
+
+    The safe answer to "which of these two?" is neither. An ambiguous node is left exactly as it
+    was, and — importantly — its roster keys are NOT marked as matched, so route (b) does not then
+    read the absence as "this person never spoke" and demote someone.
+    """
+
+    def test_a_mononym_matching_two_roster_entries_is_left_alone(self) -> None:
+        kg = _kg([("person:john", "John", "mentioned")])
+        roles = {"person:john-smith": "host", "person:john-doe": "guest"}
+        promoted, demoted, _u = promote_person_roles(kg, roles, voices_heard=2)
+        assert (promoted, demoted) == (0, 0)
+        assert kg["nodes"][0]["properties"]["role"] == "mentioned"
+
+    def test_an_unambiguous_mononym_still_resolves(self) -> None:
+        # One candidate is not a guess. `Twiggy` against a roster holding only `Twiggy Lawson`
+        # is the case `same_person`'s subset rule exists for.
+        kg = _kg([("person:twiggy", "Twiggy", "mentioned")])
+        promoted, _d, _u = promote_person_roles(
+            kg, {"person:twiggy-lawson": "guest"}, voices_heard=1
+        )
+        assert promoted == 1
+        assert kg["nodes"][0]["properties"]["role"] == "guest"
+
+    def test_an_ambiguous_node_does_not_make_the_roster_look_unspoken(self) -> None:
+        # The subtle half: if the ambiguous node consumed both roster keys, or neither key were
+        # marked matched, route (b) could conclude the roster is unaccounted for and demote a real
+        # speaker elsewhere in the episode.
+        kg = _kg(
+            [
+                ("person:john", "John", "mentioned"),
+                ("person:john-smith", "John Smith", "mentioned"),
+                ("person:john-doe", "John Doe", "mentioned"),
+            ]
+        )
+        roles = {"person:john-smith": "host", "person:john-doe": "guest"}
+        promoted, demoted, unmatched = promote_person_roles(kg, roles, voices_heard=2)
+        assert demoted == 0
+        assert promoted == 2, "both exact-id matches still promote"
+        assert unmatched == [], "the roster is fully accounted for by the two real nodes"
+
+    def test_ambiguity_is_reported_not_silent(self) -> None:
+        kg = _kg([("person:john", "John", "mentioned")])
+        roles = {"person:john-smith": "host", "person:john-doe": "guest"}
+        ambiguous: list[str] = []
+        promote_person_roles(kg, roles, voices_heard=2, ambiguous=ambiguous)
+        assert ambiguous and "John" in ambiguous[0]
