@@ -113,6 +113,63 @@ def init_otel() -> bool:
 
 
 @contextmanager
+def enrichment_span(
+    *,
+    run_id: Optional[str] = None,
+    enricher_id: Optional[str] = None,
+    tier: Optional[str] = None,
+    name: str = "enrichment.enricher",
+) -> Iterator[Any]:
+    """Root span for ONE enricher — the enrichment analogue of :func:`episode_span`.
+
+    The traces half of #2071. VictoriaTraces knew enrichment only as HTTP routes
+    (``GET /api/enrichment/events``) — the fact that someone ASKED, never the work itself —
+    while the pipeline had a real domain span in ``episode.process``. So a slow or failing
+    enricher produced no span, and the WEB-tier enrichers' outbound Wikipedia / Wikidata calls
+    were parentless: auto-instrumented HTTP spans with nothing to attribute them to. That matters
+    most exactly where it hurt — org_web spent 45s on five organizations against a rate-limited
+    upstream, and no trace could show where the time went.
+
+    Stamps ``run_id`` / ``enricher_id`` / ``tier`` so an agent can pivot run -> trace the same way
+    it does for episodes.
+
+    A TRUE no-op unless OTEL tracing is active; never raises.
+    """
+    if not otel_tracing_enabled():
+        yield None
+        return
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        yield None
+        return
+    _ctx: dict[str, Any] = {}
+    try:
+        from podcast_scraper.obs.events import get_run_context as _get_run_context
+
+        _ctx = {k: v for k, v in _get_run_context().items() if v is not None}
+    except Exception:  # noqa: BLE001 - telemetry context is best-effort
+        _ctx = {}
+    attributes = {
+        k: v
+        for k, v in (
+            ("run_id", run_id),
+            ("enricher_id", enricher_id),
+            ("tier", tier),
+            *_ctx.items(),
+        )
+        if v
+    }
+    try:
+        tracer = trace.get_tracer("podcast_scraper.enrichment")
+        with tracer.start_as_current_span(name, attributes=attributes) as span:
+            yield span
+    except Exception:  # noqa: BLE001 — telemetry must never break enrichment
+        _LOGGER.debug("enrichment_span failed", exc_info=True)
+        yield None
+
+
+@contextmanager
 def episode_span(
     *,
     run_id: Optional[str] = None,

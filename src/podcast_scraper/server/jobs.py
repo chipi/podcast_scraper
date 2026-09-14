@@ -1504,6 +1504,20 @@ async def monitor_subprocess(
                 "pipeline prometheus observation failed job=%s",
                 job_id,
             )
+        # Enrichment jobs finalize through this same path but had no observer, so nothing about
+        # them ever reached VictoriaMetrics (#2071). Separate try/except: a failure in one
+        # exporter must not suppress the other.
+        try:
+            from podcast_scraper.server.enrichment_run_prometheus import (
+                observe_enrichment_terminal_metrics,
+            )
+
+            await asyncio.to_thread(observe_enrichment_terminal_metrics, corpus_root, rec_after)
+        except Exception:
+            logger.exception(
+                "enrichment prometheus observation failed job=%s",
+                job_id,
+            )
         from podcast_scraper.server.job_webhook import emit_job_state_change
 
         await emit_job_state_change(rec_after)

@@ -112,6 +112,7 @@ from podcast_scraper.enrichment.staleness import (
 )
 from podcast_scraper.enrichment.status import write_idle, write_status
 from podcast_scraper.obs.events import emit_event
+from podcast_scraper.utils.otel_init import enrichment_span
 
 logger = logging.getLogger(__name__)
 
@@ -484,6 +485,17 @@ class EnrichmentExecutor:
             if cancel_event.is_set():
                 return
             tier = enricher.manifest.tier
+            # One span per enricher (#2071). Gives the WEB tier's outbound Wikipedia / Wikidata
+            # calls a parent — auto-instrumented HTTP spans were otherwise parentless, so a slow
+            # upstream showed up in traces attributed to nothing. No-op unless OTEL is enabled.
+            with enrichment_span(
+                run_id=run_id,
+                enricher_id=enricher.manifest.id,
+                tier=str(getattr(tier, "value", tier) or ""),
+            ):
+                await _run_one_enricher_inner(enricher, tier)
+
+        async def _run_one_enricher_inner(enricher: Enricher, tier: Any) -> None:
             async with semaphores[tier]:
                 # Episode-scope: run once per bundle. Corpus-scope: run once.
                 if enricher.manifest.scope is EnricherScope.EPISODE:
