@@ -32,12 +32,17 @@ from typing import Any, Dict, Iterable, Literal, Mapping, Optional
 #: Written into ``content`` beside ``speakers``.
 SOURCE_KEY = "speakers_source"
 
+#: What a WRITER may record: the roster was resolved from audio, or it is the pre-diarization
+#: guess. Narrower than :data:`Provenance` on purpose — ``unknown`` and ``absent`` are answers a
+#: READER derives, never values anyone writes down.
+RosterSource = Literal["diarized", "hint"]
+
 #: ``diarized`` — resolved from the audio. ``hint`` — the pre-diarization guess from the feed and
 #: show notes. ``unknown`` — the artifact predates this field. ``absent`` — no speakers at all.
 Provenance = Literal["diarized", "hint", "unknown", "absent"]
 
 
-def roster_source(speakers: Iterable[Any], *, diarized: bool) -> Optional[str]:
+def roster_source(speakers: Iterable[Any], *, diarized: bool) -> Optional[RosterSource]:
     """The value to write for a roster that was (or was not) resolved from audio.
 
     ``None`` when there is no roster: an empty list has no origin to claim, and writing one would

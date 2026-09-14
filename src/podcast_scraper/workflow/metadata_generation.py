@@ -35,11 +35,18 @@ from typing import (
 from urllib.parse import urlparse
 
 import yaml
-from pydantic import BaseModel, computed_field, Field, field_serializer, ValidationError
+from pydantic import (
+    BaseModel,
+    computed_field,
+    Field,
+    field_serializer,
+    model_validator,
+    ValidationError,
+)
 
 from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
-from ..identity.roster_provenance import roster_source
+from ..identity.roster_provenance import roster_source, RosterSource
 from ..speaker_detectors.hosts import looks_like_publisher
 
 if TYPE_CHECKING:
@@ -340,7 +347,20 @@ def _bullet_to_topic_phrase(bullet: str, max_tokens: int = 4) -> str:
 # Import is deferred until actually needed to avoid PyTorch initialization in dry-run mode
 summarizer = None  # type: ignore
 
-SCHEMA_VERSION = "1.0.0"
+#: Metadata artifact schema. 1.1.0 (#2070) adds ``content.speakers_source`` — whether the roster
+#: was resolved from AUDIO or fell back to the pre-diarization HINT. The field shape is otherwise
+#: identical, so a 1.0.0 reader is unaffected.
+SCHEMA_VERSION = "1.1.0"
+
+#: The version at which ``speakers_source`` became REQUIRED alongside a non-empty roster.
+#:
+#: The grandfather clause is pinned to a version rather than written in a comment, because #2070
+#: exists precisely because nobody could tell a measurement from a fallback by reading an artifact,
+#: and a comment saying "always set this" is the kind of thing that stops being true. Below this
+#: version the field is legal to omit — every artifact currently on disk — and
+#: :func:`identity.roster_provenance.roster_provenance` reports those as ``unknown``, which is its
+#: own answer and never silently upgraded to ``diarized``.
+PROVENANCE_SCHEMA_VERSION = "1.1.0"
 
 
 def generate_feed_id(feed_url: str) -> str:
@@ -617,7 +637,7 @@ class ContentMetadata(BaseModel):
         default=None,
         description="Distinct speaker voices the diarizer resolved for this episode (#876).",
     )
-    speakers_source: Optional[str] = Field(
+    speakers_source: Optional[Literal["diarized", "hint"]] = Field(
         default=None,
         description=(
             "Where `speakers` came from: 'diarized' (resolved from the audio) or 'hint' (the "
@@ -632,6 +652,7 @@ class ContentMetadata(BaseModel):
         default_factory=list,
         description="Normalized entity forms with aliases for fuzzy matching (Issue #387)",
     )
+
     expectations: Optional[ExpectationsMetadata] = Field(
         default=None,
         description="Expectations about output quality (not facts about the episode)",
@@ -818,6 +839,35 @@ class EpisodeMetadataDocument(BaseModel):
     episode: EpisodeMetadata
     content: ContentMetadata
     processing: ProcessingMetadata
+
+    @model_validator(mode="after")
+    def _roster_must_declare_its_source(self) -> "EpisodeMetadataDocument":
+        """A versioned artifact cannot carry a roster without saying where it came from (#2070).
+
+        THE MECHANISM, not a convention. ``speakers = diarized_speakers or hint`` put a measurement
+        and a guess in the same field, indistinguishable on disk — that is #2065's root cause, and
+        it survived for months precisely because nothing could detect it. Making the WRITER unable
+        to emit an unlabelled roster is what stops it recurring; a comment saying "always set this"
+        is the kind of thing that stops being true.
+
+        The grandfather clause is pinned to the SCHEMA VERSION rather than to a date or a habit.
+        Below ``PROVENANCE_SCHEMA_VERSION`` the field is legal to omit — that is every artifact
+        currently on disk — and ``identity.roster_provenance.roster_provenance`` reports those as
+        ``unknown``, its own answer, never silently upgraded to ``diarized``.
+
+        An EMPTY roster needs no label at any version: there is no origin to claim, and demanding
+        one would mean inventing provenance for a value that does not exist.
+        """
+        version = str(getattr(self.processing, "schema_version", "") or "")
+        if version >= PROVENANCE_SCHEMA_VERSION and self.content.speakers:
+            if not self.content.speakers_source:
+                raise ValueError(
+                    f"content.speakers_source is required at schema {version}: a roster must say "
+                    "whether it was 'diarized' (resolved from audio) or a 'hint' (the "
+                    "pre-diarization guess). See #2070."
+                )
+        return self
+
     summary: Optional[SummaryMetadata] = None
     grounded_insights: Optional[GroundedInsightsMetadata] = None
     knowledge_graph: Optional[KnowledgeGraphMetadata] = None
@@ -2138,7 +2188,7 @@ def _build_content_metadata(
     episode_description: Optional[str] = None,
     output_dir: Optional[str] = None,
     diarization_num_speakers: Optional[int] = None,
-    speakers_source: Optional[str] = None,
+    speakers_source: Optional[RosterSource] = None,
 ) -> ContentMetadata:
     """Build ContentMetadata object.
 
@@ -3661,7 +3711,7 @@ def _prepare_base_metadata_objects(
     detected_guests: Optional[List[str]],
     pipeline_metrics=None,
     transcript_file_path: Optional[str] = None,
-) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], Optional[int], Optional[str]]:
+) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], Optional[int], Optional[RosterSource]]:
     """Prepare base metadata objects (feed, episode, speakers).
 
     ProcessingMetadata (including stage_timings) is built after summarization so
