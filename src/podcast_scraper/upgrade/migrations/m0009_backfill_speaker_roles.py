@@ -81,18 +81,43 @@ Unparsable files are recorded and skipped rather than failing the run (mirrors 0
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from ...graph_id_utils import is_bare_speaker_label
-from ...identity.slugify import person_id
+from ...identity.slugify import person_id as _person_id
 from ...kg.speaker_coherence import same_person
 from ...speaker_detectors.hosts import names_the_show
 from ..migration import Migration, MigrationContext, MigrationResult
 
 #: Roles this pass may WRITE. Anything else on a node means someone who knew more got there first.
 _SPEAKER_ROLES = frozenset({"host", "guest"})
+
+#: Edge types whose target is a person the roster HEARD speak. A show does not speak.
+_SPOKEN_BY = "SPOKEN_BY"
+
+logger = logging.getLogger(__name__)
+
+
+def person_id(name: str) -> Optional[str]:
+    """``identity.slugify.person_id``, or ``None`` when the name cannot be slugged.
+
+    ``slugify.person_id`` RAISES when NFKD -> ASCII leaves nothing — every entirely non-Latin name
+    does this (``person_id('张川红')``, ``person_id('Владимир Путин')``). This pass walks the whole
+    corpus and ``apply()`` catches only OSError/JSONDecodeError, so one such name aborted the run
+    mid-corpus with no resume point: the ledger is never written, and every re-run dies on the same
+    file. Production carries Round Table China, China Plus, ChinaTalk and The Naked Pravda.
+
+    An unsluggable name is not a migration failure, it is a name this pass cannot key on. Skip it
+    and keep going — the node keeps whatever role it already had, which is the safe direction.
+    """
+    try:
+        return _person_id(name)
+    except Exception:  # noqa: BLE001 — an unkeyable name must not cost the whole corpus its run
+        return None
+
 
 #: Roles this pass may OVERWRITE. A node already carrying a speaker role is never touched.
 _PROMOTABLE = frozenset({"", "mentioned"})
@@ -120,6 +145,55 @@ def _write_atomic(path: Path, payload: dict) -> None:
 def _metadata_sibling(kg_path: Path) -> Path:
     """``…/X.kg.json`` -> ``…/X.metadata.json`` (the two are written side by side)."""
     return kg_path.with_name(kg_path.name[: -len(".kg.json")] + ".metadata.json")
+
+
+def _gi_sibling(kg_path: Path) -> Path:
+    """``…/X.kg.json`` -> ``…/X.gi.json`` (written side by side with the other two)."""
+    return kg_path.with_name(kg_path.name[: -len(".kg.json")] + ".gi.json")
+
+
+def voices_in_episode(gi_payload: dict, kg_payload: dict) -> Set[str]:
+    """KG person ids the roster HEARD SPEAK — read from the GI layer, matched into the KG layer.
+
+    ``SPOKEN_BY`` DOES NOT EXIST IN ``kg.json``. Measured over 287 production artifacts: the KG
+    layer carries only ``HAS_EPISODE`` / ``MENTIONS`` / ``HOSTS`` / ``GUESTS_ON``, while 259 of the
+    sibling ``gi.json`` files carry ``SPOKEN_BY``. An earlier version of this guard read the KG
+    payload's own edges, so it returned an empty set on every real artifact and never fired — the
+    unit test passed only because it hand-built a KG containing an edge type that shape never has.
+
+    The two layers also mint DIFFERENT ids for one human (#2056: ``person:aaron-levy`` from the
+    roster in GI, ``person:aaron-levie`` from the extractor in KG), so an exact id match is not
+    enough. Exact first, then ``same_person`` against the GI speaker's display name — the same
+    predicate the rest of this migration uses, so "is this the same human" keeps one answer.
+    """
+    spoken_ids: Set[str] = set()
+    for edge in gi_payload.get("edges") or []:
+        if not isinstance(edge, dict) or str(edge.get("type") or "") != _SPOKEN_BY:
+            continue
+        for key in ("to", "from"):
+            target = str(edge.get(key) or "")
+            if target.startswith("person:"):
+                spoken_ids.add(target)
+    if not spoken_ids:
+        return set()
+    gi_names = {
+        str(n.get("id") or ""): str((n.get("properties") or {}).get("name") or "")
+        for n in (gi_payload.get("nodes") or [])
+        if isinstance(n, dict) and str(n.get("type") or "").lower() == "person"
+    }
+    spoken_names = [gi_names.get(i, "") for i in spoken_ids]
+    out: Set[str] = set()
+    for node in kg_payload.get("nodes") or []:
+        if not isinstance(node, dict) or node.get("type") != "Person":
+            continue
+        nid = str(node.get("id") or "")
+        if nid in spoken_ids:
+            out.add(nid)
+            continue
+        nm = str((node.get("properties") or {}).get("name") or "")
+        if nm and any(sn and same_person(nm, sn) for sn in spoken_names):
+            out.add(nid)
+    return out
 
 
 def roster_roles(metadata_payload: dict) -> Dict[str, str]:
@@ -155,6 +229,8 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
         if feed_title and names_the_show(name, feed_title):
             continue
         pid = person_id(name)
+        if pid is None:
+            continue
         # First voice wins, matching the roster builder's own first-appearance precedence.
         out.setdefault(pid, role)
     return out
@@ -214,22 +290,61 @@ def _fuzzy_roster_hit(name: str, roles: Dict[str, str]) -> Tuple[Optional[str], 
     return None, None
 
 
-def demote_non_persons(kg_payload: dict, feed_title: str = "") -> int:
+def demote_non_persons(
+    kg_payload: dict,
+    feed_title: str = "",
+    voices: Optional[Set[str]] = None,
+    suspects: Optional[List[str]] = None,
+) -> int:
     """Take every non-human out of a speaking role in *kg_payload*; return how many.
 
     Needs no roster: that the show's own name, or the word "Host", never spoke is true of the node
     itself. Split out because the episodes most likely to carry one are precisely the episodes
     whose roster :func:`roster_roles` throws away entirely, which the roster-driven pass skips.
+
+    THE KNOWN FALSE POSITIVE, and why it is not guarded here. ``names_the_show`` matches a
+    multi-token PREFIX of the feed title, so it also classifies a host whose name LEADS their own
+    show as the show — ``names_the_show('Lex Fridman', 'Lex Fridman Podcast')`` is True, likewise
+    Rich Roll, Ezra Klein and Dan Carlin. The title cannot settle it: 'Lex Fridman Podcast' and
+    'Latent Space: The AI Engineer Podcast' are structurally identical, and 'Latent.Space' really
+    IS the show.
+
+    "A show does not speak" LOOKS like the missing evidence and is not. ``SPOKEN_BY`` inherits the
+    roster's mistakes — it is the roster that put the show in the host seat in the first place
+    (#2064), so the show then has quotes attributed to it. Measured: 'Machine Learning Street' has
+    a SPOKEN_BY edge on 4 of its 6 episodes. Sparing every node with a voice therefore rescues 4
+    real show names that this pass exists to demote, to protect a host shape that does not occur
+    in the corpus at all (all 8 title/name hits across the 55 production feeds are genuine show
+    names). Trading measured damage for hypothetical damage is the wrong direction.
+
+    So the prefix rule stands, and the risk is REPORTED instead: see ``suspect_demotions`` in the
+    result details, which lists every demotion whose node also carried a voice. That is the class
+    to hand-read before running on a corpus containing an eponymous show.
     """
     demoted = 0
+    voices = voices or set()
+    suspects = suspects if suspects is not None else []
     for node in kg_payload.get("nodes") or []:
         if node.get("type") != "Person":
             continue
         props = node.setdefault("properties", {})
         current = str(props.get("role") or "").strip().lower()
-        if current in _SPEAKER_ROLES and _is_not_a_person(str(props.get("name") or ""), feed_title):
+        if current not in _SPEAKER_ROLES:
+            continue
+        name = str(props.get("name") or "")
+        if is_bare_speaker_label(name):
+            # A role word is not a human even if something attributed a quote to it.
             props["role"] = "mentioned"
             demoted += 1
+            continue
+        if not (feed_title and names_the_show(name, feed_title)):
+            continue
+        if str(node.get("id") or "") in voices:
+            # Demoted anyway — see the docstring — but recorded, because this is exactly the
+            # shape an eponymous-show host would take.
+            suspects.append(f"{name} (host of {feed_title!r}, had a voice)")
+        props["role"] = "mentioned"
+        demoted += 1
     return demoted
 
 
@@ -285,7 +400,7 @@ def promote_person_roles(
         props = node.setdefault("properties", {})
         nid = str(node.get("id") or "")
         name = str(props.get("name") or "")
-        key: Optional[str] = nid if nid in roles else person_id(name)
+        key: Optional[str] = nid if nid in roles else person_id(name)  # None when unsluggable
         role: Optional[str] = roles.get(key) if key else None
         if role is None:
             key, role = _fuzzy_roster_hit(name, roles)
@@ -349,6 +464,7 @@ class BackfillSpeakerRolesMigration(Migration):
         no_roster = 0
         already_correct = 0
         unmatched: List[str] = []
+        suspect_demotions: List[str] = []
         unparsable: List[str] = []
 
         for path in files:
@@ -365,13 +481,16 @@ class BackfillSpeakerRolesMigration(Migration):
                 unparsable.append(f"{meta_path.name}: {meta_err}")
                 continue
             feed_title = str((meta_payload.get("feed") or {}).get("title") or "")
+            # SPOKEN_BY lives in the GI layer, not the KG layer — see `voices_in_episode`.
+            gi_payload, _gi_err = _load(_gi_sibling(path))
+            voices = voices_in_episode(gi_payload or {}, payload)
 
             # Route 1 — the node is not a human. Needs no roster, so it runs on EVERY episode,
             # including the ones whose roster `roster_roles` discards entirely (usually because
             # every entry in it WAS a show name). Running it first also means the count below is
             # cleanly split: whatever `promote_person_roles` demotes afterwards is the roster
             # route alone, and the operator can see which rule moved what before trusting either.
-            non_person = demote_non_persons(payload, feed_title)
+            non_person = demote_non_persons(payload, feed_title, voices, suspect_demotions)
 
             # Route 2 — the roster accounts for every voice and this person is not among them.
             roles = roster_roles(meta_payload)
@@ -408,6 +527,12 @@ class BackfillSpeakerRolesMigration(Migration):
             f"correct, {no_roster} with no usable roster on disk, {len(unmatched)} roster name(s) "
             f"with no matching node (name variants — these need a re-enrich, not this migration), "
             f"{len(unparsable)} unparsable"
+            + (
+                f"; {len(suspect_demotions)} demotion(s) HAND-READ REQUIRED (the node had a "
+                f"voice — an eponymous-show host would look like this)"
+                if suspect_demotions
+                else ""
+            )
         )
         return MigrationResult(
             self.id,
@@ -421,6 +546,7 @@ class BackfillSpeakerRolesMigration(Migration):
                 "persons_demoted": demoted_absent + demoted_non_person,
                 "persons_demoted_not_a_person": demoted_non_person,
                 "persons_demoted_roster_denies": demoted_absent,
+                "suspect_demotions": suspect_demotions,
                 "already_correct": already_correct,
                 "no_roster": no_roster,
                 "unmatched_roster_names": len(unmatched),

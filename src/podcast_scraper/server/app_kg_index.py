@@ -17,6 +17,7 @@ convention as :func:`app_catalog_cache.cached_catalog`.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -66,6 +67,9 @@ class EpisodeEntities(NamedTuple):
     orgs: list[AppEntity]
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class KgEntityIndex:
     """The corpus's KG entities, inverted for O(matches) card lookups.
@@ -96,8 +100,34 @@ class KgEntityIndex:
         return [self.episodes[i] for i in self.org_to_eps.get(org_id, ())]
 
 
+def _canonical_person_ids(root: Path) -> dict[str, str]:
+    """``{variant_id: canonical_id}`` for people, or ``{}`` if the map cannot be built.
+
+    #2056: the consumer cards showed ``Theo Jaffee`` and ``Theo Jaffe`` as two people on *The a16z
+    Show*, and ``Lucas Kaiser`` beside ``Lukasz Kaiser``. The resolver already matches those pairs
+    and ``same_show_required=True`` already permits them — the two ids share a show. Nothing was
+    wrong with the matcher. It was simply never consulted on this surface: ``iter_kg_entities``
+    reads ids straight out of each ``*.kg.json``, and only ``search/corpus_graph`` and
+    ``server/cil_queries`` apply ``build_entity_id_map``.
+
+    Folding it in HERE costs nothing per request — this function runs inside the once-per-ingest
+    cached index build, not on the card path.
+
+    Failure is non-fatal and returns ``{}``: an un-canonicalised index shows a duplicate, which is
+    the status quo. Failing the whole index would take the cards down with it.
+    """
+    try:
+        from ..kg.entity_clusters import build_entity_id_map
+
+        return {k: v for k, v in build_entity_id_map(root).items() if k.startswith("person:")}
+    except Exception:  # noqa: BLE001 — a duplicate person must not cost the reader their cards
+        logger.warning("entity canonicalisation unavailable; cards may show variant duplicates")
+        return {}
+
+
 def build_kg_index(root: Path) -> KgEntityIndex:
     """One full pass over the corpus KGs → the inverted index (called once per ingest via cache)."""
+    canonical = _canonical_person_ids(root)
     episodes: list[EpisodeEntities] = []
     person_to_eps: dict[str, list[int]] = defaultdict(list)
     topic_to_eps: dict[str, list[int]] = defaultdict(list)
@@ -108,9 +138,24 @@ def build_kg_index(root: Path) -> KgEntityIndex:
 
     for row, persons, orgs, topics in iter_kg_entities(root, cached_catalog(root)):
         i = len(episodes)
+        if canonical:
+            # Rewrite to the canonical id BEFORE the node lands in the projection, and dedupe
+            # within the episode: two variant spellings in one episode would otherwise become the
+            # same id twice, listing the person on their own card as two co-appearances.
+            seen: set[str] = set()
+            rewritten = []
+            for p in persons:
+                cid = canonical.get(p.id, p.id)
+                if cid in seen:
+                    continue
+                seen.add(cid)
+                rewritten.append(p if cid == p.id else p.model_copy(update={"id": cid}))
+            persons = rewritten
         episodes.append(EpisodeEntities(row=row, persons=persons, topics=topics, orgs=orgs))
         for p in persons:
             person_to_eps[p.id].append(i)
+            # Both spellings are registered so a search for EITHER finds the surviving person —
+            # the variant label is how the reader knows them, even once its id is gone.
             person_ref_by_norm.setdefault(
                 normalize_label(p.name), AppEntityRef(id=p.id, kind="person", label=p.name)
             )

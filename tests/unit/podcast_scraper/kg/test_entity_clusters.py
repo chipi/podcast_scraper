@@ -299,18 +299,22 @@ class TestSameShowRequiredIsLoadBearing:
         _payload, id_map = build_entity_canonical_map(cands, same_show_required=True)
         assert id_map == {}, "the gate is the only thing holding these apart"
 
-    def test_relaxing_the_gate_merges_two_different_humans(self) -> None:
-        # Documents the COST of relaxing it, so the trade-off is explicit rather than discovered.
+    def test_relaxing_the_gate_merges_people_who_never_shared_a_show(self) -> None:
+        # Documents the COST of relaxing it. Note the one-token rule (see
+        # `TestAPersonMayDifferInOnlyONEToken`) now stops the WORST of these on its own —
+        # `Albert Einstein`/`Bert Vogelstein` no longer merges at all. What the gate still buys
+        # is everything that drifts in a single token but belongs to two different humans on two
+        # different shows, which no name comparison can tell apart.
         from podcast_scraper.kg.entity_clusters import build_entity_canonical_map
 
         cands = self._candidates(
             [
-                ("person:albert-einstein", "Albert Einstein", ["Show A"]),
-                ("person:robert-jensen", "Robert Jensen", ["Show B"]),
+                ("person:richard-mccoll", "Richard McColl", ["Show A"]),
+                ("person:richard-mccollough", "Richard McCollough", ["Show B"]),
             ]
         )
         _payload, id_map = build_entity_canonical_map(cands, same_show_required=False)
-        assert id_map, "relaxing same_show_required merges Einstein with Jensen — do not do this"
+        assert id_map, "without the gate, two one-token-apart strangers merge across shows"
 
     def test_a_real_variant_pair_on_one_show_still_merges(self) -> None:
         # The gate must not be so strict that genuine variants stop collapsing.
@@ -324,3 +328,68 @@ class TestSameShowRequiredIsLoadBearing:
         )
         _payload, id_map = build_entity_canonical_map(cands, same_show_required=True)
         assert id_map, "a real spelling variant within one show must still collapse"
+
+
+class TestAPersonMayDifferInOnlyONEToken:
+    """Two tokens both drifting means two different humans (#2056 precision).
+
+    Measured over 287 production artifacts. Every clearly-wrong same-show merge the matcher makes
+    differs in BOTH name tokens; almost every correct one differs in exactly one:
+
+        FALSE   'Albert Einstein' == 'Bert Vogelstein'    2 tokens differ
+        FALSE   'Jensen Huang'    == 'Jesse Zhang'        2 tokens differ
+        FALSE   'Li Lun'          == 'Lily Liu'           2 tokens differ
+
+        TRUE    'Bernard Leong'   == 'Bernard Leung'      1
+        TRUE    'Stewart Brand'   == 'Stuart Brand'       1
+        TRUE    'Joe Weisenthal'  == 'Joe Wiesenthal'     1
+        TRUE    'Nikolai Kononov' == 'Nikolay Kononov'    1
+
+    A transcription or typo error lands on ONE token. Two independent drifts in a two-token name
+    is not one person spelled badly, it is two people who rhyme.
+
+    THE COST, stated rather than hidden: ``'Alexander Carpi' == 'Alexandra Karppi'`` is a real
+    person whose name drifted in both tokens, and this rule stops merging them. That is the trade
+    taken deliberately — a false split is visible clutter, a false merge reassigns one person's
+    statements to another. 3 false merges prevented for 1 real merge lost.
+
+    Applies to PEOPLE with equal token counts. Orgs legitimately differ in more than one token
+    ("Bank of England" / "Bank of Britain" is a different question) and are untouched.
+    """
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Albert Einstein", "Bert Vogelstein"),
+            ("Jensen Huang", "Jesse Zhang"),
+            ("Li Lun", "Lily Liu"),
+        ],
+    )
+    def test_two_drifting_tokens_are_two_people(self, a: str, b: str) -> None:
+        assert _are_xep_variants(a, b, "person") is False
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Bernard Leong", "Bernard Leung"),
+            ("Stewart Brand", "Stuart Brand"),
+            ("Corey Combs", "Cory Combs"),
+            ("Joe Weisenthal", "Joe Wiesenthal"),
+            ("Adam Reichardt", "Adam Reichert"),
+            ("Nikolai Kononov", "Nikolay Kononov"),
+            ("Mark Galeotti", "Mark Galliotti"),
+            ("Kevin Warsh", "Kevin Worsch"),
+            ("Francois Chollet", "Francois Jollet"),
+        ],
+    )
+    def test_one_drifting_token_is_still_one_person(self, a: str, b: str) -> None:
+        assert _are_xep_variants(a, b, "person") is True
+
+    def test_the_cost_is_recorded_not_hidden(self) -> None:
+        # A real person this rule now refuses to merge. Pinned so the trade stays visible: if a
+        # later change makes this True again, it must also keep the three tests above False.
+        assert _are_xep_variants("Alexander Carpi", "Alexandra Karppi", "person") is False
+
+    def test_orgs_are_not_subject_to_the_rule(self) -> None:
+        # The one-token rule is about human names; org names are compositional.
+        assert _are_xep_variants("Data Bricks", "Databricks", "org") is True

@@ -77,8 +77,27 @@ class TestTheProductionCase:
         )
         assert plan_intra_episode_merges(gi, {}) == {"person:aaron-levie": "person:aaron-levy"}
 
-    def test_the_second_production_case(self) -> None:
+    def test_another_production_case(self) -> None:
         # Found by scanning 287 production artifacts with the repo's own matcher.
+        gi = _gi(
+            [
+                ("person:bernard-leung", "Bernard Leung"),
+                ("person:bernard-leong", "Bernard Leong"),
+            ],
+            [*_spoken("person:bernard-leung", 30), *_mentioned("person:bernard-leong")],
+        )
+        assert plan_intra_episode_merges(gi, {}) == {"person:bernard-leong": "person:bernard-leung"}
+
+    def test_a_name_that_drifted_in_BOTH_tokens_is_not_merged(self) -> None:
+        # THE COST OF THE PRECISION RULE, recorded rather than hidden.
+        # 'Arvind Surivas'/'Aravind Srinivas' is one real human on one real production episode,
+        # and this pass used to merge them. `_are_xep_variants` now refuses because BOTH tokens
+        # drifted — the same rule that stops 'Jensen Huang' becoming 'Jesse Zhang'. Three of the
+        # sample's 24 intra-episode merges are lost this way.
+        #
+        # Accepted deliberately, and with ONE matcher rather than two: this pass could afford a
+        # looser name test because it ALSO has speaker evidence, but a second opinion on "is this
+        # the same person" is exactly how two layers drift into disagreeing. One answer, one place.
         gi = _gi(
             [
                 ("person:arvind-surivas", "Arvind Surivas"),
@@ -86,9 +105,7 @@ class TestTheProductionCase:
             ],
             [*_spoken("person:arvind-surivas"), *_mentioned("person:aravind-srinivas")],
         )
-        assert plan_intra_episode_merges(gi, {}) == {
-            "person:aravind-srinivas": "person:arvind-surivas"
-        }
+        assert plan_intra_episode_merges(gi, {}) == {}
 
 
 class TestTwoVoicesAreNeverOnePerson:
@@ -316,16 +333,16 @@ class TestTheFeedDecidesTheSpelling:
         # The description lives on the metadata sibling, not the graph, so the caller can pass it.
         gi = _gi(
             [
-                ("person:arvind-surivas", "Arvind Surivas"),
-                ("person:aravind-srinivas", "Aravind Srinivas"),
+                ("person:bernard-leung", "Bernard Leung"),
+                ("person:bernard-leong", "Bernard Leong"),
             ],
-            [*_spoken("person:arvind-surivas"), *_mentioned("person:aravind-srinivas")],
+            [*_spoken("person:bernard-leung"), *_mentioned("person:bernard-leong")],
         )
         plan = plan_intra_episode_merges(gi, {})
         got = plan_display_names(
-            gi, {}, plan, episode_text="A conversation with Aravind Srinivas of Perplexity."
+            gi, {}, plan, episode_text="Analyse Asia, hosted by Bernard Leong."
         )
-        assert got == {"person:arvind-surivas": "Aravind Srinivas"}
+        assert got == {"person:bernard-leung": "Bernard Leong"}
 
     def test_no_merge_means_no_rename(self) -> None:
         gi = self._with_episode(

@@ -22,7 +22,6 @@ transcription should still ship what it has.
 
 from __future__ import annotations
 
-import re
 import unicodedata
 from difflib import SequenceMatcher
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
@@ -56,10 +55,21 @@ FUZZY_THRESHOLD = 0.70
 
 
 def _fold(name: str) -> str:
-    """Lowercase, strip accents and punctuation, collapse whitespace."""
+    """Lowercase, strip accents and punctuation, collapse whitespace.
+
+    Keeps any letter or digit in ANY script. The previous rule was ``[^a-z0-9]+`` after
+    accent-stripping, which deleted every character of an entirely non-Latin name: the fold
+    returned ``""``, the empty guard in :func:`same_person` returned False, and
+    ``same_person('张川红', '张川红')`` was False. A speaker who cannot match themselves is "never
+    spoke" on every coherence check and unmatchable by the m0009 migration — and production
+    carries Round Table China, China Plus, ChinaTalk and The Naked Pravda.
+
+    ``str.isalnum`` is the script-agnostic test; punctuation and symbols still become spaces, so
+    the Latin behaviour this was tuned on is unchanged.
+    """
     s = unicodedata.normalize("NFKD", str(name or ""))
     s = "".join(c for c in s if not unicodedata.combining(c)).lower()
-    return " ".join(re.sub(r"[^a-z0-9]+", " ", s).split())
+    return " ".join("".join(c if c.isalnum() else " " for c in s).split())
 
 
 def same_person(a: str, b: str, threshold: float = FUZZY_THRESHOLD) -> bool:

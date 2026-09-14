@@ -299,6 +299,21 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
             if diff_pairs and _nickname_token_equiv(*diff_pairs[0]):
                 return True
         return False
+    # A PERSON'S NAME MAY DRIFT IN ONLY ONE TOKEN (#2056). Measured over 287 production
+    # artifacts: every clearly-wrong same-show merge differs in BOTH tokens —
+    # 'Albert Einstein'=='Bert Vogelstein', 'Jensen Huang'=='Jesse Zhang', 'Li Lun'=='Lily Liu' —
+    # while almost every correct one differs in exactly one ('Bernard Leong'=='Bernard Leung',
+    # 'Stewart Brand'=='Stuart Brand', 'Joe Weisenthal'=='Joe Wiesenthal'). A transcription slip
+    # or typo lands on ONE token; two independent drifts is not one person spelled badly, it is
+    # two people who rhyme.
+    #
+    # This costs one real merge in the sample — 'Alexander Carpi'/'Alexandra Karppi', a genuine
+    # person whose name drifted twice — and prevents three false ones. Deliberate: a false split
+    # is visible clutter, a false merge reassigns one person's statements to another.
+    #
+    # People only. Org names are compositional and legitimately differ in more than one token.
+    if kind == "person" and sum(1 for x, y in zip(ta, tb) if x != y) > 1:
+        return False
     # Token-aligned: every differing token pair must be a spelling variant, not a
     # distinct content word (audio vs media) or a version token (3, v2).
     for x, y in zip(ta, tb):

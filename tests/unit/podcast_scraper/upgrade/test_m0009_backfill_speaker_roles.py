@@ -21,9 +21,11 @@ import pytest
 from podcast_scraper.upgrade.migration import MigrationContext
 from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import (
     BackfillSpeakerRolesMigration,
+    demote_non_persons,
     promote_person_roles,
     roster_roles,
     voices_heard,
+    voices_in_episode,
 )
 
 pytestmark = pytest.mark.unit
@@ -727,3 +729,142 @@ class TestANonPersonCannotHoldAMicrophone:
             kg, roster_roles(meta), voices_heard=voices_heard(meta), feed_title="Some Show"
         )
         assert demoted == 0
+
+
+class TestTheShowNamePredicateIsImperfectAndSaysSo:
+    """`names_the_show` has a known false positive; it is REPORTED, not silently guarded.
+
+    The predicate matches a multi-token PREFIX of the feed title, so it also classifies a host
+    whose name LEADS their own show as the show itself::
+
+        names_the_show('Lex Fridman', 'Lex Fridman Podcast')            -> True
+        names_the_show('Dan Carlin',  "Dan Carlin's Hardcore History")  -> True
+
+    The title cannot settle it: 'Lex Fridman Podcast' and 'Latent Space: The AI Engineer Podcast'
+    are structurally identical and 'Latent.Space' really IS the show.
+
+    "A SHOW DOES NOT SPEAK" LOOKS LIKE THE MISSING EVIDENCE AND IS NOT — this was tried and
+    measured. `SPOKEN_BY` inherits the roster's mistakes: the roster is what put the show in the
+    host seat (#2064), so the show ends up with quotes attributed to it. 'Machine Learning Street'
+    has a voice on 4 of its 6 episodes. Sparing every node with a voice rescued 4 real show names
+    this pass exists to demote, in order to protect a host shape that occurs nowhere in the corpus
+    — all 8 title/name hits across the 55 production feeds are genuine show names.
+
+    So the demotion stands and the ambiguous ones are listed in `suspect_demotions` for a human to
+    read before this runs on a corpus with an eponymous show.
+    """
+
+    @staticmethod
+    def _gi(spoken_name: str, node_id: str = "person:spk"):
+        return {
+            "nodes": [{"id": node_id, "type": "Person", "properties": {"name": spoken_name}}],
+            "edges": [{"type": "SPOKEN_BY", "from": "quote:q1", "to": node_id}],
+        }
+
+    @staticmethod
+    def _kg(name: str, role: str, node_id: str = "person:spk"):
+        return {
+            "schema_version": "2.1",
+            "nodes": [
+                {"id": node_id, "type": "Person", "properties": {"name": name, "role": role}}
+            ],
+            "edges": [{"type": "HOSTS", "from": node_id, "to": "podcast:p1"}],
+        }
+
+    def test_voices_are_read_from_the_gi_sibling_not_the_kg(self) -> None:
+        # SPOKEN_BY is absent from all 287 production kg.json files and present in 259 gi.json.
+        # A guard that read the KG payload's edges was a no-op on every real artifact.
+        kg = self._kg("Lex Fridman", "host")
+        assert voices_in_episode({}, kg) == set()
+        assert voices_in_episode(self._gi("Lex Fridman"), kg) == {"person:spk"}
+
+    def test_a_voice_is_matched_across_the_two_ID_FAMILIES(self) -> None:
+        # #2056's shape: the GI id comes from the roster, the KG id from the extractor.
+        kg = self._kg("Aaron Levie", "host", node_id="person:aaron-levie")
+        gi = self._gi("Aaron Levy", node_id="person:aaron-levy")
+        assert voices_in_episode(gi, kg) == {"person:aaron-levie"}
+
+    def test_a_show_with_a_voice_is_still_demoted_but_flagged(self) -> None:
+        kg = self._kg("Machine Learning Street", "host")
+        voices = voices_in_episode(self._gi("Machine Learning Street"), kg)
+        suspects: list[str] = []
+        assert demote_non_persons(kg, "Machine Learning Street Talk", voices, suspects) == 1
+        assert kg["nodes"][0]["properties"]["role"] == "mentioned"
+        assert suspects and "Machine Learning Street" in suspects[0]
+
+    def test_a_show_with_no_voice_is_demoted_and_not_flagged(self) -> None:
+        kg = self._kg("Africa Tech Summit", "host")
+        suspects: list[str] = []
+        assert demote_non_persons(kg, "Africa Tech Summit Podcast", set(), suspects) == 1
+        assert suspects == [], "no ambiguity here — nothing for a human to read"
+
+    def test_a_role_word_is_demoted_and_never_flagged(self) -> None:
+        # "Host" is not a human even with a voice; there is no judgement call to escalate.
+        kg = self._kg("Host", "host", node_id="person:host")
+        suspects: list[str] = []
+        assert demote_non_persons(kg, "Some Show", {"person:host"}, suspects) == 1
+        assert suspects == []
+
+    def test_apply_reports_the_suspect_class(self, tmp_path: Path) -> None:
+        # Through the real wiring: apply() must find the .gi.json sibling itself. An earlier
+        # version passed every function-level test while being a no-op in the migration.
+        d = tmp_path / "metadata"
+        d.mkdir(parents=True)
+        (d / "e1.metadata.json").write_text(
+            json.dumps(
+                {
+                    "feed": {"title": "Machine Learning Street Talk"},
+                    "content": {
+                        "speakers": [{"name": "Jeremy Berman", "role": "guest"}],
+                        "diarization_num_speakers": 2,
+                    },
+                }
+            )
+        )
+        (d / "e1.kg.json").write_text(json.dumps(self._kg("Machine Learning Street", "host")))
+        (d / "e1.gi.json").write_text(json.dumps(self._gi("Machine Learning Street")))
+        res = BackfillSpeakerRolesMigration().apply(
+            MigrationContext(corpus_root=tmp_path, dry_run=True)
+        )
+        assert res.details["suspect_demotions"], "the ambiguous demotion must reach the operator"
+        assert "HAND-READ REQUIRED" in res.message
+
+
+class TestANameThatCannotBeSluggedDoesNotKillTheRun:
+    """A non-Latin name must not abort the migration mid-corpus (advisor S2).
+
+    `identity.slugify.person_id` raises when NFKD -> ASCII leaves nothing::
+
+        person_id('张川红')          -> ValueError: Slug is empty after normalisation
+        person_id('Владимир Путин')  -> ValueError
+
+    `apply()` catches only OSError/JSONDecodeError, so the runner stops at the first such name and
+    records nothing for 0009. Files already rewritten stay rewritten (idempotent, so harmless), but
+    every re-run dies on the same file — there is no resume point.
+
+    Zero occurrences in the 287-artifact sample, which is 15% of production; Round Table China,
+    China Plus, ChinaTalk and The Naked Pravda are in the other 85%.
+    """
+
+    def test_a_cjk_roster_name_is_skipped_not_raised(self) -> None:
+        meta = {
+            "feed": {"title": "Round Table China"},
+            "content": {
+                "speakers": [
+                    {"name": "张川红", "role": "guest"},
+                    {"name": "Heyang Zhang", "role": "host"},
+                ],
+                "diarization_num_speakers": 2,
+            },
+        }
+        roles = roster_roles(meta)  # must not raise
+        assert "person:heyang-zhang" in roles
+        assert all("张" not in k for k in roles), "the unsluggable name is dropped, not crashed on"
+
+    def test_a_cyrillic_node_name_is_skipped_not_raised(self) -> None:
+        kg = _kg([("person:x", "Владимир Путин", "host")])
+        # must not raise
+        promoted, demoted, _u = promote_person_roles(
+            kg, {"person:heyang-zhang": "host"}, voices_heard=1
+        )
+        assert (promoted, demoted) == (0, 0)
