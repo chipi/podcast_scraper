@@ -13,6 +13,12 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
+# INTEGRATION tier, not unit: prometheus_client is not in the [dev] extras, so importorskip
+# here would violate the U1 policy (no importorskip in tests/unit — a skipped unit test is a
+# silently-unverified one). The exporter genuinely needs the real client to prove the emitted
+# series and their labels, so the test belongs in this tier rather than being mocked hollow.
 prometheus_client = pytest.importorskip("prometheus_client")
 
 from podcast_scraper.server import enrichment_run_prometheus as erp  # noqa: E402
