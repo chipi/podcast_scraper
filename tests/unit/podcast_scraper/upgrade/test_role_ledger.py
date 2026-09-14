@@ -418,3 +418,99 @@ class TestShapesTheFirstVersionCorrupted:
         (tmp_path / LEDGER_FILE).write_text("{ this is not json", encoding="utf-8")
         with pytest.raises(ValueError):
             read_ledger(tmp_path)
+
+
+class TestUndoLeavesTheCorpusHonestAboutItself:
+    """A rollback that the rest of the system cannot see is not a rollback (advisor, 3rd pass).
+
+    Three consequences of the undo touching only ``*.kg.json``:
+
+    * ``upgrade_ledger.json`` still recorded 0009 as applied, so ``upgrade run`` skipped it and
+      ``upgrade verify`` returned "no verification defined" — the ledger claimed 2.7.3 while the
+      roles were pre-2.7.3, and nothing in the system could tell.
+    * ``perf_cache.corpus_mtime`` tokens on that same file, so every in-process projection kept
+      serving POST-migration roles after the rollback. That is S6, re-created by the undo.
+    * ``verify()`` was the default no-op, so the one hook designed to answer "is this migration's
+      effect actually present" answered "I don't check".
+    """
+
+    def _one_episode(self, root: Path) -> Path:
+        return _episode(
+            root,
+            "e1",
+            [("person:africa-tech-summit", "Africa Tech Summit", "host")],
+            feed="Africa Tech Summit Podcast",
+        )
+
+    def test_undo_un_records_the_migration(self, tmp_path: Path) -> None:
+        from podcast_scraper.upgrade.state import FilesystemStateStore
+
+        self._one_episode(tmp_path)
+        store = FilesystemStateStore(tmp_path)
+        store.record_applied("0009_backfill_speaker_roles", to_version="2.7.3", at="now")
+        BackfillSpeakerRolesMigration().apply(MigrationContext(corpus_root=tmp_path, dry_run=False))
+        assert "0009_backfill_speaker_roles" in store.applied_migration_ids()
+
+        undo_from_ledger(tmp_path)
+        assert (
+            "0009_backfill_speaker_roles" not in store.applied_migration_ids()
+        ), "a corpus whose roles were rolled back must not still claim the migration ran"
+
+    def test_undo_moves_the_cache_token(self, tmp_path: Path) -> None:
+        from podcast_scraper import perf_cache
+        from podcast_scraper.upgrade.state import FilesystemStateStore
+
+        self._one_episode(tmp_path)
+        FilesystemStateStore(tmp_path).record_applied(
+            "0009_backfill_speaker_roles", to_version="2.7.3", at="now"
+        )
+        BackfillSpeakerRolesMigration().apply(MigrationContext(corpus_root=tmp_path, dry_run=False))
+        before = perf_cache.corpus_mtime(tmp_path)
+        undo_from_ledger(tmp_path)
+        assert (
+            perf_cache.corpus_mtime(tmp_path) != before
+        ), "otherwise every projection keeps serving post-migration roles after the rollback"
+
+    def test_undo_with_nothing_recorded_is_still_fine(self, tmp_path: Path) -> None:
+        self._one_episode(tmp_path)
+        BackfillSpeakerRolesMigration().apply(MigrationContext(corpus_root=tmp_path, dry_run=False))
+        restored, _skipped, refused = undo_from_ledger(tmp_path)  # never recorded as applied
+        assert restored == 1 and not refused
+
+
+class TestTheMigrationCanVerifyItself:
+    """``verify()`` was the default no-op, so ``make upgrade-verify`` proved nothing for 0009."""
+
+    def test_verify_is_true_right_after_a_run(self, tmp_path: Path) -> None:
+        _episode(
+            tmp_path,
+            "e1",
+            [("person:africa-tech-summit", "Africa Tech Summit", "host")],
+            feed="Africa Tech Summit Podcast",
+        )
+        ctx = MigrationContext(corpus_root=tmp_path, dry_run=False)
+        BackfillSpeakerRolesMigration().apply(ctx)
+        ok, message = BackfillSpeakerRolesMigration().verify(ctx)
+        assert ok, message
+
+    def test_verify_is_false_after_an_undo(self, tmp_path: Path) -> None:
+        _episode(
+            tmp_path,
+            "e1",
+            [("person:africa-tech-summit", "Africa Tech Summit", "host")],
+            feed="Africa Tech Summit Podcast",
+        )
+        ctx = MigrationContext(corpus_root=tmp_path, dry_run=False)
+        BackfillSpeakerRolesMigration().apply(ctx)
+        undo_from_ledger(tmp_path)
+        ok, message = BackfillSpeakerRolesMigration().verify(ctx)
+        assert not ok, "the roles are back where they started; verify must say so"
+        assert "0 of 1" in message or "not present" in message.lower(), message
+
+    def test_verify_with_no_ledger_says_so_rather_than_claiming_success(
+        self, tmp_path: Path
+    ) -> None:
+        ok, message = BackfillSpeakerRolesMigration().verify(
+            MigrationContext(corpus_root=tmp_path, dry_run=False)
+        )
+        assert ok and "no ledger" in message.lower(), message

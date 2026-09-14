@@ -198,6 +198,24 @@ def undo_from_ledger(
     if not changes:
         return 0, [], []
 
+    # HOLD THE CORPUS LOCK. Undo is a read-modify-write over many artifacts; an ingest running
+    # concurrently rewrites some of them underneath it and the undo loses the race silently. The
+    # per-file sha check narrows that window — a file rewritten BEFORE we read it is refused — but
+    # it cannot close a rewrite that lands between our read and our write. The lock does.
+    # Best-effort, matching the rest of the codebase: an unavailable lock must not make a rollback
+    # impossible, which would be a worse failure than the race it prevents.
+    try:
+        from ..utils.corpus_lock import corpus_parent_lock
+
+        with corpus_parent_lock(root):
+            return _undo_locked(root, changes)
+    except Exception:  # noqa: BLE001 — a lock we cannot take must not block a rollback
+        return _undo_locked(root, changes)
+
+
+def _undo_locked(root: Path, changes: List[RoleChange]) -> Tuple[int, List[str], List[str]]:
+    """The body of :func:`undo_from_ledger`, with the corpus lock already held."""
+
     by_episode: Dict[str, List[RoleChange]] = {}
     for change in changes:
         by_episode.setdefault(change.episode, []).append(change)
@@ -274,4 +292,21 @@ def undo_from_ledger(
                 except OSError:
                     pass
                 raise
+
+    if restored:
+        # A ROLLBACK THE REST OF THE SYSTEM CANNOT SEE IS NOT A ROLLBACK.
+        #
+        # `upgrade_ledger.json` still recorded 0009 as applied, so `runner.status()` — which
+        # computes pending as "not in applied" — would skip it on the next `upgrade run`. The
+        # ledger claimed 2.7.3 while the roles were pre-2.7.3, and nothing in the system could tell.
+        #
+        # It also moves `perf_cache.corpus_mtime`, which tokens on that file: without this, every
+        # in-process projection keeps serving POST-migration roles after the rollback — S6
+        # re-created by the undo.
+        try:
+            from .state import FilesystemStateStore
+
+            FilesystemStateStore(root).record_reverted(MIGRATION_ID)
+        except Exception:  # noqa: BLE001 — the roles are already restored; never undo the undo
+            pass
     return restored, skipped, refused

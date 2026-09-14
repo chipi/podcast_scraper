@@ -91,7 +91,7 @@ from ...identity.slugify import person_id as _person_id
 from ...kg.speaker_coherence import same_person
 from ...speaker_detectors.hosts import names_the_show
 from ..migration import Migration, MigrationContext, MigrationResult
-from ..role_ledger import append_ledger, file_sha, new_run_id, RoleChange
+from ..role_ledger import append_ledger, file_sha, new_run_id, read_ledger, RoleChange
 
 #: Roles this pass may WRITE. Anything else on a node means someone who knew more got there first.
 _SPEAKER_ROLES = frozenset({"host", "guest"})
@@ -514,6 +514,42 @@ class BackfillSpeakerRolesMigration(Migration):
         "matched, not demoted. Never adds a node: a roster name with no node behind it needs a "
         "re-enrichment, and inserting one would duplicate the person"
     )
+
+    def verify(self, ctx: MigrationContext) -> Tuple[bool, str]:
+        """Is this migration's effect actually PRESENT on the corpus right now?
+
+        The base class default is "no verification defined", which made `make upgrade-verify` a
+        no-op for 0009 — the one hook designed to answer this question answered "I do not check".
+        That matters most immediately after a rollback: the roles are back where they started and
+        nothing else in the system can tell.
+
+        Checks the ledger's own rows against the artifacts: every recorded node should still hold
+        its `role_after`. Samples rather than reads the corpus twice — the ledger already names
+        exactly the nodes this migration touched, which is a far smaller set than the corpus.
+
+        No ledger is NOT a failure: a corpus migrated before the ledger existed, or one where the
+        migration legitimately changed nothing, has nothing to check. Saying so beats inventing a
+        verdict.
+        """
+        try:
+            rows = read_ledger(ctx.corpus_root)
+        except ValueError as exc:
+            return False, f"role ledger is unreadable: {exc}"
+        if not rows:
+            return True, "no ledger to verify against (corpus predates it, or nothing changed)"
+        present = 0
+        for row in rows:
+            payload, _err = _load(Path(ctx.corpus_root) / row.episode)
+            if payload is None:
+                continue
+            for node in payload.get("nodes") or []:
+                if not isinstance(node, dict) or str(node.get("id") or "") != row.node_id:
+                    continue
+                if str((node.get("properties") or {}).get("role") or "") == row.role_after:
+                    present += 1
+                break
+        ok = present == len(rows)
+        return ok, f"{present} of {len(rows)} recorded role(s) still present"
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
         """Reconcile every episode's Person roles with its roster; report both demotion routes.

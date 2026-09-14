@@ -194,6 +194,14 @@ and `rediarize_only` cascade to GI/KG, and the rebuilt graph now reads the roste
 `host` for most of the same nodes m0009 promoted. A role-only check would demote all of them,
 report zero refusals, and call it a clean rollback.
 
+**Restart the API after an undo, exactly as after the migration.** The undo un-records 0009 from
+`upgrade_ledger.json`, which moves the `perf_cache` token — but the token-less in-process caches
+are only guaranteed gone on a restart.
+
+**`make upgrade-verify CORPUS_DIR=…` now means something for 0009.** It checks the ledger's rows
+against the artifacts: `401 of 401 recorded role(s) still present` after a run, `0 of 401` after an
+undo. Previously it returned "no verification defined".
+
 **So: undo BEFORE step 3, or not at all.** After a re-enrich the ledger's episodes are refused by
 design, and that refusal is correct — the re-enriched answer is the better one.
 

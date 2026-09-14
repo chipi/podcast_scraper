@@ -38,6 +38,10 @@ class StateStore(Protocol):
         """Record *migration_id* as applied and advance the version to *to_version*."""
         ...
 
+    def record_reverted(self, migration_id: str) -> bool:
+        """Remove *migration_id* from the applied list. ``True`` when it was there."""
+        ...
+
 
 class FilesystemStateStore:
     """``StateStore`` backed by a JSON ledger at the corpus root."""
@@ -116,3 +120,38 @@ class FilesystemStateStore:
             ledger["applied"] = applied
             ledger["version"] = to_version
             self._write_ledger(ledger)
+
+    def record_reverted(self, migration_id: str) -> bool:
+        """Remove *migration_id* from the applied list. ``True`` when it was there.
+
+        The counterpart `record_applied` never had. Without it a rolled-back corpus still claimed
+        the migration ran: `runner.status()` computes pending as "not in applied", so `upgrade run`
+        skipped it, and the ledger's version said 2.7.3 over pre-2.7.3 data with nothing able to
+        tell (#2069).
+
+        Rewinding `version` is deliberately NOT attempted — it is a corpus-wide claim that other
+        migrations also advance, and guessing a predecessor would be worse than leaving it. Removing
+        the applied entry is what makes the migration re-runnable, which is the property that
+        matters.
+
+        Same flock as `record_applied`: this is the same read-modify-write on the same file.
+        """
+        import fcntl
+
+        self.corpus_root.mkdir(parents=True, exist_ok=True)
+        lock_path = self.ledger_path.with_suffix(self.ledger_path.suffix + ".lock")
+        with open(lock_path, "w", encoding="utf-8") as lock_f:
+            try:
+                fcntl.flock(lock_f, fcntl.LOCK_EX)
+            except OSError:
+                pass  # best-effort: unsupported fs / platform
+            ledger = self._read_ledger()
+            applied = ledger.get("applied")
+            if not isinstance(applied, list):
+                return False
+            kept = [e for e in applied if not (isinstance(e, dict) and e.get("id") == migration_id)]
+            if len(kept) == len(applied):
+                return False
+            ledger["applied"] = kept
+            self._write_ledger(ledger)
+            return True
