@@ -50,6 +50,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/browse', name: 'browse', component: { template: '<div/>' } },
+    { path: '/trends', name: 'trends', component: { template: '<div/>' } },
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
@@ -187,15 +188,16 @@ describe('HomeView (discover state, signed out)', () => {
     await flushPromises()
     const tabs = w.find('[data-testid="home-discovery"]')
     expect(tabs.exists()).toBe(true)
-    for (const key of ['rising', 'trending', 'storylines']) {
+    // One switcher over three KINDS (Topics default); Rising/Trending is now a sort switch, not a tab.
+    for (const key of ['topic', 'storyline', 'person']) {
       expect(w.find(`[data-testid="discovery-tab-${key}"]`).exists()).toBe(true)
     }
-    // Rising is selected by default; switching updates aria-selected.
-    expect(w.get('[data-testid="discovery-tab-rising"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="discovery-tab-storylines"]').attributes('aria-selected')).toBe('false')
-    await w.get('[data-testid="discovery-tab-storylines"]').trigger('click')
-    expect(w.get('[data-testid="discovery-tab-storylines"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="discovery-tab-rising"]').attributes('aria-selected')).toBe('false')
+    expect(w.find('[data-testid="discovery-sort"]').exists()).toBe(true)
+    expect(w.get('[data-testid="discovery-tab-topic"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="discovery-tab-storyline"]').attributes('aria-selected')).toBe('false')
+    await w.get('[data-testid="discovery-tab-storyline"]').trigger('click')
+    expect(w.get('[data-testid="discovery-tab-storyline"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="discovery-tab-topic"]').attributes('aria-selected')).toBe('false')
   })
 
   it('submitting the search navigates to /search', async () => {
@@ -262,75 +264,8 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
   })
 })
 
-describe('HomeView "Your shows" is your follows, not the catalogue (#1585)', () => {
-  const catalogue = [
-    { feed_id: 'showa', title: 'Show A', artwork_url: null, image_url: null, episode_count: 2 } as Podcast,
-    { feed_id: 'showb', title: 'Show B', artwork_url: null, image_url: null, episode_count: 5 } as Podcast,
-  ]
-
-  beforeEach(() => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
-    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
-    vi.spyOn(api, 'getPodcasts').mockResolvedValue(catalogue)
-  })
-
-  it('renders only the followed shows, joined to catalogue artwork', async () => {
-    vi.spyOn(api, 'getLibrary').mockResolvedValue([
-      { feed_id: 'showb', feed_url: null, title: 'Show B', added_at: 1 },
-    ])
-    signIn()
-    const w = mountKeptAlive()
-    await flushPromises()
-    expect(w.text()).toContain('Your shows')
-    expect(w.text()).toContain('Show B')
-    // Show A is in the corpus but NOT followed. Before #1585 this section rendered the whole
-    // catalogue while calling itself "Your shows".
-    expect(w.text()).not.toContain('Show A')
-  })
-
-  it('offers the action, not just a description of it, when you follow nothing', async () => {
-    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
-    signIn()
-    const w = mountKeptAlive()
-    await flushPromises()
-    // A section that silently self-hides can't tell a new user the feature exists — but an empty
-    // state that only *describes* following is barely better, since it sends you off to a show page
-    // to find the control. Suggested shows carry the follow control itself.
-    expect(w.text()).toContain('Your shows')
-    expect(w.text()).toContain('Follow a show')
-    expect(w.findAll('[aria-pressed]').length).toBeGreaterThan(0)
-  })
-
-  it('following from the empty state moves the show into the grid, in place', async () => {
-    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
-    vi.spyOn(api, 'followShow').mockResolvedValue([
-      { feed_id: 'showa', feed_url: null, title: 'Show A', added_at: 1 },
-    ])
-    signIn()
-    const w = mountKeptAlive()
-    await flushPromises()
-    expect(w.text()).toContain('Follow a show') // empty state
-
-    // Target the show follow control specifically: the trending-scope toggle also carries
-    // aria-pressed now (it rides the discovery row), so a bare `[aria-pressed]` matches it first.
-    await w.get('[data-testid="follow-show"]').trigger('click')
-    await flushPromises()
-
-    // The whole point of putting the control here: no navigation, no reload.
-    expect(w.text()).not.toContain('Follow a show')
-    expect(w.text()).toContain('Show A')
-  })
-
-  it('still renders a followed feed that is absent from the catalogue', async () => {
-    vi.spyOn(api, 'getLibrary').mockResolvedValue([
-      { feed_id: 'gone', feed_url: null, title: 'Departed Show', added_at: 1 },
-    ])
-    signIn()
-    const w = mountKeptAlive()
-    await flushPromises()
-    expect(w.text()).toContain('Departed Show')
-  })
-})
+// "Your shows" was removed from Home (operator 2026-09-14) — the shows you follow already live in
+// Library › Following, so the four tests that asserted the follows-grid on Home were removed with it.
 
 describe('HomeView interests card (3.5)', () => {
   beforeEach(() => {
@@ -376,18 +311,18 @@ describe('HomeView interests card (3.5)', () => {
     expect(w.text()).not.toContain('Personalize your Home')
   })
 
-  // Browse-nav strip opens the Browse hub on the matching tab (not the standalone pages) so the
-  // hub's tab bar reflects where you are.
-  it('renders "Browse topics" and "Browse people" links into the Browse hub tabs', async () => {
+  // Compact "Discover" strip (renamed from Browse topics/people, operator 2026-09-14): three chips
+  // deep-linking into the /trends see-all page on the matching tab.
+  it('renders the compact "Discover" strip into the /trends tabs', async () => {
     const w = mountKeptAlive()
     await flushPromises()
     const nav = w.get('[data-testid="home-browse-nav"]')
     const links = nav.findAll('a')
     const hrefs = links.map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/browse?tab=topics')
-    expect(hrefs).toContain('/browse?tab=people')
-    expect(nav.text()).toContain('Browse topics')
-    expect(nav.text()).toContain('Browse people')
+    expect(hrefs).toContain('/trends?tab=topic')
+    expect(hrefs).toContain('/trends?tab=storyline')
+    expect(hrefs).toContain('/trends?tab=person')
+    expect(nav.text()).toContain('Discover')
   })
 
   it('resolves trending-show artwork from the catalogue, not from your follows (#1585 regression)', async () => {
@@ -577,10 +512,11 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     ).toBe(false)
   })
 
-  it("What's-new row telemetry fires for the episode link but NOT the show link", async () => {
+  it("What's-new row telemetry fires for the episode link (the row is a single player link)", async () => {
     // onWnRowClick records a discover-click only when the clicked anchor's href contains the
-    // episode slug — so navigating to the show (/podcast/:feedId) logs nothing, and neither does a
-    // bubbled button click. Two whatsnew items → item[0] is featured, item[1] is the first row.
+    // episode slug. The restored numbered rows (operator 2026-09-14) are ONE link to the player —
+    // the show name is plain text, not a second link that navigates away — so a row click always
+    // means "this episode". Two whatsnew items → item[0] is featured, item[1] is the first row.
     readCached.mockImplementation(async (k: string) =>
       k === 'home.whatsnew' ? [ep('feat-0', 'Featured'), ep('row-one', 'Row One')] : null,
     )
@@ -593,17 +529,13 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     expect(rowUl.exists()).toBe(true)
     const rowLinks = rowUl.findAll('a')
     const epLink = rowLinks.find((a) => a.attributes('href')?.includes('row-one'))
-    const showLink = rowLinks.find((a) => a.attributes('href')?.includes('/podcast/'))
     expect(epLink, 'the row should carry an episode link').toBeTruthy()
-    expect(showLink, 'the row should carry a show link').toBeTruthy()
+    // No separate show link: the show name is plain text inside the one player link.
+    expect(rowLinks.length, 'the row is a single link (no away-navigating show link)').toBe(1)
 
     await epLink!.trigger('click')
     expect(rec).toHaveBeenCalledTimes(1)
     expect(rec).toHaveBeenCalledWith('row-one', 1)
-
-    rec.mockClear()
-    await showLink!.trigger('click')
-    expect(rec, 'navigating to the show must not log an episode discover-click').not.toHaveBeenCalled()
   })
 
   it('no notice when everything is fresh', async () => {

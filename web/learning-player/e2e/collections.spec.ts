@@ -39,32 +39,39 @@ test('add to a collection, create another, and find both with their items', asyn
   await expect(firstRow).toBeVisible()
   const slug = (await firstRow.locator('a[href^="/episode/"]').first().getAttribute('href'))!.split('/').pop()!
 
-  await firstRow.getByTestId('add-to-collection').click()
-  await expect(page.getByTestId('add-to-collection-menu')).toBeVisible()
+  // On a card, add-to-collection lives inside the row's ⋯ overflow (EpisodeActions) and its menu
+  // teleports to <body>, so open the ⋯ first and reference the control at PAGE scope (operator
+  // 2026-09-14: four controls collapsed behind ⋯). Escape after each add closes the ⋯ so the next
+  // open starts clean.
+  const openCollectionMenu = async () => {
+    await firstRow.getByTestId('overflow-trigger').click()
+    await page.getByTestId('add-to-collection').click()
+    const m = page.getByTestId('add-to-collection-menu')
+    await expect(m).toBeVisible()
+    return m
+  }
 
-  const menu = page.getByTestId('add-to-collection-menu')
+  const menu = await openCollectionMenu()
   await menu.locator('input').fill(A)
   await menu.locator('form button[type="submit"]').click()
   await expect(page.getByTestId('add-to-collection-menu')).toBeHidden({ timeout: 5000 })
+  await page.keyboard.press('Escape')
 
   // No error surfaced — the write actually landed.
   await expect(page.getByTestId('collection-error')).toHaveCount(0)
 
   // --- 2. a SECOND collection, from the same control -----------------------------------------
-  await firstRow.getByTestId('add-to-collection').click()
-  const menu2 = page.getByTestId('add-to-collection-menu')
-  await expect(menu2).toBeVisible()
+  const menu2 = await openCollectionMenu()
   await menu2.locator('input').fill(B)
   await menu2.locator('form button[type="submit"]').click()
   await expect(page.getByTestId('add-to-collection-menu')).toBeHidden({ timeout: 5000 })
+  await page.keyboard.press('Escape')
 
   // --- 3. reopen the control: BOTH collections persist and are offered ------------------------
   // This is the assertion the old empty-state test could never make.
   await page.reload()
   await page.waitForLoadState('networkidle')
-  await page.locator('article').first().getByTestId('add-to-collection').click()
-  const reopened = page.getByTestId('add-to-collection-menu')
-  await expect(reopened).toBeVisible()
+  const reopened = await openCollectionMenu()
   await expect(reopened).toContainText(A)
   await expect(reopened).toContainText(B)
   await page.keyboard.press('Escape')

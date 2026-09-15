@@ -64,14 +64,15 @@ describe('ShowBrowseView', () => {
     expect(links[0].attributes('href')).toBe('/podcast/f-a')
   })
 
-  it('filters by name and sorts by episode count', async () => {
+  it('filters by name and sorts Z–A (shared four-way sort)', async () => {
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([
       { feed_id: 'f-a', title: 'Acme Show', artwork_url: null, image_url: null, description: null, episode_count: 2 },
       { feed_id: 'f-z', title: 'Zebra Cast', artwork_url: null, image_url: null, description: null, episode_count: 40 },
     ])
     const w = await mountView()
-    // Sort by most episodes → Zebra (40) leads Acme (2).
-    await w.get('[data-testid="show-browse-sort"]').setValue('episodes')
+    // Sort Z–A → Zebra leads Acme. Sort is a ToolbarMenu (Newest/Oldest/A–Z/Z–A): open, pick.
+    await w.get('[data-testid="show-browse-sort"]').trigger('click')
+    await w.get('[data-testid="show-browse-sort-opt-za"]').trigger('click')
     expect(w.findAll('a[href^="/podcast/"]')[0].attributes('href')).toBe('/podcast/f-z')
     // Filter narrows to matches only.
     await w.get('[data-testid="show-browse-search"]').setValue('acme')
@@ -91,11 +92,14 @@ describe('ShowBrowseView', () => {
       withCat('f-n', 'No Cat', null),
     ])
     const w = await mountView()
-    const picker = w.get('[data-testid="show-browse-category"]')
-    // Distinct categories only (the null one is excluded from the options).
-    const opts = picker.findAll('option').map((o) => o.text())
-    expect(opts).toEqual(['All categories', 'Business', 'Technology'])
-    await picker.setValue('Business')
+    // Category is a ToolbarMenu now: open it, then read/pick the option buttons.
+    await w.get('[data-testid="show-browse-category"]').trigger('click')
+    const opts = w
+      .findAll('[data-testid^="show-browse-category-opt-"]')
+      .map((o) => o.text().replace('✓', '').trim()) // the active option renders a ✓ tick
+    // Distinct categories only (the null one is excluded), plus the "All" reset.
+    expect(opts).toEqual(['All', 'Business', 'Technology'])
+    await w.get('[data-testid="show-browse-category-opt-Business"]').trigger('click')
     expect(w.text()).toContain('Biz Cast')
     expect(w.text()).not.toContain('Tech Cast')
     expect(w.text()).not.toContain('No Cat')
@@ -158,7 +162,9 @@ describe('ShowBrowseView', () => {
     expect(w.find('[data-testid="show-browse-grid"]').exists()).toBe(true)
     expect(w.find('[data-testid="show-browse-list"]').exists()).toBe(false)
 
-    await w.find('[data-testid="show-view-list"]').trigger('click')
+    // View is a ToolbarMenu circle now: open it, pick "list".
+    await w.get('[data-testid="show-view"]').trigger('click')
+    await w.get('[data-testid="show-view-opt-list"]').trigger('click')
     expect(w.find('[data-testid="show-browse-list"]').exists()).toBe(true)
     expect(w.find('[data-testid="show-browse-grid"]').exists()).toBe(false)
   })

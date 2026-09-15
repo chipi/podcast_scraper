@@ -82,12 +82,20 @@ onMounted(load)
   <div>
     <div class="mb-4 flex items-center justify-between gap-3">
       <p class="text-sm text-muted">{{ t('revisit.intro') }}</p>
+      <!-- A CD-player transport button (operator 2026-09-14): a big square play/pause. Running → a
+           pause glyph (press to pause); paused → a play glyph (press to resume). -->
       <button
         type="button"
-        class="shrink-0 rounded-full border border-border px-3 py-1 text-sm font-bold transition hover:bg-overlay"
+        class="lp-tap flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border transition hover:bg-overlay"
+        data-testid="revisit-pause"
         :aria-pressed="paused"
+        :aria-label="paused ? t('revisit.resume') : t('revisit.pause')"
+        :title="paused ? t('revisit.resume') : t('revisit.pause')"
         @click="togglePause"
-      >{{ paused ? t('revisit.resume') : t('revisit.pause') }}</button>
+      >
+        <svg v-if="paused" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+        <svg v-else viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+      </button>
     </div>
 
     <p v-if="paused" class="text-muted">{{ t('revisit.paused') }}</p>

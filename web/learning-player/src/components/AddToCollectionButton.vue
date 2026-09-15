@@ -5,12 +5,13 @@
  * small menu of collections (loaded on first open) with an inline "new collection" create. Sign-in
  * gated, like the queue / favourite controls. Reusable across every surface that pins.
  */
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { addToCollection, createCollection, getCollections } from '../services/api'
 import { enqueue, isPermanent } from '../services/outbox'
 import type { Collection, CollectionItemRef } from '../services/types'
 import { useSignInGate } from '../composables/useSignInGate'
+import { useAnchoredMenu } from '../composables/useAnchoredMenu'
 
 const props = withDefaults(
   defineProps<{
@@ -18,15 +19,16 @@ const props = withDefaults(
     /**
      * `icon` — compact round icon, for dense cards/rails (default). `pill` — a labelled pill
      * (`＋ Collection`) for roomy detail/player surfaces, matching the Follow pill idiom (CO.1).
+     * `menuitem` — a full-width row inside a ⋯ overflow (the list/grid card collapses download +
+     * collect behind ⋯ so four controls don't wrap the artwork-width column, operator 2026-09-13).
      */
-    variant?: 'icon' | 'pill'
+    variant?: 'icon' | 'pill' | 'menuitem'
   }>(),
   { variant: 'icon' },
 )
 const { t } = useI18n()
 const { isGated, gated } = useSignInGate()
 
-const open = ref(false)
 const collections = ref<Collection[]>([])
 const loaded = ref(false)
 const newName = ref('')
@@ -45,69 +47,36 @@ const addedTo = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 /**
- * Which edge the menu hangs from.
- *
- * It was always `right-0`: the panel is 224px wide and grows LEFTWARD from the button. That is
- * right for a control at the right edge of a card — where this button usually lives — and wrong
- * wherever it does not. On the entity card the button sits near the LEFT margin, so the menu ran
- * straight off the side of the phone and most of it was unreachable.
- *
- * Measured rather than guessed from the layout: the same component is used on browse rows, the show
- * page, search results, the entity card and the player masthead, and hard-coding a side per call
- * site is how this drifts back.
+ * Positioning + dismissal come from the shared popover shell now — teleported, `position: fixed`,
+ * clamped on screen by `anchorPanel`. This replaces the bespoke `right-0`/`left-0` flip: the panel
+ * is 224px wide and hard-anchoring it `right-0` ran it off the LEFT edge wherever the trigger sat
+ * near the left margin (the entity card, a card control under the artwork). One rule for every menu
+ * now (operator 2026-09-13). Teleporting also dissolves the sibling-card z-index fight the old
+ * `absolute` panel had — no wrapper z-index hack needed.
  */
-const align = ref<'left' | 'right'>('right')
-const menuEl = ref<HTMLElement | null>(null)
-const rootEl = ref<HTMLElement | null>(null)
+const triggerEl = ref<HTMLElement | null>(null)
+const panelEl = ref<HTMLElement | null>(null)
+const { open, toggle, close } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' })
 
-/** Close the menu (Escape / outside-click / after a successful pin). */
-function close(): void {
-  open.value = false
-  addedTo.value = null
-}
-
-// A popup a keyboard user cannot dismiss and a pointer user cannot click away from is a trap; add
-// both while it is open and tear them down when it closes (#2004 #9).
-function onDocPointerDown(e: PointerEvent): void {
-  if (rootEl.value && !rootEl.value.contains(e.target as Node)) close()
-}
-watch(open, (isOpen) => {
-  if (isOpen) document.addEventListener('pointerdown', onDocPointerDown)
-  else document.removeEventListener('pointerdown', onDocPointerDown)
+// Load collections on first open; clear the transient "added" receipt whenever it closes.
+watch(open, async (isOpen) => {
+  if (!isOpen) {
+    addedTo.value = null
+    return
+  }
+  if (loaded.value) return
+  error.value = null
+  try {
+    collections.value = await getCollections()
+    loaded.value = true
+  } catch {
+    // NOT `loaded = true`: a failed load must retry on the next open rather than latch an empty
+    // list that looks like "you have no collections".
+    collections.value = []
+    error.value = t('collections.loadFailed')
+  }
 })
-onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocPointerDown))
 
-/** Keep the panel fully on screen, flipping to whichever edge has room. */
-async function placeMenu(): Promise<void> {
-  align.value = 'right'
-  await nextTick()
-  const el = menuEl.value
-  if (!el) return
-  const box = el.getBoundingClientRect()
-  const MARGIN = 8
-  // Overflowing the LEFT edge is the reported bug; check the right too, since flipping blindly
-  // would just move the problem for a button near the right margin on a narrow screen.
-  if (box.left < MARGIN && box.right + box.width <= window.innerWidth - MARGIN) {
-    align.value = 'left'
-  }
-}
-
-async function toggle(): Promise<void> {
-  open.value = !open.value
-  if (open.value) void placeMenu()
-  if (open.value && !loaded.value) {
-    error.value = null
-    try {
-      collections.value = await getCollections()
-      loaded.value = true
-    } catch {
-      // NOT `loaded = true`: a failed load must retry on the next open rather than latch an empty
-      // list that looks like "you have no collections".
-      collections.value = []
-      error.value = t('collections.loadFailed')
-    }
-  }
-}
 const onClick = gated(toggle)
 
 async function pick(id: string): Promise<void> {
@@ -130,10 +99,7 @@ async function pick(id: string): Promise<void> {
     }
     enqueue({ op: 'collection.addItem', collectionId: id, item: props.item })
     addedTo.value = id
-    window.setTimeout(() => {
-      open.value = false
-      addedTo.value = null
-    }, 800)
+    window.setTimeout(() => close(false), 800)
     return
   }
   const i = collections.value.findIndex((c) => c.id === updated.id)
@@ -167,10 +133,7 @@ async function createAndAdd(): Promise<void> {
     collections.value = [{ id: clientId, name, created_at: Date.now() / 1000, count: 1 }, ...collections.value]
     newName.value = ''
     addedTo.value = clientId
-    window.setTimeout(() => {
-      open.value = false
-      addedTo.value = null
-    }, 800)
+    window.setTimeout(() => close(false), 800)
     return
   }
   collections.value = [created, ...collections.value]
@@ -180,26 +143,23 @@ async function createAndAdd(): Promise<void> {
 </script>
 
 <template>
-  <!--
-    While the menu is OPEN this wrapper outranks every row control on the page, not just its own.
-
-    The menu is absolutely positioned and taller than the card, so it overflows into the card BELOW
-    it. That card's action buttons carry the same `z-30` and come later in document order, so at
-    equal z-index they paint on top of the open menu and swallow clicks meant for it — the create
-    button was unreachable in `collections.spec.ts`. The menu's own `z-40` cannot fix this: it is
-    scoped to the stacking context this wrapper creates, so it orders siblings INSIDE the menu, not
-    the wrapper against other cards. Raising the wrapper is what moves the whole context.
-  -->
-  <div ref="rootEl" class="relative inline-flex" :class="open ? 'z-50' : 'z-30'" @keydown.esc="close">
+  <!-- The menu is teleported to <body> (shared shell), so it no longer overflows into the card below
+       and there is no sibling-card stacking fight to out-rank — the wrapper needs no z-index hack. -->
+  <div class="relative" :class="variant === 'menuitem' ? 'block' : 'inline-flex'">
     <button
+      ref="triggerEl"
       type="button"
       :class="
         variant === 'pill'
           ? 'lp-tap inline-flex items-center gap-1 rounded-full bg-overlay px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated'
-          : 'lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground'
+          : variant === 'menuitem'
+            ? 'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-canvas-foreground transition hover:bg-overlay'
+            : 'lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground'
       "
+      :data-menuitem="variant === 'menuitem' ? '' : undefined"
+      :role="variant === 'menuitem' ? 'menuitem' : undefined"
       :aria-label="isGated ? t('auth.signInToSave') : t('collections.addTo')"
-      :title="t('collections.addTo')"
+      :title="variant === 'menuitem' ? undefined : t('collections.addTo')"
       aria-haspopup="true"
       :aria-expanded="open"
       data-testid="add-to-collection"
@@ -209,19 +169,22 @@ async function createAndAdd(): Promise<void> {
         <span aria-hidden="true">＋</span>
         {{ t('collections.pill') }}
       </template>
-      <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-        <path d="M4 4h11l3 3v13l-6-3-6 3V4z" /><path d="M9 8h4M11 6v4" />
+      <!-- A plain bookmark — the folded-corner-plus-plus glyph was too busy at 16px (operator
+           2026-09-13). "Add to collection" is carried by the aria-label / menu, not by icon detail. -->
+      <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+        <path d="M6 3v18l6-4 6 4V3z" />
       </svg>
+      <span v-if="variant === 'menuitem'">{{ t('collections.addTo') }}</span>
     </button>
 
-    <div
-      v-if="open"
-      ref="menuEl"
-      class="absolute top-9 z-40 w-56 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-surface p-2 shadow-lg"
-      :class="align === 'left' ? 'left-0' : 'right-0'"
-      data-testid="add-to-collection-menu"
-      @click.stop
-    >
+    <Teleport to="body">
+      <div
+        v-if="open"
+        ref="panelEl"
+        class="invisible fixed left-0 top-0 z-50 w-56 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-surface p-2 shadow-lg"
+        data-testid="add-to-collection-menu"
+        @click.stop
+      >
       <p class="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-muted">
         {{ t('collections.addTo') }}
       </p>
@@ -255,6 +218,7 @@ async function createAndAdd(): Promise<void> {
           {{ t('collections.create') }}
         </button>
       </form>
-    </div>
+      </div>
+    </Teleport>
   </div>
 </template>

@@ -74,7 +74,8 @@ export async function navTo(
       await page.getByRole('link', { name: /Browse all/i }).first().click()
       return
     }
-    await page.locator('header').getByRole('link', { name: 'Browse' }).click()
+    // The header nav link was renamed Browse → Discover (nav.browse, operator 2026-09-14).
+    await page.locator('header').getByRole('link', { name: 'Discover' }).click()
     return
   }
 

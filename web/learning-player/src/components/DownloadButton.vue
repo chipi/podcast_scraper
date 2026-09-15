@@ -18,7 +18,17 @@ import { deleteEpisode } from '../services/downloads'
 import { isNative } from '../services/native'
 import { useSignInGate } from '../composables/useSignInGate'
 
-const props = defineProps<{ slug: string }>()
+const props = withDefaults(
+  defineProps<{
+    slug: string
+    /** `icon` is the ghost-circle in an action row; `menuitem` is a full-width row inside the
+     *  player's ⋯ overflow (operator 2026-09-13 — download is a secondary action there, not a
+     *  primary transport control). */
+    variant?: 'icon' | 'menuitem'
+  }>(),
+  { variant: 'icon' },
+)
+const emit = defineEmits<{ activated: [] }>()
 const { t } = useI18n()
 const downloads = useDownloadsStore()
 
@@ -83,6 +93,13 @@ const onClick = gated(async () => {
   }
   await markForOffline(props.slug)
 })
+
+// As a ⋯ menu item, tapping should also dismiss the overflow (like every other item there); the
+// caller listens for `activated` and calls the menu's `close`.
+function onActivate(): void {
+  void onClick()
+  emit('activated')
+}
 </script>
 
 <template>
@@ -91,18 +108,24 @@ const onClick = gated(async () => {
     type="button"
     data-testid="download-button"
     :data-state="state ?? 'none'"
-    class="lp-tap z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
+    :data-menuitem="variant === 'menuitem' ? '' : undefined"
+    :role="variant === 'menuitem' ? 'menuitem' : undefined"
     :class="
-      state === 'downloaded'
-        ? 'border-border text-canvas-foreground'
-        : state === 'failed'
-          ? 'border-border text-muted'
-          : 'border-border text-muted hover:text-canvas-foreground'
+      variant === 'menuitem'
+        ? 'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-canvas-foreground transition hover:bg-overlay'
+        : [
+            'lp-tap z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border',
+            state === 'downloaded'
+              ? 'border-border text-canvas-foreground'
+              : state === 'failed'
+                ? 'border-border text-muted'
+                : 'border-border text-muted hover:text-canvas-foreground',
+          ]
     "
     :aria-label="label"
-    :title="label"
+    :title="variant === 'menuitem' ? undefined : label"
     :aria-busy="state === 'downloading' ? 'true' : undefined"
-    @click.stop.prevent="onClick"
+    @click.stop.prevent="onActivate"
   >
     <svg
       viewBox="0 0 24 24"
@@ -111,7 +134,7 @@ const onClick = gated(async () => {
       stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
-      class="h-4 w-4"
+      class="h-4 w-4 shrink-0"
       aria-hidden="true"
     >
       <!-- downloaded: a check on a disc -->
@@ -133,8 +156,9 @@ const onClick = gated(async () => {
         <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
       </template>
     </svg>
+    <span v-if="variant === 'menuitem'">{{ label }}</span>
     <span
-      v-if="state === 'downloading' && pct > 0"
+      v-else-if="state === 'downloading' && pct > 0"
       class="absolute -bottom-4 text-[10px] tabular-nums text-muted"
       >{{ pct }}%</span
     >

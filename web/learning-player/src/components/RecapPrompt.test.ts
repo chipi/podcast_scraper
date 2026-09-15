@@ -59,7 +59,8 @@ describe('RecapPrompt', () => {
     expect(w.text()).toContain('2.4h')
     expect(w.text()).toContain('6 episodes')
     expect(w.text()).toContain('Index investing')
-    expect(w.find('a').attributes('href')).toBe('/profile')
+    // Deep-links to the Stats tab (operator 2026-09-14) — the prompt IS "see my stats".
+    expect(w.find('a').attributes('href')).toBe('/profile?tab=stats')
   })
 
   it('renders nothing when nothing was listened to', async () => {

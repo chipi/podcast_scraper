@@ -3,7 +3,7 @@
  * Profile / account — where the signed-in user sees who they are and edits their personalization,
  * starting with their interest topics (chosen at sign-in via the onboarding card). Auth-gated.
  */
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 defineOptions({ name: "ProfileView" }) // stable name for <keep-alive :include> (App.vue)
@@ -23,7 +23,7 @@ import type {
   UserStats,
 } from "../services/types"
 import { disablePush, enablePush } from "../composables/usePushSubscription"
-import { useRouter } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import { CACHE_KEYS, clearCached } from "../services/contentCache"
 import { useAuthStore } from "../stores/auth"
 import { useUserPreferencesStore } from "../stores/userPreferences"
@@ -72,7 +72,24 @@ async function onCropConfirm(blob: Blob): Promise<void> {
 // Profile is tabbed (Account / Topics / Stats) so the identity, personalization and analytics are
 // three destinations rather than one long scroll. About/version/help live in Settings (the gear).
 type ProfileTab = "account" | "topics" | "stats"
-const tab = ref<ProfileTab>("account")
+// Open the tab named in `?tab=` (Home's "see my stats" prompt deep-links to `?tab=stats`); default
+// to Account. Was hardcoded to "account", so every entry point landed on the first tab (operator
+// 2026-09-14). Only whitelisted keys, so a bad query can't blank the panel.
+const PROFILE_TABS: ProfileTab[] = ["account", "topics", "stats"]
+const route = useRoute()
+const initialTab = String(route.query.tab || "")
+const tab = ref<ProfileTab>(
+  (PROFILE_TABS as string[]).includes(initialTab) ? (initialTab as ProfileTab) : "account"
+)
+// ProfileView is kept alive (KEEP_ALIVE_TABS), so setup runs once — re-navigating with a new `?tab=`
+// (e.g. tapping "see my stats" while Profile is already cached) must still switch the tab.
+watch(
+  () => route.query.tab,
+  (v) => {
+    const next = String(v || "")
+    if ((PROFILE_TABS as string[]).includes(next)) tab.value = next as ProfileTab
+  }
+)
 const profileTabs = computed<TabSpec<ProfileTab>[]>(() => [
   { key: "account", label: t("profile.tabAccount") },
   { key: "topics", label: t("profile.tabTopics") },

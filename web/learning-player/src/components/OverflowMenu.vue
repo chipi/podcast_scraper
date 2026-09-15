@@ -5,26 +5,26 @@
  * capability. This is the single overflow pattern; do not hand-roll another (same rule as `Tabs`).
  *
  * Mechanics, and why:
- *  - **Teleported to `<body>` + fixed positioning from the trigger rect.** Escapes clipped/
- *    transformed ancestors and avoids the stacking-context z-index hack a card-local `absolute`
- *    popup needs (a sibling card's controls otherwise paint over an open menu). z-50 per UXS-014.
+ *  - **Shared popover shell (`useAnchoredMenu`).** Teleport-to-`<body>` + `position: fixed`, placed
+ *    by `anchorPanel` so it is clamped inside the viewport and cannot open off a screen edge — the
+ *    same shell the share and add-to-collection menus use, so all three position identically.
+ *    Escapes clipped/transformed ancestors and the z-index hack a card-local `absolute` popup needs.
  *  - **Slot-composed.** Callers drop their own action buttons (mark-as-played, share, add-note, an
- *    add-to-collection control) in the default slot; the menu owns the shell, a11y and dismissal and
+ *    add-to-collection control) in the default slot; the shell owns placement and dismissal and
  *    passes `close` so an item can dismiss after acting.
  *  - **a11y:** `aria-haspopup="menu"` / `aria-expanded` trigger; `role="menu"` panel; focus moves to
  *    the first item on open; ↑/↓/Home/End roam the items; Escape closes and restores focus to the
- *    trigger; an outside pointer, scroll, or resize closes it (a fixed panel would otherwise strand).
+ *    trigger; an outside pointer dismisses, scroll/resize re-place the panel against the trigger.
  */
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAnchoredMenu } from '../composables/useAnchoredMenu'
 
 const props = withDefaults(defineProps<{ label?: string }>(), { label: '' })
 const { t } = useI18n()
 
-const open = ref(false)
 const triggerEl = ref<HTMLElement | null>(null)
 const panelEl = ref<HTMLElement | null>(null)
-const pos = ref<{ top: number; right: number }>({ top: 0, right: 0 })
 
 function items(): HTMLElement[] {
   const el = panelEl.value
@@ -32,32 +32,11 @@ function items(): HTMLElement[] {
   return Array.from(el.querySelectorAll<HTMLElement>('[data-menuitem]'))
 }
 
-function place(): void {
-  const el = triggerEl.value
-  if (!el) return
-  const r = el.getBoundingClientRect()
-  // Hang from the trigger's right edge, below it. `right` is measured from the viewport's right so
-  // the menu grows leftward and stays put without knowing its own width.
-  pos.value = { top: Math.round(r.bottom + 4), right: Math.round(window.innerWidth - r.right) }
-}
-
-async function openMenu(): Promise<void> {
-  place()
-  open.value = true
-  await nextTick()
-  items()[0]?.focus()
-}
-
-function closeMenu(restoreFocus = true): void {
-  if (!open.value) return
-  open.value = false
-  if (restoreFocus) triggerEl.value?.focus()
-}
-
-function toggle(): void {
-  if (open.value) closeMenu()
-  else void openMenu()
-}
+// Shared popover shell (teleport + fixed + viewport-clamped placement + dismissal). This component
+// adds only the menu-specific keyboard roaming; focus lands on the first item once placed.
+const { open, toggle, close } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' }, {
+  onOpened: () => items()[0]?.focus(),
+})
 
 function onKeydown(e: KeyboardEvent): void {
   const list = items()
@@ -77,38 +56,11 @@ function onKeydown(e: KeyboardEvent): void {
     list[list.length - 1]?.focus()
   } else if (e.key === 'Escape') {
     e.preventDefault()
-    closeMenu()
+    close()
   }
 }
 
-// A pointer outside both trigger and panel dismisses. Registered only while open. The close is
-// deferred to a microtask so we never mutate state (and re-patch the teleport) mid-dispatch of a
-// native capture-phase event — Vue's own handlers already schedule this way.
-function onDocPointer(e: PointerEvent): void {
-  const target = e.target as Node
-  if (triggerEl.value?.contains(target) || panelEl.value?.contains(target)) return
-  queueMicrotask(() => closeMenu(false))
-}
-// A fixed panel would drift on scroll/resize; close rather than chase.
-function onViewportChange(): void {
-  queueMicrotask(() => closeMenu(false))
-}
-function bind(on: boolean): void {
-  if (on) {
-    document.addEventListener('pointerdown', onDocPointer as EventListener, true)
-    window.addEventListener('scroll', onViewportChange, true)
-    window.addEventListener('resize', onViewportChange)
-  } else {
-    document.removeEventListener('pointerdown', onDocPointer as EventListener, true)
-    window.removeEventListener('scroll', onViewportChange, true)
-    window.removeEventListener('resize', onViewportChange)
-  }
-}
-// (De)register global dismiss listeners only while open.
-watch(open, (v) => bind(v))
-onBeforeUnmount(() => bind(false))
-
-defineExpose({ close: () => closeMenu(false) })
+defineExpose({ close: () => close(false) })
 </script>
 
 <template>
@@ -135,14 +87,13 @@ defineExpose({ close: () => closeMenu(false) })
       ref="panelEl"
       role="menu"
       :aria-label="label || t('common.moreActions')"
-      class="fixed z-50 min-w-44 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-surface p-1 shadow-lg"
-      :style="{ top: `${pos.top}px`, right: `${pos.right}px` }"
+      class="invisible fixed left-0 top-0 z-50 min-w-44 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-surface p-1 shadow-lg"
       data-testid="overflow-menu"
       @keydown="onKeydown"
     >
       <!-- Callers pass their action buttons; each must carry `data-menuitem` (for keyboard roaming)
            and `role="menuitem"`. `close` dismisses the menu after an item acts. -->
-      <slot :close="() => closeMenu(false)" />
+      <slot :close="() => close(false)" />
     </div>
   </Teleport>
 </template>

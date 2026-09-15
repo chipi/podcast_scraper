@@ -38,7 +38,11 @@ const onClick = gated(async () => {
     @click.stop.prevent="onClick"
   >
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-      <template v-if="queue.has(slug)"><path d="M20 6 9 17l-5-5" /></template>
+      <!-- Queued: the SAME list metaphor as "add" but with a check instead of a plus, so it reads
+           "in your queue" rather than a bare ✓ that looks like "selected/done" (operator 2026-09-14). -->
+      <template v-if="queue.has(slug)">
+        <path d="M13 6H3" /><path d="M13 12H3" /><path d="M13 18H3" /><path d="M15 16l2 2 4-4" />
+      </template>
       <template v-else>
         <path d="M11 12H3" /><path d="M16 6H3" /><path d="M16 18H3" /><path d="M18 9v6" /><path d="M21 12h-6" />
       </template>

@@ -5,7 +5,7 @@
  * it drives `entityShareCard`; the card is the star, the link unfurls AS the card once OG-images
  * land, and text is the graceful fallback.
  */
-import { ref, watch } from "vue"
+import { ref } from "vue"
 import { useI18n } from "vue-i18n"
 
 import {
@@ -15,37 +15,18 @@ import {
   shareEntityLink,
 } from "../composables/entityShareCard"
 import { isNative, saveAndShareText } from "../services/native"
+import { useAnchoredMenu } from "../composables/useAnchoredMenu"
 
 const props = defineProps<{ model: EntityCardModel }>()
 const { t } = useI18n()
 
-const open = ref(false)
 const note = ref("") // transient confirmation ("Link copied")
-const rootEl = ref<HTMLElement | null>(null)
-
-function close(): void {
-  open.value = false
-}
-function toggle(): void {
-  open.value = !open.value
-}
-
-// Escape + outside-click close while open; torn down via Vue's onCleanup when it closes/unmounts.
-watch(open, (isOpen, _prev, onCleanup) => {
-  if (!isOpen || typeof document === "undefined") return
-  const onKey = (e: KeyboardEvent): void => {
-    if (e.key === "Escape") close()
-  }
-  const onDown = (e: MouseEvent): void => {
-    if (rootEl.value && !rootEl.value.contains(e.target as Node)) close()
-  }
-  document.addEventListener("keydown", onKey)
-  document.addEventListener("mousedown", onDown)
-  onCleanup(() => {
-    document.removeEventListener("keydown", onKey)
-    document.removeEventListener("mousedown", onDown)
-  })
-})
+const triggerEl = ref<HTMLElement | null>(null)
+const panelEl = ref<HTMLElement | null>(null)
+// Shared popover shell — teleported, viewport-clamped placement, outside-pointer/Escape dismissal.
+// This is why the menu no longer runs off the left edge when the trigger sits near it (a storyline
+// share opened from Home): `anchorPanel` clamps it on screen (operator 2026-09-13).
+const { open, toggle, close } = useAnchoredMenu(triggerEl, panelEl, { align: "end" })
 
 async function onCard(): Promise<void> {
   close()
@@ -90,54 +71,76 @@ function flash(msg: string): void {
 </script>
 
 <template>
-  <div ref="rootEl" class="relative inline-block">
+  <div class="relative inline-block">
+    <!-- Same ghost circle as Favourite / Download / ⋯ (operator 2026-09-13): a bare glyph between
+         two circled controls read as "soft" and out of place. One geometry for the whole row. -->
     <button
+      ref="triggerEl"
       type="button"
-      class="lp-nav shrink-0"
+      class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
+      :class="{ 'text-canvas-foreground': open }"
       :aria-label="t('share.open')"
       :aria-expanded="open"
       aria-haspopup="menu"
       data-testid="share-menu"
       @click="toggle"
     >
-      <span aria-hidden="true" class="text-base leading-none">↗</span>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="h-4 w-4"
+        aria-hidden="true"
+      >
+        <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+        <path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" />
+      </svg>
     </button>
-    <div
-      v-if="open"
-      role="menu"
-      class="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded border border-border bg-surface py-1 shadow-lg"
-      data-testid="share-menu-list"
-    >
-      <button
-        type="button"
-        role="menuitem"
-        class="block w-full px-3 py-2 text-left text-sm text-canvas-foreground hover:bg-overlay"
-        data-testid="share-card"
-        @click="onCard"
+    <!-- Teleported + viewport-clamped via the shared shell (was `absolute right-0`, which ran off the
+         left edge when the trigger sat near it). -->
+    <Teleport to="body">
+      <div
+        v-if="open"
+        ref="panelEl"
+        role="menu"
+        class="invisible fixed left-0 top-0 z-50 w-48 max-w-[calc(100vw-1rem)] overflow-hidden rounded border border-border bg-surface py-1 shadow-lg"
+        data-testid="share-menu-list"
       >
-        {{ t("share.card") }}
-      </button>
-      <button
-        v-if="model.url"
-        type="button"
-        role="menuitem"
-        class="block w-full px-3 py-2 text-left text-sm text-canvas-foreground hover:bg-overlay"
-        data-testid="share-link"
-        @click="onLink"
-      >
-        {{ t("share.link") }}
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        class="block w-full px-3 py-2 text-left text-sm text-canvas-foreground hover:bg-overlay"
-        data-testid="share-text"
-        @click="onText"
-      >
-        {{ t("share.text") }}
-      </button>
-    </div>
-    <!-- Visible transient confirmation (was sr-only → sighted users got no feedback on copy). -->
+        <button
+          type="button"
+          role="menuitem"
+          class="block w-full px-3 py-2 text-left text-sm text-canvas-foreground hover:bg-overlay"
+          data-testid="share-card"
+          @click="onCard"
+        >
+          {{ t("share.card") }}
+        </button>
+        <button
+          v-if="model.url"
+          type="button"
+          role="menuitem"
+          class="block w-full px-3 py-2 text-left text-sm text-canvas-foreground hover:bg-overlay"
+          data-testid="share-link"
+          @click="onLink"
+        >
+          {{ t("share.link") }}
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          class="block w-full px-3 py-2 text-left text-sm text-canvas-foreground hover:bg-overlay"
+          data-testid="share-text"
+          @click="onText"
+        >
+          {{ t("share.text") }}
+        </button>
+      </div>
+    </Teleport>
+    <!-- Visible transient confirmation (was sr-only → sighted users got no feedback on copy). Stays
+         anchored to the trigger (not teleported): it appears AFTER the menu closes. -->
     <span
       v-if="note"
       role="status"

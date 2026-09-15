@@ -16,6 +16,7 @@ import NoteComposer from "./NoteComposer.vue"
 import EpisodeRow from "./EpisodeRow.vue"
 import StorylineCard from "./StorylineCard.vue"
 import TrendMomentum from "./TrendMomentum.vue"
+import Sparkline from "./Sparkline.vue"
 import TopicPerspectives from "./TopicPerspectives.vue"
 import TopicConversationArc from "./TopicConversationArc.vue"
 
@@ -49,6 +50,37 @@ const topicMomentum = computed(() => {
   return row && row.v >= 1.5 ? row : null
 })
 
+// Universal "discussed over time" activity sparkline (operator 2026-09-14): EVERY topic shows the
+// same chart, from any entry point — not just trending ones. Derived client-side from the topic's
+// own episodes (monthly counts across their span), so it needs NO backend series and makes no
+// "rising" claim; the trending pill above is the only rising signal, and only when earned.
+const activitySeries = computed<number[]>(() => {
+  const months = episodes.value
+    .map((e) => e.publish_date)
+    .filter((d): d is string => !!d)
+    .map((d) => {
+      const t = Date.parse(d)
+      return Number.isNaN(t) ? null : (() => {
+        const dt = new Date(t)
+        return dt.getUTCFullYear() * 12 + dt.getUTCMonth()
+      })()
+    })
+    .filter((m): m is number => m !== null)
+  if (months.length < 2) return []
+  const min = Math.min(...months)
+  const max = Math.max(...months)
+  const span = max - min + 1
+  if (span < 2) return [] // all in one month — a flat single bar is not a trend
+  // Guard runaway spans (a topic with a decade of episodes) — cap the buckets, oldest folded in.
+  const CAP = 36
+  const buckets = new Array(Math.min(span, CAP)).fill(0)
+  for (const m of months) {
+    const i = Math.max(0, buckets.length - 1 - (max - m))
+    buckets[i]++
+  }
+  return buckets
+})
+
 // Strongest shows (TD.6): which shows cover this topic most, from the discussed episodes grouped by
 // feed. Only worth showing when the topic spans MORE THAN ONE show.
 const topShows = computed(() => {
@@ -71,15 +103,25 @@ function searchLibrary(): void {
 </script>
 
 <template>
-  <!-- Momentum LEADS the card (operator review): gated to genuinely rising topics (≥1.5×). -->
-  <TrendMomentum
-    v-if="topicMomentum"
-    variant="badge"
-    :velocity="topicMomentum.v"
-    :series="topicMomentum.series"
-    class="mb-4 block"
-    data-testid="ec-topic-momentum"
-  />
+  <!-- Momentum LEADS the card (operator review). Two honest, separate signals:
+       1. The "↑ Rising · N×" pill — ONLY when genuinely trending (≥1.5×), so the copy stays true.
+       2. A universal "discussed over time" activity line — on EVERY topic, from any entry point
+          (operator 2026-09-14), derived from the topic's own episodes. The pill renders `hide-spark`
+          so it does not draw a second, redundant chart above this one. -->
+  <div v-if="topicMomentum || activitySeries.length" class="mb-4">
+    <TrendMomentum
+      v-if="topicMomentum"
+      variant="badge"
+      hide-spark
+      :velocity="topicMomentum.v"
+      class="mb-2"
+      data-testid="ec-topic-momentum"
+    />
+    <figure v-if="activitySeries.length > 1" data-testid="ec-topic-activity">
+      <Sparkline :values="activitySeries" class="h-8 w-full text-topic" />
+      <figcaption class="lp-kicker mt-1">{{ t("ec.discussedOverTime") }}</figcaption>
+    </figure>
+  </div>
 
   <!-- Semantically SIMILAR topics: the one you're on (ringed) + siblings. Distinct from the
        storyline below, which is co-occurrence (#1603). Chips drill in place via the back stack. -->

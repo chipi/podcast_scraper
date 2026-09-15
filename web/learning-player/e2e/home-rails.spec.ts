@@ -24,17 +24,18 @@ test('Your Week renders for a signed-in listener and can expand', async ({ page 
   }
 })
 
-test('the momentum rail lists chips and each one can be followed', async ({ page }, testInfo) => {
+test('the discovery list lists rows and each one can be followed', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-momentum', testInfo)
   await page.goto('/')
 
-  await page.getByTestId('discovery-tab-rising').click()
-  const rail = page.getByTestId('momentum-rail-topic')
-  await expect(rail).toBeVisible()
-  await expect(page.getByTestId('momentum-chip').first()).toBeVisible()
+  // Topics tab is the default; Rising sort is the default — no extra click needed.
+  await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
+  const list = page.getByTestId('discovery-list-topic')
+  await expect(list).toBeVisible()
+  await expect(page.getByTestId('discovery-row').first()).toBeVisible()
 
   // Following writes the same interest token the picker does, so the two must agree.
-  const follow = page.getByTestId('momentum-follow').first()
+  const follow = page.getByTestId('discovery-follow').first()
   await expect(follow).toBeVisible()
   await Promise.all([
     page.waitForResponse((r) => r.url().includes('/api/app/interests') && r.request().method() !== 'GET'),
@@ -47,9 +48,8 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
 }, testInfo) => {
   await signInIsolated(page, 'home-trend-window', testInfo)
   await page.goto('/')
-  // The discovery rails are TABBED and mutually exclusive, and the window tabs belong to RISING
-  // (beside the momentum rail) — not to trending. Encoding the real IA rather than a guess.
-  await page.getByTestId('discovery-tab-rising').click()
+  // Topics tab (Rising sort by default) — the window tabs belong to the discovery section.
+  await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
   await expect(page.getByTestId('trend-window-tabs')).toBeVisible()
 
   // A window control that does not change the request is decoration.
@@ -57,36 +57,36 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
     page.waitForResponse((r) => r.url().includes('/api/app/trending')),
     page.getByTestId('trend-window-1y').click(),
   ])
-  await expect(page.getByTestId('momentum-rail-topic')).toBeVisible()
+  await expect(page.getByTestId('discovery-list-topic')).toBeVisible()
 
-  // ...and the trending rail lives under its own tab.
-  await page.getByTestId('discovery-tab-trending').click()
-  await expect(page.getByTestId('home-trending')).toBeVisible()
+  // Switching sort (Rising → Trending) keeps the same discovery section visible.
+  await page.getByTestId('discovery-sort').click()
+  await expect(page.getByTestId('home-discovery')).toBeVisible()
 })
 
-test('the storylines rail renders chips and follows one', async ({ page }, testInfo) => {
+test('the storylines tab renders rows and follows one', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-storylines', testInfo)
   await page.goto('/')
-  await page.getByTestId('discovery-tab-storylines').click()
+  await page.getByTestId('discovery-tab-storyline').click()
 
-  const rail = page.getByTestId('home-storylines')
-  await expect(rail).toBeVisible()
-  await expect(page.getByTestId('storyline-chip').first()).toBeVisible()
-  const follow = page.getByTestId('storyline-follow').first()
+  const list = page.getByTestId('discovery-list-storyline')
+  await expect(list).toBeVisible()
+  await expect(page.getByTestId('discovery-row').first()).toBeVisible()
+  const follow = page.getByTestId('discovery-follow').first()
   await expect(follow).toBeVisible()
   await follow.click()
-  // Idempotent: a second render must not duplicate the chip.
-  await expect(page.getByTestId('storyline-chip').first()).toBeVisible()
+  // Idempotent: a second render must not duplicate the row.
+  await expect(page.getByTestId('discovery-row').first()).toBeVisible()
 })
 
-test('the discovery tabs switch between rising, trending and storylines', async ({
+test('the discovery tabs switch between topics, storylines and people', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'home-discovery', testInfo)
   await page.goto('/')
 
   await expect(page.getByTestId('home-discovery')).toBeVisible()
-  for (const tab of ['discovery-tab-rising', 'discovery-tab-trending', 'discovery-tab-storylines']) {
+  for (const tab of ['discovery-tab-topic', 'discovery-tab-storyline', 'discovery-tab-person']) {
     await page.getByTestId(tab).click()
     // Whatever the tab shows, the section must not be left empty-but-present.
     await expect(page.getByTestId('home-discovery')).toBeVisible()
@@ -104,9 +104,10 @@ test('the discovery tabs switch between rising, trending and storylines', async 
 test('browser Back closes the entity card and leaves the page under it alone', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-entity-back', testInfo)
   await page.goto('/')
-  await page.getByTestId('discovery-tab-rising').click()
+  // Topics tab is default; discovery-row opens the entity card.
+  await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
 
-  const chip = page.getByTestId('momentum-chip').first()
+  const chip = page.getByTestId('discovery-row').first()
   await expect(chip).toBeVisible()
   await chip.click()
 
@@ -129,9 +130,10 @@ test('closing the card with Escape does not leave a dead Back press behind', asy
   // as a button that did nothing.
   await signInIsolated(page, 'home-entity-esc', testInfo)
   await page.goto('/')
-  await page.getByTestId('discovery-tab-rising').click()
+  // Topics tab is default; discovery-row opens the entity card.
+  await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
 
-  const chip = page.getByTestId('momentum-chip').first()
+  const chip = page.getByTestId('discovery-row').first()
   await expect(chip).toBeVisible()
   await chip.click()
 

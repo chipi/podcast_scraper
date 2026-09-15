@@ -9,12 +9,13 @@ import EpisodeCard from "./EpisodeCard.vue"
 
 const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 
-/** aria-expanded controls that belong to the CARD itself — excludes the add-to-collection menu
- *  trigger, whose aria-expanded is correct popup semantics, not a summary/insights expander. */
+/** aria-expanded controls that belong to the CARD itself — excludes the ⋯ overflow trigger and the
+ *  add-to-collection trigger (now inside that ⋯), whose aria-expanded is correct popup semantics,
+ *  not a summary/insights expander. */
 function cardOwnExpanders(w: ReturnType<typeof mountCard>) {
   return w
     .findAll("[aria-expanded]")
-    .filter((el) => el.attributes("data-testid") !== "add-to-collection")
+    .filter((el) => !["add-to-collection", "overflow-trigger"].includes(el.attributes("data-testid") ?? ""))
 }
 
 beforeEach(() => {
@@ -74,10 +75,10 @@ describe("EpisodeCard", () => {
     expect(hrefs).toContain("/podcast/show")
   })
 
-  it("compact still renders the shared action row, constrained to wrap under the artwork", () => {
+  it("compact still renders the shared action row, capped to the artwork width", () => {
     // Regression: a `v-if="!compact"` once dropped ALL actions from the queue's "recently played"
     // cards. Compact must still carry EpisodeActions, capped to the 80px artwork width (`w-20`) so
-    // the icons wrap two-up rather than widening the column past the artwork.
+    // the ⋯ folds under favourite+queue rather than widening the column past the artwork.
     const w = mount(EpisodeCard, {
       props: { episode: makeEpisode(), compact: true },
       global: { plugins: [i18n, router] },

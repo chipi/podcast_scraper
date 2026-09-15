@@ -467,8 +467,9 @@ test.describe('design invariants', () => {
     await signInIsolated(page, 'invariants-menu-viewport', testInfo)
     await page.goto('/')
     await page.waitForLoadState('networkidle')
-    await page.getByTestId('discovery-tab-rising').click()
-    const chip = page.getByTestId('momentum-chip').first()
+    // Topics tab is the default; discovery-row opens the entity card on click.
+    await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
+    const chip = page.getByTestId('discovery-row').first()
     await expect(chip).toBeVisible()
     await chip.click()
 

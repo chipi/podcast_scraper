@@ -57,54 +57,39 @@ function onScrub(ev: Event): void {
 </script>
 
 <template>
-  <!-- `p-3` on phones: the transport row inside is width-bound there (see the row comment), and
-       15px of padding on each side is 30px the controls cannot have. Tablet+ keeps `p-4`. -->
-  <div class="rounded-2xl border border-border bg-surface p-3 sm:p-4">
-    <!-- Play is DEAD-CENTRE: back-15 / forward-30 flank it symmetrically in the centred flow;
-         the speed toggle is pinned right, and the optional `corner` affordance (transcript toggle
-         on mobile) is pinned left — both absolute so they add no height and don't tilt the row. -->
-    <!-- px-14 reserves the width the two ABSOLUTE clusters occupy (transcript corner on the left,
-         speed + queue on the right). Without it the centred group runs underneath them — which it
-         did the moment the secondary controls grew from bare text to 44px circles, overlapping the
-         forward-30 button with the queue icon. -->
+  <!-- `px-2 py-3` on phones: the transport row inside is WIDTH-BOUND there (see the row comment).
+       12px of side padding was 8px the controls could not spare at 390px; 8px keeps the row off the
+       card edge without clipping the speed pill. Tablet+ keeps `p-4`. -->
+  <div class="rounded-2xl border border-border bg-surface px-2 py-3 sm:p-4">
     <!--
-      One flex row, three groups — no absolute clusters, no width reservation (#2004 item 9).
+      Play is DEAD-CENTRE, and the row FITS a phone without shrinking any 44px target (operator
+      2026-09-13; #2004 item 9). Three groups: an equal-width `flex-1 min-w-0` side, the centre
+      transport (↺15 / play / 30↻), an equal-width `flex-1 min-w-0` side.
 
-      This used to centre the transport with `px-14` (56px) reserving room for two ABSOLUTELY
-      positioned clusters. The reservation was symmetric; the content was not. The right cluster
-      holds two 44px controls plus a gap — about 96px — so it overhung its 56px reservation by ~40px
-      and landed on the forward-30 button. That is the "queue button squeezed between 30s and 1×"
-      report, and it is arithmetic rather than styling.
+      Why `flex-1 min-w-0` and not `justify-between`: `justify-between` distributes the GAPS, so an
+      uneven pair of side clusters (the right holds queue + speed, the left transcript + capture)
+      leaves the play button off-centre — the report was "speed exits the right edge while the left
+      has space". Two equal `flex-1` sides centre the middle group as a UNIT; `min-w-0` drops the
+      `min-width:auto` content floor so each side renders at exactly free/2 rather than at its own
+      content width, which is what makes the centring pixel-exact (measured: play centre == row
+      centre at both 390px and 412px). The side groups justify start / end so the outermost controls
+      still hug the card edges.
 
-      `justify-between` with real groups lets flexbox do the distribution, so a cluster can grow
-      without colliding with anything. It also fixes it for the LEFT side, which #1592 was about to
-      make two items wide as well — the same crush, mirrored.
+      Nothing drops below a 44px HIT area (#1594): skip buttons keep a 44px hit box via `lp-tap`
+      over 40px ink; the play button is 56px on phones. `design-invariants.spec` guards fit
+      (overflow <= 0), the 44px floor, and >44px pitch so a future edit cannot silently re-clip it.
+      `lg:` collapses to a simple centred flow since the corner slot is `lg:hidden` there.
     -->
-    <!--
-      Phone gaps are tighter than tablet+ because the row is WIDTH-BOUND on a phone (#2004 item 9,
-      third pass). Seven controls at the 44px touch minimum plus a 64px play button is 328px of
-      target before a single gap, and a 412px screen leaves ~344px inside the card. It did not fit:
-      measured `scrollWidth` 387 in a 342px box, and the speed pill was clipped off the right edge.
-
-      Nothing here drops below a 44px HIT area — that is the floor #1594 established, and shrinking
-      targets to win layout would trade a real accessibility property for a cosmetic one. The two
-      skip buttons shrink their INK to 40px and keep a 44px hit box via `lp-tap`; the play button
-      is 56px on phones. Their centres stay >44px apart, so the boxes still do not overlap.
-    -->
-    <!-- PL.3 NOT DONE (constraint): equal-width flex-1 sides for perfect centring, and shrinking the
-         right edge control, both overflow the 412px row (measured in design-invariants.spec) — the
-         transport is already maxed at seven 44px controls + a 64px play button. `justify-between`
-         with all controls at the 44px minimum is the layout the row can actually hold. -->
-    <div class="mt-3 flex items-center justify-between gap-1 sm:gap-2 lg:justify-center lg:gap-6">
-      <div class="flex items-center gap-1 sm:gap-2 lg:hidden">
+    <div class="mt-3 flex items-center gap-1 sm:gap-2 lg:justify-center lg:gap-6">
+      <div class="flex min-w-0 flex-1 items-center justify-start gap-1 sm:gap-2 lg:hidden lg:flex-none">
         <slot name="corner" />
       </div>
       <!-- One geometry for every secondary control (#1965): a ghost circle. The row used to be six
            different shapes in a line — rounded-square icon, bare text, filled circle, bare text,
            circle icon, pill — with two of them having no container at all. The play button stays
            the only FILLED shape, so it reads as the primary by contrast rather than by size alone. -->
-      <!-- Centre group: the transport proper. Grouped so `justify-between` yields
-           left | centre | right rather than five evenly-spread children. -->
+      <!-- Centre group: the transport proper. Its own group so the equal-width sides centre it as a
+           unit, rather than five evenly-spread children. -->
       <div class="flex items-center gap-2 sm:gap-4">
         <button
           type="button"
@@ -146,14 +131,13 @@ function onScrub(ev: Event): void {
           30↻
         </button>
       </div>
-      <div class="flex items-center gap-1 sm:gap-2">
+      <div class="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-2 lg:flex-none">
         <!-- Right affordance next to speed (e.g. the queue button) — pinned with speed so both add
              no row height and don't tilt the centred transport. -->
         <slot name="corner-right" />
-        <!-- PL.4 NOT DONE (constraint, not oversight): shrinking this outermost control below 44px
-             needs `lp-tap`, whose 44px hit box then overflows the row's right edge (measured: +4px in
-             design-invariants.spec). The row is already maxed at the 44px minimum, so a smaller edge
-             control regresses either fit or tappability. Kept at h-11 (exactly 44px) as before. -->
+        <!-- Speed stays at h-11 (exactly the 44px minimum): it is the outermost control, and its
+             right edge now sits flush to the card's inner edge at 390px (measured). Shrinking it
+             below 44px would regress tappability for no space the row still needs. -->
         <button
           type="button"
           class="flex h-11 w-11 items-center justify-center rounded-full border border-border text-sm font-bold text-canvas-foreground transition hover:bg-overlay"

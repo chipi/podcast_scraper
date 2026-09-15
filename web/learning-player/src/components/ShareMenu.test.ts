@@ -19,10 +19,19 @@ const WITH_URL = { kicker: "Topic", title: "Risk", url: "https://closelistening.
 const NO_URL = { kicker: "Organization", title: "The Fed" }
 
 function mountMenu(model: object) {
-  return mount(ShareMenu, { props: { model }, global: { plugins: [i18n] } })
+  // The menu teleports to <body> via the shared popover shell; stub teleport so it renders inline
+  // for `find`, and attach to the document so the outside-pointer/Escape dismissal is real.
+  return mount(ShareMenu, {
+    props: { model },
+    attachTo: document.body,
+    global: { plugins: [i18n], stubs: { teleport: true } },
+  })
 }
 
-afterEach(() => vi.clearAllMocks())
+afterEach(() => {
+  vi.clearAllMocks()
+  document.body.innerHTML = ""
+})
 
 describe("ShareMenu (#2036)", () => {
   it("is closed until the affordance is clicked, then shows the three modes", async () => {

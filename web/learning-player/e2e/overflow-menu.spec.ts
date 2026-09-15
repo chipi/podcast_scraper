@@ -19,7 +19,10 @@ test('the player ⋯ menu opens, marks played, and reflects the new state', asyn
   await signInIsolated(page, 'overflow-mark', testInfo)
   await openNewestEpisode(page)
 
-  const trigger = page.getByTestId('overflow-trigger')
+  // `.first()` = the player masthead ⋯ (the one carrying mark-played). Since EpisodeActions gained a
+  // ⋯, the "More like this" rail's tiles each add one, so an unscoped selector is now ambiguous
+  // whenever that rail populates (operator 2026-09-14). The masthead is first in DOM.
+  const trigger = page.getByTestId('overflow-trigger').first()
   await expect(trigger).toBeVisible()
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
   await trigger.click()
@@ -43,7 +46,7 @@ test('the ⋯ menu dismisses on Escape and on an outside click, restoring the pa
 }, testInfo) => {
   await signInIsolated(page, 'overflow-dismiss', testInfo)
   await openNewestEpisode(page)
-  const trigger = page.getByTestId('overflow-trigger')
+  const trigger = page.getByTestId('overflow-trigger').first() // masthead ⋯ (see the note above)
 
   // Escape closes and returns focus to the trigger.
   await trigger.click()
