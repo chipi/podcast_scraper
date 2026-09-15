@@ -56,6 +56,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterable, Mapping, Set, Tuple
 
+from ..graph_id_utils import is_scoped_placeholder_person_id
 from ..kg.entity_clusters import _are_xep_variants
 from ..kg.filters import _clean_entity_name
 from .bare_name_scope import is_scoped_person_id
@@ -112,11 +113,23 @@ def _speaker_ids(payload: Mapping[str, Any]) -> Set[str]:
 
 
 def _mergeable(pid: str) -> bool:
-    """Ids this pass is allowed to touch at all."""
+    """Ids this pass is allowed to touch at all.
+
+    THERE ARE THREE PLACEHOLDER FAMILIES AND TWO PREDICATES THAT KNOW THEM, and this function used
+    to consult only one. ``is_scoped_person_id`` recognises ``person:unresolved-<name>-<ep>``;
+    ``graph_id_utils.is_scoped_placeholder_person_id`` recognises ``person:speaker-<ep>-<n|role>``
+    AND the legacy global role words (``person:host``, on disk across 54 episodes). Checking one
+    predicate left the other family mergeable.
+
+    No damage on today's corpus — KG carries no ``person:speaker-…`` node — but the asymmetry is
+    the risk, not the current count: ``_are_xep_variants("Host", "Host", "person")`` is True, so a
+    placeholder that DID reach the graph could be merged into a real person and take their quotes
+    with it. Both predicates, so a placeholder is a placeholder whichever family minted it.
+    """
     if not pid.startswith("person:"):
         return False
     # Episode-scoped placeholders belong to `bare_name_scope` — see the module docstring.
-    return not is_scoped_person_id(pid)
+    return not is_scoped_person_id(pid) and not is_scoped_placeholder_person_id(pid)
 
 
 def plan_intra_episode_merges(

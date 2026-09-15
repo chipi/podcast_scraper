@@ -439,14 +439,24 @@ class CorpusGraph:
         """
         from ..gi.corpus import load_gi_artifacts
         from ..gi.explore import scan_artifact_paths as scan_gi_paths
-        from ..kg.corpus import load_kg_artifacts, scan_kg_artifact_paths
+        from ..kg.corpus import (
+            load_kg_artifacts,
+            newest_run_artifact_paths,
+            scan_kg_artifact_paths,
+        )
 
         corpus_dir = Path(corpus_dir)
         graph = cls(identity_map=identity_map)
         # KG first, then GI: GI payloads win on overlap (see _upsert_node).
-        for _path, data in load_kg_artifacts(scan_kg_artifact_paths(corpus_dir), validate=validate):
+        # Newest run per episode, matching the catalog's membership rule — a superseded run
+        # must not shape the graph the API serves (see `newest_run_artifact_paths`).
+        _kg_paths = newest_run_artifact_paths(
+            corpus_dir, scan_kg_artifact_paths(corpus_dir), ".kg.json"
+        )
+        for _path, data in load_kg_artifacts(_kg_paths, validate=validate):
             graph._ingest(data, "kg")
-        for _path, data in load_gi_artifacts(scan_gi_paths(corpus_dir), validate=validate):
+        _gi_paths = newest_run_artifact_paths(corpus_dir, scan_gi_paths(corpus_dir), ".gi.json")
+        for _path, data in load_gi_artifacts(_gi_paths, validate=validate):
             graph._ingest(data, "gi")
         if derive_speaker_links:
             graph._derive_speaker_links()

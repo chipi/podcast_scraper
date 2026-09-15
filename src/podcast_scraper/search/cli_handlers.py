@@ -1631,6 +1631,10 @@ def _apply_bare_name_scope(gi_payload: dict, kg_payload: Any, episode_id: str) -
     ``candidate_ids`` stays narrow (node-backed only) for the same reason #1868 gives: healing
     writes a REAL person's id onto content and has no cheap undo, so an id with no node behind it
     is a dangling reference, not evidence.
+
+    Mutates BOTH payloads. The plan is computed from the union of the two rosters, so applying it
+    to only one of them guarantees they disagree about an id the pass itself chose — see the
+    comment at the rewrite below.
     """
     if not episode_id:
         return 0
@@ -1655,7 +1659,72 @@ def _apply_bare_name_scope(gi_payload: dict, kg_payload: Any, episode_id: str) -
     if changes:
         gi_payload.clear()
         gi_payload.update(rewritten)
+
+    # THE PLAN IS BUILT FROM BOTH LAYERS, SO IT HAS TO BE APPLIED TO BOTH. Scoping GI alone
+    # against a roster that INCLUDES kg.json's ids leaves KG holding the bare id this pass just
+    # decided was unsafe — one human under two ids across the two artifacts, which is #1862's
+    # desync arriving through the CLI instead of the pipeline. Harmless only when m0007 happened
+    # to run first; that is a schedule, not a guarantee.
+    #
+    # The caller writes gi.json unconditionally, so the KG copy is returned separately for it to
+    # persist — see `_scoped_kg_payload` in the caller. A KG change the caller cannot write is
+    # reported rather than silently dropped.
+    if isinstance(kg_payload, dict):
+        kg_rewritten, kg_changes = rewrite_ids(kg_payload, id_map)
+        if kg_changes:
+            kg_payload.clear()
+            kg_payload.update(kg_rewritten)
+            changes += kg_changes
     return int(changes)
+
+
+def _stable_json(payload: Any) -> str:
+    """A comparable snapshot of a payload, or ``""`` when there is none."""
+    if not isinstance(payload, dict):
+        return ""
+    try:
+        return json.dumps(payload, sort_keys=True)
+    except (TypeError, ValueError):
+        return ""
+
+
+def _persist_scoped_kg(
+    kg_path: Path,
+    kg_payload: Any,
+    before: str,
+    episode_id: str,
+    totals: Dict[str, int],
+    logger: logging.Logger,
+) -> None:
+    """Write kg.json when the scoping pass changed it. BOTH LAYERS OR NEITHER (#1862).
+
+    ``_apply_bare_name_scope`` plans from the UNION of the GI and KG rosters, so applying that
+    plan to gi.json alone leaves kg.json holding the bare id the pass just decided was unsafe —
+    one human under two ids across the two artifacts, arriving through the CLI instead of the
+    pipeline. It was harmless only when m0007 happened to have run first, which is a schedule
+    rather than a guarantee.
+
+    A failure is COUNTED and logged at error level rather than swallowed: gi.json has already been
+    written by the caller, so a silent failure here is the desync itself, not a missed enrichment.
+    """
+    if not isinstance(kg_payload, dict) or not kg_path.is_file():
+        return
+    if _stable_json(kg_payload) == before:
+        return
+    from podcast_scraper.gi.io import write_artifact
+
+    try:
+        write_artifact(kg_path, kg_payload, validate=True)
+        totals["kg_scoped"] += 1
+    except (OSError, ValueError) as exc:
+        totals["kg_write_failed"] += 1
+        logger.error(
+            "enrich-edges: gi.json was scoped but kg.json could not be written (%s) — "
+            "the layers now disagree for %s: %s",
+            kg_path.name,
+            episode_id,
+            exc,
+        )
 
 
 def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
@@ -1733,7 +1802,15 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             "enrich-edges: --replace-speakers on — SPOKEN_BY will be REBUILT, not "
             "merely topped up; wrong speakers from earlier runs are removed"
         )
-    totals = {"episodes": 0, "has_episode": 0, "mentions": 0, "spoken_by": 0, "scoped": 0}
+    totals = {
+        "episodes": 0,
+        "has_episode": 0,
+        "mentions": 0,
+        "spoken_by": 0,
+        "scoped": 0,
+        "kg_scoped": 0,
+        "kg_write_failed": 0,
+    }
     for meta_path in discover_metadata_files(corpus):
         doc = _load_metadata_file(meta_path)
         if not doc:
@@ -1825,16 +1902,26 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         # The rule is deliberately NOT applied inside any mint function: it needs the episode's
         # whole roster, and three mint families would drift if one of them freelanced. So run the
         # SAME pass the pipeline and the m0007 migration run, over the finished payloads.
+        _kg_before = _stable_json(kg_artifact_for_scope)
         _scoped = _apply_bare_name_scope(artifact, kg_artifact_for_scope, str(episode_id_for_scope))
         if _scoped:
             totals["scoped"] += _scoped
         write_artifact(gi_path, artifact, validate=True)
+        _persist_scoped_kg(
+            kg_path,
+            kg_artifact_for_scope,
+            _kg_before,
+            str(episode_id_for_scope),
+            totals,
+            logger,
+        )
         totals["episodes"] += 1
 
     msg = (
         f"enrich-edges: episodes={totals['episodes']} HAS_EPISODE={totals['has_episode']} "
         f"MENTIONS={totals['mentions']} SPOKEN_BY={totals['spoken_by']} "
-        f"scoped_bare_names={totals['scoped']}"
+        f"scoped_bare_names={totals['scoped']} kg_rewritten={totals['kg_scoped']} "
+        f"kg_write_failed={totals['kg_write_failed']}"
     )
     logger.info(msg)
     print(msg)

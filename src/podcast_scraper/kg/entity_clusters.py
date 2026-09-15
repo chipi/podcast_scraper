@@ -359,10 +359,15 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
 
 def collect_entity_candidates(corpus_dir: Path | str) -> Dict[str, EntityCandidate]:
     """Aggregate person/org entities corpus-wide with episode frequency + shows."""
-    from .corpus import load_kg_artifacts, scan_kg_artifact_paths
+    from .corpus import load_kg_artifacts, newest_run_artifact_paths, scan_kg_artifact_paths
 
     out: Dict[str, EntityCandidate] = {}
-    for _path, data in load_kg_artifacts(scan_kg_artifact_paths(Path(corpus_dir))):
+    # NEWEST RUN PER EPISODE — the same membership rule the catalog uses. A reprocessed
+    # episode's superseded run was still voting on who a person is (310 of 2,257 kg files on
+    # the production snapshot), which is exactly backwards after a `relabel_only` repair.
+    _root = Path(corpus_dir)
+    _paths = newest_run_artifact_paths(_root, scan_kg_artifact_paths(_root), ".kg.json")
+    for _path, data in load_kg_artifacts(_paths):
         episode_id = str(data.get("episode_id") or "")
         show = ""
         for node in data.get("nodes") or []:

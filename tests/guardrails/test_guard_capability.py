@@ -553,3 +553,59 @@ class TestTheHealUnitesTheLabelNotJustTheId:
         }
         got = plan_heal_display_names(gi, {"nodes": []}, {"person:bare": "person:only-gi"})
         assert got == {}, "one layer cannot disagree with itself; nothing to unify"
+
+
+class TestThePlaceholderRuleIsOneDecisionNotTwo:
+    """`Host` renders on an insight and is hidden from corpus-wide ranking. Both, deliberately.
+
+    `person:unresolved-host-<ep>` carries a real Person node named `Host` — 61 of them on the
+    production snapshot, all with `SPOKEN_BY`. `app_gi_view._speaker_name` resolves it;
+    `routes/corpus_persons` and `cil_queries` drop it via `is_unresolved_speaker_placeholder`.
+
+    That reads like one decision made twice with two answers. The rule that reconciles them is:
+    **an episode-scoped label is meaningful IN its episode and meaningless aggregated.** "The Host
+    said this" is true inside one episode; ranked corpus-wide it invents a person spanning 54
+    shows.
+
+    Pinned as a PAIR so neither half can be "fixed" into agreement with the other and quietly
+    break the rule — which is what would happen if someone noticed only one side.
+    """
+
+    EP = "ep:placeholder"
+    PID = f"person:unresolved-host-{EP}"
+
+    def test_the_episode_surface_names_it(self) -> None:
+        from podcast_scraper.server.app_gi_view import _speaker_name
+
+        artifact = {"nodes": [{"id": self.PID, "type": "Person", "properties": {"name": "Host"}}]}
+        assert _speaker_name(artifact, self.PID) == "Host", (
+            "inside one episode the host label is real information; dropping it would lose "
+            "attribution the artifact actually has"
+        )
+
+    def test_the_aggregate_surface_refuses_it(self) -> None:
+        from podcast_scraper.enrichment.enrichers._loaders import (
+            is_unresolved_speaker_placeholder,
+        )
+
+        assert (
+            is_unresolved_speaker_placeholder(self.PID) is True
+        ), "ranked corpus-wide this would be one person across every show that has a host"
+
+    def test_a_real_person_is_neither_hidden_nor_special_cased(self) -> None:
+        from podcast_scraper.enrichment.enrichers._loaders import (
+            is_unresolved_speaker_placeholder,
+        )
+        from podcast_scraper.server.app_gi_view import _speaker_name
+
+        artifact = {
+            "nodes": [
+                {
+                    "id": "person:kevin-roose",
+                    "type": "Person",
+                    "properties": {"name": "Kevin Roose"},
+                }
+            ]
+        }
+        assert _speaker_name(artifact, "person:kevin-roose") == "Kevin Roose"
+        assert is_unresolved_speaker_placeholder("person:kevin-roose") is False

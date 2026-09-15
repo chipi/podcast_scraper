@@ -4827,6 +4827,13 @@ def generate_episode_metadata(  # noqa: C901
                     episode_duration_ms=gi_episode_duration_ms,
                     prefilled_insights=prefilled_insights_arg,
                     feed_id=feed_id,
+                    # #2065: GI mints its speakers from the segments sidecar, NOT through
+                    # `_speaker_lists_for_graph`, so the show-name refusal that protects kg.json
+                    # never saw this path. Without the title that guard is inert by design
+                    # (`names_the_show` has no opinion on an empty title), which is exactly how
+                    # 53 SPOKEN_BY edges came to point at a Person named `Machine Learning
+                    # Street`. Pass it or the guard does nothing.
+                    feed_title=getattr(feed, "title", None),
                 )
                 if _gi_probe is not None:
                     gi_cost = _gi_probe.gi_cost_usd

@@ -394,17 +394,42 @@ def add_spoken_by_edges(
     attribution = attribute_quote_speakers(
         transcript, quote_char_starts, hosts=hosts, guests=guests, episode_id=episode_id
     )
+    # `{person_id: roster spelling}` — the names this attribution was derived from, so a node
+    # minted here can carry the real spelling instead of a slug round-trip.
+    _roster_name_by_id: Dict[str, str] = {}
+    for _name in list(hosts or []) + list(guests or []):
+        _clean = str(_name or "").strip()
+        if not _clean:
+            continue
+        try:
+            # `episode_id=None`: a roster name is a RESOLVED name, so it keys on the global
+            # id — the same id the attribution below produces for it.
+            _roster_name_by_id.setdefault(_person_node_id(_clean, None), _clean)
+        except Exception:  # noqa: BLE001 — an unsluggable name simply has no id to key on
+            continue
     existing_persons = {n["id"] for n in nodes if n.get("type") == "Person"}
     existing_spoken = {(e.get("from"), e.get("to")) for e in edges if e.get("type") == "SPOKEN_BY"}
     added = 0
     for quote_id, person in attribution.items():
         if person not in existing_persons:
-            # Prefer what this artifact already knew (#2062). The slug-derived name stays the last
-            # resort it always was for a genuinely NEW node; it is not a downgrade applied to a
-            # node that was correct a moment ago.
-            props = stripped_person_props.get(person) or {
-                "name": person.split(":", 1)[-1].replace("-", " ").title()
-            }
+            # NAME ORDER: what the artifact already knew, then THE ROSTER, then the slug.
+            #
+            # The roster is right there in `hosts` / `guests` — the names this attribution was
+            # computed FROM — and the slug round-trip destroys exactly the characters a slug
+            # cannot carry: `Patrick O'Shaughnessy` came back as `Patrick Oshaughnessy`. Measured
+            # on the production snapshot: 17 person ids whose KG name and GI name differ solely
+            # because of this. With `--replace-speakers` that name is then stamped onto
+            # `quote.speaker_name`, which `app_gi_view` reads FIRST, so the mangled spelling wins
+            # on the insight surface and no later rename can reach it (`apply_display_names`
+            # rewrites Person nodes, not quote properties).
+            #
+            # The slug fallback is kept for an attribution whose id matches no roster entry, which
+            # is the only case it was ever meant to cover.
+            props = (
+                stripped_person_props.get(person)
+                or ({"name": _roster_name_by_id[person]} if person in _roster_name_by_id else None)
+                or {"name": person.split(":", 1)[-1].replace("-", " ").title()}
+            )
             nodes.append({"id": person, "type": "Person", "properties": props})
             existing_persons.add(person)
         if (quote_id, person) not in existing_spoken:

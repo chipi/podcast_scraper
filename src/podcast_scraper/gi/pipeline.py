@@ -929,12 +929,35 @@ def _voice_type_for_char_range(
     return None
 
 
+def _label_names_the_show(label: str, feed_title: Optional[str]) -> bool:
+    """Is this diarization label the SHOW's own name rather than a person's? (#2064, #2065)
+
+    THE SAME REFUSAL THE GRAPH ALREADY MAKES, on the layer that was missing it.
+    ``_speaker_lists_for_graph._is_the_show`` stops a show name becoming a Person with
+    ``role="host"`` in kg.json — but GI mints its speakers from the segments sidecar directly,
+    never passing through that function, so the show kept a Person node AND its ``SPOKEN_BY``
+    edges in gi.json. Measured on the production snapshot: **53 `SPOKEN_BY` edges target a Person
+    named ``Machine Learning Street``** (feed *Machine Learning Street Talk (MLST)*) and the
+    insight surface reads GI, so the show "said" things after m0009 demoted its KG twin.
+
+    Empty title, no opinion — ``names_the_show`` returns False, which is what makes a caller that
+    forgets to pass a title silently disable the guard. That trap is why this takes the title as a
+    required positional rather than an optional keyword.
+    """
+    if not feed_title or not label:
+        return False
+    from ..speaker_detectors.hosts import names_the_show
+
+    return names_the_show(label, feed_title)
+
+
 def _resolve_quote_speaker(
     gq: Any,
     speaker_label: Optional[str],
     episode_id: str,
     transcript_text: Optional[str],
     transcript_segments: Optional[List[Dict[str, Any]]],
+    feed_title: Optional[str] = None,
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """``(person_id, friendly_name, voice_type)`` for a quote's speaker.
 
@@ -958,6 +981,11 @@ def _resolve_quote_speaker(
     if voice_type:
         return None, friendly_voice_label(voice_type), voice_type
     if speaker_label:
+        if _label_names_the_show(speaker_label, feed_title):
+            # THE SHOW DID NOT SPEAK. Leave the quote unattributed rather than minting a Person
+            # for it: under-attribution is recoverable, and a show credited with a human's words
+            # is not. Same direction the graph boundary already takes (#2064).
+            return None, None, None
         # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge across
         # episodes; a real, resolved name stays a global person id (#1b).
         return person_node_id(speaker_label, episode_id), None, None
@@ -1734,6 +1762,7 @@ def build_artifact(
     episode_duration_ms: Optional[int] = None,
     prefilled_insights: Optional[List[Dict[str, Any]]] = None,
     feed_id: Optional[str] = None,
+    feed_title: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a GIL artifact for one episode.
 
@@ -1942,6 +1971,7 @@ def build_artifact(
                 episode_duration_ms=episode_duration_ms,
                 feed_id=feed_id,
                 insight_tiers=insight_tiers,
+                feed_title=feed_title,
             )
         except GILGroundingUnsatisfiedError:
             raise
@@ -1984,6 +2014,7 @@ def build_artifact(
             topic_labels=topic_labels,
             episode_duration_ms=episode_duration_ms,
             feed_id=feed_id,
+            feed_title=feed_title,
         )
     except Exception:
         # The insights exist but the artifact could not be assembled. Emitting an EMPTY artifact
@@ -2082,6 +2113,7 @@ def _artifact_from_multi_insight(
     about_edge_encoder: Optional[Any] = None,
     feed_id: Optional[str] = None,
     insight_tiers: Optional[List[int]] = None,
+    feed_title: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -2325,6 +2357,7 @@ def _artifact_from_multi_insight(
                 episode_id,
                 transcript_text,
                 transcript_segments if use_segments else None,
+                feed_title,
             )
             if quote_voice_type:
                 speaker_label = None  # not a person — nothing to mint
