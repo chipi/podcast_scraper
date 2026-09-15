@@ -126,7 +126,7 @@ class AccuracyGateRule:
     """One accuracy threshold on an enricher's eval metric.
 
     The acceptance-gate analogue of
-    ``podcast_scraper.evaluation.regression.RegressionRule``: where a
+    ``podcast_scraper_eval.regression.RegressionRule`` (now in chipi/podcast-scraper-eval-data): where a
     ``RegressionRule`` fires on a *delta vs baseline*, this fires on an
     *absolute floor* — the enricher is promoted only when
     ``metrics[metric_name] >= min_value``. Declared on the manifest,
