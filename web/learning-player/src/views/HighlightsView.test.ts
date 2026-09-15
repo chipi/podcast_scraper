@@ -47,7 +47,9 @@ function detail(slug: string, title: string): EpisodeDetail {
 }
 
 const mountView = (props: Record<string, unknown> = {}) =>
-  mount(HighlightsView, { props, global: { plugins: [i18n, router] } })
+  // stub teleport so the SavedColorControl palette (teleported to <body> via the shared shell) renders
+  // inline for `find`.
+  mount(HighlightsView, { props, global: { plugins: [i18n, router], stubs: { teleport: true } } })
 
 beforeEach(() => {
   setActivePinia(createPinia())
