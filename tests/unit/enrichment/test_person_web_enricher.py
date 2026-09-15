@@ -607,3 +607,32 @@ def test_forced_delta_ignores_prior_state() -> None:
         )
     )
     assert captured["known"] == {}, "forced re-derive must not carry prior rows"
+
+
+def test_web_tier_timeout_fits_a_full_budget_of_upstream_lookups() -> None:
+    """expected_duration_s must cover a FULL per-run budget against a rate-limited upstream.
+
+    Measured on prod 2026-09-15: ~5.5 entities/min against Wikipedia/Wikidata, so a 200-entity
+    budget is ~36 min per enricher. The manifests declared 120s — sized for the pre-ENTITY-scope
+    design — and the first prod pass was killed at 58 min with 311 payloads already fetched. The
+    raw cache survived (it writes per entity) but the merged artifact never got written, so
+    `known` stayed empty and the next run would have re-walked the same entities forever instead
+    of advancing through the backlog.
+
+    A steady-state run is milliseconds; this ceiling only ever bites the initial backfill, which
+    is precisely when it must not.
+    """
+    from podcast_scraper.enrichment.enrichers.org_web import OrgWebEnricher
+    from podcast_scraper.enrichment.enrichers.person_web import PersonWebEnricher
+
+    for enricher, cap_key in ((PersonWebEnricher, "max_persons"), (OrgWebEnricher, "max_orgs")):
+        m = enricher.manifest
+        schema = m.config_schema
+        assert schema is not None, f"{m.id} must declare a config_schema for its budget"
+        cap = schema["properties"][cap_key]["default"]
+        # 5.5/min measured -> seconds needed for a full budget, with no safety margin.
+        needed = cap / 5.5 * 60
+        assert m.expected_duration_s >= needed, (
+            f"{m.id}: expected_duration_s={m.expected_duration_s}s cannot cover a full "
+            f"{cap}-entity budget (~{needed:.0f}s at the measured upstream rate)"
+        )

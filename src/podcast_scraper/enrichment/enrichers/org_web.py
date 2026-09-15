@@ -515,7 +515,15 @@ class OrgWebEnricher:
         # RFC-118: the executor dispatches enrich_incremental() on this flag. Without it the
         # delta path is dead code and every run is a full pass.
         supports_incremental=True,
-        expected_duration_s=120,
+        # 1800, not 120. The tier walks a RATE-LIMITED upstream (~5.5 entities/min
+        # measured on prod 2026-09-15), and the per-run budget is max_orgs entities — so a
+        # full budget is ~36 min, not two. 120s was sized for the pre-ENTITY-scope design
+        # and killed the first prod pass at 58 min with 311 payloads already fetched: the
+        # raw cache survived (it writes per entity) but the merged artifact never got
+        # written, so `known` stayed empty and the next run would have re-walked the same
+        # entities instead of advancing. A steady-state run is milliseconds; this ceiling
+        # only ever bites the initial backfill, which is exactly when it must not.
+        expected_duration_s=3600,
         config_schema={
             "type": "object",
             "additionalProperties": False,
