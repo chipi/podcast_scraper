@@ -290,7 +290,15 @@ class EnrichmentExecutor:
 
             # Phase 2 — corpus-scope.
             if not cancel_event.is_set():
-                corpus_active = [e for e in active if e.manifest.scope is EnricherScope.CORPUS]
+                # ENTITY rides this phase: like CORPUS it runs ONCE with every bundle
+                # available (it needs the full set to discover entities), and like CORPUS its
+                # output lives at the corpus root rather than beside an episode. Omitting it
+                # here would mean entity enrichers never execute at all.
+                corpus_active = [
+                    e
+                    for e in active
+                    if e.manifest.scope in (EnricherScope.CORPUS, EnricherScope.ENTITY)
+                ]
                 await self._run_phase(
                     enrichers=corpus_active,
                     bundles=None,
@@ -597,7 +605,7 @@ class EnrichmentExecutor:
             if manifest.expected_duration_s is not None
             else (
                 DEFAULT_CORPUS_TIMEOUT_S
-                if manifest.scope is EnricherScope.CORPUS
+                if manifest.scope in (EnricherScope.CORPUS, EnricherScope.ENTITY)
                 else DEFAULT_EPISODE_TIMEOUT_S
             )
         )

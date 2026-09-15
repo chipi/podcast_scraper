@@ -71,6 +71,14 @@ _logger = logging.getLogger(__name__)
 
 #: Bound the distinct persons enriched per run (polite to the upstream; the WEB tier is opt-in).
 _DEFAULT_MAX_PERSONS = 200
+
+#: How long a MISS is trusted before the upstream is asked again (seconds; 30 days).
+#: A person with no Wikipedia article is the common case, not an error — but without a negative
+#: cache every such person is re-queried on EVERY run, which is precisely the full-corpus network
+#: work ENTITY scope exists to avoid. Measured 2026-09-15: a warm run still issued one request for
+#: a 404'd name. The TTL keeps it self-healing: someone who GETS an article later is picked up on
+#: the next expiry rather than never, without a manual `refresh`.
+_MISS_TTL_S = 30 * 24 * 3600
 _USER_AGENT = "close-listening/1.0 (podcast knowledge base; contact via app)"
 #: Where the raw provider payloads live, one file per person, under the corpus enrichments dir.
 _RAW_SUBDIR = "person_web_raw"
@@ -359,6 +367,23 @@ class WikipediaProvider:
         return FetchedImage(data=data, ext=ext, license=license_, artist=artist)
 
 
+def _existing_person_rows(corpus_root: Path) -> dict[str, dict[str, Any]]:
+    """Rows already derived on a previous run, keyed by ``person_id`` (see org_web sibling)."""
+    try:
+        doc = json.loads((corpus_root / "enrichments" / "person_web.json").read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    data = doc.get("data") if isinstance(doc, dict) else None
+    rows = (data or {}).get("persons") if isinstance(data, dict) else None
+    if not isinstance(rows, list):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        if isinstance(r, dict) and r.get("person_id"):
+            out[str(r["person_id"])] = r
+    return out
+
+
 def _distinct_persons(all_bundles: list[EpisodeArtifactBundle]) -> list[tuple[str, str]]:
     """(person_id, name) for every non-placeholder Person in the corpus GI, de-duplicated."""
     seen: dict[str, str] = {}
@@ -396,6 +421,43 @@ def _read_raw_cache(corpus_root: Path, person_id: str) -> dict[str, Any] | None:
         return None
     payload = doc.get("payload") if isinstance(doc, dict) else None
     return payload if isinstance(payload, dict) else None
+
+
+def _miss_is_fresh(corpus_root: Path, person_id: str, now: int) -> bool:
+    """True when a recent MISS is recorded for this person — skip the upstream call.
+
+    Returns False once the TTL lapses so the lookup is retried, which is what makes the cache
+    self-healing for someone who gains an article later.
+    """
+    path = _raw_path(corpus_root, person_id)
+    if not path.is_file():
+        return False
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not (isinstance(doc, dict) and doc.get("miss")):
+        return False
+    fetched_at = doc.get("fetched_at")
+    if not isinstance(fetched_at, (int, float)):
+        return False
+    return (now - int(fetched_at)) < _MISS_TTL_S
+
+
+def _write_miss(corpus_root: Path, person_id: str, display_name: str, now: int) -> None:
+    """Record that the upstream had nothing for this person, with a timestamp for the TTL."""
+    path = _raw_path(corpus_root, person_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    envelope = {
+        "person_id": person_id,
+        "display_name": display_name,
+        "fetched_at": now,
+        "miss": True,
+    }
+    try:
+        path.write_text(json.dumps(envelope, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        pass  # best-effort: a failed miss-write only costs a retry next run
 
 
 def _write_raw_cache(
@@ -497,7 +559,7 @@ class PersonWebEnricher:
     manifest = EnricherManifest(
         id="person_web",
         version="0.1.0",
-        scope=EnricherScope.CORPUS,
+        scope=EnricherScope.ENTITY,
         tier=EnricherTier.WEB,
         reads=[".gi.json"],
         writes="person_web.json",
@@ -507,6 +569,8 @@ class PersonWebEnricher:
         # cloud/prod sets only, never the airgapped/CI ones, so CI never fetches. (And the fetch is
         # best-effort — a networkless run degrades to an empty bio, never a crash.)
         requires_opt_in=False,
+        # RFC-118: the executor dispatches enrich_incremental() on this flag.
+        supports_incremental=True,
         expected_duration_s=120,
         config_schema={
             "type": "object",
@@ -541,10 +605,81 @@ class PersonWebEnricher:
         config: dict[str, Any],
         ctx: RunContext,
     ) -> EnricherResult:
-        """Fetch-then-derive per person: cached raw is reused (no network); output is re-derived."""
+        """Full pass. Prior rows come off disk; the delta path passes them in instead."""
+        refresh = bool(config.get("refresh", False))
+        known = {} if refresh else _existing_person_rows(corpus_root)
+        return await self._compute(
+            corpus_root=corpus_root,
+            all_bundles=all_bundles or [],
+            config=config,
+            ctx=ctx,
+            known=known,
+        )
+
+    async def enrich_incremental(
+        self,
+        *,
+        delta: Any,
+        prior_output: dict[str, Any] | None,
+        corpus_root: Path,
+        config: dict[str, Any],
+        ctx: RunContext,
+    ) -> EnricherResult:
+        """RFC-118 delta pass — see the org_web sibling for the full rationale.
+
+        A person's bio does not change because some OTHER episode changed, so the delta matters
+        only through the people it INTRODUCES. Output-identical to :meth:`enrich` over the same
+        corpus (§7 reconciliation): both funnel into ``_compute``.
+        """
+        refresh = bool(config.get("refresh", False)) or bool(getattr(delta, "forced", False))
+        known: dict[str, dict[str, Any]] = {}
+        if not refresh:
+            rows = (prior_output or {}).get("persons")
+            if isinstance(rows, list):
+                known = {
+                    str(r["person_id"]): r
+                    for r in rows
+                    if isinstance(r, dict) and r.get("person_id")
+                }
+            else:
+                known = _existing_person_rows(corpus_root)
+        return await self._compute(
+            corpus_root=corpus_root,
+            all_bundles=list(getattr(delta, "all_bundles", []) or []),
+            config=config,
+            ctx=ctx,
+            known=known,
+        )
+
+    async def _compute(
+        self,
+        *,
+        corpus_root: Path,
+        all_bundles: list[EpisodeArtifactBundle],
+        config: dict[str, Any],
+        ctx: RunContext,
+        known: dict[str, dict[str, Any]],
+    ) -> EnricherResult:
+        """Shared body for both passes: fetch only unknown people, merge onto ``known``."""
         max_persons = int(config.get("max_persons", _DEFAULT_MAX_PERSONS))
         refresh = bool(config.get("refresh", False))
-        persons = _distinct_persons(all_bundles or [])[:max_persons]
+        # ENTITY scope: rows already derived are CARRIED FORWARD and the budget is spent only on
+        # people never seen before. This used to be `_distinct_persons(...)[:max_persons]`, a
+        # slice of an ID-SORTED corpus-wide list — not a rate limit but a permanent coverage
+        # ceiling, where person N+1 was unreachable no matter how many runs happened.
+        now_for_budget = int(time.time())
+        all_persons = _distinct_persons(all_bundles or [])
+        # Exclude BOTH already-derived people and recent misses BEFORE applying the budget.
+        # Filtering misses only inside the loop would let them eat the budget: with
+        # max_persons=3 and three permanently-unknown names, no new person would ever be
+        # fetched — the coverage-ceiling bug this change exists to remove, in a new disguise.
+        fresh = [
+            (pid, name)
+            for pid, name in all_persons
+            if pid not in known
+            and (refresh or not _miss_is_fresh(corpus_root, pid, now_for_budget))
+        ]
+        persons = fresh[:max_persons]
         now = int(time.time())
 
         # Image hosting is an optional provider capability (mirrors the avatar: download →
@@ -578,10 +713,17 @@ class PersonWebEnricher:
                     break
                 raw = None if refresh else _read_raw_cache(corpus_root, pid)
                 if raw is None:
+                    # A recorded miss inside the TTL means "upstream had nothing recently" —
+                    # do not ask again. Without this, every person the source does not know is
+                    # re-queried on every run forever.
+                    if not refresh and _miss_is_fresh(corpus_root, pid, now):
+                        continue
                     raw = self._provider.fetch_raw(pid, name)
                     if raw is not None:
                         _write_raw_cache(corpus_root, pid, name, raw, now)
                         fetched += 1
+                    else:
+                        _write_miss(corpus_root, pid, name, now)
                 if raw is None:
                     continue
                 info = self._provider.derive(pid, name, raw)
@@ -596,7 +738,13 @@ class PersonWebEnricher:
                         row["image_license"] = meta.get("license")
                         row["image_artist"] = meta.get("artist")
                 rows.append(row)
-            return rows, fetched
+            # Merge carried-forward + this run's, deduped by person_id, id-sorted for a stable
+            # artifact across runs.
+            merged = dict(known)
+            for r in rows:
+                merged[str(r.get("person_id") or "")] = r
+            merged.pop("", None)
+            return [merged[k] for k in sorted(merged)], fetched
 
         try:
             rows, fetched = await asyncio.to_thread(_run)

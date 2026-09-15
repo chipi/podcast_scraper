@@ -183,9 +183,14 @@ def test_hosted_image_refetched_when_file_vanished(monkeypatch, tmp_path: Path) 
     assert person_web.person_image_path(tmp_path, "person:jane") is not None
 
 
-def test_manifest_is_web_tier_corpus_scope() -> None:
+def test_manifest_is_web_tier_entity_scope() -> None:
     m = PersonWebEnricher().manifest
-    assert m.tier is EnricherTier.WEB and m.scope is EnricherScope.CORPUS
+    # ENTITY, not CORPUS: a person's bio is a fact about the PERSON, not an aggregation over
+    # the corpus and not a property of any one episode. As CORPUS this walked every entity every
+    # run and a [:max] slice of that sorted list capped total coverage forever (prod sat at 3).
+    assert m.tier is EnricherTier.WEB and m.scope is EnricherScope.ENTITY
+    # RFC-118: the executor only dispatches the delta pass when the manifest says so.
+    assert m.supports_incremental is True
     assert m.writes == "person_web.json"
     assert m.requires_opt_in is False  # ON by default in cloud/prod; airgap held by profile
 
@@ -218,7 +223,10 @@ def test_cached_raw_is_reused_without_refetch(monkeypatch, tmp_path: Path) -> No
     # A second run with a NEW provider that would fetch again — but cached raw means derive-only.
     second = _FakeProvider(found={"person:jane"})
     result = _run(PersonWebEnricher(provider=second), tmp_path)
-    assert second.fetch_calls == 1  # only john (uncached miss) re-attempted; jane from cache
+    # 0, not 1: a MISS is now cached with a TTL too, so john is not re-queried either.
+    # Previously every person the upstream did not know was re-fetched on EVERY run — the
+    # full-corpus network work that entity scope + the negative cache exist to remove.
+    assert second.fetch_calls == 0
     assert [r["person_id"] for r in result.data["persons"]] == ["person:jane"]
 
 
@@ -505,3 +513,97 @@ def test_web_wiring_registers_and_returns_ids() -> None:
     assert ids == ["person_web", "org_web"]  # org_web joined the WEB tier (#2035)
     assert reg.get("person_web").manifest.id == "person_web"
     assert reg.get("org_web").manifest.id == "org_web"
+
+
+# --- ENTITY scope + RFC-118 delta pass (2026-09-15) --------------------------------------------
+# person_web/org_web were CORPUS scope, which treated an entity fact as a corpus aggregation:
+# every run walked every entity and `[:max_persons]` sliced an ID-SORTED list, so the cap was a
+# permanent coverage ceiling rather than a rate limit — prod sat at 3 people forever. They also
+# ignored RFC-118 entirely (supports_incremental=False) while topic_similarity/topic_consensus
+# already used it, so every run was a full pass.
+
+
+def test_budget_caps_new_entities_not_total_coverage(monkeypatch, tmp_path: Path) -> None:
+    """The cap must throttle NEW work per run, never make an entity permanently invisible."""
+    import podcast_scraper.enrichment.enrichers.person_web as pw
+
+    # Two people already derived on a previous run + one brand new; budget of 1.
+    prior = {
+        "persons": [
+            {"person_id": "person:a", "name": "A", "description": "d"},
+            {"person_id": "person:b", "name": "B", "description": "d"},
+        ]
+    }
+    monkeypatch.setattr(
+        pw, "_existing_person_rows", lambda _r: {r["person_id"]: r for r in prior["persons"]}
+    )
+    monkeypatch.setattr(
+        pw,
+        "_distinct_persons",
+        lambda _b: [("person:a", "A"), ("person:b", "B"), ("person:c", "C")],
+    )
+    # The already-known two must NOT consume the budget, so "C" is reachable with max_persons=1.
+    known = pw._existing_person_rows(tmp_path)
+    fresh = [(p, n) for p, n in pw._distinct_persons([]) if p not in known]
+    assert fresh == [("person:c", "C")], "known entities must not eat the budget"
+    assert fresh[:1] == [("person:c", "C")], "a new entity must be reachable under a cap of 1"
+
+
+def test_manifest_declares_the_rfc118_delta_contract() -> None:
+    """supports_incremental is what makes the executor call enrich_incremental at all."""
+    from podcast_scraper.enrichment.enrichers.person_web import PersonWebEnricher
+
+    assert PersonWebEnricher.manifest.supports_incremental is True
+    assert hasattr(PersonWebEnricher, "enrich_incremental")
+
+
+def test_delta_pass_carries_prior_rows_forward() -> None:
+    """prior_output is the accumulated entity layer — it must not be discarded on a delta run."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from podcast_scraper.enrichment.enrichers.person_web import PersonWebEnricher
+
+    enricher = PersonWebEnricher(provider=_FakeProvider(set()))
+    captured: dict = {}
+
+    async def _fake_compute(*, corpus_root, all_bundles, config, ctx, known):
+        captured["known"] = known
+        return SimpleNamespace(data={"persons": []})
+
+    enricher._compute = _fake_compute  # type: ignore[assignment]
+    prior = {"persons": [{"person_id": "person:x", "name": "X"}]}
+    delta = SimpleNamespace(all_bundles=[], forced=False)
+    asyncio.run(
+        enricher.enrich_incremental(
+            delta=delta, prior_output=prior, corpus_root=Path("."), config={}, ctx=_ctx()
+        )
+    )
+    assert "person:x" in captured["known"], "delta pass dropped already-derived entities"
+
+
+def test_forced_delta_ignores_prior_state() -> None:
+    """delta.forced means an explicit full re-derive — prior caches must be ignored (RFC-118)."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from podcast_scraper.enrichment.enrichers.person_web import PersonWebEnricher
+
+    enricher = PersonWebEnricher(provider=_FakeProvider(set()))
+    captured: dict = {}
+
+    async def _fake_compute(*, corpus_root, all_bundles, config, ctx, known):
+        captured["known"] = known
+        return SimpleNamespace(data={"persons": []})
+
+    enricher._compute = _fake_compute  # type: ignore[assignment]
+    asyncio.run(
+        enricher.enrich_incremental(
+            delta=SimpleNamespace(all_bundles=[], forced=True),
+            prior_output={"persons": [{"person_id": "person:x"}]},
+            corpus_root=Path("."),
+            config={},
+            ctx=_ctx(),
+        )
+    )
+    assert captured["known"] == {}, "forced re-derive must not carry prior rows"

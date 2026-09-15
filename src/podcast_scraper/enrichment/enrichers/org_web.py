@@ -124,6 +124,29 @@ class OrgWebProvider(Protocol):
         ...
 
 
+def _existing_rows(corpus_root: Path) -> dict[str, dict[str, Any]]:
+    """Rows already derived on a previous run, keyed by ``org_id``.
+
+    ENTITY scope means the artifact IS the accumulated entity layer, so a run reads what is
+    already there and spends its budget only on organisations it has never seen. Unreadable or
+    unexpectedly-shaped output degrades to "nothing known yet" rather than raising — the worst
+    case is re-deriving from cached raw payloads, which costs no network.
+    """
+    try:
+        doc = json.loads((corpus_root / "enrichments" / "org_web.json").read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    data = doc.get("data") if isinstance(doc, dict) else None
+    rows = (data or {}).get("orgs") if isinstance(data, dict) else None
+    if not isinstance(rows, list):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        if isinstance(r, dict) and r.get("org_id"):
+            out[str(r["org_id"])] = r
+    return out
+
+
 def _distinct_orgs(all_bundles: list[EpisodeArtifactBundle]) -> list[tuple[str, str]]:
     """(org_id, name) for every Organization in the corpus KG, de-duplicated, id-sorted.
 
@@ -477,17 +500,21 @@ def _store_logo(corpus_root: Path, org_id: str, image: FetchedImage) -> dict[str
 
 
 class OrgWebEnricher:
-    """Corpus-scope WEB enricher: a description/logo/attribution row per Organization (#2035)."""
+    """ENTITY-scope WEB enricher: a description/logo/attribution row per Organization (#2035)."""
 
     manifest = EnricherManifest(
         id="org_web",
         version="0.1.0",
-        scope=EnricherScope.CORPUS,
+        scope=EnricherScope.ENTITY,
         tier=EnricherTier.WEB,
-        reads=[".gi.json"],
+        # KG, not GI: Organization is a KG-only node type (fixed 2026-09-14).
+        reads=[".kg.json"],
         writes="org_web.json",
         description="Per-org description + logo + basic facts from a web source (Wikidata).",
         requires_opt_in=False,
+        # RFC-118: the executor dispatches enrich_incremental() on this flag. Without it the
+        # delta path is dead code and every run is a full pass.
+        supports_incremental=True,
         expected_duration_s=120,
         config_schema={
             "type": "object",
@@ -520,10 +547,79 @@ class OrgWebEnricher:
         config: dict[str, Any],
         ctx: RunContext,
     ) -> EnricherResult:
-        """Fetch-then-derive per org: cached raw is reused (no network); output is re-derived."""
+        """Full pass. Prior rows come off disk; the delta path passes them in instead."""
+        refresh = bool(config.get("refresh", False))
+        known = {} if refresh else _existing_rows(corpus_root)
+        return await self._compute(
+            corpus_root=corpus_root,
+            all_bundles=all_bundles or [],
+            config=config,
+            ctx=ctx,
+            known=known,
+        )
+
+    async def enrich_incremental(
+        self,
+        *,
+        delta: Any,
+        prior_output: dict[str, Any] | None,
+        corpus_root: Path,
+        config: dict[str, Any],
+        ctx: RunContext,
+    ) -> EnricherResult:
+        """RFC-118 delta pass — the mechanism topic_similarity / topic_consensus already use.
+
+        An entity's web facts do not change because some OTHER episode changed, so the delta
+        matters only through the organisations it INTRODUCES. ``prior_output`` is the previous
+        ``data`` dict, so rows already derived are carried in rather than re-read from disk, and
+        the budget is spent only on organisations that are new to the corpus.
+
+        Output-identical to :meth:`enrich` over the same corpus (§7 reconciliation): both funnel
+        into ``_compute`` with the same merge, so the only difference is where ``known`` came
+        from. ``delta.forced`` means an explicit full re-derive, so prior state is ignored.
+        """
+        refresh = bool(config.get("refresh", False)) or bool(getattr(delta, "forced", False))
+        known: dict[str, dict[str, Any]] = {}
+        if not refresh:
+            rows = (prior_output or {}).get("orgs")
+            if isinstance(rows, list):
+                known = {
+                    str(r["org_id"]): r for r in rows if isinstance(r, dict) and r.get("org_id")
+                }
+            else:  # prior envelope absent/oddly shaped — fall back to disk
+                known = _existing_rows(corpus_root)
+        return await self._compute(
+            corpus_root=corpus_root,
+            all_bundles=list(getattr(delta, "all_bundles", []) or []),
+            config=config,
+            ctx=ctx,
+            known=known,
+        )
+
+    async def _compute(
+        self,
+        *,
+        corpus_root: Path,
+        all_bundles: list[EpisodeArtifactBundle],
+        config: dict[str, Any],
+        ctx: RunContext,
+        known: dict[str, dict[str, Any]],
+    ) -> EnricherResult:
+        """Shared body for both passes: fetch only unknown orgs, merge onto ``known``."""
         max_orgs = int(config.get("max_orgs", _DEFAULT_MAX_ORGS))
         refresh = bool(config.get("refresh", False))
-        orgs = _distinct_orgs(all_bundles or [])[:max_orgs]
+        # ENTITY scope: the output is keyed by org_id, so rows already derived on a previous run
+        # are CARRIED FORWARD and the budget is spent only on organisations never seen before.
+        #
+        # This used to be `_distinct_orgs(...)[:max_orgs]` — a slice of an ID-SORTED list of the
+        # whole corpus. That is not a rate limit, it is a permanent coverage ceiling: with
+        # max_orgs=3 the same three alphabetically-first ids were processed on every run forever
+        # and org 4 was unreachable no matter how many times enrichment ran. Prod sat at 3/3 that
+        # way. Budgeting NEW entities instead keeps the politeness (few fresh upstream lookups per
+        # run) without ever making an entity permanently invisible.
+        all_orgs = _distinct_orgs(all_bundles or [])
+        fresh = [(oid, name) for oid, name in all_orgs if oid not in known]
+        orgs = fresh[:max_orgs]
         now = int(time.time())
         fetch_image = getattr(self._provider, "fetch_image", None)
 
@@ -545,6 +641,7 @@ class OrgWebEnricher:
             return _store_logo(corpus_root, oid, fetched)
 
         def _run() -> tuple[list[dict[str, Any]], int]:
+            # Seed with everything already derived; newly-processed rows overwrite by id below.
             rows: list[dict[str, Any]] = []
             fetched = 0
             for oid, name in orgs:
@@ -569,7 +666,13 @@ class OrgWebEnricher:
                         row["logo_ext"] = meta.get("ext")
                         row["logo_license"] = meta.get("license")
                 rows.append(row)
-            return rows, fetched
+            # Merge: carried-forward entities first, then this run's, deduped by org_id and
+            # id-sorted so the artifact is stable across runs (no spurious diffs).
+            merged = dict(known)
+            for r in rows:
+                merged[str(r.get("org_id") or "")] = r
+            merged.pop("", None)
+            return [merged[k] for k in sorted(merged)], fetched
 
         try:
             rows, fetched = await asyncio.to_thread(_run)

@@ -22,10 +22,35 @@ from typing import Any, Callable, Coroutine, Protocol, runtime_checkable
 
 
 class EnricherScope(Enum):
-    """Scope tag distinguishing episode-scope vs corpus-scope enrichers."""
+    """What the enricher's output is a fact ABOUT — which decides how it is scheduled.
+
+    Scope follows the nature of the OUTPUT, not the cost of the work:
+
+    * ``EPISODE`` — a fact about ONE episode (insight density across its thirds, its
+      sentiment). Written beside that episode as ``{stem}.{writes}`` and staleness-gated,
+      so an unchanged episode is skipped (#1649).
+    * ``CORPUS`` — a true AGGREGATION that only exists when you look across episodes
+      (guest co-appearance pairs, theme clusters, topic velocity). Uncomputable per episode,
+      correct to redo wholesale.
+    * ``ENTITY`` — a fact about a PERSON or ORGANISATION, independent of any one episode:
+      Aaron Burr's Wikipedia bio is the same fact whether he appears in one episode or fifty.
+
+    ENTITY exists because person_web / org_web fit NEITHER of the first two, and forcing them
+    into one broke something either way. As CORPUS they were treated as an aggregation, so every
+    run walked every entity and a ``[:max]`` slice of that sorted list silently capped total
+    coverage forever. As EPISODE they would have written the SAME bio into every episode a
+    person appears in — duplicating an entity fact across episodes, which is exactly what an
+    entity layer must not do.
+
+    Scheduling-wise ENTITY runs like CORPUS (once per run, with every bundle available so it can
+    discover the entity set). The difference is semantic and it is the enricher's job: the output
+    is keyed by entity id and already-derived entities are carried forward, so a run only fetches
+    entities it has never seen.
+    """
 
     EPISODE = "episode"
     CORPUS = "corpus"
+    ENTITY = "entity"
 
 
 class EnricherTier(Enum):
