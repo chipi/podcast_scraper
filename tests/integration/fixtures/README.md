@@ -6,7 +6,7 @@ the application. They moved here in arc 2 from the deleted
 output rather than any research question.
 
 | test | asserts |
-|---|---|
+| ---- | ------- |
 | `test_v3_fixtures.py` | the v3 corpus "exercises every failure mode… is deterministic" |
 | `test_v3_enricher_structures.py` | the generator can render the authored structures |
 | `test_segment_time_drift_fixtures.py` | turn-boundary drift bounds on the v3 fixtures |

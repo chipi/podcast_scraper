@@ -435,10 +435,10 @@ and `.cursor/rules/module-boundaries.mdc`.
 | Viewer API (FastAPI) | `src/podcast_scraper/server/` | [Server Guide](docs/guides/SERVER_GUIDE.md) |
 | Viewer UI (Vue) | `web/gi-kg-viewer/` | [Polyglot Guide](docs/guides/POLYGLOT_REPO_GUIDE.md) |
 | New providers | `src/podcast_scraper/providers/` | [Provider Implementation](docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md), [Comparison](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md), [Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) |
-| Run comparison | `tools/run_compare/` | [tools/run_compare/README.md](tools/run_compare/README.md) |
+| Run comparison | moved to `chipi/podcast-scraper-eval-data` | `tools/run_compare/` in that repo — ask for access |
 | Acceptance tests | `scripts/acceptance/`, `config/acceptance/` | [Testing Guide](docs/guides/TESTING_GUIDE.md) |
 | Eval & model validation | `data/eval/`, `data/eval/configs/` | [Experiment Guide](docs/guides/EXPERIMENT_GUIDE.md) |
-| Performance profiles | `data/profiles/`, `config/profiles/` | [Performance Profile Guide](docs/guides/PERFORMANCE_PROFILE_GUIDE.md) |
+| Performance profiles | `config/profiles/` (frozen profiles moved with the research) | [Performance Profile Guide](docs/guides/PERFORMANCE_PROFILE_GUIDE.md) |
 
 ## Choosing and Validating Providers
 
@@ -509,7 +509,8 @@ sentinel.
 
 - `tests/**` — assert literal FQDNs to prove resolver behaviour; scrubbing
   breaks the suite.
-- `docs/guides/eval-reports/**` — dated lab records; editing falsifies them.
+- Eval reports and perf reports moved to `chipi/podcast-scraper-eval-data` in arc 2. They were dated
+  lab records and editing them falsified the record; that rule still holds there.
 - `docs/wip/EVAL_1016_metrics/**` — raw captured logs.
 - `tailscale/policy.hujson` — live ACL GitOps source; editing may break
   the deploy pipeline.
