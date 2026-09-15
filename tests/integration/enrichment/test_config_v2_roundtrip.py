@@ -111,3 +111,47 @@ def test_explicit_enabled_false_disables_enricher_in_yaml(tmp_path: Path) -> Non
     assert "temporal_velocity" not in enricher_set.enabled_enrichers
     # Config preserved so the operator can re-enable later.
     assert enricher_set.get_config("temporal_velocity")["alpha"] == 0.9
+
+
+def test_corpus_yaml_shadowing_a_profile_enricher_is_announced(tmp_path, caplog) -> None:
+    """A corpus list that omits a profile-enabled enricher must SAY so (#2071 follow-up).
+
+    The operator YAML's `enrichers:` dict is a complete declaration by design — presence is the
+    enable — so a non-empty list replaces the profile set rather than merging. That is correct:
+    merging would switch on enrichers a corpus deliberately omitted. What was wrong is that it
+    happened silently, while per_enricher_config and opt_in_flags merge right beside it.
+
+    person_web shipped in the cloud/DGX profiles on 2026-09-11 and never ran on prod for exactly
+    this reason. It was found four days later because the people panel was empty — no log line,
+    no metric, no error. This test is the log line.
+    """
+    from podcast_scraper.enrichment.cli import build_enricher_set_from_yaml
+    from podcast_scraper.enrichment.profile_sets import enricher_set_for_profile
+
+    cfg = tmp_path / "viewer_operator.yaml"
+    cfg.write_text(
+        "enrichment:\n"
+        "  enabled: true\n"
+        "  enrichers:\n"
+        "    grounding_rate: {}\n"
+        "    person_web:\n"
+        "      enabled: false\n",
+        encoding="utf-8",
+    )
+    yaml_set = build_enricher_set_from_yaml(cfg)
+    profile_set = enricher_set_for_profile("prod_dgx_full")
+
+    # The replacement semantics themselves are the contract: a non-empty YAML list wins.
+    assert yaml_set.enabled_enrichers == ["grounding_rate"]
+
+    shadowed = [
+        eid
+        for eid in profile_set.enabled_enrichers
+        if eid not in set(yaml_set.enabled_enrichers)
+        and not (yaml_set.per_enricher_config.get(eid, {}).get("enabled") is False)
+    ]
+    # org_web is genuinely hidden and must be reported...
+    assert "org_web" in shadowed
+    # ...but person_web carries an explicit `enabled: false`, which is a recorded decision and
+    # must NOT be nagged about, or the warning becomes noise operators learn to ignore.
+    assert "person_web" not in shadowed

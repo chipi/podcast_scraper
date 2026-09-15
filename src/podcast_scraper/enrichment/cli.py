@@ -292,7 +292,40 @@ async def run_cli(args: argparse.Namespace) -> int:
     register_deterministic_enrichers(registry)
     yaml_set = build_enricher_set_from_yaml(_resolve_config_path(args.config, corpus_root))
     profile_set = enricher_set_for_profile(args.profile)
+    # The operator YAML's `enrichers:` dict is a COMPLETE declaration by design — presence is
+    # the enable, `enabled: false` is the opt-out (see build_enricher_set_from_yaml). So a
+    # non-empty list REPLACES the profile set rather than merging with it, and that is
+    # deliberate: merging would silently switch on enrichers a corpus chose to omit.
+    #
+    # What was NOT deliberate is the silence. per_enricher_config and opt_in_flags below MERGE
+    # (`**profile, **yaml`) while enablement replaces, so adding an enricher to a profile does
+    # nothing for any corpus carrying an explicit list — and says nothing. person_web shipped in
+    # the cloud/DGX profiles on 2026-09-11 and never ran on prod for that reason; it was found
+    # four days later by noticing the people panel was empty, not by any signal.
+    #
+    # Replacement stays. The silence does not: name what the profile enables that this corpus
+    # omits, so the next new enricher is a log line instead of an archaeology exercise.
     base_enabled = list(yaml_set.enabled_enrichers) or list(profile_set.enabled_enrichers)
+    if yaml_set.enabled_enrichers:
+        shadowed = [
+            eid
+            for eid in profile_set.enabled_enrichers
+            if eid not in set(yaml_set.enabled_enrichers)
+            # An explicit `enabled: false` is an informed choice, not an oversight.
+            and not (yaml_set.per_enricher_config.get(eid, {}).get("enabled") is False)
+        ]
+        if shadowed:
+            logger.warning(
+                "enrichment: profile %r enables %s, but this corpus's enrichment.enrichers list "
+                "does not include %s — the operator YAML is a COMPLETE declaration and replaces "
+                "the profile set, so %s will NOT run. Add %s to enrichment.enrichers in the "
+                "corpus config (or set 'enabled: false' there to record the choice).",
+                args.profile,
+                sorted(profile_set.enabled_enrichers),
+                sorted(shadowed),
+                "they" if len(shadowed) > 1 else "it",
+                sorted(shadowed),
+            )
     base_set = EnricherSet(
         enabled_enrichers=base_enabled,
         per_enricher_config={
