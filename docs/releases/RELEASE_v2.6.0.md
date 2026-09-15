@@ -101,7 +101,7 @@ v2.5.0 added **five** cloud LLM families plus **Ollama** on top of OpenAI and Ge
 
 - [AI Provider Comparison Guide](../guides/AI_PROVIDER_COMPARISON_GUIDE.md) — decision matrices, cost and quality framing, “which provider?” narrative.
 - [Provider Deep Dives](../guides/PROVIDER_DEEP_DIVES.md) — per-provider cards and quadrant-style comparisons.
-- [Evaluation reports](https://evals.tail6d0ed4.ts.net/guides/eval-reports/) — methodology (ROUGE, BLEU, embeddings, and related metrics) and report index.
+- `Evaluation reports` — methodology (ROUGE, BLEU, embeddings, and related metrics) and report index.
 - [ML Model Comparison Guide](../guides/ML_MODEL_COMPARISON_GUIDE.md) — local and hybrid model tradeoffs.
 
 **3. Tooling new in the v2.6.0 track**
@@ -128,7 +128,7 @@ Together, the v2.5.0 **provider breadth** and v2.6.0 **Performance tab + frozen 
 
 - **Configurable HTTP retries** for media, transcripts, and RSS (`http_*`, `rss_*` on `Config`), plus **application-level episode retries** (`episode_retry_max`, `episode_retry_delay_sec`) after urllib3 exhaustion.
 - **CLI** — `--http-retry-total`, `--http-backoff-factor`, `--rss-retry-total`, `--rss-backoff-factor`, `--episode-retry-max`, `--episode-retry-delay-sec` ([CLI](../api/CLI.md#control-options)).
-- **`metrics.json`** — `http_urllib3_retry_events`, `episode_download_retries`, `episode_download_retry_sleep_seconds` ([Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/#pipeline-run-metrics-download-resilience)).
+- **`metrics.json`** — `http_urllib3_retry_events`, `episode_download_retries`, `episode_download_retry_sleep_seconds` (`Experiment Guide`).
 - **Optional Issue #522-class extensions** — per-host throttling, `Retry-After`, circuit breaker, RSS conditional GET; fields and flags documented under [CONFIGURATION — Download resilience](../api/CONFIGURATION.md#download-resilience).
 - **`failure_summary`** in `run.json` when episodes fail (counts by error type, failed episode identifiers).
 - Download resilience: documented canonically under [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) (inline YAML presets; no separate example file required).
@@ -232,7 +232,7 @@ and `.cursorrules` are now thin, assistant-specific overlays that import from AG
 - [Server Guide](../guides/SERVER_GUIDE.md)
 - [Migration Guide — v2.6.0](../api/MIGRATION_GUIDE.md#v260-viewer-and-http)
 - [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)
-- [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) — pipeline `metrics.json` and download resilience
+- `Experiment Guide` — pipeline `metrics.json` and download resilience
 - [RFC index — v2.6.0 rows](../rfc/index.md) — RFC-049, 050, 055, 056, 057, 061–071
 
 ---

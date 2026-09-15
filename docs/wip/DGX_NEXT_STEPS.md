@@ -40,7 +40,7 @@ Cost at this end-state: **~$0/episode** (vs current cloud-Gemini ~$0.05/ep). Maj
 | Summary + GI + KG (LLM) | Cloud Gemini Flash Lite | Prod default | Will move to DGX after autoresearch settles champion ([#923](https://github.com/chipi/podcast_scraper/issues/923)) |
 | NER (spaCy trf) | Pipeline host (in-process) | Settled local | See "Per-service offload analysis" |
 | Embeddings (MiniLM) | Pipeline host (in-process) | Settled local per [ADR-098](../adr/ADR-098-embedding-provider-profile-axis.md) | A/B showed local beats DGX-nomic |
-| Autoresearch matrix | DGX (Ollama daemon) | ✓ Working | qwen3.5:35b current champion; qwen3.6:latest emerging contender per [v2 sweep](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V2_DGX_REFRESH_2026_06/) |
+| Autoresearch matrix | DGX (Ollama daemon) | ✓ Working | qwen3.5:35b current champion; qwen3.6:latest emerging contender per `v2 sweep` |
 | Operator's coder | DGX (vLLM container) | Operator-managed | Qwen3-Coder-Next; separate from autoresearch |
 
 ---

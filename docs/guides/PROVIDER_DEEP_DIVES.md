@@ -1,13 +1,13 @@
 # Provider Deep Dives
 
-> **v2 authoritative data**: [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_HELDOUT_V2_2026_04/) is the latest (2026-04-16) 20-model held-out matrix. Per-provider quality numbers below are **v1-era** — preserved for continuity, superseded by v2 for any new decision. See also the top-of-page "Use these two" picks in the [AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md).
+> **v2 authoritative data**: ``eval-reports/EVAL_HELDOUT_V2_2026_04.md`` is the latest (2026-04-16) 20-model held-out matrix. Per-provider quality numbers below are **v1-era** — preserved for continuity, superseded by v2 for any new decision. See also the top-of-page "Use these two" picks in the [AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md).
 >
 > **Per-provider reference cards, magic quadrant analysis, and visual comparisons.**
 
 This page is the detailed reference for each provider's capabilities, pricing, models,
 and strategic positioning. For the decision-oriented summary, see the
 [AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md). For measured
-performance numbers, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.net/guides/eval-reports/).
+performance numbers, see the `Evaluation Reports`.
 
 ---
 
@@ -71,7 +71,7 @@ performance numbers, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.ne
 ```
 
 **Measured performance:** See
-[Smoke v1 report — Cloud LLMs](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_03/#cloud-llms-ranked-by-rouge-l)
+`Smoke v1 report — Cloud LLMs`
 (58.8% ROUGE-L, 92.7% embed — silver reference bias applies).
 
 ---
@@ -99,7 +99,7 @@ performance numbers, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.ne
 ```
 
 **Measured performance:** See
-[Smoke v1 report — Cloud LLMs](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_03/#cloud-llms-ranked-by-rouge-l)
+`Smoke v1 report — Cloud LLMs`
 (29.4% ROUGE-L, 81.8% embed, 4.8s/ep).
 
 ---
@@ -126,7 +126,7 @@ performance numbers, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.ne
 ```
 
 **Measured performance:** See
-[Smoke v1 report — Cloud LLMs](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_03/#cloud-llms-ranked-by-rouge-l)
+`Smoke v1 report — Cloud LLMs`
 (32.5% ROUGE-L, 84.8% embed, 2.8s/ep — fastest cloud provider).
 
 ---
@@ -156,7 +156,7 @@ performance numbers, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.ne
 ```
 
 **Measured performance:** See
-[Smoke v1 report — Cloud LLMs](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_03/#cloud-llms-ranked-by-rouge-l)
+`Smoke v1 report — Cloud LLMs`
 (26.3% ROUGE-L, 85.0% embed, 14.2s/ep).
 
 ---
@@ -188,7 +188,7 @@ performance numbers, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.ne
 ```
 
 **Measured performance:** See
-[Smoke v1 report — Cloud LLMs](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_03/#cloud-llms-ranked-by-rouge-l)
+`Smoke v1 report — Cloud LLMs`
 (33.3% ROUGE-L, 87.3% embed, 2.7s/ep — best non-OpenAI cloud).
 
 ---
@@ -219,7 +219,7 @@ performance numbers, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.ne
 ```
 
 **Measured performance:** See
-[Smoke v1 report — Cloud LLMs](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_03/#cloud-llms-ranked-by-rouge-l)
+`Smoke v1 report — Cloud LLMs`
 (29.5% ROUGE-L, 85.4% embed, 13.2s/ep).
 
 ---
@@ -264,7 +264,7 @@ performance numbers, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.ne
 ```
 
 **Measured performance:** See
-[Smoke v1 report — Local Ollama](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_03/#local-ollama-ranked-by-rouge-l)
+`Smoke v1 report — Local Ollama`
 (top: Mistral Small 3.2 / Qwen 2.5:32b at 38.4% ROUGE-L).
 
 ---
@@ -527,7 +527,7 @@ DeepSeek           │███████████████████�
 
 - [AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md) — decision matrix
   and recommended configurations
-- [Evaluation Reports](https://evals.tail6d0ed4.ts.net/guides/eval-reports/) — methodology, metrics, and measured
+- `Evaluation Reports` — methodology, metrics, and measured
   performance
 - [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) — complete Ollama setup and
   troubleshooting

@@ -9,9 +9,9 @@ them, how to interpret them, and how that work relates to **quality evaluation**
 
 **Related guides**
 
-- **[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/)** — datasets, baselines, experiments, and
+- **`Experiment Guide`** — datasets, baselines, experiments, and
   **output quality** (ROUGE, gates). Profiling is a **parallel** track, not a substitute.
-- **[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/)** -- eval run promotion (baselines,
+- **`Experiment Guide`** -- eval run promotion (baselines,
   silver references). Profile promotion follows the same philosophy but
   with lighter artifacts.
 - **[Performance](PERFORMANCE.md)** — runtime tuning (preprocessing cache, transcription,
@@ -24,8 +24,8 @@ them, how to interpret them, and how that work relates to **quality evaluation**
 - **[CONFIGURATION.md](../api/CONFIGURATION.md#live-pipeline-monitor-rfc-065-512)** — config table
   including **`PODCAST_SCRAPER_MONITOR_FILE_LOG`**.
 
-- **[Performance reports](https://evals.tail6d0ed4.ts.net/guides/performance-reports/)** — published profile snapshots
-  (tables, caveats), sibling to [Evaluation Reports](https://evals.tail6d0ed4.ts.net/guides/eval-reports/).
+- **`Performance reports`** — published profile snapshots
+  (tables, caveats), sibling to `Evaluation Reports`.
 
 ---
 
@@ -187,7 +187,7 @@ optional (skip monitor on routine captures if repo size matters).
 - **No eval materialized dataset path** in the freeze tool: capture uses **`run_pipeline`**
   from a normal **`Config`** (RSS or E2E fixture URL). Reproducibility is **config +
   fixture + git tag + host**, not transcript-hash materialization like
-  [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) Step 1a. A future extension could add a
+  `Experiment Guide` Step 1a. A future extension could add a
   dataset-driven entry point if needed.
 
 ---
@@ -470,4 +470,4 @@ for the per-provider **`freeze/*.yaml`** matrix (ML dev/prod, OpenAI, Anthropic,
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | RFC-065 operator guide and artifact paths |
 | [`scripts/eval/profile/promote_profile.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/profile/promote_profile.py) | Promote working profile to reference |
 | [`scripts/eval/profile/diff_profiles.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/profile/diff_profiles.py) | Terminal diff |
-| [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) | Eval promotion (baselines, silvers) -- same philosophy |
+| `Experiment Guide` | Eval promotion (baselines, silvers) -- same philosophy |

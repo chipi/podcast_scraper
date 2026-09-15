@@ -1,6 +1,6 @@
 # AI Provider Comparison Guide
 
-> **Authoritative v2 reference**: [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_HELDOUT_V2_2026_04/) — 6 cloud APIs + 11 Ollama local models, 100+ held-out cells under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)), compound-scored on quality × latency × cost.
+> **Authoritative v2 reference**: ``eval-reports/EVAL_HELDOUT_V2_2026_04.md`` — 6 cloud APIs + 11 Ollama local models, 100+ held-out cells under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)), compound-scored on quality × latency × cost.
 > v1 benchmark numbers later in this guide are **superseded** by the v2 report above.
 
 ---
@@ -183,10 +183,10 @@ schema stabilises output. Bundled is the correct local-deployment choice for par
   than Ollama but operationally simpler (no daemon, one Python process). **Pick this for
   paragraph-first deployments or when Ollama can't be run.** For bullet-heavy workloads,
   qwen3.5:9b bundled stays the better local pick. See
-  [Held-out v2 report §6a](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_HELDOUT_V2_2026_04/#6a-ml-transformers-standalone-hf-not-ollama-2026-04-16).
+  `Held-out v2 report §6a`.
 
 **Default picks by use case** (compound-scored across quality, latency, cost — see
-[Held-out v2 report §Compound analysis](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_HELDOUT_V2_2026_04/#compound-analysis-pareto-frontier)):
+`Held-out v2 report §Compound analysis`):
 
 | Priority | Best pick | Why |
 | :------- | :-------- | :-- |
@@ -204,7 +204,7 @@ schema stabilises output. Bundled is the correct local-deployment choice for par
 - **OpenAI bundled, Gemini bundled, Mistral non-bundled paragraph, local paragraph on long transcripts**: structural weak spots visible in the matrix.
 - **Ollama qwen3.5:27b / qwen3.5:35b**: larger but not better than qwen3.5:9b.
 
-See [v2 eval report](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_HELDOUT_V2_2026_04/) for blended scores, dev numbers, generalisation analysis, and provider-specific quirks.
+See `v2 eval report` for blended scores, dev numbers, generalisation analysis, and provider-specific quirks.
 
 ### Full pipeline validation (2026-04-18, PR #603)
 
@@ -334,14 +334,14 @@ Validation coerces truthy **`screenplay`** to **`false`** when the transcription
 ## Empirical Highlights
 
 All claims below are backed by measured data. For the full metrics tables, methodology,
-and metric definitions, see the [Evaluation Reports](https://evals.tail6d0ed4.ts.net/guides/eval-reports/).
+and metric definitions, see the `Evaluation Reports`.
 
 > **Note on the silver reference:** Results were re-measured in April 2026 against
 > `silver_sonnet46_benchmark_v1` (Claude Sonnet 4.6, 10-episode benchmark scale).
 > Rankings shifted significantly from March 2026 — see
-> [why the rankings changed](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_04/#why-the-rankings-changed-vs-march-2026).
+> `why the rankings changed`.
 > The March 2026 numbers (vs GPT-4o silver) are preserved in the
-> [March report](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_03/) for reference.
+> `March report` for reference.
 
 ### Full quality ladder — all four tiers
 
@@ -396,7 +396,7 @@ embedding similarity across both smoke (5 eps) and benchmark (10 eps) runs. **Ge
 > models share a generation family.
 
 Full table:
-[Benchmark v1 report — Cloud providers](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_BENCHMARK_V1_2026_04/#cloud-providers-sorted-by-rouge-l)
+`Benchmark v1 report — Cloud providers`
 
 ### Local Ollama — paragraphs (vs Sonnet 4.6 silver, April 2026)
 
@@ -418,7 +418,7 @@ is the best fast/low-resource choice. Numbers below are benchmark scale (10 eps)
 
 ### Local Ollama — June 2026 DGX refresh (#924)
 
-Refresh sweep on the DGX Spark (GB10) added DeepSeek-R1 distill family, gpt-oss:20B, and qwen3.6:latest. Latencies below are GB10 wall-clock, average excl. first episode. Full report: [EVAL_SMOKE_V2_DGX_REFRESH_2026_06](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V2_DGX_REFRESH_2026_06/).
+Refresh sweep on the DGX Spark (GB10) added DeepSeek-R1 distill family, gpt-oss:20B, and qwen3.6:latest. Latencies below are GB10 wall-clock, average excl. first episode. Full report: `EVAL_SMOKE_V2_DGX_REFRESH_2026_06`.
 
 | Model | ROUGE-L | Cosine | Latency | Verdict |
 | --- | --- | --- | --- | --- |
@@ -451,7 +451,7 @@ Follow-on sweep with 4 newer model entries: gemma3, phi4, hermes3, mistral-small
 
 Notable: `phi4:14b` is the parameter-efficiency winner of v2.1 — 14B reaching 0.256 RougeL beats qwen3.5:9b's 0.228 at similar param count. If a future laptop-Ollama path needs a small/fast option, phi4 deserves a closer look (with a Phi-native prompt, not the qwen3.5_9b clone).
 
-Full report including v2.1: [EVAL_SMOKE_V2_DGX_REFRESH_2026_06](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V2_DGX_REFRESH_2026_06/) (Addendum section).
+Full report including v2.1: `EVAL_SMOKE_V2_DGX_REFRESH_2026_06` (Addendum section).
 
 ### Local Ollama — bullets (vs Sonnet 4.6 bullets silver, April 2026)
 
@@ -468,7 +468,7 @@ does not reliably follow the JSON format — avoid it for the bullets track.
 | qwen3.5:9b | 32.6% | 83.5% | 16.7s |
 
 Full tables:
-[Benchmark v1 report (April 2026)](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_BENCHMARK_V1_2026_04/)
+`Benchmark v1 report (April 2026)`
 
 ---
 
@@ -821,7 +821,7 @@ gemini_api_key: ${GEMINI_API_KEY}
 
 ## Summary — v2 held-out key takeaways
 
-See [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_HELDOUT_V2_2026_04/)
+See ``eval-reports/EVAL_HELDOUT_V2_2026_04.md``
 for the full matrix. Headline findings:
 
 | Axis | Winner | Score / note |
@@ -836,21 +836,21 @@ for the full matrix. Headline findings:
 
 **Cost insight:** transcription is 90%+ of cloud pipeline cost. Local Whisper
 `small.en` + cloud summarization is the high-leverage combination. Per-provider
-cost numbers are in [EVAL_HELDOUT_V2](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_HELDOUT_V2_2026_04/);
+cost numbers are in `EVAL_HELDOUT_V2`;
 older v1 numbers in this guide are superseded.
 
 **Rankings change when the silver reference changes** — Sonnet 4.6 silver
 favours verbose paragraph style; different silvers may produce different
-orderings. See [eval methodology](https://evals.tail6d0ed4.ts.net/guides/eval-reports/) for detail.
+orderings. See `eval methodology` for detail.
 
 ---
 
 ## DGX-hosted local models (RFC-089)
 
 The operator NVIDIA DGX Spark (GB10) joined the tailnet as of #810 (RFC-089 P0)
-and now hosts the same 12 Ollama models that ran on laptop in [Smoke v1 (April
-2026)](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_2026_04/). The [June 2026 DGX vs Laptop
-smoke](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_SMOKE_V1_DGX_VS_LAPTOP_2026_06/) is the source
+and now hosts the same 12 Ollama models that ran on laptop in `Smoke v1 (April
+2026)`. The `June 2026 DGX vs Laptop
+smoke` is the source
 report; numbers below are headline distillations.
 
 ### Latency vs laptop (same model, different compute)
@@ -994,7 +994,7 @@ without a follow-up sweep.
 - [DGX Spark runbook](DGX_RUNBOOK.md) — tailnet bring-up, profiles, prod Whisper
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) — per-provider cards, magic quadrant,
   visual comparisons
-- [Evaluation Reports](https://evals.tail6d0ed4.ts.net/guides/eval-reports/) — methodology, metrics, and full
+- `Evaluation Reports` — methodology, metrics, and full
   comparison data
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md)
 - [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) — complete Ollama setup and

@@ -20,7 +20,7 @@ regression ceiling whose tail is dominated by those garble artifacts.
 
 Regenerate the cache with (defaults to large-v3)::
 
-    python -m tests.integration.eval.segment_drift_harness --regen
+    python -m tests.integration.fixtures.segment_drift_harness --regen
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from __future__ import annotations
 import pytest
 
 from tests.integration.fixtures.segment_time_drift import pool_drift
-from tests.integration.eval.segment_drift_harness import load_cache, measure_from_cache
+from tests.integration.fixtures.segment_drift_harness import load_cache, measure_from_cache
 
 pytestmark = pytest.mark.integration
 
