@@ -98,6 +98,45 @@ TEST_CONTENT_TYPE_SRT = "text/srt"
 # in sys.modules before any test's patch window opens.
 from podcast_scraper.workflow.run_budget import reset_run_budget as _reset_the_run_budget
 
+#: Git exports these repo-context vars into a hook's environment (see ``git rev-parse
+#: --local-env-vars``) so its child processes target the repo under operation. When the test suite
+#: runs INSIDE a git hook, any test that shells out to git inherits them and operates on the REAL
+#: shared repo instead of its own tmp dir — the 2026-09-15 incident, where a bump_version test's
+#: ``git commit`` clobbered a sibling worktree's HEAD and rewrote ``user.*`` in the shared
+#: ``.git/config``. Unsetting them for every test (a no-op in a normal, non-hook run) makes git
+#: discover its repo from ``cwd`` — defense-in-depth for the whole suite, so no single test's
+#: isolation gap can escape again (the invoker is clean, not just individual tests).
+_GIT_LOCAL_ENV_VARS = (
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_CONFIG",
+    "GIT_CONFIG_PARAMETERS",
+    "GIT_CONFIG_COUNT",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_IMPLICIT_WORK_TREE",
+    "GIT_GRAFT_FILE",
+    "GIT_INDEX_FILE",
+    "GIT_NO_REPLACE_OBJECTS",
+    "GIT_REPLACE_REF_BASE",
+    "GIT_PREFIX",
+    "GIT_SHALLOW_FILE",
+    "GIT_COMMON_DIR",
+    "GIT_NAMESPACE",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_git_env(monkeypatch) -> None:
+    """Neutralize inherited git repo-context env so no test can operate on the real repo.
+
+    See ``_GIT_LOCAL_ENV_VARS``. Autouse + function-scoped; unsetting an absent var is a no-op, so
+    this is inert in a normal run and only bites in a hook context (where the escape happens).
+    """
+    for _var in _GIT_LOCAL_ENV_VARS:
+        monkeypatch.delenv(_var, raising=False)
+
+
 #: LLM SDKs. NOT core dependencies — they live in the ``[llm]`` extra, so CI's unit job
 #: (``pip install -e ".[dev]"``) does not have them and test modules legitimately stub them
 #: there. The rule is therefore conditional: replacing one of these with a Mock is a defect only
