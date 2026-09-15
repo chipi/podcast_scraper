@@ -84,6 +84,15 @@ class Episode:
     # role determination; without it, that prompt only ever saw the title. Populated by
     # create_episode_from_item; None when the feed item carries no description.
     description: Optional[str] = None
+    # THIS episode's transcript on disk, absolute — set ONLY on a reprocess, where the episode was
+    # reconstructed from a metadata file that names it exactly.
+    #
+    # `relabel_only` and `rediarize_only` used to re-find it by globbing "{idx} - *.txt" across the
+    # whole feed root and taking newest-mtime. The on-disk idx is unique within a RUN, not within a
+    # feed: on a16z's 48 staged episodes across 14 run dirs, every episode resolved to one of just
+    # 15 transcripts, and 33 were relabelled onto another episode's file — silently, behind a
+    # WARNING and a zero exit. Production carries 397 run dirs. Knowing the path beats inferring it.
+    on_disk_transcript: Optional[str] = None
 
 
 @dataclass

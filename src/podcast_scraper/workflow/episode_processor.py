@@ -2360,6 +2360,74 @@ def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
     )
 
 
+def _existing_transcript_for(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    stage: str,
+) -> Optional[Path]:
+    """The on-disk transcript this reprocess job is about, or ``None``.
+
+    THE EPISODE KNOWS ITS OWN FILE. A reprocess reconstructs each episode from a specific metadata
+    file, and ``_transcript_beside_metadata`` resolves the transcript that record names; it rides
+    along on the Episode. Use it.
+
+    The fallback below is the old behaviour, and it is a SEARCH, not a lookup: glob
+    ``"{idx} - *.txt"`` across the whole feed root, take newest-mtime. The on-disk idx is unique
+    inside a ``run_*`` directory and nowhere else, so on a feed with several runs it collapses
+    distinct episodes onto one file — measured on a16z, 48 staged episodes across 14 runs resolved
+    to 15 transcripts and 33 were rewritten onto another episode's transcript, behind a WARNING and
+    a zero exit. It survives only for callers that build a job without an Episode (older tests, and
+    any path that reaches these stages outside ``reprocess_existing_only``), and it now says so in
+    the log rather than looking like the normal case.
+    """
+    known = getattr(getattr(job, "episode", None), "on_disk_transcript", None)
+    if known:
+        path = Path(str(known))
+        if path.is_file():
+            return path
+        logger.warning(
+            "[%s] %s: the episode's own transcript %s is not on disk; falling back to the "
+            "index-prefix search, which cannot tell two runs' episode %d apart",
+            job.idx,
+            stage,
+            path,
+            job.idx,
+        )
+
+    run_dir = Path(effective_output_dir)
+    search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
+    idx_prefix = f"{job.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
+    matches = [
+        p
+        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
+        if ".adfree." not in p.name
+        and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
+    ]
+    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    if not matches:
+        logger.warning(
+            "[%s] %s: no on-disk transcript to work on under %s (idx prefix %r)",
+            job.idx,
+            stage,
+            search_root,
+            idx_prefix,
+        )
+        return None
+    if len(matches) > 1:
+        logger.warning(
+            "[%s] %s: this job carries no episode transcript path, and %d transcripts match idx "
+            "%r across the feed's runs — guessing newest-mtime %s (skipped %d). An episode idx is "
+            "not unique across runs, so this may be a DIFFERENT episode.",
+            job.idx,
+            stage,
+            len(matches),
+            idx_prefix,
+            matches[0],
+            len(matches) - 1,
+        )
+    return matches[0]
+
+
 def _relabel_existing_transcript(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -2378,41 +2446,12 @@ def _relabel_existing_transcript(
     from ..providers.ml.diarization.pipeline import apply_diarization_to_result
 
     # effective_output_dir is the *new* run dir this invocation created; the existing corpus
-    # transcript lives in a sibling run_<old-tag>/transcripts/ with a truncated title + run-tag
-    # suffix. Search the whole feed root by the unique episode-index prefix ("0001 - "),
-    # requiring a .segments.json sibling, and overwrite that file in place.
-    run_dir = Path(effective_output_dir)
-    search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
-    idx_prefix = f"{job.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
-    matches = [
-        p
-        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
-        if ".adfree." not in p.name
-        and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
-    ]
-    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    if not matches:
-        logger.warning(
-            "[%s] relabel_only: no on-disk transcript to relabel under %s (idx prefix %r)",
-            job.idx,
-            search_root,
-            idx_prefix,
-        )
+    # transcript lives in a sibling run_<old-tag>/transcripts/, and this stage OVERWRITES it in
+    # place. Which file that is comes from the episode's own metadata record — see
+    # `_existing_transcript_for` for why searching for it by index prefix was wrong.
+    txt_path = _existing_transcript_for(job, effective_output_dir, "relabel_only")
+    if txt_path is None:
         return False, None, 0
-    txt_path = matches[0]
-    if len(matches) > 1:
-        # The feed root can hold several run_* dirs for the same episode (pilots, prior reprocesses,
-        # rederive_only passes). We pick the newest by mtime — surface that choice and the skipped
-        # alternates so a relabel that targeted the wrong run is diagnosable (B1).
-        logger.warning(
-            "[%s] relabel_only: %d on-disk transcripts match idx %r; using newest-mtime %s "
-            "(skipped %d older)",
-            job.idx,
-            len(matches),
-            idx_prefix,
-            txt_path,
-            len(matches) - 1,
-        )
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
     if not seg_path.exists():
         logger.warning(
@@ -2628,38 +2667,10 @@ def _rediarize_existing_transcript(
         logger.warning("[%s] rediarize_only: no downloaded audio; cannot re-diarize", job.idx)
         return False, None, 0
 
-    # Locate the existing transcript (same discovery as relabel): unique idx prefix, feed root.
-    run_dir = Path(effective_output_dir)
-    search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
-    idx_prefix = f"{job.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
-    matches = [
-        p
-        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
-        if ".adfree." not in p.name
-        and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
-    ]
-    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    if not matches:
-        logger.warning(
-            "[%s] rediarize_only: no on-disk transcript to align under %s (idx prefix %r)",
-            job.idx,
-            search_root,
-            idx_prefix,
-        )
+    # Locate the existing transcript — same discovery as relabel, from the episode's own record.
+    txt_path = _existing_transcript_for(job, effective_output_dir, "rediarize_only")
+    if txt_path is None:
         return False, None, 0
-    txt_path = matches[0]
-    if len(matches) > 1:
-        # Several run_* dirs can match the same episode; we pick the newest by mtime. Surface it and
-        # the skipped alternates so a rediarize that targeted the wrong run is diagnosable (B1).
-        logger.warning(
-            "[%s] rediarize_only: %d on-disk transcripts match idx %r; using newest-mtime %s "
-            "(skipped %d older)",
-            job.idx,
-            len(matches),
-            idx_prefix,
-            txt_path,
-            len(matches) - 1,
-        )
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
 
     text = txt_path.read_text(encoding="utf-8")
