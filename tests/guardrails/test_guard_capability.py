@@ -689,3 +689,127 @@ class TestTheShowNameGuardOnTheQUOTEPath:
         )
         assert with_title != without_title, "the title is the signal; inert if it changes nothing"
         assert without_title == "person:machine-learning-street"
+
+
+class TestTheKgWriterIsTheKgWriter:
+    """`enrich-edges` wrote kg.json through the GI validator. It could never have succeeded.
+
+    THE SHAPE OF THIS BUG IS THE POINT. `gi/schema` requires `model_version`, `prompt_version` and
+    `schema_version in ("3.0","3.1")`. Measured on the production snapshot, all 2,256 `*.kg.json`
+    are `schema_version 2.1` and carry NEITHER key — so every KG write raised, was caught, counted
+    as a failure and logged, AFTER gi.json had already been written. The function added to prevent
+    a GI/KG desync produced one on every episode it ran on.
+
+    It stayed invisible for two reasons worth remembering: the scope plan touches KG ids on **0**
+    episodes of that snapshot (m0007 had already run), so the path is latent until the first
+    episode that needs it and then fails 100%; and no test used a real 2.1-shaped KG fixture.
+
+    So this test asserts the validators are NOT interchangeable, on the real production shape.
+    """
+
+    @staticmethod
+    def _real_kg_payload():
+        return {
+            "schema_version": "2.1",
+            "episode_id": "ep:1",
+            # The REAL production shape — `extraction` carries the nested keys, which is exactly
+            # the kind of detail a hand-invented fixture gets wrong and then "proves" something
+            # about a shape production never takes.
+            "extraction": {
+                "model_version": "provider:podcast-flash-0731",
+                "extracted_at": "2026-08-30T09:04:58Z",
+                "transcript_ref": "transcripts/x.txt",
+            },
+            "nodes": [
+                {"id": "person:x", "type": "Person", "properties": {"name": "X", "role": "host"}}
+            ],
+            "edges": [],
+        }
+
+    def test_the_gi_validator_rejects_a_real_kg_artifact(self, tmp_path) -> None:
+        import pytest as _pytest
+
+        from podcast_scraper.gi.io import write_artifact as gi_write
+
+        with _pytest.raises(ValueError, match="model_version"):
+            gi_write(tmp_path / "x.kg.json", self._real_kg_payload(), validate=True)
+
+    def test_the_kg_validator_accepts_it(self, tmp_path) -> None:
+        from podcast_scraper.kg.io import write_artifact as kg_write
+
+        target = tmp_path / "x.kg.json"
+        kg_write(target, self._real_kg_payload(), validate=True)
+        assert target.is_file() and target.stat().st_size > 0
+
+    def test_enrich_edges_persists_kg_through_the_kg_writer(self, tmp_path) -> None:
+        """The capability: a changed KG payload actually reaches disk, not the failure counter."""
+        import json
+
+        from podcast_scraper.search.cli_handlers import _persist_scoped_kg, _stable_json
+
+        target = tmp_path / "x.kg.json"
+        target.write_text(json.dumps(self._real_kg_payload()), encoding="utf-8")
+        payload = self._real_kg_payload()
+        before = _stable_json(payload)
+        payload["nodes"][0]["id"] = "person:unresolved-x-ep-1"  # what the scope pass does
+        totals = {"kg_scoped": 0, "kg_write_failed": 0}
+
+        import logging
+
+        _persist_scoped_kg(target, payload, before, "ep:1", totals, logging.getLogger(__name__))
+        assert totals == {"kg_scoped": 1, "kg_write_failed": 0}
+        assert json.loads(target.read_text(encoding="utf-8"))["nodes"][0]["id"] == (
+            "person:unresolved-x-ep-1"
+        )
+
+
+class TestTheShowNeverREADSAsTheSpeaker:
+    """Scoping the id is not enough — the NODE's name is what the reader actually sees.
+
+    `_attach_person_for_quote` named the node with the raw diarization label, so after the id was
+    episode-scoped the insight surface still rendered `Machine Learning Street` as the speaker.
+    The id fix kept the show out of every corpus-wide surface and left the original complaint —
+    the show appearing to talk — untouched on the one surface the operator was looking at.
+    """
+
+    class _Q:
+        char_start = 0
+        char_end = 10
+
+    def test_the_reader_is_told_a_voice_spoke_not_who(self) -> None:
+        from podcast_scraper.gi.pipeline import (
+            _attach_person_for_quote,
+            _resolve_quote_speaker,
+            UNNAMED_SPEAKER_LABEL,
+        )
+        from podcast_scraper.server.app_gi_view import _speaker_name
+
+        pid, display, _vt = _resolve_quote_speaker(
+            self._Q(),
+            "Machine Learning Street",
+            "ep:mlst-1",
+            None,
+            None,
+            "Machine Learning Street Talk (MLST)",
+        )
+        nodes: list = []
+        edges: list = []
+        _attach_person_for_quote(
+            nodes, edges, "quote:q1", "Machine Learning Street", pid, set(), display
+        )
+        assert _speaker_name({"nodes": nodes, "edges": edges}, pid) == UNNAMED_SPEAKER_LABEL
+        assert edges == [
+            {"type": "SPOKEN_BY", "from": "quote:q1", "to": pid}
+        ], "the quote must keep its speaker edge — a real voice did speak"
+
+    def test_a_real_person_still_reads_as_themselves(self) -> None:
+        from podcast_scraper.gi.pipeline import _attach_person_for_quote, _resolve_quote_speaker
+        from podcast_scraper.server.app_gi_view import _speaker_name
+
+        pid, display, _vt = _resolve_quote_speaker(
+            self._Q(), "Kevin Roose", "ep:hf-1", None, None, "Hard Fork"
+        )
+        nodes: list = []
+        edges: list = []
+        _attach_person_for_quote(nodes, edges, "quote:q1", "Kevin Roose", pid, set(), display)
+        assert _speaker_name({"nodes": nodes, "edges": edges}, pid) == "Kevin Roose"

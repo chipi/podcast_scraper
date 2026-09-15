@@ -40,6 +40,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: Shown for a voice diarization heard but could not name — today, a label that turned out to
+#: be the show's own name. Mirrors `roster.friendly_voice_label` for typed voices: the reader
+#: is told there was a distinct speaker without being told a falsehood about who.
+UNNAMED_SPEAKER_LABEL = "Unidentified speaker"
+
 # Max |len(transcript) - sum(segment text)| before skipping segment-based timestamps (FR2.2).
 # Avoids mapping quote char offsets to wrong audio after reformatting or edited transcripts.
 SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
@@ -1014,9 +1019,13 @@ def _resolve_quote_speaker(
             # placeholder filters and `is_scoped_person_id` actually recognise.
             from ..identity.bare_name_scope import scoped_person_id
 
+            # A NEUTRAL DISPLAY NAME, not the show's. Scoping the ID keeps the show out of every
+            # corpus-wide surface, but the Person node still carried `name = "Machine Learning
+            # Street"` and `app_gi_view` renders that — so the reader saw the show speaking, which
+            # is the whole complaint. The voice is real and unnamed; say exactly that.
             return (
                 scoped_person_id(person_node_id(speaker_label), episode_id or "unknown"),
-                None,
+                UNNAMED_SPEAKER_LABEL,
                 None,
             )
         # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge across
@@ -1378,8 +1387,15 @@ def _attach_person_for_quote(
     speaker_label: Optional[str],
     person_id_value: Optional[str],
     persons_added: Set[str],
+    display_name: Optional[str] = None,
 ) -> None:
-    """Add Person node and SPOKEN_BY (Quote -> Person) when diarization label exists."""
+    """Add Person node and SPOKEN_BY (Quote -> Person) when diarization label exists.
+
+    ``display_name`` overrides the raw label as the node's ``name``. It exists because the id and
+    the label can disagree about who this is: when the label turns out to be the SHOW's own name
+    the id is episode-scoped, and naming the node with the raw label would still render the show
+    as the speaker on the insight surface.
+    """
     if (
         not speaker_label
         or not str(speaker_label).strip()
@@ -1387,7 +1403,7 @@ def _attach_person_for_quote(
         or not str(person_id_value).strip()
     ):
         return
-    raw = str(speaker_label).strip()
+    raw = str(display_name or speaker_label).strip()
     pid = str(person_id_value).strip()
     if pid not in persons_added:
         nodes.append(
@@ -2418,6 +2434,7 @@ def _artifact_from_multi_insight(
                 speaker_label,
                 person_id_for_quote,
                 persons_added,
+                quote_speaker_name,
             )
 
     # #1191: stamp a within-episode rank (0 = most salient) by descending salience. The pipeline

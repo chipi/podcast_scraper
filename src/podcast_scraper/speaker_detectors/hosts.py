@@ -21,7 +21,20 @@ _NONPERSON_AUTHOR_MARKERS = re.compile(
     # News-outlet suffixes — a publisher, not a person ("The New York Times", "Financial
     # Times", "Wall Street Journal", "Chicago Tribune"). Standalone-surname words (Post, Press)
     # are left out here and caught by KNOWN_NETWORKS to avoid flagging people like "Emily Post".
-    r"times|journal|tribune|gazette|herald|chronicle|magazine|quarterly|newspaper|gmbh|plc)\b",
+    r"times|journal|tribune|gazette|herald|chronicle|magazine|quarterly|newspaper|gmbh|plc|"
+    # INSTITUTIONS. A think tank, university or committee is not a person, and none of the
+    # commercial markers above catch one: "Mercatus Center at George Mason University" has no
+    # pipe, no digit, no "Media"/"Network". It was therefore eligible to be a HOST — 41 Person
+    # nodes on the production snapshot carry it with role="host", and the feed host detector
+    # still emits it for *Conversations with Tyler* today, so a `relabel_only` repair would swap
+    # the show's name for this one rather than for a person.
+    #
+    # Measured before adding, because a rule invented from one example is how this arc kept
+    # going wrong: across 4,307 roster entries and 13,642 Person nodes, these tokens match 5
+    # distinct names — Mercatus Center…, Rindman University, Alexander Committee, PC Alexander
+    # Committee, Boston College — and every one is an organisation. No real person is caught.
+    r"centers?|centres?|universit(?:y|ies)|colleges?|institutes?|foundations?|"
+    r"committees?|councils?|associations?|societies|society|museums?|librar(?:y|ies))\b",
     re.IGNORECASE,
 )
 

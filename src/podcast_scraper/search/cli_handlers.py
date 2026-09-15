@@ -1711,7 +1711,18 @@ def _persist_scoped_kg(
         return
     if _stable_json(kg_payload) == before:
         return
-    from podcast_scraper.gi.io import write_artifact
+    # `kg.io`, NOT `gi.io`. They are different validators for different schemas, and the wrong one
+    # here does not fail loudly — it fails on EVERY episode, in the direction that recreates the
+    # bug this function exists to prevent. `gi/schema` requires `model_version` / `prompt_version`
+    # and `schema_version in ("3.0","3.1")`; measured on the production snapshot, all 2,256 kg.json
+    # are `schema_version 2.1` and carry NEITHER key, so every write raised, was caught, counted
+    # as a failure and logged — after gi.json had already been written. That is the #1862 desync
+    # with a log line attached.
+    #
+    # It stayed invisible because the scope plan touches KG ids on 0 episodes of that snapshot
+    # (m0007 already ran there), so the path is latent until the first episode that needs it, and
+    # then fails 100%.
+    from podcast_scraper.kg.io import write_artifact
 
     try:
         write_artifact(kg_path, kg_payload, validate=True)
