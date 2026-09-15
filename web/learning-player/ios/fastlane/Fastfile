@@ -69,6 +69,19 @@ platform :ios do
     )
   end
 
+  # The Team ID the app-store archive signs under. Automatic signing (CODE_SIGN_STYLE = Automatic)
+  # picks NO team on its own headlessly, so `xcodebuild archive` fails with "Signing requires a
+  # development team" unless DEVELOPMENT_TEAM is supplied. Fail fast with a clear message rather
+  # than after the archive starts.
+  def team_id
+    id = ENV["APPLE_TEAM_ID"].to_s.strip
+    UI.user_error!(
+      "APPLE_TEAM_ID is unset. Add it to fastlane/.env (see .env.example) — it is the 10-char\n" \
+      "Team ID of the Apple Distribution cert, e.g. `security find-identity -v -p codesigning`."
+    ) if id.empty?
+    id
+  end
+
   # --- lanes -----------------------------------------------------------------
 
   desc "Verify the App Store Connect credentials + workspace (no signing check, build, or upload)."
@@ -85,6 +98,7 @@ platform :ios do
   desc "Build a signed release archive and upload it to TestFlight."
   lane :beta do
     api_key = asc_key
+    team = team_id
 
     # The build number must be unique per upload or App Store Connect rejects the build AFTER the
     # whole archive has uploaded. Deriving it from the latest TestFlight build means you never
@@ -107,6 +121,18 @@ platform :ios do
       export_method: "app-store",
       output_directory: File.join(APP_DIR, "build"),
       clean: true,
+      # Automatic signing needs the team on the archive itself (a build setting, not an export
+      # option). -allowProvisioningUpdates lets Xcode mint the app-specific App Store profile
+      # (including the app's Push capability), and the -authenticationKey* flags authenticate that
+      # update via the ASC API key — Xcode has no signed-in account on this machine, so without
+      # them xcodebuild errors "No Accounts" and falls back to a wildcard profile. gym itself has
+      # no api_key option, hence passing the credential through to xcodebuild directly here.
+      xcargs: "-allowProvisioningUpdates " \
+              "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
+              "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
+              "-authenticationKeyPath \"#{File.expand_path(ENV['ASC_KEY_PATH'])}\" " \
+              "DEVELOPMENT_TEAM=#{team}",
+      export_options: { teamID: team },
     )
 
     upload_to_testflight(
