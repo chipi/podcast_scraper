@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -25,14 +26,42 @@ bump = _bv.bump
 pytestmark = [pytest.mark.unit]
 
 
+@pytest.fixture(autouse=True)
+def _isolate_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hard-isolate every git subprocess this test spawns from any surrounding repo.
+
+    A git hook exports ``GIT_DIR`` / ``GIT_WORK_TREE`` / ``GIT_INDEX_FILE``; under those, git
+    ignores ``cwd`` and operates on the REAL repo. This test's ``git init``/``commit`` (and
+    ``bump()``'s own git calls) therefore escaped into a shared worktree — clobbering it and
+    rewriting ``user.*`` in the shared ``.git/config``. Scrub those vars, cap discovery at the temp
+    dir, ignore real global/system config, and supply the identity via env (never written to any
+    config file), so an escape is impossible regardless of who runs the test or from which worktree.
+    """
+    for var in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_COMMON_DIR",
+        "GIT_NAMESPACE",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", os.devnull)
+    # Identity in-memory only — no `git config user.*`, so nothing is ever written to a config file.
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "bump-version-test")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "bump-version-test@localhost")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "bump-version-test")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "bump-version-test@localhost")
+
+
 def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
 
 
 def _init_git_repo(repo: Path) -> None:
     _git(repo, "init")
-    _git(repo, "config", "user.email", "t@example.com")
-    _git(repo, "config", "user.name", "Test")
 
 
 def _write_version_files(repo: Path, version: str) -> None:
