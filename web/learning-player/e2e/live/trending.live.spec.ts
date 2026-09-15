@@ -70,14 +70,12 @@ test.describe('trending (RFC-103 R2)', () => {
     )
   })
 
-  test('Browse Topics shows the window selector, defaults to 3M, and switches', async ({
-    page,
-  }) => {
+  test('the discovery window selector defaults to 3M and switches', async ({ page }) => {
     await page.goto('/preview')
-    await page.goto('/browse?tab=topics')
-    // The hub keep-alives every tab panel (v-show), so BOTH the topics and people panels carry a
-    // trend-window-tabs — scope to the topics panel or the locator is ambiguous (strict-mode).
-    const panel = page.getByTestId('topic-browse-view')
+    await page.goto('/browse')
+    // Topics live in the shared DiscoveryExplorer now (Topics is its default tab); it renders ONE
+    // DiscoveryList at a time, so its single trend-window-tabs is unambiguous — scope to it anyway.
+    const panel = page.getByTestId('discovery-explorer')
     await expect(panel.getByTestId('trend-window-tabs')).toBeVisible()
     // `aria-checked`, not `aria-selected` (#1594 item 7): the window selector controls no panel —
     // it re-queries the rail its parent owns — so it is a radiogroup, not a tablist.

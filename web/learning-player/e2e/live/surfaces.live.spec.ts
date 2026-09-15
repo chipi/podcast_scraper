@@ -79,9 +79,10 @@ test.describe('signed-in UI surfaces', () => {
     // it gets "Continue listening" rather than "Find any moment you've heard."
     await expect(page).not.toHaveURL(/\/welcome/)
     await expect(page.getByTestId('home-search-input')).toBeVisible()
-    // The #4 discovery switcher (Rising / Trending / Storylines), Rising selected by default.
+    // The shared DiscoveryExplorer: tabs are by KIND now (Topics / Storylines / People), Topics
+    // selected by default; Rising⇄Trending is a compact sort toggle (`discovery-sort`), not a tab.
     await expect(page.getByTestId('home-discovery')).toBeVisible()
-    await expect(page.getByTestId('discovery-tab-rising')).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('discovery-tab-topic')).toHaveAttribute('aria-selected', 'true')
   })
 
   test('Search renders grouped results for a common term', async ({ page }) => {
@@ -93,11 +94,14 @@ test.describe('signed-in UI surfaces', () => {
     await expect(page.getByText(/passages across|No matches found/i).first()).toBeVisible()
   })
 
-  test('Browse hub renders all four tabs', async ({ page }) => {
+  test('Discover renders the entity explorer + the Episodes/Shows content tabs', async ({ page }) => {
     await page.goto('/preview')
     await page.goto('/browse?tab=episodes')
     await expect(page.getByTestId('browse-view')).toBeVisible()
-    for (const tab of ['episodes', 'shows', 'topics', 'people']) {
+    // Topics/storylines/people moved into the shared DiscoveryExplorer (the "Trends" section on top);
+    // the content band below is just Episodes · Shows now (operator 2026-09-14).
+    await expect(page.getByTestId('discovery-explorer')).toBeVisible()
+    for (const tab of ['episodes', 'shows']) {
       await expect(page.getByTestId(`browse-tab-${tab}`)).toBeVisible()
     }
   })
