@@ -222,12 +222,15 @@ function searchLibrary(): void {
   <!-- Top voices (wave-G): the people who drive THIS topic, as prominent avatar chips. -->
   <section v-if="topVoices.length" class="mb-4" data-testid="ec-top-voices">
     <h3 class="lp-section mb-2">{{ t("ec.topVoices") }}</h3>
-    <div class="flex flex-wrap gap-3">
+    <!-- A 4-column grid that fills the row width (operator 2026-09-15): the old flex-wrap left a
+         dead gap on the right of each row; the grid spreads the avatars evenly and lets a partial
+         last row sit left with empty space below rather than an uneven ragged edge. -->
+    <div class="grid grid-cols-4 gap-3">
       <button
         v-for="p in topVoices"
         :key="p.id"
         type="button"
-        class="flex w-16 flex-col items-center gap-1"
+        class="flex flex-col items-center gap-1"
         :aria-label="p.name"
         data-testid="ec-top-voice"
         @click="emit('open', { kind: 'person', id: p.id })"
