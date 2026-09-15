@@ -982,10 +982,43 @@ def _resolve_quote_speaker(
         return None, friendly_voice_label(voice_type), voice_type
     if speaker_label:
         if _label_names_the_show(speaker_label, feed_title):
-            # THE SHOW DID NOT SPEAK. Leave the quote unattributed rather than minting a Person
-            # for it: under-attribution is recoverable, and a show credited with a human's words
-            # is not. Same direction the graph boundary already takes (#2064).
-            return None, None, None
+            # THE SHOW DID NOT SPEAK — but a VOICE did, and the two facts are separable.
+            #
+            # Dropping the attribution entirely was the first version of this, and it threw away
+            # the half that was true: diarization heard a distinct speaker, and only the LABEL is
+            # wrong. Measured on the production snapshot, that discarded **2,348 SPOKEN_BY edges**
+            # across 5 show names — every quote on *Machine Learning Street Talk* and
+            # *Conversations with Tyler* would have become unattributed.
+            #
+            # Episode-scoping keeps the true half and refuses the false one: the quote still has a
+            # speaker WITHIN its episode, and the id can never aggregate into a corpus-wide person
+            # called "Machine Learning Street". That is exactly the rule `app_gi_view._speaker_name`
+            # states — an episode-scoped label is meaningful in its episode and meaningless
+            # aggregated — so the placeholder filters already hide it from every ranking surface.
+            #
+            # It also bounds the damage from `names_the_show`'s known false positive (a host whose
+            # name LEADS their own show — `Lex Fridman Podcast`). Zero such feeds exist in the 55
+            # production feeds today, every one of the 5 matches being a genuine show name; but if
+            # one appears, the cost is that their quotes stay episode-local rather than being
+            # deleted outright. Logged so it is visible rather than silent.
+            logger.info(
+                "speaker label %r names the show %r — episode-scoping it rather than "
+                "publishing the show as a person (#2064)",
+                speaker_label,
+                feed_title,
+            )
+            # `scoped_person_id`, NOT `person_node_id`: the latter episode-scopes only a BARE
+            # label (`SPEAKER_00`) and hands a NAMED one the global id — so calling it here would
+            # have quietly restored `person:machine-learning-street` as a corpus-wide person and
+            # made this whole branch a no-op. `person:unresolved-<slug>-<ep>` is the family the
+            # placeholder filters and `is_scoped_person_id` actually recognise.
+            from ..identity.bare_name_scope import scoped_person_id
+
+            return (
+                scoped_person_id(person_node_id(speaker_label), episode_id or "unknown"),
+                None,
+                None,
+            )
         # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge across
         # episodes; a real, resolved name stays a global person id (#1b).
         return person_node_id(speaker_label, episode_id), None, None

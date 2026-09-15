@@ -609,3 +609,83 @@ class TestThePlaceholderRuleIsOneDecisionNotTwo:
         }
         assert _speaker_name(artifact, "person:kevin-roose") == "Kevin Roose"
         assert is_unresolved_speaker_placeholder("person:kevin-roose") is False
+
+
+class TestTheShowNameGuardOnTheQUOTEPath:
+    """The KG path refused a show as a speaker; the GI path minted it anyway (#2064, #2065).
+
+    `_speaker_lists_for_graph._is_the_show` protects kg.json. GI reads the segments sidecar
+    directly and never passes through it, so on the production snapshot 53 `SPOKEN_BY` edges
+    targeted a Person named `Machine Learning Street` — the show "spoke" on the insight surface
+    even after m0009 demoted its KG twin.
+
+    WHAT THE REFUSAL MUST NOT COST. A first version returned no person id at all. Measured, that
+    discarded **2,348 `SPOKEN_BY` edges** across 5 show names — every quote on *Machine Learning
+    Street Talk* and *Conversations with Tyler* would have become unattributed. Diarization really
+    did hear a distinct voice; only the LABEL is wrong, and the two facts are separable. So the id
+    is episode-SCOPED rather than dropped: the quote keeps a speaker inside its episode, and the
+    id can never aggregate into a corpus-wide person.
+
+    All 5 matches across the 55 production feeds are genuine show names — none is a human — so
+    `names_the_show`'s known false positive (a host whose name LEADS their show) costs nothing
+    today, and if it ever fires the cost is episode-local attribution rather than deletion.
+    """
+
+    class _Q:
+        char_start = 0
+        char_end = 10
+
+    EP = "ep:mlst-1"
+
+    def test_a_show_name_is_scoped_not_published_as_a_person(self) -> None:
+        from podcast_scraper.enrichment.enrichers._loaders import (
+            is_unresolved_speaker_placeholder,
+        )
+        from podcast_scraper.gi.pipeline import _resolve_quote_speaker
+        from podcast_scraper.identity.bare_name_scope import is_scoped_person_id
+
+        pid, _n, _v = _resolve_quote_speaker(
+            self._Q(),
+            "Machine Learning Street",
+            self.EP,
+            None,
+            None,
+            "Machine Learning Street Talk (MLST)",
+        )
+        assert pid, "the quote must keep a speaker — the voice was real, only the label was wrong"
+        assert is_scoped_person_id(pid), "a show must never hold a corpus-wide person id"
+        assert is_unresolved_speaker_placeholder(pid), "and must stay out of every ranking surface"
+
+    def test_a_real_person_is_untouched(self) -> None:
+        from podcast_scraper.gi.pipeline import _resolve_quote_speaker
+        from podcast_scraper.identity.bare_name_scope import is_scoped_person_id
+
+        pid, _n, _v = _resolve_quote_speaker(
+            self._Q(), "Kevin Roose", self.EP, None, None, "Hard Fork"
+        )
+        assert pid == "person:kevin-roose"
+        assert not is_scoped_person_id(pid)
+
+    def test_the_guard_is_inert_without_the_title_and_that_is_the_capability(self) -> None:
+        """THE REMOVAL PROOF. `names_the_show` has no opinion on an empty title BY DESIGN, so a
+        caller that forgets to thread `feed_title` silently disables it — which is precisely how
+        `enrich-edges` shipped an inert copy of this same guard earlier in this arc.
+
+        Asserting the answer CHANGES with the title is what proves the guard is connected rather
+        than merely present.
+        """
+        from podcast_scraper.gi.pipeline import _resolve_quote_speaker
+
+        with_title, _n1, _v1 = _resolve_quote_speaker(
+            self._Q(),
+            "Machine Learning Street",
+            self.EP,
+            None,
+            None,
+            "Machine Learning Street Talk (MLST)",
+        )
+        without_title, _n2, _v2 = _resolve_quote_speaker(
+            self._Q(), "Machine Learning Street", self.EP, None, None, ""
+        )
+        assert with_title != without_title, "the title is the signal; inert if it changes nothing"
+        assert without_title == "person:machine-learning-street"
