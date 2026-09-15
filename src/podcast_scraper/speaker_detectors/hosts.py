@@ -308,8 +308,30 @@ def looks_like_publisher(name: str) -> bool:
 # excluding it stops the match from absorbing the next sentence ("…O'Shaughnessy. My guest").
 # "my name is" is a safe discovery cue (no network bumper says it, unlike "this is X" =
 # "This is Planet Money", which stays metadata-gated in `_THIS_IS_INTRO`).
+#
+# THE ROLE PHRASE IS THE COMMONEST OPENING IN THE CORPUS AND THIS PATTERN COULD NOT SEE IT.
+# "Hello, and welcome to the NVIDIA AI podcast. I'm your host, Noah Kravitz" — `your` is lowercase,
+# so the capitalised run never starts and the scanner returned nothing. Measured over the 136
+# production episodes that end with no named speaker: the pattern below matched 0 of them before
+# the role phrase was allowed, and 25 of NVIDIA's 31 after.
+#
+# "the host never self-introduces" was therefore a property of THIS REGEX, not of the corpus — and
+# it was reported as a fact about the data for most of a day.
 _HOST_SELF_INTRO = re.compile(
-    r"\b(?:I'?m|[Mm]y name is)\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})"
+    r"\b(?:I'?m|[Mm]y name is)\s+"
+    r"(?:(?:your|the)\s+(?:co-?)?host,?\s+)?"
+    r"([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})"
+)
+
+# "with me, <Name>" / "and me, <Name>" — the British broadcast idiom for naming ONESELF.
+# "Welcome to The Rest Is Politics: Leading with me, Alastair Campbell" is spoken BY Campbell.
+# 11 of that feed's 12 unnamed episodes open this way; the pattern above matches none of them.
+#
+# THE COMMA IS REQUIRED AND "joining me" IS EXCLUDED, deliberately: "joining me, <Name>" introduces
+# somebody ELSE, and admitting it would paint a guest's name onto the host's voice — the exact
+# direction of error this module exists to prevent.
+_HOST_WITH_ME_INTRO = re.compile(
+    r"\b(?:with|and)\s+me,\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,2})"
 )
 
 
@@ -332,7 +354,11 @@ def extract_self_introduced_host(
     # publisher bumper in the same "I'm <X>" shape ("This is Unhedged… I'm Pushkin. I'm Katie
     # Martin"), so the first match is often the network, not the host. Skip known-network
     # bumpers and return the first match that is a real person name (#876 — "Pushkin" leak).
-    for match in _HOST_SELF_INTRO.finditer(transcript_text[:intro_chars]):
+    head = transcript_text[:intro_chars]
+    # Both forms, in one pass with the SAME guards below. Two scanners with two guard sets is how
+    # the sibling scanners drifted apart before (#876).
+    matches = list(_HOST_SELF_INTRO.finditer(head)) + list(_HOST_WITH_ME_INTRO.finditer(head))
+    for match in matches:
         name = match.group(1).strip(" .,")
         if len(name) < 2:
             continue

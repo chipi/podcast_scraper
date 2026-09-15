@@ -410,3 +410,65 @@ class TestTheEpisodeDescriptionNamesItsOwnHost:
             )
             == set()
         )
+
+
+class TestTheHostSaysTheirRoleBeforeTheirName:
+    """ "I'm your host, Noah Kravitz" — the commonest opening in the corpus, and unmatchable.
+
+    THE PATTERN REQUIRED THE NAME TO FOLLOW THE CUE IMMEDIATELY. `your` is lowercase, so the
+    capitalised run never started and the scanner returned nothing at all. Measured over the 136
+    production episodes that end with no named speaker: the old pattern matched **0**, the widened
+    one matches **36** — 25 of NVIDIA's 31, 10 of The Rest Is Politics' 12, and Ottoman History.
+
+    "The host never self-introduces on these shows" was a property of the REGEX, and was reported
+    as a property of the data.
+
+    REGRESSION CHECK, on the 1,986 episodes whose roster already names a host:
+
+        agrees with the roster host   721 -> 862   (+141)
+        disagrees                     186 -> 214   (+28)
+        finds nothing               1,079 -> 910
+
+    5:1, and the disagreements are not all errors — several are the extractor being RIGHT where
+    the roster is wrong ("Kevin Rothrock" against a roster saying "Boris Goryachev" on The Naked
+    Pravda; "Gustavo Ribeiro" against a roster saying "The Brazilian Report").
+    """
+
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("Welcome to the NVIDIA AI podcast. I'm your host, Noah Kravitz.", "Noah Kravitz"),
+            ("I'm the co-host, Casey Newton, and today we talk shop.", "Casey Newton"),
+            ("I'm your co-host Sarah Guo and this week we cover agents.", "Sarah Guo"),
+            # The idiom that names ONESELF in British broadcasting.
+            ("The Rest Is Politics: Leading, with me, Alastair Campbell.", "Alastair Campbell"),
+            ("...and me, Rory Stewart, back for another season.", "Rory Stewart"),
+            # Still works, unchanged.
+            ("Hello and welcome, I'm Patrick O'Shaughnessy.", "Patrick O'Shaughnessy"),
+        ],
+    )
+    def test_the_role_phrase_does_not_hide_the_name(self, text: str, expected: str) -> None:
+        assert extract_self_introduced_host(text, intro_chars=4000) == expected
+
+    def test_joining_me_introduces_somebody_else(self) -> None:
+        """THE GUARD ON THE NEW FORM. "joining me, X" is a GUEST — binding it to the host's voice
+        would paint a guest's name on the host, the exact direction of error this module prevents.
+        Only "with me," and "and me," are self-reference, and the comma is required."""
+        assert (
+            extract_self_introduced_host(
+                "Joining me, Alison Gopnik, a professor at Berkeley.", intro_chars=4000
+            )
+            is None
+        )
+
+    def test_the_network_bumper_is_still_skipped(self) -> None:
+        """#876 — the widened pattern must not re-open the "I'm Pushkin" leak."""
+        assert (
+            extract_self_introduced_host(
+                "This is Unhedged. I'm Pushkin. I'm Katie Martin.", intro_chars=4000
+            )
+            == "Katie Martin"
+        )
+
+    def test_an_ordinary_phrase_is_still_not_a_name(self) -> None:
+        assert extract_self_introduced_host("I'm Coming Out was a great song.") is None
