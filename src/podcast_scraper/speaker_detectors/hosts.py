@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
+from ..kg.speaker_coherence import same_person
 from .entities import extract_person_entities as _extract_person_entities_direct
 
 logger = logging.getLogger(__name__)
@@ -207,9 +208,16 @@ def split_author_names(author: str) -> list[str]:
 _TITLE_WITH_SUFFIX = re.compile(r"\s+with\s+.+$", re.IGNORECASE)
 
 
+#: A leading article is not part of a show's name for comparison purposes. Without dropping it,
+#: "Trivium China" was not recognised as the prefix of "The Trivium China Podcast" and the show
+#: seated itself as its own host.
+_LEADING_ARTICLE = re.compile(r"^(?:the|a|an)\s+")
+
+
 def _fold_title(text: Optional[str]) -> str:
-    """Lowercase, drop punctuation, collapse whitespace."""
-    return " ".join(re.sub(r"[^\w\s]", " ", str(text or "").lower()).split())
+    """Lowercase, drop punctuation and any leading article, collapse whitespace."""
+    folded = " ".join(re.sub(r"[^\w\s]", " ", str(text or "").lower()).split())
+    return _LEADING_ARTICLE.sub("", folded)
 
 
 def names_the_show(candidate: str, feed_title: Optional[str]) -> bool:
@@ -226,6 +234,9 @@ def names_the_show(candidate: str, feed_title: Optional[str]) -> bool:
     real host lives: without it "Patrick O'Shaughnessy" would look like part of "Invest Like the
     Best with Patrick O'Shaughnessy" and the fix would throw away the 18 legitimate cases in the
     same sample.
+
+    A leading article is dropped from both sides first, so "Trivium China" is recognised as
+    the prefix of "The Trivium China Podcast" — the show's own name, not a presenter.
 
     Matches the whole show name or a multi-token PREFIX of it ("Machine Learning Street" of
     "Machine Learning Street Talk"). A prefix rather than any substring, so a host whose name
@@ -391,10 +402,18 @@ def distinct_self_introductions(
     diarization cluster is the signature of a MERGED cluster — a cold-open montage that strings
     several hosts' intros together ("I'm Kevin Russo… I'm Casey Noon…") collapses into one voice.
     The caller uses ``len(...) >= 2`` to refuse naming such a cluster after any one of them.
+
+    Reads BOTH intro forms, like its sibling. Omitting ``_HOST_WITH_ME_INTRO`` here was exactly the
+    drift that docstring warns about: a co-host presented as "...and with me, Casey Newton" was
+    invisible to every caller of this function while the sibling saw them, so a two-host desk show
+    looked like a one-host show with a guest.
     """
     seen: List[str] = []
     lowered: Set[str] = set()
-    for match in _HOST_SELF_INTRO.finditer((transcript_text or "")[:intro_chars]):
+    matches = list(_HOST_SELF_INTRO.finditer((transcript_text or "")[:intro_chars])) + list(
+        _HOST_WITH_ME_INTRO.finditer((transcript_text or "")[:intro_chars])
+    )
+    for match in matches:
         name = match.group(1).strip(" .,")
         if len(name) < 2 or is_known_network(name):
             continue
@@ -656,6 +675,14 @@ CUE_FIRST_BODY = (
     r"|(?:please\s+)?welcome\s+(?:back\s+)?"
     r"|here\s+with\s+me\s+(?:is|are)"
     r"|(?:my|our)\s+colleague"
+    # "I'm chatting with X" / "we're speaking with X". The form above only covers a bare
+    # "I'm with" / "I'm joined with"; the conversational verbs were absent, and they carry a
+    # measurable share of real introductions — 30 correct / 0 wrong over the decidable cases on
+    # the production snapshot (5th advisor review).
+    r"|(?:i'?m|we'?re)\s+(?:here\s+)?(?:chatting|talking|speaking|sitting\s+down)\s+(?:with|to)"
+    # "with us today is X" — the mirror of "here with me is X", which was covered while this was
+    # not. 3 correct / 1 wrong; small, and it costs nothing to read.
+    r"|with\s+us\s+(?:today\s+)?(?:is|are)"
 )
 # Past-tense hand-off ("i sat down with X", "we spoke with X"). A real introduction ONLY as a
 # head-of-episode cold-open; mid-show it describes a PAST conversation and would misattribute the
@@ -685,6 +712,9 @@ NAME_FIRST_TAIL = (
     r"|(?:is|are)\s+(?:my|our)\s+guests?"
     r"|(?:is|are)\s+joining\s+(?:me|us)"
     r"|joins?\s+(?:me|us)"
+    # "X is here to talk about …" — the host says why the guest came. Distinct from
+    # "is here with me": the purpose clause, not the presence clause. 12 correct / 1 wrong.
+    r"|(?:is|are)\s+here\s+to\b"
 )
 # Narrated-desk REPORT verbs ("Farnaz Fassihi explains…", "Sydney Baloue reports…"). These ALSO
 # match a purely TOPICAL mention on a host's own sentence ("Sam Altman explains it best in his
@@ -1058,9 +1088,18 @@ def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[
 
 #: "<HOST> is joined by <GUEST>" / "<HOST> speaks with <GUEST>" — the host sits BEFORE the cue.
 #: Two names may share the slot ("Yoko Li and Justine Moore speak with ...").
+#:
+#: EXACTLY TWO TOKENS. Nothing here anchors the START of the name, so a three-token run takes
+#: whatever capitalised word precedes it — a job title ("a16z Partners Martin Casado speak
+#: with..."), or the tail of the episode title running into the description ("...the Future of
+#: Forecasting" + "Theo Jaffee speaks with..."). Measured over the 2,256-episode production
+#: snapshot, three-token captures were 2 for 2 WRONG and produced no correct host that the
+#: two-token form missed, so the extra token buys a defect class and nothing else. A genuine
+#: three-part name still reaches the roster through every other path; it just cannot be minted
+#: here, where there is no evidence for where the name begins.
 _EPISODE_HOST_CUE = re.compile(
-    r"\b([A-Z][a-z'\u2019\-]{2,}(?:\s+[A-Z][a-z'\u2019.\-]{1,}){1,2})"
-    r"(?:\s+and\s+([A-Z][a-z'\u2019\-]{2,}(?:\s+[A-Z][a-z'\u2019.\-]{1,}){1,2}))?"
+    r"\b([A-Z][a-z'\u2019\-]{2,}\s+[A-Z][a-z'\u2019.\-]{1,})"
+    r"(?:\s+and\s+([A-Z][a-z'\u2019\-]{2,}\s+[A-Z][a-z'\u2019.\-]{1,}))?"
     r"\s+(?:(?:is|are)\s+joined\s+by|speaks?\s+with)\b"
 )
 
@@ -1087,20 +1126,126 @@ def hosts_from_episode_description(
     The show's own name and any publisher/org are refused, so "Planet Money is joined by..." can
     never mint a person.
     """
-    text = " ".join(p for p in (episode_title or "", episode_description or "") if p)
+    # A SENTENCE BREAK BETWEEN TITLE AND DESCRIPTION, not a space. Joined with a bare space, a
+    # title ending in a capitalised word runs straight into the description's first sentence and
+    # the cue matches across the seam: "...the Future of Forecasting" + "Theo Jaffee speaks with"
+    # gave a host called "Forecasting Theo Jaffee" on a16z.
+    text = ". ".join(p.strip() for p in (episode_title or "", episode_description or "") if p)
     if not text.strip():
         return set()
     out: Set[str] = set()
+    folded_show = _fold_title(feed_title)
     for match in _EPISODE_HOST_CUE.finditer(text):
+        # THE SENTENCE CAN RUN THE OTHER WAY, and then the name in front of the cue is the GUEST.
+        # EconTalk: "Listen as journalist Stephen Witt speaks with EconTalk's Russ Roberts about
+        # how Jensen pivoted..." — Witt is the guest and Roberts the host, and the plain
+        # before-the-cue rule seats the guest as host. The show naming ITSELF right after the cue
+        # is what marks the inversion, and it is the only evidence in the sentence that does.
+        if folded_show and folded_show in _fold_title(text[match.end() : match.end() + 60]):
+            continue
         for cand in match.groups():
             name = (cand or "").strip()
             if not name or len(name.split()) < 2:
+                continue
+            # AND THE CAPTURE MUST LOOK LIKE A PERSON. The seam is only the loudest case; the same
+            # run happens inside one description ("...the future of Forecasting Theo Jaffee speaks
+            # with..."), and the token run the regex takes is as long as the capitals allow. This
+            # is the guard every sibling extractor already applies, and omitting it here is how a
+            # topic word ended up published as a host — the #876 failure exactly.
+            if not looks_like_a_person_name(name):
                 continue
             if looks_like_publisher(name):
                 continue
             if feed_title and names_the_show(name, feed_title):
                 continue
             out.add(name)
+    return out
+
+
+def recurrent_hosts_across_episodes(
+    self_intros_by_episode: Iterable[Iterable[str]],
+    *,
+    feed_title: Optional[str] = None,
+    min_episodes: int = 3,
+    min_share: float = 0.25,
+) -> Set[str]:
+    """Names that SELF-INTRODUCE across many of a feed's episodes — i.e. the show's presenter.
+
+    A GUEST APPEARS ONCE; A HOST APPEARS EVERY WEEK. That is the one property separating them that
+    does not depend on phrasing, and no per-episode rule can see it.
+
+    Measured over the production snapshot: at ``>=3 episodes AND >=25%`` of a feed's transcribed
+    episodes, **28 of 55 feeds yield a name and every name is that show's presenter or a standing
+    co-host** — zero guests, zero networks, zero sponsors, zero show names. Russ Roberts on 41 of
+    41 EconTalk episodes, Noah Kravitz on 98 of 109 NVIDIA, Jessica Mendoza and Ryan Knutson on The
+    Journal, Kevin Roose and Casey Newton on Hard Fork.
+
+    Several arrive in the ASR's spelling rather than the published one (see the merge below), so
+    "correct person" is the claim here, not "correct string".
+
+    BOTH THRESHOLDS ARE LOAD-BEARING. The count alone admits a recurring guest on a long feed; the
+    share alone admits anybody on a feed with three episodes.
+
+    SELF-INTRODUCTIONS ONLY. The caller must pass names a voice used for ITSELF
+    (:func:`distinct_self_introductions`), never names merely mentioned — a show that discusses
+    the same person weekly would otherwise make them its host. Pass EVERY intro in the episode,
+    not just the first: a show's second host introduces themselves second, and reading one name
+    per episode is why a two-host desk show looked like one host plus a guest.
+
+    WHAT THE CALLER MUST DO WITH THE RESULT: put it in ``known_hosts``, nothing more. It is a
+    CANDIDATE, and it binds to a voice in a given episode only through that episode's own evidence
+    — its self-introduction, or the LLM resolver under its existing guards. It must never bind by
+    talk share or by elimination, both of which measured below the safety bar (49-92%).
+    """
+    episodes = [list(names or ()) for names in self_intros_by_episode]
+    total = len([e for e in episodes if e])
+    if total <= 0:
+        return set()
+    counts: Dict[str, int] = {}
+    for names in episodes:
+        for name in {str(n).strip() for n in names if str(n).strip()}:
+            counts[name] = counts.get(name, 0) + 1
+    # ONE HOST, ONE COUNT. A self-introduction is transcribed, so a co-host arrives spelled several
+    # ways across a season. Hard Fork's Casey Newton is "Casey Newn" 20 times, "Casey Noon" 18 and
+    # "Casey Newton" 7; The Journal's Ryan Knutson is "Ryan Knudson" 11 and "Ryan Knutson" 10.
+    # Counted separately no spelling clears the share threshold and a real co-host is invisible;
+    # merged, he clears it easily and the feed gets ONE candidate rather than three near-duplicate
+    # people — the defect this branch exists to remove.
+    #
+    # THE WINNING SPELLING IS OFTEN WRONG, and this cannot fix that. Frequency does not separate a
+    # mangle from the truth (Casey's most common rendering is a mangle), and nothing here has
+    # access to written text to check against. It does not need to: a variant that matches a name
+    # the feed or the config already states is dropped by the caller before it reaches the roster,
+    # and ADR-130's `_recover_stated_names` snaps a published mangle back to the stated spelling.
+    # What survives to publication mangled is a host on a feed that states no host anywhere — where
+    # the alternative is not a correct name, it is `SPEAKER_01` on every episode.
+    merged: List[Tuple[str, int]] = []
+    for name, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+        for i, (canonical, tally) in enumerate(merged):
+            if same_person(canonical, name):
+                merged[i] = (canonical, tally + n)
+                break
+        else:
+            merged.append((name, n))
+    out: Set[str] = set()
+    for name, n in merged:
+        if n < min_episodes or (n / total) < min_share:
+            continue
+        if is_known_network(name) or has_org_markers(name):
+            continue
+        # THE SHOW SAYS ITS OWN NAME EVERY EPISODE — that is recurrence, not a presenter. "The
+        # Trivium China Podcast" opens with "Trivium" on 10 of 10 episodes and no other guard here
+        # catches it: it is one token, carries no org marker, and is in no network list. Measured:
+        # this is the single false positive across all 55 feeds.
+        if feed_title and names_the_show(name, feed_title):
+            continue
+        # FIRST-LAST REQUIRED, unlike the per-episode self-intro path which allows a mononym host.
+        # A recurring MONONYM is the weakest possible evidence and it misfired here: "Brandon" on
+        # Latent Space cleared 25% (15 of 53) and is not one of that show's hosts. A real mononym
+        # presenter can still be supplied through config `known_hosts`, which is what it is for.
+        if len(name.split()) < 2 or not looks_like_a_person_name(name):
+            continue
+        out.add(name)
     return out
 
 

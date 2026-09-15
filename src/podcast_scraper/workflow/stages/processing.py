@@ -11,6 +11,7 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, Future, ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Callable, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
@@ -20,7 +21,9 @@ if TYPE_CHECKING:
 else:
     Episode = models.Episode  # type: ignore[assignment]
     RssFeed = models.RssFeed  # type: ignore[assignment]
+from ...kg.speaker_coherence import same_person
 from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
+from ...utils import filesystem
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...utils.optional_deps import caused_by_missing_import
 from .. import metrics
@@ -145,10 +148,12 @@ from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import (
     detect_hosts_from_feed,
+    distinct_self_introductions,
     hosts_from_episode_description,
     hosts_from_feed_statement,
     is_network_or_org_author,
     normalize_host_names,
+    recurrent_hosts_across_episodes,
 )
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
@@ -723,6 +728,83 @@ def _feed_title(feed: Any) -> Optional[str]:
     return getattr(feed, "title", None)
 
 
+# How much of each transcript the recurrence scan reads. Wider than the 2,000 the per-episode
+# roster path uses: this scan pays the cost once per feed rather than once per episode, and a show
+# that opens with a sponsor read or a cold-open clip puts its host introduction well past 2,000.
+# The corpus measurement behind the thresholds was taken at this window.
+_INTRO_SCAN_CHARS = 4000
+
+
+def _newest_run_transcripts(root: Path) -> List[Path]:
+    """One transcript per episode under *root*, from the run that SUPERSEDES the others.
+
+    ``root`` is a single feed's workspace (``<corpus>/feeds/<slug>/`` for a corpus run,
+    ``output/rss_*`` for a standalone one), so this never crosses feeds. It is deliberately
+    ``glob("run_*/...")`` and not ``rglob``: pointed at a corpus ROOT by mistake it finds nothing
+    rather than pooling every show's transcripts into one host vote.
+
+    Two things would otherwise double-count. An episode carries up to three ``.txt`` bodies
+    (``.adfree``, ``.cleaned``, plain) — ad-free first, because an unstripped pre-roll can push the
+    host's self-introduction past the window we read. And a reprocessed episode exists in several
+    ``run_*`` dirs at once; the corpus membership rule picks the newest, the same winner every
+    catalog-facing surface uses.
+    """
+    metas = sorted(root.glob(f"run_*/{filesystem.METADATA_SUBDIR}/*.metadata.json"))
+    if not metas:
+        return []
+    try:
+        from ...search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+
+        metas = list(dedupe_metadata_paths_newest_run_per_episode(root, metas))
+    except Exception as exc:  # noqa: BLE001 - a duplicate vote beats no vote at all
+        logger.debug("recurrent-host scan could not dedupe runs: %s", exc)
+    out: List[Path] = []
+    for meta in metas:
+        stem = meta.name[: -len(".metadata.json")]
+        transcripts = meta.parent.parent / filesystem.TRANSCRIPTS_SUBDIR
+        for suffix in (".adfree.txt", ".cleaned.txt", ".txt"):
+            candidate = transcripts / f"{stem}{suffix}"
+            if candidate.is_file():
+                out.append(candidate)
+                break
+    return out
+
+
+def _recurrent_hosts_from_disk(output_dir: Optional[str], feed: Any) -> Set[str]:
+    """Hosts that self-introduce across MANY of this feed's already-transcribed episodes.
+
+    A GUEST APPEARS ONCE; A HOST APPEARS EVERY WEEK. No per-episode rule can see that, and on the
+    shows whose RSS author tag is an organisation it is the only host signal that exists at all.
+    Measured across the production snapshot, at the thresholds
+    :func:`~podcast_scraper.speaker_detectors.hosts.recurrent_hosts_across_episodes` enforces,
+    a name emerges for 30 of 55 feeds and every one of them is that show's presenter.
+
+    Reads transcripts already on disk, so it contributes on a re-process or an incremental ingest
+    and contributes NOTHING on a feed's first-ever run — correct in both cases, and never a
+    network call.
+
+    The result joins ``known_hosts`` and goes no further. It is a CANDIDATE: it binds to a voice
+    only through that episode's own self-introduction or the LLM resolver's existing guards, never
+    by talk share and never by elimination, both of which measured far below the safety bar.
+    """
+    raw = str(output_dir or "")
+    root = Path(raw)
+    if not raw or not root.is_dir():
+        return set()
+    per_episode: List[List[str]] = []
+    for path in _newest_run_transcripts(root):
+        try:
+            head = path.read_text(encoding="utf-8", errors="replace")[:_INTRO_SCAN_CHARS]
+        except OSError:
+            continue
+        # EVERY intro in the head, not the first. A two-host show introduces its second host
+        # second, and reading one name per episode left every co-host below the threshold.
+        per_episode.append(distinct_self_introductions(head, intro_chars=_INTRO_SCAN_CHARS))
+    if not per_episode:
+        return set()
+    return recurrent_hosts_across_episodes(per_episode, feed_title=_feed_title(feed))
+
+
 def detect_feed_hosts_and_patterns(
     cfg: config.Config,
     feed: RssFeed,  # type: ignore[valid-type]
@@ -824,6 +906,31 @@ def detect_feed_hosts_and_patterns(
             "DETECTED HOSTS (from config known_hosts fallback): %s",
             ", ".join(sorted(cached_hosts)),
         )
+
+    # RECURRENCE, from this feed's own transcripts. A guest appears once; a host appears every
+    # week — the one property separating them that no per-episode rule can see, and the only host
+    # signal at all on a show whose author tag is an organisation. Contributes nothing on a first
+    # run (no transcripts yet), which is correct.
+    #
+    # UNION, never replace: a feed statement, an author tag or config `known_hosts` all outrank it.
+    # This only ever ADDS a candidate that must still bind through an episode's own evidence.
+    try:
+        recurrent = _recurrent_hosts_from_disk(cfg.output_dir, feed)
+    except Exception as exc:  # noqa: BLE001 - a host hint must never end a run
+        logger.debug("recurrent-host scan skipped: %s", exc)
+        recurrent = set()
+    # FUZZY dedupe, not exact. The transcript spells the name the way the ASR heard it, and on the
+    # production snapshot four of the 27 names this finds are variants of a host we already hold:
+    # "Peter Atiyah" for Peter Attia, "Anita Arnon" for Anita Anand, "Adam Reichert" for Adam
+    # Reichardt, "Chris Grayton" for Chris Gratien. An exact-lowercase check keeps all four, and
+    # then the feed carries TWO host candidates for one human — the duplicate-person defect this
+    # branch exists to remove, minted by the very fix meant to help.
+    added = {n for n in recurrent if not any(same_person(n, h) for h in cached_hosts)}
+    if added:
+        cached_hosts = set(cached_hosts) | added
+        if not host_source:
+            host_source = "recurrent self-introduction across the feed"
+        logger.info("RECURRENT HOSTS (self-introduced across episodes): %s", sorted(added))
 
     # Log detected hosts with their source
     _log_detected_hosts(cached_hosts, feed, episode_authors, cfg, source=host_source)

@@ -472,3 +472,135 @@ class TestTheHostSaysTheirRoleBeforeTheirName:
 
     def test_an_ordinary_phrase_is_still_not_a_name(self) -> None:
         assert extract_self_introduced_host("I'm Coming Out was a great song.") is None
+
+
+class TestDistinctSelfIntroductionsReadsBothForms:
+    """The "and with me, <Name>" form was invisible here while its sibling saw it (#2075)."""
+
+    def test_the_with_me_form_is_read(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import distinct_self_introductions
+
+        text = "Welcome back to the show. I'm Kevin Roose, and with me, Casey Newton."
+        assert distinct_self_introductions(text, intro_chars=2000) == [
+            "Kevin Roose",
+            "Casey Newton",
+        ]
+
+    def test_joining_me_still_introduces_somebody_else(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import distinct_self_introductions
+
+        # "joining me, X" is a GUEST introduction; admitting it here would make every week's
+        # guest look like a recurring co-host.
+        text = "I'm Kevin Roose. Joining me, Sam Altman."
+        assert distinct_self_introductions(text, intro_chars=2000) == ["Kevin Roose"]
+
+
+class TestRecurrentHostsAcrossEpisodes:
+    """A guest appears once; a host appears every week (#2075)."""
+
+    @staticmethod
+    def _run(episodes, **kw):
+        from podcast_scraper.speaker_detectors.hosts import recurrent_hosts_across_episodes
+
+        return recurrent_hosts_across_episodes(episodes, **kw)
+
+    def test_a_weekly_self_introducer_is_the_host(self) -> None:
+        episodes = [["Russ Roberts"], ["Russ Roberts"], ["Russ Roberts"], ["Russ Roberts"]]
+        assert self._run(episodes) == {"Russ Roberts"}
+
+    def test_a_one_off_guest_is_not(self) -> None:
+        episodes = [
+            ["Russ Roberts", "Ada Lovelace"],
+            ["Russ Roberts"],
+            ["Russ Roberts"],
+            ["Russ Roberts"],
+        ]
+        assert self._run(episodes) == {"Russ Roberts"}
+
+    def test_three_episodes_is_not_enough_on_a_long_feed(self) -> None:
+        # Clears min_episodes, fails min_share: a recurring guest on a twenty-episode show.
+        episodes = [["Ada Lovelace"]] * 3 + [["Russ Roberts"]] * 17
+        assert self._run(episodes) == {"Russ Roberts"}
+
+    def test_asr_spelling_variants_are_one_host_not_three(self) -> None:
+        # Counted separately none of these clears 25%; merged, Casey is plainly the co-host.
+        episodes = (
+            [["Kevin Roose", "Casey Newn"]] * 4
+            + [["Kevin Roose", "Casey Noon"]] * 4
+            + [["Kevin Roose", "Casey Newton"]] * 4
+        )
+        out = self._run(episodes)
+        assert "Kevin Roose" in out
+        assert len([n for n in out if n.lower().startswith("casey")]) == 1
+
+    def test_the_show_saying_its_own_name_is_not_a_presenter(self) -> None:
+        episodes = [["Trivium China"]] * 10
+        assert self._run(episodes, feed_title="The Trivium China Podcast") == set()
+
+    def test_a_recurring_mononym_is_refused(self) -> None:
+        # "Brandon" cleared the thresholds on Latent Space and is not one of its hosts.
+        assert self._run([["Brandon"]] * 10) == set()
+
+    def test_a_network_bumper_is_refused(self) -> None:
+        assert self._run([["Pushkin Industries"]] * 10) == set()
+
+
+class TestHostsFromEpisodeDescriptionRefusesNonHosts:
+    """The name before the cue is the host — except when it isn't (#2075).
+
+    Every case here was found by running the extractor over the production corpus, not invented.
+    """
+
+    @staticmethod
+    def _run(title, desc, feed):
+        from podcast_scraper.speaker_detectors.hosts import hosts_from_episode_description
+
+        return hosts_from_episode_description(title, desc, feed)
+
+    def test_the_plain_case_still_works(self) -> None:
+        out = self._run(
+            "Whatnot's global marketplace",
+            "David George is joined by Grant LaFontaine, co-founder of Whatnot.",
+            "The a16z Show",
+        )
+        assert out == {"David George"}
+
+    def test_two_hosts_share_the_slot(self) -> None:
+        out = self._run(
+            "",
+            "Jack Farley and Max Wiethe speak with Ara Kharazian, Lead Economist at Ramp.",
+            "The a16z Show",
+        )
+        assert out == {"Jack Farley", "Max Wiethe"}
+
+    def test_the_title_does_not_run_into_the_description(self) -> None:
+        # Joined with a bare space this produced a host called "Forecasting Theo Jaffee".
+        out = self._run(
+            "Robin Hanson on Prediction Markets and the Future of Forecasting",
+            "Theo Jaffee speaks with economist Robin Hanson about prediction markets.",
+            "The a16z Show",
+        )
+        assert out == {"Theo Jaffee"}
+
+    def test_a_job_title_is_not_part_of_the_name(self) -> None:
+        # "a16z General Partner David George is joined by..." — the run has no left anchor.
+        out = self._run(
+            "",
+            "a16z General Partner David George is joined by Grant LaFontaine.",
+            "The a16z Show",
+        )
+        assert out == {"David George"}
+
+    def test_the_guest_first_phrasing_is_refused(self) -> None:
+        # "Listen as journalist Stephen Witt speaks with EconTalk's Russ Roberts..." — the show
+        # naming itself after the cue is what marks the sentence as running the other way.
+        out = self._run(
+            "The Man Who Built NVIDIA (with Stephen Witt)",
+            "Listen as journalist Stephen Witt speaks with EconTalk's Russ Roberts about Jensen.",
+            "EconTalk",
+        )
+        assert out == set()
+
+    def test_the_show_can_never_be_its_own_host(self) -> None:
+        out = self._run("", "Planet Money is joined by an economist.", "Planet Money")
+        assert out == set()
