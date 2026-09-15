@@ -372,7 +372,17 @@ eval-search:
 	$(PYTHON) scripts/eval/search_quality.py --corpus $(CORPUS) --queries $(QUERIES) --out $(OUT)
 
 # Shared markdownlint CLI args — keep lint-markdown and fix-md identical (and aligned with CI).
+# `**/*.md` skips dot-directories (globby `dot:false`), so the dot-dir/dot-file docs below are listed
+# explicitly — otherwise `make lint-markdown` and the pre-commit hook (which lints STAGED files,
+# including .github/**) disagree, and a doc can pass one but fail the other.
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
+	".github/**/*.md" \
+	".cursor/**/*.md" \
+	".devcontainer/**/*.md" \
+	".journal/**/*.md" \
+	".metrics/**/*.md" \
+	".ai-coding-guidelines.md" \
+	".ai-coding-guidelines-quick.md" \
 	--ignore node_modules \
 	--ignore "**/node_modules/**" \
 	--ignore .venv \
