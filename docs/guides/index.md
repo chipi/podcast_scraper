@@ -28,6 +28,7 @@ Practical guides for using and developing Podcast Scraper.
 | [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md) | Add other Docker Compose apps on the same Tailscale VPS without new IaaC; isolation, GitOps, ports |
 | [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/`, env files, Makefile targets for the viewer |
 | [Server Guide](SERVER_GUIDE.md) | FastAPI: `/api/*` (artifacts, CIL, search with optional **`lifted`**, explore, Corpus Library, index rebuild), OpenAPI `/docs`, static SPA, tests under `tests/integration/server/` |
+| [Notifications & Delivery Guide](NOTIFICATIONS_GUIDE.md) | End-to-end: subscriptions (Web Push + native iOS APNs), consent matrix, digest/recap/recommendations generation, the `/internal/outbox` seam, and the homelab last-mile worker (Resend / Web Push / APNs). Governed by ADR-144/145, RFC-110/122 |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline flow, module roles, quirks, run tracking |
 | [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Git worktree-based development workflow |
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |

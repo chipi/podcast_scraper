@@ -303,6 +303,23 @@ Caddy).
 
 **Avoid early:** DIY K8s; ClickHouse/OpenSearch until needed; **one container per podcast**.
 
+### B.4a Outbound notifications & delivery (the outbox seam)
+
+Distinct from the pipeline workers above: user-facing notifications (digest
+emails, push nudges, native iOS APNs, daily recap) flow through a
+**channel-agnostic outbox seam**. The app enqueues structured `DeliveryEnvelope`s
+into a file-backed outbox; a **stateless last-mile worker** pulls them over a
+token-gated `/internal/outbox` API, renders per channel, and sends via Resend
+(email) / Web Push (VAPID) / APNs (native iOS), reporting terminal status back
+so the app can suppress bad recipients. The worker currently lives in the
+homelab infra repo (`agentic-ai-homelab/infra/delivery/`); its packaging is
+under reevaluation ([#2077](https://github.com/chipi/podcast_scraper/issues/2077)).
+
+Full walkthrough: **[Notifications & Delivery Guide](../guides/NOTIFICATIONS_GUIDE.md)**.
+Design: [ADR-144](../adr/ADR-144-self-hosted-delivery-queue-outsourced-last-mile.md),
+[ADR-145](../adr/ADR-145-channel-agnostic-outbox-seam.md),
+[RFC-110](../rfc/RFC-110-outbound-delivery-and-seam.md).
+
 ### B.5 Redis and job queue
 
 **Role:** Broker for job library — API enqueues, returns fast; workers compete; retries /
