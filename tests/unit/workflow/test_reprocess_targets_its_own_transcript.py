@@ -10,9 +10,10 @@ transcripts, and 33 were rewritten onto a DIFFERENT episode's file, behind a WAR
 from __future__ import annotations
 
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
-from types import SimpleNamespace
 
+from podcast_scraper.models.entities import Episode, TranscriptionJob
 from podcast_scraper.workflow.episode_processor import _existing_transcript_for
 from podcast_scraper.workflow.stages.scraping import (
     _on_disk_guid_index,
@@ -40,9 +41,20 @@ def _episode_on_disk(run: Path, idx: int, title: str, guid: str, *, segments: bo
     return meta
 
 
-def _job(idx: int, transcript: str | None) -> SimpleNamespace:
-    episode = SimpleNamespace(on_disk_transcript=transcript)
-    return SimpleNamespace(idx=idx, episode=episode)
+def _job(idx: int, transcript: str | None) -> TranscriptionJob:
+    """A real job, not a stub: the function reads `job.episode.on_disk_transcript`, and a
+    SimpleNamespace standing in for the dataclass hid that from the type checker."""
+    episode = Episode(
+        idx=idx,
+        title="t",
+        title_safe="t",
+        item=ET.Element("item"),
+        transcript_urls=[],
+        on_disk_transcript=transcript,
+    )
+    return TranscriptionJob(
+        idx=idx, ep_title="t", ep_title_safe="t", temp_media="", episode=episode
+    )
 
 
 class TestTheEpisodeKnowsItsOwnFile:

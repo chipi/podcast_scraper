@@ -604,3 +604,46 @@ class TestHostsFromEpisodeDescriptionRefusesNonHosts:
     def test_the_show_can_never_be_its_own_host(self) -> None:
         out = self._run("", "Planet Money is joined by an economist.", "Planet Money")
         assert out == set()
+
+
+class TestTheIAmAndBrandedIntroForms:
+    """Two openings the scanner could not see, and the trap in one of them (#2075)."""
+
+    @staticmethod
+    def _ex(text, feed=None):
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        return extract_self_introduced_host(text, intro_chars=2000, feed_title=feed)
+
+    def test_i_am_is_the_same_statement_as_im(self) -> None:
+        # Macro Musings opens this way on 36 episodes and none of them were readable.
+        assert self._ex("Welcome to Macro Musings. I am your host, David Beckworth.") == (
+            "David Beckworth"
+        )
+
+    def test_i_am_without_the_role_phrase(self) -> None:
+        assert self._ex("I am David Beckworth and this is Macro Musings.") == "David Beckworth"
+
+    def test_the_branded_open_names_the_host(self) -> None:
+        assert self._ex("Hello, it's Eric Topol with Ground Truths.", "Ground Truths") == (
+            "Eric Topol"
+        )
+
+    def test_a_sponsor_read_in_the_same_shape_is_refused(self) -> None:
+        # "it's <Name> from <Company>" is how an AD opens. An ad narrator says their own name by
+        # design, which is what makes the most-trusted signal the easiest to poison. The show
+        # condition is the only thing separating this from the line above.
+        assert (
+            self._ex(
+                "Hi, it's Michael Sullivan from Wirecutter, the product recommendation service.",
+                "Hard Fork",
+            )
+            is None
+        )
+
+    def test_with_no_feed_title_the_branded_form_does_not_fire(self) -> None:
+        # No title means no way to tell the show from a sponsor, so it abstains rather than guess.
+        assert self._ex("Hello, it's Eric Topol with Ground Truths.", None) is None
+
+    def test_a_bare_it_is_phrase_is_not_a_self_introduction(self) -> None:
+        assert self._ex("It's Monday and we have a lot to get through.", "Ground Truths") is None

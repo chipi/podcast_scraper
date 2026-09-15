@@ -149,12 +149,14 @@ from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import (
     detect_hosts_from_feed,
     distinct_self_introductions,
+    drop_non_person_names,
     hosts_from_episode_description,
     hosts_from_feed_statement,
     is_network_or_org_author,
     normalize_host_names,
     recurrent_hosts_across_episodes,
 )
+from ...speaker_detectors.normalization import filter_default_speaker_names
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
 from ..types import (
@@ -799,7 +801,11 @@ def _recurrent_hosts_from_disk(output_dir: Optional[str], feed: Any) -> Set[str]
             continue
         # EVERY intro in the head, not the first. A two-host show introduces its second host
         # second, and reading one name per episode left every co-host below the threshold.
-        per_episode.append(distinct_self_introductions(head, intro_chars=_INTRO_SCAN_CHARS))
+        per_episode.append(
+            distinct_self_introductions(
+                head, intro_chars=_INTRO_SCAN_CHARS, feed_title=_feed_title(feed)
+            )
+        )
     if not per_episode:
         return set()
     return recurrent_hosts_across_episodes(per_episode, feed_title=_feed_title(feed))
@@ -931,6 +937,23 @@ def detect_feed_hosts_and_patterns(
         if not host_source:
             host_source = "recurrent self-introduction across the feed"
         logger.info("RECURRENT HOSTS (self-introduced across episodes): %s", sorted(added))
+
+    # ONE LAST FILTER OVER EVERY PATH THAT FED THIS SET. `cached_hosts` is assembled from the feed
+    # statement, the author tag, config `known_hosts`, episode authors and the recurrence scan, and
+    # each of those has its own idea of what an organisation looks like. Whatever got in, it leaves
+    # here as PEOPLE: a name in `known_hosts` is a name the roster may paint on a voice, and 128 of
+    # the 150 organisation names published as speakers on the snapshot arrived by exactly that
+    # route — "Andreessen Horowitz" on 60 voices, "Conversations with Tyler" on 23.
+    #
+    # This is the only layer that knows the feed's own title, so it is the only one that can refuse
+    # the SHOW; the publish gate catches publishers later but can never catch that.
+    _people = set(drop_non_person_names(sorted(cached_hosts), _feed_title(feed)))
+    if _people != cached_hosts:
+        logger.info(
+            "  → dropped non-person host candidate(s): %s",
+            sorted(cached_hosts - _people),
+        )
+        cached_hosts = _people
 
     # Log detected hosts with their source
     _log_detected_hosts(cached_hosts, feed, episode_authors, cfg, source=host_source)
@@ -1511,6 +1534,34 @@ def _detect_speakers_for_episode(
         for entry in detected_speakers or []:
             flat_speakers.extend(_flatten_speaker_name_entries(entry))
         host_strings = _speaker_names_to_str_set(detected_hosts_set)
+
+        # A PLACEHOLDER IS THE ABSENCE OF A NAME, AND IT WAS BEING PUBLISHED AS ONE.
+        #
+        # Every provider returns `DEFAULT_SPEAKER_NAMES` (`["Host", "unknown_guest_1"]`) as its
+        # failure value, and from here they flowed on as if detection had succeeded: into
+        # `detected_hosts`/`detected_guests`, into `metadata_named`, and so into the closed
+        # candidate list the resolver may match a voice against. The resolver then did exactly what
+        # it is built to do — matched a voice to a name the metadata stated. Measured on the
+        # production snapshot: the literal string `Host` is published as a speaker on 59 episodes
+        # and `unknown_guest_1` on 17, every one of them `source=llm_resolution`; on 29 episodes a
+        # placeholder is the ONLY roster name, so the episode reads as attributed when nobody was
+        # identified at all.
+        #
+        # Dropped here rather than at the publish gate because a placeholder must never become a
+        # CANDIDATE: a name in the closed list is a name the roster is permitted to bind, and the
+        # whole guard (#876) is that the list only contains people someone actually named.
+        # Filtering leaves detection reporting honestly that it found nobody — which is what
+        # happened.
+        flat_speakers = filter_default_speaker_names(flat_speakers)
+        host_strings = set(filter_default_speaker_names(sorted(host_strings)))
+
+        # ...and no organisations either. An LLM detector asked who is on the episode answers with
+        # the network and the show as readily as with a person, and every name surviving here
+        # reaches the closed candidate list the resolver may bind a voice to — which is how
+        # "Machine Learning Street" came to be published as a speaker 26 times by that resolver.
+        _feed_t = host_detection_result.feed_title
+        flat_speakers = drop_non_person_names(flat_speakers, _feed_t)
+        host_strings = set(drop_non_person_names(sorted(host_strings), _feed_t))
 
         # THE EPISODE'S OWN DESCRIPTION NAMES ITS HOST, on the shows where nothing else can.
         # "Elena Burger is joined by a16z's Andy McCall" — the guest cue reads what FOLLOWS the

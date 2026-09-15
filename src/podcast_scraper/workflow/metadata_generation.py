@@ -993,6 +993,14 @@ def _build_speakers_from_detected_names(
     """
     speakers: List[SpeakerInfo] = []
 
+    # The fallback path rebuilds the roster from the detected names, so it needs the same
+    # placeholder guard as the primary one — otherwise `Host` returns here the moment the
+    # diarized names are empty, which is precisely when detection failed.
+    from ..speaker_detectors.normalization import filter_default_speaker_names
+
+    detected_hosts = filter_default_speaker_names(list(detected_hosts or []))
+    detected_guests = filter_default_speaker_names(list(detected_guests or []))
+
     # Add hosts
     if detected_hosts:
         for idx, host_name in enumerate(detected_hosts):
@@ -1194,18 +1202,38 @@ def _speaker_lists_for_graph(
         seen.add(key)
         (guests if role == "guest" else hosts).append(clean)
 
+    # A RAW DIARIZATION LABEL IS NOT A PERSON. The roster now ABSTAINS rather than guess which of
+    # two co-hosts holds which voice (#2075/#2078), so a two-host episode arrives here as
+    # `SPEAKER_00`/`SPEAKER_01` with `role="host"`. Taken literally that publishes the label itself
+    # as a host Person node — followable, rankable, counted in person metrics. Same guard as
+    # `graph_id_utils.is_bare_speaker_label`, which also covers the role words ("Host", "Guest").
+    from ..graph_id_utils import is_bare_speaker_label
+
+    seated_roles: set[str] = set()
     for sp in speakers or []:
         nm = (getattr(sp, "name", "") or "").strip()
         rl = (getattr(sp, "role", "") or "").strip().lower()
-        if nm and rl in ("host", "guest"):
+        if rl in ("host", "guest"):
+            seated_roles.add(rl)
+        if nm and rl in ("host", "guest") and not is_bare_speaker_label(nm):
             roster_role.setdefault(nm.lower(), rl)
     for sp in speakers or []:
         nm = (getattr(sp, "name", "") or "").strip()
-        if nm:
+        if nm and not is_bare_speaker_label(nm):
             _take(nm, roster_role.get(nm.lower(), "host"))
     if roster_role:
-        # The roster heard this episode. It is authoritative about who spoke, and a name it never
-        # heard did not speak — publishing it as a host or guest is the error measured above.
+        # THE ROSTER SAYING "I CANNOT TELL WHICH" IS NOT THE ROSTER SAYING "THEY DID NOT SPEAK".
+        # The rule above — a name the roster never heard did not speak — answers the case where the
+        # roster considered a name and did not bind it. An ABSTENTION is a different state: the
+        # episode has host seats, they are occupied, and the only open question is which name goes
+        # on which voice. Dropping the names there would report a two-host show as having no hosts.
+        #
+        # Operator decision 2026-09-16: keep them as feed-level participants. They become `HOSTS`
+        # edges on the episode with no voice edge and no quote attribution, which is exactly what
+        # is known — the show has these hosts, and no voice claims to be a particular one.
+        if "host" in seated_roles and not hosts:
+            for nm in detected_hosts or []:
+                _take(nm, "host")
         return hosts, guests
     # No roster: the episode was never diarized, or diarization named nobody. The hint is then the
     # only evidence there is, so fall back to it wholesale rather than returning nothing.

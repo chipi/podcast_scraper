@@ -677,8 +677,12 @@ class TestBuildContentMetadata(unittest.TestCase):
         ]
         media_id = metadata.generate_content_id(TEST_MEDIA_URL)
 
+        # REAL NAMES, not "Host"/"Guest". This fixture used the literal placeholder strings as
+        # stand-in sample data, and `DEFAULT_SPEAKER_NAMES` is a provider's FAILURE value: "Host"
+        # now means "detection found nobody" and is filtered before it can reach a voice (#2075).
+        # The assembly this test is about is unchanged; only the sample names are.
         speakers = metadata._build_speakers_from_detected_names(
-            detected_hosts=["Host"], detected_guests=["Guest"]
+            detected_hosts=["Russ Roberts"], detected_guests=["Ada Lovelace"]
         )
         result = metadata._build_content_metadata(
             episode=episode,
@@ -699,8 +703,8 @@ class TestBuildContentMetadata(unittest.TestCase):
         self.assertEqual(len(result.speakers), 2)
         host_names = [s.name for s in result.speakers if s.role == "host"]
         guest_names = [s.name for s in result.speakers if s.role == "guest"]
-        self.assertEqual(host_names, ["Host"])
-        self.assertEqual(guest_names, ["Guest"])
+        self.assertEqual(host_names, ["Russ Roberts"])
+        self.assertEqual(guest_names, ["Ada Lovelace"])
 
     def test_build_content_metadata_with_none_values(self):
         """Test building content metadata with None values."""
@@ -3190,3 +3194,50 @@ class TestGenerateAndValidateSummaryRecoverable(unittest.TestCase):
         self.assertIsNone(summary_meta)
         self.assertGreaterEqual(elapsed, 0.0)
         mock_generate_summary.assert_called_once()
+
+
+class TestGraphSpeakersWhenTheRosterAbstains(unittest.TestCase):
+    """A two-host episode the roster could not assign (#2075/#2078)."""
+
+    @staticmethod
+    def _sp(name, role):
+        return SimpleNamespace(name=name, role=role)
+
+    def test_a_raw_diarization_label_never_becomes_a_person(self):
+        # Taken literally, an abstained host seat publishes "SPEAKER_00" as a host Person node.
+        hosts, guests = metadata._speaker_lists_for_graph(
+            [self._sp("SPEAKER_00", "host"), self._sp("SPEAKER_01", "host")],
+            [],
+            [],
+            "A Show",
+        )
+        self.assertEqual(hosts, [])
+        self.assertEqual(guests, [])
+
+    def test_abstained_hosts_stay_on_the_episode_as_participants(self):
+        # Operator decision 2026-09-16: keep the seat unnamed, keep the names in the KG with no
+        # voice edge. The show still lists its hosts; no voice claims to be a particular one.
+        hosts, guests = metadata._speaker_lists_for_graph(
+            [
+                self._sp("SPEAKER_00", "host"),
+                self._sp("SPEAKER_01", "host"),
+                self._sp("Grace Green", "guest"),
+            ],
+            ["Anna Adams", "Ben Baker"],
+            ["Grace Green"],
+            "A Show",
+        )
+        self.assertEqual(hosts, ["Anna Adams", "Ben Baker"])
+        self.assertEqual(guests, ["Grace Green"])
+
+    def test_a_named_roster_still_overrides_the_hint(self):
+        # The #2062 rule is untouched: where the roster DID hear the episode, a name it never heard
+        # does not become a host. Ben Baker sat this one out.
+        hosts, guests = metadata._speaker_lists_for_graph(
+            [self._sp("Anna Adams", "host"), self._sp("Grace Green", "guest")],
+            ["Anna Adams", "Ben Baker"],
+            ["Grace Green"],
+            "A Show",
+        )
+        self.assertEqual(hosts, ["Anna Adams"])
+        self.assertEqual(guests, ["Grace Green"])

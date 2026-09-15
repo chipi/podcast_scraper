@@ -91,3 +91,12 @@ class TestTheSubstantialityFloor:
         # S2 speaks, but under 5% of the episode: it does not compete, so the conclusion stands.
         texts = {"S0": HOST_TEXT, "S1": GUEST_TEXT, "S2": "Right. Mm-hm. Sure."}
         assert _call(texts, {"S0": "Russ Roberts"}, ["Russ Roberts"], "Ada Lovelace") == "S1"
+
+
+# The two-voice conv-host elimination (advisor binder B) was built here and REVERTED. It drew its
+# candidate from `metadata_named` instead of `guest_names`, which overrides corroboration — the gate
+# that answers "does the text say this person SPOKE?". `roster.py` documents an earlier rule of the
+# same shape being removed after it admitted five people who were never in the room, and
+# `test_a_stated_name_we_failed_to_place_is_our_DEFECT` is the case that caught it: it bound Qasar
+# Younis, whom corroboration had rejected, and silenced the defect alarm that episode exists to
+# raise. See the comment in `_name_guest_voices` for the full reasoning.
