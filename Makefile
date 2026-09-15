@@ -745,14 +745,14 @@ validate-kg-schema:
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
 SERVE_OUTPUT_DIR ?= ./output
-# serve-api bind — DEFAULT loopback:8000 (unchanged; safe local default). Override to reach
-# the API off-box, e.g. for a dev-signed iOS build's APNs token registration + the homelab
-# delivery worker pulling /internal/outbox over the tailnet:
-#   make serve-api SERVE_HOST=0.0.0.0 SERVE_PORT=8055     # tailnet+LAN, mock-auth API exposed
-#   make serve-api SERVE_HOST=100.x.y.z SERVE_PORT=8055   # tailnet-only (bind this box's ts IP)
-# Each worktree can take its own SERVE_PORT so several dev APIs run side by side; the delivery
-# worker's PODCAST_DEV_OUTBOX_URL points at whichever host:port is live.
-SERVE_HOST ?= 127.0.0.1
+# serve-api bind — DEFAULT 0.0.0.0:8000 so `make serve` "just works" for off-box dev:
+# a dev-signed iOS build's APNs token registration + the homelab delivery worker pulling
+# /internal/outbox both reach it over the tailnet, with ZERO extra flags. Binding 0.0.0.0
+# still answers on 127.0.0.1:8000, so the Vite proxy (/api -> 127.0.0.1:8000) and every other
+# localhost client keep working unchanged — it only ADDS tailnet + LAN reachability.
+# NOTE: serve-api defaults to mock OAuth (local dev), so on 0.0.0.0 the API is reachable on
+# your LAN too. Trusted-network dev only. Pin loopback with `make serve-api SERVE_HOST=127.0.0.1`.
+SERVE_HOST ?= 0.0.0.0
 SERVE_PORT ?= 8000
 # Optional corpus-editing + jobs routes (health shows green when on). Override with SERVE_ARGS= to disable.
 SERVE_ARGS ?= --enable-feeds-api --enable-operator-config-api --enable-jobs-api
