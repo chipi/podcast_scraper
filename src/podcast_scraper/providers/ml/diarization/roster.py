@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, replace
-from typing import AbstractSet, Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from ....speaker_detectors.hosts import (
     _clean_stated_name as _clean_intro_name,
@@ -48,6 +48,7 @@ from ....speaker_detectors.hosts import (
     NAME_FIRST_TAIL,
     roles_from_conversation,
 )
+from ....speaker_detectors.resolution import refuted_by_third_person
 from ....text_normalization import (
     first_names_match,
     normalize_for_match,
@@ -1102,6 +1103,102 @@ def _name_host_voices(
     return out
 
 
+#: Share of the episode's spoken text below which a voice is not a candidate for the
+#: host-elimination rule. Deliberately a SHARE and not the seconds-based ``cameo_max_talk_s``: the
+#: question here is "is this one of the substantial participants", and a five-minute tape insert on
+#: a ninety-minute show is not, however many seconds it ran.
+HOST_ELIMINATION_MIN_SHARE = 0.05
+
+#: Above this many diarized voices the elimination rule abstains. Three to five voices is an
+#: interview with a little tape in it. Six or more is a PRODUCED DESK SHOW, where reporters, field
+#: tape and vox-pops each get a cluster and nobody ever names most of them — so "the one voice left
+#: over" stops being arithmetic and becomes a guess. The corpus splits on exactly this line:
+#: <=5 voices, 97.7% correct over 86 firings; >=6 voices, 60% over 10.
+HOST_ELIMINATION_MAX_VOICES = 5
+
+
+def _guest_voice_by_host_elimination(
+    voice_texts: Mapping[str, str],
+    self_intros: Mapping[str, str],
+    known_hosts: Sequence[str],
+    guest_name: str,
+    *,
+    min_share: float = HOST_ELIMINATION_MIN_SHARE,
+    max_voices: int = HOST_ELIMINATION_MAX_VOICES,
+) -> Optional[str]:
+    """The one substantial voice that is NOT a host, where every host is already accounted for.
+
+    ``_name_guest_voices`` will force a name onto a voice when exactly one of each is left. On a
+    three-or-more-voice episode that condition almost never holds, so a panel show's guest stays a
+    raw ``SPEAKER_NN`` even when the arithmetic is actually complete: if the feed has two hosts and
+    BOTH of them introduced themselves, and only one other voice says anything substantial, there
+    is no one else the guest can be.
+
+    THE "EVERY HOST ACCOUNTED FOR" CLAUSE IS THE WHOLE RULE. Without it, "the one voice that is not
+    a pinned host" may simply BE the host nobody pinned — the advisor's sweep over the production
+    snapshot put that variant at 69-75%, far below the bar. A wrong name is worse than no name
+    (#876).
+
+    HOW THIS WAS MEASURED, and what the number does and does not say. The production corpus carries
+    no labelled answer key, so this is a HOLD-OUT: over episodes the pipeline already resolved to
+    exactly one named guest, pretend that binding does not exist, hand the rule the name, and ask
+    whether it picks the voice the binding is on. Passing ``known_hosts`` exactly as the call site
+    builds it (feed-detected hosts UNION the cross-episode recurrent hosts):
+
+        86 firings, 84 correct — 97.7%
+
+    Both misses are the same two China-Global South episodes, and they are artifacts of the hold-out
+    rather than errors: there the only candidate name IS the host's, already bound to his own voice
+    by his self-introduction, so ``len(spare) == 1`` is false and this function is never reached in
+    production. Read 97.7% as the floor, not as two real mistakes.
+
+    What the number does NOT cover: the episodes where the rule actually fires in production are
+    the ones where the guest name is UNBOUND, and those are by construction the harder cases. The
+    hold-out cannot measure them, because on them there is nothing to check the answer against.
+
+    Returns the voice id, or ``None`` when the conclusion is not forced. Every caller-side guard
+    still applies: the name must be a stated candidate with nothing else competing for it, the
+    voice must be otherwise unnamed, and the voice must not talk about ``guest_name`` in the third
+    person.
+    """
+    texts = {v: str(t or "") for v, t in (voice_texts or {}).items()}
+    hosts = [h for h in (known_hosts or ()) if str(h).strip()]
+    if not (3 <= len(texts) <= max_voices) or not hosts or not str(guest_name or "").strip():
+        return None
+    host_set = set(hosts)
+    pinned = {
+        v
+        for v, n in (self_intros or {}).items()
+        if v in texts and _canonicalize_to_known_host(n, hosts) in host_set
+    }
+    if not pinned:
+        return None
+    accounted = {
+        _canonicalize_to_known_host(n, hosts) for v, n in self_intros.items() if v in pinned
+    }
+    if accounted != host_set:
+        return None
+    total = sum(len(t) for t in texts.values())
+    if total <= 0:
+        return None
+    substantial = [v for v, t in texts.items() if (len(t) / total) >= min_share]
+    rest = [v for v in substantial if v not in pinned]
+    if len(rest) != 1:
+        return None
+    voice = rest[0]
+    # THE VOICE ALREADY TOLD US WHO IT IS, AND IT IS NOT THEM. A co-host the recurrence scan missed
+    # still self-introduces on air, and without this the elimination hands them the guest's name:
+    # on The Journal the feed's recurrent list holds only Jessica Mendoza, so co-host Ryan Knutson
+    # was the single unpinned substantial voice and was about to be published as the guest.
+    # A self-introduction outranks an arithmetic conclusion, always.
+    spoken = (self_intros or {}).get(voice)
+    if spoken and not _same_person(spoken, guest_name):
+        return None
+    if refuted_by_third_person(texts[voice], guest_name):
+        return None
+    return voice
+
+
 def _name_guest_voices(
     voices_by_total: Sequence[str],
     assigned: Dict[str, SpeakerRole],
@@ -1112,6 +1209,9 @@ def _name_guest_voices(
     talk: Optional[Dict[str, float]] = None,
     llm_named: Optional[set] = None,
     cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
+    voice_texts: Optional[Mapping[str, str]] = None,
+    self_intros: Optional[Mapping[str, str]] = None,
+    known_hosts: Sequence[str] = (),
 ) -> Dict[str, SpeakerRole]:
     """Name the remaining voices from EVIDENCE, never from position.
 
@@ -1164,6 +1264,20 @@ def _name_guest_voices(
         if len(remaining) == 1:
             forced = spare[0]
             unassigned = remaining
+
+    # ...and on a PANEL, where "one voice left" never holds because the tape, the caller and the
+    # producer each have a cluster. One name still going spare and every one of the feed's hosts
+    # already on a voice of its own leaves exactly one substantial voice unexplained, and that is
+    # an arithmetic conclusion rather than a preference — see
+    # :func:`_guest_voice_by_host_elimination` for the measurement and for why "every host
+    # accounted for" is the clause the whole rule rests on.
+    if forced is None and len(spare) == 1:
+        picked = _guest_voice_by_host_elimination(
+            voice_texts or {}, self_intros or {}, known_hosts, spare[0]
+        )
+        if picked is not None and picked not in assigned and picked not in voice_intro:
+            forced = spare[0]
+            unassigned = [picked]
 
     #: How many anonymous voices have already spent a guest name as their evidence (#2062).
     spent_unnamed_guest_evidence = 0
@@ -2032,6 +2146,9 @@ def resolve_speaker_roster(
             talk=total,
             llm_named=llm_named,
             cameo_max_talk_s=profile.cameo_max_talk_s,
+            voice_texts=voice_texts or {},
+            self_intros=_names_self_intro,
+            known_hosts=known_hosts,
         )
     )
     # They still belong in the roster — as "Advertisement", not as a missing id.

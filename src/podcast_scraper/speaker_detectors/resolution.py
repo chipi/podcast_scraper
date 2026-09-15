@@ -260,7 +260,7 @@ def _talks_about(text: str, name: str) -> bool:
     )
 
 
-def _refuted_by_third_person(voice_text: str, name: str) -> bool:
+def refuted_by_third_person(voice_text: str, name: str) -> bool:
     """IF YOU SAY SOMEBODY'S NAME IN THE THIRD PERSON, YOU ARE NOT THEM.
 
     The retrieval that makes this work is also what misleads the model. It hands over passages
@@ -338,7 +338,7 @@ def resolve_voices_and_roles(
             match = by_stated.get(verdict.name.strip().lower())
             if match is None:
                 invented.append(verdict.name)
-            elif _refuted_by_third_person(voice_texts[voice], match):
+            elif refuted_by_third_person(voice_texts[voice], match):
                 refuted.append(f"{voice}={match}")
                 refuted_pairs.append((voice, match))
             elif match.lower() in used:  # rule 5 — one person, one voice
@@ -384,7 +384,7 @@ def resolve_voices_and_roles(
             existing = out.get(other)
             if existing is not None and existing.name:
                 continue  # that voice already has a name; do not overwrite a direct answer
-            if _refuted_by_third_person(voice_texts[other], name):
+            if refuted_by_third_person(voice_texts[other], name):
                 continue  # the other voice talks about them too — no evidence either way
             used.add(name.lower())
             out[other] = LLMVoice(name=name, role=existing.role if existing else None)
