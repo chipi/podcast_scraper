@@ -1808,6 +1808,6 @@ Optional `BASELINE` picks the default row in the **Baseline (for deltas)** dropd
 | [RFC-041](../rfc/RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarking framework |
 | [RFC-044](../rfc/RFC-044-model-registry.md) | Model registry and mode promotion |
 | [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Resource-cost profiles (RSS, CPU%, wall time) |
-| [Optimization Workflow](OPTIMIZATION_WORKFLOW_GUIDE.md) | End-to-end optimization workflow |
+| [Optimization Workflow](https://evals.tail6d0ed4.ts.net/guides/OPTIMIZATION_WORKFLOW_GUIDE/) | End-to-end optimization workflow |
 | [`data/eval/README.md`](https://github.com/chipi/podcast_scraper/blob/main/data/eval/README.md) | Eval directory contract |
 | [`data/eval/references/silver/README.md`](https://github.com/chipi/podcast_scraper/blob/main/data/eval/references/silver/README.md) | Active silver references |

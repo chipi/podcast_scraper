@@ -398,7 +398,7 @@ cat data/eval/baselines/bart_led_baseline_v1/fingerprint.json | jq '.preprocessi
 
 - **[ADR-017: Registered Preprocessing Profiles](../adr/ADR-017-registered-preprocessing-profiles.md)** - Design decision rationale
 - **[RFC-045: ML Model Optimization Guide](../rfc/RFC-045-ml-model-optimization-guide.md)** - How to use profiles for quality optimization
-- **[Experiment Guide](EXPERIMENT_GUIDE.md)** - How to run experiments with profiles
+- **[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/)** - How to run experiments with profiles
 - **[API: Configuration](../api/CONFIGURATION.md)** - Technical API reference
 
 ---
@@ -417,5 +417,5 @@ cat data/eval/baselines/bart_led_baseline_v1/fingerprint.json | jq '.preprocessi
 **Next Steps:**
 
 - Read [RFC-045](../rfc/RFC-045-ml-model-optimization-guide.md) for optimization strategies
-- Check [Experiment Guide](EXPERIMENT_GUIDE.md) for how to use profiles in experiments
+- Check [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) for how to use profiles in experiments
 - See [ADR-017](../adr/ADR-017-registered-preprocessing-profiles.md) for design rationale

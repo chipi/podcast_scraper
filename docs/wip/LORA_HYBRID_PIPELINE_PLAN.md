@@ -9,7 +9,7 @@ that matters.
 
 ## ⚠️ Status 2026-04-16: GATED ON TIER-2, NOT ACTIVE
 
-v2 closed (see [held-out v2 eval report](../guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md)).
+v2 closed (see [held-out v2 eval report](https://evals.tail6d0ed4.ts.net/guides/eval-reports/EVAL_HELDOUT_V2_2026_04/)).
 What we learned changes the premise of this plan:
 
 1. **Hybrid's v2 ceiling is visible.** hybrid bart+llama3.2:3b = 0.430, hybrid bart+qwen3.5:9b

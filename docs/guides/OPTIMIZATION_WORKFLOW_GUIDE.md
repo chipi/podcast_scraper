@@ -7,12 +7,12 @@ what was measured, when, and why.
 
 **Related guides** (read first if unfamiliar with the tooling):
 
-- [Experiment Guide](EXPERIMENT_GUIDE.md) -- eval system: datasets,
+- [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) -- eval system: datasets,
   baselines, configs, scoring, references, silver/gold promotion
 - [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) -- frozen
   profiles (`make profile-freeze`), psutil sampling, stage attribution,
   `stage_truth.json` (RFC-064)
-- [Experiment Guide](EXPERIMENT_GUIDE.md) -- what each metric means
+- [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) -- what each metric means
   (ROUGE, gates, latency, cost), `metrics.json` schema, vs_reference
   scoring (see Step 4: Evaluate Results)
 - [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) -- real-time stage /
@@ -21,7 +21,7 @@ what was measured, when, and why.
   considerations, cache behavior, audio preprocessing costs
 - [AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md) --
   provider decision matrices, cost analysis, eval reports
-- [Experiment Guide](EXPERIMENT_GUIDE.md) -- how runs become baselines,
+- [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) -- how runs become baselines,
   silvers, or app defaults (see "Step 5: Promote a run")
 
 ---
@@ -46,7 +46,7 @@ Before writing any code, understand where the time and money go.
   see [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) for how
   to interpret them.
 - Read existing eval runs (`data/eval/runs/`) for quality and cost
-  numbers -- see [Experiment Guide](EXPERIMENT_GUIDE.md) (Step 4) for
+  numbers -- see [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) (Step 4) for
   what each metric means.
 - Optionally use [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md)
   (`--monitor`) to watch a single run in real time and spot where the
@@ -68,7 +68,7 @@ Everything for this optimization lives there: configs, outputs, READMEs.
 
 **Quality + cost baseline (eval):**
 
-Use the experiment system described in [Experiment Guide](EXPERIMENT_GUIDE.md).
+Use the experiment system described in [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/).
 Create an experiment config YAML in your dedicated folder and run it with
 `--cost-report` to capture token counts:
 
@@ -79,7 +79,7 @@ Create an experiment config YAML in your dedicated folder and run it with
 ```
 
 This produces `metrics.json` (ROUGE, gates, latency -- see
-[Experiment Guide](EXPERIMENT_GUIDE.md) Step 4) and `eval_pipeline_metrics.json`
+[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) Step 4) and `eval_pipeline_metrics.json`
 (tokens, calls, estimated USD per stage).
 
 **Performance baseline (profile):**
@@ -157,7 +157,7 @@ make the ship/iterate/reject decision.
 
 If the optimization passes, consider whether the new config should be
 promoted to a baseline or app default -- see
-[Experiment Guide](EXPERIMENT_GUIDE.md) (Step 5: Promote a run).
+[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) (Step 5: Promote a run).
 
 ---
 
@@ -200,11 +200,11 @@ data/profiles/issue-NNN/
 
 | What you need | Tool / guide |
 | --- | --- |
-| Run an experiment (quality + cost) | [Experiment Guide](EXPERIMENT_GUIDE.md) |
-| Understand metrics (ROUGE, gates, cost) | [Experiment Guide](EXPERIMENT_GUIDE.md) (Step 4) |
+| Run an experiment (quality + cost) | [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) |
+| Understand metrics (ROUGE, gates, cost) | [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) (Step 4) |
 | Capture a frozen profile (wall time, CPU%, RSS) | [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) |
 | Watch a run in real time (stage, RSS, CPU) | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) |
 | Compare providers (cost, quality, speed) | [AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md) |
 | General performance tips (caching, audio) | [Performance Guide](PERFORMANCE.md) |
-| Promote a run to baseline or silver | [Experiment Guide](EXPERIMENT_GUIDE.md) (Step 5) |
-| Eval system mechanics (datasets, refs) | [Experiment Guide](EXPERIMENT_GUIDE.md) |
+| Promote a run to baseline or silver | [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) (Step 5) |
+| Eval system mechanics (datasets, refs) | [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) |

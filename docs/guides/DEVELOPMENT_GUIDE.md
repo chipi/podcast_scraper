@@ -22,7 +22,7 @@ For comprehensive testing information, see the dedicated testing documentation:
 
 - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
-- **[Experiment Guide](EXPERIMENT_GUIDE.md)** — Complete guide: datasets, baselines, experiments, and evaluation
+- **[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/)** — Complete guide: datasets, baselines, experiments, and evaluation
 - **[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)** — Frozen release profiles (RSS, CPU%, wall time per stage; RFC-064)
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
@@ -244,7 +244,7 @@ make experiment-run \
   REFERENCE=silver_gpt52_v1
 ```
 
-For details, see the **[Experiment Guide](EXPERIMENT_GUIDE.md)** (Step 4: Evaluate Results).
+For details, see the **[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/)** (Step 4: Evaluate Results).
 
 ## Environment Setup
 
@@ -776,7 +776,7 @@ make runs-list
 ```
 
 **Full guide:**
-[Experiment Guide](EXPERIMENT_GUIDE.md) and
+[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) and
 `data/eval/README.md`.
 
 ## Performance profiles (`data/profiles/`)
@@ -1944,7 +1944,7 @@ quadrant).
 **Validating provider quality:** Run experiments
 against `data/eval/` baselines and capture
 performance profiles in `data/profiles/`. See
-[Experiment Guide](EXPERIMENT_GUIDE.md) and
+[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) and
 [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md).
 
 ## Third-Party Dependencies

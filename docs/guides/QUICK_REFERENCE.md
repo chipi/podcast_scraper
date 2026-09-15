@@ -200,7 +200,7 @@ make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
 ```
 
 **Docs:**
-[Experiment Guide](EXPERIMENT_GUIDE.md)
+[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/)
 · [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)
 · `data/eval/README.md`
 · `data/profiles/README.md`
@@ -371,7 +371,7 @@ On **`main`**, GitHub Actions runs **`stack-test.yml`** against the same topolog
 - [Testing Guide](TESTING_GUIDE.md) - Detailed test information
 - [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) - Provider decision guide
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) - Per-provider benchmarks
-- [Experiment Guide](EXPERIMENT_GUIDE.md) - Eval datasets and baselines
+- [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/) - Eval datasets and baselines
 - [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) - Release timing snapshots
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Docker usage and deployment
 - [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) - Always-on VPS, CI, Tailscale, OpenTofu narrative

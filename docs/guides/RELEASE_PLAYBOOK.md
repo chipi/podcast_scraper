@@ -48,11 +48,11 @@ without the `v`**:
 Releases that change providers, default models, or quality-sensitive pipeline behavior are
 defensible on **two** axes:
 
-1. **Evaluation (quality)** — [Experiment Guide](EXPERIMENT_GUIDE.md), baselines under `data/eval/`,
-   [Evaluation reports](eval-reports/index.md).
+1. **Evaluation (quality)** — [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/), baselines under `data/eval/`,
+   [Evaluation reports](https://evals.tail6d0ed4.ts.net/guides/eval-reports/).
 2. **Performance (resource / wall time)** — [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md),
    `make profile-freeze` / `make profile-diff`, artifacts under `data/profiles/`, companion
-   `*.stage_truth.json`, [Performance reports](performance-reports/index.md).
+   `*.stage_truth.json`, [Performance reports](https://evals.tail6d0ed4.ts.net/guides/performance-reports/).
 
 ---
 
@@ -110,7 +110,7 @@ make profile-diff FROM=vPREVIOUS TO=vX.Y.Z
 ```
 
 - Commit `data/profiles/<version>.yaml` and `<version>.stage_truth.json`.
-- Update [performance reports](performance-reports/index.md) if publishing a written snapshot.
+- Update [performance reports](https://evals.tail6d0ed4.ts.net/guides/performance-reports/) if publishing a written snapshot.
 
 **If skipping for minor:** Add a subsection to release notes: "Eval/profiles unchanged from
 vX.Y.(Z-1)."

@@ -35,7 +35,7 @@ of what was addressed and why.
 **Estimated cost:** M — L (depends on approach)
 **Blocking:** closing the last +408 ms (+7%) regression vs main on prod-v2 graph settle
 **Context:** PR #1207's perf work landed 1137 ms of savings (bridge cache/debounce + #1211 fast path + fcose label opt-out), leaving a residual +408 ms (+7%) on graph time-to-canvas vs main. Diagnostic in
-[`docs/guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md`](../guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md) attributed the residual to wave 1's fcose layout on 833 nodes on prod-v2 — now the single largest cost on the critical path.
+[`docs/guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md`](https://evals.tail6d0ed4.ts.net/guides/perf-traces/reports/graph-v3-tuning-2026-07-19/) attributed the residual to wave 1's fcose layout on 833 nodes on prod-v2 — now the single largest cost on the critical path.
 
 Empirical tuning (documented in the traces README + #1211 comment) tried
 every obvious fcose lever without breaking layout: numIter, nodeRepulsion,
@@ -77,7 +77,7 @@ can be projected. `topDown` is a **display-side filter**, not a
 data-fetch short-circuit.
 
 Evidence + full write-up:
-[`traces/README.md § TopDown load-mode audit`](../guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md#topdown-load-mode-audit-2026-07-19).
+[`traces/README.md § TopDown load-mode audit`](https://evals.tail6d0ed4.ts.net/guides/perf-traces/reports/graph-v3-tuning-2026-07-19/#topdown-load-mode-audit-2026-07-19).
 
 **Why deferred:** the fix is an `artifacts.ts` refactor that would let
 topDown skip the full-artifact parse (fetch theme_clusters only, lazy

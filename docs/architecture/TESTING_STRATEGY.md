@@ -855,7 +855,7 @@ Quality evaluation is integrated into the
 deployments and configuration changes. The complete
 evaluation loop (runner, scorer, comparator) is
 documented in the
-**[Experiment Guide](../guides/EXPERIMENT_GUIDE.md)**
+**[Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/)**
 (Step 4: Evaluate Results).
 
 ## CI/CD Integration

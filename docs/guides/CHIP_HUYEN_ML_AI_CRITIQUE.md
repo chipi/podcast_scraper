@@ -32,7 +32,7 @@ Ask things like:
 - *"Is our eval plan honest for open-ended LLM outputs?"*
 - *"Quick ML-systems check — where’s the biggest architectural smell?"*
 
-**Repo anchors:** [Experiment Guide](EXPERIMENT_GUIDE.md), [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md), [Pipeline and Workflow](PIPELINE_AND_WORKFLOW.md), [Configuration API](../api/CONFIGURATION.md).
+**Repo anchors:** [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/), [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md), [Pipeline and Workflow](PIPELINE_AND_WORKFLOW.md), [Configuration API](../api/CONFIGURATION.md).
 
 ---
 
@@ -272,5 +272,5 @@ unbounded agents. Name the risk, tie it to a theme above, and propose a **specif
 
 - [Tufte Chart Critique](TUFTE_CHART_CRITIQUE.md)
 - [SRE Book Infra Critique](SRE_BOOK_INFRA_CRITIQUE.md)
-- [Experiment Guide](EXPERIMENT_GUIDE.md)
+- [Experiment Guide](https://evals.tail6d0ed4.ts.net/guides/EXPERIMENT_GUIDE/)
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md)
