@@ -194,11 +194,21 @@ def _iter_loaded(corpus_dir: Path):
     """Yield ``(source, artifact_dict)`` for every GI and KG artifact under *corpus_dir*."""
     from ..gi.corpus import load_gi_artifacts
     from ..gi.explore import scan_artifact_paths as scan_gi_paths
-    from ..kg.corpus import load_kg_artifacts, scan_kg_artifact_paths
+    from ..kg.corpus import load_kg_artifacts, newest_run_artifact_paths, scan_kg_artifact_paths
 
-    for _path, data in load_kg_artifacts(scan_kg_artifact_paths(corpus_dir)):
+    # NEWEST RUN PER EPISODE. This registry answers the MCP `resolve` tool, so a superseded run
+    # reaches a user: after a `relabel_only` repair the OLD run still holds the pre-repair roster
+    # — the show as a host, the guest as a mention — and resolving against both makes the repaired
+    # answer compete with the answer it replaced. Measured on a real repair, the stale run keeps
+    # 82 SPOKEN_BY edges pointing at the show.
+    #
+    # Same membership rule as the catalog and the served graph, so the three cannot disagree about
+    # which artifacts ARE the corpus.
+    kg_paths = newest_run_artifact_paths(corpus_dir, scan_kg_artifact_paths(corpus_dir), ".kg.json")
+    gi_paths = newest_run_artifact_paths(corpus_dir, scan_gi_paths(corpus_dir), ".gi.json")
+    for _path, data in load_kg_artifacts(kg_paths):
         yield "kg", data
-    for _path, data in load_gi_artifacts(scan_gi_paths(corpus_dir)):
+    for _path, data in load_gi_artifacts(gi_paths):
         yield "gi", data
 
 

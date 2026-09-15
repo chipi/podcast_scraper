@@ -813,3 +813,93 @@ class TestTheShowNeverREADSAsTheSpeaker:
         edges: list = []
         _attach_person_for_quote(nodes, edges, "quote:q1", "Kevin Roose", pid, set(), display)
         assert _speaker_name({"nodes": nodes, "edges": edges}, pid) == "Kevin Roose"
+
+
+class TestAStaleRunCannotReachAReader:
+    """A superseded run stays on disk. Every USER-FACING reader must ignore it.
+
+    `relabel_only` writes the repaired episode to a NEW run directory and leaves the old one in
+    place — verified on a real repair against a production copy: the old run still holds the
+    pre-repair answer (82 `SPOKEN_BY` edges pointing at the show, the guest still `mentioned`)
+    while the new run holds the fixed one.
+
+    The catalog has always deduped to the newest run per episode; the graph builders did not.
+    Of the six readers that walked every run, exactly TWO reach a user — `gi.explore` (the explore
+    route and the MCP `gi` tool) and `identity.resolver` (the MCP `resolve` tool). The other four
+    are CLI/offline maintenance paths where seeing every run is defensible.
+
+    This pins the two that matter: with both runs on disk, the reader must see only the newer.
+    """
+
+    @staticmethod
+    def _two_run_corpus(tmp_path):
+        """A feed with an OLD run naming the show and a NEW run naming the guest."""
+        import json
+
+        feed = tmp_path / "feeds" / "f1"
+
+        def _write(run, stem, person_name):
+            md_dir, tr = feed / run / "metadata", feed / run / "transcripts"
+            md_dir.mkdir(parents=True, exist_ok=True)
+            tr.mkdir(parents=True, exist_ok=True)
+            (md_dir / f"{stem}.metadata.json").write_text(
+                json.dumps(
+                    {
+                        "feed": {"feed_id": "f1", "title": "T", "url": "https://e/f.xml"},
+                        "episode": {"episode_id": "ep1", "title": "E"},
+                        "content": {
+                            "speakers": [{"id": "host", "name": person_name, "role": "host"}]
+                        },
+                        "processing": {"schema_version": "1.0.0"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (md_dir / f"{stem}.gi.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "3.1",
+                        "episode_id": "ep1",
+                        "model_version": "m",
+                        "prompt_version": "v1",
+                        "nodes": [
+                            {
+                                "id": f"person:{person_name.lower().replace(' ', '-')}",
+                                "type": "Person",
+                                "properties": {"name": person_name},
+                            }
+                        ],
+                        "edges": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+        _write("run_20260101-000000", "0001 - E_old", "The Show Itself")
+        _write("run_20260202-000000", "0001 - E_new", "Real Guest")
+        return tmp_path
+
+    def test_explore_reads_only_the_newest_run(self, tmp_path) -> None:
+        from podcast_scraper.gi.explore import newest_run_artifact_paths, scan_artifact_paths
+
+        root = self._two_run_corpus(tmp_path)
+        found = scan_artifact_paths(root)
+        kept = newest_run_artifact_paths(root, found, ".gi.json")
+        assert len(found) == 2, "both runs are on disk — that is the situation being guarded"
+        assert len(kept) == 1
+        assert "20260202" in str(kept[0]), "the newer run must win"
+
+    def test_the_resolver_never_sees_the_superseded_answer(self, tmp_path) -> None:
+        from podcast_scraper.identity.resolver import _iter_loaded
+
+        root = self._two_run_corpus(tmp_path)
+        names = {
+            str((n.get("properties") or {}).get("name") or "")
+            for _src, data in _iter_loaded(root)
+            for n in data.get("nodes", [])
+            if isinstance(n, dict) and str(n.get("type")) == "Person"
+        }
+        assert "Real Guest" in names
+        assert (
+            "The Show Itself" not in names
+        ), "the MCP resolve tool would otherwise resolve against the answer that was replaced"
