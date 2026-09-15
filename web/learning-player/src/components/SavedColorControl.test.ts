@@ -1,12 +1,23 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import en from '../i18n/locales/en.json'
 import SavedColorControl from './SavedColorControl.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+// The palette teleports to <body> via the shared popover shell (useAnchoredMenu) so it can never
+// open off-screen. Stub teleport so it renders inline for `find`, and attach to the document so the
+// Escape / outside-pointer dismissal is real.
 const mountControl = (color: string | null = null) =>
-  mount(SavedColorControl, { props: { color }, global: { plugins: [i18n] } })
+  mount(SavedColorControl, {
+    props: { color },
+    attachTo: document.body,
+    global: { plugins: [i18n], stubs: { teleport: true } },
+  })
+
+afterEach(() => {
+  document.body.innerHTML = ''
+})
 
 describe('SavedColorControl', () => {
   it('keeps the palette closed until the dot is tapped', async () => {

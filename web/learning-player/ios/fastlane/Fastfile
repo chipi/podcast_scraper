@@ -95,6 +95,36 @@ platform :ios do
     UI.success("Workspace present. Ready for `bundle exec fastlane beta`.")
   end
 
+  desc "Build a DEVELOPMENT-signed IPA for a direct on-device install (devicectl) — no upload."
+  desc "Use while iterating on a fix you want to try on your own phone before it goes to TestFlight."
+  lane :device do
+    team = team_id
+    # Development export (not app-store): re-signs for a dev provisioning profile that embeds this
+    # team's registered devices, so the IPA sideloads via `xcrun devicectl device install app`.
+    # -allowProvisioningUpdates + the ASC key let Xcode mint/refresh that profile headlessly (this
+    # machine has no signed-in Xcode account). This does NOT need the App Store distribution
+    # permission the TestFlight `beta` export requires.
+    build_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "development",
+      output_directory: File.join(APP_DIR, "build"),
+      output_name: "App-dev.ipa",
+      clean: true,
+      xcargs: "-allowProvisioningUpdates " \
+              "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
+              "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
+              "-authenticationKeyPath \"#{File.expand_path(ENV['ASC_KEY_PATH'])}\" " \
+              "DEVELOPMENT_TEAM=#{team}",
+      export_options: { teamID: team, signingStyle: "automatic" },
+    )
+    UI.success(
+      "Dev IPA: #{File.join(APP_DIR, 'build', 'App-dev.ipa')}\n" \
+      "Install: xcrun devicectl device install app --device <UDID> #{File.join(APP_DIR, 'build', 'App-dev.ipa')}"
+    )
+  end
+
   desc "Build a signed release archive and upload it to TestFlight."
   lane :beta do
     api_key = asc_key

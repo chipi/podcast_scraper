@@ -64,16 +64,22 @@ watch(open, async (isOpen) => {
     addedTo.value = null
     return
   }
-  if (loaded.value) return
+  // Refetch on EVERY open, keeping the current list visible while it runs. The old
+  // `if (loaded.value) return` early-out LATCHED whatever the first open produced: a single
+  // transient empty (a flaky native fetch) then stayed empty on every reopen until the card
+  // remounted — the "second time I open collections it's empty, I have to go to another topic to
+  // reset" bug. Now a good list survives a later transient failure, and an empty one self-heals on
+  // the next open.
   error.value = null
   try {
     collections.value = await getCollections()
     loaded.value = true
   } catch {
-    // NOT `loaded = true`: a failed load must retry on the next open rather than latch an empty
-    // list that looks like "you have no collections".
-    collections.value = []
-    error.value = t('collections.loadFailed')
+    // Only surface empty + error when we have NOTHING to show; never blank a list we already have.
+    if (!loaded.value) {
+      collections.value = []
+      error.value = t('collections.loadFailed')
+    }
   }
 })
 

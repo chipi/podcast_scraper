@@ -49,10 +49,33 @@ const hasContent = computed(() => nonEmptySections.value.length > 0)
 
 
 
-// Compact = the best few items across all sections, kept in section order.
+/**
+ * Never show the same episode twice in the rail (#2072 follow-up, 2026-09-15). The digest can
+ * surface one episode in more than one section (e.g. a followed show that is also a recommendation),
+ * and compact flattens every section into one list — so the same card appeared twice. Show it once,
+ * in the first section it qualifies for. (Whether the digest should emit that overlap at all is a
+ * separate SERVER-SIDE question — flagged for the backend, not silently papered over here.)
+ */
+function dedupeBySlug<T extends { episode_slug: string }>(
+  items: T[],
+  seen = new Set<string>(),
+): T[] {
+  return items.filter((it) => (seen.has(it.episode_slug) ? false : (seen.add(it.episode_slug), true)))
+}
+
+// Compact = the best few items across all sections, kept in section order, each episode once.
 const compactItems = computed<YourWeekItem[]>(() =>
-  nonEmptySections.value.flatMap((s) => s.items).slice(0, COMPACT_MAX),
+  dedupeBySlug(nonEmptySections.value.flatMap((s) => s.items)).slice(0, COMPACT_MAX),
 )
+
+// Full = one labelled rail per section, deduped ACROSS sections (an episode shows in the first
+// section it lands in), then any section left empty is dropped.
+const dedupedSections = computed(() => {
+  const seen = new Set<string>()
+  return nonEmptySections.value
+    .map((s) => ({ ...s, items: dedupeBySlug(s.items, seen) }))
+    .filter((s) => s.items.length > 0)
+})
 
 const sectionLabel = (kind: YourWeekSectionKind): string => t(`home.yourWeekSection.${kind}`)
 
@@ -141,7 +164,7 @@ watch(
 
     <!-- Full: one labelled rail per non-empty section. -->
     <div v-else-if="hasContent" class="flex flex-col gap-5">
-      <div v-for="s in nonEmptySections" :key="s.kind">
+      <div v-for="s in dedupedSections" :key="s.kind">
         <h3 class="lp-kicker mb-2">{{ sectionLabel(s.kind) }}</h3>
         <CardRail>
           <li

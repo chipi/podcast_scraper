@@ -62,7 +62,7 @@ import type {
   YourWeekResponse,
 } from "./types"
 import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
-import { isOffline } from "../composables/useOnline"
+import { isForcedOffline, isOffline } from "../composables/useOnline"
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -110,14 +110,19 @@ export function setOnUnauthorized(fn: (() => void) | null): void {
 }
 
 async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-  // Known-offline calls fail fast here, exactly as reads do in getJSON — so a WRITE routes to the
-  // outbox for replay instead of silently succeeding on a live network under the forced-offline
-  // Config switch, and a direct-apiFetch READ (export/download/dev-users, which bypass getJSON)
-  // fails fast too rather than hitting the network the switch says is down (#2004 #10). Real offline
-  // already rejects here (fetch throws); this makes the switch match it. getJSON's own guard throws
-  // first for its callers (with a GET-specific message), so this never double-fires for them.
+  // Fast-fail policy split by method (2026-09-15 RCA of #2034):
+  //  - WRITES fast-fail on the full offline signal, so a mutation routes to the outbox for replay
+  //    instead of silently succeeding on a live network under the forced-offline Config switch.
+  //  - READS (GET) fast-fail ONLY on the explicit Config switch, NEVER on the auto-detected signal.
+  //    #2034 gated reads on `isOffline()` here (and in getJSON); on device that signal false-
+  //    negatives (WKWebView / cellular / VPN / cold-start), so a CONNECTED app had every read short-
+  //    circuited — profile blank, collections empty, "couldn't reach the server", and the tell-tale
+  //    "a bit works then a bit not". Before #2034 reads had no gate at all; this restores that, while
+  //    keeping the explicit switch working. Real offline still rejects at `fetch` and the caller
+  //    handles it (timeout + retry + cached/stale UI).
   const method = (init.method ?? "GET").toUpperCase()
-  if (isOffline()) throw new ApiError(0, `${method} ${String(input)} → offline`)
+  const blocked = method === "GET" ? isForcedOffline() : isOffline()
+  if (blocked) throw new ApiError(0, `${method} ${String(input)} → offline`)
   const headers = new Headers(init.headers)
   if (!headers.has("Authorization")) {
     // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open
@@ -148,11 +153,14 @@ async function getJSON<T>(
   params?: Record<string, string | number | undefined>,
   init?: RequestInit
 ): Promise<T> {
-  // Known-offline: skip the call that cannot succeed and fail fast, so the caller lands on its cache
-  // or its graceful error immediately instead of waiting on the OS connection timeout. status 0 is
-  // a transport failure, never a 401 — stores keep their cache and mark stale (never sign the user
-  // out). Mutations don't route through here; the outbox owns their offline behaviour.
-  if (isOffline()) throw new ApiError(0, `GET ${path} → offline`)
+  // Fast-fail ONLY on the explicit Config offline switch — never on the auto-detected signal (RCA of
+  // #2034, 2026-09-15). That signal false-negatives on device (WKWebView / cellular / VPN / a slow
+  // cold-start network report), and gating reads on it made a CONNECTED app look broken — profile
+  // blank, collections empty, "couldn't reach the server", and the tell-tale "a bit works then a bit
+  // not". Before #2034 reads had no gate at all; this restores that. A read now always attempts and
+  // falls to its cache / graceful error via the real error path (the timeout backstop below + the
+  // store's cached/stale UI). status 0 is a transport failure, never a 401.
+  if (isForcedOffline()) throw new ApiError(0, `GET ${path} → offline (forced)`)
   const url = new URL(`${BASE}${path}`, window.location.origin)
   if (params) {
     for (const [k, v] of Object.entries(params)) {
