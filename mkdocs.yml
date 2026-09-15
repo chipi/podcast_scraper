@@ -63,13 +63,11 @@ nav:
       - Validating corpus fixes fast: guides/VALIDATING_CORPUS_FIXES_FAST.md
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
       - Provider Deep Dives: guides/PROVIDER_DEEP_DIVES.md
-      # The eval and performance reports moved to the private research repo
-      # (chipi/podcast-scraper-eval-data) and are served on the homelab
-      # tailnet. They quote real episode transcripts and gold references,
-      # which is why they are not on a public docs site. An empty section
-      # header here would also fail `mkdocs build --strict`.
-      - Evaluation Reports (private):
-      - Performance Reports (private):
+      # The eval reports, performance reports and perf traces moved to the
+      # private research repo (chipi/podcast-scraper-eval-data). They quote real
+      # episode transcripts and gold references, so they are not published
+      # anywhere public and there is deliberately NO link here — a public doc
+      # must not point at a private network. Ask the operator for access.
       - ML Model Comparison Guide: guides/ML_MODEL_COMPARISON_GUIDE.md
       - Preprocessing Profiles Guide: guides/PREPROCESSING_PROFILES_GUIDE.md
       - Docker Compose Guide: guides/DOCKER_COMPOSE_GUIDE.md
@@ -91,8 +89,6 @@ nav:
       - Experiment Guide: guides/EXPERIMENT_GUIDE.md
       - Performance: guides/PERFORMANCE.md
       - Performance Profile Guide: guides/PERFORMANCE_PROFILE_GUIDE.md
-      - Performance Traces:
-          - Reports:
       - Optimization Workflow: guides/OPTIMIZATION_WORKFLOW_GUIDE.md
       - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
       - Tufte Chart Critique: guides/TUFTE_CHART_CRITIQUE.md
@@ -250,8 +246,6 @@ nav:
       - ADR-046 MPS Exclusive Mode for Apple Silicon: adr/ADR-046-mps-exclusive-mode-apple-silicon.md
       - ADR-047 Proactive Metric Regression Alerting: adr/ADR-047-proactive-metric-regression-alerting.md
       - ADR-048 Centralized Model Registry: adr/ADR-048-centralized-model-registry.md
-      - ADR-049 Materialization Boundary for Evaluation Inputs: adr/ADR-049-materialization-boundary-for-eval-inputs.md
-      - ADR-050 Single Code Path for Evaluation and Application: adr/ADR-050-single-code-path-eval-app-alignment.md
       - ADR-051 Per-Episode JSON Artifacts with Logical Union: adr/ADR-051-per-episode-json-artifacts-with-logical-union.md
       - ADR-052 Separate GIL and KG Artifact Layers: adr/ADR-052-separate-gil-and-kg-artifact-layers.md
       - ADR-053 Grounding Contract for Evidence-Backed Insights: adr/ADR-053-grounding-contract-for-evidence-backed-insights.md
@@ -375,7 +369,6 @@ nav:
       - RFC-045 ML Model Optimization Guide: rfc/RFC-045-ml-model-optimization-guide.md
       - RFC-046 Materialization Architecture: rfc/RFC-046-materialization-architecture.md
       - RFC-047 Run Comparison Visual Tool: rfc/RFC-047-run-comparison-visual-tool.md
-      - RFC-048 Evaluation Application Alignment: rfc/RFC-048-evaluation-application-alignment.md
       - RFC-049 Grounded Insight Layer – Core Concepts: rfc/RFC-049-grounded-insight-layer-core.md
       - RFC-050 Grounded Insight Layer – Use Cases: rfc/RFC-050-grounded-insight-layer-use-cases.md
       - RFC-051 Database Projection (GIL & KG): rfc/RFC-051-database-projection-gil-kg.md

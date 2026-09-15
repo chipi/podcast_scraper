@@ -77,7 +77,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-045](RFC-045-ml-model-optimization-guide.md) | ML Model Optimization Guide | PRD-005, PRD-007 | v2.5.0 | cleaning_v4 profile, preprocessing optimization, parameter tuning guide |
 | [RFC-046](RFC-046-materialization-architecture.md) | Materialization Architecture | PRD-007 | v2.5.0 | Dataset materialization for honest evaluation comparisons |
 | [RFC-047](RFC-047-run-comparison-visual-tool.md) | Lightweight Run Comparison & Diagnostics Tool | PRD-007 | v2.5.0 | Streamlit-based visual tool for comparing runs |
-| [RFC-048](RFC-048-evaluation-application-alignment.md) | Evaluation ↔ Application Alignment | PRD-007 | v2.5.0 | Fingerprinting and single-path eval-app alignment |
+| `RFC-048` (moved to the private eval repo as RFC-001; was RFC-048) | Evaluation ↔ Application Alignment | PRD-007 | v2.5.0 | Fingerprinting and single-path eval-app alignment |
 | [RFC-049](RFC-049-grounded-insight-layer-core.md) | Grounded Insight Layer – Core Concepts & Data Model | PRD-017 | v2.6.0 | Core ontology, grounding contract, storage format for GIL |
 | [RFC-050](RFC-050-grounded-insight-layer-use-cases.md) | Grounded Insight Layer – Use Cases & End-to-End Consumption | PRD-017 | v2.6.0 | Single-layer GIL consumption (CLI inspect, Insight Explorer, query patterns); cross-layer use cases moved to [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) |
 | [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | v2.5.0 | Ollama provider and optimized prompt templates |
