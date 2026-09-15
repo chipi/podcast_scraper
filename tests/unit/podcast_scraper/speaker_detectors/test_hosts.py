@@ -13,6 +13,7 @@ from podcast_scraper.speaker_detectors.hosts import (
     extract_self_introduced_host,
     guests_introduced_by_the_host,
     has_org_markers,
+    hosts_from_episode_description,
     is_known_network,
     is_network_or_org_author,
     is_plausible_mononym,
@@ -349,3 +350,63 @@ def test_transcript_intro_does_not_capture_a_lowercase_run_as_a_host(monkeypatch
     assert "Noah Kravitz" in hosts.detect_hosts_from_transcript_intro(
         "Welcome to the show. I'm Noah Kravitz and today we go deep.", nlp
     )
+
+
+class TestTheEpisodeDescriptionNamesItsOwnHost:
+    """ "X is joined by Y" names BOTH roles — the guest cue read only the second half.
+
+    WHERE THIS IS THE ONLY SOURCE. On a show whose RSS author tag is an organisation, the feed
+    cannot state a host: a16z's author is "Andreessen Horowitz", correctly discarded by the org
+    filter, and the show ROTATES its host per episode so no feed-level answer would be right
+    anyway. The episode's own description is the only place a host is named.
+
+    MEASURED on the 136 production episodes that end with no named speaker: 25 yield a host here,
+    22 of them a16z's 48. Extractions verified by hand — Elena Burger, Ben Horowitz, Theo Jaffee,
+    Tim Scarfe, and the Alastair Campbell / Rory Stewart pair.
+    """
+
+    def test_the_name_before_the_cue_is_the_host(self) -> None:
+        got = hosts_from_episode_description(
+            "", "Elena Burger is joined by a16z's Andy McCall and Joe Schmidt.", "The a16z Show"
+        )
+        assert got == {"Elena Burger"}
+
+    def test_two_hosts_share_the_slot(self) -> None:
+        got = hosts_from_episode_description(
+            "", "Yoko Li and Justine Moore speak with Ideogram's founder.", "The a16z Show"
+        )
+        assert got == {"Yoko Li", "Justine Moore"}
+
+    def test_the_show_itself_is_never_a_host(self) -> None:
+        """ "Planet Money is joined by..." must not mint a person — the #2064 failure."""
+        assert (
+            hosts_from_episode_description(
+                "", "Planet Money is joined by an economist.", "Planet Money"
+            )
+            == set()
+        )
+
+    def test_a_publisher_is_never_a_host(self) -> None:
+        assert (
+            hosts_from_episode_description(
+                "", "Andreessen Horowitz is joined by a founder.", "The a16z Show"
+            )
+            == set()
+        )
+
+    def test_a_single_token_is_refused(self) -> None:
+        """A bare first name cannot be bound from here — it needs evidence this function lacks."""
+        assert (
+            hosts_from_episode_description(
+                "", "Tyler is joined by Alison Gopnik.", "Conversations with Tyler"
+            )
+            == set()
+        )
+
+    def test_no_cue_means_no_host(self) -> None:
+        assert (
+            hosts_from_episode_description(
+                "", "Alison Gopnik is a psychologist at Berkeley.", "Conversations with Tyler"
+            )
+            == set()
+        )

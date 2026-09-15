@@ -145,6 +145,7 @@ from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import (
     detect_hosts_from_feed,
+    hosts_from_episode_description,
     hosts_from_feed_statement,
     is_network_or_org_author,
     normalize_host_names,
@@ -716,6 +717,12 @@ def _infer_host_source(
     return "feed metadata (NER)"
 
 
+def _feed_title(feed: Any) -> Optional[str]:
+    """The feed's title, or None. Carried on `HostDetectionResult` so per-episode host parsing can
+    refuse a "host" that is really the show — the guard is inert without it, by design."""
+    return getattr(feed, "title", None)
+
+
 def detect_feed_hosts_and_patterns(
     cfg: config.Config,
     feed: RssFeed,  # type: ignore[valid-type]
@@ -741,7 +748,7 @@ def detect_feed_hosts_and_patterns(
 
     # If auto_speakers is disabled, skip speaker detection entirely
     if not cfg.auto_speakers:
-        return HostDetectionResult(cached_hosts, heuristics, None)
+        return HostDetectionResult(cached_hosts, heuristics, None, _feed_title(feed))
 
     # In dry-run mode, still detect hosts from RSS author tags (no ML needed)
     if cfg.dry_run:
@@ -750,7 +757,7 @@ def detect_feed_hosts_and_patterns(
     # Use provided speaker detector, or create one if not provided (backward compatibility)
     speaker_detector = _create_speaker_detector_if_needed(cfg, speaker_detector)
     if speaker_detector is None:
-        return HostDetectionResult(cached_hosts, heuristics, None)
+        return HostDetectionResult(cached_hosts, heuristics, None, _feed_title(feed))
 
     # Detect hosts: prefer RSS author tags, fall back to NER
     feed_hosts = _detect_hosts_from_feed(feed, speaker_detector)
@@ -779,7 +786,9 @@ def detect_feed_hosts_and_patterns(
                 ", ".join(sorted(cached_hosts)),
             )
             # Skip validation since known_hosts are trusted
-            return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
+            return HostDetectionResult(
+                cached_hosts, heuristics, speaker_detector, _feed_title(feed)
+            )
 
     # Validate hosts with first episode: hosts should appear in first episode too
     cached_hosts = _validate_hosts_with_first_episode(
@@ -859,7 +868,7 @@ def detect_feed_hosts_and_patterns(
                 )
 
     # Return result with provider instance
-    return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
+    return HostDetectionResult(cached_hosts, heuristics, speaker_detector, _feed_title(feed))
 
 
 def setup_processing_resources(cfg: config.Config) -> ProcessingResources:
@@ -1395,6 +1404,25 @@ def _detect_speakers_for_episode(
         for entry in detected_speakers or []:
             flat_speakers.extend(_flatten_speaker_name_entries(entry))
         host_strings = _speaker_names_to_str_set(detected_hosts_set)
+
+        # THE EPISODE'S OWN DESCRIPTION NAMES ITS HOST, on the shows where nothing else can.
+        # "Elena Burger is joined by a16z's Andy McCall" — the guest cue reads what FOLLOWS the
+        # verb; the name in front of it is the host, and that half was discarded. It matters most
+        # where the feed cannot state a host at all: a16z rotates its host per episode and its
+        # author tag is the firm, which the org filter correctly throws away, so this is the only
+        # place a host name exists. Measured on the 136 production episodes that end with no named
+        # speaker: 25 yield a host here, 22 of them a16z's.
+        #
+        # Union, never replace: a feed-stated or config host still outranks a parsed one, and this
+        # only ever ADDS a candidate the roster may bind. The show's own name and any publisher are
+        # refused inside the helper.
+        _ep_hosts = hosts_from_episode_description(
+            episode.title, episode_description, host_detection_result.feed_title
+        )
+        if _ep_hosts:
+            host_strings = set(host_strings) | _ep_hosts
+            logger.info("  → Host from the episode description: %s", sorted(_ep_hosts))
+
         proposed = [name for name in flat_speakers if name not in host_strings]
 
         # An LLM detector's name list is a PROPOSAL, not a result — it returns success=True whatever

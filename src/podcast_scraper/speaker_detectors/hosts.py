@@ -1030,6 +1030,54 @@ def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[
     return out
 
 
+#: "<HOST> is joined by <GUEST>" / "<HOST> speaks with <GUEST>" — the host sits BEFORE the cue.
+#: Two names may share the slot ("Yoko Li and Justine Moore speak with ...").
+_EPISODE_HOST_CUE = re.compile(
+    r"\b([A-Z][a-z'\u2019\-]{2,}(?:\s+[A-Z][a-z'\u2019.\-]{1,}){1,2})"
+    r"(?:\s+and\s+([A-Z][a-z'\u2019\-]{2,}(?:\s+[A-Z][a-z'\u2019.\-]{1,}){1,2}))?"
+    r"\s+(?:(?:is|are)\s+joined\s+by|speaks?\s+with)\b"
+)
+
+
+def hosts_from_episode_description(
+    episode_title: Optional[str], episode_description: Optional[str], feed_title: Optional[str]
+) -> Set[str]:
+    """Hosts named by the EPISODE's own description — the other side of the interview cue.
+
+    THE HOST IS THE NAME BEFORE THE CUE. Guest detection reads what follows "is joined by" /
+    "speaks with"; the name in front of it is the person doing the joining-with, i.e. the host.
+    That half was being discarded, and on the shows where the feed's author tag is an
+    ORGANISATION it is the only place a host is named at all.
+
+    Measured over the 136 production episodes that end with no named speaker: **25 yield a host
+    here** — 22 of a16z's 48, plus The Rest Is Politics and MLST. Extractions verified by hand:
+    ``Elena Burger``, ``Ben Horowitz``, ``Theo Jaffee``, ``Tim Scarfe``,
+    ``Alastair Campbell`` + ``Rory Stewart``.
+
+    WHY A FEED-LEVEL HOST IS NOT ENOUGH ON THESE SHOWS. a16z rotates its host per episode — the
+    feed cannot state one, and its author tag is "Andreessen Horowitz", which the org filter
+    correctly discards. A per-episode host is the only correct answer for that shape.
+
+    The show's own name and any publisher/org are refused, so "Planet Money is joined by..." can
+    never mint a person.
+    """
+    text = " ".join(p for p in (episode_title or "", episode_description or "") if p)
+    if not text.strip():
+        return set()
+    out: Set[str] = set()
+    for match in _EPISODE_HOST_CUE.finditer(text):
+        for cand in match.groups():
+            name = (cand or "").strip()
+            if not name or len(name.split()) < 2:
+                continue
+            if looks_like_publisher(name):
+                continue
+            if feed_title and names_the_show(name, feed_title):
+                continue
+            out.add(name)
+    return out
+
+
 def detect_hosts_from_feed(
     feed_title: Optional[str],
     feed_description: Optional[str],
