@@ -473,3 +473,83 @@ class TestARenameCountsAsAChangeForTheWriteGate:
         plan = plan_intra_episode_merges(gi, {})
         got = plan_display_names(gi, {}, plan)
         assert got == {"person:lukasz-kaiser": "Lukasz Kaiser"}, "no trailing paren on disk"
+
+
+class TestTheHealUnitesTheLabelNotJustTheId:
+    """`bare_name_scope` resolves a bare label to a person. The NAME has to follow the id.
+
+    `rewrite_ids` gives the GI node the resolved id and keeps its own `name` — which is the bare
+    label that needed resolving. So the id was united and the label was not: measured on the
+    production snapshot, 42 ids carry different names in kg.json and gi.json, 13 of them with the
+    GI name a strict prefix of KG's (`Didi` vs `Didi Uemakpan`, `Kashmir` vs `Kashmir Hill`).
+
+    Unlike a merge — two plausible spellings, where the feed's prose decides — a heal is not
+    symmetric: the losing side is a bare label that was just resolved TO the fuller name. KG's
+    resolved name wins. Measured rather than assumed: of the 16 disagreeing pairs differing in
+    token count, KG carries the fuller name on 15, and is the correct spelling on the 16th.
+    """
+
+    @staticmethod
+    def _payloads():
+        gi = {
+            "episode_id": "ep:heal",
+            "nodes": [{"id": "person:didi", "type": "Person", "properties": {"name": "Didi"}}],
+            "edges": [{"type": "SPOKEN_BY", "from": "quote:q1", "to": "person:didi"}],
+        }
+        kg = {
+            "episode_id": "ep:heal",
+            "nodes": [
+                {
+                    "id": "person:didi-uemakpan",
+                    "type": "Person",
+                    "properties": {"name": "Didi Uemakpan", "role": "guest"},
+                }
+            ],
+            "edges": [],
+        }
+        return gi, kg
+
+    def test_the_healed_node_takes_the_resolved_name_in_both_layers(self) -> None:
+        from podcast_scraper.identity.bare_name_scope import rewrite_ids
+        from podcast_scraper.identity.intra_episode_merge import (
+            apply_display_names,
+            plan_heal_display_names,
+        )
+
+        gi, kg = self._payloads()
+        id_map = {"person:didi": "person:didi-uemakpan"}
+        gi2, _n = rewrite_ids(gi, id_map)
+        kg2, _m = rewrite_ids(kg, id_map)
+
+        # Without the rename the id is united and the label is not — that is the defect.
+        assert gi2["nodes"][0]["properties"]["name"] == "Didi"
+        assert kg2["nodes"][0]["properties"]["name"] == "Didi Uemakpan"
+
+        renames = plan_heal_display_names(gi2, kg2, id_map)
+        assert renames == {"person:didi-uemakpan": "Didi Uemakpan"}
+
+        gi3, gi_changes = apply_display_names(gi2, renames)
+        kg3, _kgc = apply_display_names(kg2, renames)
+        assert gi_changes == 1, "the GI rename must REPORT itself or the write gate skips gi.json"
+        assert gi3["nodes"][0]["properties"]["name"] == "Didi Uemakpan"
+        assert kg3["nodes"][0]["properties"]["name"] == "Didi Uemakpan"
+
+    def test_no_rename_is_emitted_when_the_layers_already_agree(self) -> None:
+        """A needless emit marks the artifact dirty and buys a write for nothing."""
+        from podcast_scraper.identity.intra_episode_merge import plan_heal_display_names
+
+        same = {
+            "nodes": [{"id": "person:x", "type": "Person", "properties": {"name": "Agreed Name"}}]
+        }
+        assert plan_heal_display_names(same, same, {"person:y": "person:x"}) == {}
+
+    def test_gi_is_used_only_when_kg_has_no_name_for_the_id(self) -> None:
+        from podcast_scraper.identity.intra_episode_merge import plan_heal_display_names
+
+        gi = {
+            "nodes": [
+                {"id": "person:only-gi", "type": "Person", "properties": {"name": "Only In GI"}}
+            ]
+        }
+        got = plan_heal_display_names(gi, {"nodes": []}, {"person:bare": "person:only-gi"})
+        assert got == {}, "one layer cannot disagree with itself; nothing to unify"

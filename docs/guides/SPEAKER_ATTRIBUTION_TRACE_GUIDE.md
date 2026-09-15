@@ -19,13 +19,35 @@ mis-attributed.
 | --- | --- | --- | --- |
 | 1 | **FEED** | RSS author, title, episode description | — |
 | 2 | **HINT** | `detected_hosts` / `detected_guests` | `speaker_detectors/hosts.py` |
-| 3 | **AUDIO** | `*.segments.json` → `speaker: SPEAKER_NN` | diarization provider |
+| 3 | **AUDIO** | `*.segments.json` → `speaker_label` (the NAME), `speaker_role`, raw `speaker` | diarization provider |
 | 4 | **ROSTER** | `content.speakers`, `speakers_source`, `diarization_num_speakers` | `providers/ml/diarization/roster.py` |
 | 5 | **GRAPH** | `kg.json` → `Person.properties.role` | `_speaker_lists_for_graph` → `kg/pipeline.py` |
-| 6 | **QUOTES** | `gi.json` → `SPOKEN_BY`, `speaker_id` | `gi/speakers.py` |
+| 6 | **QUOTES** | `gi.json` → `SPOKEN_BY`, `speaker_id` | `gi/pipeline.py` on ingest; `gi/speakers.py` ONLY under `enrich-edges` |
 | 7 | **MENTIONS** | `gi.json` → `MENTIONS_PERSON` | `gi/relational_edges.py` |
 | 8 | **IDENTITY** | `person:<slug>` / `person:unresolved-<name>-<ep>` | `identity/bare_name_scope.py`, `identity/intra_episode_merge.py` |
 | 9 | **SURFACES** | cards, search, related-people | `server/app_kg_index.py`, `search/corpus_graph.py`, `server/cil_queries.py` |
+
+### Three corrections to the table above, because the table is a simplification
+
+**Layer 3's field is `speaker_label`, not `speaker`.** `speaker` is the raw diarizer id
+(`SPEAKER_00`) and is used only for COUNTING voices. The name every downstream layer keys on is
+`speaker_label`, with `speaker_role` beside it. A trace that greps for `SPEAKER_NN` and finds
+nothing has looked at the wrong field.
+
+**Layer 5 does not feed layer 6 on ingest.** `gi/pipeline.build_artifact` takes no host/guest
+lists — it reads the segments sidecar directly and mints its own Person nodes. So there is an
+undocumented arrow, **AUDIO → QUOTES**, that bypasses ROSTER and GRAPH entirely. `gi/speakers.py`,
+which *does* consume the roster, runs only under `search enrich-edges`. **This matters:** the
+show-name and role-word refusal lives in `_speaker_lists_for_graph`, on the KG path only, so a
+roster naming the show yields a demoted KG node and a GI node that still holds `SPOKEN_BY`.
+Measured on production: 53 `SPOKEN_BY` edges target a Person named `Machine Learning Street`, and
+61 target one named `Host`.
+
+**Layer 9 is not one behaviour.** `app_kg_index` reads KG and applies the canonical id map;
+`corpus_graph` lets a GI name overwrite a KG name on the same id; `app_gi_view` reads
+`quote.speaker_name` FIRST and applies no id map and no placeholder filter;
+`/api/corpus/persons/top` applies no id map at all. Two surfaces can legitimately disagree about
+one person's name — see §5.
 
 ### The two facts that explain most confusion
 
@@ -37,7 +59,14 @@ has.
 
 **The two layers mint DIFFERENT ids for one human.** The roster names a voice from ASR
 (`person:aaron-levy`); the extractor reads the text (`person:aaron-levie`). Same episode, same
-person, two nodes. Match across layers with `kg.speaker_coherence.same_person`, never by id alone.
+person, two nodes.
+
+The pipeline's own layers nevertheless join **by id**, and measurement says that is sound: across
+4,306 production roster names the two slugifiers (`identity.slugify.person_id` and
+`entity_node_id`) disagree 59 times, every one of them on the string `Host`, which m0009 skips.
+Dangling `SPOKEN_BY`: 0 of 116,524. Dangling `MENTIONS_PERSON`: 0 of 6,747. Reach for
+`kg.speaker_coherence.same_person` when joining the ROSTER to the graph — which is what m0009
+does, and where the ids genuinely differ — rather than as a blanket rule.
 
 ---
 

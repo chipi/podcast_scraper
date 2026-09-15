@@ -5150,6 +5150,19 @@ def generate_episode_metadata(  # noqa: C901
     # all three. It is also the SAME function the backfill migration runs, so the pipeline and
     # the migration cannot drift into disagreeing about who "Sam" is.
     if bridge_gi_payload is not None and bridge_kg_payload is not None:
+        # SNAPSHOT BEFORE THE PASS, so a failure can put the payloads BACK. Everything below
+        # reassigns `bridge_gi_payload` / `bridge_kg_payload` in place, and the `except` used to
+        # only log — leaving the in-memory GI rewritten while KG was not. That is not inert:
+        # `apply_typed_mentions_and_rewrite_gi` and the topic-alignment step further down write
+        # GI again on essentially every fresh episode, so a KG-side failure here shipped a
+        # half-scoped GI to disk and the stage ledger recorded the episode as left unscoped —
+        # which was false for one of the two layers.
+        #
+        # This is the shape of the 2026-08-31 incident (10 episodes, see
+        # `_write_scoped_artifacts_both_or_neither`). That incident's trigger was fixed; this
+        # path was not, because the on-disk both-or-neither restore happens INSIDE the try and
+        # the later writers are outside it.
+        _pre_scope_gi, _pre_scope_kg = bridge_gi_payload, bridge_kg_payload
         try:
             from ..identity.bare_name_scope import (
                 person_ids_in,
@@ -5160,6 +5173,7 @@ def generate_episode_metadata(  # noqa: C901
             from ..identity.intra_episode_merge import (
                 apply_display_names,
                 plan_display_names,
+                plan_heal_display_names,
                 plan_intra_episode_merges,
             )
 
@@ -5181,6 +5195,25 @@ def generate_episode_metadata(  # noqa: C901
             if _id_map:
                 bridge_gi_payload, _gi_changes = rewrite_ids(bridge_gi_payload, _id_map)
                 bridge_kg_payload, _kg_changes = rewrite_ids(bridge_kg_payload, _id_map)
+                # THE HEAL HAS TO UNITE THE LABEL TOO, not just the id. `rewrite_ids` gives the GI
+                # node the resolved id and keeps its own name — the bare label that needed
+                # resolving — so `person:kashmir-hill` read "Kashmir" in gi.json and "Kashmir
+                # Hill" in kg.json. Measured: 42 ids disagree across the two artifacts,
+                # 13 with the GI name a strict prefix of KG's, which is this exact signature.
+                # Unlike a merge, this is not two plausible spellings — it is a bare label that was
+                # just resolved TO the fuller name, so KG's resolved name wins outright.
+                _heal_renames = plan_heal_display_names(
+                    bridge_gi_payload, bridge_kg_payload, _id_map
+                )
+                if _heal_renames:
+                    bridge_gi_payload, _gi_heal_renames = apply_display_names(
+                        bridge_gi_payload, _heal_renames
+                    )
+                    bridge_kg_payload, _kg_heal_renames = apply_display_names(
+                        bridge_kg_payload, _heal_renames
+                    )
+                    _gi_changes += _gi_heal_renames
+                    _kg_changes += _kg_heal_renames
 
             # #2056: one human, two ids, ONE episode — the speaker path minted `person:aaron-levy`
             # from ASR of the spoken name while the entity extractor minted `person:aaron-levie`
@@ -5261,6 +5294,11 @@ def generate_episode_metadata(  # noqa: C901
                     ", ".join(f"{k}->{v}" for k, v in sorted(_merge_map.items())[:5]),
                 )
         except Exception as bare_name_exc:  # noqa: BLE001 - never lose the episode over this
+            # BOTH LAYERS GO BACK. Partial in-memory state is worse than no state: the later GI
+            # writers cannot tell a half-applied plan from a completed one, and the result is one
+            # human under two ids across kg.json and gi.json — the defect this whole pass exists
+            # to remove, caused by the pass failing rather than by it not running.
+            bridge_gi_payload, bridge_kg_payload = _pre_scope_gi, _pre_scope_kg
             logger.warning(
                 "[%s] Bare-name scoping failed (non-fatal, ids left as minted): %s",
                 episode.idx if hasattr(episode, "idx") else episode_id,

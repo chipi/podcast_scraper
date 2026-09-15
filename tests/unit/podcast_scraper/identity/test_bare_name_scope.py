@@ -302,9 +302,15 @@ class TestThePipelineRunsTheScopingPassBeforeTypedMentions:
         assert "rewrite_ids" in src
 
     def test_it_runs_before_typed_mentions(self) -> None:
+        """CALL SITES, not mentions. `str.index` on the raw source finds the first occurrence
+        anywhere — including inside a comment. A comment that merely NAMED
+        `apply_typed_mentions_and_rewrite_gi` while explaining the ordering was enough to fail
+        this assertion, which is the test measuring prose rather than code. Matching on the
+        opening paren pins the invocation, which is the thing that actually has to be ordered.
+        """
         src = self._source()
-        scoping = src.index("plan_bare_name_ids")
-        mentions = src.index("apply_typed_mentions_and_rewrite_gi")
+        scoping = src.index("plan_bare_name_ids(")
+        mentions = src.index("apply_typed_mentions_and_rewrite_gi(")
         assert scoping < mentions, (
             "scoping must run BEFORE typed mentions, or mentions bind to ids that are "
             "rewritten underneath them"

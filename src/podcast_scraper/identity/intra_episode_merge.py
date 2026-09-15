@@ -322,6 +322,45 @@ def plan_display_names(
     return out
 
 
+def plan_heal_display_names(
+    gi_payload: Mapping[str, Any],
+    kg_payload: Mapping[str, Any],
+    id_map: Mapping[str, str],
+) -> Dict[str, str]:
+    """``{healed_id: display name}`` after :mod:`bare_name_scope` united a bare label with a person.
+
+    THE HEAL UNITES THE ID AND USED TO LEAVE THE LABEL SPLIT. ``rewrite_ids`` gives the GI node the
+    resolved id and keeps its own ``name`` — which is the bare label that needed resolving in the
+    first place. So ``person:kashmir-hill`` ended up named ``Kashmir`` in gi.json and
+    ``Kashmir Hill`` in kg.json: one id, two names, on the surfaces that read different layers.
+    Measured on the production snapshot: 42 ids disagree across the two artifacts, 13 of them with
+    the GI name a strict prefix of the KG name, which is this signature exactly.
+
+    WHY KG WINS HERE, rather than the feed-prose rule :func:`plan_display_names` uses for merges.
+    A merge joins two *equally plausible spellings* of one name, so provenance decides nothing and
+    the feed has to. A heal is not symmetric: the losing side is a BARE LABEL — a first name, a
+    transcript marker — that was just resolved TO the winner. Taking the fuller resolved name is
+    the whole point of having resolved it.
+
+    Measured rather than assumed: of the 16 disagreeing pairs where the two names differ in token
+    count, KG carries the fuller name on 15, and on the 16th (``Zolan Kano-Youngs`` vs ``Zolan Kano
+    Youngs``) KG is still the correct spelling. GI is preferred only when KG has no name for the id.
+    """
+    if not id_map:
+        return {}
+    gi_names, kg_names = _person_names(gi_payload), _person_names(kg_payload)
+    out: Dict[str, str] = {}
+    for winner in set(id_map.values()):
+        chosen = kg_names.get(winner) or gi_names.get(winner) or ""
+        if not chosen:
+            continue
+        # Only when the layers actually disagree — an emit that changes nothing still marks the
+        # artifact dirty and costs a needless write.
+        if gi_names.get(winner, chosen) != chosen or kg_names.get(winner, chosen) != chosen:
+            out[winner] = _trim_display_edges(chosen)
+    return out
+
+
 def apply_display_names(payload: Mapping[str, Any], renames: Mapping[str, str]) -> Tuple[dict, int]:
     """Return ``(copy of payload with Person names replaced per renames, changes)``.
 
