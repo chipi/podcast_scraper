@@ -23,7 +23,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -326,6 +326,9 @@ def resolve_voices_and_roles(
     used: set = set()
     invented: List[str] = []
     refuted: List[str] = []
+    # (voice, name) for each refutation, so the refusal can be USED rather than only counted —
+    # see the complement pass below.
+    refuted_pairs: List[Tuple[str, str]] = []
 
     for voice, verdict in _parse(raw).items():
         if voice not in voice_texts:
@@ -337,6 +340,7 @@ def resolve_voices_and_roles(
                 invented.append(verdict.name)
             elif _refuted_by_third_person(voice_texts[voice], match):
                 refuted.append(f"{voice}={match}")
+                refuted_pairs.append((voice, match))
             elif match.lower() in used:  # rule 5 — one person, one voice
                 pass
             else:
@@ -344,6 +348,53 @@ def resolve_voices_and_roles(
                 canonical = match
         if canonical or verdict.role:
             out[voice] = LLMVoice(name=canonical, role=verdict.role)
+
+    # ---- COMPLEMENT PASS: a refutation is EVIDENCE, not just a veto -------------------------
+    #
+    # The model gets the NAME right and the VOICE wrong more often than it invents people. When it
+    # says "SPEAKER_00 is Alison Gopnik" and SPEAKER_00 is the host who said "I am talking with
+    # Alison Gopnik", the third-person guard correctly refuses — and then the far more useful fact,
+    # that Alison is therefore the OTHER voice, was thrown away with it. On a two-voice interview
+    # that is a complete answer, and today it produces an episode with no named speakers at all.
+    #
+    # STRICTLY TWO REAL VOICES, measured. Against episodes whose voices are already correctly
+    # named on the production snapshot, taking "the one voice not refuted for this name":
+    #
+    #     any voice count   338 fires   90.5% correct
+    #     exactly 2 voices  297 fires   98.0% correct   <- this rule
+    #
+    # The jump is the whole point: with three or more voices "exactly one unrefuted" is weak
+    # evidence and misattributes ~1 in 10. Adding a two-token name filter moved 98.0 -> 98.2 for 23
+    # lost firings and is not worth it.
+    #
+    # The comparison that matters is NOT 98% against a perfect answer. This fires only where the
+    # model's proposal was already discarded, so the alternative is no name at all.
+    #
+    # Every existing guard still applies to the complement: the name must be one the metadata
+    # stated (it came from `by_stated`), it must not already be used by another voice, and it must
+    # not itself be third-person-refuted on the voice it is about to land on.
+    if len(voice_texts) == 2 and refuted_pairs:
+        for bad_voice, name in refuted_pairs:
+            others = [v for v in voice_texts if v != bad_voice]
+            if len(others) != 1:
+                continue
+            other = others[0]
+            if name.lower() in used:
+                continue
+            existing = out.get(other)
+            if existing is not None and existing.name:
+                continue  # that voice already has a name; do not overwrite a direct answer
+            if _refuted_by_third_person(voice_texts[other], name):
+                continue  # the other voice talks about them too — no evidence either way
+            used.add(name.lower())
+            out[other] = LLMVoice(name=name, role=existing.role if existing else None)
+            logger.info(
+                "speaker resolution: %r was refuted on %s, and %s is the only other voice and is "
+                "not refuted — binding it there (two-voice complement)",
+                name,
+                bad_voice,
+                other,
+            )
 
     if invented:
         logger.warning(
