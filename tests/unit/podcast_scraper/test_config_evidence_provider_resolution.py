@@ -123,72 +123,17 @@ class TestEveryShippedProfileGroundsWithItsIntendedStack:
         )
 
 
-class TestEvalMatchesProduction:
-    """The eval must resolve the same evidence stack production does.
-
-    The subtlety that bit us: an eval cell is built with ``base.model_copy(update=...)``, and
-    **model_copy does not re-run validators**. So Config's evidence auto-align never fires on an
-    eval cell — it would summarise with qwen while keeping the base profile's grounder (the local
-    QA/NLI stack, which grounds ~8%).
-
-    The harness therefore has to re-apply the align itself. That is not a reimplementation of the
-    pipeline; it is compensation for a model_copy limitation. Deleting it as "duplication" produced
-    a 10-episode run with 513 insights and ZERO grounded quotes, which is what these tests exist to
-    prevent.
-    """
-
-    def test_a_model_copied_cell_still_aligns_to_its_summariser(self) -> None:
-        """THE REGRESSION. A base profile that summarises locally, model_copied onto an LLM
-        backend, must ground with that LLM — not with the base profile's ML stack."""
-        from podcast_scraper.evaluation.eval_gi_kg_runtime import (
-            merge_eval_task_into_summarizer_config as merge,
-        )
-
-        base = Config.model_validate({"profile": "test_default", "generate_gi": True})
-        assert base.summary_provider == "transformers"
-        assert base.quote_extraction_provider == "transformers"
-
-        # what run_experiment does when the experiment names an ollama backend
-        cell = base.model_copy(update={"summary_provider": "ollama"})
-        assert cell.quote_extraction_provider == "transformers", "model_copy skips validators"
-
-        merged = merge(cell, "grounded_insights", {})
-        assert merged.summary_provider == "ollama"
-        assert merged.quote_extraction_provider == "ollama"
-        assert merged.entailment_provider == "ollama"
-
-    def test_eval_matches_the_production_evidence_stack(self) -> None:
-        from podcast_scraper.evaluation.eval_gi_kg_runtime import (
-            merge_eval_task_into_summarizer_config as merge,
-        )
-
-        prod = Config.model_validate({"profile": "experiment_dgx_only", "generate_gi": True})
-        cell = merge(prod, "grounded_insights", {})
-
-        assert (cell.quote_extraction_provider, cell.entailment_provider) == (
-            prod.quote_extraction_provider,
-            prod.entailment_provider,
-        )
-
-    def test_an_experiment_can_still_name_the_grounder_on_purpose(self) -> None:
-        """Comparing grounders must remain possible — but only by asking for one."""
-        from podcast_scraper.evaluation.eval_gi_kg_runtime import (
-            merge_eval_task_into_summarizer_config as merge,
-        )
-
-        base = Config.model_validate({"profile": "experiment_dgx_only", "generate_gi": True})
-        cell = merge(
-            base,
-            "grounded_insights",
-            {
-                "quote_extraction_provider": "transformers",
-                "entailment_provider": "transformers",
-            },
-        )
-        assert (cell.quote_extraction_provider, cell.entailment_provider) == (
-            "transformers",
-            "transformers",
-        )
+# TestEvalMatchesProduction moved to chipi/podcast-scraper-eval-data
+# (tests/unit/podcast_scraper_eval/test_eval_matches_production_evidence_stack.py)
+# with the eval harness — its three tests were exactly the three that imported
+# podcast_scraper.evaluation.eval_gi_kg_runtime. The classes that remain here
+# assert APPLICATION behaviour: Config's own auto-align, every shipped profile's
+# grounder, and the NLI threshold matching its entailer. Those read
+# config/profiles/*.yaml, which lives in this repo.
+#
+# NOTE: two of the three moved tests resolve a `profile`, so they need these
+# YAMLs AND the eval harness at once. They are skipped over there pending arc 3
+# (where profiles get authored). If profiles ever move, revisit both sides.
 
 
 class TestNliThresholdMatchesItsEntailer:
