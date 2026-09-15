@@ -1,7 +1,7 @@
 """Fixture harness for transcript segment-time drift (#1173, AC1).
 
 Transcribes a v3 fixture mp3 with word timestamps and measures turn-boundary drift against the
-RTTM ground truth (see :mod:`tests.integration.corpus.segment_time_drift`). Two uses:
+RTTM ground truth (see :mod:`tests.integration.fixtures.segment_time_drift`). Two uses:
 
 * ``regenerate_cache`` — transcribe a subset once (local ``large-v3``, the prod model) and write a
   compact words-cache so the regression test needs no model. large-v3 word timestamps (~50 ms) are
@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from tests.integration.corpus.segment_time_drift import (
+from tests.integration.fixtures.segment_time_drift import (
     DriftResult,
     measure_boundary_drift,
     normalize_key,
@@ -154,7 +154,7 @@ def main() -> int:
     if args.regen:
         regenerate_cache(model_name=args.model)
         return 0
-    from tests.integration.corpus.segment_time_drift import pool_drift
+    from tests.integration.fixtures.segment_time_drift import pool_drift
 
     measured = measure_from_cache(load_cache())
     refined = pool_drift([r for r, _ in measured.values()])

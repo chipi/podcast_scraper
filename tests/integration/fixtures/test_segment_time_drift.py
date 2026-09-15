@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.integration.corpus.segment_time_drift import (
+from tests.integration.fixtures.segment_time_drift import (
     align_word_streams,
     measure_boundary_drift,
     percentile,

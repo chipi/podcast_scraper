@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.integration.corpus.segment_time_drift import pool_drift
+from tests.integration.fixtures.segment_time_drift import pool_drift
 from tests.integration.eval.segment_drift_harness import load_cache, measure_from_cache
 
 pytestmark = pytest.mark.integration
