@@ -535,7 +535,9 @@ class TopicThemeClustersEnricher:
             "lift, average-linkage), rolled up into a bounded super-theme legend plus an "
             "explicit long-tail bucket. Complements the semantic topic_clusters."
         ),
-        expected_duration_s=30,
+        # 300, not 30: prod has carried this as a viewer_operator.yaml override since the corpus
+        # passed ~1k episodes. Scales with corpus size, not with the deployment (#2083).
+        expected_duration_s=300,
         # These knobs were READ by _compute but never DECLARED, so the composed schema rejected
         # them and `PUT /api/enrichment/config` 400'd on any attempt to set them — the operator
         # YAML could carry a value the API refused to accept. Found while sweeping #1930/#1928;

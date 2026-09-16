@@ -222,7 +222,10 @@ class GuestCoappearanceEnricher:
         reads=[".gi.json"],
         writes="guest_coappearance.json",
         description="Pairs of Persons appearing in the same episode, ranked by episode_count.",
-        expected_duration_s=30,
+        # 300, not 30: prod has carried this as a viewer_operator.yaml override since the corpus
+        # passed ~1k episodes. The manifest is the right home for a value that scales with corpus
+        # size rather than with the deployment (#2083).
+        expected_duration_s=300,
         # Pre-existing gap found by the #1930 knob audit: this was READ by _compute but never
         # DECLARED, so the composed schema rejected it and PUT /api/enrichment/config 400'd on
         # any attempt to set it. Same class as the topic_theme_clusters knobs.

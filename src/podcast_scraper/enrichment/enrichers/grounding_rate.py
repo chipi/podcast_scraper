@@ -144,7 +144,9 @@ class GroundingRateEnricher:
             "quality, worst episodes first. Was per-Person until #1927, which returned "
             "1.0 for everyone because an ungrounded insight has no speaker."
         ),
-        expected_duration_s=30,
+        # 300, not 30: prod has carried this as a viewer_operator.yaml override since the corpus
+        # passed ~1k episodes. Scales with corpus size, not with the deployment (#2083).
+        expected_duration_s=300,
     )
 
     async def enrich(

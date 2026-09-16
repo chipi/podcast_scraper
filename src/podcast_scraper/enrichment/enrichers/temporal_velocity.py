@@ -715,7 +715,9 @@ class TemporalVelocityEnricher:
             "ratio and cannot separate 'discussed once, recently' from 'discussed all year' "
             "(#1931). Topics below min_total_mentions get no series (#1930)."
         ),
-        expected_duration_s=30,
+        # 300, not 30: prod has carried this as a viewer_operator.yaml override since the corpus
+        # passed ~1k episodes. Scales with corpus size, not with the deployment (#2083).
+        expected_duration_s=300,
         config_schema={
             "type": "object",
             "additionalProperties": False,
