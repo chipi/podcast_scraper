@@ -124,17 +124,54 @@ test.describe("Stack smoke test", () => {
     // documents under the corpus tree (single-feed AND multi-feed). The
     // older ``/api/corpus/documents/run-summary`` only fires for multi-
     // feed batches and was returning 404 on this single-feed stack-test.
-    const res = await request.get(
-      `/api/corpus/runs/summary?path=${encodeURIComponent(STACK_TEST_CORPUS_PATH)}`,
-    )
-    const text = await res.text()
-    if (res.status() !== 200) {
-      throw new Error(`runs/summary ${res.status()}: ${text.slice(0, 500)}`)
+    // Wait for a COMPLETE run rather than trusting whichever is newest.
+    //
+    // `runs/summary` sorts by mtime descending (corpus_metrics.py), so `runs[0]` is the run being
+    // written right now if a pipeline job is in flight — episodes scraped, GI and KG not yet. This
+    // test produced none of that data itself: it relies on `stack-jobs-flow` having finished the
+    // job first, which is spec execution ORDER, not a dependency anything enforces.
+    //
+    // On 2026-09-16 that assumption broke on a slow runner: jobs-flow's budget expired with the job
+    // still running, its retry started a SECOND job, and this test then read that second job's
+    // half-written run.json — failing on `gi_artifacts_generated` in 182ms while
+    // `episodes_scraped_total` passed, which is the signature of reading mid-flight.
+    //
+    // Scanning for a finished run costs nothing when one is already there and removes the race.
+    let run: Record<string, unknown> | undefined
+    const deadline = Date.now() + 240_000
+    let lastSeen = "none"
+    for (;;) {
+      const res = await request.get(
+        `/api/corpus/runs/summary?path=${encodeURIComponent(STACK_TEST_CORPUS_PATH)}`,
+      )
+      const text = await res.text()
+      if (res.status() !== 200) {
+        throw new Error(`runs/summary ${res.status()}: ${text.slice(0, 500)}`)
+      }
+      const body = JSON.parse(text) as { runs?: unknown[] }
+      expect(Array.isArray(body.runs)).toBe(true)
+      const runs = (body.runs ?? []) as Record<string, unknown>[]
+      run = runs.find(
+        (r) =>
+          Number(r.episodes_scraped_total) > 0 &&
+          Number(r.gi_artifacts_generated) > 0 &&
+          Number(r.kg_artifacts_generated) > 0,
+      )
+      if (run) break
+      lastSeen = runs.length
+        ? runs
+            .map(
+              (r) =>
+                `eps=${r.episodes_scraped_total} gi=${r.gi_artifacts_generated} kg=${r.kg_artifacts_generated}`,
+            )
+            .join(" | ")
+        : "no runs"
+      if (Date.now() > deadline) {
+        throw new Error(`no completed run within 240s — newest first: ${lastSeen}`)
+      }
+      await new Promise((r) => setTimeout(r, 3_000))
     }
-    const body = JSON.parse(text) as { runs?: unknown[] }
-    expect(Array.isArray(body.runs)).toBe(true)
-    expect((body.runs ?? []).length).toBeGreaterThan(0)
-    const run = (body.runs ?? [])[0] as Record<string, unknown>
+
     expect(run.episodes_scraped_total).toBeGreaterThan(0)
     expect(run.gi_artifacts_generated).toBeGreaterThan(0)
     expect(run.kg_artifacts_generated).toBeGreaterThan(0)
