@@ -13,6 +13,7 @@
  * their id (`topic:personal-growth` → "personal growth"), matching ProfileView.
  */
 import { computed, onMounted, ref } from 'vue'
+import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -117,7 +118,7 @@ function openStoryline(id: string): void {
             data-testid="unfollow"
             @click="unfollow(id)"
           >
-            ✕
+            <CloseIcon />
           </button>
         </li>
       </ul>
@@ -151,7 +152,7 @@ function openStoryline(id: string): void {
             data-testid="unfollow"
             @click="unfollow(id)"
           >
-            ✕
+            <CloseIcon />
           </button>
         </li>
       </ul>
@@ -185,7 +186,7 @@ function openStoryline(id: string): void {
             data-testid="unfollow"
             @click="unfollow(id)"
           >
-            ✕
+            <CloseIcon />
           </button>
         </li>
       </ul>

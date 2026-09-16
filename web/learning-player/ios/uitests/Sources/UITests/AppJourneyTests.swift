@@ -301,4 +301,61 @@ final class AppJourneyTests: XCTestCase {
       XCTFail("colour control not reachable from Saved")
     }
   }
+
+  // MARK: - 11 storyline from the INSIGHTS panel (the canLayer=false path)
+
+  /**
+   * Inside the Knowledge Panel the entity card is INLINE, so the layering policy says a sheet must
+   * not stack over it — the panel is already the layer. Topics replace in place via the shell's back
+   * stack; a storyline has no back-stack equivalent, so it routes to its standalone page instead.
+   *
+   * This is the branch nothing exercised: every other storyline test opens one from a SHEET, where
+   * it stacks. If `canLayer` were wired wrongly the panel would sprout a modal over itself and
+   * nobody would notice (2026-09-16).
+   */
+  func test11StorylineFromInsightsRoutesInsteadOfStacking() {
+    let app = Journey.launch()
+    AppSession.openEpisode(app, slug: episodeSlug)
+    sleep(6)
+
+    guard Journey.tap(app, labels: ["Insights"], contains: true, timeout: 15) else {
+      XCTFail("could not open the knowledge panel"); return
+    }
+    sleep(3)
+    _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 12)
+    sleep(2)
+
+    // Drill into a topic IN THE PANEL — it must replace in place, not open a sheet.
+    let topicPredicate = NSPredicate(format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'")
+    let topicButton = app.buttons.matching(topicPredicate).firstMatch
+    guard topicButton.waitForExistence(timeout: 20) else {
+      Journey.inventory(app, "panel-no-topic")
+      XCTFail("no topic control in the insights panel"); return
+    }
+    topicButton.tap()
+    sleep(4)
+    Journey.shot(self, "11-a-topic-in-panel")
+
+    // The topic card inside the panel offers its storyline. Tapping it must NAVIGATE.
+    guard let storyline = Journey.scrollTo(app, labels: ["Part of a storyline"], maxSwipes: 8) else {
+      Journey.inventory(app, "panel-topic-no-storyline")
+      Journey.shot(self, "11-b-no-storyline-link")
+      XCTFail("the in-panel topic card offered no storyline"); return
+    }
+    _ = storyline
+    guard Journey.tap(app, labels: ["Managing risk across domains"], contains: true, timeout: 12) else {
+      Journey.inventory(app, "panel-storyline-not-tappable")
+      XCTFail("storyline row not tappable in the panel"); return
+    }
+    sleep(5)
+    Journey.inventory(app, "after-panel-storyline")
+    Journey.shot(self, "11-c-storyline-from-panel")
+
+    // It routed to the storyline PAGE: the page has a "Back" row, which the sheet never renders.
+    // If it had stacked a sheet instead, the panel's own close would still be on screen underneath.
+    XCTAssertNotNil(
+      Journey.find(app, labels: ["Managing risk across domains"], contains: true, timeout: 12),
+      "the storyline did not open at all from the insights panel"
+    )
+  }
 }

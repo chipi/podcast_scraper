@@ -6,6 +6,7 @@
  * (empty when signed out).
  */
 import { computed, onMounted, ref } from "vue"
+import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
 import SectionStatus from "../components/SectionStatus.vue"
@@ -520,7 +521,7 @@ onMounted(() => {
             data-testid="collection-delete"
             @click="pendingDelete = c.id"
           >
-            ✕
+            <CloseIcon />
           </button>
         </div>
 
@@ -586,7 +587,7 @@ onMounted(() => {
                 data-testid="collection-item-remove"
                 @click="removeItem(it)"
               >
-                ✕
+                <CloseIcon />
               </button>
             </li>
           </ul>
