@@ -127,6 +127,51 @@ def test_raw_cache_is_reused_across_runs(monkeypatch, tmp_path: Path) -> None:
     assert prov2.fetch_calls == 0  # both served from org_web_raw/ cache
 
 
+def test_a_miss_is_recorded_and_not_refetched_next_run(monkeypatch, tmp_path: Path) -> None:
+    """An org the upstream has nothing for must not be re-asked on every subsequent run.
+
+    Regression: a miss never enters ``known`` (only derived ROWS do), so without a recorded
+    miss the new-entity budget re-selected the same unresolvable orgs forever. On prod this
+    burned ~200 attempts and 23 minutes per run to add +1 org (#2084).
+    """
+    monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
+    prov = _FakeProvider(set())  # neither org resolves
+    assert _run(OrgWebEnricher(provider=prov), tmp_path).data["orgs"] == []
+    assert prov.fetch_calls == 2  # both attempted once
+
+    prov2 = _FakeProvider(set())
+    assert _run(OrgWebEnricher(provider=prov2), tmp_path).data["orgs"] == []
+    assert prov2.fetch_calls == 0  # both suppressed by the recorded miss
+
+
+def test_a_miss_does_not_consume_the_new_entity_budget(monkeypatch, tmp_path: Path) -> None:
+    """The miss filter runs BEFORE the cap, so a missed org frees its slot for a new one.
+
+    Filtering after the slice would still waste the budget on entities known to be absent —
+    which is exactly how prod stalled at ~4 resolved orgs per 200-slot run.
+    """
+    monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
+    # Budget of 1: acme is attempted, misses, and is recorded.
+    prov = _FakeProvider({"org:globex"})
+    _run(OrgWebEnricher(provider=prov), tmp_path, config={"max_orgs": 1})
+    assert prov.fetch_calls == 1
+
+    # Next run, same budget of 1: acme is filtered out, so the slot goes to globex.
+    prov2 = _FakeProvider({"org:globex"})
+    rows = _run(OrgWebEnricher(provider=prov2), tmp_path, config={"max_orgs": 1}).data["orgs"]
+    assert [r["org_id"] for r in rows] == ["org:globex"]
+    assert prov2.fetch_calls == 1
+
+
+def test_refresh_ignores_a_recorded_miss(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
+    _run(OrgWebEnricher(provider=_FakeProvider(set())), tmp_path)
+    prov = _FakeProvider({"org:acme", "org:globex"})
+    rows = _run(OrgWebEnricher(provider=prov), tmp_path, config={"refresh": True}).data["orgs"]
+    assert prov.fetch_calls == 2  # refresh re-asks despite the fresh miss
+    assert sorted(r["org_id"] for r in rows) == ["org:acme", "org:globex"]
+
+
 def test_logo_hosted_when_provider_returns_validated_image(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(org_web, "load_kg", lambda _b: _KG)
     img = org_web.FetchedImage(data=b"\x89PNG\r\n\x1a\n", ext="png", license="CC0", artist=None)

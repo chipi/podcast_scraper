@@ -57,6 +57,14 @@ _logger = logging.getLogger(__name__)
 _DEFAULT_MAX_ORGS = 200
 #: Raw provider payloads, one file per org, under the corpus enrichments dir.
 _RAW_SUBDIR = "org_web_raw"
+#: How long a recorded MISS suppresses a re-fetch. Without this, an org the upstream has nothing
+#: for never enters ``known`` (only rows do), so it is re-selected by the new-entity budget on
+#: EVERY run — the same unresolvable orgs sit at the head of the queue forever and the budget is
+#: spent re-asking Wikidata about them. Observed on prod 2026-09-16: ~200 orgs attempted per run,
+#: ~4 resolved, 23 minutes burned, org coverage moving +5 then +1 while person_web advanced +88.
+#: The TTL keeps it self-healing — an org that GETS a Wikidata entity later is picked up at the
+#: next expiry rather than never, without a manual `refresh`. Mirrors person_web's _MISS_TTL_S.
+_MISS_TTL_S = 30 * 24 * 3600
 #: Hosted org logos (served by /api/app/organizations/{id}/logo).
 _LOGO_SUBDIR = "org_logos"
 
@@ -461,6 +469,49 @@ def _write_raw_cache(
     )
 
 
+def _miss_is_fresh(corpus_root: Path, org_id: str, now: int) -> bool:
+    """True when a recorded miss for this org is still inside the TTL.
+
+    Shares the raw-cache path: a miss envelope carries no ``payload``, so
+    ``_read_raw_cache`` reads it back as None and the fetch path is unaffected.
+    """
+    path = _raw_path(corpus_root, org_id)
+    if not path.is_file():
+        return False
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not (isinstance(doc, dict) and doc.get("miss")):
+        return False
+    fetched_at = doc.get("fetched_at")
+    if not isinstance(fetched_at, (int, float)):
+        return False
+    return (now - int(fetched_at)) < _MISS_TTL_S
+
+
+def _write_miss(corpus_root: Path, org_id: str, display_name: str, now: int) -> None:
+    """Record that the upstream had nothing for this org, with a timestamp for the TTL."""
+    path = _raw_path(corpus_root, org_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.write_text(
+            json.dumps(
+                {
+                    "org_id": org_id,
+                    "name": display_name,
+                    "fetched_at": now,
+                    "miss": True,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+    except OSError:  # a miss we fail to record only costs a re-fetch next run
+        pass
+
+
 def _logo_meta_path(corpus_root: Path, org_id: str) -> Path:
     return _logo_dir(corpus_root) / f"{_safe_name(org_id)}.meta.json"
 
@@ -626,7 +677,17 @@ class OrgWebEnricher:
         # way. Budgeting NEW entities instead keeps the politeness (few fresh upstream lookups per
         # run) without ever making an entity permanently invisible.
         all_orgs = _distinct_orgs(all_bundles or [])
-        fresh = [(oid, name) for oid, name in all_orgs if oid not in known]
+        # Misses are filtered BEFORE the cap, not inside the loop: an org the upstream has
+        # nothing for never enters `known` (only rows do), so without this it is re-selected
+        # every run and the budget is spent re-asking about the same unresolvable head of the
+        # queue. Filtering after the slice would still waste the slot.
+        now_for_budget = int(time.time())
+        fresh = [
+            (oid, name)
+            for oid, name in all_orgs
+            if oid not in known
+            and (refresh or not _miss_is_fresh(corpus_root, oid, now_for_budget))
+        ]
         orgs = fresh[:max_orgs]
         now = int(time.time())
         fetch_image = getattr(self._provider, "fetch_image", None)
@@ -661,6 +722,8 @@ class OrgWebEnricher:
                     if raw is not None:
                         _write_raw_cache(corpus_root, oid, name, raw, now)
                         fetched += 1
+                    else:
+                        _write_miss(corpus_root, oid, name, now)
                 if raw is None:
                     continue
                 info = self._provider.derive(oid, name, raw)
