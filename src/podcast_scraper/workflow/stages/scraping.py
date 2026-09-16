@@ -580,6 +580,21 @@ def _reprocess_existing_episodes(
             reconstructed += 1
         episode = create_episode_from_item(item, idx, feed.base_url)
         episode.on_disk_transcript = _transcript_beside_metadata(meta_path)
+        # SAY WHICH FILE THIS EPISODE IS ABOUT, at the moment it is decided. A reprocess OVERWRITES
+        # the transcript it picks, and when a run came back with six of seven episodes relabelled
+        # onto another episode's transcript there was no way to tell from the logs whether the
+        # resolution was wrong or the fallback had silently fired — the components all behaved
+        # correctly when tested in isolation afterwards. One line per episode settles it.
+        logger.info(
+            "reprocess: [%s] %r -> %s",
+            idx,
+            str(episode_meta.get("title") or "")[:60],
+            (
+                Path(episode.on_disk_transcript).name
+                if episode.on_disk_transcript
+                else "NO OWN TRANSCRIPT — will fall back to the idx search"
+            ),
+        )
         episodes.append(episode)
 
     logger.info(

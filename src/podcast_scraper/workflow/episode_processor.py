@@ -2393,6 +2393,17 @@ def _existing_transcript_for(
             path,
             job.idx,
         )
+    else:
+        # A SILENT FALLBACK IS HOW THIS HID. With no transcript of its own the search below runs
+        # with no warning at all, and its answer is indistinguishable in the logs from a correct
+        # resolution — which is the state a run reached while every component tested correct in
+        # isolation afterwards. Say it out loud.
+        logger.warning(
+            "[%s] %s: this job carries NO transcript path of its own; falling through to the "
+            "index-prefix search, whose answer may be a DIFFERENT episode",
+            job.idx,
+            stage,
+        )
 
     run_dir = Path(effective_output_dir)
     search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
