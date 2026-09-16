@@ -170,6 +170,42 @@ enum Journey {
   /// silently swallows every later tap — which is how a screenshot sweep loses a run of frames in
   /// the middle and reports no error at all (five frames vanished this way on 2026-09-16). Cheap
   /// and idempotent: call it between sections rather than reasoning about which sheet is up.
+  /// Tap the LAST element matching one of `labels`, not the first.
+  ///
+  /// Cards below the top of a stack stay in the accessibility tree, so an exact-label query can
+  /// match a chip on a card that is visually buried. That is how "the storyline's topic row does
+  /// not open anything" was diagnosed — the tap was landing on the `8 similar topics` chip of the
+  /// TOPIC card underneath, and the row was never touched (2026-09-16). Later elements are the
+  /// more recently mounted ones, which is the sheet on top.
+  @discardableResult
+  static func tapTopmost(_ app: XCUIApplication, labels: [String], timeout: TimeInterval = 10)
+    -> Bool
+  {
+    guard !labels.isEmpty else { return false }
+    let clauses = labels.map { "label ==[c] '\($0.replacingOccurrences(of: "'", with: "\\'"))'" }
+    let predicate = NSPredicate(format: clauses.joined(separator: " OR "))
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+      // Pool BOTH element types before choosing. Returning on the first query that had any hit
+      // re-introduced the very bug this helper exists for: the storyline's member rows are
+      // RouterLinks, the topic card's chips are buttons, so "buttons first" tapped a chip on the
+      // card underneath every time.
+      var hits: [XCUIElement] = []
+      for q in [app.buttons, app.links] {
+        hits += q.matching(predicate).allElementsBoundByIndex.filter { $0.isHittable }
+      }
+      // Lowest on screen wins: within one stack the top card is drawn over the others, so its rows
+      // sit below the buried card's chips in the layout.
+      if let target = hits.max(by: { $0.frame.minY < $1.frame.minY }) {
+        target.tap()
+        return true
+      }
+      usleep(400_000)
+    } while Date() < deadline
+    print("=====TAP_TOPMOST_MISS \(labels)=====")
+    return false
+  }
+
   /// Whether the app chrome is reachable — i.e. nothing modal is covering the tab bar. This is the
   /// only honest test of "did the sheets close": tapping a close control proves a tap happened, not
   /// that the sheet went away.

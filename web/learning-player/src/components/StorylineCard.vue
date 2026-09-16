@@ -44,6 +44,11 @@ if (props.depth > 0) {
 // Resolved at mount: a sheet opened from inside the Knowledge Panel's modal <dialog> must render
 // INSIDE it, or the panel's top layer hides it completely. See sheetTeleportTarget().
 const teleportTarget = sheetTeleportTarget()
+// The depth ladder assumes the card below is a 92dvh sheet. The Knowledge Panel is a full-height
+// dialog pinned at `top-8`, so the SAME child height leaves a taller strip of it showing — enough
+// to expose its action row, when the contract is kicker + title and nothing else. Measure the peek
+// from the panel's own top instead (operator 2026-09-16: "it is not under title").
+const stackBase = teleportTarget === "body" ? undefined : "96dvh"
 </script>
 
 <template>
@@ -54,7 +59,7 @@ const teleportTarget = sheetTeleportTarget()
         tabindex="-1"
         class="lp-sheet relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
         :class="depth > 0 ? 'lp-sheet--stacked' : undefined"
-        :style="{ '--lp-depth': depth }"
+        :style="{ '--lp-depth': depth, '--lp-stack-base': stackBase }"
         data-testid="storyline-card"
       >
         <!-- The ✕ now rides StorylineView's action row (embedded), unified with the topic/person
