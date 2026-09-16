@@ -76,13 +76,38 @@ final class PersonalisationTests: XCTestCase {
     Journey.inventory(app, "interests-picker")
     Journey.shot(self, "10-interests-picker")
 
-    // Pick whichever of the fixture clusters the picker offers.
-    var picked = 0
-    for label in ["systems thinking", "risk management", "expert interviews", "lifelong learning"] {
-      if Journey.tap(app, labels: [label], contains: true, timeout: 6) { picked += 1; sleep(1) }
-      if picked == 3 { break }
+    // Tap whatever the picker ACTUALLY offers, rather than guessing labels. The chips are named
+    // after semantic CLUSTERS, not after the topic names on the trending rail — so the earlier
+    // ["systems thinking", …] taps all missed, no interest was ever chosen, and the assertion below
+    // then "failed" about a state the test had never created (2026-09-16).
+    // WAIT for the picker's content. It fetches clusters, so the first snapshot of the button
+    // array caught the sheet still on "Loading topics…" and came back empty — the same
+    // snapshot-before-layout trap that cost a diagnosis on the notifications matrix.
+    let ready = Journey.find(app, labels: ["Choose your interests"], contains: true, timeout: 20) != nil
+    XCTAssertTrue(ready, "the interests picker never finished loading its topics")
+    sleep(2)
+    Journey.inventory(app, "interests-picker-loaded")
+
+    let chrome: Set<String> = ["Close", "Cancel", "Save", "Done", "Skip", "Topics", "Storylines"]
+    // Chips carry `aria-pressed`, which WebKit surfaces as a TOGGLE, not a button — so scanning
+    // `app.buttons` found only the sheet's Cancel/Save and reported "nothing tappable" for a picker
+    // full of chips. Exactly the push-matrix lesson: never assume the element type (2026-09-16).
+    let chips = (app.switches.allElementsBoundByIndex
+      + app.checkBoxes.allElementsBoundByIndex
+      + app.buttons.allElementsBoundByIndex).filter {
+      let l = $0.label.trimmingCharacters(in: .whitespacesAndNewlines)
+      return !l.isEmpty && !chrome.contains(l) && $0.isHittable
     }
-    print("=====INTERESTS_PICKED \(picked)=====")
+    print("=====INTERESTS_CHIPS \(chips.prefix(8).map { $0.label })=====")
+    var picked = 0
+    var chosen: [String] = []
+    for chip in chips.prefix(3) {
+      chosen.append(chip.label)
+      chip.tap()
+      picked += 1
+      sleep(1)
+    }
+    print("=====INTERESTS_PICKED \(picked) \(chosen)=====")
     XCTAssertGreaterThan(picked, 0, "the interests picker offered nothing tappable")
 
     // Persist — the control is a Save/Done depending on the picker's state.
@@ -108,10 +133,22 @@ final class PersonalisationTests: XCTestCase {
       Journey.find(app, labels: ["Choose interests"], contains: true, timeout: 5),
       "Home is still prompting to choose interests after interests were chosen"
     )
+    // NOT asserted: that a chosen label appears verbatim on Home. Interests are semantic CLUSTERS
+    // ("Show Themes"), while the Home rails list the TOPICS inside them ("systems thinking") — so
+    // matching the cluster label on Home tests a relationship the product does not claim. The
+    // honest Home-side consequence is the one asserted above: it stops asking you to choose.
+    //
+    // Where they DO render verbatim is the Profile Topics tab, which is what "see if they render"
+    // means — so that is checked at the source.
+    Journey.openProfile(app)
+    sleep(3)
+    _ = Journey.tap(app, labels: ["Topics"], timeout: 10)
+    sleep(3)
+    Journey.inventory(app, "profile-topics-after-pick")
+    Journey.shot(self, "10-profile-topics-after-pick")
     XCTAssertNotNil(
-      Journey.scrollTo(app, labels: ["systems thinking", "risk management", "expert interviews",
-                                     "lifelong learning"]),
-      "no chosen interest surfaced anywhere on Home"
+      Journey.scrollTo(app, labels: chosen),
+      "none of the interests just chosen (\(chosen)) render on the Profile Topics tab"
     )
   }
 }

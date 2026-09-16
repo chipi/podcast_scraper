@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Entity card SHELL (PRD-043 FR2/FR3; UXS-014) — the shared person/topic frame: the header (kicker
- * / role / title / one-line descriptor / follow / save / collection / dismiss / open-in-page), the
+ * / role / title / one-line descriptor / follow / save / collection / dismiss), the
  * re-entrant back stack (walk the graph, step back), and the load. The kind-specific body is
  * delegated to {@link PersonCardContent} / {@link TopicCardContent}. The shell holds only what BOTH
  * need — so the ONE stack can carry a mixed person↔topic walk within a single panel, which is why

@@ -281,8 +281,6 @@ final class NativeCapabilityTests: XCTestCase {
     // tree and taps something that is not a photo — which is why the crop modal never opened. The
     // flow below is correct and compiles; driving the picker needs its own process hierarchy.
     // Skipped EXPLICITLY, with the reason, rather than left red so the cause stays visible.
-    try XCTSkipIf(true, "PHPicker is out-of-process; picker automation not implemented yet (2026-09-16)")
-
     guard Journey.tap(app, labels: ["Change photo"], contains: true, timeout: 12) else {
       Journey.inventory(app, "profile-no-avatar-trigger")
       XCTFail("no 'Change photo' control on the profile")
@@ -291,15 +289,59 @@ final class NativeCapabilityTests: XCTestCase {
     sleep(4)
     Journey.shot(self, "n4-b-photo-picker")
 
-    // The picker is another process (PHPicker / Photos). Its cells are images; take the first.
-    let photo = app.images.element(boundBy: 0)
-    let sheet = XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow")
-    if photo.waitForExistence(timeout: 10), photo.isHittable {
-      photo.tap()
-    } else if sheet.images.element(boundBy: 0).waitForExistence(timeout: 10) {
-      sheet.images.element(boundBy: 0).tap()
-    } else {
-      Journey.inventory(app, "photo-picker")
+    // A web `<input type=file>` in WKWebView opens an ACTION SHEET first (Photo Library / Take
+    // Photo / Choose File) — the picker only appears after choosing a source. The first version of
+    // this test looked for photos immediately and tapped something inside the app instead, which is
+    // why the crop modal never opened (2026-09-16).
+    let sources = ["Photo Library", "Choose File", "Choose Photo"]
+    var openedSource = false
+    for owner in [app, springboard] {
+      for label in sources where owner.buttons[label].waitForExistence(timeout: 4) {
+        print("=====AVATAR_SOURCE \(label)=====")
+        owner.buttons[label].tap()
+        openedSource = true
+        break
+      }
+      if openedSource { break }
+    }
+    if !openedSource { print("=====AVATAR_SOURCE none — picker may open directly=====") }
+    sleep(4)
+
+    // Limited-library PHPicker ("private access to photos"). Its cells are a remote view, so they
+    // are NOT under the app's own collectionView — dump what is actually there before choosing.
+    print("=====PICKER_TYPES images=\(app.images.count) cells=\(app.cells.count) " +
+          "collections=\(app.collectionViews.count) buttons=\(app.buttons.count) " +
+          "sb_images=\(springboard.images.count) sb_cells=\(springboard.cells.count)=====")
+    Journey.inventory(app, "photo-picker")
+
+    // The picker's cells report `isHittable == false` — they belong to a remote view, so the usual
+    // hit-testing does not apply. Tapping via a normalized COORDINATE works on elements XCUITest
+    // will not call hittable, which is the whole trick here (2026-09-16).
+    //
+    // Photos are appended AFTER the page's own artwork in the tree, so walk from the end.
+    var picked = false
+    let imgs = app.images
+    let n = imgs.count
+    for idx in stride(from: n - 1, through: max(0, n - 8), by: -1) {
+      let candidate = imgs.element(boundBy: idx)
+      guard candidate.exists else { continue }
+      let frame = candidate.frame
+      guard frame.width > 40, frame.height > 40 else { continue } // skip icons/chrome
+      print("=====PICKER_TAP idx=\(idx)/\(n) label=\(candidate.label) frame=\(frame)=====")
+      candidate.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+      picked = true
+      break
+    }
+    // The limited-access picker SELECTS on tap and waits for confirmation — it does not dismiss
+    // itself, which is why the crop modal never opened even once a real photo had been tapped.
+    sleep(2)
+    for confirm in ["Add", "Done", "Choose"] where app.buttons[confirm].waitForExistence(timeout: 3) {
+      print("=====PICKER_CONFIRM \(confirm)=====")
+      app.buttons[confirm].tap()
+      break
+    }
+    guard picked else {
+      Journey.shot(self, "n4-b2-picker-miss")
       XCTFail("no photo in the picker — seed one with `xcrun simctl addmedia booted <image>`")
       return
     }

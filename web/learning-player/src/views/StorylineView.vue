@@ -8,7 +8,7 @@
  * `theme_cluster_*` + `theme_sibling_topics` + `related_people` + `episodes`), so the route param is
  * the anchor topic id and everything derives from `getTopicCard`.
  */
-import { computed, ref, watch } from "vue"
+import { computed, ref, watch, defineAsyncComponent } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import { getTopicCard } from "../services/api"
@@ -17,6 +17,9 @@ import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import EpisodeRow from "../components/EpisodeRow.vue"
 import NoteComposer from "../components/NoteComposer.vue"
+// ASYNC: EntityCard → EntityCardBody → TopicCardContent → StorylineCard → this file is a cycle, so
+// the resolve is deferred to first open. Same reason TopicCardContent defers EntityCard.
+const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
 import FavoriteButton from "../components/FavoriteButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import ShareMenu from "../components/ShareMenu.vue"
@@ -28,6 +31,22 @@ type Member = { id: string; label: string }
 // `embedded` — rendered INSIDE the storyline overlay sheet (StorylineCard) rather than as a
 // standalone route. Drops the back button + page padding/width; the sheet supplies its own chrome.
 const props = withDefaults(defineProps<{ id: string; embedded?: boolean }>(), { embedded: false })
+
+/**
+ * Inside the SHEET, a member topic or person opens as a sheet ON TOP — the same gesture giving the
+ * same result as everywhere else (operator 2026-09-16). These used to be RouterLinks to the full
+ * page, so tapping a topic here closed the storyline and dropped you on a page, while the identical
+ * tap on a topic card opened a layer.
+ *
+ * On the PAGE the links stay links: a page is where navigation belongs, and there is no sheet to
+ * layer over.
+ */
+const entityOpen = ref<{ kind: "topic" | "person"; id: string } | null>(null)
+function openEntity(kind: "topic" | "person", id: string, e?: MouseEvent): void {
+  if (!props.embedded) return // page: let the RouterLink navigate
+  e?.preventDefault()
+  entityOpen.value = { kind, id }
+}
 // When embedded in the overlay sheet the ✕ lives in THIS header's action row (unified with the
 // topic/person card), so the close intent has to reach StorylineCard. Standalone ignores it.
 const emit = defineEmits<{ (e: "close"): void }>()
@@ -204,6 +223,7 @@ function goBack(): void {
             <RouterLink
               :to="{ name: 'topic', params: { id: tp.id } }"
               class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+              @click="openEntity('topic', tp.id, $event)"
             >
               <span class="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted">{{
                 i + 1
@@ -221,17 +241,9 @@ function goBack(): void {
            it, so the sheet stays a compact preview (members + momentum + follow) and links out to
            the full storyline page for the rest. The standalone page has nothing beneath it, so it
            shows everything. This link doubles as the overlay's "open in page" escape hatch. -->
-      <RouterLink
-        v-if="embedded"
-        :to="{ name: 'storyline', params: { id } }"
-        class="mt-4 inline-flex items-center gap-1 text-sm font-bold text-accent no-underline transition hover:opacity-80"
-        data-testid="storyline-open-page"
-      >
-        {{ t("ec.openInPage") }} ›
-      </RouterLink>
 
       <!-- Top episodes for the storyline (SL.2). Standalone page only — see the note above. -->
-      <section v-if="!embedded && episodes.length" class="mt-6">
+      <section v-if="episodes.length" class="mt-6">
         <h2 class="lp-section mb-2">
           {{ t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } }) }}
         </h2>
@@ -243,7 +255,7 @@ function goBack(): void {
       </section>
 
       <!-- People involved (SL.2). Standalone page only (redundant with the topic card in overlay). -->
-      <section v-if="!embedded && people.length" class="mt-6">
+      <section v-if="people.length" class="mt-6">
         <h2 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h2>
         <div class="flex flex-wrap gap-1.5">
           <RouterLink
@@ -251,13 +263,27 @@ function goBack(): void {
             :key="p.id"
             :to="{ name: 'person', params: { id: p.id } }"
             class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person no-underline transition hover:bg-elevated"
+            @click="openEntity('person', p.id, $event)"
             >{{ p.name }}</RouterLink
           >
         </div>
       </section>
 
-      <!-- Notes on this storyline (SL.3). Standalone page only — the overlay is a preview. -->
-      <NoteComposer v-if="!embedded" target="storyline" :target-id="id" />
+      <!-- Notes on this storyline (SL.3). Shown in the sheet too (operator 2026-09-16): the sheet is
+           no longer a preview of the page, it IS the page's content, so withholding notes here was
+           the last thing making the two differ. -->
+      <NoteComposer target="storyline" :target-id="id" />
     </template>
+
+    <!-- A topic or person opened FROM this sheet, layered on top. Its own history key, or it would
+         fight the parent sheet's entry (see EntityCard). -->
+    <EntityCard
+      v-if="entityOpen"
+      :kind="entityOpen.kind"
+      :id="entityOpen.id"
+      history-key="card2"
+      stacked
+      @close="entityOpen = null"
+    />
   </section>
 </template>

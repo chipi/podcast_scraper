@@ -65,6 +65,10 @@ enum Journey {
     contains: Bool = false,
     timeout: TimeInterval = 15
   ) -> XCUIElement? {
+    // An EMPTY label list produces an empty format string, which NSPredicate rejects with
+    // NSInvalidArgumentException — surfacing as a crash mid-test instead of a plain "not found"
+    // (2026-09-16). Callers legitimately pass a computed list that can come back empty.
+    guard !labels.isEmpty else { return nil }
     // Escape apostrophes before they reach the predicate. A label like "Couldn't start dictation"
     // closes the single-quoted literal early and NSPredicate throws `NSInvalidArgumentException`
     // mid-test — which surfaces as a crash in the helper rather than as "not found", so it reads

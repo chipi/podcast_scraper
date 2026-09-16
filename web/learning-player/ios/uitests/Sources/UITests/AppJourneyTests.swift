@@ -160,7 +160,15 @@ final class AppJourneyTests: XCTestCase {
     sleep(3)
     _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 15)
     sleep(3)
-    _ = Journey.scrollTo(app, labels: ["Open Dr. Elena Fischer", "Open Sam"])
+    // POLL for the control instead of snapshotting once. Expanding the accordion lays the section
+    // out asynchronously, so a single `scrollTo` pass could run before the buttons existed — which
+    // is why this passed alone and failed inside a full run, where the preceding tests changed the
+    // timing. Waiting is what makes it order-independent (2026-09-16).
+    let personPredicate = NSPredicate(format: "label CONTAINS[c] 'Open Dr. Elena Fischer' OR label CONTAINS[c] 'Open Sam'")
+    let personButton = app.buttons.matching(personPredicate).firstMatch
+    if !personButton.waitForExistence(timeout: 20) {
+      _ = Journey.scrollTo(app, labels: ["Open Dr. Elena Fischer", "Open Sam"], maxSwipes: 10)
+    }
     guard Journey.tap(app, labels: ["Open Dr. Elena Fischer", "Open Sam"], contains: true, timeout: 15) else {
       Journey.inventory(app, "episode-no-person")
       Journey.shot(self, "04-person-MISS")

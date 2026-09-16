@@ -206,10 +206,27 @@ async function getJSON<T>(
  */
 const ME_TIMEOUT_MS = 8000
 
+/**
+ * Absolutise the avatar URL for the native shell.
+ *
+ * The server returns `image` as a RELATIVE path (`/api/app/profile/<id>/avatar?v=…`). On the web
+ * that is correct; inside the Capacitor WebView the document origin is `capacitor://localhost`, so
+ * it resolves there, 404s, and `ProfileAvatar` quietly falls back to initials — an uploaded photo
+ * simply never appeared (operator 2026-09-16).
+ *
+ * This is the SAME defect class as the artwork and audio URLs that motivated the device test tier;
+ * `getAudioSource` already does exactly this for `media_url`. Done here, in one place, rather than
+ * at each of the avatar's render sites.
+ */
+function withAbsoluteAvatar(me: Me): Me {
+  return me.image ? { ...me, image: resolveMediaUrl(me.image) ?? me.image } : me
+}
+
 /** Signed-in user, or `null` when not authenticated (401). */
 export async function getMe(): Promise<Me | null> {
   try {
-    return await getJSON<Me>("/me", undefined, { signal: AbortSignal.timeout(ME_TIMEOUT_MS) })
+    const me = await getJSON<Me>("/me", undefined, { signal: AbortSignal.timeout(ME_TIMEOUT_MS) })
+    return withAbsoluteAvatar(me)
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return null
     // A timeout / transport abort is NOT a signed-out signal — rethrow so refresh() keeps the device
@@ -899,7 +916,10 @@ export async function uploadAvatar(file: Blob): Promise<{ image: string }> {
     body: form,
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /profile/avatar → ${resp.status}`)
-  return (await resp.json()) as { image: string }
+  const body = (await resp.json()) as { image: string }
+  // Absolutised for the same reason as `getMe` — the upload response carries the same relative path,
+  // and a caller that renders it directly would hit `capacitor://localhost` on native.
+  return { ...body, image: resolveMediaUrl(body.image) ?? body.image }
 }
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
