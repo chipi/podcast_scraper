@@ -45,8 +45,10 @@ const props = withDefaults(
      * whole destination and false when it is a drill-down inside a host (operator 2026-09-16).
      */
     canLayer?: boolean
+    /** This card's own stack depth; anything it opens sits one level deeper. */
+    depth?: number
   }>(),
-  { canLayer: true }
+  { canLayer: true, depth: 0 }
 )
 const emit = defineEmits<{
   (e: "open", payload: { kind: "person" | "topic"; id: string }): void
@@ -220,7 +222,12 @@ function searchLibrary(): void {
   </p>
 
   <!-- The storyline, opened ON TOP (teleported sheet) rather than navigating away. -->
-  <StorylineCard v-if="storylineOpen" :id="topic.id" stacked @close="storylineOpen = false" />
+  <StorylineCard
+    v-if="storylineOpen"
+    :id="topic.id"
+    :depth="depth + 1"
+    @close="storylineOpen = false"
+  />
 
   <!-- A person, layered over this topic. `history-key` MUST differ from the parent sheet's `card`
        or the two fight over one history entry (see EntityCard). -->
@@ -229,7 +236,7 @@ function searchLibrary(): void {
     kind="person"
     :id="personOpen"
     history-key="card2"
-    stacked
+    :depth="depth + 1"
     @close="personOpen = null"
   />
 

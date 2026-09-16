@@ -128,30 +128,50 @@
     }
   }
 
-  /* A sheet LAYERED over another sheet (operator 2026-09-16).
-     Nested sheets inherited the base 70–92dvh and so covered the one beneath almost entirely —
-     opening a person from a topic read as the topic being REPLACED rather than built on, with no
-     visible handle back to it. Capping the height keeps the parent's kicker + title on screen
-     above, which is what makes the pair read as a stack; it also pushes the parent's action row out
-     of view, so only ONE set of Follow / favourite / Collection / Share is reachable and there is
-     no ambiguity about which entity a tap would act on.
-     `min-height` must drop too, or the 70dvh floor fights the new ceiling on a short screen. */
-  .lp-sheet--stacked {
-    min-height: 0;
-    /* MUST stay below the parent's `min-height: 70dvh` floor, or a parent rendered at that floor is
-       SHORTER than its child and gets covered completely — which is what happened at 78dvh: the
-       peek only appeared when the parent happened to have enough content to grow past the child
-       (operator 2026-09-16, reported as "person and storyline fully overlap the topic").
-       62dvh guarantees ~8dvh of parent above the child on every screen — enough for its kicker and
-       title, which is the whole point of stacking rather than replacing. */
-    max-height: 62dvh;
+  /* A sheet LAYERED over another sheet — topic over person, person over topic, storyline over
+     either (operator 2026-09-16).
+
+     The peek above the child must be a FIXED amount, and that is the whole point of the rules
+     below. Sizing the child alone cannot achieve it: the peek is `parent height − child height`,
+     and the parent is content-sized between 70 and 92dvh, so the same child produced a total
+     overlap on a short parent and a 14dvh band on a long one. Both failures were reported from the
+     same build — "person and storyline fully overlap the topic", then "I don't want to see the
+     heart, share and following storyline in the background".
+
+     Stacks go ARBITRARILY deep — topic → storyline → person → … — and must read as a deck of
+     cards: every card below shows its title, every new card starts one title lower. So the height
+     is a function of DEPTH, not a special case for "the nested one". Each sheet is exactly one peek
+     shorter than the one it covers, which (bottom-anchored) puts its top edge one peek further
+     down. `--lp-depth` is set inline by the component that knows its own level.
+
+     --lp-peek is the visible band: kicker + title, and deliberately nothing else. The card below's
+     action row falls outside it, so only ONE set of Follow / favourite / Collection / Share is
+     ever reachable and a tap cannot be ambiguous about which entity it acts on. */
+  .lp-sheet {
+    --lp-peek: 9dvh;
+    --lp-stack-base: 92dvh;
+    --lp-depth: 0;
+  }
+
+  /* Sheets only get a pinned height while a stack is actually open. A lone sheet stays
+     content-sized between 70 and 92dvh — forcing it tall would leave a short card floating in an
+     empty box.
+
+     The flag is a body CLASS (see composables/sheetStack.ts) rather than a selector on the card
+     below. Every sheet is `Teleport`ed to body, so a stacked child is a SIBLING of the card it
+     covers and never a descendant — `.lp-sheet:has(.lp-sheet--stacked)` would match nothing. An
+     explicit counted flag also survives a close mid-stack, which a structural selector would have
+     to re-derive. */
+  body.lp-stack-open .lp-sheet {
+    min-height: calc(var(--lp-stack-base) - var(--lp-depth) * var(--lp-peek));
+    max-height: calc(var(--lp-stack-base) - var(--lp-depth) * var(--lp-peek));
   }
 
   @media (min-width: 640px) {
-    /* The centred dialog has no 70dvh floor (min-height: 0 from `sm:`), so the guarantee has to come
-       from the gap itself: 60 against the parent's 85dvh ceiling. */
-    .lp-sheet--stacked {
-      max-height: 60dvh;
+    /* The centred dialog's ceiling is 85dvh, so the base follows it. The peek does not change — it
+       is sized by a kicker + title, which do not shrink on a wider screen. */
+    .lp-sheet {
+      --lp-stack-base: 85dvh;
     }
   }
 

@@ -12,28 +12,34 @@
  * reconstructs the whole theme cluster from any member topic's card. The topic card passes its own
  * id, which is a member, so the same storyline resolves.
  */
-import { ref } from "vue"
+import { onUnmounted, ref } from "vue"
 import StorylineView from "../views/StorylineView.vue"
 import { useModalSheet } from "../composables/useModalSheet"
+import { registerStackedSheet } from "../composables/sheetStack"
 
 const props = withDefaults(
   defineProps<{
     id: string
     /**
-     * Opened from ANOTHER sheet (a topic card), so it sits lower and lets the parent's kicker +
-     * title stay visible. Opened from a page (Home, Discover) it is the only sheet on screen and
-     * takes the full height — applying the stacked height there just made it short for no reason,
-     * and made a parent+child pair exactly the same size so neither could peek (operator
-     * 2026-09-16).
+     * How many sheets this one is stacked ON TOP of. 0 = opened from a page (Home, Discover) and
+     * the only sheet on screen, so it takes the full height — applying a stacked height there made
+     * it short for no reason. Each level above 0 sits one peek lower, so the card beneath keeps its
+     * kicker + title visible and a deep chain reads as a deck (operator 2026-09-16).
      */
-    stacked?: boolean
+    depth?: number
   }>(),
-  { stacked: false }
+  { depth: 0 }
 )
 const emit = defineEmits<{ (e: "close"): void }>()
 
 const dialogEl = ref<HTMLElement | null>(null)
 useModalSheet(dialogEl, () => emit("close"), { key: "storyline", value: () => props.id })
+
+// A layered card pins the whole stack's geometry for as long as it is on screen.
+if (props.depth > 0) {
+  const release = registerStackedSheet()
+  onUnmounted(release)
+}
 </script>
 
 <template>
@@ -43,13 +49,14 @@ useModalSheet(dialogEl, () => emit("close"), { key: "storyline", value: () => pr
         ref="dialogEl"
         tabindex="-1"
         class="lp-sheet relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
-        :class="stacked ? 'lp-sheet--stacked' : undefined"
+        :class="depth > 0 ? 'lp-sheet--stacked' : undefined"
+        :style="{ '--lp-depth': depth }"
         data-testid="storyline-card"
       >
         <!-- The ✕ now rides StorylineView's action row (embedded), unified with the topic/person
              card — so it no longer floats over the header content. StorylineView emits `close`. -->
         <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <StorylineView :id="id" embedded @close="emit('close')" />
+          <StorylineView :id="id" embedded :depth="depth" @close="emit('close')" />
         </div>
       </div>
     </div>

@@ -47,8 +47,10 @@ const props = withDefaults(
      * job is to close, which is what it looked like on the full-page route.
      */
     rootControl?: "back" | "close"
+    /** Stack depth of the sheet hosting this body; forwarded so what it opens sits one deeper. */
+    depth?: number
   }>(),
-  { variant: "overlay", rootControl: undefined }
+  { variant: "overlay", rootControl: undefined, depth: 0 }
 )
 const emit = defineEmits<{ (e: "close"): void }>()
 
@@ -322,6 +324,7 @@ const isTopic = computed(() => current.value.kind === "topic")
         v-else-if="topic"
         :topic="topic"
         :can-layer="dismissAtRoot"
+        :depth="depth"
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"
       />

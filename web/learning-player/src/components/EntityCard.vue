@@ -36,9 +36,10 @@
  *
  * `closedByNavigation` is what separates 1 and 3 from 2.
  */
-import { ref } from "vue"
+import { onUnmounted, ref } from "vue"
 import EntityCardBody from "./EntityCardBody.vue"
 import { useModalSheet } from "../composables/useModalSheet"
+import { registerStackedSheet } from "../composables/sheetStack"
 
 const props = withDefaults(
   defineProps<{
@@ -54,10 +55,17 @@ const props = withDefaults(
      * ENTITY sheet needs its own key too (2026-09-16).
      */
     historyKey?: string
-    /** Layered over another sheet — sits lower so the one beneath still shows its kicker + title. */
-    stacked?: boolean
+    /**
+     * How many sheets this one is stacked ON TOP of. 0 = the bottom card.
+     *
+     * A boolean `stacked` could only ever express one level, and stacks go arbitrarily deep
+     * (topic → storyline → person → …). The depth drives `--lp-depth`, which sizes the card one
+     * peek shorter per level so each card below keeps its title visible — a deck, not a pile
+     * (operator 2026-09-16).
+     */
+    depth?: number
   }>(),
-  { historyKey: "card", stacked: false }
+  { historyKey: "card", depth: 0 }
 )
 const emit = defineEmits<{ (e: "close"): void }>()
 
@@ -73,6 +81,12 @@ function cardKey(): string {
   return props.id.includes(":") ? props.id : `${props.kind}:${props.id}`
 }
 useModalSheet(dialogEl, () => emit("close"), { key: props.historyKey, value: cardKey })
+
+// A layered card pins the whole stack's geometry for as long as it is on screen.
+if (props.depth > 0) {
+  const release = registerStackedSheet()
+  onUnmounted(release)
+}
 </script>
 
 <template>
@@ -82,9 +96,10 @@ useModalSheet(dialogEl, () => emit("close"), { key: props.historyKey, value: car
         ref="dialogEl"
         tabindex="-1"
         class="lp-sheet w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
-        :class="stacked ? 'lp-sheet--stacked' : undefined"
+        :class="depth > 0 ? 'lp-sheet--stacked' : undefined"
+        :style="{ '--lp-depth': depth }"
       >
-        <EntityCardBody variant="overlay" :kind="kind" :id="id" @close="emit('close')" />
+        <EntityCardBody variant="overlay" :kind="kind" :id="id" :depth="depth" @close="emit('close')" />
       </div>
     </div>
   </Teleport>

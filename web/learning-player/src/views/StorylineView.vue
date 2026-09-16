@@ -31,7 +31,12 @@ type Member = { id: string; label: string }
 
 // `embedded` — rendered INSIDE the storyline overlay sheet (StorylineCard) rather than as a
 // standalone route. Drops the back button + page padding/width; the sheet supplies its own chrome.
-const props = withDefaults(defineProps<{ id: string; embedded?: boolean }>(), { embedded: false })
+const props = withDefaults(
+  // `depth` — the hosting sheet's stack level, so anything opened from here lands one deeper. A
+  // standalone page is 0: nothing is underneath it.
+  defineProps<{ id: string; embedded?: boolean; depth?: number }>(),
+  { embedded: false, depth: 0 }
+)
 
 /**
  * Inside the SHEET, a member topic or person opens as a sheet ON TOP — the same gesture giving the
@@ -283,7 +288,7 @@ function goBack(): void {
       :kind="entityOpen.kind"
       :id="entityOpen.id"
       history-key="card2"
-      stacked
+      :depth="depth + 1"
       @close="entityOpen = null"
     />
   </section>
