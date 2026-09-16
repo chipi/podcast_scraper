@@ -2029,6 +2029,12 @@ ios-app-install: ios-origin-up
 
 ios-contact-sheet: ios-app-install
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@# Sign in AFTER the install, never before. `ios-app-install` pulls in `app-e2e-api-up`, which
+	@# recreates the fixture api container — so an account minted first is destroyed moments later
+	@# and the app is left holding a token for a user that no longer exists. Every auth-gated surface
+	@# then comes back empty and the seeding suites fail as "element not found", which reads like a
+	@# UI regression rather than a wiped backend (2026-09-16).
+	@$(MAKE) ios-journey-signin
 	@# SEED FIRST. The tour shoots whatever is on screen, and a freshly-signed-in account has an
 	@# empty Library, no collections, no favourites and no listening history — so half the sheet was
 	@# empty states, which is exactly the half a visual review cannot judge (operator 2026-09-16).

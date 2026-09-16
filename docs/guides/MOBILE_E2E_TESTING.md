@@ -58,12 +58,32 @@ a UI regression and is really a missing media host.
 ```bash
 make ios-origin-up        # 8011 + 18765 + 4174   (app-e2e-api-up is implied)
 make ios-app-install      # build against :4174, install, VERIFY the bundle
-make ios-journey-signin   # mint a native session and seed it into the app
+make ios-journey-signin   # mint a native session — AFTER the install, see below
 make test-app-ios-journey-ui     # the assertion suites
-make ios-contact-sheet    # seed + tour + stitched grid   (implies ios-app-install)
+make ios-contact-sheet    # install + signin + seed + tour + grid (does all of this itself)
 ```
 
+**The order of those middle two matters.** `ios-app-install` pulls in `app-e2e-api-up`, which
+recreates the fixture api container — so an account minted BEFORE the install is destroyed moments
+later, and the app is left holding a token for a user that no longer exists. Every auth-gated
+surface then returns empty and the suites fail as "element not found", which reads like a UI
+regression rather than a wiped backend. `ios-contact-sheet` now sequences this for you.
+
 Tear down with `make ios-origin-down && make app-e2e-api-down`.
+
+### Installing the app WIPES the backend — always re-seed after it
+
+`ios-app-install` depends on `ios-origin-up` → `app-e2e-api-up`, and that target **tears the fixture
+api container down and re-seeds it from the corpus**. Every board, favourite, colour, chosen
+interest and minute of listening history created by a previous run is gone.
+
+So "the data is already seeded, I'll just re-run the tour to save ten minutes" is wrong, and it
+fails in a way that looks like a UI regression: the tour shoots Home and Discover fine, then misses
+the Library sub-tabs, the profile tabs and every entity surface, because there is nothing in them
+to tap. Re-running `ios-contact-sheet` end to end is the cheap path; the seeding suites regenerate
+everything as a side effect of asserting on it.
+
+The session token survives (the session secret is a fixed env var); only the DATA does not.
 
 ### Sign-in is a precondition, not part of the suites
 
@@ -104,6 +124,8 @@ plan. Until that lands, prefer the make targets over ad-hoc `-only-testing` sele
 | "neither Sign in nor Sign out present" | The profile entry point is labelled with the **display name**, not "Your profile". Use `Journey.openProfile`. |
 | Frames missing from the middle of the contact sheet | A sheet was left open and swallowed every later tap. Look for `=====SHEETS_STUCK=====`. A card's own ✕ can scroll out of the viewport (seen at y = −619). |
 | Screenshots don't show a fix you just made | The app was not rebuilt. Suites do not rebuild; `ios-app-install` does. |
+| Tour shoots Home/Discover then misses Library sub-tabs, profile and entity surfaces | The backend was re-seeded (any `ios-app-install`) and the seeding suites were not re-run. The app is empty, so there is nothing to tap. |
+| A card cannot be dismissed; `SHEETS_STUCK` | An entity card labels its dismiss control **Back**, not Close, when `dismissAtRoot` is false. A Close-only search finds nothing. |
 | `MODULE_NOT_FOUND` from any node step | The cmux `NODE_OPTIONS` shim. Prefix with `env -u NODE_OPTIONS`. |
 | Suite passes but shot fewer screens than expected | Best-effort frames. The tour now asserts its full list; older runs did not. |
 

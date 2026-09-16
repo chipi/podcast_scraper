@@ -181,15 +181,22 @@ enum Journey {
     return false
   }
 
+  /// `rounds` is per CARD, not per stack: a three-deep deck needs one pass each, and an entity card
+  /// with its own back-stack needs one per entry. Six covers the deepest chain the tour builds.
   @discardableResult
-  static func dismissSheets(_ app: XCUIApplication, rounds: Int = 4) -> Bool {
+  static func dismissSheets(_ app: XCUIApplication, rounds: Int = 6) -> Bool {
+    // "Back" is in the label list because an entity card renders its dismiss control as Back
+    // whenever `dismissAtRoot` is false (EntityCardBody: `t('ec.back')` vs `t('ec.close')`). Such a
+    // card has NO control named Close at all, so a Close-only list could never dismiss it and the
+    // tour reported SHEETS_STUCK on a card that was perfectly closable.
+    //
     // The old version bailed via `guard … else { return }` the moment no close control was
     // hittable — which is exactly the stuck case. On the 2026-09-16 tour the person sheet stayed
     // open, the tab bar stayed covered, and every later step missed: 21 of 24 screens shot, still
     // reported as success. Silence about a stuck modal reads just like a clean screen.
     for _ in 0..<rounds {
       if chromeReachable(app) { return true }
-      if let close = find(app, labels: ["Close", "Close panel", "✕", "Cancel", "Done"],
+      if let close = find(app, labels: ["Close", "Close panel", "✕", "Cancel", "Done", "Back"],
                           contains: false, timeout: 2),
          close.isHittable {
         close.tap()
@@ -201,7 +208,7 @@ enum Journey {
       // scroll the sheet back to the top and look again; that is also what a user does.
       for _ in 0..<6 {
         app.swipeDown()
-        if let close = find(app, labels: ["Close", "Close panel", "✕", "Cancel", "Done"],
+        if let close = find(app, labels: ["Close", "Close panel", "✕", "Cancel", "Done", "Back"],
                             contains: false, timeout: 1),
            close.isHittable {
           close.tap()
