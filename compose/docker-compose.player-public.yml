@@ -374,7 +374,10 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-      - /heartbeat
+      # uid/gid MUST be set: Docker mounts a bare tmpfs as root:root 0755, and this service runs
+      # as uid 1000 with cap_drop ALL, so it could neither write the heartbeat nor chown its way
+      # out — the healthcheck below then failed forever while the loop was actually fine (#2081).
+      - /heartbeat:uid=1000,gid=1000,mode=0755
     security_opt:
       - no-new-privileges:true
     cap_drop:
