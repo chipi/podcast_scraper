@@ -31,6 +31,14 @@ A migration cannot fix class B. There is no correct answer on disk for it to cop
 
 ## Step 0a — FIRST: measure the idx-collision damage (#2082)
 
+**Operator decision 2026-09-16: the order is deploy -> REPAIR #2082 -> quality work.** Not deploy
+-> quality. Every quality metric here reads `content.speakers`, and on an affected episode that
+field describes a different episode — so quality measured before the repair is partly measuring the
+wrong episodes, and a quality change cannot be told apart from the contamination. Measurements
+already taken during the #2075 arc should be re-derived after repair, or restricted to episodes this
+audit clears.
+
+
 **Run this before anything else, and do not run a migration until you have the number.** It costs
 one read-only pass and it decides whether the rest of this document is measuring a corpus or a
 corrupted one.
