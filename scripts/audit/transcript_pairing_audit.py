@@ -6,10 +6,19 @@ directory numbers its episodes from ``0001``, so a feed with fourteen run dirs h
 result is metadata written for one episode carrying a DIFFERENT episode's transcript path, and the
 roster computed from that other episode's words.
 
-Measured on the 2026-09-14 production snapshot when the bug was found: 275 of 2,256 metadata files
-(12.2%) pointed elsewhere, and of those carrying real speaker names, 119 had a roster matching the
-WRONG transcript and none matched their own. "DHH's new way of writing code" credited to Addy
-Osmani; "How Kent Beck shapes the software engineering industry" to Grady Booch.
+Measured on the 2026-09-14 production snapshot: **147 of 2,256** metadata files (6.5%) point
+elsewhere, every one of them a whisper transcription. Of those carrying real speaker names, 119 had
+a roster matching the WRONG transcript and none matched their own. "DHH's new way of writing code"
+credited to Addy Osmani; "How Kent Beck shapes the software engineering industry" to Grady Booch.
+
+THE FIRST NUMBER PUBLISHED HERE WAS 275, AND IT WAS WRONG. A plain stem equality test called 128
+episodes mispaired that are not: the metadata filename truncates the title to 32 characters and the
+transcript filename does not, so ``0006 - This Funding Model is Helping Fi_<guid>`` and ``0006 -
+This Funding Model is Helping Fight Climate Change_<guid>`` are the SAME episode and compared
+unequal. ``_names_the_same_episode`` below is the corrected test. It rescues 128 downloaded
+transcripts and NOT ONE of the 147 whisper mismatches — so the damage this audit exists to find is
+the size it always was; only the false positives are gone. Anything scoped off the old 275 (repair
+batches, GPU estimates, #2082's headline) is scoped off a number that was 87% too large.
 
 The code fix makes ``idx`` unique per run and stops new damage. It repairs nothing already written,
 which is why this exists: the post-deploy runbook must know the number BEFORE it runs a migration,
@@ -113,6 +122,34 @@ def _feed_root(meta_path: Path, corpus: Path) -> Path:
     return corpus
 
 
+def _names_the_same_episode(meta_stem: str, transcript_stem: str) -> bool:
+    """Do these two filenames name the same episode, allowing for a truncated title?
+
+    The metadata filename truncates the episode title; the transcript filename does not. Both keep
+    the same trailing identifier — a per-episode guid for a downloaded transcript, a per-RUN
+    timestamp for a transcribed one. So strip the common tail and the remainder is the title as each
+    file spells it; if one spells a prefix of the other, they are the same episode.
+
+    This is deliberately NOT "skip ``direct_download`` episodes". Excluding by transcript source
+    would hide a genuine mispairing on a downloaded transcript — and there is exactly one in the
+    production snapshot, which this test still reports.
+
+    The residual risk is stated rather than hidden: two episodes in the SAME run whose titles agree
+    for the first 32 characters would compare equal here. Nothing in the snapshot does.
+    """
+    if meta_stem == transcript_stem:
+        return True
+    n = 0
+    while (
+        n < min(len(meta_stem), len(transcript_stem))
+        and meta_stem[-1 - n] == transcript_stem[-1 - n]
+    ):
+        n += 1
+    a = meta_stem[: len(meta_stem) - n].rstrip()
+    b = transcript_stem[: len(transcript_stem) - n].rstrip()
+    return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))
+
+
 def audit(corpus: Path) -> Tuple[List[dict], int]:
     """``(findings, total_examined)``. A finding is one metadata file pointing elsewhere."""
     findings: List[dict] = []
@@ -130,7 +167,7 @@ def audit(corpus: Path) -> Tuple[List[dict], int]:
             continue
         total += 1
         stem = meta.name[: -len(".metadata.json")]
-        if Path(rel).name[: -len(".txt")] == stem:
+        if _names_the_same_episode(stem, Path(rel).name[: -len(".txt")]):
             continue
 
         feed_root = _feed_root(meta, corpus)

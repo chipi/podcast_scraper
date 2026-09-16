@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.audit.transcript_pairing_audit import audit, main
+from scripts.audit.transcript_pairing_audit import _names_the_same_episode, audit, main
 
 
 def _episode(
@@ -126,3 +126,58 @@ class TestUnclassifiedIsNotSafe:
         )
         findings, _ = audit(tmp_path)
         assert findings[0]["verdict"] == "inconclusive"
+
+
+class TestATruncatedTitleIsNotDamage:
+    """The first number this audit published — 275 — was 87% false positives.
+
+    The metadata filename truncates the episode title to 32 characters; the transcript filename
+    does not. A plain stem-equality test therefore called every downloaded-transcript episode
+    mispaired, 128 of them, purely because the two filenames spell the same title to different
+    lengths. Scoping repair work off that number would have paid for 128 episodes that are fine.
+    """
+
+    def test_the_same_episode_spelled_to_two_lengths_is_one_episode(self) -> None:
+        assert _names_the_same_episode(
+            "0006 - This Funding Model is Helping Fi_fe175413-45df-4ef0",
+            "0006 - This Funding Model is Helping Fight Climate Change_fe175413-45df-4ef0",
+        )
+
+    def test_an_identical_pair_is_the_same_episode(self) -> None:
+        assert _names_the_same_episode("0001 - A Title_g1", "0001 - A Title_g1")
+
+    def test_two_different_titles_sharing_a_run_suffix_are_still_damage(self) -> None:
+        """The whisper case, which is the damage. Same run tail, unrelated titles.
+
+        This is the pair that credited "DHH's new way of writing code" to Addy Osmani. If the
+        truncation tolerance ever swallowed it, the audit would report a clean corpus over 147
+        mispaired episodes.
+        """
+        assert not _names_the_same_episode(
+            "0013 - DHH_s new way of writing code_20260825-024254_285e51f2",
+            "0013 - Beyond Vibe Coding with Addy Osm_20260825-024254_285e51f2",
+        )
+
+    def test_a_truncated_title_still_does_not_match_a_different_index(self) -> None:
+        assert not _names_the_same_episode(
+            "0006 - This Funding Model is Helping Fi_g1",
+            "0007 - This Funding Model is Helping Fight Climate Change_g1",
+        )
+
+    def test_the_audit_reports_a_truncated_pair_as_clean(self, tmp_path: Path) -> None:
+        run = tmp_path / "feeds" / "rss_x" / "run_a_20260101-000000"
+        _episode(run, 1, "This Funding Model is Helping Fight Climate Change_g1", "g1")
+        meta_dir = run / "metadata"
+        full = (
+            meta_dir / "0001 - This Funding Model is Helping Fight Climate Change_g1.metadata.json"
+        )
+        body = json.loads(full.read_text(encoding="utf-8"))
+        full.unlink()
+        # Re-file it under the TRUNCATED name the pipeline actually writes, pointing at the
+        # untruncated transcript — exactly the shape of all 128 false positives.
+        (meta_dir / "0001 - This Funding Model is Helping Fi_g1.metadata.json").write_text(
+            json.dumps(body), encoding="utf-8"
+        )
+        findings, total = audit(tmp_path)
+        assert total == 1
+        assert findings == []
