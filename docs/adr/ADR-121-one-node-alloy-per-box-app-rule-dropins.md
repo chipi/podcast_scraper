@@ -70,8 +70,24 @@ loki.source.docker "<app>" {
 }
 ```
 
-**Ownership:** infra owns `base.alloy` (repo-tracked); each app owns its `<app>.alloy`
-(in its own repo, delivered by its own deploy). Same split as the vhosts.
+**Ownership:** each app owns its `<app>.alloy` (in its own repo, delivered by its own deploy).
+Same split as the vhosts.
+
+> **Amended 2026-09-16.** `base.alloy` was originally described as "infra owns it, repo-tracked".
+> In practice *no repo deployed it*: it was hand-edited over SSH as root (twice — the
+> `.bak-<timestamp>` siblings on the box are the fingerprint), and the `agentic-ai-homelab` copy
+> silently drifted **41 lines** from the running file while reading as authoritative.
+> "Repo-tracked" without a deploy path is not ownership; it is a mirror nobody knows is a mirror.
+>
+> It is now owned and shipped exactly like the app drop-ins:
+> `podcast_scraper:infra/observability/base.alloy` → `deploy-config.yml` → scp, stage,
+> atomic rename, `docker kill -s HUP alloy`. Adopted byte-for-byte from the running file so the
+> adoption itself changed no behaviour. No root needed: `/opt/vps-observability/config.d` is
+> `drwxrwxr-x deploy deploy`, and replacing a file is governed by the *directory's* permissions.
+>
+> The homelab copy remains as a deliberately-labelled **mirror**, kept because
+> `docker-compose.yml` mounts `./config.d` and a checkout must stay a runnable DR definition.
+> See `chipi/agentic-ai-homelab#64`.
 
 ## Consequences
 

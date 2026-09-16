@@ -72,6 +72,24 @@ visible symptom was two **nginx** containers crashlooping 527 times each
 nginx resolves `proxy_pass` upstreams at startup and each project's own api was the thing that was
 dead. Public visitors saw the coming-soon page the whole time, so nothing alerted for 9.5 hours.
 
+> **Detection (added 2026-09-16).** That "nothing alerted" is no longer true, but understand *why*
+> it was, because the obvious alerts still cannot see this failure:
+>
+> | candidate | fires? | why |
+> | --- | --- | --- |
+> | `Scrape target down (up==0)` | **no** | `player-api-1` / `operator-api-1` are not scraped at all — `base.alloy`'s `discovery.relabel "api"` keeps only `/compose-api-1` |
+> | `*logs dark` dead-man rules | **no** | the box is alive and still shipping journal + caddy logs, so log volume looks normal |
+> | a public HTTP check | **no** | the coming-soon page returns 200 |
+> | **`Container crashlooping on prod (restart storm)`** | **YES** | cadvisor scrapes these containers *by name*; `container_start_time_seconds` changes on every restart |
+>
+> The crashloop rule (`changes(...[15m]) > 3`, severity critical) fires within ~15 minutes on both
+> the Exited(127) api containers *and* the nginx storm downstream. It is deploy-safe: a normal
+> deploy produces exactly one restart per container.
+>
+> Still open: widening the api scrape to cover `player-api-1` / `operator-api-1` for true `up==0`
+> coverage — needs their `/metrics` endpoints verified first, or the scrape fails permanently and
+> the target-down rule false-fires forever.
+
 **THE RULE after any reboot:** run **`restage-prod-secrets.yml`** (`surfaces: all`,
 `recreate: true`). It stages all three dirs — control plane via the canonical action, the two
 surfaces via `scripts/ops/restage_prod_secrets.sh` — and recreates only containers that are
