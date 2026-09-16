@@ -3,6 +3,10 @@
 Each segment is ``{"start": float, "end": float, "text": str}`` (seconds), matching
 Whisper-style sidecars used by ``_char_range_to_ms``. Plain text is the concatenation
 of segment ``text`` values with no separator (exact length alignment for issue #545).
+
+A WebVTT cue may also carry a VOICE SPAN — ``<v Speaker 3>`` — naming who is talking. Where it
+does, the segment gains a ``"speaker"`` key, which is the same shape diarization produces, so a
+publisher-supplied transcript reaches the roster exactly as an audio-derived one does.
 """
 
 from __future__ import annotations
@@ -19,6 +23,9 @@ _WEBVTT_CUE_LINE = re.compile(
 # SRT typical line (hours optional in some files; require full h:m:s)
 _SRT_CUE_LINE = re.compile(r"^(\d+:\d{2}:\d{2},\d{3})\s*-->\s*(\d+:\d{2}:\d{2},\d{3})")
 _HTML_TAG = re.compile(r"<[^>]+>")
+# WebVTT voice span: `<v Speaker 3>`, `<v.loud Mark>`, `<v Joe Wiesenthal>`. The name runs to the
+# closing angle bracket; optional `.class` suffixes on the tag itself are not part of it.
+_VOICE_SPAN = re.compile(r"<v(?:\.[^\s>]+)*\s+([^>]+)>")
 
 
 def _timestamp_to_seconds(ts: str) -> float:
@@ -104,9 +111,22 @@ def parse_webvtt(data: str) -> Tuple[str, List[Dict[str, Any]]]:
             text_lines.append(lines[i])
             i += 1
         raw_text = "\n".join(text_lines)
+        # WHO IS TALKING, WHEN THE FILE SAYS SO. `_normalize_cue_text` strips `<v Speaker 3>` as an
+        # HTML-like tag, so the speaker was being deleted before anything could read it: a
+        # publisher transcript that names every turn arrived as one undifferentiated voice, and the
+        # episode could never carry host/guest attribution however good naming became. Measured on
+        # the production corpus, EVERY episode that used a publisher transcript ended with a single
+        # voice — 128 of 128. Odd Lots' own WebVTT carries 781 voice spans and names both hosts in
+        # the first minute.
+        voice = _VOICE_SPAN.search(raw_text)
         norm = _normalize_cue_text(raw_text)
         if norm.strip():
-            segments.append({"start": start_s, "end": end_s, "text": norm})
+            seg: Dict[str, Any] = {"start": start_s, "end": end_s, "text": norm}
+            if voice:
+                speaker = voice.group(1).strip()
+                if speaker:
+                    seg["speaker"] = speaker
+            segments.append(seg)
 
     plain = "".join(s["text"] for s in segments)
     return plain, segments
