@@ -75,6 +75,43 @@ Same single-tree convenience, and the research is physically outside this repo �
 so the exclusions above become a convenience rather than the only thing between a
 transcript and a public commit. Git does not follow a symlink into another repo.
 
+## Two things the real mount taught us
+
+Both were found by actually mounting the repo and running the gates, not by
+reasoning about it. A probe with a dummy directory passed and missed both.
+
+### A symlink is not a directory, to git
+
+`.gitignore` carries **both** `/eval-data/` and `/eval-data`. The trailing-slash
+pattern matches a directory — a plain `git clone` here. It does **not** match a
+symlink, so with the sibling+symlink setup `git status` showed an untracked
+`?? eval-data`, which is precisely the leak the entry exists to prevent. Both
+forms are now present.
+
+### `..` means different things in the two setups
+
+With a **clone** at `eval-data/`, the parent directory is the public repo, so
+this works from inside the mount:
+
+```bash
+make eval-against-local PATH_TO_CHECKOUT=..
+```
+
+With a **symlink**, `..` resolves to the symlink *target's* real parent
+(wherever the private repo actually lives), not to the mount point. Use an
+explicit path there:
+
+```bash
+make eval-against-local PATH_TO_CHECKOUT=~/projects/podcast_scraper
+```
+
+### Instruction files layer
+
+Both repos carry their own `AGENTS.md` and `CLAUDE.md`. Working inside
+`eval-data/` an agent sees the private repo's rules; at the public root it sees
+this repo's. That is the intent — the two rule sets differ in ways that matter
+(the private one permits committing audio, this one never should).
+
 ## Working across both
 
 - **This repo is the system under test.** The eval repo depends on it as a pinned

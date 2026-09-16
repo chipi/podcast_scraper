@@ -420,4 +420,10 @@ AuthKey_*.p8
 #
 # The research is publisher-copyright transcripts and human-authored gold
 # references. It must never reach a public remote.
+# Both forms on purpose: the trailing-slash pattern matches a DIRECTORY (a plain
+# `git clone` here), and the bare pattern matches a SYMLINK (the sibling+symlink
+# setup, which git does not see as a directory). Only the first was here at
+# first, and `git status` showed an untracked `?? eval-data` for the symlink
+# variant — exactly the leak this entry exists to prevent.
 /eval-data/
+/eval-data

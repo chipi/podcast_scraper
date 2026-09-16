@@ -378,7 +378,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "**/.venv/**" \
 	--ignore .build/site \
 	--ignore "docs/wip/**" \
-	--ignore "tests/fixtures/**" \
+	--ignore "tests/fixtures/**" --ignore "eval-data/**" --ignore eval-data \
 	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
 	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
 	--ignore "$(WEB_VIEWER_DIR)/validation-results/**" \
