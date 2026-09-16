@@ -561,6 +561,7 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | Resource | Description |
 | -------- | ----------- |
 | [Roadmap](docs/ROADMAP.md) | Project roadmap with prioritized PRDs and RFCs |
+| [Eval Research Mount](docs/guides/EVAL_RESEARCH_MOUNT.md) | Mounting the private eval/research repo at `eval-data/` so one agent sees both trees |
 | [Architecture](docs/architecture/ARCHITECTURE.md) | System design and module responsibilities |
 | [Audio Pipeline Guide](docs/guides/AUDIO_PIPELINE_GUIDE.md) | Transcription, diarization, chunking, commercial cleaning (Wave 1+2) |
 | [Testing Strategy](docs/architecture/TESTING_STRATEGY.md) | Testing approach and test pyramid |

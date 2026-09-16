@@ -369,6 +369,7 @@ exclude = '''
     | build
     | dist
     | __pycache__
+      | eval-data
   )/
 )
 '''
@@ -380,7 +381,7 @@ known_first_party = ["podcast_scraper"]
 combine_as_imports = true
 force_alphabetical_sort_within_sections = true
 # Match Black/flake8: secondary venv lives in-repo for CI-parity unit tests (.venv-dev).
-skip_glob = [".venv/**", ".venv-dev/**"]
+skip_glob = [".venv/**", ".venv-dev/**", "eval-data/**"]
 
 [tool.mypy]
 python_version = "3.10"

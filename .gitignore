@@ -405,3 +405,19 @@ AuthKey_*.p8
 # boilerplate in fastlane's own markdown style, which does not match this repo's markdownlint
 # config — committing it turns `make lint-markdown` red for a file nobody edits.
 **/fastlane/README.md
+
+# ── the private eval research repo, mounted here ────────────────────────────
+#
+# chipi/podcast-scraper-eval-data is cloned into ./eval-data/ so one agent (or one
+# person) has both the application and the research in a single tree. See
+# docs/guides/EVAL_RESEARCH_MOUNT.md for the setup.
+#
+# THIS ENTRY MUST EXIST BEFORE THE CLONE DOES. Git will not add a nested repo's
+# contents — it writes a gitlink instead — but that still records the private
+# repo's existence and commit SHA in PUBLIC history. And if the nested copy ever
+# loses its .git (a file copy, an rsync, a Docker build context), every
+# transcript in it becomes addable by `git add -A`.
+#
+# The research is publisher-copyright transcripts and human-authored gold
+# references. It must never reach a public remote.
+/eval-data/
