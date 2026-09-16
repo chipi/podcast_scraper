@@ -57,6 +57,7 @@ nav:
       - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
       - Integration Testing Guide: guides/INTEGRATION_TESTING_GUIDE.md
       - E2E Testing Guide: guides/E2E_TESTING_GUIDE.md
+      - Mobile E2E Testing: guides/MOBILE_E2E_TESTING.md
       - Gemini E2E Testing: guides/GEMINI_E2E_TESTING.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md

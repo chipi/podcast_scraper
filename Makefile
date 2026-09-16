@@ -1983,7 +1983,51 @@ test-app-ios-server-degraded:
 #
 # PRECONDITION: signed in (`make ios-journey-signin`). Run `test-app-ios-journey-ui` first if you
 # want Stats/Topics populated rather than showing their empty states.
-ios-contact-sheet:
+# Rebuild the web bundle against the FIXTURE api and reinstall it on the simulator.
+#
+# Exists because hand-rolling this is a trap with two separate bites, both taken on 2026-09-16:
+#   - Forget the step entirely and the suites run against a STALE bundle. A whole contact sheet was
+#     reviewed that way; it showed pre-fix sheet geometry, and the review comments were about a
+#     build that no longer existed.
+#   - Run `npm run build` without VITE_API_BASE_URL and the app falls back to PROD_API_BASE
+#     (services/tier.ts), so every fixture assertion fails against the live site. That took all ten
+#     seeding tests red at once.
+#   - Point it at the bare api on :$(APP_E2E_PORT) and AUDIO 404s. The corpus stores media_url as a
+#     relative `/audio/<id>.mp3` and `resolveMediaUrl` absolutises it against the API base, but that
+#     port serves only /api — the episode page then renders "Couldn't load the audio from the
+#     source" with NO transport, and a test looking for Play reports the control missing rather than
+#     the audio. Hence the single origin, which is what `ios-origin-up` exists to provide.
+# All three are invisible until something downstream fails oddly, so the recipe is the artefact.
+ios-app-install: ios-origin-up
+	@echo "--> building the player against the single origin on :$(IOS_ORIGIN_PORT) (api + audio)"
+	@cd $(APP_DIR) && env -u NODE_OPTIONS VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
+		npm run build >/dev/null && env -u NODE_OPTIONS npx cap sync ios >/dev/null
+	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
+	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
+	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
+	@# Prove the installed bundle is the one we meant — the failure mode above is silent otherwise.
+	@app=$$(xcrun simctl get_app_container booted app.closelistening.player) && \
+		if grep -qF "127.0.0.1:$(IOS_ORIGIN_PORT)/api/app" "$$app/public/assets/"*.js; then \
+			echo "✓ installed bundle points at the single origin (api + audio)"; \
+		else \
+			echo "FAIL: installed bundle does NOT target :$(IOS_ORIGIN_PORT) — it would run against"; \
+			echo "      prod, or against an origin with no /audio."; \
+			exit 1; \
+		fi
+	@# Prove the origin actually serves AUDIO, not just /api. A 404 here is the difference between
+	@# "no Play control" and a working transport, and the page blames the source either way.
+	@# Same probe file as `ios-origin-up` uses. Fixture audio is named `<podcast>_<episode>.mp3`,
+	@# NOT by slug — a slug-shaped guess 404s and would fail this check on a healthy origin.
+	@if curl -fsS -o /dev/null --max-time 5 "http://127.0.0.1:$(IOS_ORIGIN_PORT)/audio/p06_e04.mp3"; then \
+		echo "✓ origin serves /audio"; \
+	else \
+		echo "FAIL: :$(IOS_ORIGIN_PORT) does not serve /audio — episodes will render with no transport."; \
+		exit 1; \
+	fi
+
+ios-contact-sheet: ios-app-install
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
 	@# SEED FIRST. The tour shoots whatever is on screen, and a freshly-signed-in account has an
 	@# empty Library, no collections, no favourites and no listening history — so half the sheet was
@@ -1998,7 +2042,7 @@ ios-contact-sheet:
 			-only-testing:OfflineSpikeUITests/AppJourneyTests \
 			-only-testing:OfflineSpikeUITests/PersonalisationTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
-			2>&1 | grep -E 'Test Case.*(passed|failed)|TEST (SUCCEEDED|FAILED)' || true
+			2>&1 | grep -E '=====|Test Case.*(passed|failed)|error:|XCTAssert|TEST (SUCCEEDED|FAILED)' || true
 	@echo "--> touring every surface"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \

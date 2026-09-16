@@ -54,6 +54,16 @@ enum AppSession {
     // takes — not a test-only shortcut into the router. (`Process` is not available here: a UI
     // test bundle runs ON the simulator, so it cannot shell out to `xcrun` on the host.)
     XCUIDevice.shared.system.open(url)
+
+    // iOS asks "Open in <app>?" before handing a custom scheme over from outside, and re-asks after
+    // a fresh install. That alert belongs to SpringBoard, so while it is up the app under test is
+    // not frontmost and EVERY accessibility query returns empty — which reads as "the page rendered
+    // nothing". It cost a full diagnosis on 2026-09-16: an empty inventory on an app that was
+    // fine, right after the app had been reinstalled.
+    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    let confirm = springboard.buttons["Open"]
+    if confirm.waitForExistence(timeout: 5) { confirm.tap() }
+
     _ = app.wait(for: .runningForeground, timeout: 15)
   }
 

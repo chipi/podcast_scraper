@@ -170,15 +170,55 @@ enum Journey {
   /// silently swallows every later tap — which is how a screenshot sweep loses a run of frames in
   /// the middle and reports no error at all (five frames vanished this way on 2026-09-16). Cheap
   /// and idempotent: call it between sections rather than reasoning about which sheet is up.
-  static func dismissSheets(_ app: XCUIApplication, rounds: Int = 3) {
+  /// Whether the app chrome is reachable — i.e. nothing modal is covering the tab bar. This is the
+  /// only honest test of "did the sheets close": tapping a close control proves a tap happened, not
+  /// that the sheet went away.
+  static func chromeReachable(_ app: XCUIApplication) -> Bool {
+    for label in ["Home", "Library", "Discover"] {
+      let el = app.links[label].firstMatch
+      if el.exists && el.isHittable { return true }
+    }
+    return false
+  }
+
+  @discardableResult
+  static func dismissSheets(_ app: XCUIApplication, rounds: Int = 4) -> Bool {
+    // The old version bailed via `guard … else { return }` the moment no close control was
+    // hittable — which is exactly the stuck case. On the 2026-09-16 tour the person sheet stayed
+    // open, the tab bar stayed covered, and every later step missed: 21 of 24 screens shot, still
+    // reported as success. Silence about a stuck modal reads just like a clean screen.
     for _ in 0..<rounds {
-      guard let close = find(app, labels: ["Close", "Close panel", "✕", "Cancel", "Done"],
-                             contains: false, timeout: 2),
-            close.isHittable
-      else { return }
-      close.tap()
+      if chromeReachable(app) { return true }
+      if let close = find(app, labels: ["Close", "Close panel", "✕", "Cancel", "Done"],
+                          contains: false, timeout: 2),
+         close.isHittable {
+        close.tap()
+        usleep(600_000)
+        continue
+      }
+      // The close control usually EXISTS but has scrolled out of the viewport — observed at
+      // y = -619 and y = -1289, i.e. the sheet's own body was scrolled down past its header. So
+      // scroll the sheet back to the top and look again; that is also what a user does.
+      for _ in 0..<6 {
+        app.swipeDown()
+        if let close = find(app, labels: ["Close", "Close panel", "✕", "Cancel", "Done"],
+                            contains: false, timeout: 1),
+           close.isHittable {
+          close.tap()
+          usleep(600_000)
+          break
+        }
+      }
+      if chromeReachable(app) { return true }
+      // Last resort: the SCRIM. Deliberately NOT nearer the top than this — a pinned 92dvh sheet
+      // leaves only an 8dvh strip above it and the upper part of that is the status bar / dynamic
+      // island, where a tap never reaches the web view at all (which is why dy = 0.04 did nothing).
+      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.075)).tap()
       usleep(600_000)
     }
+    let clear = chromeReachable(app)
+    if !clear { print("=====SHEETS_STUCK chrome unreachable after \(rounds) rounds=====") }
+    return clear
   }
 
   /// Profile → gear → Settings.

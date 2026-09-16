@@ -29,6 +29,18 @@ final class AppJourneyTests: XCTestCase {
   private let episodeSlug = "p09-a4bbb5dde3"
   private let episodeTitle = "Risk Is a Systems Property"
 
+  /// One fixture episode per colour token. The Saved colour FILTER offers only the colours actually
+  /// in use (`LibraryView.colorsPresent`), so a seed that coloured a single item rendered a single
+  /// swatch and the filter looked broken in review when it was merely empty (operator 2026-09-16).
+  /// Colouring one episode per token is what makes that control reviewable at all.
+  private let colourSeeds: [(slug: String, colour: String)] = [
+    ("p09-a4bbb5dde3", "Amber"),
+    ("p09-6ac0bf4914", "Rose"),
+    ("p08-72169222b1", "Sky"),
+    ("p08-bd7cc798ff", "Emerald"),
+    ("p07-2aceab172c", "Violet"),
+  ]
+
   override func setUp() {
     super.setUp()
     continueAfterFailure = true // collect every screenshot in a run, don't stop at the first gap
@@ -279,6 +291,30 @@ final class AppJourneyTests: XCTestCase {
   func test07SavedColourPicker() {
     let app = Journey.launch()
 
+    // Seed every colour, not just one. Saved is newest-first, so the episode favourited on this
+    // pass is row one — which is why each colour can be applied to the FIRST colour control
+    // without having to address a specific row.
+    for seed in colourSeeds.dropFirst() {
+      AppSession.openEpisode(app, slug: seed.slug)
+      sleep(5)
+      if Journey.find(app, labels: ["Save to favorites"], contains: true, timeout: 8) != nil {
+        _ = Journey.tap(app, labels: ["Save to favorites"], contains: true, timeout: 8)
+        sleep(3)
+      }
+      Journey.openTab(app, "Library")
+      sleep(3)
+      _ = Journey.tap(app, labels: ["Saved"], contains: true, timeout: 10)
+      sleep(2)
+      // EXACT match. The per-item trigger is labelled "Colour" and the filter group is "Filter by
+      // colour"; `contains` is CONTAINS[c], so a loose match hits whichever comes first in the
+      // tree and would silently drive the filter instead of the picker.
+      if Journey.tap(app, labels: ["Colour", "Color"], contains: false, timeout: 10) {
+        sleep(2)
+        _ = Journey.tap(app, labels: ["Set colour: \(seed.colour)"], contains: true, timeout: 8)
+        sleep(2)
+      }
+    }
+
     // Favourite the episode so Saved has something to colour-code.
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
@@ -301,8 +337,8 @@ final class AppJourneyTests: XCTestCase {
     Journey.inventory(app, "library-saved")
     Journey.shot(self, "07-library-saved")
 
-    // The colour control opens a popover of named colours.
-    if Journey.tap(app, labels: ["Colour", "Color"], contains: true, timeout: 12) {
+    // The colour control opens a popover of named colours. Exact match — see the loop above.
+    if Journey.tap(app, labels: ["Colour", "Color"], contains: false, timeout: 12) {
       sleep(3)
       Journey.inventory(app, "colour-popover")
       Journey.shot(self, "07-colour-popover")
@@ -320,6 +356,26 @@ final class AppJourneyTests: XCTestCase {
       Journey.shot(self, "07-colour-MISS")
       XCTFail("colour control not reachable from Saved")
     }
+
+    // The FILTER (distinct from the per-item picker above) offers only colours that are in use, so
+    // it is a direct readout of whether the seeding worked. Asserting >1 is what stops this
+    // silently collapsing back to a single swatch — which is how it reached review (2026-09-16).
+    Journey.openTab(app, "Library")
+    sleep(3)
+    _ = Journey.tap(app, labels: ["Saved"], contains: true, timeout: 12)
+    sleep(3)
+    // `library.savedFilterColorOnly` renders as "Only Amber" / "Only Rose" — one button per colour
+    // actually in use. Matching that exact string keeps this assertion about the FILTER and not
+    // about the per-item picker, which uses "Set colour: <name>".
+    let offered = colourSeeds.filter {
+      Journey.find(app, labels: ["Only \($0.colour)"], contains: true, timeout: 2) != nil
+    }
+    Journey.inventory(app, "colour-filter")
+    Journey.shot(self, "07b-colour-filter")
+    XCTAssertGreaterThan(
+      offered.count, 1,
+      "the Saved colour filter offers \(offered.count) colour(s) — the seed coloured too few items"
+    )
   }
 
   // MARK: - 11 storyline from the INSIGHTS panel (the canLayer=false path)

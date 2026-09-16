@@ -51,7 +51,9 @@ def _font(size: int) -> ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def build(paths: list[Path], out: Path, cols: int, tile_w: int) -> None:
+def build(
+    paths: list[Path], out: Path, cols: int, tile_w: int, max_megapixels: float = 40.0
+) -> None:
     if not paths:
         sys.exit("FAIL: no .png files found — did the tour run and were attachments exported?")
 
@@ -106,6 +108,23 @@ def build(paths: list[Path], out: Path, cols: int, tile_w: int) -> None:
     sheet.save(out, "PNG", optimize=True)
     print(f"✓ contact sheet: {out} ({len(shots)} screens, {cols} cols, {sheet_w}x{sheet_h})")
 
+    # At native resolution a ~25-screen sweep lands around 82 MP, and macOS Preview simply will not
+    # open it — the sheet built fine and was still unreviewable, twice (operator 2026-09-16). Emit
+    # openable parts alongside the full file rather than making the reviewer cut it up by hand.
+    #
+    # Cuts land BETWEEN rows. Splitting on a fixed pixel height is what a hand-rolled split does,
+    # and it slices screenshots in half — the one thing a visual review cannot tolerate.
+    if max_megapixels > 0 and sheet_w * sheet_h > max_megapixels * 1_000_000:
+        pitch = tile_h + LABEL_H + PAD
+        rows_per_part = max(1, int(max_megapixels * 1_000_000) // (sheet_w * pitch))
+        parts = (rows + rows_per_part - 1) // rows_per_part
+        for i in range(parts):
+            top = 0 if i == 0 else PAD // 2 + i * rows_per_part * pitch
+            bottom = sheet_h if i == parts - 1 else PAD // 2 + (i + 1) * rows_per_part * pitch
+            path = out.with_name(f"{out.stem}-part{i + 1}{out.suffix}")
+            sheet.crop((0, top, sheet_w, bottom)).save(path, "PNG", optimize=True)
+            print(f"  ↳ part {i + 1}/{parts}: {path} ({sheet_w}x{bottom - top})")
+
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
@@ -113,11 +132,23 @@ def main() -> None:
     ap.add_argument("--out", required=True, type=Path, help="output .png path")
     ap.add_argument("--cols", type=int, default=6, help="tiles per row (default 6)")
     ap.add_argument("--tile-width", type=int, default=300, help="tile width px (default 300)")
+    ap.add_argument(
+        "--max-megapixels",
+        type=float,
+        default=40.0,
+        help="also emit row-aligned parts when the sheet exceeds this (0 disables; default 40)",
+    )
     args = ap.parse_args()
 
     if not args.src.is_dir():
         sys.exit(f"FAIL: not a directory: {args.src}")
-    build(sorted(args.src.glob("*.png")), args.out, args.cols, args.tile_width)
+    build(
+        sorted(args.src.glob("*.png")),
+        args.out,
+        args.cols,
+        args.tile_width,
+        args.max_megapixels,
+    )
 
 
 if __name__ == "__main__":

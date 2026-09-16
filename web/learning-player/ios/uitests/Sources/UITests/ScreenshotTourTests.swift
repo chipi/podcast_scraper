@@ -25,9 +25,47 @@ final class ScreenshotTourTests: XCTestCase {
     continueAfterFailure = true
   }
 
-  /// Shoot the current screen; never fails the tour.
+  /// Every frame this tour is supposed to produce. The run FAILS if any is missing.
+  ///
+  /// The frames are best-effort by design — one unreachable surface should not cost the other
+  /// twenty. But best-effort with no tally meant a stuck sheet silently dropped the last three
+  /// screens and the tour still reported success; the gap only surfaced when a human noticed a
+  /// screenshot they expected was not on the contact sheet (operator 2026-09-16). Shooting what it
+  /// can and then declaring what it could not is the honest version.
+  private static let expectedFrames = [
+    "t01-home", "t02-discover", "t03-search",
+    "t04-library-following", "t05-library-saved", "t06-library-boards", "t07-library-revisit",
+    "t08-profile-account", "t09-profile-topics", "t10-profile-stats",
+    "t11-settings", "t12-settings-config",
+    "t13-episode", "t14-episode-insights", "t15-episode-keypoints", "t16-episode-entities",
+    "t17-share-popover", "t18-add-to-collection",
+    "t19-topic", "t20-storyline", "t20b-storyline-content", "t20c-storyline-topic-layered",
+    "t20d-stack-three-deep", "t21-person", "t21b-person-over-topic",
+    "t22-saved-row", "t23-colour-popover", "t24-home-offline", "t25-home-final",
+  ]
+
+  /// People who appear as top-voice chips in the fixture corpus. Named explicitly because those
+  /// chips carry the bare name as their accessible label, so there is no prefix to match on.
+  private static let fixturePeople = [
+    "Dr. Elena Fischer", "Sam", "Skanda Amarnath", "Alex Morgan",
+  ]
+
+  private var shotFrames: Set<String> = []
+
+  /// Shoot the current screen. Records the name so the tour can report what it never reached.
   private func frame(_ name: String) {
     Journey.shot(self, name)
+    shotFrames.insert(name)
+  }
+
+  /// Fail with the list of screens the tour never reached, rather than quietly shooting fewer.
+  private func assertEveryFrameShot() {
+    let missing = Self.expectedFrames.filter { !shotFrames.contains($0) }
+    XCTAssertTrue(
+      missing.isEmpty,
+      "the tour never reached \(missing.count) screen(s): \(missing.joined(separator: ", ")) — "
+        + "a sheet left open swallows every later tap, so check for SHEETS_STUCK above"
+    )
   }
 
   func testTourEverySurface() {
@@ -126,6 +164,18 @@ final class ScreenshotTourTests: XCTestCase {
           row.tap()
           sleep(5)
           frame("t20c-storyline-topic-layered")
+
+          // THREE deep — storyline → topic → person. The deck has to keep working past one level:
+          // each card below stays visible by its title, each new one starts a title lower. Two
+          // levels can be faked by a single "is nested" flag; three cannot (operator 2026-09-16).
+          // Top-voice chips are BUTTONS labelled with the bare person name (`:aria-label="p.name"`)
+          // — no "Open " prefix, unlike the insights panel's rows. Matching the panel's shape here
+          // found nothing at all and cost this frame on the first attempt.
+          _ = Journey.scrollTo(app, labels: ["Top voices"], maxSwipes: 6)
+          if Journey.tap(app, labels: Self.fixturePeople, contains: false, timeout: 8) {
+            sleep(5)
+            frame("t20d-stack-three-deep")
+          }
           Journey.dismissSheets(app)
         }
       }
@@ -143,6 +193,24 @@ final class ScreenshotTourTests: XCTestCase {
     }
     Journey.dismissSheets(app)
 
+    // --- person layered OVER a topic ----------------------------------------------------------
+    // `t21-person` above opens a person from the insights panel, where it is the only sheet on
+    // screen — which is why it photographs as a full-height card with nothing behind it and reads
+    // as a page. The stacked case is a different surface and was never shot at all (operator
+    // 2026-09-16: "I don't see a sheet where we open person overlaying the topic").
+    Journey.openTab(app, "Home")
+    sleep(4)
+    if Journey.tap(app, labels: ["Topics"], timeout: 10) { sleep(3) }
+    if Journey.tap(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 10) {
+      sleep(5)
+      _ = Journey.scrollTo(app, labels: ["Top voices"], maxSwipes: 6)
+      if Journey.tap(app, labels: Self.fixturePeople, contains: false, timeout: 8) {
+        sleep(5)
+        frame("t21b-person-over-topic")
+      }
+    }
+    Journey.dismissSheets(app)
+
     // --- saved colour picker (the row the operator reworked) ----------------------------------
     Journey.dismissSheets(app)
     Journey.openTab(app, "Library")
@@ -150,7 +218,9 @@ final class ScreenshotTourTests: XCTestCase {
     if Journey.tap(app, labels: ["Saved"], contains: true, timeout: 10) {
       sleep(3)
       frame("t22-saved-row")
-      if Journey.tap(app, labels: ["Colour", "Color"], contains: true, timeout: 8) {
+      // EXACT match: the per-item picker is "Colour" and the filter group is "Filter by colour",
+      // and a CONTAINS match would drive whichever came first in the tree.
+      if Journey.tap(app, labels: ["Colour", "Color"], contains: false, timeout: 8) {
         sleep(3); frame("t23-colour-popover")
       }
     }
@@ -167,5 +237,7 @@ final class ScreenshotTourTests: XCTestCase {
     Journey.openTab(app, "Home")
     sleep(4)
     frame("t25-home-final")
+
+    assertEveryFrameShot()
   }
 }

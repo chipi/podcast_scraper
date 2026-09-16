@@ -30,10 +30,19 @@ final class PersonalisationTests: XCTestCase {
       AppSession.openEpisode(app, slug: slug)
       sleep(6)
       // The transport sits under the tab bar until scrolled — the trap the playback suite documents.
-      guard Journey.tap(app, labels: ["Play"], timeout: 15) else {
-        Journey.inventory(app, "episode-no-play-\(i)")
-        XCTFail("no Play control on \(slug)")
-        continue
+      // Scroll to it rather than hoping it is on screen.
+      _ = Journey.scrollTo(app, labels: ["Play", "Pause", "Replay"], maxSwipes: 5)
+      // The episode may ALREADY be playing, or already finished: playback position is persisted
+      // server-side, so a slug another test has opened comes back resumed — the page then shows a
+      // "NEXT · IN 0:06" auto-advance countdown and no Play control at all, which is how this test
+      // started failing (2026-09-16). What it needs is playback time accruing, and "already
+      // playing" satisfies that as well as "just started" does.
+      if !Journey.tap(app, labels: ["Play"], timeout: 10) {
+        guard Journey.find(app, labels: ["Pause"], contains: false, timeout: 5) != nil else {
+          Journey.inventory(app, "episode-no-play-\(i)")
+          XCTFail("no Play control and nothing playing on \(slug)")
+          continue
+        }
       }
       // Let real playback time accrue; stats are driven by reported position, not by opening a page.
       sleep(12)
