@@ -93,6 +93,11 @@ class Episode:
     # 15 transcripts, and 33 were relabelled onto another episode's file — silently, behind a
     # WARNING and a zero exit. Production carries 397 run dirs. Knowing the path beats inferring it.
     on_disk_transcript: Optional[str] = None
+    # The episode's number in the run directory it is STORED under ("0007 - Title.txt" -> 7). Not
+    # unique across a feed: every run dir numbers from 0001, so a feed with fourteen run dirs has
+    # fourteen "episode 1"s. `idx` must therefore be unique within THIS run and cannot be this
+    # value; kept only so the legacy index-prefix transcript search has something true to use.
+    on_disk_idx: Optional[int] = None
 
 
 @dataclass

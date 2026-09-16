@@ -109,3 +109,42 @@ class TestTheFallbackStillWorksForJobsWithoutAnEpisode:
 
     def test_nothing_on_disk_returns_none(self, tmp_path: Path) -> None:
         assert _existing_transcript_for(_job(1, None), str(tmp_path), "relabel_only") is None
+
+
+class TestTheRunIndexIsUnique:
+    """`idx` keys per-episode state and output filenames, so it must be unique (#2075).
+
+    The on-disk idx is read from the filename prefix and every run directory numbers from 0001, so
+    a feed with fourteen run dirs has fourteen "episode 1"s. A 48-episode a16z selection carried
+    only ~15 distinct values with up to five episodes sharing one: metadata was written for one
+    episode carrying another's transcript path, and 41 of 48 artifacts never landed.
+    """
+
+    def test_episodes_from_different_runs_get_distinct_indices(self, tmp_path: Path) -> None:
+        from podcast_scraper.workflow.stages.scraping import _on_disk_guid_index
+
+        # Three run dirs, each with its own "episode 1" — three different episodes.
+        for n, run_name in enumerate(
+            ("run_a_20260101-000000", "run_b_20260201-000000", "run_c_20260301-000000")
+        ):
+            _episode_on_disk(tmp_path / run_name, 1, f"Episode from run {n}", f"guid-{n}")
+
+        idx = _on_disk_guid_index(str(tmp_path))
+        assert len(idx) == 3
+        # every one of them claims to be episode 1 on disk...
+        assert {v[0] for v in idx.values()} == {1}
+
+        # ...so the selection must renumber them, and must keep the original for the legacy search.
+        from types import SimpleNamespace
+
+        import podcast_scraper.workflow.stages.scraping as scraping
+
+        feed = SimpleNamespace(base_url="http://x", title="A Show")
+        cfg = SimpleNamespace(output_dir=str(tmp_path), reprocess_episode_ids=[])
+        episodes = scraping._reprocess_existing_episodes(feed, [], cfg, 0)
+        assert sorted(e.idx for e in episodes) == [1, 2, 3], "run indices collided"
+        assert {e.on_disk_idx for e in episodes} == {1}
+        # and each still points at its OWN transcript
+        for e in episodes:
+            assert e.on_disk_transcript is not None
+            assert Path(e.on_disk_transcript).name.startswith("0001 - Episode from run")

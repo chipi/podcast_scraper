@@ -2407,7 +2407,10 @@ def _existing_transcript_for(
 
     run_dir = Path(effective_output_dir)
     search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
-    idx_prefix = f"{job.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
+    # The ON-DISK number, not `job.idx`: `idx` is now unique within the run and bears no relation
+    # to the filenames this searches. Falls back to `job.idx` for callers that set neither.
+    search_idx = getattr(getattr(job, "episode", None), "on_disk_idx", None) or job.idx
+    idx_prefix = f"{search_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
     matches = [
         p
         for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")

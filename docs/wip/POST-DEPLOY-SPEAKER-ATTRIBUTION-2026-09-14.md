@@ -29,6 +29,53 @@ A migration cannot fix class B. There is no correct answer on disk for it to cop
 
 ---
 
+## Step 0a — FIRST: measure the idx-collision damage (#2082)
+
+**Run this before anything else, and do not run a migration until you have the number.** It costs
+one read-only pass and it decides whether the rest of this document is measuring a corpus or a
+corrupted one.
+
+On a reprocess, `idx` used to come from the episode's filename prefix. Every run directory numbers
+from `0001`, so a feed with fourteen run dirs has fourteen "episode 1"s, and `idx` keys per-episode
+state and output filenames — so they collided. Measured on the 2026-09-14 snapshot:
+
+```
+metadata files pointing at ANOTHER episode's transcript   275 of 2,256  (12.2%)
+  of those, roster matches the WRONG transcript             119
+  roster matches its own                                      0
+  inconclusive                                              146
+
+repairable in place (own transcript still on disk)           42
+needs re-download + re-ASR + re-diarize                     233
+```
+
+119 episodes credit their quotes to people from a different episode — "DHH's new way of writing
+code" is credited to Addy Osmani; "How Kent Beck shapes the software engineering industry" to Grady
+Booch. Those names reach `content.speakers`, the KG `Person` nodes, `SPOKEN_BY` and search.
+
+```bash
+# the check: does each metadata file point at its own transcript?
+#   <repo>/scripts/... (not yet written — see #2082; the measurement script used for the
+#   figures above is in the #2075 arc notes and should be promoted to a real audit target)
+```
+
+Why this comes first:
+
+1. **Every measurement below is taken from `content.speakers`.** On an affected episode that field
+   describes a different episode, so the coherence before/after number, the migration previews and
+   the "roles look like this afterwards" tables are all reading corrupted rows until this is known.
+2. **m0009 promotes and demotes roles from those same rosters.** Running it first bakes the wrong
+   attribution deeper and makes the damage harder to see.
+3. **The 42 repairable ones are cheap** — a scoped `relabel_only`, no audio, no GPU. Do them before
+   the migrations so the migrations see the corrected rows.
+4. **The 233 are not cheap** and are a separate decision: their transcript does not exist anywhere
+   in the corpus, because `relabel_only` overwrites the transcript it picks, so where episode A was
+   relabelled onto B's file, A's was never written and B's was overwritten with A's labels. Only a
+   full re-ingest recovers them. Size that GPU bill deliberately; do not let it start by accident.
+
+The code fix (unique per-run `idx`, `Episode.on_disk_idx` kept only for the legacy search) is on
+`fix/duplicate-people-variant-resolution` and stops NEW damage. It repairs nothing already written.
+
 ## Step 0 — Pre-flight
 
 ```bash

@@ -573,12 +573,27 @@ def _reprocess_existing_episodes(
 
     episodes: List[Episode] = []  # type: ignore[valid-type]
     reconstructed = 0
-    for guid, (idx, episode_meta, meta_path) in sorted(guid_index.items(), key=lambda kv: kv[1][0]):
+    # THE ON-DISK IDX IS NOT UNIQUE AND `idx` MUST BE. It is read from the filename prefix, and
+    # every run directory numbers its episodes from 0001 — so a16z's fourteen run dirs give
+    # fourteen "episode 1"s, and a 48-episode selection there carries only ~15 distinct values with
+    # up to five episodes sharing one. The pipeline keys per-episode state and output filenames on
+    # `idx`, so those five collided: metadata was written for one episode carrying another's
+    # transcript path, and 41 of 48 artifacts never landed at all.
+    #
+    # It was the on-disk idx only so the `{idx} - *.txt` transcript search could find the file.
+    # That reason is gone — each episode now carries `on_disk_transcript` resolved from its own
+    # metadata record — so the number is free to be what it has to be: unique within this run. The
+    # original is preserved on the Episode for the legacy search, which is now a warned-about
+    # fallback rather than the mechanism.
+    for seq, (guid, (idx, episode_meta, meta_path)) in enumerate(
+        sorted(guid_index.items(), key=lambda kv: kv[1][0]), start=1
+    ):
         item = feed_by_guid.get(guid)
         if item is None:
             item = _synthesize_feed_item(guid, episode_meta)
             reconstructed += 1
-        episode = create_episode_from_item(item, idx, feed.base_url)
+        episode = create_episode_from_item(item, seq, feed.base_url)
+        episode.on_disk_idx = idx
         episode.on_disk_transcript = _transcript_beside_metadata(meta_path)
         # SAY WHICH FILE THIS EPISODE IS ABOUT, at the moment it is decided. A reprocess OVERWRITES
         # the transcript it picks, and when a run came back with six of seven episodes relabelled
@@ -586,7 +601,8 @@ def _reprocess_existing_episodes(
         # resolution was wrong or the fallback had silently fired — the components all behaved
         # correctly when tested in isolation afterwards. One line per episode settles it.
         logger.info(
-            "reprocess: [%s] %r -> %s",
+            "reprocess: [%s] (on-disk %s) %r -> %s",
+            seq,
             idx,
             str(episode_meta.get("title") or "")[:60],
             (
