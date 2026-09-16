@@ -292,8 +292,16 @@ def test_wikipedia_derive_none_on_disambiguation() -> None:
     assert p.derive("person:x", "X", {"type": "disambiguation", "extract": "many"}) is None
 
 
-def test_wikipedia_fetch_raw_swallows_network_error() -> None:
-    assert WikipediaProvider(client=_boom_client()).fetch_raw("person:x", "X") is None
+def test_wikipedia_fetch_raw_raises_on_network_error() -> None:
+    """A network failure must RAISE, not return None.
+
+    Returning None here is indistinguishable from "the source has no such person", and the
+    ENTITY caller records that as a 30-day negative-cache miss. On 2026-09-16 that turned a
+    transient block into 911 real people and orgs marked absent for a month. ``None`` is now
+    reserved for an authoritative 404; everything else raises.
+    """
+    with pytest.raises(person_web.TransientFetchError):
+        WikipediaProvider(client=_boom_client()).fetch_raw("person:x", "X")
 
 
 def test_fetch_image_skips_when_imageinfo_resolves_without_license() -> None:

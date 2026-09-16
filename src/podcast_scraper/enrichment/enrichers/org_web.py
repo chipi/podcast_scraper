@@ -28,6 +28,7 @@ from typing import Any, Protocol
 
 import httpx
 
+from podcast_scraper.archive.backfill import HostRateLimiter
 from podcast_scraper.enrichment.enrichers._loaders import load_kg, nodes_of_type
 from podcast_scraper.enrichment.enrichers.person_web import (
     _build_web_client,
@@ -38,8 +39,10 @@ from podcast_scraper.enrichment.enrichers.person_web import (
     _image_sniff_ok,
     _ImageSkip,
     _USER_AGENT,
+    _WEB_MIN_INTERVAL_S,
     FetchedImage,
     IMAGE_SKIP,
+    TransientFetchError,
 )
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
@@ -263,15 +266,24 @@ class WikidataProvider:
         )
         self._commons_filepath = commons_filepath_base or _COMMONS_FILEPATH_DEFAULT
         self._commons_host = (urllib.parse.urlsplit(self._commons_filepath).hostname or "").lower()
+        self._limiter = HostRateLimiter(_WEB_MIN_INTERVAL_S)
 
     def _get_json(self, url: str) -> dict[str, Any] | None:
+        """``None`` ONLY for an authoritative 404; every other failure raises
+        :class:`TransientFetchError` so the caller does not record a false miss.
+        Throttled per host — see ``_WEB_MIN_INTERVAL_S`` in ``person_web``."""
+        self._limiter.wait(url)
         try:
             resp = self._client.get(url, headers={"User-Agent": _USER_AGENT})
-            if resp.status_code != 200:
+            if resp.status_code == 404:
                 return None
+            if resp.status_code != 200:
+                raise TransientFetchError(f"HTTP {resp.status_code} from {url}")
             doc = resp.json()
-        except (httpx.HTTPError, ValueError):
-            return None
+        except TransientFetchError:
+            raise
+        except (httpx.HTTPError, ValueError) as exc:
+            raise TransientFetchError(f"{type(exc).__name__} from {url}") from exc
         return doc if isinstance(doc, dict) else None
 
     def fetch_raw(self, org_id: str, display_name: str) -> dict[str, Any] | None:
@@ -394,7 +406,13 @@ class WikidataProvider:
             f"{self._commons_api}?action=query&format=json&prop=imageinfo&iiprop=extmetadata"
             f"&titles=File:{urllib.parse.quote(file_name)}"
         )
-        doc = self._get_json(query)
+        try:
+            doc = self._get_json(query)
+        except TransientFetchError:
+            # Same reasoning as person_web._image_attribution: the logo path already treats None
+            # as "transient, retry next run", which is correct. The raise exists to protect the
+            # ENTITY negative cache, not to change image semantics.
+            return None
         if doc is None or "error" in doc or "query" not in doc:
             return None  # transient
         pages = (doc.get("query") or {}).get("pages") or {}
@@ -415,6 +433,9 @@ class WikidataProvider:
         if not self._logo_host_allowed(image_url):
             return IMAGE_SKIP  # off-allowlist host (SSRF guard)
         try:
+            # Same per-host throttle as _get_json: image bytes come from
+            # upload./commons.wikimedia.org, which are covered by the same robot policy.
+            self._limiter.wait(image_url)
             with self._client.stream("GET", image_url, headers={"User-Agent": _USER_AGENT}) as resp:
                 if resp.status_code in (404, 410):
                     return IMAGE_SKIP
@@ -718,7 +739,11 @@ class OrgWebEnricher:
                     break
                 raw = None if refresh else _read_raw_cache(corpus_root, oid)
                 if raw is None:
-                    raw = self._provider.fetch_raw(oid, name)
+                    try:
+                        raw = self._provider.fetch_raw(oid, name)
+                    except TransientFetchError:
+                        # Could not ask — leave no record, retry next run. See person_web.
+                        continue
                     if raw is not None:
                         _write_raw_cache(corpus_root, oid, name, raw, now)
                         fetched += 1

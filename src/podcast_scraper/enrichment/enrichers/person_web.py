@@ -49,6 +49,7 @@ from typing import Any, Protocol
 
 import httpx
 
+from podcast_scraper.archive.backfill import HostRateLimiter
 from podcast_scraper.enrichment.enrichers._loaders import (
     is_unresolved_speaker_placeholder,
     load_gi,
@@ -80,6 +81,31 @@ _DEFAULT_MAX_PERSONS = 200
 #: the next expiry rather than never, without a manual `refresh`.
 _MISS_TTL_S = 30 * 24 * 3600
 _USER_AGENT = "close-listening/1.0 (podcast knowledge base; contact via app)"
+
+#: Minimum seconds between consecutive hits on one upstream host. Wikimedia's robot policy
+#: (https://w.wiki/4wJS, phabricator T400119) is explicit that unthrottled clients get 403'd,
+#: and on 2026-09-16 this enricher issued ~911 requests in 65 seconds (~43/s) and was blocked
+#: outright — every lookup returned 403 "Please set a user-agent and respect our robot policy".
+#: 1 req/s turns a 911-entity pass into ~15 minutes, which is irrelevant for a background job
+#: and is the difference between being a good citizen and losing access to the source entirely.
+_WEB_MIN_INTERVAL_S = 1.0
+
+
+class TransientFetchError(Exception):
+    """Upstream was unreachable or refused us — as opposed to authoritatively having nothing.
+
+    This distinction is the whole point. ``fetch_raw`` returning ``None`` means "the source
+    genuinely has no page for this entity", which the caller records as a negative-cache miss
+    with a 30-day TTL. A 403/429/5xx/timeout means "we could not ask", which must NOT be
+    recorded — otherwise a transient outage is silently converted into a month of missing data.
+
+    On 2026-09-16 that is exactly what happened: a rate-limit block made every fetch return
+    ``None``, and 911 real people and organisations (Keir Starmer, Katie Couric, Allbirds...)
+    were written as permanent misses in 65 seconds. Raise this instead of returning ``None``
+    whenever the answer is "we don't know", never "there is nothing".
+    """
+
+
 #: Where the raw provider payloads live, one file per person, under the corpus enrichments dir.
 _RAW_SUBDIR = "person_web_raw"
 #: Live Wikipedia REST summary base. Overridable via env so the e2e/mock server can stand in for
@@ -241,6 +267,9 @@ class WikipediaProvider:
         # stand in for the live host.
         self._client = client or _build_web_client()
         base = summary_base or os.environ.get(_WIKIPEDIA_SUMMARY_ENV) or _WIKIPEDIA_SUMMARY_DEFAULT
+        # Per-host throttle shared by every request this provider makes. Constructed here (not
+        # module-global) so tests get an isolated limiter and can inject a fake sleep.
+        self._limiter = HostRateLimiter(_WEB_MIN_INTERVAL_S)
         self._summary_base = base if base.endswith("/") else base + "/"
         self._api_base = api_base or os.environ.get(_WIKIPEDIA_API_ENV) or _WIKIPEDIA_API_DEFAULT
         # Host allowlist for the image download (SSRF guard): the image URL comes from an external
@@ -257,15 +286,28 @@ class WikipediaProvider:
         return host == "wikimedia.org" or host.endswith((".wikimedia.org", ".wikipedia.org"))
 
     def _get_json(self, url: str) -> dict[str, Any] | None:
-        """GET + parse a JSON object. Best-effort: non-200 / network / parse error → None. The
-        RetryTransport has already retried transient 429/5xx before we see a non-200 here."""
+        """GET + parse a JSON object.
+
+        Returns ``None`` ONLY for an authoritative 404 — the source looked and has nothing.
+        Every other failure (403, 429, 5xx, connection error, unparsable body) raises
+        :class:`TransientFetchError`, because "we could not ask" must never be recorded as
+        "there is nothing there". The RetryTransport has already retried transient 429/5xx
+        before we see a non-200 here, so reaching this point means retries were exhausted.
+
+        Throttled per host: see ``_WEB_MIN_INTERVAL_S``.
+        """
+        self._limiter.wait(url)
         try:
             resp = self._client.get(url, headers={"User-Agent": _USER_AGENT})
-            if resp.status_code != 200:
+            if resp.status_code == 404:
                 return None
+            if resp.status_code != 200:
+                raise TransientFetchError(f"HTTP {resp.status_code} from {url}")
             doc = resp.json()
-        except (httpx.HTTPError, ValueError):
-            return None
+        except TransientFetchError:
+            raise
+        except (httpx.HTTPError, ValueError) as exc:
+            raise TransientFetchError(f"{type(exc).__name__} from {url}") from exc
         return doc if isinstance(doc, dict) else None
 
     def fetch_raw(self, person_id: str, display_name: str) -> dict[str, Any] | None:
@@ -310,7 +352,14 @@ class WikipediaProvider:
             f"{self._api_base}?action=query&format=json&prop=imageinfo&iiprop=extmetadata"
             f"&titles=File:{urllib.parse.quote(file_name)}"
         )
-        doc = self._get_json(query)
+        try:
+            doc = self._get_json(query)
+        except TransientFetchError:
+            # fetch_image already encodes transient-vs-permanent as None vs IMAGE_SKIP, and that
+            # distinction is correct — an unreachable imageinfo must be retried, never cached as a
+            # skip. So absorb the exception here rather than propagating it: the raise exists to
+            # stop the ENTITY cache recording a false miss, which is a different caller.
+            return None
         # None → network/parse failure. A 200 body carrying ``error`` (MediaWiki reports rate-limits
         # etc. as 200 + {"error":…}, which RetryTransport never sees) or missing ``query`` is also a
         # transient/unexpected condition — treat all as retry, NOT a permanent skip.
@@ -345,6 +394,9 @@ class WikipediaProvider:
         try:
             # Stream so an oversize image is bounded, never read whole into memory (read cap+1 then
             # reject) — the same defence the urllib version had.
+            # Same per-host throttle as _get_json: image bytes come from
+            # upload./commons.wikimedia.org, which are covered by the same robot policy.
+            self._limiter.wait(image_url)
             with self._client.stream("GET", image_url, headers={"User-Agent": _USER_AGENT}) as resp:
                 if resp.status_code in (404, 410):
                     return IMAGE_SKIP  # the image is gone → do not retry forever (permanent)
@@ -726,7 +778,13 @@ class PersonWebEnricher:
                     # re-queried on every run forever.
                     if not refresh and _miss_is_fresh(corpus_root, pid, now):
                         continue
-                    raw = self._provider.fetch_raw(pid, name)
+                    try:
+                        raw = self._provider.fetch_raw(pid, name)
+                    except TransientFetchError:
+                        # We could not ask — upstream refused or was unreachable. Leave NO
+                        # record so the next run retries. Writing a miss here is what turned a
+                        # 65-second rate-limit block into 911 entities marked absent for 30 days.
+                        continue
                     if raw is not None:
                         _write_raw_cache(corpus_root, pid, name, raw, now)
                         fetched += 1
