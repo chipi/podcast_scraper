@@ -12,30 +12,60 @@
  * reconstructs the whole theme cluster from any member topic's card. The topic card passes its own
  * id, which is a member, so the same storyline resolves.
  */
-import { ref } from "vue"
+import { onUnmounted, ref } from "vue"
 import StorylineView from "../views/StorylineView.vue"
 import { useModalSheet } from "../composables/useModalSheet"
+import { registerStackedSheet, sheetTeleportTarget } from "../composables/sheetStack"
 
-const props = defineProps<{ id: string }>()
+const props = withDefaults(
+  defineProps<{
+    id: string
+    /**
+     * How many sheets this one is stacked ON TOP of. 0 = opened from a page (Home, Discover) and
+     * the only sheet on screen, so it takes the full height — applying a stacked height there made
+     * it short for no reason. Each level above 0 sits one peek lower, so the card beneath keeps its
+     * kicker + title visible and a deep chain reads as a deck (operator 2026-09-16).
+     */
+    depth?: number
+  }>(),
+  { depth: 0 }
+)
 const emit = defineEmits<{ (e: "close"): void }>()
 
 const dialogEl = ref<HTMLElement | null>(null)
 useModalSheet(dialogEl, () => emit("close"), { key: "storyline", value: () => props.id })
+
+// A layered card pins the whole stack's geometry for as long as it is on screen.
+if (props.depth > 0) {
+  const release = registerStackedSheet()
+  onUnmounted(release)
+}
+
+// Resolved at mount: a sheet opened from inside the Knowledge Panel's modal <dialog> must render
+// INSIDE it, or the panel's top layer hides it completely. See sheetTeleportTarget().
+const teleportTarget = sheetTeleportTarget()
+// The depth ladder assumes the card below is a 92dvh sheet. The Knowledge Panel is a full-height
+// dialog pinned at `top-8`, so the SAME child height leaves a taller strip of it showing — enough
+// to expose its action row, when the contract is kicker + title and nothing else. Measure the peek
+// from the panel's own top instead (operator 2026-09-16: "it is not under title").
+const stackBase = teleportTarget === "body" ? undefined : "96dvh"
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="teleportTarget">
     <div class="lp-sheet-scrim" role="dialog" aria-modal="true" @click.self="emit('close')">
       <div
         ref="dialogEl"
         tabindex="-1"
         class="lp-sheet relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+        :class="depth > 0 ? 'lp-sheet--stacked' : undefined"
+        :style="{ '--lp-depth': depth, '--lp-stack-base': stackBase }"
         data-testid="storyline-card"
       >
         <!-- The ✕ now rides StorylineView's action row (embedded), unified with the topic/person
              card — so it no longer floats over the header content. StorylineView emits `close`. -->
         <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <StorylineView :id="id" embedded @close="emit('close')" />
+          <StorylineView :id="id" embedded :depth="depth" @close="emit('close')" />
         </div>
       </div>
     </div>

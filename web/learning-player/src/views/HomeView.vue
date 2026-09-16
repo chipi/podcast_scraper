@@ -40,6 +40,7 @@ import KeyVoicesRail from "../components/KeyVoicesRail.vue"
 import DiscoveryExplorer from "../components/DiscoveryExplorer.vue"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
+import QueueButton from "../components/QueueButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import StorylineCard from "../components/StorylineCard.vue"
 import RecapPrompt from "../components/RecapPrompt.vue"
@@ -452,7 +453,7 @@ async function loadContinue(): Promise<void> {
           data-testid="home-resume"
           class="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
         >
-          ► {{ t("home.resume") }} · {{ formatTime(resumeTop.position) }}
+          ▶ {{ t("home.resume") }} · {{ formatTime(resumeTop.position) }}
         </RouterLink>
       </div>
     </div>
@@ -626,7 +627,7 @@ async function loadContinue(): Promise<void> {
           <!-- Shared EpisodeActions row (favourite/queue/download/collect) in the artwork's upper-right;
            sibling of the link, not nested in the <a>. The featured card is wide (max-w-3xl) so the
            four icons fit without wrapping. -->
-          <EpisodeActions :slug="wnFeatured.slug" class="absolute right-3 top-3 z-30" />
+          <EpisodeActions :slug="wnFeatured.slug" overlay class="absolute right-3 top-3 z-30" />
           <RouterLink
             :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
             class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
@@ -673,11 +674,12 @@ async function loadContinue(): Promise<void> {
           <li
             v-for="(ep, i) in wnRows"
             :key="ep.slug"
+            class="flex items-center gap-1"
             @click="onWnRowClick($event, ep.slug, i + 1)"
           >
             <RouterLink
               :to="{ name: 'player', params: { slug: ep.slug } }"
-              class="group flex items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
+              class="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
             >
               <span
                 class="w-6 shrink-0 text-center font-display text-xl font-extrabold tracking-tight text-disabled"
@@ -702,6 +704,14 @@ async function loadContinue(): Promise<void> {
                 >▶</span
               >
             </RouterLink>
+            <!-- Queue sits OUTSIDE the link — never an interactive inside an interactive (the same
+                 rule EpisodeRow's `#trailing` slot follows). It is the one action worth carrying on
+                 a row you are only scanning, because it is the only one you would take WITHOUT
+                 opening the episode, which is what a "what's new" list is for. The rest (favourite /
+                 download / collect) still live on the player and the #01 hero, where you have
+                 already committed to the episode — so this narrows the earlier "no actions on every
+                 row" decision rather than undoing it (operator 2026-09-16). -->
+            <QueueButton :slug="ep.slug" class="shrink-0" />
           </li>
         </ul>
       </template>
@@ -767,6 +777,7 @@ async function loadContinue(): Promise<void> {
                button; an absolutely-positioned row sizes to max-content and won't wrap unbounded). -->
           <EpisodeActions
             :slug="ep.slug"
+            overlay
             class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"
           />
           <RouterLink

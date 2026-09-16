@@ -152,9 +152,36 @@ def assemble_digest_payload(
     trending = app_digest_sections.trending_items(root, data_dir, user_id, limit=MAX_REVISIT_ITEMS)
     if trending:
         sections.append({"kind": "trending_in_your_corpus", "items": trending})
+    # Never surface one episode in two sections (2026-09-15) — see _dedupe_sections_by_slug.
+    sections = _dedupe_sections_by_slug(sections)
     if not sections:
         return None
     return {"sections": sections}
+
+
+def _dedupe_sections_by_slug(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep each episode in the FIRST section it appears in; drop any section left empty.
+
+    The section builders are independent, so a followed show that is also trending (or a
+    captured episode that is also new-in-interests) would surface twice -- the reported
+    "same episode twice in Your Week". The client dedupes as a backstop, but the digest
+    EMAIL has no client, so the invariant is enforced here at source. Items without an
+    episode_slug are always kept (nothing to key on).
+    """
+    seen: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for section in sections:
+        kept: list[dict[str, Any]] = []
+        for it in section["items"]:
+            slug = str(it.get("episode_slug") or "")
+            if slug and slug in seen:
+                continue
+            if slug:
+                seen.add(slug)
+            kept.append(it)
+        if kept:
+            deduped.append({**section, "items": kept})
+    return deduped
 
 
 def _period_key(now: int, cadence: str) -> str:

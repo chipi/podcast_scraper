@@ -109,3 +109,43 @@ describe("TopicCardContent — universal activity sparkline (operator 2026-09-14
     expect(w.find('[data-testid="ec-topic-activity"]').exists()).toBe(false)
   })
 })
+
+/**
+ * The app-wide layering policy (operator 2026-09-16).
+ *
+ * A sheet may layer over another SHEET or over a PAGE, never over an inline PANEL: inside the
+ * Knowledge Panel the panel already IS the layer, and a modal on top puts two dismissables on
+ * screen with two different Back meanings (replace-in-panel, UXS-014).
+ *
+ * `canLayer` carries the shell's `dismissAtRoot`, which is true exactly when this card is the whole
+ * destination. Worth a test rather than a comment because the storyline sheet had been stacking
+ * over the panel unconditionally — copying that to person would have spread the bug, not fixed it.
+ */
+describe("TopicCardContent — layering policy", () => {
+  function mountTopic(canLayer: boolean) {
+    return mount(TopicCardContent, {
+      props: {
+        topic: topic({ related_people: [{ id: "person:jane", name: "Jane" }] as never }),
+        canLayer,
+      },
+      global: { plugins: [i18n, router], stubs: childStubs },
+    })
+  }
+
+  it("as a DESTINATION: a person opens as a stacked sheet, not via the shell's back stack", async () => {
+    const w = mountTopic(true)
+    const voice = w.find('[data-testid="ec-top-voice"]')
+    expect(voice.exists()).toBe(true)
+    await voice.trigger("click")
+    // Layered locally — nothing bubbles up asking the shell to replace its content.
+    expect(w.emitted("open")).toBeFalsy()
+  })
+
+  it("inside a PANEL: a person replaces in place, so no sheet is stacked over the panel", async () => {
+    const w = mountTopic(false)
+    await w.find('[data-testid="ec-top-voice"]').trigger("click")
+    const opened = w.emitted("open")
+    expect(opened).toBeTruthy()
+    expect(opened![0][0]).toMatchObject({ kind: "person" })
+  })
+})

@@ -113,6 +113,24 @@ describe('failures are visible, not swallowed (#2004 item 13)', () => {
     expect(w.text()).toContain('Research')
   })
 
+  it('keeps a previously-loaded list visible if a LATER open transiently fails (no blanking)', async () => {
+    // The native bug (2026-09-15): after collections loaded once, reopening the menu showed an EMPTY
+    // list — "second time I click collections it's empty, I have to go to another topic to reset".
+    // The list must survive a later flaky fetch: replace on success, never blank on failure.
+    const spy = vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    const w = await mountIt()
+    await w.get('button').trigger('click') // open → loads Research
+    await flushPromises()
+    expect(w.text()).toContain('Research')
+    await w.get('button').trigger('click') // close
+    spy.mockRejectedValue(new api.ApiError(500, 'boom')) // the next fetch fails transiently
+    await w.get('button').trigger('click') // reopen → refetch fails
+    await flushPromises()
+    expect(spy).toHaveBeenCalledTimes(2) // it DID refetch (no stale latch)
+    expect(w.text()).toContain('Research') // …but the good list is still shown
+    expect(w.find('[data-testid="collection-error"]').exists()).toBe(false) // no false "load failed"
+  })
+
   it('says so when adding to a collection fails, and claims nothing', async () => {
     vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
     // 422 = a REFUSAL. A 500 is transient and is now queued for replay, not surfaced.

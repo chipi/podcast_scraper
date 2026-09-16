@@ -36,11 +36,37 @@
  *
  * `closedByNavigation` is what separates 1 and 3 from 2.
  */
-import { ref } from "vue"
+import { onUnmounted, ref } from "vue"
 import EntityCardBody from "./EntityCardBody.vue"
 import { useModalSheet } from "../composables/useModalSheet"
+import { registerStackedSheet, sheetTeleportTarget } from "../composables/sheetStack"
 
-const props = defineProps<{ kind: "person" | "topic" | "organization"; id: string }>()
+const props = withDefaults(
+  defineProps<{
+    kind: "person" | "topic" | "organization"
+    id: string
+    /**
+     * Which `?<key>=` history entry this sheet owns, and how far it is offset from the top.
+     *
+     * Every sheet records its own entry so hardware Back closes it rather than navigating the page
+     * underneath. Two sheets sharing a key fight over one entry: the inner overwrites the outer's
+     * value on open, and closing then leaves the outer pointing at the wrong entity. `StorylineCard`
+     * already layers over an entity sheet and uses `storyline` for precisely this reason; a second
+     * ENTITY sheet needs its own key too (2026-09-16).
+     */
+    historyKey?: string
+    /**
+     * How many sheets this one is stacked ON TOP of. 0 = the bottom card.
+     *
+     * A boolean `stacked` could only ever express one level, and stacks go arbitrarily deep
+     * (topic → storyline → person → …). The depth drives `--lp-depth`, which sizes the card one
+     * peek shorter per level so each card below keeps its title visible — a deck, not a pile
+     * (operator 2026-09-16).
+     */
+    depth?: number
+  }>(),
+  { historyKey: "card", depth: 0 }
+)
 const emit = defineEmits<{ (e: "close"): void }>()
 
 const dialogEl = ref<HTMLElement | null>(null)
@@ -54,18 +80,35 @@ const dialogEl = ref<HTMLElement | null>(null)
 function cardKey(): string {
   return props.id.includes(":") ? props.id : `${props.kind}:${props.id}`
 }
-useModalSheet(dialogEl, () => emit("close"), { key: "card", value: cardKey })
+useModalSheet(dialogEl, () => emit("close"), { key: props.historyKey, value: cardKey })
+
+// A layered card pins the whole stack's geometry for as long as it is on screen.
+if (props.depth > 0) {
+  const release = registerStackedSheet()
+  onUnmounted(release)
+}
+
+// Resolved at mount: a sheet opened from inside the Knowledge Panel's modal <dialog> must render
+// INSIDE it, or the panel's top layer hides it completely. See sheetTeleportTarget().
+const teleportTarget = sheetTeleportTarget()
+// The depth ladder assumes the card below is a 92dvh sheet. The Knowledge Panel is a full-height
+// dialog pinned at `top-8`, so the SAME child height leaves a taller strip of it showing — enough
+// to expose its action row, when the contract is kicker + title and nothing else. Measure the peek
+// from the panel's own top instead (operator 2026-09-16: "it is not under title").
+const stackBase = teleportTarget === "body" ? undefined : "96dvh"
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="teleportTarget">
     <div class="lp-sheet-scrim" role="dialog" aria-modal="true" @click.self="emit('close')">
       <div
         ref="dialogEl"
         tabindex="-1"
         class="lp-sheet w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+        :class="depth > 0 ? 'lp-sheet--stacked' : undefined"
+        :style="{ '--lp-depth': depth, '--lp-stack-base': stackBase }"
       >
-        <EntityCardBody variant="overlay" :kind="kind" :id="id" @close="emit('close')" />
+        <EntityCardBody variant="overlay" :kind="kind" :id="id" :depth="depth" @close="emit('close')" />
       </div>
     </div>
   </Teleport>

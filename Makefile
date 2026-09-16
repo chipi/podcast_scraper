@@ -60,6 +60,8 @@ PYTEST_WORKERS ?= 2
 # triggered fallback, doubling wall time).
 
 .PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
+.PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
+.PHONY: ios-contact-sheet
 .PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
@@ -1638,6 +1640,13 @@ test-app:
 # Install browsers once: cd $(APP_DIR) && npx playwright install chromium
 test-app-e2e:
 	@echo "Playwright E2E (Learning Player)..."
+	@# Reap the CONTAINERISED api first. It listens on the same port this suite starts its own api
+	@# on, and playwright.config.ts sets `reuseExistingServer: !CI` — so if it is up, the browser
+	@# suite adopts it and Playwright's globalSetup then wipes a state directory the container never
+	@# reads. Per-user state from the iOS tier leaked in exactly this way and failed two specs on
+	@# STATE rather than on code (2026-09-16). Cheap, and it makes a local run match CI's fresh
+	@# checkout. Only this repo's own container, never a sibling worktree's.
+	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
 	@cd $(APP_DIR) && npm install && npx playwright install chromium && npm run test:e2e
 
 # Learning Player e2e against a CONTAINERISED api (#1905/#1906).
@@ -1666,6 +1675,18 @@ E2E_API_IMAGE_INPUTS ?= src/podcast_scraper pyproject.toml config docker/api
 APP_E2E_CT ?= lp-e2e-api
 APP_E2E_VOL ?= lp-e2e-corpus
 APP_E2E_STATE ?= lp-e2e-state
+# 8011 is ALSO what web/learning-player/playwright.config.ts starts its own api on, with
+# `reuseExistingServer: !CI`. So whenever this container is up, the browser suite silently REUSES it
+# instead of starting its own — and Playwright's globalSetup then wipes `e2e/.app-state`, a
+# directory the reused container never reads. Per-user state written by the iOS tier (queues,
+# playback, revisit) therefore leaked into browser specs that assert a fresh user, and they failed
+# on state rather than on code: `episode-actions` waited for "Add to queue" on an already-queued
+# row, `consolidation` waited for "Nothing to revisit right now" with items to revisit
+# (2026-09-16).
+#
+# The ports are deliberately NOT unified: reaping this container before a browser run is the
+# reliable fix, and `test-app-e2e` now does it (see that target). Changing the port would only move
+# the collision somewhere less obvious.
 APP_E2E_PORT ?= 8011
 APP_E2E_WORKERS ?= 4
 APP_E2E_CORPUS ?= tests/fixtures/app-validation-corpus/v3
@@ -1884,6 +1905,176 @@ test-app-ios-journey:
 			-only-testing:OfflineSpikeUITests/OfflineAutoAdvanceTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
 		rc=$${PIPESTATUS[0]}; exit $$rc
+
+# Consumer-surface journey suite on the simulator (2026-09-16): profile tabs, episode → insights,
+# topic → storyline, person, collections, share, saved colour picker, personalisation, and the
+# browse-then-offline cache contract. Unlike the download/offline journeys above it mutates nothing
+# on disk, so it is safe to re-run.
+#
+# PRECONDITION it does NOT set up: a signed-in session. These surfaces are all auth-gated (the
+# server 401s anonymous reads), so seed the native bearer first — `ios-journey-signin` does it.
+#
+# `NODE_OPTIONS` must be cleared for every node step: a cmux preload shim on this machine points at
+# a file that does not exist, and `npx vite preview` dies instantly with MODULE_NOT_FOUND.
+test-app-ios-journey-ui:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/AppJourneyTests \
+			-only-testing:OfflineSpikeUITests/PersonalisationTests \
+			-only-testing:OfflineSpikeUITests/OfflineCacheTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_JOURNEY_EXIT=$$rc"; exit $$rc
+
+# Mint a real session through the mock provider's NATIVE flow and seed it into the app's durable
+# store, so the journey suite starts signed in. Write through the preferences DAEMON (the app reads
+# that); the container plist lags behind and must not be written directly — see the note below.
+ios-journey-signin:
+	@tok=""; url="http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app/auth/login?as=simtest&platform=native"; \
+	for i in 1 2 3 4 5; do \
+		loc=$$(curl -s -c /tmp/lp-ios-jar.txt -b /tmp/lp-ios-jar.txt -o /dev/null -D - "$$url" \
+			| awk 'tolower($$1)=="location:"{print $$2}' | tr -d '\r'); \
+		case "$$loc" in \
+			closelistening://*) tok=$${loc#closelistening://auth\#token=}; break;; \
+			http*) url="$$loc";; \
+			/*) url="http://127.0.0.1:$(IOS_ORIGIN_PORT)$$loc";; \
+			*) break;; \
+		esac; \
+	done; \
+	[ -n "$$tok" ] || { echo "FAIL: could not mint a native session token"; exit 1; }; \
+	xcrun simctl terminate booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true; \
+	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) CapacitorStorage.lp_native_token -string "$$tok"; \
+	echo "✓ native session seeded for the journey suite"
+
+# The 2026-09-16 production incident, reproduced end to end: a reboot lost the signing secret, so
+# the server stayed UP and answered while being unable to authenticate anyone. Simulated by
+# restarting the SAME api with a different APP_SESSION_SECRET — every stored token becomes
+# unverifiable, exactly as it did in prod. Nothing about the device changes.
+#
+# Sequence matters: warm the cache while healthy, THEN break the server, then assert. Asserting on
+# a cold cache proves nothing (the first attempt at this flipped the offline switch on a fresh
+# install and "found" an empty app — a test artifact, not a finding).
+test-app-ios-server-degraded:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@echo "--> 1/3 warming the cache against a HEALTHY api"
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/ServerDegradedTests/test11aWarmTheCacheWhileHealthy \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -5
+	@echo "--> 2/3 restarting the api with a DIFFERENT signing secret (the reboot)"
+	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
+	@APP_SESSION_SECRET=rotated-by-the-degraded-server-drill $(MAKE) app-e2e-api-up
+	@echo "--> 3/3 asserting the app notices, stays honest, and keeps its cache"
+	@cd $(IOS_UITESTS_DIR) && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/ServerDegradedTests/test11bDegradedServerIsDetectedAndCacheSurvives \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_DEGRADED_EXIT=$$rc"; exit $$rc
+
+# ONE image of every screen, for a visual sweep (operator 2026-09-16). Reviewing screenshots one at
+# a time hides exactly the thing a sweep is for — surfaces drifting apart from each other.
+#
+# Runs the camera suite (ScreenshotTourTests — best-effort by design, it shoots whatever is on
+# screen rather than failing), exports the attachments, and stitches them into a labelled grid.
+# Assertions belong to the journey suites, not here.
+#
+# PRECONDITION: signed in (`make ios-journey-signin`). Run `test-app-ios-journey-ui` first if you
+# want Stats/Topics populated rather than showing their empty states.
+# Rebuild the web bundle against the FIXTURE api and reinstall it on the simulator.
+#
+# Exists because hand-rolling this is a trap with two separate bites, both taken on 2026-09-16:
+#   - Forget the step entirely and the suites run against a STALE bundle. A whole contact sheet was
+#     reviewed that way; it showed pre-fix sheet geometry, and the review comments were about a
+#     build that no longer existed.
+#   - Run `npm run build` without VITE_API_BASE_URL and the app falls back to PROD_API_BASE
+#     (services/tier.ts), so every fixture assertion fails against the live site. That took all ten
+#     seeding tests red at once.
+#   - Point it at the bare api on :$(APP_E2E_PORT) and AUDIO 404s. The corpus stores media_url as a
+#     relative `/audio/<id>.mp3` and `resolveMediaUrl` absolutises it against the API base, but that
+#     port serves only /api — the episode page then renders "Couldn't load the audio from the
+#     source" with NO transport, and a test looking for Play reports the control missing rather than
+#     the audio. Hence the single origin, which is what `ios-origin-up` exists to provide.
+# All three are invisible until something downstream fails oddly, so the recipe is the artefact.
+ios-app-install: ios-origin-up
+	@echo "--> building the player against the single origin on :$(IOS_ORIGIN_PORT) (api + audio)"
+	@cd $(APP_DIR) && env -u NODE_OPTIONS VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
+		npm run build >/dev/null && env -u NODE_OPTIONS npx cap sync ios >/dev/null
+	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
+	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
+	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
+	@# Prove the installed bundle is the one we meant — the failure mode above is silent otherwise.
+	@app=$$(xcrun simctl get_app_container booted app.closelistening.player) && \
+		if grep -qF "127.0.0.1:$(IOS_ORIGIN_PORT)/api/app" "$$app/public/assets/"*.js; then \
+			echo "✓ installed bundle points at the single origin (api + audio)"; \
+		else \
+			echo "FAIL: installed bundle does NOT target :$(IOS_ORIGIN_PORT) — it would run against"; \
+			echo "      prod, or against an origin with no /audio."; \
+			exit 1; \
+		fi
+	@# Prove the origin actually serves AUDIO, not just /api. A 404 here is the difference between
+	@# "no Play control" and a working transport, and the page blames the source either way.
+	@# Same probe file as `ios-origin-up` uses. Fixture audio is named `<podcast>_<episode>.mp3`,
+	@# NOT by slug — a slug-shaped guess 404s and would fail this check on a healthy origin.
+	@if curl -fsS -o /dev/null --max-time 5 "http://127.0.0.1:$(IOS_ORIGIN_PORT)/audio/p06_e04.mp3"; then \
+		echo "✓ origin serves /audio"; \
+	else \
+		echo "FAIL: :$(IOS_ORIGIN_PORT) does not serve /audio — episodes will render with no transport."; \
+		exit 1; \
+	fi
+
+ios-contact-sheet: ios-app-install
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@# Sign in AFTER the install, never before. `ios-app-install` pulls in `app-e2e-api-up`, which
+	@# recreates the fixture api container — so an account minted first is destroyed moments later
+	@# and the app is left holding a token for a user that no longer exists. Every auth-gated surface
+	@# then comes back empty and the seeding suites fail as "element not found", which reads like a
+	@# UI regression rather than a wiped backend (2026-09-16).
+	@$(MAKE) ios-journey-signin
+	@# SEED FIRST. The tour shoots whatever is on screen, and a freshly-signed-in account has an
+	@# empty Library, no collections, no favourites and no listening history — so half the sheet was
+	@# empty states, which is exactly the half a visual review cannot judge (operator 2026-09-16).
+	@# The journey + personalisation suites already CREATE that data as a side effect of asserting
+	@# on it (boards, favourites, played episodes, chosen interests), so running them first is both
+	@# the seed and a check that the seeding path still works.
+	@echo "--> seeding data so the tour photographs a populated app"
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/AppJourneyTests \
+			-only-testing:OfflineSpikeUITests/PersonalisationTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
+			2>&1 | grep -E '=====|Test Case.*(passed|failed)|error:|XCTAssert|TEST (SUCCEEDED|FAILED)' || true
+	@echo "--> touring every surface"
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/ScreenshotTourTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
+			2>&1 | grep -E '=====|Test Case|error:|TEST (SUCCEEDED|FAILED)'
+	@$(MAKE) ios-journey-shots
+	@# tile-width 0 = NATIVE device pixels, so the sheet can be inspected at 1:1 and shows exactly
+	@# what the device rendered. Resampling — even a good downscale — softens hairline borders and
+	@# antialiased text, which is the very thing a visual review is judging (operator 2026-09-16).
+	@$(PYTHON) scripts/tools/contact_sheet.py \
+		--in $(IOS_SHOTS_DIR)/named --out $(IOS_SHOTS_DIR)/contact-sheet.png \
+		--cols $(IOS_SHEET_COLS) --tile-width $(IOS_SHEET_TILE_W)
+
+# Screenshots live as attachments inside the .xcresult; this pulls them out under their logical
+# names (01-profile-account.png, 05-add-to-collection.png, …) for review.
+IOS_SHOTS_DIR ?= /tmp/lp-ios-shots
+# Contact-sheet geometry. `0` width means native device pixels (see ios-contact-sheet); 5 columns
+# keeps a ~25-frame sweep close to square rather than a long ribbon.
+IOS_SHEET_COLS ?= 5
+IOS_SHEET_TILE_W ?= 0
+ios-journey-shots:
+	@xcr=$$(ls -dt $(IOS_DD)-uitests/Logs/Test/*.xcresult 2>/dev/null | head -1); \
+	[ -n "$$xcr" ] || { echo "FAIL: no .xcresult — run a UI-test target first"; exit 1; }; \
+	$(PYTHON) scripts/tools/export_xcresult_shots.py --xcresult "$$xcr" --out $(IOS_SHOTS_DIR)
 
 # NOTE on defaults, which cost two wrong diagnoses: WRITE through `xcrun simctl spawn ... defaults
 # write` — that goes via the simulator's cfprefsd, which is what the app actually reads. Writing

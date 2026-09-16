@@ -61,8 +61,9 @@ import type {
   UserStats,
   YourWeekResponse,
 } from "./types"
+import { ref } from "vue"
 import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
-import { isOffline } from "../composables/useOnline"
+import { isForcedOffline, isOffline, reportServerReachable } from "../composables/useOnline"
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -89,12 +90,17 @@ export class ApiError extends Error {
 // browser whose cookie the WebView can't see, so we carry the SAME signed session token here and
 // send it as `Authorization: Bearer` on every request. Set from the OAuth deep-link callback
 // (services/native.ts) and rehydrated from Preferences on launch.
-let authToken: string | null = null
+// REACTIVE on purpose. `auth.hasSession` (stores/auth.ts) is a Pinia getter — a Vue computed — and
+// computeds memoize on their REACTIVE dependencies. While this was a plain module variable, reading
+// it inside that getter tracked nothing, so `hasSession` cached its first answer: the masthead would
+// not gain an avatar when a login stored a token, nor lose it when sign-out cleared one, until some
+// unrelated state happened to invalidate the computed. A `ref` makes the dependency real.
+const authToken = ref<string | null>(null)
 export function setAuthToken(token: string | null): void {
-  authToken = token
+  authToken.value = token
 }
 export function getAuthToken(): string | null {
-  return authToken
+  return authToken.value
 }
 
 /**
@@ -110,26 +116,42 @@ export function setOnUnauthorized(fn: (() => void) | null): void {
 }
 
 async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-  // Known-offline calls fail fast here, exactly as reads do in getJSON — so a WRITE routes to the
-  // outbox for replay instead of silently succeeding on a live network under the forced-offline
-  // Config switch, and a direct-apiFetch READ (export/download/dev-users, which bypass getJSON)
-  // fails fast too rather than hitting the network the switch says is down (#2004 #10). Real offline
-  // already rejects here (fetch throws); this makes the switch match it. getJSON's own guard throws
-  // first for its callers (with a GET-specific message), so this never double-fires for them.
+  // Fast-fail policy split by method (2026-09-15 RCA of #2034):
+  //  - WRITES fast-fail on the full offline signal, so a mutation routes to the outbox for replay
+  //    instead of silently succeeding on a live network under the forced-offline Config switch.
+  //  - READS (GET) fast-fail ONLY on the explicit Config switch, NEVER on the auto-detected signal.
+  //    #2034 gated reads on `isOffline()` here (and in getJSON); on device that signal false-
+  //    negatives (WKWebView / cellular / VPN / cold-start), so a CONNECTED app had every read short-
+  //    circuited — profile blank, collections empty, "couldn't reach the server", and the tell-tale
+  //    "a bit works then a bit not". Before #2034 reads had no gate at all; this restores that, while
+  //    keeping the explicit switch working. Real offline still rejects at `fetch` and the caller
+  //    handles it (timeout + retry + cached/stale UI).
   const method = (init.method ?? "GET").toUpperCase()
-  if (isOffline()) throw new ApiError(0, `${method} ${String(input)} → offline`)
+  const blocked = method === "GET" ? isForcedOffline() : isOffline()
+  if (blocked) throw new ApiError(0, `${method} ${String(input)} → offline`)
   const headers = new Headers(init.headers)
   if (!headers.has("Authorization")) {
     // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open
     // reads reach the gated API pre-launch (services/tier.ts :: resolveGateAuthHeader). Both use the
     // `Authorization` header, so they're mutually exclusive — acceptable until native login lands.
-    if (authToken) headers.set("Authorization", `Bearer ${authToken}`)
+    if (authToken.value) headers.set("Authorization", `Bearer ${authToken.value}`)
     else {
       const gate = resolveGateAuthHeader()
       if (gate) headers.set("Authorization", gate)
     }
   }
-  const resp = await fetch(input, { ...init, headers })
+  // Every request is a probe of whether the SERVER works — the only place that can observe it.
+  // A transport failure (refused / DNS / timeout) and a 503 both mean "not usable right now"; a 503
+  // specifically is how the API now reports that it cannot authenticate anyone (a lost signing
+  // secret, incident 2026-09-16) rather than lying that the caller's credential is bad.
+  let resp: Response
+  try {
+    resp = await fetch(input, { ...init, headers })
+  } catch (err) {
+    reportServerReachable(false)
+    throw err
+  }
+  reportServerReachable(resp.status !== 503)
   if (resp.status === 401 && onUnauthorized) onUnauthorized()
   return resp
 }
@@ -148,11 +170,14 @@ async function getJSON<T>(
   params?: Record<string, string | number | undefined>,
   init?: RequestInit
 ): Promise<T> {
-  // Known-offline: skip the call that cannot succeed and fail fast, so the caller lands on its cache
-  // or its graceful error immediately instead of waiting on the OS connection timeout. status 0 is
-  // a transport failure, never a 401 — stores keep their cache and mark stale (never sign the user
-  // out). Mutations don't route through here; the outbox owns their offline behaviour.
-  if (isOffline()) throw new ApiError(0, `GET ${path} → offline`)
+  // Fast-fail ONLY on the explicit Config offline switch — never on the auto-detected signal (RCA of
+  // #2034, 2026-09-15). That signal false-negatives on device (WKWebView / cellular / VPN / a slow
+  // cold-start network report), and gating reads on it made a CONNECTED app look broken — profile
+  // blank, collections empty, "couldn't reach the server", and the tell-tale "a bit works then a bit
+  // not". Before #2034 reads had no gate at all; this restores that. A read now always attempts and
+  // falls to its cache / graceful error via the real error path (the timeout backstop below + the
+  // store's cached/stale UI). status 0 is a transport failure, never a 401.
+  if (isForcedOffline()) throw new ApiError(0, `GET ${path} → offline (forced)`)
   const url = new URL(`${BASE}${path}`, window.location.origin)
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -181,10 +206,27 @@ async function getJSON<T>(
  */
 const ME_TIMEOUT_MS = 8000
 
+/**
+ * Absolutise the avatar URL for the native shell.
+ *
+ * The server returns `image` as a RELATIVE path (`/api/app/profile/<id>/avatar?v=…`). On the web
+ * that is correct; inside the Capacitor WebView the document origin is `capacitor://localhost`, so
+ * it resolves there, 404s, and `ProfileAvatar` quietly falls back to initials — an uploaded photo
+ * simply never appeared (operator 2026-09-16).
+ *
+ * This is the SAME defect class as the artwork and audio URLs that motivated the device test tier;
+ * `getAudioSource` already does exactly this for `media_url`. Done here, in one place, rather than
+ * at each of the avatar's render sites.
+ */
+function withAbsoluteAvatar(me: Me): Me {
+  return me.image ? { ...me, image: resolveMediaUrl(me.image) ?? me.image } : me
+}
+
 /** Signed-in user, or `null` when not authenticated (401). */
 export async function getMe(): Promise<Me | null> {
   try {
-    return await getJSON<Me>("/me", undefined, { signal: AbortSignal.timeout(ME_TIMEOUT_MS) })
+    const me = await getJSON<Me>("/me", undefined, { signal: AbortSignal.timeout(ME_TIMEOUT_MS) })
+    return withAbsoluteAvatar(me)
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return null
     // A timeout / transport abort is NOT a signed-out signal — rethrow so refresh() keeps the device
@@ -874,7 +916,10 @@ export async function uploadAvatar(file: Blob): Promise<{ image: string }> {
     body: form,
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /profile/avatar → ${resp.status}`)
-  return (await resp.json()) as { image: string }
+  const body = (await resp.json()) as { image: string }
+  // Absolutised for the same reason as `getMe` — the upload response carries the same relative path,
+  // and a caller that renders it directly would hit `capacitor://localhost` on native.
+  return { ...body, image: resolveMediaUrl(body.image) ?? body.image }
 }
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---

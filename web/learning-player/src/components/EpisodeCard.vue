@@ -54,6 +54,11 @@ const props = defineProps<{
    * replaced. Compact keeps the identity (artwork, show, title) and drops the meta column.
    */
   compact?: boolean
+  /**
+   * Forwarded to `EpisodeActions`: drop the heart from the visible row and put it in the ⋯ instead.
+   * Set by the Saved list, where every row is favourited by definition — see EpisodeActions.
+   */
+  hideFavorite?: boolean
 }>()
 const { t, locale } = useI18n()
 
@@ -166,8 +171,10 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
            queue's reorder ↑/↓ ride the slot. -->
       <EpisodeActions
         :slug="episode.slug"
+        :hide-favorite="hideFavorite"
         :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 mt-auto w-32'"
       >
+        <template #lead><slot name="lead-action" /></template>
         <slot name="actions" />
       </EpisodeActions>
     </div>

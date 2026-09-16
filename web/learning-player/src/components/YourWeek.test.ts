@@ -142,6 +142,38 @@ describe('YourWeek section', () => {
     expect(wrapper.text()).not.toContain(en.home.yourWeekSection.new_in_follows)
   })
 
+  it('shows an episode ONLY ONCE even when the digest returns it in two sections (#2072 follow-up)', async () => {
+    // The native bug (2026-09-15): the same episode appeared twice in Your Week. The digest can
+    // surface one episode in more than one section; compact flattens them, so it rendered twice.
+    const RESP_DUP: YourWeekResponse = {
+      sections: [
+        {
+          kind: 'new_in_follows',
+          items: [
+            { episode_slug: 'ep-dup', episode_title: 'Dup', deep_link: '/episode/ep-dup', graph_refs: [] },
+          ],
+        },
+        {
+          kind: 'trending_in_your_corpus',
+          items: [
+            { episode_slug: 'ep-dup', episode_title: 'Dup', deep_link: '/episode/ep-dup', graph_refs: [] },
+            { episode_slug: 'ep-other', episode_title: 'Other', deep_link: '/episode/ep-other', graph_refs: [] },
+          ],
+        },
+      ],
+      period_label: 'x',
+      generated_at: 'y',
+    }
+    const { wrapper } = mountIt({ signedIn: true, resp: RESP_DUP }) // compact by default
+    await flushPromises()
+    // Two UNIQUE episodes → two cards, not three.
+    expect(wrapper.findAll('li')).toHaveLength(2)
+    const dupLinks = wrapper
+      .findAll('a')
+      .filter((a) => (a.attributes('href') ?? '').includes('/episode/ep-dup'))
+    expect(dupLinks).toHaveLength(1)
+  })
+
   it('uses the item artwork as the card backdrop when present', async () => {
     const { wrapper } = mountIt({ signedIn: true, resp: RESP })
     await flushPromises()

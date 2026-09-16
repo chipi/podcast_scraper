@@ -107,7 +107,7 @@ function searchLibrary(): void {
     </h3>
     <ul class="flex flex-col">
       <li v-for="e in episodes" :key="e.slug">
-        <EpisodeRow :episode="e" @navigate="emit('close')" />
+        <EpisodeRow :episode="e" />
       </li>
     </ul>
   </section>

@@ -18,7 +18,7 @@ import {
   patchHighlight,
   removeInterest,
 } from './api'
-import { setForcedOffline } from '../composables/useOnline'
+import { setForcedOffline, useOnline } from '../composables/useOnline'
 
 function mockFetch(status: number, body: unknown): void {
   vi.stubGlobal(
@@ -45,6 +45,36 @@ describe('getMe', () => {
   it('returns null on 401 (signed out)', async () => {
     mockFetch(401, { detail: 'Not authenticated.' })
     expect(await getMe()).toBeNull()
+  })
+})
+
+describe('reads gate on the forced switch only, never the auto signal (RCA of #2034)', () => {
+  it('does NOT block a read on the AUTO offline signal — only the forced switch blocks (havoc fix)', async () => {
+    // 2026-09-15: the auto signal false-negatives on device, and gating reads on it made a connected
+    // app look broken. A read must still ATTEMPT when the auto signal says offline (not forced).
+    useOnline() // register the window online/offline listeners
+    window.dispatchEvent(new Event('offline')) // auto-signal offline, NOT the Config switch
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ items: [], total: 0 }) }))
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const page = await listEpisodes()
+      expect(fetchMock).toHaveBeenCalled() // attempted despite the "offline" signal
+      expect(page.total).toBe(0)
+    } finally {
+      window.dispatchEvent(new Event('online')) // restore the singleton for other tests
+    }
+  })
+
+  it('the forced Config switch STILL blocks a read (no network attempt)', async () => {
+    setForcedOffline(true)
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      await expect(listEpisodes()).rejects.toMatchObject({ status: 0 })
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      setForcedOffline(false)
+    }
   })
 })
 

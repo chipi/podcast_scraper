@@ -96,11 +96,22 @@ async def upload_avatar(
 
 
 @router.get("/profile/{user_id}/avatar")
-def serve_avatar(
-    user_id: str, request: Request, _user: User = Depends(get_current_user)
-) -> FileResponse:
-    """Serve a user's stored avatar. Auth-gated (advisor L4 — a signed-in surface); the id is
-    validated and the filename is fixed, so the path cannot escape the user's own dir."""
+def serve_avatar(user_id: str, request: Request) -> FileResponse:
+    """Serve a user's stored avatar. Deliberately UNAUTHENTICATED.
+
+    It was session-gated (advisor L4). That is unreachable from the one element that needs it: an
+    `<img src=…>` cannot send an `Authorization` header, and the native shell carries its session in
+    exactly that header rather than a cookie — so every uploaded avatar 401'd and the UI silently
+    fell back to initials on device (operator 2026-09-16).
+
+    Open rather than signed, on the operator's call: the id is an opaque 24-hex token that is never
+    displayed, episode and show ARTWORK is already served unauthenticated by this same API, and a
+    signed URL would tie the avatar's lifetime to the session secret — so a secret rotation would
+    break every stored avatar URL as well as every session, which is the failure that started the
+    2026-09-16 incident.
+
+    The id is validated and the filename is a fixed glob, so the path cannot escape the user's dir.
+    """
     if not is_safe_user_id(user_id):
         raise HTTPException(status_code=404, detail="No avatar.")
     user_dir = _data_dir(request) / "users" / user_id

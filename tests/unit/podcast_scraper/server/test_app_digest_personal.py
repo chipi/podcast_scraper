@@ -21,6 +21,34 @@ from podcast_scraper.server import (
 )
 from podcast_scraper.server.app_user_store import get_or_create_user
 
+
+def test_dedupe_sections_by_slug_keeps_each_episode_in_the_first_section() -> None:
+    """One episode must never appear in two Your Week sections (2026-09-15 "same episode twice").
+
+    The section builders are independent, so a followed show that is also trending yields the same
+    episode in both; the assembler must keep it in the first section only and drop a section left
+    empty. Items with no slug are always kept.
+    """
+    sections = [
+        {"kind": "new_in_follows", "items": [{"episode_slug": "ep-a"}, {"episode_slug": "ep-b"}]},
+        # ep-a repeats (also trending); ep-c is new. A slug-less item rides along and must survive.
+        {
+            "kind": "trending_in_your_corpus",
+            "items": [{"episode_slug": "ep-a"}, {"episode_slug": "ep-c"}, {"note": "no slug"}],
+        },
+        # ep-b again: this whole section is a duplicate, so it must be dropped entirely.
+        {"kind": "new_in_interests", "items": [{"episode_slug": "ep-b"}]},
+    ]
+    out = app_digest_personal._dedupe_sections_by_slug(sections)
+    flat = [it.get("episode_slug") for s in out for it in s["items"]]
+    assert flat.count("ep-a") == 1
+    assert flat.count("ep-b") == 1
+    # trending keeps ep-c + the slug-less item; the all-duplicate new_in_interests section is gone.
+    kinds = [s["kind"] for s in out]
+    assert kinds == ["new_in_follows", "trending_in_your_corpus"]
+    assert {"note": "no slug"} in out[1]["items"]
+
+
 pytestmark = pytest.mark.unit
 
 _ROOT = Path("/unused")  # KG resolution is stubbed; the corpus root is never read.

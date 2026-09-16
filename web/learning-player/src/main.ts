@@ -134,7 +134,13 @@ app.use(createPinia()).use(router).use(i18n)
 // login-first). Registered after pinia+router so the store and navigation are live.
 setOnUnauthorized(() => {
   const auth = useAuthStore()
-  if (!auth.isAuthenticated) return
+  // `hasSession`, NOT `isAuthenticated`. Gating on the latter meant a device holding a DEAD native
+  // token but no painted user fell straight through this handler: the token was never discarded,
+  // no redirect happened, and the app sat on an admitted route with a signed-out masthead — every
+  // authed read 401ing forever, across relaunches, with no self-heal. Reproduced on the simulator
+  // 2026-09-16. An anonymous 401 (normal under login-first) still no-ops, because with no user and
+  // no token `hasSession` is false.
+  if (!auth.hasSession) return
   auth.markSignedOut()
   const current = router.currentRoute.value
   if (current.name !== 'landing' && current.name !== 'login') {

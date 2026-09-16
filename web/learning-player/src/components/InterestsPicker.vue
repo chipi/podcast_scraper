@@ -6,6 +6,7 @@
  * trap, restore focus on close.
  */
 import { computed, onMounted, ref } from "vue"
+import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import { getStorylines, getTopClusters, getUserInterests, putUserInterests } from "../services/api"
 import type { InterestCluster, Storyline } from "../services/types"
@@ -95,7 +96,7 @@ onMounted(async () => {
             :aria-label="t('interests.close')"
             @click="emit('close')"
           >
-            <span aria-hidden="true" class="text-base leading-none">✕</span>
+            <CloseIcon />
           </button>
         </header>
 

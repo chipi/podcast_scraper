@@ -10,6 +10,7 @@
  * Modal bottom-sheet shell mirrors EntityCard (teleport, focus trap, ESC / backdrop dismiss).
  */
 import { onMounted, ref } from "vue"
+import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import QueueView from "../views/QueueView.vue"
 import EpisodeCard from "./EpisodeCard.vue"
@@ -67,7 +68,7 @@ onMounted(async () => {
             data-testid="queue-panel-close"
             @click="emit('close')"
           >
-            <span aria-hidden="true" class="text-base leading-none">✕</span>
+            <CloseIcon />
           </button>
         </header>
 

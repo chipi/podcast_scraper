@@ -14,6 +14,7 @@
 import { ref } from 'vue'
 
 import { getHealth } from '../services/api'
+import { noteAuthEpoch } from '../services/authEpoch'
 import { isNative } from '../services/native'
 
 /** Leading numeric parts of a dot-version ("1.2.0" → [1,2,0]); non-numeric suffixes → 0. */
@@ -57,6 +58,10 @@ export function useAppUpdate() {
   async function check(): Promise<void> {
     if (!isNative()) return
     const health = await getHealth()
+    // Piggyback the session-key fingerprint onto a health call we were making anyway, so the app
+    // has a baseline to compare against LATER — when a 401 arrives and it must decide whether the
+    // platform rotated its keys or this one session simply expired (services/authEpoch.ts).
+    noteAuthEpoch(health?.auth_epoch)
     const server = health?.player_version
     if (!server) return
     if (isVersionNewer(server, __APP_VERSION__)) {

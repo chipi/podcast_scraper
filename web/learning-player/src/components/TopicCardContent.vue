@@ -2,11 +2,16 @@
 /**
  * Topic card BODY — the topic-specific sections of the entity card, in operator-reviewed order:
  * the rising-momentum badge LEADS, then similar topics, the storyline link (opens the storyline
- * overlay on top), strongest shows, search, episodes, conversation arc, perspectives, top voices,
+ * overlay on top), strongest shows, TOP VOICES, search, episodes, conversation arc, perspectives,
  * notes. The shell ({@link EntityCardBody}) owns the back-stack, header and load; this renders the
  * loaded `TopicCard`. Graph navigation emits `open`; `close` dismisses the whole card.
+ *
+ * Top voices moved up to sit directly beneath strongest shows (operator 2026-09-16). It answers the
+ * same question as the section above it — who and what carries this topic — so splitting the two
+ * with the transcript search, the episode list and two analysis panels buried the people at the
+ * very bottom, where a reader had already decided whether the topic was worth their time.
  */
-import { computed, ref } from "vue"
+import { computed, defineAsyncComponent, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, TopicCard } from "../services/types"
@@ -20,7 +25,31 @@ import Sparkline from "./Sparkline.vue"
 import TopicPerspectives from "./TopicPerspectives.vue"
 import TopicConversationArc from "./TopicConversationArc.vue"
 
-const props = defineProps<{ topic: TopicCard }>()
+// ASYNC on purpose: EntityCard renders EntityCardBody, which renders THIS component, so a static
+// import would be a cycle. Deferring the resolve to first open breaks it and costs nothing — the
+// chunk is already loaded by the time a topic card is on screen.
+const EntityCard = defineAsyncComponent(() => import("./EntityCard.vue"))
+
+const props = withDefaults(
+  defineProps<{
+    topic: TopicCard
+    /**
+     * May this card open a person / storyline as a sheet ON TOP?
+     *
+     * App-wide rule: a sheet may layer over another SHEET or over a PAGE, never over an inline
+     * PANEL. Inside the Knowledge Panel the panel IS the layer, so a modal on top would put two
+     * dismissables on screen with two different Back meanings (replace-in-panel, UXS-014). There
+     * everything replaces in place instead, topics included, so the gesture stays predictable.
+     *
+     * The shell passes its `dismissAtRoot`, which is already true exactly when this card is the
+     * whole destination and false when it is a drill-down inside a host (operator 2026-09-16).
+     */
+    canLayer?: boolean
+    /** This card's own stack depth; anything it opens sits one level deeper. */
+    depth?: number
+  }>(),
+  { canLayer: true, depth: 0 }
+)
 const emit = defineEmits<{
   (e: "open", payload: { kind: "person" | "topic"; id: string }): void
   (e: "close"): void
@@ -40,6 +69,35 @@ const themeClusterSize = computed(() => props.topic.theme_cluster_size ?? 0)
 const topVoices = computed<Entity[]>(() => (props.topic.related_people ?? []).slice(0, 8))
 // Storyline overlay ("open on top" — StorylineCard), keyed by this topic's id.
 const storylineOpen = ref(false)
+function openStoryline(): void {
+  // ALWAYS open the storyline here. This control is "Part of a storyline" on the topic card, and
+  // the one thing it must do is show that storyline.
+  //
+  // It used to route to the standalone page when `canLayer` was false. Inside the Knowledge Panel
+  // that made the tap look completely dead: the panel opens with `showModal()`, so it sits in the
+  // browser's top layer over everything, and `router.push` changed the page UNDERNEATH it. Nothing
+  // moved, nothing new appeared, and the storyline was only discoverable by closing the panel —
+  // reported as "opening storyline from this field on topic is not working" (operator 2026-09-16).
+  //
+  // Stacking it is also what was asked for: the topic stays visible by its title and the storyline
+  // sits one card lower, to whatever depth the chain reaches.
+  storylineOpen.value = true
+}
+
+/**
+ * A person opened from THIS topic layers ON TOP, exactly as the storyline does (operator
+ * 2026-09-16) — it no longer replaces the topic via the shell's back stack. Walking topic → person
+ * is a widening of what you are reading, not a departure from it, and the stacked sheet keeps the
+ * topic's kicker + title on screen so the relationship stays visible.
+ *
+ * TOPIC chips still drill in place through the back stack: topic → topic is the same KIND of thing,
+ * so replacing is right there and stacking would pile up identical-looking sheets.
+ */
+const personOpen = ref<string | null>(null)
+function openPerson(id: string): void {
+  if (props.canLayer) personOpen.value = id
+  else emit("open", { kind: "person", id }) // panel: replace in place via the shell's back stack
+}
 
 // Topic momentum (BT.4) — the same "↑ Rising · N× vs avg" badge the storyline sheet shows, leading
 // the card. /trending?kind=topic is keyed by topic id; only when genuinely rising (≥1.5×) so the
@@ -156,7 +214,7 @@ function searchLibrary(): void {
       type="button"
       data-testid="ec-storyline-link"
       class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
-      @click="storylineOpen = true"
+      @click="openStoryline"
     >
       <span class="min-w-0 flex-1">
         <span class="block text-sm font-bold text-theme">{{ themeClusterLabel }}</span>
@@ -172,7 +230,23 @@ function searchLibrary(): void {
   </p>
 
   <!-- The storyline, opened ON TOP (teleported sheet) rather than navigating away. -->
-  <StorylineCard v-if="storylineOpen" :id="topic.id" @close="storylineOpen = false" />
+  <StorylineCard
+    v-if="storylineOpen"
+    :id="topic.id"
+    :depth="depth + 1"
+    @close="storylineOpen = false"
+  />
+
+  <!-- A person, layered over this topic. `history-key` MUST differ from the parent sheet's `card`
+       or the two fight over one history entry (see EntityCard). -->
+  <EntityCard
+    v-if="personOpen"
+    kind="person"
+    :id="personOpen"
+    history-key="card2"
+    :depth="depth + 1"
+    @close="personOpen = null"
+  />
 
   <!-- Strongest shows on this topic — only when it spans more than one show. -->
   <section v-if="topShows.length > 1" class="mb-4" data-testid="ec-top-shows">
@@ -190,6 +264,30 @@ function searchLibrary(): void {
         </RouterLink>
       </li>
     </ul>
+  </section>
+
+  <!-- Top voices (wave-G): the people who drive THIS topic, as prominent avatar chips. -->
+  <section v-if="topVoices.length" class="mb-4" data-testid="ec-top-voices">
+    <h3 class="lp-section mb-2">{{ t("ec.topVoices") }}</h3>
+    <!-- A 4-column grid that fills the row width (operator 2026-09-15): the old flex-wrap left a
+         dead gap on the right of each row; the grid spreads the avatars evenly and lets a partial
+         last row sit left with empty space below rather than an uneven ragged edge. -->
+    <div class="grid grid-cols-4 gap-3">
+      <button
+        v-for="p in topVoices"
+        :key="p.id"
+        type="button"
+        class="flex flex-col items-center gap-1"
+        :aria-label="p.name"
+        data-testid="ec-top-voice"
+        @click="openPerson(p.id)"
+      >
+        <ProfileAvatar :name="p.name" :src="p.image_url" :size="44" />
+        <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
+          {{ p.name }}
+        </span>
+      </button>
+    </div>
   </section>
 
   <!-- Search transcripts — between the strongest shows and the episode list (operator review). -->
@@ -210,35 +308,17 @@ function searchLibrary(): void {
     </h3>
     <ul class="flex flex-col">
       <li v-for="e in episodes" :key="e.slug">
-        <EpisodeRow :episode="e" @navigate="emit('close')" />
+        <EpisodeRow :episode="e" />
       </li>
     </ul>
   </section>
 
   <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none. -->
   <TopicConversationArc :id="topic.id" />
-  <TopicPerspectives :id="topic.id" @open="(p) => emit('open', p)" />
-
-  <!-- Top voices (wave-G): the people who drive THIS topic, as prominent avatar chips. -->
-  <section v-if="topVoices.length" class="mb-4" data-testid="ec-top-voices">
-    <h3 class="lp-section mb-2">{{ t("ec.topVoices") }}</h3>
-    <div class="flex flex-wrap gap-3">
-      <button
-        v-for="p in topVoices"
-        :key="p.id"
-        type="button"
-        class="flex w-16 flex-col items-center gap-1"
-        :aria-label="p.name"
-        data-testid="ec-top-voice"
-        @click="emit('open', { kind: 'person', id: p.id })"
-      >
-        <ProfileAvatar :name="p.name" :src="p.image_url" :size="44" />
-        <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
-          {{ p.name }}
-        </span>
-      </button>
-    </div>
-  </section>
+  <TopicPerspectives
+    :id="topic.id"
+    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
+  />
 
   <!-- Notes on this topic (TD.7). -->
   <NoteComposer target="topic" :target-id="topic.id" />

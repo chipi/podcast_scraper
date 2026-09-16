@@ -21,9 +21,15 @@ enum AppSession {
   /// time, whatever the session actually was. The offline suite reported that as "the app fell
   /// back to signed-out" on a device whose stored token was valid, and the download suite re-ran
   /// a sign-in it did not need. Go to Profile first, then read the answer.
+  ///
+  /// Opening Profile DELEGATES to `Journey.openProfile` rather than keeping a second copy of the
+  /// selector. The header entry point is labelled with the signed-in DISPLAY NAME (`simtest`), not
+  /// the static "Your profile" this used to hard-code — so once that label changed, this helper
+  /// reported signed-out for every session and `signIn` then failed looking for a "Sign in" link
+  /// that was correctly absent on a signed-in app. `Journey` already carried the fallback list;
+  /// only this copy was stale. Two helpers knowing the same UI differently is the actual defect.
   static func isSignedIn(_ app: XCUIApplication) -> Bool {
-    let profile = app.links["Your profile"].firstMatch
-    if profile.waitForExistence(timeout: 12) { profile.tap() }
+    _ = Journey.openProfile(app)
     guard app.buttons["Sign out"].firstMatch.waitForExistence(timeout: 12) else { return false }
     // The painted session is not the answer — the revalidation that follows it is. Six seconds is
     // the observed worst case for `refresh()` against the local fixture api plus a re-render.
@@ -48,6 +54,16 @@ enum AppSession {
     // takes — not a test-only shortcut into the router. (`Process` is not available here: a UI
     // test bundle runs ON the simulator, so it cannot shell out to `xcrun` on the host.)
     XCUIDevice.shared.system.open(url)
+
+    // iOS asks "Open in <app>?" before handing a custom scheme over from outside, and re-asks after
+    // a fresh install. That alert belongs to SpringBoard, so while it is up the app under test is
+    // not frontmost and EVERY accessibility query returns empty — which reads as "the page rendered
+    // nothing". It cost a full diagnosis on 2026-09-16: an empty inventory on an app that was
+    // fine, right after the app had been reinstalled.
+    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    let confirm = springboard.buttons["Open"]
+    if confirm.waitForExistence(timeout: 5) { confirm.tap() }
+
     _ = app.wait(for: .runningForeground, timeout: 15)
   }
 

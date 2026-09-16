@@ -43,9 +43,16 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
     section.getByText(/Diversification is the only real risk control/),
   ).toBeVisible()
 
-  // Tapping a speaker navigates the card to that person (perspectives are topic-only → gone).
+  // Tapping a speaker opens that person STACKED OVER the topic — the topic stays behind, still
+  // carrying its title.
+  //
+  // This asserted the opposite until 2026-09-16: that the person REPLACED the topic in the panel
+  // and the perspectives section went to zero. That was replace-in-panel (UXS-014); the operator
+  // has since required these cards to stack, so drilling into a topic never throws it away. The
+  // check that matters is now that BOTH are on screen — person on top, topic still underneath.
   await section.getByRole('button', { name: 'Daniel Cho' }).click()
-  await expect(page.getByTestId('topic-perspectives')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Daniel Cho' })).toBeVisible()
+  await expect(page.getByTestId('topic-perspectives')).toHaveCount(1)
 })
 
 function insight(id: string, text: string) {

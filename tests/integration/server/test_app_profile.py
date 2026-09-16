@@ -109,11 +109,27 @@ def test_upload_requires_auth(tmp_path: Path) -> None:
     assert resp.status_code == 401
 
 
-def test_serve_requires_auth(tmp_path: Path) -> None:
-    # advisor L4: the serve route is a signed-in surface, not public.
+def test_serve_is_unauthenticated_so_an_img_tag_can_load_it(tmp_path: Path) -> None:
+    """The serve route is deliberately public (operator 2026-09-16, reversing advisor L4).
+
+    It was session-gated, which made it unreachable from the only element that consumes it: an
+    `<img src=…>` sends no `Authorization` header, and the native shell authenticates with exactly
+    that header rather than a cookie — so every uploaded avatar 401'd and the UI fell back to
+    initials on device.
+
+    Open rather than signed: the id is an opaque token that is never displayed, show/episode
+    ARTWORK is already served unauthenticated here, and a signed URL would tie the avatar to the
+    session secret — so rotating that secret would break stored avatar URLs too.
+    """
     client, _, uid = _authed(tmp_path)
     client.post("/api/app/profile/avatar", files={"file": ("a.png", _PNG, "image/png")})
-    anon = TestClient(client.app)  # same app, no session cookie
-    assert anon.get(f"/api/app/profile/{uid}/avatar").status_code == 401
-    # The owner still gets it.
+    anon = TestClient(client.app)  # same app, no session cookie — i.e. what an <img> tag is
+    assert anon.get(f"/api/app/profile/{uid}/avatar").status_code == 200
     assert client.get(f"/api/app/profile/{uid}/avatar").status_code == 200
+
+
+def test_serve_rejects_an_unknown_user(tmp_path: Path) -> None:
+    """Public does not mean guessable: an id with no stored avatar is still a 404."""
+    client, _, _ = _authed(tmp_path)
+    anon = TestClient(client.app)
+    assert anon.get("/api/app/profile/u_0000000000000000000000/avatar").status_code == 404

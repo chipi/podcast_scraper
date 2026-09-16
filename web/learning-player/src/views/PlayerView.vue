@@ -10,6 +10,7 @@
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import CloseIcon from "../components/CloseIcon.vue"
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -159,6 +160,9 @@ const persons = ref<Entity[]>([])
 // #1261-4: "More like this" — semantic peer episodes for a natural continuation
 // when this one ends. Silent no-op on error/empty; endpoint already existed.
 const relatedEpisodes = ref<EpisodeSummary[]>([])
+// In-flight marker for the peer rail, so the section can reserve its space with a skeleton instead
+// of popping in seconds later (the call is slow by nature — see the note where it is fired).
+const relatedLoading = ref(false)
 // Post-episode recap (RFC-122 / #2038): when THIS episode finishes, the recap replaces the
 // transport in place. `recapDismissedFor` remembers the slug the listener dismissed so re-crossing
 // the finish line (a replay, or a late `justFinished`) does not re-open it on the same episode.
@@ -726,12 +730,18 @@ async function load(slug: string): Promise<void> {
   // non-empty, so there is nothing to lay out until then). The slug guard drops a late response
   // for an episode the user has already navigated away from — `relatedEpisodes` was reset above,
   // and without the check a slow reply would repopulate the previous episode's peers.
+  relatedLoading.value = true
   getRelated(slug, 6)
     .then((r) => {
       if (props.slug === slug) relatedEpisodes.value = r.items
     })
     .catch((err: unknown) => {
       if (props.slug === slug && serverAnswered(err)) relatedEpisodes.value = []
+    })
+    .finally(() => {
+      // Guarded like the handlers above: a late settle for a since-navigated episode must not
+      // clear the NEW episode's skeleton while its own request is still running.
+      if (props.slug === slug) relatedLoading.value = false
     })
   // Transcript / insights / entities are secondary surfaces (below the fold on open) — fire them in
   // parallel but do NOT gate the render on them, exactly like the related rail above. This is what
@@ -1680,7 +1690,7 @@ onBeforeUnmount(() => {
         <!-- #1261-4: "More like this" — related episodes rail below the
              transcript. Silent when the endpoint returns empty. -->
         <section
-          v-if="relatedEpisodes.length"
+          v-if="relatedEpisodes.length || relatedLoading"
           class="mt-6"
           data-testid="related-episodes-rail"
           :aria-label="t('player.relatedEpisodes')"
@@ -1694,13 +1704,26 @@ onBeforeUnmount(() => {
             lines, the slot grew to roughly 800px tall, and the action row floated over the artwork.
             Slots are narrower too — the old 224px made a 224px square of artwork dominate the rail.
           -->
-          <CardRail>
+          <CardRail v-if="relatedEpisodes.length">
             <li
               v-for="ep in relatedEpisodes"
               :key="ep.slug"
               class="w-44 shrink-0 sm:w-48"
             >
               <EpisodeTile :episode="ep" />
+            </li>
+          </CardRail>
+          <!-- Skeleton while `/related` is in flight (operator 2026-09-16). This is BY FAR the
+               slowest call on the route — it embeds the episode and searches the vector index —
+               so gating the section on a non-empty result left a blank gap under the player for
+               seconds, with nothing to say the rail was coming. The heading plus placeholder tiles
+               reserve the space and name what will fill it, so the page stops shifting when the
+               answer lands. Same tile geometry as the real rail, or the layout jumps anyway. -->
+          <CardRail v-else>
+            <li v-for="n in 4" :key="`sk-${n}`" class="w-44 shrink-0 sm:w-48" aria-hidden="true">
+              <div class="aspect-square w-full animate-pulse rounded-xl bg-elevated" />
+              <div class="mt-2 h-3 w-4/5 animate-pulse rounded bg-elevated" />
+              <div class="mt-1.5 h-3 w-3/5 animate-pulse rounded bg-elevated" />
             </li>
           </CardRail>
         </section>
@@ -1801,7 +1824,7 @@ onBeforeUnmount(() => {
               class="lp-nav shrink-0"
               @click="summaryOpen = false"
             >
-              <span aria-hidden="true" class="text-base leading-none">✕</span>
+              <CloseIcon />
             </button>
           </div>
           <!-- The full prose, and nothing beside it. It was a quote-styled block indented behind a

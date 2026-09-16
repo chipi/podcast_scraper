@@ -7,6 +7,9 @@
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+// `getAuthToken` / `isNative` are no longer imported here: the native-token check moved into the
+// shared `auth.hasSession` getter, which the masthead reads too, so the guard and the header cannot
+// disagree about who is signed in (2026-09-16).
 import { safeInternalPath } from '../utils/redirect'
 
 declare module 'vue-router' {
@@ -163,14 +166,27 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
   await auth.ensureLoaded()
+  // A native device with a stored bearer token HAS a session even when the cold-start `getMe`
+  // couldn't confirm it — a transport failure, not a 401 (2026-09-15). Treat that as signed-in for
+  // ROUTING, so a returning user is never stranded on the public landing while the header already
+  // shows them logged in (the reported desync). A token that is genuinely dead surfaces as a 401 on
+  // the first authed call and the interceptor (onUnauthorized → markSignedOut) then routes to
+  // signed-out cleanly — which it now actually does for this case too (see main.ts).
+  //
+  // `auth.hasSession` is the SHARED definition: the masthead reads the same getter, so the guard
+  // can no longer admit a user that the header then renders as signed-out.
+  //
+  // NB: reads are NOT open — `/me`, `/episodes`, `/podcasts` all require auth server-side — so an
+  // admitted-but-unresolved session sees empty surfaces, which is exactly why the two must agree.
+  const signedIn = auth.hasSession
   if (to.meta.public) {
     // Don't strand a signed-in user on the landing/login — bounce to their destination.
-    if (auth.isAuthenticated && (to.name === 'landing' || to.name === 'login')) {
+    if (signedIn && (to.name === 'landing' || to.name === 'login')) {
       return safeInternalPath(to.query.redirect) ?? { name: 'home' }
     }
     return true
   }
-  if (!auth.isAuthenticated) {
+  if (!signedIn) {
     return { name: 'landing', query: { redirect: to.fullPath } }
   }
   return true

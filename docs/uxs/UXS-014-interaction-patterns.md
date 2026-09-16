@@ -107,6 +107,13 @@ still clamp; show names do not.)
 - Dismiss via **ESC**, **backdrop tap**, and an explicit control — all three.
 - `role="dialog"` + `aria-modal`, a **focus trap**, **initial focus**, and **restore focus on
   close**. In-panel replacements move focus to the new heading instead of trapping.
+- The explicit control is **`CloseIcon`** — one shared inline-SVG ✕, used by every sheet, panel and
+  modal (entity card, storyline, queue, interests picker, knowledge panel, player). It is **drawn,
+  not typed**: it used to be the character `✕` (U+2715), which is absent from the iOS UI font and
+  rendered as a tofu box on device, so every dismiss control read as "?" (2026-09-16). Adding
+  emoji/symbol faces to the font stacks did not fix it. The rule this sets: **an icon that carries
+  meaning is an SVG, never a codepoint** — the back chevron `‹` (U+2039) stays a character only
+  because it is verified to render. Same conclusion as the profile edit badge and the streak mark.
 
 ## Sharing (#2036)
 

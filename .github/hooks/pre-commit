@@ -347,61 +347,71 @@ STAGED_TEST_FILES=$(echo "$STAGED_FILES" | grep -E 'tests/.*\.py$' || true)
 if [ -n "$STAGED_PYPROJECT" ] || [ -n "$STAGED_TEST_FILES" ]; then
     if ([ -f "$PYTHON_CMD" ] || command_exists "$PYTHON_CMD") && ([ -f ".venv/bin/pytest" ] || command_exists pytest); then
         echo "→ Validating test infrastructure..."
-        # Check that integration marker works
-        # Note: grep -c outputs "0" on no matches but returns exit code 1, so we use || true to suppress the exit code
-        # Disable xdist and rerunfailures plugins during collection (they try to bind sockets which may fail in sandboxed environments)
-        INTEGRATION_LOG="${LOG_PREFIX}_integration.log"
-        PYTEST_CMD=""
-        if [ -f ".venv/bin/pytest" ]; then
-            PYTEST_CMD=".venv/bin/pytest"
-        elif command_exists pytest; then
-            PYTEST_CMD="pytest"
-        else
-            PYTEST_CMD="$PYTHON_CMD -m pytest"
-        fi
-        "$PYTHON_CMD" -m pytest tests/integration/ -m integration --collect-only -q -p no:rerunfailures -p no:xdist > "$INTEGRATION_LOG" 2>&1
-        INTEGRATION_COUNT=$(grep -c "^tests/" "$INTEGRATION_LOG" 2>/dev/null || echo "0")
-        # Strip any newlines and ensure we have a valid number (default to 0 if empty)
-        INTEGRATION_COUNT=${INTEGRATION_COUNT//$'\n'/}
-        INTEGRATION_COUNT=${INTEGRATION_COUNT:-0}
 
-        # Only fail if we can't collect tests AND pytest didn't exit with a clear error
-        if [ "$INTEGRATION_COUNT" -eq 0 ]; then
-            # Check if pytest actually ran successfully (exit code 0 means it ran but found 0 tests)
-            # If pytest failed with an error, that's a real problem
-            if grep -q "ERROR\|FAILED\|ImportError\|ModuleNotFoundError" "$INTEGRATION_LOG" 2>/dev/null; then
-                echo -e "${RED}✗${NC} Integration marker validation failed! pytest encountered errors:"
-                grep -E "ERROR|FAILED|ImportError|ModuleNotFoundError" "$INTEGRATION_LOG" | head -5
+        # Ask pytest whether collection SUCCEEDED, rather than inferring it from the shape of
+        # stdout. Two bugs lived in the previous version of this check, and both let a totally
+        # broken tree through (investigated 2026-09-16):
+        #
+        #   1. The exit code was never read. `--collect-only` finishes and flushes its output
+        #      BEFORE interpreter shutdown, so a fatal signal during C++ static destruction left
+        #      full, healthy-looking output behind and the gate passed a process that had
+        #      crashed. On macOS/arm64 that happens on every run — see the native-wheel drift
+        #      guard in pyproject.toml (sentencepiece's absl flag destructors SIGBUS at exit on
+        #      the deliberately pinned-good stack). The crash is upstream and known; the gate
+        #      being blind to ALL crashes was ours.
+        #   2. The error branch was unreachable. It only ran when the count was 0, but the count
+        #      was `grep -c "^tests/"` and a conftest ImportError traceback contains
+        #      `tests/conftest.py:64: in <module>` — which matches. A tree where NOTHING imports
+        #      reported "Integration marker: 1 tests" and passed.
+        #
+        # The fix keys on pytest's OWN summary line ("N/M tests collected", "N tests collected",
+        # or "no tests ran"), which is printed only when collection actually completed. A signal
+        # death is then reported explicitly and tolerated ONLY when that line is present — never
+        # when collection failed to finish.
+        validate_collection() {
+            local label="$1" path="$2" marker="$3"
+            local log="${LOG_PREFIX}_$(echo "$label" | tr '[:upper:] ' '[:lower:]_').log"
+            local rc=0
+
+            # xdist/rerunfailures are disabled during collection: they bind sockets, which can
+            # fail in sandboxed environments.
+            "$PYTHON_CMD" -m pytest "$path" -m "$marker" --collect-only -q \
+                -p no:rerunfailures -p no:xdist > "$log" 2>&1 || rc=$?
+
+            # pytest prints this only after collection has completed.
+            local summary
+            summary=$(grep -oE "[0-9]+(/[0-9]+)? tests? collected|no tests ran|[0-9]+ errors?" "$log" | head -1)
+            local count
+            count=$(printf '%s' "$summary" | grep -oE "^[0-9]+" || true)
+            count=${count:-0}
+
+            if [ -z "$summary" ] || printf '%s' "$summary" | grep -q "error"; then
+                echo -e "${RED}✗${NC} $label collection FAILED (pytest exit $rc) — it never finished collecting:"
+                grep -E "ERROR|FAILED|ImportError|ModuleNotFoundError|error:" "$log" | head -5
                 ERRORS=$((ERRORS + 1))
-            else
-                echo -e "${YELLOW}⚠${NC} Integration marker: No tests collected (this may be normal if no integration tests exist)"
+                rm -f "$log"
+                return
             fi
-        else
-            echo -e "  ${GREEN}✓${NC} Integration marker: $INTEGRATION_COUNT tests"
-        fi
-        rm -f "$INTEGRATION_LOG"
 
-        # Check that E2E marker works
-        E2E_LOG="${LOG_PREFIX}_e2e.log"
-        "$PYTHON_CMD" -m pytest tests/e2e/ -m e2e --collect-only -q -p no:rerunfailures -p no:xdist > "$E2E_LOG" 2>&1
-        E2E_COUNT=$(grep -c "^tests/" "$E2E_LOG" 2>/dev/null || echo "0")
-        # Strip any newlines and ensure we have a valid number (default to 0 if empty)
-        E2E_COUNT=${E2E_COUNT//$'\n'/}
-        E2E_COUNT=${E2E_COUNT:-0}
-
-        if [ "$E2E_COUNT" -eq 0 ]; then
-            # Check if pytest actually ran successfully
-            if grep -q "ERROR\|FAILED\|ImportError\|ModuleNotFoundError" "$E2E_LOG" 2>/dev/null; then
-                echo -e "${RED}✗${NC} E2E marker validation failed! pytest encountered errors:"
-                grep -E "ERROR|FAILED|ImportError|ModuleNotFoundError" "$E2E_LOG" | head -5
-                ERRORS=$((ERRORS + 1))
+            if [ "$count" -eq 0 ]; then
+                echo -e "${YELLOW}⚠${NC} $label marker: no tests collected (normal only if none exist)"
             else
-                echo -e "${YELLOW}⚠${NC} E2E marker: No tests collected (this may be normal if no E2E tests exist)"
+                echo -e "  ${GREEN}✓${NC} $label marker: $count tests"
             fi
-        else
-            echo -e "  ${GREEN}✓${NC} E2E marker: $E2E_COUNT tests"
-        fi
-        rm -f "$E2E_LOG"
+
+            # Collection demonstrably completed, so a non-zero exit here is a teardown fault, not
+            # a test-infrastructure fault. Surface it — silence is what hid it for months.
+            if [ "$rc" -gt 128 ]; then
+                echo -e "${YELLOW}⚠${NC} $label: pytest died on signal $((rc - 128)) AFTER collecting."
+                echo -e "    Collection is valid. Known on macOS/arm64 (ML-stack teardown; see pyproject.toml)."
+            elif [ "$rc" -ne 0 ] && [ "$rc" -ne 5 ]; then
+                echo -e "${YELLOW}⚠${NC} $label: pytest exited $rc despite completing collection."
+            fi
+            rm -f "$log"
+        }
+
+        validate_collection "Integration" "tests/integration/" "integration"
+        validate_collection "E2E" "tests/e2e/" "e2e"
 
         if [ $ERRORS -eq 0 ]; then
             echo -e "${GREEN}✓${NC} Test infrastructure validation passed"

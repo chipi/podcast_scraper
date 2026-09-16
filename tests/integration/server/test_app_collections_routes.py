@@ -109,6 +109,51 @@ def test_cover_is_derived_from_the_first_episode_member_and_recomputed(
     assert removed["cover_url"] is None
 
 
+def test_list_backfills_a_missing_cover_for_a_board_that_has_items(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A board with members but no stored cover gets one on first LIST, and it sticks.
+
+    `cover_url` is only written by `_recompute_cover` on a membership change, so a board populated
+    before covers existed — or one whose recompute lost a race / ran while the corpus root was
+    briefly unavailable — kept `None` forever with nothing to heal it. The operator's Boards tab
+    showed the empty placeholder on boards that clearly had episodes in them (2026-09-16).
+    """
+    from podcast_scraper.server import app_collections_store
+    from podcast_scraper.server.routes import app_collections
+
+    monkeypatch.setattr(
+        app_collections, "_episode_artwork", lambda root, slug: f"https://art/{slug}.jpg"
+    )
+    client, data_dir, user_id = _authed(tmp_path)
+    cid = client.post("/api/app/collections", json={"name": "AI"}).json()["id"]
+    client.post(f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": "ep-9"})
+
+    # Simulate the pre-feature state: members present, cover never derived.
+    app_collections_store.set_cover(data_dir, user_id, cid, None)
+    assert client.get("/api/app/collections").json()["items"][0]["cover_url"] is not None
+
+    # And it was PERSISTED, not just computed for that one response — the list stays a cheap read.
+    rows = app_collections_store.list_collections(data_dir, user_id)
+    assert rows[0]["cover_url"] == "https://art/ep-9.jpg"
+
+
+def test_list_does_not_backfill_an_empty_board(tmp_path: Path, monkeypatch) -> None:
+    """An empty board must stay coverless — and must not pay for a derivation attempt."""
+    from podcast_scraper.server.routes import app_collections
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        app_collections,
+        "_recompute_cover",
+        lambda request, data_dir, user_id, cid: calls.append(cid),
+    )
+    client, _, _ = _authed(tmp_path)
+    client.post("/api/app/collections", json={"name": "Empty"})
+    assert client.get("/api/app/collections").json()["items"][0]["cover_url"] is None
+    assert calls == []
+
+
 def test_cover_derives_from_a_show_member_via_its_feed_image(tmp_path: Path, monkeypatch) -> None:
     # A shows-only board fell through to the placeholder even though shows carry a feed image
     # (operator 2026-09-13). The cover now resolves a show member via its feed artwork.

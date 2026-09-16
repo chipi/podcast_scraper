@@ -6,6 +6,7 @@
  * "Highlights" tab. Auth-gated (the store no-ops + stays empty when signed out).
  */
 import { computed, onMounted, ref } from 'vue'
+import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import {
@@ -398,7 +399,7 @@ onMounted(async () => {
                 :title="t('highlights.remove')"
                 data-testid="highlight-delete"
                 @click="pendingHighlight = h.id"
-              >✕</button>
+              ><CloseIcon /></button>
             </div>
 
           <!-- Notes attached to this highlight -->
@@ -430,7 +431,7 @@ onMounted(async () => {
                     :aria-label="t('highlights.removeNote')"
                     data-testid="note-delete"
                     @click="pendingNote = n.id"
-                  >✕</button>
+                  ><CloseIcon /></button>
                 </span>
               </div>
             </li>

@@ -1838,7 +1838,31 @@ class CorpusProducedBy(BaseModel):
 class HealthResponse(BaseModel):
     """Response for GET /api/health."""
 
-    status: Literal["ok"] = "ok"
+    status: Literal["ok", "degraded"] = "ok"
+    auth_ready: bool = Field(
+        default=True,
+        description=(
+            "False when platform auth cannot work at all — no ``APP_SESSION_SECRET`` or no "
+            "user-store directory. Health previously reported only LIVENESS, so a server that "
+            "lost its signing secret across a reboot kept answering 200 while every authed route "
+            "failed (incident 2026-09-16). Clients read this to enter a degraded/offline mode "
+            "instead of concluding that every user had been signed out."
+        ),
+    )
+    auth_epoch: str | None = Field(
+        default=None,
+        description=(
+            "Stable, NON-SECRET fingerprint of the session signing key — "
+            "``HMAC-SHA256(secret, 'auth-epoch')`` truncated, so it cannot be reversed into the "
+            "secret and is safe on an unauthenticated endpoint. It changes if and only if the "
+            "signing key changes, which is precisely when every previously-issued token becomes "
+            "unverifiable AT ONCE for a server-side reason. A client that remembers the last epoch "
+            "it saw can tell 'my own session expired' from 'this server rotated its keys and "
+            "invalidated everybody', and so can re-authenticate deliberately instead of concluding "
+            "the user signed out and discarding their cached library. None when auth is not "
+            "configured."
+        ),
+    )
     code_version: str = Field(
         default="",
         description="Running server package version (``podcast_scraper.__version__``).",

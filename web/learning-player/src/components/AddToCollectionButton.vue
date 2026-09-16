@@ -18,7 +18,7 @@ const props = withDefaults(
     item: CollectionItemRef
     /**
      * `icon` — compact round icon, for dense cards/rails (default). `pill` — a labelled pill
-     * (`＋ Collection`) for roomy detail/player surfaces, matching the Follow pill idiom (CO.1).
+     * (`+ Collection`) for roomy detail/player surfaces, matching the Follow pill idiom (CO.1).
      * `menuitem` — a full-width row inside a ⋯ overflow (the list/grid card collapses download +
      * collect behind ⋯ so four controls don't wrap the artwork-width column, operator 2026-09-13).
      */
@@ -64,16 +64,22 @@ watch(open, async (isOpen) => {
     addedTo.value = null
     return
   }
-  if (loaded.value) return
+  // Refetch on EVERY open, keeping the current list visible while it runs. The old
+  // `if (loaded.value) return` early-out LATCHED whatever the first open produced: a single
+  // transient empty (a flaky native fetch) then stayed empty on every reopen until the card
+  // remounted — the "second time I open collections it's empty, I have to go to another topic to
+  // reset" bug. Now a good list survives a later transient failure, and an empty one self-heals on
+  // the next open.
   error.value = null
   try {
     collections.value = await getCollections()
     loaded.value = true
   } catch {
-    // NOT `loaded = true`: a failed load must retry on the next open rather than latch an empty
-    // list that looks like "you have no collections".
-    collections.value = []
-    error.value = t('collections.loadFailed')
+    // Only surface empty + error when we have NOTHING to show; never blank a list we already have.
+    if (!loaded.value) {
+      collections.value = []
+      error.value = t('collections.loadFailed')
+    }
   }
 })
 
@@ -166,7 +172,7 @@ async function createAndAdd(): Promise<void> {
       @click.stop.prevent="onClick"
     >
       <template v-if="variant === 'pill'">
-        <span aria-hidden="true">＋</span>
+        <span aria-hidden="true">+</span>
         {{ t('collections.pill') }}
       </template>
       <!-- A plain bookmark — the folded-corner-plus-plus glyph was too busy at 16px (operator

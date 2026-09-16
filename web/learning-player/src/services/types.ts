@@ -603,6 +603,14 @@ export interface HealthInfo {
   code_version: string
   /** Released player-app version (same scale as `__APP_VERSION__`); null when the deploy is unset. */
   player_version: string | null
+  /** False when the server cannot authenticate anyone (lost signing secret / user store). */
+  auth_ready?: boolean
+  /**
+   * Non-secret fingerprint of the session signing key. Changes if and only if the key changes —
+   * the moment every issued token becomes unverifiable at once, for a SERVER-side reason. Absent
+   * when auth is not configured.
+   */
+  auth_epoch?: string | null
 }
 
 /** A graph entity referenced by a Your Week item (person/topic) — GET /api/app/your-week. */

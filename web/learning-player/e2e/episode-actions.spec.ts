@@ -27,6 +27,18 @@ test('the episode action row favourites and queues an episode against the real A
   await expect(row.getByRole('button', { name: 'Save to favorites' })).toBeVisible()
 
   // Queue: same round-trip.
+  //
+  // Normalise FIRST. This identity is stable across runs and its queue lives in the API's own data
+  // dir, which `globalSetup` does not clear (it only wipes the local APP_DATA_DIR) — so anything
+  // else that queued this episode against the same fixture API leaves the row already showing
+  // "Remove from queue", and an unconditional wait for "Add to queue" then times out on a row that
+  // is working perfectly. Assert the ROUND TRIP, not the starting state (2026-09-16).
+  const queued = row.getByRole('button', { name: 'Remove from queue' })
+  if (await queued.isVisible()) {
+    await queued.click()
+    await expect(row.getByRole('button', { name: 'Add to queue' })).toBeVisible()
+  }
+
   const queueAdd = row.getByRole('button', { name: 'Add to queue' })
   await expect(queueAdd).toBeVisible()
   await queueAdd.click()

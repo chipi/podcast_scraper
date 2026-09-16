@@ -2,7 +2,10 @@
   "app": {
     "title": "Close Listening",
     "tagline": "Listen. Understand. Remember.",
-    "offline": "Offline — showing saved"
+    "offline": "Offline — showing saved",
+    "offlineForced": "Offline mode is on — showing saved",
+    "offlineNetwork": "Offline — showing saved",
+    "offlineServer": "Can't reach the server — showing saved"
   },
   "about": {
     "title": "About",
@@ -92,7 +95,12 @@
     "discoverySortLabel": "Sort: {mode} (tap to switch)",
     "yourWeekFindShows": "Find shows →",
     "momentumHint": "twice as often as in recent weeks",
-    "yourWeekFirstRunLine": "Your weekly digest fills as you follow shows and mark moments."
+    "yourWeekFirstRunLine": "Your weekly digest fills as you follow shows and mark moments.",
+    "staleForced": "Offline mode is on — showing what you saved.",
+    "staleNetwork": "You're offline — showing what you saved.",
+    "staleServer": "We can't reach your account right now — showing what you saved.",
+    "staleForcedAction": "Offline mode is on",
+    "seeAllTrends": "See all"
   },
   "rail": {
     "prev": "Scroll left",
@@ -455,7 +463,6 @@
     "roleMentioned": "Mentioned",
     "close": "Close",
     "back": "Back",
-    "openInPage": "Open in page",
     "discussedOverTime": "Discussed over time",
     "loading": "Loading…",
     "notFound": "Nothing to show for this yet.",
@@ -532,7 +539,7 @@
     "addFailed": "Couldn't add that — try again.",
     "createFailed": "Couldn't create that collection — try again.",
     "empty": "No collections yet. Group things worth listening to into named boards.",
-    "emptyBoard": "This collection is empty. Add episodes, highlights, shows, topics and more from their ＋.",
+    "emptyBoard": "This collection is empty. Add episodes, highlights, shows, topics and more from their +.",
     "count": "no items | {count} item | {count} items",
     "removeItem": "Remove from collection",
     "playAll": "Play all",
@@ -681,7 +688,7 @@
     "followingTopics": "Topics",
     "followingPeople": "People",
     "followingStorylines": "Storylines",
-    "followingEmpty": "You're not following any topics, people, or storylines yet. Tap ＋ on a trending topic, person, or storyline to follow it.",
+    "followingEmpty": "You're not following any topics, people, or storylines yet. Tap + on a trending topic, person, or storyline to follow it.",
     "unfollow": "Unfollow {label}",
     "saved": "Saved",
     "highlights": "Highlights",
@@ -700,7 +707,7 @@
     "recentEmpty": "Nothing played yet.",
     "showsSuggested": "Suggested for you",
     "savedFilterAllTypes": "All",
-    "savedFilterColor": "Colour",
+    "savedFilterColor": "Filter by colour",
     "savedFilterColorOnly": "Only {color}",
     "savedFilterClear": "Clear filters",
     "savedSort": "Sort",
