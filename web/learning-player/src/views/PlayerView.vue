@@ -10,6 +10,7 @@
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import CloseIcon from "../components/CloseIcon.vue"
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -1823,7 +1824,7 @@ onBeforeUnmount(() => {
               class="lp-nav shrink-0"
               @click="summaryOpen = false"
             >
-              <span aria-hidden="true" class="text-base leading-none">✕</span>
+              <CloseIcon />
             </button>
           </div>
           <!-- The full prose, and nothing beside it. It was a quote-styled block indented behind a

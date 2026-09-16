@@ -9,6 +9,7 @@
  * the anchor topic id and everything derives from `getTopicCard`.
  */
 import { computed, ref, watch, defineAsyncComponent } from "vue"
+import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import { getTopicCard } from "../services/api"
@@ -163,7 +164,7 @@ function goBack(): void {
           data-testid="storyline-card-close"
           @click="emit('close')"
         >
-          <span aria-hidden="true" class="text-base leading-none">✕</span>
+          <CloseIcon />
         </button>
       </div>
       <h1

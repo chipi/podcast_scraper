@@ -10,6 +10,7 @@
  * panel — the consolidation loop: finish here, keep learning next.
  */
 import { computed, nextTick, onMounted, ref, watch } from "vue"
+import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import { getRelated, searchEpisode } from "../services/api"
 import type {
@@ -403,7 +404,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
           :aria-label="t('kp.close')"
           @click="emit('close')"
         >
-          <span aria-hidden="true" class="text-base leading-none">✕</span>
+          <CloseIcon />
         </button>
       </header>
 

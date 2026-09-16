@@ -109,7 +109,26 @@ final class ScreenshotTourTests: XCTestCase {
       let rows = app.buttons.allElementsBoundByIndex.filter {
         $0.label.contains("momentum") && $0.label.contains("(")
       }
-      if let first = rows.first, first.isHittable { first.tap(); sleep(5); frame("t20-storyline") }
+      if let first = rows.first, first.isHittable {
+        first.tap()
+        sleep(5)
+        frame("t20-storyline")
+
+        // Storyline sheet parity + layering (operator 2026-09-16): episodes, people and notes now
+        // render IN the sheet, and a member topic/person opens as a sheet ON TOP rather than
+        // navigating away. Shoot the layered state — it is the part nobody has actually looked at.
+        _ = Journey.scrollTo(app, labels: ["Topics discussed together"], maxSwipes: 4)
+        frame("t20b-storyline-content")
+        let topicRow = app.links.allElementsBoundByIndex.first {
+          !$0.label.isEmpty && $0.label.count < 40 && $0.isHittable
+        }
+        if let row = topicRow {
+          row.tap()
+          sleep(5)
+          frame("t20c-storyline-topic-layered")
+          Journey.dismissSheets(app)
+        }
+      }
     }
 
     AppSession.openEpisode(app, slug: episodeSlug)

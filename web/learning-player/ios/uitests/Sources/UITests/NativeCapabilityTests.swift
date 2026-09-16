@@ -181,35 +181,40 @@ final class NativeCapabilityTests: XCTestCase {
     sleep(2)
     // The in-app popover offers card / link / text; picking one hands off to the OS share sheet,
     // which is Springboard's UI — the app cannot see it, so it is asserted there.
-    guard Journey.tap(app, labels: ["Share link", "Share text", "Share card"], contains: true, timeout: 8)
-    else {
-      Journey.inventory(app, "share-popover-no-options")
-      XCTFail("share popover offered no options")
+    // "Share TEXT" specifically: on native it writes `closelistening.txt` and hands that file to the
+    // OS sheet, so the sheet displays the item name — a marker that OUR payload got there.
+    // Asserting only that "a sheet appeared" would pass just as happily if the app shared the wrong
+    // thing, or nothing at all (operator 2026-09-16).
+    guard Journey.tap(app, labels: ["Share text"], contains: true, timeout: 8) else {
+      Journey.inventory(app, "share-popover-no-text-option")
+      XCTFail("share popover offered no 'Share text' option")
       return
     }
-    sleep(4)
+    sleep(5)
     Journey.shot(self, "n2-share-sheet")
-    // UIActivityViewController is a REMOTE view: depending on iOS version it belongs to the app,
-    // to Springboard, or to a separate share-sheet service. Probing only one owner reported "no
-    // share sheet" for a sheet that was plainly up, so ask all three and accept any of the labels
-    // an activity sheet reliably carries (2026-09-16).
+
     let owners = [app, springboard, XCUIApplication(bundleIdentifier: "com.apple.ShareSheetUI")]
-    let markers = ["Copy", "Close", "Cancel", "AirDrop", "Messages", "Save to Files"]
     var sheetUp = false
-    outer: for owner in owners {
-      for marker in markers where owner.buttons[marker].waitForExistence(timeout: 3) {
-        print("=====SHARE_SHEET owner=\(owner.description.prefix(40)) marker=\(marker)=====")
+    var carriedOurContent = false
+    for owner in owners {
+      if owner.otherElements["ActivityListView"].waitForExistence(timeout: 4)
+        || owner.buttons["Copy"].waitForExistence(timeout: 2) {
         sheetUp = true
-        break outer
       }
-      if owner.otherElements["ActivityListView"].waitForExistence(timeout: 2) {
-        print("=====SHARE_SHEET ActivityListView=====")
-        sheetUp = true
-        break
+      let named = NSPredicate(format: "label CONTAINS[c] 'closelistening'")
+      if owner.staticTexts.matching(named).firstMatch.waitForExistence(timeout: 4)
+        || owner.otherElements.matching(named).firstMatch.waitForExistence(timeout: 2) {
+        carriedOurContent = true
       }
+      if sheetUp && carriedOurContent { break }
     }
-    if !sheetUp { Journey.inventory(app, "after-share-pick") }
+    print("=====SHARE_SHEET up=\(sheetUp) carriedOurContent=\(carriedOurContent)=====")
+    if !sheetUp || !carriedOurContent { Journey.inventory(app, "after-share-pick") }
     XCTAssertTrue(sheetUp, "picking a share option did not produce a share sheet")
+    XCTAssertTrue(
+      carriedOurContent,
+      "share sheet opened but showed no sign of OUR payload (expected the item named closelistening…)"
+    )
     _ = Journey.tap(app, labels: ["Cancel", "Close"], contains: true, timeout: 5)
   }
 

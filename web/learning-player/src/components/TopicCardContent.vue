@@ -220,7 +220,7 @@ function searchLibrary(): void {
   </p>
 
   <!-- The storyline, opened ON TOP (teleported sheet) rather than navigating away. -->
-  <StorylineCard v-if="storylineOpen" :id="topic.id" @close="storylineOpen = false" />
+  <StorylineCard v-if="storylineOpen" :id="topic.id" stacked @close="storylineOpen = false" />
 
   <!-- A person, layered over this topic. `history-key` MUST differ from the parent sheet's `card`
        or the two fight over one history entry (see EntityCard). -->

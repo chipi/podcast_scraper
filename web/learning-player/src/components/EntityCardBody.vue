@@ -12,6 +12,7 @@
  *   • `overlay` — wrapped in EntityCard's modal (Search → entity, a page-level surface).
  */
 import { computed, ref, watch } from "vue"
+import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import { getOrgCard, getPersonCard, getTopicCard, getTopicPerspectives } from "../services/api"
 import type { OrgCard, PersonCard, TopicCard } from "../services/types"
@@ -236,9 +237,10 @@ const isTopic = computed(() => current.value.kind === "topic")
           data-testid="ec-dismiss"
           @click="onBack"
         >
-          <span aria-hidden="true" class="text-base leading-none">{{
-            dismissAtRoot ? "✕" : "‹"
-          }}</span>
+          <!-- ✕ is drawn, not typed: U+2715 is a tofu box in the iOS UI font (see CloseIcon).
+               ‹ (U+2039) does render, so the back chevron stays a character. -->
+          <CloseIcon v-if="dismissAtRoot" />
+          <span v-else aria-hidden="true" class="text-base leading-none">‹</span>
         </button>
       </div>
 

@@ -16,7 +16,20 @@ import { ref } from "vue"
 import StorylineView from "../views/StorylineView.vue"
 import { useModalSheet } from "../composables/useModalSheet"
 
-const props = defineProps<{ id: string }>()
+const props = withDefaults(
+  defineProps<{
+    id: string
+    /**
+     * Opened from ANOTHER sheet (a topic card), so it sits lower and lets the parent's kicker +
+     * title stay visible. Opened from a page (Home, Discover) it is the only sheet on screen and
+     * takes the full height — applying the stacked height there just made it short for no reason,
+     * and made a parent+child pair exactly the same size so neither could peek (operator
+     * 2026-09-16).
+     */
+    stacked?: boolean
+  }>(),
+  { stacked: false }
+)
 const emit = defineEmits<{ (e: "close"): void }>()
 
 const dialogEl = ref<HTMLElement | null>(null)
@@ -29,7 +42,8 @@ useModalSheet(dialogEl, () => emit("close"), { key: "storyline", value: () => pr
       <div
         ref="dialogEl"
         tabindex="-1"
-        class="lp-sheet lp-sheet--stacked relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+        class="lp-sheet relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+        :class="stacked ? 'lp-sheet--stacked' : undefined"
         data-testid="storyline-card"
       >
         <!-- The ✕ now rides StorylineView's action row (embedded), unified with the topic/person
