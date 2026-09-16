@@ -99,7 +99,8 @@
     "staleForced": "Offline mode is on — showing what you saved.",
     "staleNetwork": "You're offline — showing what you saved.",
     "staleServer": "We can't reach your account right now — showing what you saved.",
-    "staleForcedAction": "Offline mode is on"
+    "staleForcedAction": "Offline mode is on",
+    "seeAllTrends": "See all"
   },
   "rail": {
     "prev": "Scroll left",
