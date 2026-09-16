@@ -348,10 +348,17 @@ class TestPrepareEpisodesExistingOnly:
             == "My guest today is Brian Chesky, the founder of Airbnb."
         )
 
-    def test_reprocess_assigns_on_disk_idx_so_transcript_glob_matches(self, tmp_path):
-        # The reprocess must give each episode its ON-DISK idx (the "NNNN - " filename prefix the
-        # transcripts carry), not a feed-enumerate position — or relabel_only/rediarize_only, which
-        # glob "{idx} - *.txt", cannot find the aged-out ones. Corpus idx 5,6,7; feed serves only 5.
+    def test_reprocess_carries_the_on_disk_idx_but_numbers_the_run_uniquely(self, tmp_path):
+        """The on-disk number is kept — on `on_disk_idx`, not on `idx` (#2082).
+
+        This used to assert `idx == the on-disk number`, so the `{idx} - *.txt` transcript search
+        would match. That made `idx` non-unique: every run directory numbers from 0001, so a feed
+        with fourteen run dirs has fourteen "episode 1"s, and `idx` keys per-episode state and
+        output filenames. On production that collided 275 episodes onto another episode's
+        transcript. The search is no longer the mechanism — each episode carries
+        `on_disk_transcript` resolved from its own metadata — so `idx` is now unique within the run
+        and the on-disk number rides along for the legacy search.
+        """
         _write_meta(tmp_path / "run_A" / "metadata" / "0005 - E.metadata.json", "g5")
         _write_meta(tmp_path / "run_A" / "metadata" / "0006 - F.metadata.json", "g6")
         _write_meta(tmp_path / "run_A" / "metadata" / "0007 - G.metadata.json", "g7")
@@ -363,7 +370,8 @@ class TestPrepareEpisodesExistingOnly:
         )
         cfg = _scraping_cfg(reprocess_existing_only=True, output_dir=str(tmp_path))
         episodes = prepare_episodes_from_feed(feed, cfg)
-        assert sorted(e.idx for e in episodes) == [5, 6, 7]  # on-disk idx preserved for all
+        assert sorted(e.idx for e in episodes) == [1, 2, 3], "run indices must be unique"
+        assert sorted(e.on_disk_idx for e in episodes) == [5, 6, 7], "on-disk number lost"
 
     def test_empty_corpus_aborts_loud(self, tmp_path):
         feed = RssFeed(

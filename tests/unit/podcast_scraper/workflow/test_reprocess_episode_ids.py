@@ -228,13 +228,19 @@ def test_the_list_RESTRICTS_the_episode_set(tmp_path: Path) -> None:
         f"this is the 2026-08-19 overrun (181 transcriptions for a 32-episode job)"
     )
     # _multi_corpus numbers files from 1, so guid-3 -> idx 4 and guid-7 -> idx 8.
-    assert {e.idx for e in got} == {4, 8}
+    # IDENTITY IS `on_disk_idx`, NOT `idx` (#2082): `idx` is now unique within the run because
+    # it keys per-episode state, and the on-disk number is not unique across run dirs.
+    assert {e.on_disk_idx for e in got} == {4, 8}
+    assert sorted(e.idx for e in got) == [1, 2], "run indices must be unique"
 
 
 def test_restriction_also_matches_on_guid(tmp_path: Path) -> None:
     _multi_corpus(tmp_path, [(f"guid-{i}", f"eid-{i}") for i in range(5)])
     got = _episode_set(tmp_path, ["guid-1"])
-    assert len(got) == 1 and got[0].idx == 2  # guid-1 is the 2nd file
+    # guid-1 is the 2nd file on disk — its identity is `on_disk_idx`, and `idx` is the run's
+    # own unique numbering (#2082).
+    assert len(got) == 1 and got[0].on_disk_idx == 2
+    assert got[0].idx == 1
 
 
 def test_a_list_matching_nothing_selects_NOTHING_not_everything(tmp_path: Path) -> None:

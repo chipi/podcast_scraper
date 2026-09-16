@@ -54,10 +54,22 @@ code" is credited to Addy Osmani; "How Kent Beck shapes the software engineering
 Booch. Those names reach `content.speakers`, the KG `Person` nodes, `SPOKEN_BY` and search.
 
 ```bash
-# the check: does each metadata file point at its own transcript?
-#   <repo>/scripts/... (not yet written — see #2082; the measurement script used for the
-#   figures above is in the #2075 arc notes and should be promoted to a real audit target)
+make transcript-pairing-audit CORPUS_DIR=<prod corpus>
 ```
+
+Read-only. **Exits 1 when any mismatch is found**, so it can gate this step. It reports three
+verdicts, because they need different work:
+
+| verdict | meaning |
+| --- | --- |
+| `roster_matches_wrong` | the speakers are in the transcript it points AT and not its own — **confirmed misattribution** |
+| `roster_matches_own` | the pointer is stale but the roster is right |
+| `inconclusive` | names in neither or both — usually a roster built from metadata. **NOT proven safe**, just unclassified |
+
+and two repair routes: `repairable` (own transcript still on disk — scoped `relabel_only`, no
+audio, no GPU) and the rest (needs re-download + re-ASR + re-diarize).
+
+Do not quote the confirmed count as a total until the unclassified ones have been looked at.
 
 Why this comes first:
 
