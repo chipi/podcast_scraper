@@ -49,8 +49,18 @@ const props = withDefaults(
     rootControl?: "back" | "close"
     /** Stack depth of the sheet hosting this body; forwarded so what it opens sits one deeper. */
     depth?: number
+    /**
+     * May this card open a storyline / person as a sheet ON TOP, rather than routing away?
+     *
+     * Defaults to `dismissAtRoot`, which ties the answer to the back-stack — so a card stopped
+     * layering as soon as you drilled one level inside it, for no reason a user could perceive.
+     * Hosts that know better say so: the Insights panel is a full-height bottom sheet, so a card
+     * opened in it CAN be stacked on even though it renders `inline` (operator 2026-09-16 — the
+     * requirement is topic in the background, storyline on it, person on that).
+     */
+    canLayer?: boolean
   }>(),
-  { variant: "overlay", rootControl: undefined, depth: 0 }
+  { variant: "overlay", rootControl: undefined, depth: 0, canLayer: undefined }
 )
 const emit = defineEmits<{ (e: "close"): void }>()
 
@@ -323,7 +333,7 @@ const isTopic = computed(() => current.value.kind === "topic")
       <TopicCardContent
         v-else-if="topic"
         :topic="topic"
-        :can-layer="dismissAtRoot"
+        :can-layer="canLayer ?? dismissAtRoot"
         :depth="depth"
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"

@@ -127,6 +127,7 @@ plan. Until that lands, prefer the make targets over ad-hoc `-only-testing` sele
 | Tour shoots Home/Discover then misses Library sub-tabs, profile and entity surfaces | The backend was re-seeded (any `ios-app-install`) and the seeding suites were not re-run. The app is empty, so there is nothing to tap. |
 | A card cannot be dismissed; `SHEETS_STUCK` | An entity card labels its dismiss control **Back**, not Close, when `dismissAtRoot` is false. A Close-only search finds nothing. |
 | `MODULE_NOT_FOUND` from any node step | The cmux `NODE_OPTIONS` shim. Prefix with `env -u NODE_OPTIONS`. |
+| A `make ios-*` target never returns, though its work plainly finished | It was piped (`\| grep`, `\| tail`). `ios-origin-up` leaves a backgrounded vite preview holding the pipe open, so the reader never sees EOF. **Redirect to a file** (`> /tmp/x.log 2>&1`) and read that; never pipe these targets. |
 | Suite passes but shot fewer screens than expected | Best-effort frames. The tour now asserts its full list; older runs did not. |
 
 ---

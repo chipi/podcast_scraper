@@ -15,7 +15,7 @@
 import { onUnmounted, ref } from "vue"
 import StorylineView from "../views/StorylineView.vue"
 import { useModalSheet } from "../composables/useModalSheet"
-import { registerStackedSheet } from "../composables/sheetStack"
+import { registerStackedSheet, sheetTeleportTarget } from "../composables/sheetStack"
 
 const props = withDefaults(
   defineProps<{
@@ -40,10 +40,14 @@ if (props.depth > 0) {
   const release = registerStackedSheet()
   onUnmounted(release)
 }
+
+// Resolved at mount: a sheet opened from inside the Knowledge Panel's modal <dialog> must render
+// INSIDE it, or the panel's top layer hides it completely. See sheetTeleportTarget().
+const teleportTarget = sheetTeleportTarget()
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="teleportTarget">
     <div class="lp-sheet-scrim" role="dialog" aria-modal="true" @click.self="emit('close')">
       <div
         ref="dialogEl"

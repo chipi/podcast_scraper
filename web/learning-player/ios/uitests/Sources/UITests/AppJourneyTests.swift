@@ -389,7 +389,15 @@ final class AppJourneyTests: XCTestCase {
    * it stacks. If `canLayer` were wired wrongly the panel would sprout a modal over itself and
    * nobody would notice (2026-09-16).
    */
-  func test11StorylineFromInsightsRoutesInsteadOfStacking() {
+  /// From the Insights panel: topic underneath, storyline stacked ON it — not a page.
+  ///
+  /// This asserted the opposite until 2026-09-16. Routing away was read as correct because
+  /// replace-in-panel (UXS-014) says a sheet may not layer over an inline PANEL — but that rule is
+  /// about what a tapped CHIP does inside the panel, and the panel is itself a full-height bottom
+  /// sheet. Navigating to the storyline PAGE threw the topic away entirely, which is the opposite
+  /// of the point: the operator's requirement is that each card stays visible by its title while
+  /// the next one stacks below it.
+  func test11StorylineFromInsightsStacksOverTheTopic() {
     let app = Journey.launch()
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
@@ -436,11 +444,24 @@ final class AppJourneyTests: XCTestCase {
     Journey.inventory(app, "after-panel-storyline")
     Journey.shot(self, "11-c-storyline-from-panel")
 
-    // It routed to the storyline PAGE: the page has a "Back" row, which the sheet never renders.
-    // If it had stacked a sheet instead, the panel's own close would still be on screen underneath.
+    // Assert on something ONLY a storyline renders. The first version of this checked for
+    // "Managing risk across domains" and passed while nothing had opened at all — that string is
+    // the label of the "Part of a storyline" ROW inside the topic card itself. `chromeReachable`
+    // was no better: the panel covers the tab bar whether or not a sheet is above it. Two checks,
+    // neither of which could distinguish the outcomes (2026-09-16).
     XCTAssertNotNil(
-      Journey.find(app, labels: ["Managing risk across domains"], contains: true, timeout: 12),
-      "the storyline did not open at all from the insights panel"
+      // "Follow storyline" unfollowed, "Following storyline" once followed — match either, or the
+      // assertion depends on this account's follow state rather than on the sheet being open.
+      Journey.find(app, labels: ["Follow storyline"], contains: true, timeout: 12),
+      "no storyline sheet on screen — the storyline never opened, or it opened behind the panel's "
+        + "top layer (the panel uses showModal(), so a sheet teleported to <body> is hidden by it)"
     )
+    // And the topic underneath must STILL be identifiable by its title. That is the contract —
+    // stacking keeps it, routing away destroys it.
+    XCTAssertNotNil(
+      Journey.find(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 8),
+      "the topic is gone — the storyline replaced it instead of stacking over it"
+    )
+    Journey.shot(self, "11-d-storyline-stacked-over-topic")
   }
 }

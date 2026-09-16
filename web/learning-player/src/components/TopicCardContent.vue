@@ -70,10 +70,18 @@ const topVoices = computed<Entity[]>(() => (props.topic.related_people ?? []).sl
 // Storyline overlay ("open on top" — StorylineCard), keyed by this topic's id.
 const storylineOpen = ref(false)
 function openStoryline(): void {
-  // There is no storyline equivalent of the shell's back stack, so inside a panel the honest
-  // fallback is the standalone page rather than a modal stacked over the panel.
-  if (props.canLayer) storylineOpen.value = true
-  else void router.push({ name: "storyline", params: { id: props.topic.id } })
+  // ALWAYS open the storyline here. This control is "Part of a storyline" on the topic card, and
+  // the one thing it must do is show that storyline.
+  //
+  // It used to route to the standalone page when `canLayer` was false. Inside the Knowledge Panel
+  // that made the tap look completely dead: the panel opens with `showModal()`, so it sits in the
+  // browser's top layer over everything, and `router.push` changed the page UNDERNEATH it. Nothing
+  // moved, nothing new appeared, and the storyline was only discoverable by closing the panel —
+  // reported as "opening storyline from this field on topic is not working" (operator 2026-09-16).
+  //
+  // Stacking it is also what was asked for: the topic stays visible by its title and the storyline
+  // sits one card lower, to whatever depth the chain reaches.
+  storylineOpen.value = true
 }
 
 /**

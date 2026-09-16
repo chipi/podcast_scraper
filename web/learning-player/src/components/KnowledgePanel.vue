@@ -385,10 +385,17 @@ watch(() => auth.isAuthenticated, loadCaptures)
       <span class="h-1.5 w-10 rounded-full bg-border"></span>
     </div>
     <!-- Replace-in-panel (UXS-014): a tapped chip swaps the panel content to the entity card with a
-         ‹ Back — no overlay, no second backdrop. -->
+         ‹ Back — no overlay, no second backdrop.
+         `can-layer` is nonetheless TRUE, and the two are not in conflict. Replace-in-panel governs
+         what a tapped CHIP does inside this panel; it never meant nothing may sit above the panel.
+         This panel is itself a full-height bottom sheet, so a storyline or person opened from the
+         card it is showing stacks ON TOP and leaves that card's kicker + title visible behind —
+         topic underneath, storyline on it, person on that (operator 2026-09-16). Deriving it from
+         `dismissAtRoot` instead sent the storyline to a PAGE, which loses the topic altogether. -->
     <EntityCardBody
       v-if="cardTarget"
       variant="inline"
+      can-layer
       :kind="cardTarget.kind"
       :id="cardTarget.id"
       @close="cardTarget = null"
