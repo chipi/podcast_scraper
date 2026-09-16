@@ -29,7 +29,7 @@ useModalSheet(dialogEl, () => emit("close"), { key: "storyline", value: () => pr
       <div
         ref="dialogEl"
         tabindex="-1"
-        class="lp-sheet relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+        class="lp-sheet lp-sheet--stacked relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
         data-testid="storyline-card"
       >
         <!-- The ✕ now rides StorylineView's action row (embedded), unified with the topic/person

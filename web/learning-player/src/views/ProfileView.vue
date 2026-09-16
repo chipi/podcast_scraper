@@ -279,11 +279,26 @@ onMounted(load)
             :src="auth.user?.image"
             :size="48"
           />
+          <!-- An inline SVG, not a "✎" character (U+270E): that glyph is missing from the iOS UI
+               font and rendered as a tofu box on device (screenshots 2026-09-16). Every other icon
+               in this app is already an inline SVG — this was the outlier. -->
           <span
-            class="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-canvas bg-elevated text-[10px] text-canvas-foreground"
+            class="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-canvas bg-elevated text-canvas-foreground"
             aria-hidden="true"
-            >✎</span
           >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-2.5 w-2.5"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </span>
         </button>
         <input
           ref="avatarInput"
@@ -366,12 +381,14 @@ onMounted(load)
         <template v-if="hasStats">
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div class="rounded-xl bg-overlay p-4">
-              <div class="flex items-baseline gap-1">
-                <span class="font-display text-3xl font-extrabold leading-none">{{
-                  stats!.day_streak
-                }}</span>
-                <span v-if="stats!.day_streak > 0" aria-hidden="true">🔥</span>
-              </div>
+              <!-- No flame beside the number (operator 2026-09-16). It was a 🔥 emoji that rendered
+                   as a tofu box on device, and it was decoration either way — the number and the
+                   "Day streak" label below already say everything it said. Dropped rather than
+                   redrawn, which also lets this tile match its siblings exactly: a bare number, no
+                   flex wrapper. -->
+              <span class="font-display text-3xl font-extrabold leading-none">{{
+                stats!.day_streak
+              }}</span>
               <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.streak") }}</div>
             </div>
             <div class="rounded-xl bg-overlay p-4">

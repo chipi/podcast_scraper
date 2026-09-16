@@ -18,7 +18,7 @@ const props = withDefaults(
     item: CollectionItemRef
     /**
      * `icon` — compact round icon, for dense cards/rails (default). `pill` — a labelled pill
-     * (`＋ Collection`) for roomy detail/player surfaces, matching the Follow pill idiom (CO.1).
+     * (`+ Collection`) for roomy detail/player surfaces, matching the Follow pill idiom (CO.1).
      * `menuitem` — a full-width row inside a ⋯ overflow (the list/grid card collapses download +
      * collect behind ⋯ so four controls don't wrap the artwork-width column, operator 2026-09-13).
      */
@@ -172,7 +172,7 @@ async function createAndAdd(): Promise<void> {
       @click.stop.prevent="onClick"
     >
       <template v-if="variant === 'pill'">
-        <span aria-hidden="true">＋</span>
+        <span aria-hidden="true">+</span>
         {{ t('collections.pill') }}
       </template>
       <!-- A plain bookmark — the folded-corner-plus-plus glyph was too busy at 16px (operator

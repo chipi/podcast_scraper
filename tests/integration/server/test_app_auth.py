@@ -269,6 +269,75 @@ def test_auth_status_disabled_when_unconfigured(tmp_path: Path) -> None:
     assert client.get("/api/app/auth/status").json() == {"enabled": False, "user": None}
 
 
+def test_missing_secret_is_503_not_401(tmp_path: Path) -> None:
+    """A server that cannot authenticate ANYONE must not blame the caller's credential.
+
+    Regression guard for the 2026-09-16 production incident: a reboot lost ``APP_SESSION_SECRET``,
+    the process stayed up, and every authed route answered 401. The player believed it — discarding
+    the device snapshot and the cached content, or sitting in a half-broken signed-out state that
+    never self-healed. 401 means "your credential is bad"; this condition is entirely the server's,
+    and it is identical for every user on the platform.
+
+    ``/auth/login`` has always returned 503 here; the two now agree, so a client can tell the cases
+    apart with no heuristics.
+    """
+    client = TestClient(_app(tmp_path, secret=""))
+    resp = client.get("/api/app/me")
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "Auth is not configured."
+
+
+def test_bad_credential_is_still_401_on_a_healthy_server(tmp_path: Path) -> None:
+    """The other half of the contract: with a working server, a bad token IS the caller's problem.
+
+    Without this, 'always answer 503' would pass the test above while destroying the client's
+    ability to detect a genuinely expired session.
+    """
+    client = TestClient(_app(tmp_path))
+    resp = client.get("/api/app/me", headers={"Authorization": "Bearer not-a-real-token"})
+    assert resp.status_code == 401
+
+
+def test_health_reports_auth_readiness(tmp_path: Path) -> None:
+    """Health must report READINESS, not just liveness.
+
+    During the incident ``/api/health`` kept answering 200 while nothing authed worked, so a client
+    health check was actively reassured by a broken server.
+    """
+    ok = TestClient(_app(tmp_path)).get("/api/health").json()
+    assert ok["auth_ready"] is True
+    assert ok["status"] == "ok"
+
+    degraded = TestClient(_app(tmp_path, secret="")).get("/api/health").json()
+    assert degraded["auth_ready"] is False
+    assert degraded["status"] == "degraded"
+
+
+def test_auth_epoch_is_stable_per_key_and_changes_on_rotation(tmp_path: Path) -> None:
+    """The fingerprint must change if and only if the signing key changes.
+
+    That is the property a client needs to tell 'my session expired' from 'the server rotated its
+    keys and invalidated everyone', and so to keep the user's cached library instead of deleting it
+    over someone else's outage (incident 2026-09-16).
+    """
+    first = TestClient(_app(tmp_path, secret="secret-a")).get("/api/health").json()["auth_epoch"]
+    again = TestClient(_app(tmp_path, secret="secret-a")).get("/api/health").json()["auth_epoch"]
+    rotated = TestClient(_app(tmp_path, secret="secret-b")).get("/api/health").json()["auth_epoch"]
+
+    assert first and again and rotated
+    assert first == again, "same key must produce the same epoch, or every launch looks rotated"
+    assert first != rotated, "a new key must produce a new epoch"
+
+    # It is served unauthenticated, so it must not be the secret nor a bare digest of it.
+    assert "secret-a" not in first
+    import hashlib
+
+    assert hashlib.sha256(b"secret-a").hexdigest()[:16] != first
+
+    # Absent when auth is not configured at all.
+    assert TestClient(_app(tmp_path, secret="")).get("/api/health").json()["auth_epoch"] is None
+
+
 def test_auth_dev_users_disabled_for_non_mock_provider(tmp_path: Path) -> None:
     # Stub (non-mock) provider → no dev picker; the UI shows the normal sign-in button.
     client = TestClient(_app(tmp_path))

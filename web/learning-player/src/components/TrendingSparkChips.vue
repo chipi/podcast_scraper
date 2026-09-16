@@ -197,7 +197,7 @@ function toggleShown(): void {
           "
           @click="emit('follow', tp.id)"
         >
-          {{ isFollowed(tp.id) ? "✓" : "＋" }}
+          {{ isFollowed(tp.id) ? "✓" : "+" }}
         </button>
       </li>
     </ul>

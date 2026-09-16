@@ -40,7 +40,25 @@ import { ref } from "vue"
 import EntityCardBody from "./EntityCardBody.vue"
 import { useModalSheet } from "../composables/useModalSheet"
 
-const props = defineProps<{ kind: "person" | "topic" | "organization"; id: string }>()
+const props = withDefaults(
+  defineProps<{
+    kind: "person" | "topic" | "organization"
+    id: string
+    /**
+     * Which `?<key>=` history entry this sheet owns, and how far it is offset from the top.
+     *
+     * Every sheet records its own entry so hardware Back closes it rather than navigating the page
+     * underneath. Two sheets sharing a key fight over one entry: the inner overwrites the outer's
+     * value on open, and closing then leaves the outer pointing at the wrong entity. `StorylineCard`
+     * already layers over an entity sheet and uses `storyline` for precisely this reason; a second
+     * ENTITY sheet needs its own key too (2026-09-16).
+     */
+    historyKey?: string
+    /** Layered over another sheet — sits lower so the one beneath still shows its kicker + title. */
+    stacked?: boolean
+  }>(),
+  { historyKey: "card", stacked: false }
+)
 const emit = defineEmits<{ (e: "close"): void }>()
 
 const dialogEl = ref<HTMLElement | null>(null)
@@ -54,7 +72,7 @@ const dialogEl = ref<HTMLElement | null>(null)
 function cardKey(): string {
   return props.id.includes(":") ? props.id : `${props.kind}:${props.id}`
 }
-useModalSheet(dialogEl, () => emit("close"), { key: "card", value: cardKey })
+useModalSheet(dialogEl, () => emit("close"), { key: props.historyKey, value: cardKey })
 </script>
 
 <template>
@@ -64,6 +82,7 @@ useModalSheet(dialogEl, () => emit("close"), { key: "card", value: cardKey })
         ref="dialogEl"
         tabindex="-1"
         class="lp-sheet w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+        :class="stacked ? 'lp-sheet--stacked' : undefined"
       >
         <EntityCardBody variant="overlay" :kind="kind" :id="id" @close="emit('close')" />
       </div>

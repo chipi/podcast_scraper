@@ -73,10 +73,34 @@ def _bearer_token(request: Request) -> str | None:
 
 
 def get_current_user(request: Request) -> User:
-    """Resolve the signed session (cookie OR Bearer token) to a ``User``; raise 401 otherwise."""
+    """Resolve the signed session (cookie OR Bearer token) to a ``User``.
+
+    Raises **503** when the server cannot authenticate *anyone* (no signing secret / no user
+    store), and **401** only when this specific caller's credential is bad.
+    """
     secret = _secret(request)
     data_dir = _data_dir(request)
     if not secret or data_dir is None:
+        # Two very different situations share this condition, and they must not share a status code.
+        #
+        # (a) Auth was never configured on this deployment (no provider either) — the tailnet /
+        #     operator modes run this way. Nothing is broken; the route simply requires a session
+        #     that cannot exist here, and 401 "deny" is correct and is what the login-first route
+        #     matrix asserts.
+        #
+        # (b) This deployment DOES authenticate — a provider is configured — but it currently
+        #     cannot: the signing secret or the user store is gone. That is a SERVER fault, it is
+        #     identical for every user, and answering 401 tells every client that every credential
+        #     went bad at the same instant. The player believed exactly that on 2026-09-16, when a
+        #     reboot lost ``APP_SESSION_SECRET``: it discarded the device snapshot AND the cached
+        #     content, or — when no user had been painted yet — sat in a half-broken signed-out
+        #     state that never self-healed, while ``/api/health`` kept answering 200.
+        #
+        # ``/auth/login`` already returns 503 for (b); this makes the rest of the API agree, so a
+        # client can separate "my token is bad" from "this server can't authenticate anyone"
+        # without heuristics.
+        if _provider(request) is not None:
+            raise HTTPException(status_code=503, detail="Auth is not configured.")
         raise HTTPException(status_code=401, detail="Not authenticated.")
     # Cookie is the web path; the Bearer token is the native-shell path (#1310). Same signer/secret,
     # same payload shape — try the cookie first, then fall back to the header.
