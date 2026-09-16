@@ -51,6 +51,41 @@ stayed broken while the file "passed." **The gate is necessary, not sufficient:*
 re-stage precedes **each** container-creation that runs after a session boundary. (Improving the gate
 to be proximity-aware is tracked separately.)
 
+### 1b. A REBOOT wipes all three secret dirs — run `restage-prod-secrets` FIRST
+
+§1 is about the *logout* reap, which takes `/dev/shm/podcast-secrets` mid-session. A **reboot**
+is worse: it clears **all** of `/dev/shm`, including the two public-surface dirs that §1 does not
+mention — `operator-secrets` and `player-secrets`. Those are mounted at container **create** time,
+so the containers do not degrade, they **refuse to start at all**:
+
+```text
+player-api-1     Exited(127)   open /dev/shm/player-secrets/app_oauth_google_client_secret
+operator-api-1   Exited(127)   open /dev/shm/operator-secrets/app_oauth_google_client_secret
+```
+
+**Exit 127 with NO application logs** — `runc` fails the *mount* before any process starts. Do not
+go looking for an app bug; there is nothing in `docker logs`.
+
+The damage presents one layer downstream, which is what makes it confusing. On 2026-09-15 the
+visible symptom was two **nginx** containers crashlooping 527 times each
+(`player-learning-app-1`, `operator-viewer-1`) with `host not found in upstream "api"` — because
+nginx resolves `proxy_pass` upstreams at startup and each project's own api was the thing that was
+dead. Public visitors saw the coming-soon page the whole time, so nothing alerted for 9.5 hours.
+
+**THE RULE after any reboot:** run **`restage-prod-secrets.yml`** (`surfaces: all`,
+`recreate: true`). It stages all three dirs — control plane via the canonical action, the two
+surfaces via `scripts/ops/restage_prod_secrets.sh` — and recreates only containers that are
+actually down, **at the image tag already on the box**. It never resolves "newest from main",
+because shipping untested code during an incident is its own outage.
+
+Before that workflow existed, recovery meant two full public-surface deploys, each with its own
+typed confirm and prod gate, and remembering to pin `override_image_sha`.
+
+**The trap that is still live:** `compose-api-1` survives a reboot on its *create-time copy* of the
+secrets. A `docker restart` is therefore safe while a `--force-recreate` is **not** — it will fail
+exactly like the others until `podcast-secrets` is restaged. The stack can look entirely healthy
+while being one recreate away from the same outage.
+
 ## 2. A gateway 401 = missing secret, not a bad key — re-stage, NEVER re-mint
 
 The single most expensive mistake in this repo's history: a LiteLLM `401` read as "the key is
