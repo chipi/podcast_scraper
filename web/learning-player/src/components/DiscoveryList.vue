@@ -120,7 +120,6 @@ const expanded = ref(false)
 const visible = computed(() =>
   expanded.value ? rows.value : rows.value.slice(0, props.collapsed)
 )
-const hiddenCount = computed(() => Math.max(0, rows.value.length - props.collapsed))
 
 const vFmt = (v: number): number => Math.round(v * 10) / 10
 function rowLabel(r: Row): string {
@@ -222,14 +221,19 @@ function rowLabel(r: Row): string {
          rail down the page and still left the reader on a capped list, somewhere they had not
          chosen to be. The trends page is the surface built for the full list, and carrying `tab`
          lands them on the kind they were already reading rather than resetting to Topics.
-         Discover sets `hideMore` and offers its own "See all →" in the section header. -->
+         Discover sets `hideMore` and offers its own "See all →" in the section header.
+
+         Shown on EVERY tab, not only when rows are hidden (operator 2026-09-16): a tab that happens
+         to fit its rows is still a summary of a bigger list, and a link that appears and disappears
+         by tab reads as a bug rather than as a rule. "See all" also says what it does now — the old
+         "Show N more" promised an inline expansion this no longer performs. -->
     <RouterLink
-      v-if="!hideMore && hiddenCount > 0 && !expanded"
+      v-if="!hideMore && hasAny"
       :to="{ name: 'trends', query: { tab: kind } }"
       class="mt-2 inline-block text-sm font-bold text-accent no-underline"
       data-testid="discovery-expand"
     >
-      {{ t("home.showMore", { count: hiddenCount }) }}
+      {{ t("home.seeAllTrends") }} →
     </RouterLink>
   </section>
 </template>

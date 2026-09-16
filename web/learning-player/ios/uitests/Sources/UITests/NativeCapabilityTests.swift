@@ -115,23 +115,33 @@ final class NativeCapabilityTests: XCTestCase {
     let mic = Journey.find(app, labels: ["Dictate a note"], contains: true, timeout: 8)
     XCTAssertNotNil(mic, "no dictation control on the note field after enabling Voice input")
 
+    // Opt IN to actually tapping the mic. Default-off on a simulator because it can abort the
+    // process (below), but the host machine's own microphone permission for Simulator.app changes
+    // the outcome — so this is a runtime switch, not a compile-time one, and the crash claim can be
+    // re-tested rather than frozen into a comment.
+    //   LP_TAP_MIC=1 xcodebuild test …
+    let tapMic = ProcessInfo.processInfo.environment["LP_TAP_MIC"] == "1"
     #if targetEnvironment(simulator)
-      // DO NOT TAP on a simulator — it terminates the app, and not gracefully.
+    if !tapMic {
+      // Default-off because tapping CAN abort the app — but the cause is environmental, not a
+      // product defect, and the first reading of it here was wrong.
       //
-      // Verified 2026-09-16 from the crash report (App-2026-09-16-121531.ips):
-      //   EXC_CRASH / SIGABRT, "Abort trap: 6"
+      // Crash report App-2026-09-16-121531.ips showed EXC_CRASH / SIGABRT:
       //   AVFAudio AVAudioIONodeImpl::GetInputFormat → AudioUnitInitialize
       //   → AURemoteIO::Initialize() → _ReportRPCTimeout → abort
-      // A simulator has no microphone input device, so the speech plugin's AVAudioEngine input node
-      // times out and AudioToolbox aborts the PROCESS. That is below the JS layer: `useDictation`'s
-      // `onError` cannot catch it, and neither can this test.
+      // which was read as "the app cannot survive audio-input init failing". It was actually the
+      // HOST: macOS had not granted Simulator.app microphone access, so the audio server never
+      // answered. Once that permission was granted the same tap reported `recording=true` and the
+      // app was fine — so there is no product bug here (corrected 2026-09-16).
       //
-      // Left as a documented skip rather than a flaky failure. The product question it raises — the
-      // app has no defence against audio-input initialisation failing — is real but needs a device
-      // to judge, since a working mic should not reach this path at all.
+      // Still opt-in, because the permission is a property of the machine rather than the repo and
+      // CI cannot assume it: `TEST_RUNNER_LP_TAP_MIC=1 xcodebuild test …` (the TEST_RUNNER_ prefix
+      // is required — a bare env var does not reach the runner).
       Journey.shot(self, "n1-c-dictation-available-not-tapped")
-      print("=====DICTATION simulator: affordance present, tap skipped (aborts the process)=====")
-    #else
+      print("=====DICTATION simulator: affordance present, tap skipped (set LP_TAP_MIC=1 to try)=====")
+      return
+    }
+    #endif
     if Journey.tap(app, labels: ["Dictate a note"], contains: true, timeout: 8) {
       grantSystemPrompt()
       sleep(3)
@@ -156,7 +166,6 @@ final class NativeCapabilityTests: XCTestCase {
       Journey.inventory(app, "note-composer-no-mic")
       Journey.shot(self, "n1-c-dictation-absent")
     }
-    #endif
   }
 
   // MARK: - N2 native share sheet
