@@ -167,6 +167,19 @@ jobs:
           # Cheap and idempotent: scp of an unchanged file plus the HUP already happening.
           # See infra/observability/selfmon.alloy for why it exists (#64, 2026-09-16).
           ALLOY_FILES="$ALLOY_FILES selfmon.alloy"
+          # base.alloy — the SHARED foundation every drop-in references (loki.write
+          # "logs_sink", discovery.docker "app", prometheus.remote_write "sink"). It had no
+          # deploy path at all until now: it was hand-edited over SSH as root, twice, and
+          # the `.bak-<timestamp>` siblings on the box are the fingerprint. Nothing in
+          # either repo shipped it, so the repo copy and the box copy silently diverged and
+          # the repo described a prod that did not exist.
+          #
+          # The version committed here is a byte-for-byte capture of what is RUNNING
+          # (md5 3eca40c8…), so adopting it changes no behaviour — it only makes the file
+          # managed. The repo's other, larger variant carries work that was never deployed
+          # (trace-ID extraction, a widened cadvisor keep-list); that lands separately,
+          # through this same loop, once this checkpoint is proven green.
+          ALLOY_FILES="$ALLOY_FILES base.alloy"
 
           echo "surface=$SURFACE dry_run=$DRY_RUN"
           echo "caddy vhosts: ${CADDY_VHOSTS:-(none)}"
@@ -212,8 +225,27 @@ jobs:
               src="infra/observability/$f"
               [ -f "$src" ] || { echo "::error::$src not in repo at this ref"; exit 1; }
               echo "  shipping $f -> $ALLOY_DIR/$f"
-              "${SCP[@]}" "$src" "${SSH_TARGET}:$ALLOY_DIR/$f"
-              "${SSH[@]}" "$SSH_TARGET" "chmod 0644 $ALLOY_DIR/$f"
+              # Stage-then-rename, NOT a direct scp onto the destination. Two reasons:
+              #
+              # 1. base.alloy on the box is root:root (hand-edited over SSH before it had
+              #    any deploy path). A direct scp opens the destination for WRITE and fails
+              #    with permission denied. `mv` is a DIRECTORY operation, and config.d is
+              #    drwxrwxr-x deploy deploy with no sticky bit, so deploy may replace a
+              #    root-owned file inside it without ever being root. Verified on the box:
+              #    in-place write -> "Permission denied"; rename -> succeeded.
+              #    After the first deploy the file is deploy-owned and this is moot — but
+              #    the staging stays, because of reason 2.
+              #
+              # 2. scp truncates-then-writes, so a concurrent HUP (or an alloy restart)
+              #    during the copy can read a half-written config. `mv` within one
+              #    filesystem is atomic: alloy sees the old file or the new one, never a
+              #    partial. The staging name deliberately does NOT end in `.alloy`, so
+              #    alloy ignores it while it exists — a `*.alloy` temp would be loaded as a
+              #    SECOND definition of every component and break the merged config.
+              stage="$ALLOY_DIR/.$f.incoming"
+              "${SCP[@]}" "$src" "${SSH_TARGET}:$stage"
+              "${SSH[@]}" "$SSH_TARGET" "chmod 0644 '$stage' && mv -f '$stage' '$ALLOY_DIR/$f'" \
+                || { echo "::error::could not place $f (staging or rename failed)"; exit 1; }
             done
             if [ "$DRY_RUN" = "true" ]; then
               echo "  DRY-RUN: Alloy drop-ins shipped, NOT hot-reloaded"

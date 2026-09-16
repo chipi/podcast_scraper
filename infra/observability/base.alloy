@@ -1,0 +1,147 @@
+// =============================================================================
+// Grafana Alloy — VPS (prod-podcast) collector. Adapted from the homelab
+// collector (agentic-ai-homelab/infra/observability/config.alloy) for a NO-GPU
+// box: host + cAdvisor metrics -> VictoriaMetrics; SECURITY logs
+// (sshd/fail2ban journal, Caddy access log) -> VictoriaLogs. GPU/LLM scrapes
+// (dcgm/vllm/ollama) dropped — nothing to scrape here.
+//
+// GRANULARITY: self-hosted backend, so this is a "basic infra" profile, not a
+// firehose — 60s scrape on both jobs, keep-listed cAdvisor series, and container
+// stdout/stderr shipping is intentionally OMITTED (see the LOGS note below).
+// =============================================================================
+
+// ---------- HOST: CPU, memory, disk, network, filesystem ----------
+prometheus.exporter.unix "host" {
+  rootfs_path        = "/rootfs"
+  disable_collectors = [
+    "mountstats", "infiniband", "nfs", "nfsd", "tapestats",
+    "ipvs", "bonding", "btrfs",
+  ]
+}
+
+prometheus.scrape "host" {
+  targets         = prometheus.exporter.unix.host.targets
+  forward_to      = [prometheus.remote_write.sink.receiver]
+  job_name        = "node"
+  scrape_interval = "60s"   // basic infra granularity — self-hosted, not a firehose
+}
+
+// ---------- CONTAINERS: cAdvisor ----------
+// VPS: cAdvisor is remapped to :8081 (host :8080 is the viewer). Keep-list the
+// dashboard-used series to cut cardinality (same rule as the homelab config).
+prometheus.scrape "cadvisor" {
+  targets         = [{ __address__ = "localhost:8081", instance = coalesce(sys.env("HOMELAB_INSTANCE"), "prod-podcast") }]
+  forward_to      = [prometheus.relabel.cadvisor_keep.receiver]
+  job_name        = "cadvisor"
+  scrape_interval = "60s"
+}
+
+prometheus.relabel "cadvisor_keep" {
+  forward_to = [prometheus.remote_write.sink.receiver]
+  rule {
+    source_labels = ["__name__"]
+    regex         = "container_cpu_(usage|user|system)_seconds_total|container_memory_(usage|working_set|max_usage)_bytes|container_memory_rss|container_fs_(reads|writes)_bytes_total|container_fs_(usage|limit)_bytes|container_network_(receive|transmit)_bytes_total|container_oom_events_total|container_start_time_seconds|container_last_seen|container_spec_memory_limit_bytes|container_spec_cpu_(quota|period)|container_tasks_state|container_pressure_(cpu|io|memory)_(waiting|stalled)_seconds_total|container_scrape_error|container_health_state|machine_cpu_cores|machine_memory_bytes"
+    action        = "keep"
+  }
+}
+
+// ---------- APP: podcast api /metrics (LLM cost, pipeline, ingestion) ----------
+// Replaces the retired grafana-agent's `api-metrics` job. Alloy is host-network,
+// so it can't use compose DNS (`api:8000`); discover the api container via the
+// docker socket and scrape its bridge IP:8000 — survives container recreation
+// (IP changes) the way the old agent's docker_sd did.
+discovery.docker "app" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "api" {
+  targets = discovery.docker.app.targets
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/compose-api-1"
+    action        = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_network_ip_address"]
+    regex         = "(.+)"
+    target_label  = "__address__"
+    replacement   = "${1}:8000"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "prod-podcast"
+  }
+}
+
+prometheus.scrape "api" {
+  targets         = discovery.relabel.api.output
+  forward_to      = [prometheus.remote_write.sink.receiver]
+  job_name        = "api"
+  metrics_path    = "/metrics"
+  scrape_interval = "60s"
+}
+
+// ---------- APP EVENTS: pipeline-runner container stdout (canonical JSONL) -> VL ----------
+// ---------- APP EVENTS: persistent corpus JSONL event files -> VL ----------
+// Search / listen / job events are append-only JSONL. file_match watches the
+// globs even before the files exist (created on first search / listen / run).
+local.file_match "app_events" {
+  path_targets = [
+    { __path__ = "/rootfs/srv/podcast-scraper/corpus/search/query_log.jsonl", job = "podcast-search" },
+    { __path__ = "/rootfs/srv/podcast-scraper/corpus/users/*/listen.jsonl", job = "podcast-listen" },
+    { __path__ = "/rootfs/srv/podcast-scraper/corpus/.viewer/jobs.jsonl", job = "podcast-jobs" },
+  ]
+}
+
+loki.source.file "app_events" {
+  targets    = local.file_match.app_events.targets
+  forward_to = [loki.write.logs_sink.receiver]
+}
+
+// ---------- LOGS: host journal (sshd / fail2ban — edge security) -> VictoriaLogs ----------
+// Alloy runs with pid:host + /:/rootfs, so the persistent journal is visible.
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+}
+
+loki.source.journal "security" {
+  path          = "/rootfs/var/log/journal"
+  forward_to    = [loki.write.logs_sink.receiver]
+  relabel_rules = loki.relabel.journal.rules
+  labels        = { job = "systemd-journal" }
+}
+
+// ---------- LOGS: Caddy edge access log (T-11 security signal) -> VictoriaLogs ----------
+loki.source.file "caddy" {
+  targets    = [{ __path__ = "/rootfs/var/log/caddy/access.log", job = "caddy" }]
+  forward_to = [loki.write.logs_sink.receiver]
+}
+
+// ---------- PUSH logs to VictoriaLogs (Loki push protocol) ----------
+loki.write "logs_sink" {
+  endpoint {
+    url = coalesce(sys.env("LOGS_WRITE_URL"), "http://localhost:9428/insert/loki/api/v1/push")
+  }
+  external_labels = {
+    instance = coalesce(sys.env("HOMELAB_INSTANCE"), "prod-podcast"),
+    cluster  = coalesce(sys.env("HOMELAB_CLUSTER"), "vps"),
+  }
+}
+
+// ---------- PUSH metrics to VictoriaMetrics ----------
+prometheus.remote_write "sink" {
+  endpoint {
+    url = coalesce(sys.env("REMOTE_WRITE_URL"), sys.env("GRAFANA_CLOUD_PROM_URL"))
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROM_USERNAME")
+      password = sys.env("GRAFANA_CLOUD_PROM_API_KEY")
+    }
+  }
+  external_labels = {
+    cluster = coalesce(sys.env("HOMELAB_CLUSTER"), "vps"),
+  }
+}
