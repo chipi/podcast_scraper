@@ -43,6 +43,20 @@ services:
       APP_ALLOWED_DOMAINS: ${APP_ALLOWED_DOMAINS:-}
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
+      # Expose /metrics so the node Alloy can scrape this surface (prometheus_fastapi_
+      # instrumentator is already in the image — only this flag was missing, which is why
+      # /metrics returned 404 here while the control-plane api returned 200).
+      #
+      # WHY IT MATTERS: on 2026-09-15 a reboot wiped /dev/shm, this api exited 127, its
+      # nginx crashlooped ~527 times, and NOTHING alerted for 9.5h — partly because this
+      # surface was invisible to `up==0`. base.alloy's discovery.relabel "api" kept only
+      # /compose-api-1, and that keep-list is widened in the same commit.
+      #
+      # DEPLOY ORDER MATTERS: this env var must reach the container BEFORE the widened
+      # scrape goes live, or Alloy scrapes a 404, `up` reads 0, and `Scrape target down`
+      # fires on a perfectly healthy box. Images first (deploy-all-prod), config second
+      # (deploy-config). That is the normal order; do not invert it for this one.
+      PODCAST_METRICS_ENABLED: ${PODCAST_METRICS_ENABLED:-1}
       # OTEL tracing (ADR-119) — mirror the operator/player api. Exporter + endpoint + homelab
       # tailnet IP staged host-side by the deploy script; default `none` = off (non-fatal).
       OTEL_SERVICE_NAME: operator-public-api

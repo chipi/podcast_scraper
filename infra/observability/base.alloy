@@ -58,7 +58,19 @@ discovery.relabel "api" {
   targets = discovery.docker.app.targets
   rule {
     source_labels = ["__meta_docker_container_name"]
-    regex         = "/compose-api-1"
+    // All three api containers on this box, not just the control plane. player-api-1 and
+    // operator-api-1 were invisible to `up==0` — which is part of why the 2026-09-15 reboot
+    // outage went 9.5h undetected: both exited 127, their nginx containers crashlooped ~527
+    // times, and no scrape target existed to go down.
+    //
+    // PRECONDITION: each of these must have PODCAST_METRICS_ENABLED set, or it serves 404 on
+    // /metrics and this scrape reads up=0 forever on a healthy box. Verified 2026-09-16:
+    // compose-api-1 200 (13050 bytes), player/operator 404 until the flag was added to
+    // docker-compose.{player,operator}-public.yml in the same commit. The library
+    // (prometheus_fastapi_instrumentator 8.1.0) was already in the image; only the flag was
+    // missing. So deploy IMAGES FIRST, then this config — inverting it false-fires
+    // `Scrape target down` during the gap.
+    regex         = "/(compose-api-1|player-api-1|operator-api-1)"
     action        = "keep"
   }
   rule {
