@@ -159,6 +159,14 @@ jobs:
           # the tailnet). orrery owns + deploys its own vhosts from the orrery repo now.
           if want player;   then CADDY_VHOSTS="$CADDY_VHOSTS player player-telemetry player-analytics"; ALLOY_FILES="$ALLOY_FILES player.alloy"; fi
           if want operator; then CADDY_VHOSTS="$CADDY_VHOSTS operator"; ALLOY_FILES="$ALLOY_FILES operator.alloy"; fi
+          # HOST-level, deliberately NOT surface-scoped: Alloy scraping itself, so the
+          # collector's own shipping health (loki_write_dropped_entries_total) reaches
+          # VictoriaMetrics. Shipped on every surface because it belongs to the box, not
+          # to player or operator — and because the one thing worse than no self-metrics
+          # is self-metrics that exist only after someone happens to deploy `player`.
+          # Cheap and idempotent: scp of an unchanged file plus the HUP already happening.
+          # See infra/observability/selfmon.alloy for why it exists (#64, 2026-09-16).
+          ALLOY_FILES="$ALLOY_FILES selfmon.alloy"
 
           echo "surface=$SURFACE dry_run=$DRY_RUN"
           echo "caddy vhosts: ${CADDY_VHOSTS:-(none)}"

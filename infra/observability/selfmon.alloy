@@ -1,0 +1,65 @@
+// selfmon.alloy — the prod node Alloy scrapes ITSELF, so the collector is observable.
+//
+// Dropped into /opt/vps-observability/config.d/selfmon.alloy by deploy-config.yml and
+// hot-reloaded (`docker kill -s HUP alloy`). HUP is correct here: this is a config FILE
+// change, not an env change (env needs a full recreate — see
+// deploy-vps-observability-endpoints.yml).
+//
+// WHY THIS EXISTS (incident 2026-09-16, podcast_scraper#64)
+// Prod's log shipping degraded ~70% for five hours and nothing detected it. Afterwards
+// three candidate detectors were tested against the recorded data and only one works:
+//
+//   1. dead-man on "zero log lines"  — would NOT have fired. Every one of the 21
+//      fifteen-minute buckets from 08:30 to 13:45 was non-empty (lowest 485 against a
+//      ~2000 normal), and a legitimately quiet bucket the day before held 71 — LOWER
+//      than anything seen mid-incident. No absolute floor separates them.
+//   2. alert on Alloy's own "dropping data" error lines — impossible. Alloy logged them
+//      to its container stderr, but prod does not ship Alloy's container logs, so the
+//      string count in VictoriaLogs across the whole outage was 0.
+//   3. relative rate-drop vs a baseline — rejected on the data. The same journal stream
+//      ranges min 3 / median 845 / max 10,196 lines per hour over 24h; any threshold
+//      that fires on the incident also fires most evenings.
+//
+// What DOES work is the collector counting its own losses: loki_write_dropped_entries_total
+// is exact and needs no inference. The DGX already exported it and therefore already had
+// alarms for this failure class; prod did not, because prod's Alloy never scraped itself.
+// That asymmetry — not a missing alert rule — is why prod was the blind spot.
+//
+// Deliberately a DROP-IN, not a base.alloy edit: /opt/vps-observability/base.alloy is
+// root:root and the deploy user cannot write it (and the box copy has drifted from the
+// repo). config.d/*.alloy are deploy-owned, so this needs no root at any point.
+//
+// References shared components defined in base.alloy:
+//   - prometheus.remote_write "sink"  — the VictoriaMetrics sink
+
+// Alloy's own /metrics. The container runs with
+// `--server.http.listen-addr=127.0.0.1:12345` under `network_mode: host`, so this
+// address is reachable from the collector itself (verified on prod: HTTP 200).
+//
+// Component label is "alloy_self", not "alloy": base.alloy is root-owned and outside
+// this repo's deploy path, so if it ever gains its own `prometheus.scrape "alloy"` the
+// merged config would fail on a duplicate component and take ALL telemetry down. The
+// suffix costs nothing and removes that coupling.
+prometheus.scrape "alloy_self" {
+  targets         = [{ __address__ = "127.0.0.1:12345", instance = coalesce(sys.env("HOMELAB_INSTANCE"), "prod-podcast") }]
+  forward_to      = [prometheus.relabel.alloy_self_keep.receiver]
+  job_name        = "alloy"
+  scrape_interval = "30s"
+}
+
+// Keep-list, same discipline as base.alloy's cadvisor_keep: Alloy's /metrics exposes
+// several hundred series and we want the SHIPPING-HEALTH ones, not its Go runtime.
+//   loki_write_*                    entries/bytes dropped + retries — the signal this
+//                                   whole file exists for; `reason` distinguishes
+//                                   queue_is_full / ingester_error / rate_limited
+//   prometheus_remote_storage_*     the metrics-side equivalent (failed/retried/pending)
+//   alloy_build_info                which build is actually running after a deploy
+//   up                              the scrape itself succeeded
+prometheus.relabel "alloy_self_keep" {
+  forward_to = [prometheus.remote_write.sink.receiver]
+  rule {
+    source_labels = ["__name__"]
+    regex         = "loki_write_(dropped_entries_total|dropped_bytes_total|batch_retries_total|sent_entries_total|request_duration_seconds_count)|prometheus_remote_storage_(samples_failed_total|samples_retried_total|samples_dropped_total|samples_pending|highest_timestamp_in_seconds|succeeded_samples_total)|alloy_build_info|up"
+    action        = "keep"
+  }
+}
