@@ -86,7 +86,8 @@ class TestNoAsrCredentialIsDemanded:
     """Gate 1: config validation."""
 
     @pytest.mark.parametrize(
-        "stage", ["rederive_only", "enrich_only", "relabel_only", "rediarize_only"]
+        "stage",
+        ["rederive_only", "enrich_only", "relabel_only", "rediarize_only", "retranscript_only"],
     )
     def test_reprocess_stages_build_without_a_deepgram_key(self, stage, monkeypatch):
         monkeypatch.delenv("DEEPGRAM_API_KEY", raising=False)
@@ -102,12 +103,14 @@ class TestNoAsrCredentialIsDemanded:
     def test_the_never_transcribe_set_is_exactly_the_routing_trick_stages(self):
         """``rederive_only`` is NOT in this set, and that is deliberate.
 
-        It reaches the skip via ``transcribe_missing=False`` — the honest route. Only the two
+        It reaches the skip via ``transcribe_missing=False`` — the honest route. Only the
         stages that set the flag TRUE while never calling a provider need the extra exemption.
         Adding rederive_only here would hide a regression: if its coercion ever stopped
         setting transcribe_missing=False, this set would mask it.
         """
-        assert config.STAGES_THAT_NEVER_TRANSCRIBE == frozenset({"relabel_only", "rediarize_only"})
+        assert config.STAGES_THAT_NEVER_TRANSCRIBE == frozenset(
+            {"relabel_only", "rediarize_only", "retranscript_only"}
+        )
 
 
 class TestProviderInitIsNonFatalForThoseStages:
@@ -117,7 +120,7 @@ class TestProviderInitIsNonFatalForThoseStages:
     def _cfg(stage):
         return config.Config.model_validate({**_BASE, "pipeline_stage": stage})
 
-    @pytest.mark.parametrize("stage", ["relabel_only", "rediarize_only"])
+    @pytest.mark.parametrize("stage", ["relabel_only", "rediarize_only", "retranscript_only"])
     def test_init_failure_returns_none_instead_of_raising(self, stage, monkeypatch, caplog):
         from podcast_scraper.workflow import orchestration
 

@@ -594,6 +594,14 @@ def _reprocess_existing_episodes(
             reconstructed += 1
         episode = create_episode_from_item(item, seq, feed.base_url)
         episode.on_disk_idx = idx
+        # The stored transcript URLs, so `retranscript_only` can re-fetch. A synthesized feed item
+        # carries none of its own, and for an aged-out episode the live feed may no longer offer it.
+        try:
+            _stored = json.loads(meta_path.read_text(encoding="utf-8"))
+            _urls = ((_stored or {}).get("content") or {}).get("transcript_urls") or []
+            episode.on_disk_transcript_urls = [u for u in _urls if isinstance(u, dict)] or None
+        except (OSError, json.JSONDecodeError):
+            episode.on_disk_transcript_urls = None
         episode.on_disk_transcript = _transcript_beside_metadata(meta_path)
         # SAY WHICH FILE THIS EPISODE IS ABOUT, at the moment it is decided. A reprocess OVERWRITES
         # the transcript it picks, and when a run came back with six of seven episodes relabelled

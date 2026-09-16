@@ -9,7 +9,7 @@ from __future__ import annotations
 # Bandit: ElementTree usage limited to typing references
 import xml.etree.ElementTree as ET  # nosec B405
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -98,6 +98,10 @@ class Episode:
     # fourteen "episode 1"s. `idx` must therefore be unique within THIS run and cannot be this
     # value; kept only so the legacy index-prefix transcript search has something true to use.
     on_disk_idx: Optional[int] = None
+    # The transcript URLs this episode's stored metadata recorded, if any. Set only on a reprocess,
+    # where the RSS item may be synthesized from disk and carry none of its own. `retranscript_only`
+    # re-fetches from here.
+    on_disk_transcript_urls: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass

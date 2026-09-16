@@ -1905,6 +1905,7 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
             "download_only",
             "relabel_only",
             "rediarize_only",
+            "retranscript_only",
             "enrich_only",  # deprecated alias for rederive_only
         ),
         default=None,
@@ -1920,6 +1921,9 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
             "re-ASR, no re-diarize. "
             "rediarize_only: download audio and re-diarize, aligned to the existing ASR text; "
             "no re-ASR. "
+            "retranscript_only: RE-FETCH the publisher's own transcript, re-parse it with the "
+            "fixed cue parser, then relabel — for episodes whose stored transcript lost its "
+            "speaker spans on the way in; no audio, no ASR, no GPU. "
             "audio_only: transcribe + media only. "
             "download_only: download + cache raw audio, then stop. "
             "enrich_only: DEPRECATED alias for rederive_only (renamed because it collided with "

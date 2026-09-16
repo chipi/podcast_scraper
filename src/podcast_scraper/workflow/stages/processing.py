@@ -1709,7 +1709,7 @@ def prepare_episode_download_args(
     # Only fires when the run EXPLICITLY asked for reprocessing. A normal incremental run where
     # everything is already ingested reaches here legitimately, and warning on that would make
     # the counter noise — non-zero on healthy nightly runs, which is how a signal gets ignored.
-    reprocess_stages = {"rederive_only", "relabel_only", "rediarize_only"}
+    reprocess_stages = {"rederive_only", "relabel_only", "rediarize_only", "retranscript_only"}
     asked_for_reprocess = (
         bool(getattr(cfg, "reprocess_existing_only", False))
         or str(getattr(cfg, "pipeline_stage", "full") or "full") in reprocess_stages

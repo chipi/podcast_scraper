@@ -449,7 +449,10 @@ def download_media_for_transcription(
     # pipeline_stage=relabel_only reuses the on-disk transcript + diarization and re-runs
     # only the speaker-name resolution — no audio is needed. Return a no-download job so
     # transcribe_media_to_text reaches the relabel branch (which loads from disk).
-    if cfg.pipeline_stage == "relabel_only":
+    # retranscript_only takes the same exit for the same reason: its input is the publisher's
+    # transcript URL over the network, and downloading the audio it will never open would make
+    # the cheap repair as expensive as the one it exists to avoid.
+    if cfg.pipeline_stage in ("relabel_only", "retranscript_only"):
         speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
         return TranscriptionJob(  # type: ignore[no-any-return]
             idx=episode.idx,
@@ -2739,6 +2742,121 @@ def _rediarize_existing_transcript(
     return True, rel_path, 0
 
 
+def _refetch_and_reparse_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> tuple[bool, Optional[str], int]:
+    """pipeline_stage=retranscript_only: re-fetch the publisher transcript, re-parse, relabel.
+
+    THE SPEAKER DATA WAS ALWAYS THERE; WE DELETED IT ON THE WAY IN. A WebVTT cue can carry
+    ``<v Speaker 3>`` naming who is talking, and the cue parser stripped it as an HTML tag — so a
+    transcript that named every turn landed as ONE undifferentiated voice and the episode could
+    never be attributed. Measured on the production corpus: every episode that used a
+    publisher-supplied transcript ended with a single voice, 128 of 128.
+
+    `29e117a1` fixed the parser for new ingests. This stage repairs what is already stored, and it
+    is deliberately the CHEAPEST repair that works: the transcript TEXT was never wrong, only its
+    speaker structure, and the source still has it. So re-download, re-parse, overwrite the
+    transcript and its sidecar, and hand off to ``relabel_only`` — which now sees segments that
+    carry speakers. No audio, no ASR, no diarization, no GPU.
+
+    ``rediarize_only`` would also work and needs no new code, but it downloads the audio and spends
+    GPU rediscovering speaker boundaries the publisher already handed us — and on a feed that ships
+    real names rather than ``Speaker N``, it throws those away.
+
+    THE FORMAT IS CHOSEN BY RESULT, NOT BY MIME TYPE. A feed often offers several (Odd Lots: srt,
+    text/plain, vtt; In Moscow's Shadows: json, srt, html, vtt) and only some carry speakers — in
+    In Moscow's Shadows' SRT the ``MG:`` prefix appears on the first cue and nowhere else. Guessing
+    from the type would pick wrong; parsing each candidate and keeping the first that yields two or
+    more distinct speakers cannot.
+    """
+    import json as _json
+
+    from ..transcript_formats import parse_srt, parse_webvtt
+
+    txt_path = _existing_transcript_for(job, effective_output_dir, "retranscript_only")
+    if txt_path is None:
+        return False, None, 0
+
+    urls = list(getattr(getattr(job, "episode", None), "on_disk_transcript_urls", None) or [])
+    if not urls:
+        logger.warning(
+            "[%s] retranscript_only: the stored metadata records no transcript URL, so there is "
+            "nothing to re-fetch. This episode needs rediarize_only or a re-ingest.",
+            job.idx,
+        )
+        return False, None, 0
+
+    best: Optional[tuple[int, str, list]] = None
+    for entry in urls:
+        url = str(entry.get("url") or "").strip()
+        if not url:
+            continue
+        fetched = _fetch_transcript_content(url, cfg)
+        if fetched is None:
+            logger.warning("[%s] retranscript_only: fetch failed for %s", job.idx, url)
+            continue
+        data, _ctype = fetched
+        try:
+            body = data.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            body = data.decode("utf-8", errors="replace")
+        lowered = url.lower()
+        if ".srt" in lowered or "subrip" in str(entry.get("type") or "").lower():
+            plain, segments = parse_srt(body)
+        else:
+            plain, segments = parse_webvtt(body)
+        if not (plain.strip() and segments):
+            continue
+        voices = len({str(sg.get("speaker")) for sg in segments if sg.get("speaker")})
+        logger.info(
+            "[%s] retranscript_only: %s -> %d segments, %d distinct speaker(s)",
+            job.idx,
+            str(entry.get("type") or url)[:48],
+            len(segments),
+            voices,
+        )
+        if best is None or voices > best[0]:
+            best = (voices, plain, segments)
+        if voices >= 2:
+            break
+
+    if best is None:
+        logger.warning("[%s] retranscript_only: no candidate transcript parsed", job.idx)
+        return False, None, 0
+    voices, plain, segments = best
+    if voices < 2:
+        # Refuse rather than overwrite a good file with an equally speakerless one. An episode that
+        # arrives here with one voice is not repairable from its published transcript at all, and
+        # saying so is more useful than a silent no-op that looks like success.
+        logger.warning(
+            "[%s] retranscript_only: the best candidate still carries %d speaker(s); this "
+            "episode cannot be repaired from its published transcript — use rediarize_only",
+            job.idx,
+            voices,
+        )
+        return False, None, 0
+
+    seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
+    txt_path.write_text(plain, encoding="utf-8")
+    seg_path.write_text(_json.dumps(segments, ensure_ascii=False), encoding="utf-8")
+    logger.info(
+        "[%s] retranscript_only: rewrote %s with %d speaker(s); relabelling",
+        job.idx,
+        txt_path.name,
+        voices,
+    )
+
+    # ...and now the ordinary naming path, which finally has voices to name.
+    return _relabel_existing_transcript(
+        job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    )
+
+
 def _maybe_dispatch_reprocess_stage(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -2759,6 +2877,10 @@ def _maybe_dispatch_reprocess_stage(
         )
     if cfg.pipeline_stage == "rediarize_only":
         return _rediarize_existing_transcript(
+            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        )
+    if cfg.pipeline_stage == "retranscript_only":
+        return _refetch_and_reparse_transcript(
             job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
         )
     return None
