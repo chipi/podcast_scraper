@@ -1640,6 +1640,13 @@ test-app:
 # Install browsers once: cd $(APP_DIR) && npx playwright install chromium
 test-app-e2e:
 	@echo "Playwright E2E (Learning Player)..."
+	@# Reap the CONTAINERISED api first. It listens on the same port this suite starts its own api
+	@# on, and playwright.config.ts sets `reuseExistingServer: !CI` — so if it is up, the browser
+	@# suite adopts it and Playwright's globalSetup then wipes a state directory the container never
+	@# reads. Per-user state from the iOS tier leaked in exactly this way and failed two specs on
+	@# STATE rather than on code (2026-09-16). Cheap, and it makes a local run match CI's fresh
+	@# checkout. Only this repo's own container, never a sibling worktree's.
+	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
 	@cd $(APP_DIR) && npm install && npx playwright install chromium && npm run test:e2e
 
 # Learning Player e2e against a CONTAINERISED api (#1905/#1906).
@@ -1668,6 +1675,18 @@ E2E_API_IMAGE_INPUTS ?= src/podcast_scraper pyproject.toml config docker/api
 APP_E2E_CT ?= lp-e2e-api
 APP_E2E_VOL ?= lp-e2e-corpus
 APP_E2E_STATE ?= lp-e2e-state
+# 8011 is ALSO what web/learning-player/playwright.config.ts starts its own api on, with
+# `reuseExistingServer: !CI`. So whenever this container is up, the browser suite silently REUSES it
+# instead of starting its own — and Playwright's globalSetup then wipes `e2e/.app-state`, a
+# directory the reused container never reads. Per-user state written by the iOS tier (queues,
+# playback, revisit) therefore leaked into browser specs that assert a fresh user, and they failed
+# on state rather than on code: `episode-actions` waited for "Add to queue" on an already-queued
+# row, `consolidation` waited for "Nothing to revisit right now" with items to revisit
+# (2026-09-16).
+#
+# The ports are deliberately NOT unified: reaping this container before a browser run is the
+# reliable fix, and `test-app-e2e` now does it (see that target). Changing the port would only move
+# the collision somewhere less obvious.
 APP_E2E_PORT ?= 8011
 APP_E2E_WORKERS ?= 4
 APP_E2E_CORPUS ?= tests/fixtures/app-validation-corpus/v3
