@@ -20,7 +20,6 @@ vi.mock('../services/api', async (orig) => {
   const actual = await orig<typeof import('../services/api')>()
   return {
     ...actual,
-    getAuthToken: vi.fn(() => null),
     getMe: vi.fn(async () => {
       throw new Error('transport') // NOT a 401 — inconclusive, so auth keeps user null but no sign-out
     }),
@@ -28,15 +27,21 @@ vi.mock('../services/api', async (orig) => {
 })
 
 import { isNative } from '../services/native'
-import { getAuthToken } from '../services/api'
+import { setAuthToken } from '../services/api'
 import { router } from './index'
 
 const asMock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>
 
+// The token is driven through the REAL `setAuthToken` rather than by stubbing `getAuthToken`.
+// The guard now asks `auth.hasSession`, a Pinia getter — i.e. a Vue computed — which only
+// re-evaluates when a REACTIVE dependency changes. A stubbed accessor is not one, so the getter
+// would keep returning whatever it computed during this hook's `router.replace` and the token set
+// inside a test would never be observed. Driving the real setter exercises the production path and
+// invalidates the computed the same way a login does.
 beforeEach(async () => {
   setActivePinia(createPinia())
   asMock(isNative).mockReturnValue(false)
-  asMock(getAuthToken).mockReturnValue(null)
+  setAuthToken(null)
   await router.replace('/welcome')
 })
 
@@ -48,14 +53,14 @@ describe('login-first guard — native token hardening', () => {
 
   it('native WITH a stored token but an unconfirmed session: reaches the protected route (no strand)', async () => {
     asMock(isNative).mockReturnValue(true)
-    asMock(getAuthToken).mockReturnValue('signed-token')
+    setAuthToken('signed-token')
     await router.push('/library')
     expect(router.currentRoute.value.name).toBe('library')
   })
 
   it('native WITHOUT a token: still redirects to the landing', async () => {
     asMock(isNative).mockReturnValue(true)
-    asMock(getAuthToken).mockReturnValue(null)
+    setAuthToken(null)
     await router.push('/library')
     expect(router.currentRoute.value.name).toBe('landing')
   })

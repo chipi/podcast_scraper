@@ -128,6 +128,25 @@
     }
   }
 
+  /* A sheet LAYERED over another sheet (operator 2026-09-16).
+     Nested sheets inherited the base 70–92dvh and so covered the one beneath almost entirely —
+     opening a person from a topic read as the topic being REPLACED rather than built on, with no
+     visible handle back to it. Capping the height keeps the parent's kicker + title on screen
+     above, which is what makes the pair read as a stack; it also pushes the parent's action row out
+     of view, so only ONE set of Follow / favourite / Collection / Share is reachable and there is
+     no ambiguity about which entity a tap would act on.
+     `min-height` must drop too, or the 70dvh floor fights the new ceiling on a short screen. */
+  .lp-sheet--stacked {
+    min-height: 0;
+    max-height: 78dvh;
+  }
+
+  @media (min-width: 640px) {
+    .lp-sheet--stacked {
+      max-height: 72dvh;
+    }
+  }
+
   /* The scrim behind a `.lp-sheet`: bottom-anchored on phones, centred from `sm:` up. */
   .lp-sheet-scrim {
     position: fixed;

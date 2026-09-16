@@ -35,6 +35,20 @@ const isNativePlatform = Capacitor.isNativePlatform()
 const navOnline = ref(isNativePlatform ? true : typeof navigator === 'undefined' ? true : navigator.onLine)
 const forced = ref(readForced())
 
+/**
+ * The server is reachable-but-not-working, or not reachable at all, while the DEVICE's network is
+ * fine (incident 2026-09-16: a reboot lost the signing secret; the process stayed up and every
+ * authed route failed). `@capacitor/network` reports the device's link state and is blind to this,
+ * so before this existed the app stayed in its "online" state and rendered a hybrid of cached
+ * content and error cards while insisting nothing was wrong.
+ *
+ * Set by the data layer (services/api.ts), which is the only thing that can observe it. Debounced
+ * by a small consecutive-failure count so one slow or aborted request cannot flip the whole UI.
+ */
+const serverDown = ref(false)
+let consecutiveFailures = 0
+const FAILURES_BEFORE_DEGRADED = 2
+
 function readForced(): boolean {
   try {
     return typeof localStorage !== 'undefined' && localStorage.getItem(FORCE_KEY) === '1'
@@ -43,7 +57,44 @@ function readForced(): boolean {
   }
 }
 
-const isOnlineRef = computed(() => navOnline.value && !forced.value)
+/**
+ * WHY the app is offline — `null` when it is not.
+ *
+ * Replaces a boolean, because the three causes need different behaviour and very different words.
+ * Saying "we couldn't reach the server" while the Config switch is on is false (the app chose not
+ * to ask), and offering "Try again" for a request the read gate will refuse is a button that
+ * cannot work.
+ *
+ * Precedence is deliberate: an explicit operator choice outranks a device fact, which outranks an
+ * inference about the server.
+ */
+export type OfflineReason = 'forced' | 'network' | 'server' | null
+
+const offlineReasonRef = computed<OfflineReason>(() => {
+  if (forced.value) return 'forced'
+  if (navOnline.value === false) return 'network'
+  if (serverDown.value) return 'server'
+  return null
+})
+
+const isOnlineRef = computed(() => offlineReasonRef.value === null)
+
+/**
+ * Report the outcome of a real request so connectivity reflects the SERVER, not just the radio.
+ *
+ * `ok === true` clears the degraded state immediately — that is the whole recovery path, and it is
+ * why reads must never be gated on `server` (a gated read could never succeed, so the app could
+ * never discover the server had come back).
+ */
+export function reportServerReachable(ok: boolean): void {
+  if (ok) {
+    consecutiveFailures = 0
+    if (serverDown.value) serverDown.value = false
+    return
+  }
+  consecutiveFailures += 1
+  if (consecutiveFailures >= FAILURES_BEFORE_DEGRADED) serverDown.value = true
+}
 
 let initialised = false
 function ensureListeners(): void {
@@ -67,12 +118,14 @@ function ensureListeners(): void {
 export function useOnline(): {
   isOnline: Readonly<Ref<boolean>>
   forcedOffline: Readonly<Ref<boolean>>
+  offlineReason: Readonly<Ref<OfflineReason>>
   setForcedOffline: (on: boolean) => void
 } {
   ensureListeners()
   return {
     isOnline: isOnlineRef,
     forcedOffline: computed(() => forced.value),
+    offlineReason: offlineReasonRef,
     setForcedOffline,
   }
 }
@@ -95,7 +148,12 @@ export function setForcedOffline(on: boolean): void {
  * blocks a call on a mere boot-time guess. Use for WRITES (route to the outbox) and the banner.
  */
 export function isOffline(): boolean {
-  return forced.value || navOnline.value === false
+  return offlineReasonRef.value !== null
+}
+
+/** Non-reactive read of WHY we are offline, for services that cannot hold a Vue ref. */
+export function offlineReason(): OfflineReason {
+  return offlineReasonRef.value
 }
 
 /**

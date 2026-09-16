@@ -23,6 +23,7 @@ import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useSectionState } from "../composables/useSectionState"
 import SectionStatus from "./SectionStatus.vue"
+import { RouterLink } from "vue-router"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import Sparkline from "./Sparkline.vue"
 import TrendWindowTabs from "./TrendWindowTabs.vue"
@@ -212,19 +213,23 @@ function rowLabel(r: Row): string {
           :title="isFollowed(r.id) ? t('ec.following') : t('ec.follow')"
           @click="onFollow(r.id)"
         >
-          {{ isFollowed(r.id) ? "✓" : "＋" }}
+          {{ isFollowed(r.id) ? "✓" : "+" }}
         </button>
       </li>
     </ul>
-    <!-- Inline expand (Home). Discover hides this and shows a "See all →" in the section header. -->
-    <button
+    <!-- "Show N more" NAVIGATES to the full trends page (operator 2026-09-16) rather than growing
+         the rail in place. Home is a summary surface: expanding inline pushed everything below the
+         rail down the page and still left the reader on a capped list, somewhere they had not
+         chosen to be. The trends page is the surface built for the full list, and carrying `tab`
+         lands them on the kind they were already reading rather than resetting to Topics.
+         Discover sets `hideMore` and offers its own "See all →" in the section header. -->
+    <RouterLink
       v-if="!hideMore && hiddenCount > 0 && !expanded"
-      type="button"
-      class="mt-2 text-sm font-bold text-accent"
+      :to="{ name: 'trends', query: { tab: kind } }"
+      class="mt-2 inline-block text-sm font-bold text-accent no-underline"
       data-testid="discovery-expand"
-      @click="expanded = true"
     >
       {{ t("home.showMore", { count: hiddenCount }) }}
-    </button>
+    </RouterLink>
   </section>
 </template>

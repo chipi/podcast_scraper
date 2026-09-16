@@ -13,7 +13,6 @@
  */
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
-import { RouterLink } from "vue-router"
 import { getOrgCard, getPersonCard, getTopicCard, getTopicPerspectives } from "../services/api"
 import type { OrgCard, PersonCard, TopicCard } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
@@ -286,19 +285,14 @@ const isTopic = computed(() => current.value.kind === "topic")
         <ShareMenu :model="shareModel" />
       </div>
 
-      <!-- #1261-9: escape hatch from the modal to the standalone page. Overlay only — inline is
-           already the standalone page or an embedded panel where a link would go nowhere useful.
-           NO @click close: navigating changes the route, which drives useModalSheet's own
-           navigation-close (closedByNavigation). Emitting close here ran router.back() FIRST and
-           landed the user on Home instead of the page (hotfix). -->
-      <RouterLink
-        v-if="variant === 'overlay' && label && current.kind !== 'organization'"
-        :to="{ name: current.kind === 'topic' ? 'topic' : 'person', params: { id: current.id } }"
-        class="mt-2 inline-flex items-center gap-1 rounded-full bg-overlay px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-elevated"
-        data-testid="ec-open-in-page"
-      >
-        {{ t("ec.openInPage") }} ›
-      </RouterLink>
+      <!-- REMOVED (operator 2026-09-16): the "Open in page ›" escape hatch (#1261-9).
+           The sheet already shows everything the standalone page does, so the link asked the user
+           to make a navigation decision that changes nothing they can see — and it sat directly
+           under the action row, competing with Follow / favourite / Collection / Share for the one
+           position the eye lands on first. Topics and people remain reachable as pages by deep
+           link and from search; nothing else pointed here.
+           The `router.back()` trap this link once documented now lives on `EpisodeRow`, which is
+           where it actually bit (tapping an episode landed on Home). -->
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -313,9 +307,19 @@ const isTopic = computed(() => current.value.kind === "topic")
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"
       />
+      <!-- `can-layer`: may this card open a person/storyline as a sheet ON TOP, or must it replace
+           in place? The rule app-wide is that a sheet may layer over another SHEET or over a PAGE,
+           but never over an inline PANEL — inside the Knowledge Panel the panel is already the
+           layer, and a modal on top would put two dismissables on screen with two different Back
+           meanings (the replace-in-panel rule, UXS-014).
+           `dismissAtRoot` already draws exactly that line: true when this card is the whole
+           destination (overlay sheet, or a standalone /topic/:id page), false when it is a
+           drill-down inside a host panel. So the policy is one existing condition, not a new
+           concept (operator 2026-09-16). -->
       <TopicCardContent
         v-else-if="topic"
         :topic="topic"
+        :can-layer="dismissAtRoot"
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"
       />

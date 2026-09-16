@@ -32,19 +32,63 @@ import AddToCollectionButton from './AddToCollectionButton.vue'
 import OverflowMenu from './OverflowMenu.vue'
 import { useI18n } from 'vue-i18n'
 
-defineProps<{ slug: string }>()
+defineProps<{
+  slug: string
+  /**
+   * The row is sitting ON artwork rather than on the page background.
+   *
+   * Without this each control is a hairline border plus a muted glyph directly over a photo, so
+   * legibility is left to whatever the artwork happens to be — over a light portrait they were
+   * almost invisible (operator screenshot 2026-09-16). Each button gets its own shaded plate, so
+   * contrast stops depending on the image underneath.
+   *
+   * Scoped to DIRECT-child buttons: all three controls are `<button>` roots, and the overflow PANEL
+   * is teleported to `<body>`, so menu items can never inherit the plate.
+   *
+   * Text colour is deliberately NOT overridden — FavoriteButton and QueueButton signal their active
+   * state through colour (`lp-fav--on`, `text-accent` when queued), and forcing white would flatten
+   * "already saved / already queued" into "not".
+   */
+  overlay?: boolean
+  /**
+   * Drop the heart from the visible row, moving it into the ⋯ instead.
+   *
+   * For surfaces where "favourited" is true BY CONSTRUCTION — the Saved list — so the icon only
+   * restates what the surface already says, while costing one of three slots in a 128px column and
+   * wrapping the colour control onto a second row. Hiding it outright would remove the only way to
+   * UNSAVE, so it becomes a menu item rather than disappearing (operator 2026-09-16).
+   */
+  hideFavorite?: boolean
+}>()
 const { t } = useI18n()
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-[12px]" data-testid="episode-actions">
-    <FavoriteButton :item="{ kind: 'episode', ref: slug }" />
+  <div
+    class="flex flex-wrap items-center gap-[12px]"
+    :class="
+      overlay
+        ? '[&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg [&>button]:backdrop-blur-sm'
+        : undefined
+    "
+    data-testid="episode-actions"
+  >
+    <!-- Leading surface-specific control, taking the heart's place when it is hidden (Saved puts
+         its colour picker here, so the row stays three wide and does not wrap). -->
+    <slot name="lead" />
+    <FavoriteButton v-if="!hideFavorite" :item="{ kind: 'episode', ref: slug }" />
     <QueueButton :slug="slug" />
     <OverflowMenu :label="t('common.moreActions')">
       <template #default="{ close }">
         <!-- Download self-hides on web, so on web this menu carries collection alone. -->
         <DownloadButton :slug="slug" variant="menuitem" @activated="close" />
         <AddToCollectionButton :item="{ kind: 'episode', ref: slug }" variant="menuitem" />
+        <!-- Only when it is NOT in the row above — never offer the same toggle in two places. -->
+        <FavoriteButton
+          v-if="hideFavorite"
+          :item="{ kind: 'episode', ref: slug }"
+          variant="menuitem"
+        />
       </template>
     </OverflowMenu>
     <!-- Extra, surface-specific controls in the same row (e.g. the queue's reorder ↑/↓). -->

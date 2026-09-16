@@ -4,10 +4,12 @@
  */
 
 import { defineStore } from 'pinia'
-import { getMe, loginUrl, logout as apiLogout } from '../services/api'
+import { getAuthToken, getHealth, getMe, loginUrl, logout as apiLogout } from '../services/api'
 import { CACHE_KEYS, clearCached } from '../services/contentCache'
 import { getDeviceJson, removeDeviceKey, setDeviceJson } from '../services/deviceStore'
 import { isNative, startNativeLogin, storeAuthToken } from '../services/native'
+import { offlineReason } from '../composables/useOnline'
+import { clearAuthEpoch, noteAuthEpoch } from '../services/authEpoch'
 import type { Me } from '../services/types'
 
 /**
@@ -32,6 +34,29 @@ export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({ user: null, loaded: false, stale: false }),
   getters: {
     isAuthenticated: (s): boolean => s.user !== null,
+    /**
+     * The ONE definition of "this device has a session" — for routing AND for chrome.
+     *
+     * The router guard and the masthead used to answer this differently. The guard counted a stored
+     * native bearer as signed-in (so a cold-start transport failure would not strand a returning
+     * user on the landing), while the masthead gated the avatar, the bell and the Library icon on
+     * `isAuthenticated` alone. With a token present but no user resolved, the guard admitted you to
+     * Home while the masthead showed "Sign in" and offered no way to reach Profile — reproduced on
+     * the simulator 2026-09-16, and the reported "all profile screens are missing".
+     *
+     * Both now read THIS, so the two cannot disagree again.
+     */
+    hasSession(): boolean {
+      // Read the token UNCONDITIONALLY, before any short-circuit can skip it. This is a Pinia
+      // getter — a Vue computed — so it only re-runs when a reactive dependency changes, and a
+      // dependency is only recorded if it is actually READ. Written as
+      // `this.user !== null || (isNative() && !!getAuthToken())`, the `isNative()` check
+      // short-circuits on web (and on the first native evaluation before a token exists), the
+      // token ref is never touched, nothing is tracked, and the getter then caches its answer
+      // forever — the masthead would never gain an avatar when a login stored a token.
+      const token = getAuthToken()
+      return this.user !== null || (isNative() && !!token)
+    },
   },
   actions: {
     /**
@@ -64,8 +89,28 @@ export const useAuthStore = defineStore('auth', {
           // A null answer means the credential is genuinely dead (getMe maps 401 -> null), so the
           // cached CONTENT for that account goes with the snapshot — contentCache's own docstring
           // promised this and nothing did it (#1925 review C13).
+          //
+          // ...but ONLY when the server is actually healthy. A degraded server used to answer 401
+          // for its OWN missing signing secret, and this line then deleted the user's entire
+          // offline library over a fault that was not theirs and not their credential's — the
+          // 2026-09-16 incident. The API now reports that case as 503 (so `getMe` rethrows and we
+          // land in `catch`), and this guard is the belt to that braces: never destroy cached
+          // content while we believe the server is unwell.
           await removeDeviceKey(SNAPSHOT_KEY)
-          await clearCached(CACHE_KEYS)
+          // Is this 401 OURS, or the platform's? A 401 alone cannot say: it is emitted both when
+          // one user's token has aged out and when the server has rotated or lost its signing key
+          // and invalidated EVERY token at once. Only the second is a server fault, and treating it
+          // as the first is what made the 2026-09-16 incident destructive — it deleted the user's
+          // offline library over an outage that was not theirs.
+          //
+          // Three independent signals, any of which means "not the user's fault": the connectivity
+          // layer already considers the server degraded, health says it cannot authenticate at all,
+          // or the session-key fingerprint has CHANGED since we last saw it (a mass invalidation).
+          const health = await getHealth().catch(() => null)
+          const keysRotated = noteAuthEpoch(health?.auth_epoch)
+          const serverAtFault =
+            offlineReason() === 'server' || health?.auth_ready === false || keysRotated
+          if (!serverAtFault) await clearCached(CACHE_KEYS)
         }
       } catch {
         // Transport or server failure — NOT an auth failure. Keep whatever identity we have, and
@@ -126,6 +171,7 @@ export const useAuthStore = defineStore('auth', {
         // The session is stateless, so a client-side discard is the whole operation anyway.
       } finally {
         if (isNative()) storeAuthToken(null) // stateless token → client-side discard
+        clearAuthEpoch()
         await removeDeviceKey(SNAPSHOT_KEY)
         this.user = null
         this.stale = false

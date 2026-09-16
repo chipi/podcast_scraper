@@ -544,7 +544,7 @@ const mainBottomPadding = computed(() =>
             <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
           </svg>
         </NavIconLink>
-        <template v-if="auth.isAuthenticated">
+        <template v-if="auth.hasSession">
           <!-- Same rule as the phone bar: a badged tab lands on the tab it counted. -->
           <NavIconLink
             :to="resurfacing.dueCount ? { name: 'library', query: { tab: 'revisit' } } : { name: 'library' }"
@@ -559,12 +559,12 @@ const mainBottomPadding = computed(() =>
         </span>
         <!-- Notification bell, at EVERY width (wave-I): the in-app inbox surface. Authenticated
              only — a signed-out visitor has no inbox. Sits left of the profile avatar. -->
-        <NotificationsBell v-if="auth.isAuthenticated" />
+        <NotificationsBell v-if="auth.hasSession" />
         <!-- Profile avatar, top-right, at EVERY width (operator 2026-09-09): profile moved out of the
              bottom tab bar to the masthead, the pattern most apps use. One destination, one control —
              no bottom-nav Profile tab any more. -->
         <RouterLink
-          v-if="auth.isAuthenticated"
+          v-if="auth.hasSession"
           :to="{ name: 'profile' }"
           class="shrink-0 rounded-full no-underline transition hover:opacity-80"
           :aria-label="auth.user?.name || t('profile.title')"
@@ -577,7 +577,7 @@ const mainBottomPadding = computed(() =>
              where the most-used action belongs, and this was the least-used one — styled as a
              bordered pill, so it outweighed every content action beneath it on all six surfaces.
              Signed-in state is still legible from the masthead: the Sign in link is absent. -->
-        <template v-if="!auth.isAuthenticated">
+        <template v-if="!auth.hasSession">
           <RouterLink
             :to="{ name: 'login' }"
             class="shrink-0 whitespace-nowrap rounded-full border border-border px-3.5 py-1.5 text-sm font-bold text-canvas-foreground no-underline transition hover:bg-overlay sm:px-4 sm:py-2 sm:text-base"

@@ -348,53 +348,21 @@ describe("EntityCardBody — per-show roles (host of one, guest of another)", ()
   })
 })
 
-// #1261-9: "Open in page" link (overlay-mode escape hatch to standalone page)
-describe("EntityCardBody — Open in page link", () => {
-  it("overlay mode: renders a link pointing at /topic/:id for topic entities", async () => {
+// The "Open in page ›" escape hatch (#1261-9) was REMOVED on operator review, 2026-09-16: the sheet
+// already shows what the page shows, so it offered a navigation that changed nothing visible, while
+// sitting directly under the action row and competing with Follow / favourite / Collection / Share.
+// Kept as a guard so it cannot drift back in — in EITHER variant.
+describe("EntityCardBody — no Open in page link", () => {
+  it("overlay mode: renders no escape-hatch link for a topic", async () => {
     vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
     const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    const link = w.get('[data-testid="ec-open-in-page"]')
-    expect(link.attributes("href")).toBe("/topic/topic:ai")
-    expect(link.text()).toContain("Open in page")
+    expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
   })
 
-  it("overlay mode: renders a link pointing at /person/:id for person entities", async () => {
+  it("overlay mode: renders no escape-hatch link for a person", async () => {
     vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
     const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
-    await flushPromises()
-    const link = w.get('[data-testid="ec-open-in-page"]')
-    expect(link.attributes("href")).toBe("/person/person:jane-doe")
-  })
-
-  it("overlay mode: clicking the link navigates WITHOUT emitting close (route change closes it)", async () => {
-    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
-    setActivePinia(createPinia())
-    const auth = useAuthStore()
-    auth.user = { user_id: "u_1", email: "d@l", name: "Dev" }
-    const w = mount(EntityCardBody, {
-      props: { kind: "topic", id: "topic:ai", variant: "overlay" },
-      global: { plugins: [i18n, router] },
-    })
-    await flushPromises()
-    const link = w.get('[data-testid="ec-open-in-page"]')
-    expect(link.attributes("href")).toBe("/topic/topic:ai")
-    await link.trigger("click")
-    // The link must NOT emit close directly: doing so ran useModalSheet's router.back() before the
-    // navigation, dumping the user on Home. Navigating away drops the ?card= query, and
-    // useModalSheet's own route watcher closes the sheet via the navigation path (no back()).
-    expect(w.emitted("close")).toBeFalsy()
-  })
-
-  it("inline mode: does NOT render the link (already on the page / inside a panel)", async () => {
-    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
-    setActivePinia(createPinia())
-    const auth = useAuthStore()
-    auth.user = { user_id: "u_1", email: "d@l", name: "Dev" }
-    const w = mount(EntityCardBody, {
-      props: { kind: "topic", id: "topic:ai", variant: "inline" },
-      global: { plugins: [i18n, router] },
-    })
     await flushPromises()
     expect(w.find('[data-testid="ec-open-in-page"]').exists()).toBe(false)
   })

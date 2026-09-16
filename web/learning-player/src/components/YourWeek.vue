@@ -151,12 +151,18 @@ watch(
       >{{ t('home.yourWeekFindShows') }}</RouterLink>
     </p>
 
+    <!-- SQUARE cards in both rails (operator 2026-09-16). The compact rail was `h-48 w-60` and the
+         expanded rails carried NO height at all, so each section sized itself to its own longest
+         quote — "Show more" turned one tidy rail into a stack of rows at differing heights. Square
+         matches the treatment Jump back in and Recommended already use, so the page reads as one
+         grid rather than three unrelated shapes. -->
+
     <!-- Compact: a single rail of the week's highlights. -->
     <CardRail v-if="hasContent && layout === 'compact'">
       <li
         v-for="(item, i) in compactItems"
         :key="`${item.episode_slug}-${i}`"
-        class="h-48 w-60 shrink-0"
+        class="aspect-square w-60 shrink-0"
       >
         <YourWeekCard :item="item" />
       </li>
@@ -170,7 +176,7 @@ watch(
           <li
             v-for="(item, i) in s.items"
             :key="`${item.episode_slug}-${i}`"
-            class="w-60 shrink-0"
+            class="aspect-square w-60 shrink-0"
           >
             <YourWeekCard :item="item" />
           </li>

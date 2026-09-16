@@ -98,21 +98,28 @@ def _derive_cover(
     return None
 
 
-def _recompute_cover(request: Request, data_dir: Path, user_id: str, collection_id: str) -> None:
-    """Best-effort: recompute + persist a collection's cover after a membership change.
+def _recompute_cover(
+    request: Request, data_dir: Path, user_id: str, collection_id: str
+) -> str | None:
+    """Best-effort: recompute + persist a collection's cover, returning what it derived.
 
     The mutation has ALREADY committed by the time this runs, so a failure here (a corpus scan, a
     file read, an unreadable user-state doc) must never turn a succeeded add/remove into a 500 — the
-    cover is decoration. Swallow everything (advisor H2)."""
+    cover is decoration. Swallow everything (advisor H2).
+
+    Returns the derived URL so a caller that needs the value (the lazy backfill in
+    ``list_collections``) does not have to re-read the row it just wrote; ``None`` on both "nothing
+    resolved" and "this blew up", which are the same thing to every caller."""
     try:
         root = _corpus_root_opt(request)
         by_id = {h["id"]: h for h in app_user_state.get_highlights(data_dir, user_id)}
         stored = app_collections_store.get_items(data_dir, user_id, collection_id)
-        app_collections_store.set_cover(
-            data_dir, user_id, collection_id, _derive_cover(root, stored, by_id)
-        )
+        cover = _derive_cover(root, stored, by_id)
+        app_collections_store.set_cover(data_dir, user_id, collection_id, cover)
+        return cover
     except Exception as exc:  # noqa: BLE001 — cover is decoration; never fail the committed write
         logger.debug("cover recompute failed for %s/%s: %s", user_id, collection_id, exc)
+        return None
 
 
 def recompute_covers_for_highlight(
@@ -190,9 +197,24 @@ def _resolve_item(item: dict, highlights_by_id: dict[str, dict]) -> CollectionIt
 async def list_collections(
     request: Request, user: User = Depends(get_current_user)
 ) -> CollectionsResponse:
-    """The user's collections, newest-first, each with its item count."""
+    """The user's collections, newest-first, each with its item count.
+
+    Backfills a MISSING cover lazily (operator 2026-09-16: boards with items were still showing the
+    empty placeholder). ``cover_url`` is only ever written by ``_recompute_cover`` on a membership
+    change, so any board populated before covers existed — or whose recompute lost a race, or ran
+    when the corpus root was briefly unavailable — kept ``None`` forever with nothing to heal it.
+    Deriving here fixes those on first view and persists the result, so this stays a single cheap
+    read from the next call on.
+
+    Only boards that HAVE items and LACK a cover do any work, so a fully-covered list costs nothing.
+    """
     data_dir = _data_dir(request)
-    return CollectionsResponse(items=[Collection(**c) for c in _rows(data_dir, user.user_id)])
+    rows = _rows(data_dir, user.user_id)
+    for row in rows:
+        if row.get("cover_url") or not row.get("count"):
+            continue
+        row["cover_url"] = _recompute_cover(request, data_dir, user.user_id, str(row["id"]))
+    return CollectionsResponse(items=[Collection(**c) for c in rows])
 
 
 @router.post("/collections", response_model=Collection, status_code=201)

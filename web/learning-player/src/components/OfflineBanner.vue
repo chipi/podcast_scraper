@@ -10,11 +10,30 @@
  * live region must exist before its content changes for a screen reader to announce it, so putting
  * the role on the `v-if` node itself would miss the very transition it exists to announce.
  */
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useOnline } from '../composables/useOnline'
 
 const { t } = useI18n()
-const { isOnline } = useOnline()
+const { isOnline, offlineReason } = useOnline()
+
+/**
+ * Name the CAUSE (2026-09-16). This bar previously had one sentence for three different situations,
+ * and the most important one was missing entirely: when the SERVER is unreachable while the device
+ * network is fine, `isOnline` stayed true and this bar never appeared at all — so the app rendered
+ * a hybrid of cached content and error cards while claiming everything was normal. That is the
+ * reported production failure; `offlineReason` now covers it.
+ */
+const label = computed(() => {
+  switch (offlineReason.value) {
+    case 'forced':
+      return t('app.offlineForced')
+    case 'server':
+      return t('app.offlineServer')
+    default:
+      return t('app.offlineNetwork')
+  }
+})
 </script>
 
 <template>
@@ -28,7 +47,7 @@ const { isOnline } = useOnline()
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-3.5 w-3.5 shrink-0" aria-hidden="true">
           <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01" />
         </svg>
-        {{ t('app.offline') }}
+        {{ label }}
       </div>
     </Transition>
   </div>

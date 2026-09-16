@@ -356,7 +356,7 @@ onMounted(async () => {
     />
 
     <!-- Following — everything you follow: shows (feeds) plus the topics / people / storylines you
-         followed via ＋. The follow-management home: Home's "See all N shows →" deep-links here
+         followed via +. The follow-management home: Home's "See all N shows →" deep-links here
          (?tab=shows). Sectioned by kind, like Saved. -->
     <div v-show="tab === 'shows'" v-bind="panelAttrs('library', 'shows')">
       <!-- Following's own filter bar (search + type + sort), same shape as Saved's minus colour. -->
@@ -483,8 +483,13 @@ onMounted(async () => {
             <span class="lp-kicker ml-1 font-normal">{{ filteredEpisodes.length }}</span>
           </h2>
           <div class="flex flex-col">
-            <EpisodeCard v-for="e in visibleEpisodes" :key="e.slug" :episode="e">
-              <template #actions>
+            <!-- `hide-favorite`: every row here IS saved, so the heart restates what the surface
+                 already says — while spending one of three slots in the 128px column, which wrapped
+                 the colour control onto a second row (operator 2026-09-16). It moves into the ⋯
+                 (still the only way to unsave) and the colour control takes its place via
+                 `lead-action`, so the row is three wide again and nothing wraps. -->
+            <EpisodeCard v-for="e in visibleEpisodes" :key="e.slug" :episode="e" hide-favorite>
+              <template #lead-action>
                 <SavedColorControl
                   :color="e.color"
                   @pick="favorites.setColor('episode', e.slug, $event)"

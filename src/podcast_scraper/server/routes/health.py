@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -40,6 +42,24 @@ def _probe_enriched_search_available(corpus_dir: Path | None) -> bool:
         return candidate.is_file()
     except OSError:
         return False
+
+
+def _auth_epoch(secret: str) -> str | None:
+    """Non-secret fingerprint of the session signing key, or ``None`` when auth is unconfigured.
+
+    ``HMAC-SHA256(secret, "auth-epoch")``, truncated. Deliberately an HMAC **keyed by the secret**
+    rather than a plain hash OF the secret: a bare digest of a low-entropy secret is brute-forceable
+    offline, and this value is served on an unauthenticated endpoint.
+
+    Its only job is to CHANGE when the key changes. That is the moment every previously-issued token
+    becomes unverifiable simultaneously — for a server-side reason — and a client that remembers the
+    epoch it last saw can then distinguish "my session expired" from "this server rotated its keys
+    and invalidated everyone", instead of concluding the user signed out and discarding their cached
+    library (incident 2026-09-16).
+    """
+    if not secret:
+        return None
+    return hmac.new(secret.encode("utf-8"), b"auth-epoch", hashlib.sha256).hexdigest()[:16]
 
 
 def _corpus_dir_for_health(
@@ -91,8 +111,23 @@ async def health(
                 corpus_produced_by = CorpusProducedBy.model_validate(produced_by_raw)
             except Exception:
                 corpus_produced_by = None
+    # Readiness, not just liveness (incident 2026-09-16): platform auth needs BOTH a signing secret
+    # and a user store, and without them every authed route fails while the process is perfectly
+    # alive — a health check that only proves "the process answers" actively misleads the client.
+    #
+    # Scoped to deployments that ACTUALLY authenticate (an OAuth provider is configured). The
+    # tailnet / operator modes deliberately run with no auth at all; reporting them "degraded"
+    # would be crying wolf about a configuration that is working as intended.
+    # `app_data_dir` is the same state `app_auth._data_dir` resolves against.
+    auth_configured = getattr(st, "oauth_provider", None) is not None
+    auth_ready = not auth_configured or (
+        bool(getattr(st, "session_secret", "")) and getattr(st, "app_data_dir", None) is not None
+    )
     return HealthResponse().model_copy(
         update={
+            "status": "ok" if auth_ready else "degraded",
+            "auth_ready": auth_ready,
+            "auth_epoch": _auth_epoch(getattr(st, "session_secret", "")),
             "code_version": __version__,
             "player_version": getattr(st, "player_version", None),
             "min_supported_corpus_code_version": MIN_SUPPORTED_CORPUS_CODE_VERSION,

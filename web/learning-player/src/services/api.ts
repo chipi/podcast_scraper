@@ -61,8 +61,9 @@ import type {
   UserStats,
   YourWeekResponse,
 } from "./types"
+import { ref } from "vue"
 import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
-import { isForcedOffline, isOffline } from "../composables/useOnline"
+import { isForcedOffline, isOffline, reportServerReachable } from "../composables/useOnline"
 
 // API base, resolved once at load (#1305/#1310):
 //   - web: origin-relative '/api/app' (or a baked VITE_API_BASE_URL).
@@ -89,12 +90,17 @@ export class ApiError extends Error {
 // browser whose cookie the WebView can't see, so we carry the SAME signed session token here and
 // send it as `Authorization: Bearer` on every request. Set from the OAuth deep-link callback
 // (services/native.ts) and rehydrated from Preferences on launch.
-let authToken: string | null = null
+// REACTIVE on purpose. `auth.hasSession` (stores/auth.ts) is a Pinia getter — a Vue computed — and
+// computeds memoize on their REACTIVE dependencies. While this was a plain module variable, reading
+// it inside that getter tracked nothing, so `hasSession` cached its first answer: the masthead would
+// not gain an avatar when a login stored a token, nor lose it when sign-out cleared one, until some
+// unrelated state happened to invalidate the computed. A `ref` makes the dependency real.
+const authToken = ref<string | null>(null)
 export function setAuthToken(token: string | null): void {
-  authToken = token
+  authToken.value = token
 }
 export function getAuthToken(): string | null {
-  return authToken
+  return authToken.value
 }
 
 /**
@@ -128,13 +134,24 @@ async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promi
     // User session (native OAuth) wins; else the prod coming-soon gate's Basic-auth fallback so open
     // reads reach the gated API pre-launch (services/tier.ts :: resolveGateAuthHeader). Both use the
     // `Authorization` header, so they're mutually exclusive — acceptable until native login lands.
-    if (authToken) headers.set("Authorization", `Bearer ${authToken}`)
+    if (authToken.value) headers.set("Authorization", `Bearer ${authToken.value}`)
     else {
       const gate = resolveGateAuthHeader()
       if (gate) headers.set("Authorization", gate)
     }
   }
-  const resp = await fetch(input, { ...init, headers })
+  // Every request is a probe of whether the SERVER works — the only place that can observe it.
+  // A transport failure (refused / DNS / timeout) and a 503 both mean "not usable right now"; a 503
+  // specifically is how the API now reports that it cannot authenticate anyone (a lost signing
+  // secret, incident 2026-09-16) rather than lying that the caller's credential is bad.
+  let resp: Response
+  try {
+    resp = await fetch(input, { ...init, headers })
+  } catch (err) {
+    reportServerReachable(false)
+    throw err
+  }
+  reportServerReachable(resp.status !== 503)
   if (resp.status === 401 && onUnauthorized) onUnauthorized()
   return resp
 }

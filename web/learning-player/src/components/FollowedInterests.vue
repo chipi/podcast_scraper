@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Followed interests — the topics, people and storylines you follow (the ＋ on trending topics /
+ * Followed interests — the topics, people and storylines you follow (the + on trending topics /
  * storylines / entity cards), grouped by type like the Saved tab's sections. Following these was
  * previously invisible: the tokens went into your interests profile but nothing surfaced them. This
  * makes them visible, navigable and unfollow-able. Complements the followed-shows grid above it.
