@@ -362,6 +362,27 @@ def _per_enricher_schema(manifest: Any) -> dict[str, Any]:
         "opt_in": {"type": "boolean"},
         "max_cost_usd_per_run": {"type": "number", "minimum": 0},
         "expected_duration_s": {"type": "integer", "minimum": 1},
+        # Operational rationale, carried as DATA rather than a YAML comment.
+        #
+        # PUT /api/enrichment/config rewrites the whole file with yaml.safe_dump, which
+        # cannot emit comments — so a `#` explaining why a value was overridden is erased
+        # by the first save from the enricher tab (#2086). Worse, a comment is invisible
+        # in that UI, so the person most likely to change the knob can neither read the
+        # reason nor record their own.
+        #
+        # A field survives every edit path — UI save, hand-edit, API — and the UI can
+        # render it next to the value it explains.
+        "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": (
+                "Why this enricher is configured the way it is — the operational reason, "
+                "not what the knobs do. Example: 'Raised 1800->3600 on 2026-09-16: a cold "
+                "200-entity chunk needs ~36min at the measured ~5.5 entities/min, and a "
+                "timeout banks nothing because the artifact only writes at the end.' "
+                "Survives UI saves; a YAML comment does not."
+            ),
+        },
     }
     # ``additionalProperties: false`` catches typo'd knob names + provider
     # blocks on deterministic enrichers (manifest.provider_requirement is

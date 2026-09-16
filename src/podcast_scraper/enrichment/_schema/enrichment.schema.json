@@ -24,7 +24,9 @@
       "description": "Per-enricher configuration (id → overrides). Shape B (RFC-088 v2): presence of a block enables the enricher (implicit `enabled: true`); add `enabled: false` to opt out. `null` (bare key) means 'enabled, no config'.",
       "additionalProperties": {
         "oneOf": [
-          { "type": "null" },
+          {
+            "type": "null"
+          },
           {
             "type": "object",
             "additionalProperties": true,
@@ -47,10 +49,17 @@
                 "minimum": 1,
                 "description": "Hard timeout for the enricher's whole run. Defaults to 60s episode-scope / 600s corpus-scope when unset."
               },
+              "note": {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "Why this enricher is configured the way it is — the operational reason, not what the knobs do. Carried as DATA because PUT /api/enrichment/config rewrites the file with yaml.safe_dump, which cannot emit comments: a `#` explaining an override is erased by the first save from the enricher tab, and is invisible in that UI anyway (#2086). A field survives UI saves, hand-edits and the API alike."
+              },
               "provider": {
                 "type": "object",
                 "description": "Provider/scorer injection config for ML / embedding / NLI enrichers. Required by enrichers that declare `manifest.provider_requirement`; ignored by deterministic enrichers.",
-                "required": ["type"],
+                "required": [
+                  "type"
+                ],
                 "properties": {
                   "type": {
                     "type": "string",
