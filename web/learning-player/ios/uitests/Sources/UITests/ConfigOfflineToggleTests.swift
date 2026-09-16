@@ -81,7 +81,20 @@ final class ConfigOfflineToggleTests: XCTestCase {
 
     let after = String(describing: control.value)
     print("=====OFFLINE_TOGGLE before=\(before) after=\(after)=====")
-    print("=====SETTINGS_AFTER_TREE_START====="); print(app.debugDescription); print("=====SETTINGS_AFTER_TREE_END=====")
     XCTAssertNotEqual(before, after, "the Offline mode checkbox did not change state")
+
+    // RESTORE. The switch is PERSISTED (localStorage), so leaving it flipped hands every later test
+    // an app in forced-offline: reads fast-fail, the surfaces empty out, and the failures read as
+    // "no push cell" / "no person row" / a failed upload — three tests blamed for a fourth test's
+    // side effect (2026-09-16). A test that mutates persisted state owns putting it back.
+    if after != before {
+      control.tap()
+      sleep(2)
+      let restored = String(describing: control.value)
+      print("=====OFFLINE_RESTORED \(restored)=====")
+      XCTAssertEqual(restored, before, "left the offline switch flipped for every later test")
+    }
+    print("=====SETTINGS_AFTER_TREE_START====="); print(app.debugDescription); print("=====SETTINGS_AFTER_TREE_END=====")
+
   }
 }

@@ -158,8 +158,19 @@ final class AppJourneyTests: XCTestCase {
     // tree at all, so a plain `find` cannot see it and `tap`'s own scroll never triggers.
     _ = Journey.tap(app, labels: ["Insights"], contains: true, timeout: 15)
     sleep(3)
-    _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 15)
-    sleep(3)
+    // The accordion REMEMBERS its state between tests, so a blind tap can collapse a section that
+    // a previous test left open — which is how this passed alone and failed in a full run. Tap only
+    // when the person controls are not already reachable, and re-tap once if the first tap closed
+    // it (2026-09-16).
+    let personPre = NSPredicate(format: "label CONTAINS[c] 'Open Dr. Elena Fischer' OR label CONTAINS[c] 'Open Sam'")
+    if !app.buttons.matching(personPre).firstMatch.waitForExistence(timeout: 4) {
+      _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 15)
+      sleep(3)
+      if !app.buttons.matching(personPre).firstMatch.waitForExistence(timeout: 6) {
+        _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 10)
+        sleep(3)
+      }
+    }
     // POLL for the control instead of snapshotting once. Expanding the accordion lays the section
     // out asynchronously, so a single `scrollTo` pass could run before the buttons existed — which
     // is why this passed alone and failed inside a full run, where the preceding tests changed the
@@ -271,8 +282,17 @@ final class AppJourneyTests: XCTestCase {
     // Favourite the episode so Saved has something to colour-code.
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
-    _ = Journey.tap(app, labels: ["Favourite", "Favorite", "Save"], contains: true, timeout: 12)
-    sleep(3)
+    // Favourite only if it is not ALREADY favourited. A blind tap toggles, so running after a test
+    // that favourited this episode un-favourited it and left Saved empty — the colour control then
+    // "could not be reached" because there was nothing to colour (2026-09-16).
+    if Journey.find(app, labels: ["Save to favorites"], contains: true, timeout: 8) != nil {
+      _ = Journey.tap(app, labels: ["Save to favorites"], contains: true, timeout: 8)
+      sleep(3)
+    }
+    XCTAssertNotNil(
+      Journey.find(app, labels: ["Remove from favorites"], contains: true, timeout: 10),
+      "the episode is not favourited, so Saved would be empty"
+    )
 
     Journey.openTab(app, "Library")
     sleep(4)
@@ -322,8 +342,17 @@ final class AppJourneyTests: XCTestCase {
       XCTFail("could not open the knowledge panel"); return
     }
     sleep(3)
-    _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 12)
-    sleep(2)
+    // The accordion remembers its state, so tap only when the topic controls are not already there
+    // (a blind tap would COLLAPSE a section a previous test left open) — same trap as test04.
+    let topicPre = NSPredicate(format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'")
+    if !app.buttons.matching(topicPre).firstMatch.waitForExistence(timeout: 4) {
+      _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 12)
+      sleep(3)
+      if !app.buttons.matching(topicPre).firstMatch.waitForExistence(timeout: 6) {
+        _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 10)
+        sleep(3)
+      }
+    }
 
     // Drill into a topic IN THE PANEL — it must replace in place, not open a sheet.
     let topicPredicate = NSPredicate(format: "label CONTAINS[c] 'Open systems thinking' OR label CONTAINS[c] 'Open risk management'")

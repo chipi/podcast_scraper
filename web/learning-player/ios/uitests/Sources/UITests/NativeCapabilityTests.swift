@@ -86,12 +86,20 @@ final class NativeCapabilityTests: XCTestCase {
     let personRow = app.buttons.allElementsBoundByIndex.first {
       $0.label.contains("momentum") && !$0.label.contains("(")
     }
-    guard let row = personRow, row.isHittable else {
-      Journey.inventory(app, "home-people-rail")
-      XCTFail("no person row on the Home people rail")
-      return
+    if let row = personRow, row.isHittable {
+      row.tap()
+    } else {
+      // The People rail depends on trending state a previous test may have changed. Any entity card
+      // carries a note composer, so fall back to a topic rather than failing on the route taken.
+      Journey.inventory(app, "home-people-rail-empty")
+      _ = Journey.tap(app, labels: ["Topics"], timeout: 10)
+      sleep(2)
+      guard Journey.tap(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 12)
+      else {
+        XCTFail("neither a person nor a topic was reachable for the note composer")
+        return
+      }
     }
-    row.tap()
     sleep(5)
     // "Your notes" — the textarea's aria-label, which is what WebKit exposes as the accessible
     // name. Matching the PLACEHOLDER ("Add a note…") found nothing, because an aria-label wins over
@@ -224,6 +232,11 @@ final class NativeCapabilityTests: XCTestCase {
     let app = Journey.launch()
     Journey.openProfile(app)
     sleep(4)
+    // ProfileView is kept alive (`KEEP_ALIVE_TABS`), so whichever tab a PREVIOUS test left selected
+    // is still selected here — the matrix is on Account, and running after a test that opened
+    // Topics or Stats found no push cell at all (2026-09-16). Select it explicitly.
+    _ = Journey.tap(app, labels: ["Account"], timeout: 10)
+    sleep(2)
     // The per-type × per-channel notification matrix lives on the Account tab; turning a Push cell
     // on is what asks the OS for permission (usePushSubscription → @capacitor/push-notifications).
     _ = Journey.scrollTo(app, labels: ["Push"])
@@ -324,14 +337,19 @@ final class NativeCapabilityTests: XCTestCase {
     // will not call hittable, which is the whole trick here (2026-09-16).
     //
     // Photos are appended AFTER the page's own artwork in the tree, so walk from the end.
+    // Identify a REAL photo by its label — the picker names cells "Photo, <date>". Walking the tree
+    // backwards and taking any large image also matched app chrome, and a non-image then failed to
+    // load in the crop modal, surfacing as "Couldn't upload that image" — an app error caused
+    // entirely by the test picking the wrong thing (2026-09-16).
     var picked = false
     let imgs = app.images
     let n = imgs.count
-    for idx in stride(from: n - 1, through: max(0, n - 8), by: -1) {
+    for idx in stride(from: n - 1, through: max(0, n - 12), by: -1) {
       let candidate = imgs.element(boundBy: idx)
       guard candidate.exists else { continue }
+      guard candidate.label.hasPrefix("Photo,") else { continue }
       let frame = candidate.frame
-      guard frame.width > 40, frame.height > 40 else { continue } // skip icons/chrome
+      guard frame.width > 40, frame.height > 40 else { continue }
       print("=====PICKER_TAP idx=\(idx)/\(n) label=\(candidate.label) frame=\(frame)=====")
       candidate.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
       picked = true

@@ -99,9 +99,20 @@ final class PersonalisationTests: XCTestCase {
       return !l.isEmpty && !chrome.contains(l) && $0.isHittable
     }
     print("=====INTERESTS_CHIPS \(chips.prefix(8).map { $0.label })=====")
+    // Tap only chips that are NOT already selected. These are toggles, so tapping a selected chip
+    // DESELECTS it — running after an earlier pass left three already chosen, this turned them all
+    // off, the account ended with zero interests, and Home rightly went on prompting. The test then
+    // blamed the app for its own side effect (2026-09-16).
     var picked = 0
     var chosen: [String] = []
-    for chip in chips.prefix(3) {
+    for chip in chips {
+      if picked == 3 { break }
+      let selected = String(describing: chip.value).contains("1") || chip.isSelected
+      if selected {
+        chosen.append(chip.label) // already an interest — still expect it to render
+        picked += 1
+        continue
+      }
       chosen.append(chip.label)
       chip.tap()
       picked += 1

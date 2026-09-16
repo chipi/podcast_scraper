@@ -138,12 +138,20 @@
      `min-height` must drop too, or the 70dvh floor fights the new ceiling on a short screen. */
   .lp-sheet--stacked {
     min-height: 0;
-    max-height: 78dvh;
+    /* MUST stay below the parent's `min-height: 70dvh` floor, or a parent rendered at that floor is
+       SHORTER than its child and gets covered completely — which is what happened at 78dvh: the
+       peek only appeared when the parent happened to have enough content to grow past the child
+       (operator 2026-09-16, reported as "person and storyline fully overlap the topic").
+       62dvh guarantees ~8dvh of parent above the child on every screen — enough for its kicker and
+       title, which is the whole point of stacking rather than replacing. */
+    max-height: 62dvh;
   }
 
   @media (min-width: 640px) {
+    /* The centred dialog has no 70dvh floor (min-height: 0 from `sm:`), so the guarantee has to come
+       from the gap itself: 60 against the parent's 85dvh ceiling. */
     .lp-sheet--stacked {
-      max-height: 72dvh;
+      max-height: 60dvh;
     }
   }
 

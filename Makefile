@@ -1985,6 +1985,20 @@ test-app-ios-server-degraded:
 # want Stats/Topics populated rather than showing their empty states.
 ios-contact-sheet:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@# SEED FIRST. The tour shoots whatever is on screen, and a freshly-signed-in account has an
+	@# empty Library, no collections, no favourites and no listening history — so half the sheet was
+	@# empty states, which is exactly the half a visual review cannot judge (operator 2026-09-16).
+	@# The journey + personalisation suites already CREATE that data as a side effect of asserting
+	@# on it (boards, favourites, played episodes, chosen interests), so running them first is both
+	@# the seed and a check that the seeding path still works.
+	@echo "--> seeding data so the tour photographs a populated app"
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/AppJourneyTests \
+			-only-testing:OfflineSpikeUITests/PersonalisationTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
+			2>&1 | grep -E 'Test Case.*(passed|failed)|TEST (SUCCEEDED|FAILED)' || true
 	@echo "--> touring every surface"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
