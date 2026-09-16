@@ -403,8 +403,28 @@ DEPRECATED_CONFIG_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"multi_feed_soft_f
 # (e.g. which Docker compose service to spawn), but the pipeline CLI itself
 # has no use for them. Allowed past the unknown-keys gate, then silently
 # stripped in ``Config._handle_deprecated_fields`` before ``model_validate``.
+#
+# ``notes`` is different in kind: it is never READ by anything. It exists so
+# file-level operational rationale can live as DATA next to the settings it
+# explains, because a YAML comment cannot survive here —
+# ``PUT /api/enrichment/config`` rewrites the whole file with ``yaml.safe_dump``,
+# which discards comments at parse and cannot emit them, so the first save from
+# the operator UI erases every ``#`` in the file (#2086).
+#
+# It has to be allow-listed because the two consumers disagree: the PUT handler
+# preserves unrelated top-level keys verbatim, but ``Config`` is ``extra="forbid"``
+# behind this gate — so a ``notes:`` block would round-trip happily through the API
+# and then fail config load on the next pipeline run. Verified before adding:
+# the packaged example validates, and the same example plus one ``notes`` key is
+# REJECTED. Without this line, adding notes to prod's YAML would have broken the
+# next enrichment run rather than documenting it.
+#
+# Per-enricher rationale has its own home: the ``note`` field inside each
+# ``enrichment.enrichers.<id>`` block, declared in ``_per_enricher_schema`` and
+# rendered by the UI. This key is for rationale about TOP-LEVEL settings, e.g. why
+# ``audio_storage_backend`` must outrank any profile.
 OPERATOR_ONLY_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
-    {"pipeline_install_extras", "scheduled_jobs", "max_concurrent_pipeline_jobs"}
+    {"pipeline_install_extras", "scheduled_jobs", "max_concurrent_pipeline_jobs", "notes"}
 )
 
 # Nested grouping keys that profile YAML may use as syntactic sugar for a set
