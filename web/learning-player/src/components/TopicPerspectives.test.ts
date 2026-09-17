@@ -90,6 +90,22 @@ describe('TopicPerspectives', () => {
     expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(false)
   })
 
+  it('renders nothing when the reply omits the list entirely', async () => {
+    // A reply with no `perspectives` key put `undefined` where the section's contract says array,
+    // and the template's `perspectives.length` threw during render. Vitest reported it as an
+    // unhandled rejection attributed to an UNRELATED test file, because a render crash between
+    // tests has no test to attach itself to — the whole app suite passed while this was happening.
+    vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue({
+      ...RESP,
+      perspective_count: 0,
+      perspectives: undefined,
+    } as never)
+    const w = mountIt('topic:no-key')
+    await flushPromises()
+    expect(w.find('[data-testid="topic-perspectives"]').exists()).toBe(false)
+    expect(w.find('[data-testid="topic-perspectives-error"]').exists()).toBe(false)
+  })
+
   it('threads the corpus scope through to the API (#1149)', async () => {
     const spy = vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue(RESP)
     mount(TopicPerspectives, { props: { id: 'topic:ai', scope: 'mine' }, global: { plugins: [i18n] } })
