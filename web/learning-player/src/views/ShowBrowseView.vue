@@ -8,6 +8,7 @@ import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import ShowTile from "../components/ShowTile.vue"
+import ShowRow from "../components/ShowRow.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import ListToolbar from "../components/ListToolbar.vue"
 import Sparkline from "../components/Sparkline.vue"
@@ -17,7 +18,6 @@ import { trendColor } from "../components/trending"
 import { listSortOptions, type ListSortValue } from "../utils/listSort"
 import { getPodcasts, getTrending } from "../services/api"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
-import { showArtwork } from "../utils/episode"
 import { useLibraryStore } from "../stores/library"
 import { useSignInGate } from "../composables/useSignInGate"
 import type { Podcast, TrendingEntity } from "../services/types"
@@ -220,56 +220,39 @@ onMounted(load)
         >
           <li v-for="p in capped" :key="p.feed_id"><ShowTile :show="p" followable /></li>
         </ul>
-        <!-- List view: title-first rows, denser than the tile grid; tap opens the show. -->
+        <!-- List view: the SHARED ShowRow — 128px artwork and the description beside it, built to
+             the same proportions as the episode list (operator 2026-09-17). It was a 44px thumbnail
+             with a title and a count, which read as a different kind of thing from the episode rows
+             one tab across. Library's Saved tab renders the identical component. -->
         <ul v-else class="flex flex-col" data-testid="show-browse-list">
           <li v-for="p in capped" :key="p.feed_id">
-            <RouterLink
-              :to="{ name: 'podcast', params: { feedId: p.feed_id } }"
-              class="flex items-center gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
-            >
-              <img
-                v-if="showArtwork(p)"
-                :src="showArtwork(p)!"
-                alt=""
-                loading="lazy"
-                class="h-11 w-11 shrink-0 rounded-lg bg-elevated object-cover"
-              />
-              <div v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" />
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-semibold">{{ titleOf(p) }}</span>
-                <span class="lp-kicker block">{{
-                  t("podcast.episodeCount", { count: p.episode_count }, p.episode_count)
-                }}</span>
-              </span>
-              <!-- Trend sparkline blended in when sorting by Trending (operator 2026-09-14): how the
-                   show's momentum has moved, hued by velocity. Absent when the corpus has no series. -->
-              <Sparkline
-                v-if="sort === 'trending' && trendById.get(p.feed_id)"
-                :values="trendById.get(p.feed_id)!.series"
-                :width="56"
-                :height="16"
-                :stroke-width="1.4"
-                class="shrink-0"
-                :style="{ color: trendColor(trendById.get(p.feed_id)!.velocity) }"
-              />
-              <!-- Follow + save at the row's right edge (operator 2026-09-17). List view offered
-                   NEITHER while the grid offered Follow, so the same catalogue exposed different
-                   capabilities depending on the view — the rule the episode list/grid pair already
-                   holds to. Compact variants: this row is 44px tall and dense by design.
-                   `.prevent.stop` on the wrapper so acting does not also open the show. -->
-              <span class="flex shrink-0 items-center gap-2" @click.prevent.stop>
-                <FollowButton
-                  :following="library.has(p.feed_id)"
-                  :busy="busyFollow === p.feed_id"
-                  :gated="isGated"
-                  @toggle="toggleFollow(p)"
-                />
-                <FavoriteButton
-                  :item="{ kind: 'show', ref: p.feed_id, label: titleOf(p) }"
-                  class="!h-7 !w-7 !text-sm"
-                />
-              </span>
-            </RouterLink>
+            <ShowRow :show="p">
+              <template #actions>
+                <!-- Circles, like the episode card's row: two 32px controls fit the 128px column in
+                     ONE line, where a labelled pill plus the heart wrapped. -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <FollowButton
+                    variant="icon"
+                    :following="library.has(p.feed_id)"
+                    :busy="busyFollow === p.feed_id"
+                    :gated="isGated"
+                    @toggle="toggleFollow(p)"
+                  />
+                  <FavoriteButton :item="{ kind: 'show', ref: p.feed_id, label: titleOf(p) }" />
+                  <!-- Trend sparkline, only when sorting by Trending (operator 2026-09-14): how the
+                       show's momentum has moved, hued by velocity. Absent when the corpus has no
+                       series. -->
+                  <Sparkline
+                    v-if="sort === 'trending' && trendById.get(p.feed_id)"
+                    :values="trendById.get(p.feed_id)!.series"
+                    :width="56"
+                    :height="16"
+                    :stroke-width="1.4"
+                    :style="{ color: trendColor(trendById.get(p.feed_id)!.velocity) }"
+                  />
+                </div>
+              </template>
+            </ShowRow>
           </li>
         </ul>
         <button

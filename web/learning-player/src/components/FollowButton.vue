@@ -23,14 +23,19 @@ withDefaults(
     /** Signed out: the tap routes to sign-in (label says so, no pressed state asserted). */
     gated?: boolean
     /**
-     * `inline` = header pill; `overlay` = the smaller, plated pill that reads over artwork.
+     * `inline` = header pill; `overlay` = the smaller, plated pill that reads over artwork;
+     * `icon` = a 32px circle carrying only ✓ / +, the same shape and size as FavoriteButton.
+     *
+     * `icon` exists for action ROWS under a 128px artwork column, where EpisodeCard fits three
+     * controls precisely because they are all circles. A 91px labelled pill plus a 32px heart
+     * overflows that column and wraps, stranding the heart on a second line (operator 2026-09-17).
      *
      * `overlay` sets the LOOK only. It used to hard-code `absolute right-1.5 top-1.5` as well,
      * which made the button decide where it lived and left no way to put anything beside or under
      * it — the host now positions it, so ShowTile can stack Follow and the heart into one
-     * right-aligned column (operator 2026-09-17).
+     * right-aligned column.
      */
-    variant?: "inline" | "overlay"
+    variant?: "inline" | "overlay" | "icon"
   }>(),
   { busy: false, gated: false, variant: "inline" }
 )
@@ -44,21 +49,32 @@ const { t } = useI18n()
     data-testid="follow-show"
     class="inline-flex shrink-0 items-center gap-1 rounded-full font-bold transition disabled:opacity-50"
     :class="[
-      variant === 'overlay' ? 'h-7 px-2 text-[0.65rem] shadow-lg backdrop-blur' : 'px-3 py-1 text-xs',
+      variant === 'overlay'
+        ? 'h-7 px-2 text-[0.65rem] shadow-lg backdrop-blur'
+        : variant === 'icon'
+        ? 'lp-tap h-8 w-8 justify-center border border-border text-base'
+        : 'px-3 py-1 text-xs',
       following
         ? 'bg-accent text-accent-foreground'
         : variant === 'overlay'
         ? 'bg-canvas/80 text-canvas-foreground hover:bg-canvas'
+        : variant === 'icon'
+        ? 'text-canvas-foreground hover:bg-overlay'
         : 'bg-overlay text-canvas-foreground hover:bg-elevated',
     ]"
     :aria-pressed="gated ? undefined : following"
     :aria-label="
       gated ? t('auth.signInToFollow') : following ? t('podcast.following') : t('podcast.follow')
     "
+    :title="following ? t('podcast.following') : t('podcast.follow')"
     :disabled="busy"
     @click.prevent.stop="$emit('toggle')"
   >
     <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-    {{ following ? t("podcast.following") : t("podcast.follow") }}
+    <!-- The label is the whole control in the labelled variants and pure noise in `icon`, where the
+         glyph plus the accessible name carry it. -->
+    <template v-if="variant !== 'icon'">{{
+      following ? t("podcast.following") : t("podcast.follow")
+    }}</template>
   </button>
 </template>

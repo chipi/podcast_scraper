@@ -80,9 +80,15 @@ describe('UXS-014 pattern rules that can be executed', () => {
       if (KNOWN_VIOLATIONS.includes(rel)) continue
       const body = strip(src)
       // A truncate class on the same element as a show/podcast title binding.
+      //
+      // `titleOf(` is in the list because ShowBrowseView's list row truncated a show name for months
+      // and this guard never saw it: the binding reads `titleOf(p)`, so matching only on field names
+      // meant the rule could be evaded by naming (operator 2026-09-17). Match how the title is
+      // RESOLVED as well as where it is stored.
       for (const line of body.split('\n')) {
         if (!line.includes('truncate')) continue
-        if (/podcast_title|show\.title|feed_title/.test(line)) offenders.push(`${rel}: ${line.trim().slice(0, 90)}`)
+        if (/podcast_title|show\.title|feed_title|titleOf\(/.test(line))
+          offenders.push(`${rel}: ${line.trim().slice(0, 90)}`)
       }
     }
     expect(

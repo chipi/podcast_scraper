@@ -35,7 +35,7 @@
  * identity to `opacity-0`, and the text is always in the a11y tree. The rule of thumb is refined: a
  * list card shows a bounded preview by default and reveals the rest on an explicit, reversible tap.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import type { EpisodeSummary } from "../services/types"
@@ -93,15 +93,33 @@ function measureSummary(): void {
   summaryClipped.value = prose.scrollHeight - el.clientHeight > 1
 }
 
-onMounted(() => {
-  measureSummary()
-  if (typeof ResizeObserver !== "undefined" && summaryEl.value) {
-    const ro = new ResizeObserver(() => measureSummary())
-    ro.observe(summaryEl.value)
-    onBeforeUnmount(() => ro.disconnect())
-  }
-})
-watch(() => props.episode.summary_text, () => void nextTick(measureSummary))
+// Observe the window WHENEVER IT APPEARS, not once at mount. The window is behind
+// `v-if="summaryFull"`, so a card whose text arrives in a SECOND render — after the element the
+// mount-time guard looked for was absent — got no observer at all, and then only the `watch` below
+// as a single chance to measure. That chance is lost if the row is in a hidden tab panel at that
+// instant, leaving the safe `true` default stuck and a "Read more" on prose that fits.
+//
+// EpisodeCard's own data happens to arrive complete today, so this was latent here and live in
+// ShowRow (operator 2026-09-17). Both carry the identical measurement, so both carry the identical
+// fix — mirroring the accident instead is what produced a wrong diagnosis. `immediate: true` makes
+// this a strict superset of `onMounted`; `flush: 'post'` guarantees the DOM exists; ResizeObserver's
+// initial callback delivers the first size and it fires again across `display: none` → visible.
+//
+// `onBeforeUnmount` stays at setup top level — Vue does not set `currentInstance` for watcher
+// callbacks, so registering it inside would warn and not bind.
+let ro: ResizeObserver | null = null
+watch(
+  summaryEl,
+  (el) => {
+    ro?.disconnect()
+    ro = null
+    if (!el || typeof ResizeObserver === "undefined") return
+    ro = new ResizeObserver(() => measureSummary())
+    ro.observe(el)
+  },
+  { flush: "post", immediate: true }
+)
+onBeforeUnmount(() => ro?.disconnect())
 
 // "Read more" only when the text is ACTUALLY cut off — the summary now fills the artwork column
 // rather than a fixed line count, so on a short summary nothing is clipped and the toggle would be

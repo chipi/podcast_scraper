@@ -320,16 +320,19 @@ describe('LibraryView', () => {
     await tabButton(w, 'Following').trigger('click')
     await flushPromises()
 
-    const grid = () => w.find('[data-testid="library-shows-grid"]')
-    expect(grid().findAll('li')).toHaveLength(6)
+    // A LIST of shared `ShowRow`s now, not a tile grid (operator 2026-09-17) — Following is a column
+    // of lists, so a block of tiles among them broke the column. The capping behaviour under test is
+    // unchanged; only the container it applies to is.
+    const list = () => w.find('[data-testid="library-shows-list"]')
+    expect(list().findAll('li')).toHaveLength(6)
     await w.find('[data-testid="show-all-toggle"]').trigger('click')
-    expect(grid().findAll('li')).toHaveLength(9)
+    expect(list().findAll('li')).toHaveLength(9)
 
     // Only the active tab mounts its SavedFilterBar, so the shared `saved-search` testid is
     // unambiguous here (Following tab active).
     await w.find('[data-testid="saved-search"]').setValue('science')
     await flushPromises()
-    expect(grid().findAll('li')).toHaveLength(1)
+    expect(list().findAll('li')).toHaveLength(1)
     expect(w.text()).toContain('Unique Science Weekly')
   })
 

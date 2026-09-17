@@ -205,6 +205,16 @@ Two components, and the choice is not stylistic:
   player, top-aligned, with a `#trailing` slot for a row action. It is the one idiom for the dense
   episode lists inside a card or sheet (the entity card, the storyline sheet, the Knowledge Panel's
   "More like this"), where the full `EpisodeCard`'s summary column would be noise.
+- **`ShowRow`** is `EpisodeCard`'s shape with a show's content — 128px artwork with the episode count
+  and the surface's controls beneath it, the name and description filling the right. It is the one
+  show row: Discover → Shows (list view) and Library → Saved both render it, differing only through
+  its `#actions` slot.
+
+  **A show and an episode are the same kind of thing to a reader** — cover art, a name, a line about
+  it, something to open — so a list of shows must not read as a different species from the list of
+  episodes one tab across. It did: Discover used a 44px thumbnail with a title and a count, Library
+  used a bare line of text, and neither resembled the episode rows beside them (operator 2026-09-17).
+  Two representations of one object, both unlike the thing they sat next to.
 
 The browsable lists share one compact control, **`ToolbarMenu`** (operator 2026-09-14): a small
 trigger that opens a vertical option menu with the active choice ticked, replacing native selects and

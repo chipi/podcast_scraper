@@ -21,6 +21,9 @@ import type { FavoriteEntity } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useFollowedShows } from '../composables/useFollowedShows'
+import ShowRow from '../components/ShowRow.vue'
+import FollowButton from '../components/FollowButton.vue'
+import { useSignInGate } from '../composables/useSignInGate'
 import { useInterestsStore } from '../stores/interests'
 import { useSectionState } from '../composables/useSectionState'
 import EpisodeCard from '../components/EpisodeCard.vue'
@@ -193,9 +196,52 @@ const filteredSearches = computed(() =>
 const visibleEpisodes = computed(() =>
   savedCaps.visible('episodes', filteredEpisodes.value, savedSearchActive.value),
 )
-const visibleEntities = computed(() =>
-  savedCaps.visible('entities', filteredEntities.value, savedSearchActive.value),
-)
+/**
+ * Saved entities, split ONE SECTION PER KIND (operator 2026-09-17).
+ *
+ * They used to share a single "Shows, topics & people" list where every row opened with a kind
+ * kicker — a mix that reads as one heap of unlike things, and made a saved SHOW a 48px line of text
+ * on the one hand and a 176px artwork tile over in Following on the other.
+ *
+ * Split, each kind can be presented as itself: shows get artwork like every other show surface,
+ * while topics / storylines / people stay as text rows, which is all they have.
+ */
+const savedByKind = (kind: string) => computed(() => filteredEntities.value.filter((e) => e.kind === kind))
+const savedShowEntities = savedByKind('show')
+const savedTopicEntities = savedByKind('topic')
+const savedStorylineEntities = savedByKind('storyline')
+const savedPersonEntities = savedByKind('person')
+
+/**
+ * Saved shows resolved to full catalogue records, so the section can render the SAME row Discover's
+ * Shows list uses — 44px artwork, title, episode count — rather than a bare label. A show that has
+ * left the corpus still renders from its saved label instead of vanishing, the same fallback
+ * `useFollowedShows` makes.
+ */
+/**
+ * The non-show kinds, in the order they render: topics, then storylines, then PEOPLE LAST
+ * (operator 2026-09-17). Shows are not here — they render above Episodes with artwork.
+ */
+const savedEntityGroups = computed(() => [
+  { kind: 'topic', labelKey: 'library.savedTypeTopics', items: savedTopicEntities.value },
+  { kind: 'storyline', labelKey: 'library.savedTypeStorylines', items: savedStorylineEntities.value },
+  { kind: 'person', labelKey: 'library.savedTypePeople', items: savedPersonEntities.value },
+])
+
+const savedShowPodcasts = computed(() => {
+  const byId = new Map(catalogue.value.map((p) => [p.feed_id, p]))
+  return savedShowEntities.value.map((e) => ({
+    entity: e,
+    show: byId.get(e.ref) ?? {
+      feed_id: e.ref,
+      title: e.label,
+      artwork_url: null,
+      image_url: null,
+      description: null,
+      episode_count: 0,
+    },
+  }))
+})
 
 /** Colour- + search-filtered highlight count, so the Highlights section hides when empty. */
 const visibleHighlightCount = computed(
@@ -246,7 +292,29 @@ const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initialTab) ? (initialTab 
 
 // Followed shows — the same derivation Home's "Your shows" rail uses (shared so they can't drift).
 // Section-state so a catalogue/library outage renders error+retry, never a fake "you follow nothing".
-const { shows: followedShows, suggested: suggestedShows, load: loadFollows } = useFollowedShows()
+const {
+  shows: followedShows,
+  suggested: suggestedShows,
+  load: loadFollows,
+  catalogue,
+} = useFollowedShows()
+
+// Unfollowing from the Following list. `ShowTile` owned this internally; `ShowRow` takes its
+// controls from the host, so the host owns the toggle. `gated()` wraps a ZERO-argument action, so
+// the row is closed over per call rather than passed through it.
+const library = useLibraryStore()
+const { isGated, gated } = useSignInGate()
+const busyFollow = ref<string | null>(null)
+function toggleFollow(p: { feed_id: string; title?: string | null }): void {
+  gated(async () => {
+    busyFollow.value = p.feed_id
+    try {
+      await library.toggle(p.feed_id, { title: p.title ?? p.feed_id })
+    } finally {
+      busyFollow.value = null
+    }
+  })()
+}
 
 /**
  * The Following tab's own filter bar (#2042 follow-up) — same shape as Saved's, minus colour:
@@ -367,7 +435,17 @@ onMounted(async () => {
 
     <!-- Following — everything you follow: shows (feeds) plus the topics / people / storylines you
          followed via +. The follow-management home: Home's "See all N shows →" deep-links here
-         (?tab=shows). Sectioned by kind, like Saved. -->
+         (?tab=shows). Sectioned by kind, like Saved.
+
+         `v-show`, so the panel keeps its scroll position and expanded rows across tab switches.
+
+         This was briefly `v-if` to fix a "Read more" that appeared on one-line show descriptions.
+         That was the wrong diagnosis: mounting under `display: none` is harmless on its own, because
+         ResizeObserver fires across `display: none` → visible. The real fault was in ShowRow, which
+         attached its observer in `onMounted` and so attached NOTHING when its two-phase `show` prop
+         had no description on the first render. `v-if` only masked it by delaying mount until both
+         stores had loaded — and it did nothing for the identical rows in the Saved panel. Fixed in
+         the component; this stays `v-show`. -->
     <div v-show="tab === 'shows'" v-bind="panelAttrs('library', 'shows')">
       <!-- Following's own filter bar (search + type + sort), same shape as Saved's minus colour. -->
       <SavedFilterBar
@@ -406,14 +484,32 @@ onMounted(async () => {
           >{{ t('library.showsBrowse') }}</RouterLink>
         </div>
         <template v-else-if="followedShows.length">
-          <!-- Same 3/4 as every other show grid. This briefly ran at six columns to force a 176px
-               tile out of Library's wider container — arithmetic compensating for a container
-               mismatch. The container matches now, so the honest grid comes back. -->
-          <ul
-            class="grid grid-cols-3 gap-3 sm:grid-cols-4"
-            data-testid="library-shows-grid"
-          >
-            <li v-for="p in visibleShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
+          <!-- The shared ShowRow, not a tile grid (operator 2026-09-17) — the third surface to take
+               it, after Discover → Shows and Library → Saved. Following is a column of lists
+               (shows, topics, storylines, people), so a block of tiles in the middle of them broke
+               that column; the row keeps the section reading as one more list and shows the
+               description, which a tile has no room for. -->
+          <ul class="flex flex-col" data-testid="library-shows-list">
+            <li v-for="p in visibleShows" :key="p.feed_id">
+              <ShowRow :show="p">
+                <template #actions>
+                  <!-- Circles, like the episode card's row: two 32px controls fit the 128px column
+                       in ONE line, where a labelled pill plus the heart wrapped. -->
+                  <div class="flex items-center gap-3">
+                    <FollowButton
+                      variant="icon"
+                      :following="library.has(p.feed_id)"
+                      :busy="busyFollow === p.feed_id"
+                      :gated="isGated"
+                      @toggle="toggleFollow(p)"
+                    />
+                    <FavoriteButton
+                      :item="{ kind: 'show', ref: p.feed_id, label: p.title ?? p.feed_id }"
+                    />
+                  </div>
+                </template>
+              </ShowRow>
+            </li>
           </ul>
           <ShowAllToggle
             v-if="followingCaps.overflows(filteredShows.length, followingSearchActive)"
@@ -488,6 +584,39 @@ onMounted(async () => {
         <!-- Downloaded (#1905) — device-local, native only, renders with no API calls. -->
         <DownloadedList />
 
+        <!-- SHOWS lead the saved content, before episodes (operator 2026-09-17), as a list row with
+             44px artwork — the shape Discover's Shows LIST uses.
+
+             A tile grid was tried and rejected here: Saved is a column of lists (searches, episodes,
+             topics, storylines, people), and a block of artwork tiles in the middle of them breaks
+             that column. The row keeps the section reading as one more list while still showing the
+             cover, which is how a show is actually recognised. -->
+        <section v-if="savedShowPodcasts.length" class="mb-6">
+          <h2 class="lp-section mb-2">
+            {{ t('library.savedTypeShows') }}
+            <span class="lp-kicker ml-1 font-normal">{{ savedShowPodcasts.length }}</span>
+          </h2>
+          <ul class="flex flex-col" data-testid="saved-shows-list">
+            <li
+              v-for="{ entity, show } in savedShowPodcasts"
+              :key="show.feed_id"
+              data-testid="saved-entity"
+            >
+              <ShowRow :show="show">
+                <template #actions>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <SavedColorControl
+                      :color="entity.color"
+                      @pick="favorites.setColor('show', entity.ref, $event)"
+                    />
+                    <FavoriteButton :item="{ kind: 'show', ref: entity.ref, label: entity.label }" />
+                  </div>
+                </template>
+              </ShowRow>
+            </li>
+          </ul>
+        </section>
+
         <!-- Episodes — each carries the shared colour control (phase B) in the card's action row.
              Capped to the top N with "Show all" (#2042 follow-up); search lifts the cap. -->
         <section v-if="typeVisible('episodes') && filteredEpisodes.length" class="mb-6">
@@ -517,38 +646,36 @@ onMounted(async () => {
             @toggle="savedCaps.toggle('episodes')"
           />
         </section>
-        <!-- Saved shows / topics / people / storylines (F2.2) — entity favorites, distinct from
-             followed interests. Type-filtered per kind inside `filteredEntities`. -->
-        <section v-if="filteredEntities.length" class="mb-6">
-          <h2 class="lp-section mb-2">
-            {{ t('library.savedEntities') }}
-            <span class="lp-kicker ml-1 font-normal">{{ filteredEntities.length }}</span>
-          </h2>
-          <ul class="flex flex-col">
-            <li
-              v-for="e in visibleEntities"
-              :key="e.kind + ':' + e.ref"
-              class="flex items-center gap-2 border-b border-border py-2"
-              data-testid="saved-entity"
-            >
-              <span class="lp-kicker shrink-0 capitalize">{{ e.kind }}</span>
-              <RouterLink
-                v-if="entityRoute(e)"
-                :to="entityRoute(e)!"
-                class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
-              >{{ e.label }}</RouterLink>
-              <span v-else class="min-w-0 flex-1 truncate text-sm font-semibold">{{ e.label }}</span>
-              <SavedColorControl :color="e.color" @pick="favorites.setColor(e.kind, e.ref, $event)" />
-              <FavoriteButton :item="{ kind: e.kind, ref: e.ref, label: e.label }" />
-            </li>
-          </ul>
-          <ShowAllToggle
-            v-if="savedCaps.overflows(filteredEntities.length, savedSearchActive)"
-            :expanded="savedCaps.expanded.has('entities')"
-            :count="filteredEntities.length"
-            @toggle="savedCaps.toggle('entities')"
-          />
-        </section>
+        <!-- Topics, then storylines, then people — each its own section (operator 2026-09-17).
+             These three carry no imagery, so they stay text rows; only the heading changes, which is
+             the point: the kind is named once at the top instead of on every row. -->
+        <!-- `<template v-for>` with the v-if INSIDE: in Vue 3 `v-if` wins on the same element and
+             would be evaluated before `grp` exists. -->
+        <template v-for="grp in savedEntityGroups" :key="grp.kind">
+          <section v-if="grp.items.length" class="mb-6">
+            <h2 class="lp-section mb-2">
+              {{ t(grp.labelKey) }}
+              <span class="lp-kicker ml-1 font-normal">{{ grp.items.length }}</span>
+            </h2>
+            <ul class="flex flex-col">
+              <li
+                v-for="e in grp.items"
+                :key="e.kind + ':' + e.ref"
+                class="flex items-center gap-2 border-b border-border py-2"
+                data-testid="saved-entity"
+              >
+                <RouterLink
+                  v-if="entityRoute(e)"
+                  :to="entityRoute(e)!"
+                  class="min-w-0 flex-1 truncate text-sm font-semibold text-canvas-foreground no-underline"
+                >{{ e.label }}</RouterLink>
+                <span v-else class="min-w-0 flex-1 truncate text-sm font-semibold">{{ e.label }}</span>
+                <SavedColorControl :color="e.color" @pick="favorites.setColor(e.kind, e.ref, $event)" />
+                <FavoriteButton :item="{ kind: e.kind, ref: e.ref, label: e.label }" />
+              </li>
+            </ul>
+          </section>
+        </template>
         <!-- Insights are NOT favorites — they save via the highlights path and render in the
              Highlights section below (RFC-121 / #1593). -->
         <!-- Highlights — captured moments / spans / saved insights, grouped by episode, with notes.
