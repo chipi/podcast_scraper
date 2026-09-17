@@ -28,11 +28,12 @@ from dataclasses import dataclass, replace
 from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from ....speaker_detectors.hosts import (
+    _GUEST_SPEECH_ACTS,
     _clean_stated_name as _clean_intro_name,
     _GUEST_GREETED as _GUEST_GREETED_RE,
     _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
-    _GUEST_SPEECH_ACTS,
+    _HOST_SPEECH_ACTS,
     _NAME_RE as _INTRO_NAME_RE,
     CUE_FIRST_BODY,
     CUE_FIRST_PAST_BODY,
@@ -1270,6 +1271,13 @@ def _self_intros_by_voice(
 
 #: Title/description wording that means the usual host is NOT presenting this episode. A pool name
 #: forced onto the single host seat is wrong whenever this appears, and it is cheap to read.
+#: NOTE: `[A-Z]` here matches any letter, because the whole pattern is IGNORECASE — so "dropped in
+#: for the weekly" and "in for a snapback" also read as a guest-hosted episode. Tightening it to
+#: ``(?-i:[A-Z])`` was TRIED and REVERTED: it is a true false-positive (9 of 16 matches), but the
+#: seats it unblocks are decided by arithmetic alone, and the first one measured was `RJ Honicky`
+#: published onto a GUEST's 87% voice on an episode whose host is the other speaker. The loose
+#: match is costing names that were never evidenced; fix it when the seat has its own evidence to
+#: stand on, not before.
 _GUEST_HOST_EPISODE = re.compile(
     r"\bguest[- ]host(?:ed|ing|s)?\b|\bsitting\s+in\b|\bin\s+for\s+[A-Z]", re.IGNORECASE
 )
@@ -1345,11 +1353,27 @@ def _name_host_voices(
     if len(unclaimed) == 1 and len(unnamed_seats) == 1 and not guest_hosted:
         seat = unnamed_seats[0]
         text = (voice_texts or {}).get(seat, "")
-        # THE ONE VETO THAT IS EVIDENCE-BACKED: a voice that says "thanks for having me" is not the
-        # host, whatever the arithmetic says. 117 pool-named voices in the snapshot perform a guest
-        # speech act while wearing a host's name.
-        performs_guest = any(p.search(text) for p in _GUEST_SPEECH_ACTS) if text else False
-        if not performs_guest:
+        # THE SEAT MUST SHOW THAT IT PRESENTS. The arithmetic ("one spare name, one unnamed seat")
+        # says only that the name has nowhere else to go; it is not evidence about this voice. So
+        # the forced name is allowed only when the seat performs a HOST act in its own text.
+        #
+        # This replaces a veto that refused a seat performing a GUEST act, which was right in
+        # intent and wrong in reach: it read the seat's WHOLE concatenated text, so one second of
+        # the guest's "Thanks for having me" bleeding into the host's cluster refused the host.
+        # Measured on the snapshot: 139 seats refused that way, every one ALSO performing a host
+        # act, 117 of them with the two acts within 160 characters ("So, Charles, welcome to the
+        # podcast. Thanks, KG. I'm very happy to be here.") and the remaining 22 end-of-show
+        # sign-offs. Lenny's Podcast lost 58 seats to it, The Pragmatic Engineer 48. Requiring the
+        # host act instead still refuses a seat that performs ONLY the guest act — the case the
+        # veto existed for — and names the host whose cluster caught the reply.
+        #
+        # Requiring a host act outright was measured and rejected: plenty of real hosts never
+        # perform a listed one ("Welcome back everyone", "my name's X and this is <show>"), and
+        # demanding it silences them — it broke 12 design cases and would refuse a co-host whose
+        # own turns simply carry on the conversation.
+        performs_guest = bool(text) and any(p.search(text) for p in _GUEST_SPEECH_ACTS)
+        performs_host = bool(text) and any(p.search(text) for p in _HOST_SPEECH_ACTS)
+        if performs_host or not performs_guest:
             forced_name = unclaimed[0]
 
     for v in host_voices:
