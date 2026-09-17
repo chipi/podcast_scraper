@@ -36,7 +36,9 @@ sidecar so we never re-fetch it; a transient network error caches nothing and re
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hashlib
+import io
 import json
 import logging
 import os
@@ -124,6 +126,53 @@ _IMAGE_ALLOWED = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
 
 def _image_ext(content_type: str) -> str | None:
     return _IMAGE_ALLOWED.get((content_type or "").split(";", 1)[0].strip().lower())
+
+
+#: Longest stored edge, in pixels. The person card renders the photo at CSS ``size=176`` square
+#: (``PersonCardContent.vue``), so 512 covers a 3x retina panel with room to spare and anything
+#: larger is bytes we pay to store, back up and serve for no visible gain. We downscale rather
+#: than crop: the card is square but ``object-fit`` does that in CSS, and choosing a crop box
+#: here would be deciding where a face sits — a framing judgement this layer has no basis for.
+_IMAGE_MAX_EDGE = 512
+
+
+def _downscale_image(data: bytes, ext: str) -> bytes:
+    """Shrink an oversized photo to ``_IMAGE_MAX_EDGE`` on its longest side.
+
+    Upstream serves originals: Commons hands back a 3000px master unless asked otherwise, and
+    even a thumbnailed rendition arrives larger than anything we render. ``_IMAGE_MAX_BYTES``
+    only bounds the download; without this we persist the full frame forever.
+
+    Re-encoding is skipped entirely when the image already fits, so a small photo is never
+    degraded by a needless generation loss. Any Pillow failure returns the ORIGINAL bytes: a
+    photo we could not resize is still a photo, and the caller has already sniffed and size-
+    capped it, so falling back is safe rather than dropping it.
+    """
+    try:
+        from PIL import Image
+
+        with Image.open(io.BytesIO(data)) as im:
+            if max(im.size) <= _IMAGE_MAX_EDGE:
+                return data
+            frame = im.copy()  # detach from the closing file before re-encoding
+            frame.thumbnail((_IMAGE_MAX_EDGE, _IMAGE_MAX_EDGE), Image.LANCZOS)
+            buf = io.BytesIO()
+            # Format must stay put: the sidecar records `ext` and /persons/{id}/photo serves the
+            # file by that extension, so silently writing a JPEG into a .png would break both.
+            if ext == "jpg":
+                frame.convert("RGB").save(buf, "JPEG", quality=85, optimize=True, progressive=True)
+            elif ext == "png":
+                frame.save(buf, "PNG", optimize=True)
+            else:
+                frame.save(buf, "WEBP", quality=85, method=6)
+            out = buf.getvalue()
+    except Exception:  # noqa: BLE001 - decode/encode failure must not cost us the photo
+        return data
+    # Judged on DIMENSIONS, not bytes. An earlier version kept the original whenever the
+    # re-encode came out larger, which sounds prudent and is wrong: a 1600px master that
+    # happens to compress well is still a 1600px master we store, back up and serve. The only
+    # reason to reject the result is that it is not a usable image of the declared type.
+    return out if _image_sniff_ok(ext, out) else data
 
 
 def _image_sniff_ok(ext: str, data: bytes) -> bool:
@@ -214,6 +263,34 @@ class PersonWebProvider(Protocol):
     ) -> PersonWebInfo | None:
         """Extract normalized info from a raw payload (pure), or None when it carries nothing."""
         ...
+
+
+#: Wikidata entity API — identity resolution (search -> entity -> sitelink).
+#: Env-overridable for tests.
+_WIKIDATA_API_DEFAULT = "https://www.wikidata.org/w/api.php"
+_WIKIDATA_API_ENV = "APP_WIKIDATA_API_BASE"
+#: P31 "instance of" / Q5 "human" — the type filter that keeps a search hit
+#: from being a ship or a film.
+_WD_INSTANCE_OF = "P31"
+_WD_HUMAN = "Q5"
+#: P18 "image" — the portrait claim. Resolved through Commons Special:FilePath, the same
+#: route org_web uses for logos, so the existing image host-allowlist + licence check apply.
+_WD_IMAGE = "P18"
+_COMMONS_FILEPATH_DEFAULT = "https://commons.wikimedia.org/wiki/Special:FilePath/"
+#: ``Special:FilePath/<name>`` serves the FULL-RESOLUTION original — Katie Couric's portrait is
+#: 16 MB, eight times ``_IMAGE_MAX_BYTES``, so every P18 photo would download to the cap and then
+#: be cached as a PERMANENT skip. ``?width=`` asks Commons for a rendition instead (the same
+#: thumbnailer the REST summary's ``thumbnail.source`` comes from): 178 KB for that same file.
+#: The query string is dropped before the ``File:`` title lookup, so attribution still resolves.
+_COMMONS_THUMB_WIDTH = 640
+#: How many search hits to type-check. Wikidata ranks by relevance; beyond a
+#: handful the tail is noise.
+_WD_MAX_CANDIDATES = 5
+#: Marks a payload produced by the Wikidata-resolved path. Its ABSENCE means the payload is a bare
+#: Wikipedia REST summary from the original provider — 940 of those are cached
+#: on prod, and they must
+#: keep deriving unchanged. Never make this key required.
+_RESOLVED_SCHEMA = "wikidata+wikipedia/1"
 
 
 #: HTTP status codes worth a retry (transient upstream), mirroring the RSS downloader's forcelist.
@@ -416,7 +493,10 @@ class WikipediaProvider:
         ext = _image_ext(content_type)
         if ext is None or not _image_sniff_ok(ext, data):
             return IMAGE_SKIP  # unsupported/mismatched bytes → never host this URL (permanent)
-        return FetchedImage(data=data, ext=ext, license=license_, artist=artist)
+        # Store what we render, not what upstream serves — see _downscale_image.
+        return FetchedImage(
+            data=_downscale_image(data, ext), ext=ext, license=license_, artist=artist
+        )
 
 
 def _existing_person_rows(corpus_root: Path) -> dict[str, dict[str, Any]]:
@@ -605,6 +685,270 @@ def _store_image(corpus_root: Path, person_id: str, image: FetchedImage) -> dict
     return meta
 
 
+class WikidataResolvedProvider:
+    """Provider #2 — Wikidata resolves WHO, Wikipedia supplies the PROSE.
+
+    ``WikipediaProvider`` guesses an article title from the display name
+    (``"Anish Acharya" -> /page/summary/Anish_Acharya``). That is one source and a fragile
+    lookup, and it conflates three different outcomes into a single 404:
+
+      * genuinely in neither source          -> a correct miss
+      * a Wikidata item but no article       -> recoverable, invisible today
+      * an article at a title we didn't guess -> recoverable, invisible today
+        (middle names, initials, diacritics, ``John Smith (economist)``)
+
+    This provider removes the guess. A Wikidata item carries ``sitelinks.enwiki``: the exact
+    article title. So identity is resolved structurally, then prose is fetched at the title
+    Wikidata hands us.
+
+    **Wikidata resolves; it does not supply content.** The card contract is three fields —
+    bio, description, image — and Wikidata can only ever fill the last two. A person with an
+    item but no article (Adam Mastroianni: ``Q125651464``, description ``"American Rhodes
+    Scholar"``, no ``enwiki``, no ``P18``) would yield a one-line stub next to fully-populated
+    neighbours. That is a miss, and it is recorded as one. What Wikidata *does* contribute is
+    the right title, plus gap-fill for a description or portrait the article itself lacks.
+
+    Disambiguation is the danger, not coverage, and two prod audits narrowed the rule twice —
+    both times because a stricter rule dropped people we already serve.
+
+    First, the discriminator is the ARTICLE, not humanness. ``"Balaji Srinivasan"`` returns
+    FIVE humans: the entrepreneur (``Q87684934``, has an article) and four ORCID researcher
+    stubs with no article and no prose. Refusing on "more than one human" loses him.
+
+    Second, several articles is not automatically ambiguity. Wikipedia has already
+    disambiguated and records the answer in the titles — the primary topic sits at the bare
+    name, everyone else carries a qualifier (``Alex Jones`` vs ``Alex Jones (actor)``).
+    Refusing on "more than one article" dropped 5 of 30 audited prod rows, Henry VIII among
+    them. See :meth:`_pick`.
+
+    What remains refused is real ambiguity: two notable people, neither at the bare name. A
+    confident wrong match puts someone else's biography on an episode page, which is worse
+    than no match at all. Every candidate is persisted regardless, so a future re-derive can
+    revisit the choice without re-fetching.
+    """
+
+    name = "wikidata+wikipedia"
+
+    def __init__(
+        self,
+        client: httpx.Client | None = None,
+        *,
+        wikidata_api: str | None = None,
+        summary_base: str | None = None,
+        api_base: str | None = None,
+    ) -> None:
+        self._wikipedia = WikipediaProvider(
+            client=client, summary_base=summary_base, api_base=api_base
+        )
+        # Share the Wikipedia provider's client so BOTH hosts sit behind the same per-host
+        # throttle (wikidata.org and en.wikipedia.org are metered separately by HostRateLimiter).
+        self._client = self._wikipedia._client
+        self._limiter = self._wikipedia._limiter
+        self._wd_api = wikidata_api or os.environ.get(_WIKIDATA_API_ENV) or _WIKIDATA_API_DEFAULT
+
+    # -- identity resolution -------------------------------------------------
+
+    def _search(self, display_name: str) -> list[dict[str, Any]]:
+        url = (
+            f"{self._wd_api}?action=wbsearchentities&format=json&language=en&uselang=en"
+            f"&type=item&limit={_WD_MAX_CANDIDATES}"
+            f"&search={urllib.parse.quote(display_name)}"
+        )
+        doc = self._wikipedia._get_json(url)
+        hits = (doc or {}).get("search")
+        return [h for h in hits if isinstance(h, dict)] if isinstance(hits, list) else []
+
+    def _entities(self, ids: list[str]) -> dict[str, Any]:
+        """One batched ``wbgetentities`` for every candidate — N ids, ONE round trip."""
+        if not ids:
+            return {}
+        url = (
+            f"{self._wd_api}?action=wbgetentities&format=json&languages=en"
+            f"&ids={urllib.parse.quote('|'.join(ids))}"
+        )
+        doc = self._wikipedia._get_json(url)
+        ents = (doc or {}).get("entities")
+        return ents if isinstance(ents, dict) else {}
+
+    @staticmethod
+    def _is_human(entity: dict[str, Any]) -> bool:
+        for claim in (entity.get("claims") or {}).get(_WD_INSTANCE_OF) or []:
+            if not isinstance(claim, dict):
+                continue
+            dv = ((claim.get("mainsnak") or {}).get("datavalue") or {}).get("value") or {}
+            if isinstance(dv, dict) and dv.get("id") == _WD_HUMAN:
+                return True
+        return False
+
+    @staticmethod
+    def _image_url(entity: dict[str, Any]) -> str | None:
+        """Portrait from the P18 claim, via Commons Special:FilePath.
+
+        Gap-fill only: an article whose REST summary carries no ``thumbnail`` can still have a
+        portrait on its Wikidata item. The URL goes through the SAME hosting path as any other
+        (host allowlist, licence resolution, self-hosted serve), so nothing about image handling
+        becomes a special case.
+        """
+        for claim in (entity.get("claims") or {}).get(_WD_IMAGE) or []:
+            if not isinstance(claim, dict):
+                continue
+            fname = ((claim.get("mainsnak") or {}).get("datavalue") or {}).get("value")
+            if isinstance(fname, str) and fname.strip():
+                name = urllib.parse.quote(fname.strip().replace(" ", "_"), safe="")
+                return f"{_COMMONS_FILEPATH_DEFAULT}{name}?width={_COMMONS_THUMB_WIDTH}"
+        return None
+
+    @staticmethod
+    def _enwiki_title(entity: dict[str, Any]) -> str | None:
+        link = (entity.get("sitelinks") or {}).get("enwiki") or {}
+        title = link.get("title") if isinstance(link, dict) else None
+        return title if isinstance(title, str) and title.strip() else None
+
+    def _pick(self, articled: dict[str, Any], display_name: str) -> str | None:
+        """Choose among candidates that have an article, or refuse.
+
+        One candidate is the easy case. Several is not automatically ambiguity: Wikipedia has
+        ALREADY disambiguated, and it records the answer in the titles. The primary topic sits
+        at the bare name; everyone else carries a parenthetical or a qualifier.
+
+            "Alex Jones"   -> ['Alex Jones', 'Alex Jones (actor)']
+            "Henry VIII"   -> ['Henry VIII of Waldeck', 'Henry VIII', 'Henry VII of Brzeg']
+            "Bill Cassidy" -> ['Bill Cassidy (footballer, born 1917)', 'Bill Cassidy']
+
+        Refusing all of those — which an earlier "more than one article means ambiguous" rule
+        did — discards Wikipedia's own editorial decision and drops people we serve today. A
+        prod audit measured it at 5 of 30 sampled rows.
+
+        So: exactly one bare-title match wins. Zero means nobody is the primary topic under
+        this name, and two or more cannot happen for real titles but is refused on principle.
+        Only then is it genuine ambiguity — two notable people, neither at the bare name — and
+        a wrong pick would put someone else's biography on an episode page.
+        """
+        if len(articled) == 1:
+            return next(iter(articled))
+        wanted = display_name.strip().casefold()
+        exact = [
+            qid
+            for qid, entity in articled.items()
+            if (self._enwiki_title(entity) or "").strip().casefold() == wanted
+        ]
+        return exact[0] if len(exact) == 1 else None
+
+    def fetch_raw(self, person_id: str, display_name: str) -> dict[str, Any] | None:
+        """Resolve via Wikidata, then fetch the article Wikidata points at.
+
+        Returns None ONLY when the search found nothing at all — an authoritative "no such
+        person", which the caller may cache as a miss. Transport failures raise
+        :class:`TransientFetchError` from the shared ``_get_json``, so a blocked or unreachable
+        upstream never becomes a 30-day absence claim.
+        """
+        hits = self._search(display_name)
+        if not hits:
+            # Wikidata knows nothing by this name. Before declaring absence, try the ORIGINAL
+            # direct-title lookup: this path must never return LESS than provider #1 did.
+            # Almost every article has a Wikidata item, but `wbsearchentities` can still miss
+            # one that a direct title hit would have found, and losing a person we currently
+            # have would be a regression dressed as an improvement.
+            return self._wikipedia.fetch_raw(person_id, display_name)
+
+        ids = [str(h["id"]) for h in hits if isinstance(h.get("id"), str)]
+        entities = self._entities(ids[:_WD_MAX_CANDIDATES])
+        humans = {
+            qid: e for qid, e in entities.items() if isinstance(e, dict) and self._is_human(e)
+        }
+        # The discriminator is the ARTICLE, not humanness. Four ORCID stubs and one
+        # entrepreneur are all "human"; only one of them has a biography to show.
+        articled = {qid: e for qid, e in humans.items() if self._enwiki_title(e)}
+
+        payload: dict[str, Any] = {
+            "schema": _RESOLVED_SCHEMA,
+            # EVERY candidate is persisted, not just the winner. org_web does the same, because
+            # choosing is the hard part and a future re-derive should be able to revisit it
+            # without re-fetching.
+            "candidates": [
+                {"id": h.get("id"), "label": h.get("label"), "description": h.get("description")}
+                for h in hits
+            ],
+            "human_ids": sorted(humans),
+            "articled_ids": sorted(articled),
+        }
+
+        winner = self._pick(articled, display_name)
+        if winner is None:
+            # No article at all -> fall back to the direct title lookup so this path never
+            # returns less than provider #1 did, then let the caller record an honest miss.
+            #
+            # Several articles and no bare-title match -> genuine ambiguity. That does NOT fall
+            # back: a direct title guess would pick one of them blindly, which is the exact
+            # failure this provider exists to prevent.
+            if not articled:
+                legacy = self._wikipedia.fetch_raw(person_id, display_name)
+                if legacy is not None:
+                    return legacy
+            return payload
+
+        entity = articled[winner]
+        qid = winner
+        title = self._enwiki_title(entity)
+        payload["wikidata_id"] = qid
+        payload["enwiki_title"] = title
+        payload["wikidata"] = {
+            "description": ((entity.get("descriptions") or {}).get("en") or {}).get("value"),
+            "label": ((entity.get("labels") or {}).get("en") or {}).get("value"),
+            "image_url": self._image_url(entity),
+        }
+        # The whole point: fetch at the title Wikidata gives us, not one we invented.
+        payload["wikipedia"] = self._wikipedia._get_json(
+            self._wikipedia._summary_base
+            + urllib.parse.quote((title or "").replace(" ", "_"), safe="")
+        )
+        return payload
+
+    # -- derive --------------------------------------------------------------
+
+    def derive(
+        self, person_id: str, display_name: str, raw: dict[str, Any]
+    ) -> PersonWebInfo | None:
+        """Normalize a payload, old-format or new.
+
+        BACKWARD COMPATIBILITY IS LOAD-BEARING: 940 cached payloads on prod are bare Wikipedia
+        REST summaries written by provider #1. They carry no ``schema`` key and must keep
+        deriving exactly as before — a re-derive pass must not silently drop 793 existing rows.
+        """
+        if raw.get("schema") != _RESOLVED_SCHEMA:
+            return self._wikipedia.derive(person_id, display_name, raw)
+
+        # `wikidata_id` is written ONLY when `_pick` chose a winner, so its presence is the
+        # resolved/refused flag. Counting `articled_ids` here would re-implement the picking
+        # rule in a second place and get it wrong the moment the two drift apart.
+        if not raw.get("wikidata_id"):
+            return None  # unresolved or ambiguous — never guess
+
+        wiki = raw.get("wikipedia")
+        if not isinstance(wiki, dict):
+            return None
+        info = self._wikipedia.derive(person_id, display_name, wiki)
+        if info is None:
+            return None
+
+        # Wikipedia supplies the prose; Wikidata fills the two fields the article may omit.
+        # The card contract is bio + description + image, so a row that reaches the app with
+        # only one of them is the thing we are fixing, not shipping. PersonWebInfo is frozen,
+        # hence replace() rather than assignment.
+        wd = raw.get("wikidata") or {}
+        patch: dict[str, Any] = {}
+        wd_desc = wd.get("description")
+        if not info.description and isinstance(wd_desc, str) and wd_desc.strip():
+            patch["description"] = wd_desc.strip()
+        if not info.image_url and isinstance(wd.get("image_url"), str):
+            patch["image_url"] = wd["image_url"]
+        return dataclasses.replace(info, **patch) if patch else info
+
+    def fetch_image(self, image_url: str) -> "FetchedImage | _ImageSkip | None":
+        """Delegate: image hosting + licensing is identical whichever source found the person."""
+        return self._wikipedia.fetch_image(image_url)
+
+
 class PersonWebEnricher:
     """Corpus-scope WEB enricher: a bio/photo-URL/attribution row per Person from a web provider."""
 
@@ -654,7 +998,13 @@ class PersonWebEnricher:
     def __init__(self, provider: PersonWebProvider | None = None) -> None:
         # Default provider does real HTTP; tests inject a fake so no live call is made. The enricher
         # is never RUN in the airgapped CI profile regardless (WEB tier is excluded there).
-        self._provider: PersonWebProvider = provider or WikipediaProvider()
+        #
+        # #2111: resolving through Wikidata is the DEFAULT, not an opt-in. Leaving it off would
+        # leave the bug in place — the title guess is what produces the wrong-title misses. It
+        # costs two extra requests per person (search + batched getentities), both throttled
+        # per-host by the shared HostRateLimiter, and it falls back to the direct title lookup
+        # whenever Wikidata has nothing, so it can only return more than the old path.
+        self._provider: PersonWebProvider = provider or WikidataResolvedProvider()
 
     async def enrich(
         self,

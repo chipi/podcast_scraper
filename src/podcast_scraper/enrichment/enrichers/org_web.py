@@ -32,6 +32,7 @@ from podcast_scraper.archive.backfill import HostRateLimiter
 from podcast_scraper.enrichment.enrichers._loaders import load_kg, nodes_of_type
 from podcast_scraper.enrichment.enrichers.person_web import (
     _build_web_client,
+    _downscale_image,
     _EXT_MEDIA,
     _IMAGE_ALLOWED,
     _image_ext,
@@ -455,7 +456,10 @@ class WikidataProvider:
         ext = _image_ext(content_type)
         if ext is None or not _image_sniff_ok(ext, data):
             return IMAGE_SKIP
-        return FetchedImage(data=data, ext=ext, license=license_, artist=None)
+        # Same storage cap as person photos — a logo master is no more useful to us.
+        return FetchedImage(
+            data=_downscale_image(data, ext), ext=ext, license=license_, artist=None
+        )
 
 
 def _wikidata_year(time_str: str) -> str | None:
