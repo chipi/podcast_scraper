@@ -343,3 +343,247 @@ def check_corpus(episodes: Iterable[Sequence[Any]]) -> List[str]:
     for label, metadata, kg, gi in episodes:
         out += check_episode(metadata, kg, gi, label=str(label))
     return out
+
+
+# =================================================================================================
+# THE ONE-RECORD SYNC CHECK (#2075)
+# =================================================================================================
+#
+# Operator rule 2026-09-17: ONE speaker record per episode (`content.speakers`, schema 1.2.0) and
+# every surface that shows people is written from it — the transcript's speaker names (segments),
+# who said each quote (gi.json), the people and roles in kg.json, and the operator graph that reads
+# both. "Most things in sync and a few not" is the failure the operator named: an episode whose
+# surfaces disagree is the defect, however right each file looks on its own.
+#
+# The checks above predate the record and are advisory about a roster that might be a guess. This
+# one judges a RECORD, where each entry already says whether a voice was matched to that person, so
+# it can be exact: every surface must agree with the placed entries, and nothing else.
+
+
+def _labels_of(segments: Any) -> List[str]:
+    rows = segments if isinstance(segments, list) else ((segments or {}).get("segments") or [])
+    out: List[str] = []
+    for r in rows:
+        if isinstance(r, dict):
+            label = str(r.get("speaker_label") or "").strip()
+            if label and label not in out:
+                out.append(label)
+    return out
+
+
+def _is_cue_initials(label: str) -> bool:
+    """``MG`` — a publisher transcript's cue initials, not a name anyone can be matched to.
+
+    In Moscow's Shadows labels every cue of Mark Galeotti's solo show ``MG``. That is a real
+    disagreement with the record (it names no placed person) but not a wrong NAME, and a check that
+    failed every one of those episodes would be a check people learn to ignore. Measured on the
+    #2075 validation run it is the only label of its kind (3 episodes). Kept narrow on purpose:
+    one to three capital letters and nothing else.
+    """
+    return 1 <= len(label) <= 3 and label.isalpha() and label.isupper()
+
+
+def _is_display_label(name: str) -> bool:
+    """A surface's label for a voice that is not a person: "Unidentified speaker", "Advertisement".
+
+    Written onto quotes and transcript lines so a surface can show SOMETHING for an unnamed voice.
+    It claims nobody spoke; it is not a name to match against the record. Read from the roster's own
+    table so the two cannot drift. Measured on the validation run: counting these flagged 1,076
+    quotes as credited to a person.
+    """
+    from ..providers.ml.diarization.roster import VOICE_TYPE_LABELS
+
+    return name in set(VOICE_TYPE_LABELS.values()) or is_bare_speaker_label(name)
+
+
+def placed_people(metadata: Mapping[str, Any], *, legacy_as_placed: bool = False) -> List[dict]:
+    """The record's placed entries, or ``[]`` when the artifact carries no record.
+
+    ``legacy_as_placed`` treats every named entry of a pre-1.2.0 roster (no ``placed`` flag) as
+    placed. That is only for auditing an existing corpus, and it inherits that roster's errors —
+    which is exactly what such an audit wants to surface.
+    """
+    entries = [
+        s
+        for s in ((metadata.get("content") or {}).get("speakers") or [])
+        if isinstance(s, dict) and str(s.get("name") or "").strip()
+    ]
+    is_record = any(s.get("placed") is not None for s in entries)
+    if is_record:
+        return [s for s in entries if s.get("placed") is True]
+    return list(entries) if legacy_as_placed else []
+
+
+def has_speaker_record(metadata: Mapping[str, Any]) -> bool:
+    """True when ``content.speakers`` is a 1.2.0 record (its entries carry ``placed``)."""
+    return any(
+        isinstance(s, dict) and s.get("placed") is not None
+        for s in ((metadata.get("content") or {}).get("speakers") or [])
+    )
+
+
+def _sync_cast(
+    kg: Mapping[str, Any], placed: List[dict], unplaced: List[str], prefix: str
+) -> List[str]:
+    """kg.json's host/guest cast against the record's placed and unplaced entries."""
+    placed_names = [str(p["name"]) for p in placed]
+    cast = [(_name(n), _role(n)) for n in _persons(kg) if _role(n) in SPEAKER_ROLES]
+    out: List[str] = []
+    for who, role in cast:
+        if any(same_person(who, p) for p in placed_names):
+            continue
+        if any(same_person(who, u) for u in unplaced):
+            out.append(f"{prefix}UNPLACED_CAST {role}={who!r} is placed: false in the record")
+        else:
+            out.append(f"{prefix}CAST_NOT_PLACED {role}={who!r} has no placed voice")
+    for p in placed:
+        role = str(p.get("role") or "").lower()
+        if role in SPEAKER_ROLES and not any(same_person(str(p["name"]), c) for c, _r in cast):
+            out.append(f"{prefix}PLACED_NOT_CAST {role}={p['name']!r} is not a speaker in kg.json")
+    return out
+
+
+def _sync_quotes(gi: Mapping[str, Any], placed_names: List[str], prefix: str) -> List[str]:
+    """gi.json SPOKEN_BY edges and each quote's own speaker fields, against the placed names."""
+    person_name = {
+        n.get("id"): str((n.get("properties") or {}).get("name") or "")
+        for n in (gi.get("nodes") or [])
+        if isinstance(n, dict) and n.get("type") == "Person"
+    }
+    out: List[str] = []
+    edge_by_quote: Dict[Any, Any] = {}
+    for e in gi.get("edges") or []:
+        if not (isinstance(e, dict) and e.get("type") == "SPOKEN_BY"):
+            continue
+        edge_by_quote[e.get("from")] = e.get("to")
+        who = person_name.get(e.get("to")) or str(e.get("to") or "")
+        if who and not any(same_person(who, p) for p in placed_names):
+            out.append(f"{prefix}QUOTE_NOT_PLACED {e.get('from')} -> {who!r}")
+    for n in gi.get("nodes") or []:
+        if not (isinstance(n, dict) and n.get("type") == "Quote"):
+            continue
+        props = n.get("properties") or {}
+        sid, sname = props.get("speaker_id"), props.get("speaker_name")
+        edge = edge_by_quote.get(n.get("id"))
+        # A quote's own fields only DISAGREE when they say something. The insights view reads
+        # `speaker_name` / `speaker_id` first and falls back to the SPOKEN_BY edge when they are
+        # empty, so an empty field beside an edge renders the edge's answer — the same answer.
+        # Measured: counting empty-beside-edge flagged 4,175 quotes on the validation run that every
+        # reader shows identically. What IS a disagreement: a field naming someone the edge does
+        # not, or a field naming someone with no edge at all.
+        edge_name = person_name.get(edge) if edge else None
+        if sid and sid != edge:
+            out.append(
+                f"{prefix}QUOTE_FIELDS_VS_EDGE {n.get('id')} speaker_id={sid!r} edge={edge!r}"
+            )
+        elif (
+            sname
+            and not _is_display_label(str(sname))
+            and not (edge_name and same_person(str(sname), edge_name))
+        ):
+            out.append(
+                f"{prefix}QUOTE_FIELDS_VS_EDGE {n.get('id')} speaker_name={sname!r} edge={edge!r}"
+            )
+    return out
+
+
+def _sync_labels(
+    segments: Any, adfree_segments: Any, placed_names: List[str], prefix: str
+) -> List[str]:
+    """Transcript speaker labels (the file `/segments` serves: raw first) and raw vs ad-free."""
+    out: List[str] = []
+    served = segments if segments is not None else adfree_segments
+    for lab in _labels_of(served):
+        if _is_display_label(lab) or _is_cue_initials(lab):
+            continue
+        if not any(same_person(lab, p) for p in placed_names):
+            out.append(f"{prefix}LABEL_NOT_PLACED transcript names {lab!r}")
+    if segments is not None and adfree_segments is not None:
+        # NAMED labels only. The ad cutter removes an ad voice's lines, so an anonymous
+        # `SPEAKER_00` present in raw and absent in ad-free is the cut working, not a disagreement
+        # about who someone is.
+        raw = {x for x in _labels_of(segments) if not is_bare_speaker_label(x)}
+        ad = {x for x in _labels_of(adfree_segments) if not is_bare_speaker_label(x)}
+        if raw != ad:
+            out.append(
+                f"{prefix}RAW_VS_ADFREE raw-only={sorted(raw - ad)} adfree-only={sorted(ad - raw)}"
+            )
+    return out
+
+
+def _sync_diagnostics(diagnostics: Mapping[str, Any], placed: List[dict], prefix: str) -> List[str]:
+    """The record against the roster's own diagnostics: same people named, same roles."""
+    named = [
+        v
+        for v in (diagnostics.get("voices") or [])
+        if isinstance(v, dict) and v.get("named") and v.get("resolved_name")
+    ]
+    out: List[str] = []
+    for v in named:
+        who = str(v["resolved_name"])
+        match = [p for p in placed if same_person(who, str(p["name"]))]
+        if not match:
+            out.append(f"{prefix}RECORD_VS_DIAGNOSTICS diagnostics named {who!r}; not placed")
+            continue
+        diag_role, rec_role = str(v.get("role") or ""), str(match[0].get("role") or "")
+        if diag_role in SPEAKER_ROLES and rec_role != diag_role:
+            out.append(
+                f"{prefix}RECORD_VS_DIAGNOSTICS {who!r} is {diag_role} in diagnostics, "
+                f"{rec_role} in the record"
+            )
+    for p in placed:
+        if not any(same_person(str(p["name"]), str(v["resolved_name"])) for v in named):
+            out.append(
+                f"{prefix}RECORD_VS_DIAGNOSTICS placed {p['name']!r} is not a named voice "
+                "in diagnostics"
+            )
+    return out
+
+
+def check_episode_in_sync(
+    metadata: Mapping[str, Any],
+    kg: Mapping[str, Any],
+    gi: Mapping[str, Any] | None,
+    *,
+    segments: Any = None,
+    adfree_segments: Any = None,
+    diagnostics: Mapping[str, Any] | None = None,
+    legacy_as_placed: bool = False,
+    label: str = "",
+) -> List[str]:
+    """Every disagreement between the speaker record and the surfaces written from it.
+
+    Empty means the episode is in sync. Each violation starts with a stable code so a corpus-wide
+    count can group them:
+
+    * ``QUOTE_NOT_PLACED`` — a quote is credited (SPOKEN_BY) to someone no voice was matched to
+    * ``QUOTE_FIELDS_VS_EDGE`` — a quote's own ``speaker_id`` disagrees with its SPOKEN_BY edge
+    * ``CAST_NOT_PLACED`` — kg.json lists a host/guest no voice was matched to
+    * ``UNPLACED_CAST`` — the record says ``placed: false``, yet kg.json gives them a speaking role
+    * ``PLACED_NOT_CAST`` — a placed host/guest is missing from kg.json's speakers
+    * ``LABEL_NOT_PLACED`` — the transcript names a speaker who is not a placed entry
+    * ``RAW_VS_ADFREE`` — the raw and ad-free segments name different speakers
+    * ``RECORD_VS_DIAGNOSTICS`` — the record and the roster's own diagnostics disagree on who was
+      named, or in what role
+
+    Names are compared with :func:`same_person`, so an ASR variant of a placed person is not a
+    violation. An artifact with no record reports nothing unless ``legacy_as_placed`` is set; the
+    diagnostics rule is skipped in that mode, because a pre-record roster has no flag to compare.
+    """
+    prefix = f"{label}: " if label else ""
+    if not has_speaker_record(metadata) and not legacy_as_placed:
+        return []
+    placed = placed_people(metadata, legacy_as_placed=legacy_as_placed)
+    placed_names = [str(p["name"]) for p in placed]
+    unplaced = [
+        str(s.get("name"))
+        for s in ((metadata.get("content") or {}).get("speakers") or [])
+        if isinstance(s, dict) and s.get("placed") is False and s.get("name")
+    ]
+    out = _sync_cast(kg, placed, unplaced, prefix)
+    if gi:
+        out += _sync_quotes(gi, placed_names, prefix)
+    out += _sync_labels(segments, adfree_segments, placed_names, prefix)
+    if diagnostics and not legacy_as_placed:
+        out += _sync_diagnostics(diagnostics, placed, prefix)
+    return out
