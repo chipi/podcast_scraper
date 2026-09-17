@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
-import type { Collection, CollectionDetail } from '../services/types'
+import type { Collection, CollectionDetail, Note } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import CollectionsView from './CollectionsView.vue'
 
@@ -44,6 +44,13 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: { template: '<div/>' } },
     { path: '/player/:slug', name: 'player', component: { template: '<div/>' } },
+    // Every route a NOTE can link to (composables/noteTarget). A missing name here does not fail
+    // politely: RouterLink throws while resolving, which surfaces as unrelated tests in this file
+    // breaking rather than as "the person route is absent".
+    { path: '/person/:id', name: 'person', component: { template: '<div/>' } },
+    { path: '/topic/:id', name: 'topic', component: { template: '<div/>' } },
+    { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
+    { path: '/storyline/:id', name: 'storyline', component: { template: '<div/>' } },
   ],
 })
 
@@ -446,6 +453,79 @@ describe('collections open as an accordion (#2004 follow-up)', () => {
     const row = w.findAll('[data-testid="collection-open"]')[0].element.closest('li')
     expect(row?.contains(items), 'the board is not inside its row').toBe(true)
     expect(w.text().match(/Tech/g)?.length, 'the board name appears twice').toBe(1)
+  })
+})
+
+// --- notes: filter by the entity a note is ON (operator 2026-09-17) -------------------------------
+
+describe('notes kind filter', () => {
+  const note = (over: Partial<Note> = {}): Note => ({
+    id: 'n1',
+    target: 'person',
+    target_id: 'person:ada',
+    text: 'a note about a person',
+    created_at: 3,
+    updated_at: 3,
+    ...over,
+  })
+
+  async function mountWithNotes(notes: Note[]) {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([])
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue(notes)
+    const w = mountView()
+    await flushPromises()
+    return w
+  }
+
+  it('labels each note with its kind in words, not the raw enum', async () => {
+    const w = await mountWithNotes([note()])
+    expect(w.get('[data-testid="collections-note"]').text()).toContain('Person')
+  })
+
+  it('offers a chip per kind PRESENT, and none for kinds with no notes', async () => {
+    const w = await mountWithNotes([
+      note({ id: 'n1', target: 'person' }),
+      note({ id: 'n2', target: 'highlight', target_id: 'h1' }),
+    ])
+    expect(w.find('[data-testid="notes-type-person"]').exists()).toBe(true)
+    expect(w.find('[data-testid="notes-type-highlight"]').exists()).toBe(true)
+    // No episode note → no episode chip; a chip that filters to nothing reads as a bug.
+    expect(w.find('[data-testid="notes-type-episode"]').exists()).toBe(false)
+  })
+
+  it('hides the strip when every note is the same kind — a single choice is decoration', async () => {
+    const w = await mountWithNotes([note({ id: 'n1' }), note({ id: 'n2' })])
+    expect(w.find('[data-testid="notes-type-filter"]').exists()).toBe(false)
+  })
+
+  it('selecting a kind shows only that kind, and All restores the rest', async () => {
+    const w = await mountWithNotes([
+      note({ id: 'n1', target: 'person', text: 'about a person' }),
+      note({ id: 'n2', target: 'highlight', target_id: 'h1', text: 'about a moment' }),
+    ])
+    await w.get('[data-testid="notes-type-highlight"]').trigger('click')
+    expect(w.text()).toContain('about a moment')
+    expect(w.text()).not.toContain('about a person')
+    await w.get('[data-testid="notes-type-all"]').trigger('click')
+    expect(w.text()).toContain('about a person')
+  })
+
+  it('keeps the strip (and says so) when the filters match nothing', async () => {
+    // Gating the section on the FILTERED list would delete the filter bar the moment the filters
+    // emptied the list, leaving no way to clear them. A chip alone cannot reach empty — chips are
+    // only offered for kinds that exist — so the empty state is reached the way a user reaches it:
+    // a chip plus a search term that does not match.
+    const w = await mountWithNotes([
+      note({ id: 'n1', target: 'person', text: 'about a person' }),
+      note({ id: 'n2', target: 'highlight', target_id: 'h1', text: 'about a moment' }),
+    ])
+    await w.get('[data-testid="notes-type-highlight"]').trigger('click')
+    await w.get('[data-testid="collections-search"]').setValue('zzzz-no-match')
+    expect(w.find('[data-testid="collections-note"]').exists()).toBe(false)
+    expect(w.get('[data-testid="collections-notes-empty"]').text()).toBe('No notes of that kind.')
+    expect(w.find('[data-testid="notes-type-filter"]').exists()).toBe(true)
+    expect(w.find('[data-testid="notes-type-all"]').exists()).toBe(true)
   })
 })
 })

@@ -853,7 +853,15 @@
     "dictate": "Dictate a note",
     "dictateStop": "Stop dictation",
     "dictateError": "Couldn't start dictation — check microphone access.",
-    "open": "Open"
+    "open": "Open",
+    "noneMatch": "No notes of that kind.",
+    "kind_highlight": "Highlight",
+    "kind_insight": "Insight",
+    "kind_episode": "Episode",
+    "kind_show": "Show",
+    "kind_topic": "Topic",
+    "kind_person": "Person",
+    "kind_storyline": "Storyline"
   },
   "common": {
     "cancel": "Cancel",

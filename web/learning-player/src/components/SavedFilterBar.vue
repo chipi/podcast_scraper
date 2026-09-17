@@ -14,6 +14,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { HIGHLIGHT_COLORS } from '../utils/highlightColors'
+import TypeFilterBar from './TypeFilterBar.vue'
 
 const types = defineModel<string[]>('types', { default: () => [] })
 const color = defineModel<string | null>('color', { default: null })
@@ -62,11 +63,6 @@ const resolvedSortOptions = computed(
     ],
 )
 
-function toggleType(key: string): void {
-  types.value = types.value.includes(key)
-    ? types.value.filter((k) => k !== key)
-    : [...types.value, key]
-}
 function pickColor(token: string): void {
   color.value = color.value === token ? null : token
 }
@@ -106,31 +102,8 @@ function clearAll(): void {
         <option v-for="o in resolvedSortOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
     </div>
-    <!-- Type chips: none selected = All. "All" is an explicit chip so clearing is one tap. -->
-    <div class="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        class="rounded-full border px-3 py-1 text-xs font-semibold transition"
-        :class="types.length === 0
-          ? 'border-accent bg-accent/10 text-accent'
-          : 'border-border text-muted hover:text-canvas-foreground'"
-        :aria-pressed="types.length === 0"
-        data-testid="saved-type-all"
-        @click="types = []"
-      >{{ t('library.savedFilterAllTypes') }}</button>
-      <button
-        v-for="ty in availableTypes"
-        :key="ty.key"
-        type="button"
-        class="rounded-full border px-3 py-1 text-xs font-semibold transition"
-        :class="types.includes(ty.key)
-          ? 'border-accent bg-accent/10 text-accent'
-          : 'border-border text-muted hover:text-canvas-foreground'"
-        :aria-pressed="types.includes(ty.key)"
-        :data-testid="`saved-type-${ty.key}`"
-        @click="toggleType(ty.key)"
-      >{{ ty.label }}</button>
-    </div>
+    <!-- Type chips: none selected = All (shared TypeFilterBar — same strip as Search and Boards). -->
+    <TypeFilterBar v-model="types" :options="availableTypes" testid-prefix="saved-type" />
 
     <!-- Colour swatches + sort on ONE row (operator): the "Colour"/"Sort" text labels are dropped —
          the swatches read as colours and the select shows its value — so the swatches (44px targets)

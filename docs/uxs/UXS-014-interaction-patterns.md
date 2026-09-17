@@ -451,6 +451,17 @@ constant regardless of content length.
   `SavedFilterBar` search input, reused on Following) filters every section by label; a non-empty
   query lifts every cap so a match is never hidden. Following reuses the same bar minus colour, with a
   **recent / A–Z** sort; each section heading carries its count.
+- **One kind-filter strip, everywhere (2026-09-17).** Filtering a list by the KIND of thing in it is
+  one pattern, so it is one component: **`TypeFilterBar`** — a multi-select chip strip led by an
+  explicit **All** chip (so clearing is one tap), where no selection means all, and a chip renders
+  only for a kind that actually has items (the #1962 presence rule). Three surfaces use it: **Saved**
+  (which saved kinds show), **Search** (which result kinds show), and **Boards → Your notes**, where
+  the chips are the **entity a note is attached to** (Highlight / Insight / Episode / Show / Topic /
+  Person / Storyline) and each note row carries the matching `KIND · DATE` label, so a chip and the
+  rows it governs name the same thing. A strip with a single kind to offer is not drawn — one choice
+  is decoration. The section it filters is gated on *having* notes, never on the filtered result: a
+  filter that empties its own list must not delete the control that clears it, so an empty result
+  says so and the strip stays.
 - Favorites / queue / interests / playback are **per-user files** (no DB). Interests are viewable +
   editable on the **Profile** page (header → user icon).
 - **Following an interest** is a one-tap toggle on a person/topic **entity card** (`Follow` /

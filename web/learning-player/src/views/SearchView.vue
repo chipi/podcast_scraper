@@ -32,6 +32,7 @@ import EntityCard from "../components/EntityCard.vue"
 import EpisodeCard from "../components/EpisodeCard.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
+import TypeFilterBar from "../components/TypeFilterBar.vue"
 
 const { t } = useI18n()
 const route = useRoute()
@@ -669,46 +670,13 @@ const showEmpty = computed(
     <!-- Result-kind filter — the same multi-select chips as Library's, "All" first so clearing is
          one tap. Only renders once there is more than one kind to choose between; with a single kind
          a filter is decoration. -->
-    <div
+    <TypeFilterBar
       v-if="availableResultTypes.length > 1 && !searching"
-      class="mt-3 flex flex-wrap items-center gap-2"
-      data-testid="search-type-filter"
-    >
-      <button
-        type="button"
-        class="rounded-full border px-3 py-1 text-xs font-semibold transition"
-        :class="
-          resultTypes.length === 0
-            ? 'border-accent bg-accent/10 text-accent'
-            : 'border-border text-muted hover:text-canvas-foreground'
-        "
-        :aria-pressed="resultTypes.length === 0"
-        data-testid="search-type-all"
-        @click="resultTypes = []"
-      >
-        {{ t("library.savedFilterAllTypes") }}
-      </button>
-      <button
-        v-for="ty in availableResultTypes"
-        :key="ty.key"
-        type="button"
-        class="rounded-full border px-3 py-1 text-xs font-semibold transition"
-        :class="
-          resultTypes.includes(ty.key)
-            ? 'border-accent bg-accent/10 text-accent'
-            : 'border-border text-muted hover:text-canvas-foreground'
-        "
-        :aria-pressed="resultTypes.includes(ty.key)"
-        :data-testid="`search-type-${ty.key}`"
-        @click="
-          resultTypes = resultTypes.includes(ty.key)
-            ? resultTypes.filter((k) => k !== ty.key)
-            : [...resultTypes, ty.key]
-        "
-      >
-        {{ ty.label }}
-      </button>
-    </div>
+      v-model="resultTypes"
+      :options="availableResultTypes"
+      testid-prefix="search-type"
+      class="mt-3"
+    />
 
     <!-- Every result section carries a HEADING (operator 2026-09-17). "Your notes" had one and the
          other two did not, so the page read as one labelled section followed by loose content —

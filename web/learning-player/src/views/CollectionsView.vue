@@ -11,6 +11,7 @@ import { useI18n } from "vue-i18n"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
+import TypeFilterBar from "../components/TypeFilterBar.vue"
 import { useCappedSections } from "../composables/useCappedSections"
 import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
@@ -157,10 +158,49 @@ const visibleCollections = computed(() => {
   if (sortBy.value === "count") return list.sort((a, b) => b.count - a.count)
   return list.sort((a, b) => (b.updated_at ?? b.created_at) - (a.updated_at ?? a.created_at))
 })
-// Notes newest-first, filtered by the same search box (NT.4 + CO.5).
+/**
+ * Which entity kinds the notes filter offers — only kinds actually present (operator 2026-09-17).
+ *
+ * Derived from the notes themselves rather than from the `NoteTarget` union: a chip for a kind the
+ * user has never written a note on filters to an empty list, which reads as a bug. Ordered by the
+ * union so the strip does not reshuffle as notes come and go.
+ */
+const NOTE_KIND_ORDER = [
+  "highlight",
+  "insight",
+  "episode",
+  "show",
+  "topic",
+  "person",
+  "storyline",
+] as const
+const noteTypes = ref<string[]>([])
+/** The kind in words. Falls back to the raw target so an unknown kind still labels its row. */
+function noteKindLabel(target: string): string {
+  const key = `notes.kind_${target}`
+  const out = t(key)
+  return out === key ? target : out
+}
+const availableNoteTypes = computed(() => {
+  const present = new Set(capture.notes.map((n) => n.target))
+  return NOTE_KIND_ORDER.filter((k) => present.has(k)).map((k) => ({
+    key: k,
+    // Same words as the row's own kicker, so a chip and the rows it governs name the same thing.
+    label: t(`notes.kind_${k}`),
+  }))
+})
+// A chip for a kind whose last note was just removed would stay selected and hide everything.
+watch(availableNoteTypes, (types) => {
+  const keys = new Set<string>(types.map((x) => x.key))
+  const kept = noteTypes.value.filter((k) => keys.has(k))
+  if (kept.length !== noteTypes.value.length) noteTypes.value = kept
+})
+
+// Notes newest-first, filtered by the same search box (NT.4 + CO.5) and the kind chips.
 const visibleNotes = computed(() => {
   const q = search.value.trim().toLowerCase()
-  const base = [...capture.notes].sort((a, b) => b.created_at - a.created_at)
+  let base = [...capture.notes].sort((a, b) => b.created_at - a.created_at)
+  if (noteTypes.value.length) base = base.filter((n) => noteTypes.value.includes(n.target))
   return q ? base.filter((n) => n.text.toLowerCase().includes(q)) : base
 })
 
@@ -759,12 +799,26 @@ onMounted(() => {
     <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. A divider +
          the heading separate them clearly from the boards above (operator). -->
     <section
-      v-if="visibleNotes.length"
+      v-if="capture.notes.length"
       class="mt-8 border-t border-border pt-6"
       data-testid="collections-notes"
     >
       <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
-      <ul class="flex flex-col gap-2">
+      <!-- Kind chips at the TOP of the section (operator 2026-09-17), filtering by the entity a note
+           is ON. The section is gated on `capture.notes.length`, not on the filtered list: gating on
+           the result would delete the filter bar the moment a chip matched nothing, stranding the
+           user with no way back. An empty result says so instead. -->
+      <TypeFilterBar
+        v-if="availableNoteTypes.length > 1"
+        v-model="noteTypes"
+        :options="availableNoteTypes"
+        testid-prefix="notes-type"
+        class="mb-3"
+      />
+      <p v-if="!visibleNotes.length" class="text-sm text-muted" data-testid="collections-notes-empty">
+        {{ t("notes.noneMatch") }}
+      </p>
+      <ul v-else class="flex flex-col gap-2">
         <li
           v-for="n in caps.visible('notes', visibleNotes, searchActive)"
           :key="n.id"
@@ -775,7 +829,7 @@ onMounted(() => {
             {{ n.text }}
           </p>
           <div class="mt-1.5 flex items-center gap-2 text-xs">
-            <span class="lp-kicker">{{ n.target }} · {{ noteDate(n.created_at) }}</span>
+            <span class="lp-kicker">{{ noteKindLabel(n.target) }} · {{ noteDate(n.created_at) }}</span>
             <RouterLink
               v-if="noteRoute(n.target, n.target_id)"
               :to="noteRoute(n.target, n.target_id)!"

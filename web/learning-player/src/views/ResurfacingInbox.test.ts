@@ -53,9 +53,11 @@ describe('ResurfacingInbox', () => {
     const w = mountInbox()
     await flushPromises()
     expect(w.text()).toContain('What still resonates about this?')
-    // jump link carries ?t=65 (65_000ms) to the player
-    const link = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/show-ep01'))
-    expect(link?.attributes('href')).toContain('t=65')
+    // jump link carries ?t=65 (65_000ms) to the player. Addressed by testid, not by "the first
+    // link mentioning the episode": the rows are grouped under an episode HEADING that links to the
+    // episode top, so that locator matched the heading and saw no timestamp.
+    const link = w.find('[data-testid="revisit-jump"]')
+    expect(link.attributes('href')).toContain('t=65')
     // dismiss removes it locally + advances the ladder server-side
     await w.findAll('button').find((b) => b.text() === 'Mark reviewed')!.trigger('click')
     expect(api.markSurfaced).toHaveBeenCalledWith('h1')
@@ -86,9 +88,7 @@ describe('ResurfacingInbox', () => {
     vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
     const w = mountInbox()
     await flushPromises()
-    const href =
-      w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/show-ep01'))
-        ?.attributes('href') ?? ''
+    const href = w.find('[data-testid="revisit-jump"]').attributes('href') ?? ''
     expect(href).toContain('revisit=h1')
     expect(href).toContain('t=65')
     expect(api.markSurfaced).not.toHaveBeenCalled() // rendering the link marks nothing
@@ -103,5 +103,69 @@ describe('ResurfacingInbox', () => {
     await flushPromises()
     expect(api.putResurfacingSettings).toHaveBeenCalledWith(true)
     expect(w.text()).toContain('Resurfacing is paused.')
+  })
+
+  // --- what each due item is FROM and ABOUT (operator 2026-09-17) ---
+
+  it('groups due items under the episode they came from, by title', async () => {
+    // A flat list said nothing about WHERE a moment was from, so two moments from one episode read
+    // as two unrelated cards. Same structure as Saved and Search: episode heading, then its items.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [
+        item(),
+        item({ highlight: hl({ id: 'h2', start_ms: 5_000 }) }),
+        item({ highlight: hl({ id: 'h3', episode_slug: 'show-ep02' }) }),
+      ],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockImplementation(
+      async (slug: string) =>
+        ({ slug, title: slug === 'show-ep01' ? 'Risk as a system' : 'Pacing' }) as never,
+    )
+    const w = mountInbox()
+    await flushPromises()
+    const groups = w.findAll('[data-testid="revisit-group"]')
+    expect(groups).toHaveLength(2) // two episodes, not three cards
+    const headings = w.findAll('[data-testid="revisit-group-title"]').map((h) => h.text())
+    expect(headings).toEqual(['Risk as a system', 'Pacing'])
+    expect(groups[0].findAll('[data-testid="revisit-item"]')).toHaveLength(2)
+  })
+
+  it('falls back to the slug when the episode title cannot be resolved', async () => {
+    // The list is useful before titles arrive, and one dead episode must not blank a heading.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new Error('gone'))
+    const w = mountInbox()
+    await flushPromises()
+    expect(w.get('[data-testid="revisit-group-title"]').text()).toBe('show-ep01')
+  })
+
+  it('labels a moment KIND · DATE and shows the captured words as the body', async () => {
+    // "Marked moment" used to BE the body text, so the card said nothing about itself. It is the
+    // label; the quote is the content.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [
+        item({
+          highlight: hl({ quote_text: 'Correlation is the real exposure', speaker: 'Ada' }),
+        }),
+      ],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const w = mountInbox()
+    await flushPromises()
+    expect(w.get('[data-testid="revisit-item"]').text()).toContain('Marked moment')
+    expect(w.get('[data-testid="revisit-quote"]').text()).toBe('Correlation is the real exposure')
+    expect(w.get('[data-testid="revisit-item"]').text()).toContain('Ada')
+    // The prompt survives the restructure — it is the question asked OF the moment, below it.
+    expect(w.get('[data-testid="revisit-prompt"]').text()).toBe('What still resonates about this?')
+  })
+
+  it('renders no quote block for a moment stored without text', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const w = mountInbox()
+    await flushPromises()
+    expect(w.find('[data-testid="revisit-quote"]').exists()).toBe(false)
   })
 })
