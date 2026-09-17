@@ -83,6 +83,16 @@ discovery.relabel "api" {
     target_label = "instance"
     replacement  = "prod-podcast"
   }
+  // ...but that stamps the SAME instance on all three api containers, so without the
+  // rule below their `up` series carry identical label sets and collapse into ONE.
+  // A dead player-api-1 would be masked by a healthy compose-api-1 — the exact blind
+  // spot that widening the keep-list was meant to remove. `surface` makes them distinct.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "surface"
+    replacement   = "${1}"
+  }
 }
 
 prometheus.scrape "api" {
