@@ -3687,6 +3687,32 @@ def _generate_episode_summary(  # noqa: C901
         raise ValueError(redact_for_log(error_msg))
 
 
+def _existing_metadata_path_for_reprocess(
+    episode: Episode,  # type: ignore[valid-type]
+    output_dir: str,
+    cfg: config.Config,
+) -> Optional[str]:
+    """This episode's EXISTING metadata path, when a reprocess stage is running (#2075).
+
+    ``None`` for a normal run, for an episode the corpus does not already hold, or when the corpus
+    layout is not in use — in each of those the fresh run directory is the right place.
+    """
+    stage = str(getattr(cfg, "pipeline_stage", "") or "")
+    if stage not in config.STAGES_THAT_NEVER_TRANSCRIBE and stage != "rederive_only":
+        return None
+    from . import run_index
+
+    corpus_root = run_index.corpus_root_from_cfg(cfg) or output_dir
+    try:
+        rel = run_index.episode_metadata_rel_in_corpus(episode, corpus_root)
+    except (OSError, ValueError):
+        return None
+    if not rel:
+        return None
+    existing = os.path.join(corpus_root, rel)
+    return existing if os.path.isfile(existing) else None
+
+
 def _determine_metadata_path(
     episode: Episode,  # type: ignore[valid-type]
     output_dir: str,
@@ -3707,6 +3733,15 @@ def _determine_metadata_path(
     Returns:
         Full path to metadata file
     """
+    # A REPROCESS STAGE WRITES WHERE THE EPISODE ALREADY LIVES. Writing to this run's fresh output
+    # directory produced a SECOND record for one episode — a full metadata artifact alone in a run
+    # whose `transcripts/` is empty, while the transcript it describes stayed in the original run.
+    # One episode then had two records, which is the exact thing #2075 exists to prevent, and it
+    # broke the next stage: `rederive_only` resolves the NEWEST record, found no transcript beside
+    # it, and refused an episode whose transcript was on disk two directories away.
+    existing = _existing_metadata_path_for_reprocess(episode, output_dir, cfg)
+    if existing is not None:
+        return existing
     base_name = filesystem.build_whisper_output_name(
         episode.idx, episode.title_safe, run_suffix
     ).replace(".txt", "")
