@@ -1,6 +1,7 @@
 """A person diarization split over two voices is ONE person on every surface (#2075).
 
-Validation run, No Priors: `Elad Gil` host on one voice, `Elad` guest on another. The transcript,
+Validation run, In Our Time: `Misha Glenny` host on one voice, `Misha Glennie` guest on another.
+The transcript,
 the diagnostics, the record and the graph each carried two people for one human, and the sync audit
 reported the record and diagnostics disagreeing about his role.
 
@@ -71,7 +72,11 @@ def _write_episode(out: Path) -> None:
         ordered_turns=TURNS,
         # The measured split: the identifier named the two halves of one guest differently and
         # gave them different roles.
-        llm_voice_names={"SPEAKER_00": "Sarah Guo", "SPEAKER_01": "Elad", "SPEAKER_02": "Elad Gil"},
+        llm_voice_names={
+            "SPEAKER_00": "Sarah Guo",
+            "SPEAKER_01": "Elad Gilman",
+            "SPEAKER_02": "Elad Gilmann",
+        },
         llm_voice_roles={"SPEAKER_00": "host", "SPEAKER_01": "guest", "SPEAKER_02": "host"},
     )
     diagnostics = roster_mod.build_speaker_diagnostics(
@@ -113,7 +118,7 @@ def _write_episode(out: Path) -> None:
         transcript_source="whisper_transcription",
         whisper_model="base",
         detected_hosts=["Sarah Guo"],
-        detected_guests=["Elad Gil"],
+        detected_guests=["Elad Gilman"],
     )
     assert path and Path(path).is_file()
 
@@ -130,7 +135,7 @@ def test_the_record_holds_one_entry_for_the_split_person(written: Path) -> None:
     placed = [s for s in meta["content"]["speakers"] if s.get("placed") is True]
     elads = [s for s in placed if "elad" in s["name"].lower()]
     assert len(elads) == 1, placed
-    assert elads[0]["name"] == "Elad Gil"
+    assert elads[0]["name"] == "Elad Gilman"
     assert elads[0]["role"] == "guest"
     assert sorted(elads[0]["voices"]) == ["SPEAKER_01", "SPEAKER_02"]
 
@@ -143,7 +148,7 @@ def test_the_graph_casts_him_once_as_a_guest(written: Path) -> None:
         if n.get("type") == "Person"
         and "elad" in str((n.get("properties") or {}).get("name")).lower()
     ]
-    assert [(p.get("name"), p.get("role")) for p in people] == [("Elad Gil", "guest")]
+    assert [(p.get("name"), p.get("role")) for p in people] == [("Elad Gilman", "guest")]
 
 
 def test_every_surface_agrees(written: Path) -> None:

@@ -705,17 +705,18 @@ def _same_person_on_one_episode(a: str, b: str) -> bool:
     """Whether two names placed on voices of ONE episode are the same human.
 
     Wider than :func:`_same_person` (which needs a shared surname, because it also compares names
-    across sources): within one episode, voices named `Elad` and `Elad Gil`, or `Michael Barbaro`
-    and `Michael Babaro`, are one person diarization split in two. Every pair this adds over
-    :func:`_same_person` on the production snapshot was inspected — 24 — and each was one person.
+    across sources): within one episode, voices named `Michael Barbaro` and `Michael Babaro` are one
+    person diarization split in two.
+
+    A ONE-WORD NAME IS NOT MERGED with a full name sharing its given name. That clause read `Elad`
+    and `Elad Gil` as one person, and also Planet Money's host `Alex Maasi` and a construction-site
+    worker who says "I'm Alex" — which made the host a guest called `Alex` (advisor review, #2075).
     """
     ta, tb = a.lower().split(), b.lower().split()
     if not ta or not tb:
         return False
     if ta == tb or _same_person(a, b):
         return True
-    if (len(ta) == 1) != (len(tb) == 1):  # a mononym that is the other's given name
-        return ta[0] == tb[0]
     # Same given name, near-identical surname — an ASR respelling. Short surnames are excluded:
     # `Pape`/`Page` and `Chen`/`Chan` are one letter apart and are different families.
     return (

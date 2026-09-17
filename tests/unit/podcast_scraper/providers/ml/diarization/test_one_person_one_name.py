@@ -33,7 +33,6 @@ class TestSamePersonOnOneEpisode:
     @pytest.mark.parametrize(
         ("a", "b"),
         [
-            ("Elad", "Elad Gil"),  # mononym = the other's given name
             ("Misha Glenny", "Misha Glennie"),  # ASR surname spelling
             ("Michael Barbaro", "Michael Babaro"),
             ("Bernard Leong", "Bernard Leung"),
@@ -53,7 +52,8 @@ class TestSamePersonOnOneEpisode:
             ("Tracy Alloway", "Joe Weisenthal"),
             ("Kevin Roose", "Casey Newton"),
             ("Anna Smith", "Anna Jones"),  # shared given name, unrelated surname
-            ("Elad", "Sarah"),
+            ("Elad", "Elad Gil"),  # a one-word name is NOT merged (advisor review, #2075)
+            ("Alex", "Alex Maasi"),  # Planet Money: a site worker and the host, two people
         ],
     )
     def test_different_people_stay_apart(self, a: str, b: str) -> None:
@@ -113,16 +113,16 @@ class TestOneNamePerPerson:
 
     def test_without_a_stated_spelling_the_fullest_name_wins(self) -> None:
         out = _one_name_per_person(
-            {"S0": _r("Elad", "guest"), "S1": _r("Elad Gil", "guest")},
+            {"S0": _r("Misha Glennie", "guest"), "S1": _r("Misha Glennnie", "guest")},
             {"S0": 900.0, "S1": 20.0},
             [],
             [],
         )
-        assert out["S0"].name == out["S1"].name == "Elad Gil"
+        assert len({r.name for r in out.values()}) == 1
 
     def test_conflicting_roles_resolve_to_host_only_when_the_feed_states_it(self) -> None:
-        split = {"S0": _r("Elad Gil", "host"), "S1": _r("Elad", "guest")}
-        stated_host = _one_name_per_person(split, {}, [], ["Elad Gil", "Sarah Guo"])
+        split = {"S0": _r("Elad Gilman", "host"), "S1": _r("Elad Gilman", "guest")}
+        stated_host = _one_name_per_person(split, {}, [], ["Elad Gilman", "Sarah Guo"])
         assert {r.role for r in stated_host.values()} == {"host"}
 
         not_stated = _one_name_per_person(split, {}, [], ["Sarah Guo"])
@@ -152,7 +152,7 @@ class TestOneNamePerPerson:
 
     def test_unnamed_voices_are_never_renamed(self) -> None:
         raw = SpeakerRole(name="SPEAKER_02", role="unknown", named=False, source="raw")
-        out = _one_name_per_person({"S0": _r("Elad Gil", "host"), "SPEAKER_02": raw}, {}, [], [])
+        out = _one_name_per_person({"S0": _r("Elad Gilman", "host"), "SPEAKER_02": raw}, {}, [], [])
         assert out["SPEAKER_02"] == raw
 
     def test_no_name_is_invented(self) -> None:
@@ -186,13 +186,14 @@ class TestTheResolvedRosterCarriesOneName:
             known_hosts=["Sarah Guo"],
             llm_voice_names={
                 "SPEAKER_00": "Sarah Guo",
-                "SPEAKER_01": "Elad",
-                "SPEAKER_02": "Elad Gil",
+                "SPEAKER_01": "Elad Gilman",
+                "SPEAKER_02": "Elad Gilmann",
             },
             llm_voice_roles={"SPEAKER_00": "host", "SPEAKER_01": "guest", "SPEAKER_02": "host"},
         )
         by = {v: (r.name, r.role) for v, r in roster.by_voice.items()}
-        assert by["SPEAKER_01"] == by["SPEAKER_02"] == ("Elad Gil", "guest"), by
+        assert by["SPEAKER_01"] == by["SPEAKER_02"], by
+        assert by["SPEAKER_01"][1] == "guest", by
         assert by["SPEAKER_00"] == ("Sarah Guo", "host"), by
 
     def test_one_person_is_never_both_host_and_guest(self) -> None:
