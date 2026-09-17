@@ -36,8 +36,14 @@ const components = import.meta.glob('../**/*.vue', {
   eager: true,
 }) as Record<string, string>
 
+// EVERY spec tier, not just the top level. `e2e/*.spec.ts` alone left `e2e/live/` and
+// `e2e/validation/` outside the guard, and the same UI change broke both in turn: the Discover
+// redesign (be58472b0, #2072) desynced the live smoke (resynced in cf56a1e91, whose message names
+// this very glob as the reason "the drift went unseen") and then the Tier-3 validation walk, which
+// ran red nightly from 2026-09-16. Those tiers run post-deploy and nightly rather than on PRs, so
+// the map is the only thing standing between a UI change and silent rot.
 const specFiles = Object.keys(
-  import.meta.glob('../../e2e/*.spec.ts', { query: '?raw', import: 'default', eager: true }),
+  import.meta.glob('../../e2e/**/*.spec.ts', { query: '?raw', import: 'default', eager: true }),
 ).map((p) => p.split('/').pop() as string)
 
 const allComponentSrc = Object.values(components).join('\n')
@@ -255,8 +261,10 @@ describe('E2E surface map stays true to the app', () => {
     // Asserting that EVERY testid in src/ is documented would be noisy — not every testid is a
     // contract. But one an e2e spec selects on demonstrably is: that is the definition of a
     // selector the suite depends on, and the map exists to let the suite be rebuilt.
+    // Same widening as `specFiles`: a testid the live-smoke or Tier-3 walk depends on is no less
+    // a contract for running outside the PR suite — arguably more, since nothing else catches it.
     const specSrc = Object.values(
-      import.meta.glob('../../e2e/*.spec.ts', { query: '?raw', import: 'default', eager: true }),
+      import.meta.glob('../../e2e/**/*.spec.ts', { query: '?raw', import: 'default', eager: true }),
     ).join('\n') as string
 
     const used = new Set<string>()

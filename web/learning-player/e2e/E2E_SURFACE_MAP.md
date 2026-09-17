@@ -214,6 +214,43 @@ shell.**
 | **Highlights view** — `HighlightsView` | Export (`Export Markdown` link → `/api/app/highlights/export.md`) and notes are covered by `capture.spec.ts`; the share-card control (`highlights.share`) hands off to the OS share sheet, which a browser cannot drive. |
 | **Resurfacing inbox** — `ResurfacingInbox` | The pacing control (pause/resume) and the fresh-user empty state are covered by `consolidation.spec.ts`. A genuinely DUE item cannot be produced deterministically here — it needs a highlight captured far enough in the past, which the version-pinned fixture corpus does not (and should not) synthesize; forcing it would test the clock, not the app. |
 
+## Spec tiers that do NOT run on pull requests
+
+`e2e/*.spec.ts` runs on every PR. Three other tiers live in subdirectories and run elsewhere —
+which is precisely why they rot unnoticed, and why they belong in this map.
+
+One UI change has now broken two of them in sequence. The Discover redesign (`be58472b0`, #2072)
+desynced the live smoke — resynced in `cf56a1e91`, whose message names the cause: the guard
+*"globs `e2e/*.spec.ts`, not `e2e/live/`, so the drift went unseen"* — and then broke the Tier-3
+walk, which ran red nightly from 2026-09-16 until `2678f77b2`. The guard
+(`src/__checks__/surface-map.test.ts`) now globs `e2e/**/*.spec.ts`, so every tier below is held
+to the same contract as the PR suite.
+
+| Spec | Covers | Runs |
+| ---- | ------ | ---- |
+| `live/smoke.live.spec.ts` | Deployed `closelistening.app` reachable + shell renders (#43) | post-deploy |
+| `live/surfaces.live.spec.ts` | Public read-only consumer surfaces (incl. `home-search-input`) | post-deploy |
+| `live/account.live.spec.ts` | Per-user surfaces — Collections / Library / Queue | post-deploy |
+| `live/offline-arc.live.spec.ts` | The offline arc (#1905, #1906, #1914, #1925) | post-deploy |
+| `live/privacy-floor.live.spec.ts` | k-anonymity floor on cross-user reach (#1923) | post-deploy |
+| `live/trending.live.spec.ts` | RFC-103 R2 trending — window selector + corpus-anchored denoising | post-deploy |
+| `validation/listen-through-real-corpus.spec.ts` | Full listen-through vs a real backend + corpus | nightly (Tier-3) |
+| `validation/recall-real-corpus.spec.ts` | Recall — search `scope=mine` vs `scope=all` | nightly (Tier-3) |
+| `validation/recap-and-offline-writes-real-corpus.spec.ts` | Recap honesty, queue item-writes, `?t=` deep link | nightly (Tier-3) |
+| `validation/consolidation-real-corpus.spec.ts` | Library Revisit resurfacing ladder | nightly (Tier-3) |
+| `validation/multi-perspective-topic-real-corpus.spec.ts` | Multi-perspective topic card (#1146) | nightly (Tier-3) |
+| `validation/offline-shell-real-corpus.spec.ts` | Offline shell survives a REAL network drop | nightly (Tier-3) |
+| `design/surfaces.design.spec.ts` | Screenshots every redesigned surface for the critic loop (#1944, #1945) — asserts only that the surface LOADED; input, not a test | manual / design runs |
+
+`search-result-actions` is the `EpisodeActions` cluster on a SearchView result row; it is covered
+by unit (`SearchView.test.ts`) rather than by a spec, and named here so the map accounts for it.
+
+**A Tier-3 spec must not anchor on an optional surface.** These run against an operator-supplied
+corpus, so anything a corpus may legitimately not produce — the trending rails above all — is
+absent by design, not broken. `validation/recap-and-offline-writes-real-corpus.spec.ts:81` clicked
+the first `a[href*="/podcast/"]` on Home, whose only source is the trending-shows rail, and that
+rail is *allowed* to render nothing (see the invariant note above). Reach a show episode-first.
+
 ## Shared components & shell — naming index
 
 The reusable widgets and app-shell pieces the surface specs drive indirectly (via the view that
