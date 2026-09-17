@@ -697,7 +697,8 @@ export interface TrendingEntity {
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string
-  kind: "person" | "topic" | "organization"
+  /** `storyline` ids are `thc:{slug}` — the resolver indexes theme clusters too (#2004 follow-up). */
+  kind: "person" | "topic" | "organization" | "storyline"
   label: string
 }
 

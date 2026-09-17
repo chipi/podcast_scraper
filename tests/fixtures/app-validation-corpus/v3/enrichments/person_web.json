@@ -1,7 +1,7 @@
 {
   "derived": true,
   "status": "ok",
-  "computed_at": "2026-09-17T08:04:11.285369+00:00",
+  "computed_at": "2026-09-17T19:03:52.776409+00:00",
   "enricher_id": "person_web",
   "enricher_version": "0.1.0",
   "schema_version": "1.0",
@@ -88,9 +88,7 @@
         "source": "fixture",
         "source_url": null,
         "license": "CC0-1.0",
-        "image_hosted": true,
-        "image_license": "CC0-1.0",
-        "image_artist": "generated fixture avatar"
+        "image_hosted": false
       },
       {
         "person_id": "person:ethan",

@@ -34,6 +34,15 @@ except ImportError:  # pragma: no cover - environment guard
 # Same derivation the enricher uses (person_web._safe_name), so the serve route finds these files.
 STEM_RE = re.compile(r"[^a-z0-9._-]")
 
+#: People deliberately left WITHOUT a photo (bio only).
+#:
+#: The photoless case is a real product path — the OG card falls back to a gallery of the shows a
+#: guest appears on, and the person card renders initials rather than an avatar. Giving every
+#: fixture person an image made both branches unreachable locally and turned a passing OG test red.
+#: `dr-elena-fischer` is the one the OG test uses, and she guests on two shows, so she is the right
+#: subject to keep photoless.
+NO_PHOTO_PERSON_IDS = frozenset({"person:dr-elena-fischer"})
+
 # Muted, distinguishable backgrounds — enough variety that a grid of avatars reads as different
 # people at a glance, without pretending to be photography.
 PALETTE = [
@@ -138,22 +147,28 @@ def main() -> None:
         name = display_name(pid)
         topic, doing = ROLES[i % len(ROLES)]
         stem = safe_stem(pid)
-        draw_avatar(image_dir / f"{stem}.png", name, PALETTE[i % len(PALETTE)])
-        (image_dir / f"{stem}.image.json").write_text(
-            json.dumps(
-                {
-                    "person_id": pid,
-                    "source": "fixture",
-                    "license": "CC0-1.0",
-                    "artist": "generated fixture avatar",
-                    "width": 512,
-                    "height": 512,
-                },
-                indent=2,
+        # Everyone gets a BIO; not everyone gets a PHOTO. Seeding an avatar for every person
+        # left the corpus with no photoless person at all, which silently broke the OG card's
+        # "guest with no photo gets a show gallery" path — that branch became unreachable and
+        # its test failed (operator 2026-09-17). A fixture must carry BOTH cases.
+        with_photo = pid not in NO_PHOTO_PERSON_IDS
+        if with_photo:
+            draw_avatar(image_dir / f"{stem}.png", name, PALETTE[i % len(PALETTE)])
+            (image_dir / f"{stem}.image.json").write_text(
+                json.dumps(
+                    {
+                        "person_id": pid,
+                        "source": "fixture",
+                        "license": "CC0-1.0",
+                        "artist": "generated fixture avatar",
+                        "width": 512,
+                        "height": 512,
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
             )
-            + "\n",
-            encoding="utf-8",
-        )
         rows.append(
             {
                 "person_id": pid,
@@ -169,9 +184,12 @@ def main() -> None:
                 "source": "fixture",
                 "source_url": None,
                 "license": "CC0-1.0",
-                "image_hosted": True,
-                "image_license": "CC0-1.0",
-                "image_artist": "generated fixture avatar",
+                "image_hosted": with_photo,
+                **(
+                    {"image_license": "CC0-1.0", "image_artist": "generated fixture avatar"}
+                    if with_photo
+                    else {}
+                ),
             }
         )
 
@@ -188,7 +206,11 @@ def main() -> None:
     out = corpus / "enrichments" / "person_web.json"
     out.write_text(json.dumps(artifact, indent=2) + "\n", encoding="utf-8")
     print(f"✓ {out} ({len(rows)} people)")
-    print(f"✓ {image_dir} ({len(rows)} avatars + meta)")
+    avatars = sum(1 for r in rows if r["image_hosted"])
+    print(
+        f"✓ {image_dir} ({avatars} avatars + meta; "
+        f"{len(rows) - avatars} left photoless on purpose)"
+    )
 
 
 if __name__ == "__main__":

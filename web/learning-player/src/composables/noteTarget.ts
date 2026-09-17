@@ -62,3 +62,54 @@ export function noteRoute(
       return null
   }
 }
+
+/**
+ * WHAT a note is attached to, in words — "Risk Is a Systems Property", not `p09-a4bbb5dde3`.
+ *
+ * A note row showed only its target KIND and an "Open" link, so a list of notes read as "episode,
+ * episode, topic" with no way to tell which episode without following each link (operator
+ * 2026-09-17). The kind alone is the least useful half of the answer.
+ *
+ * Two classes of target, resolved differently and deliberately:
+ *
+ * - **Entity ids carry their own label.** `topic:systems-thinking` → "systems thinking". No lookup,
+ *   no fetch, and it cannot go stale. This is the same de-slugging `FollowedInterests` does.
+ * - **Episodes and shows do not.** A slug or a feed id says nothing, so the caller passes whatever
+ *   titles it already holds (`titles`). Returns null when the title is genuinely unknown rather
+ *   than echoing an id back — a raw slug on screen is worse than no subtitle, and the "Open" link
+ *   is still there.
+ *
+ * `highlight` / `insight` resolve through to the episode they are anchored in, matching where
+ * {@link noteRoute} sends them.
+ */
+export function noteTargetLabel(
+  target: NoteTarget | string,
+  id: string,
+  titles: { episodes?: Map<string, string>; shows?: Map<string, string> } = {},
+  highlights: Highlight[] = []
+): string | null {
+  if (!id) return null
+  switch (target) {
+    case "topic":
+    case "person":
+    case "storyline":
+      return deslugEntityId(id)
+    case "episode":
+      return titles.episodes?.get(id) ?? null
+    case "show":
+      return titles.shows?.get(id) ?? null
+    case "highlight":
+    case "insight": {
+      const slug = highlights.find((x) => x.id === id)?.episode_slug
+      return slug ? (titles.episodes?.get(slug) ?? null) : null
+    }
+    default:
+      return null
+  }
+}
+
+/** `topic:systems-thinking` / `thc:managing-risk` → `systems thinking` / `managing risk`. */
+function deslugEntityId(id: string): string {
+  const bare = id.includes(":") ? id.slice(id.indexOf(":") + 1) : id
+  return bare.replace(/[-_]+/g, " ").trim()
+}

@@ -385,11 +385,18 @@ class AppEntitiesResponse(BaseModel):
 
 
 class AppEntityRef(BaseModel):
-    """A resolved person/topic reference for the entity-in-search result (PRD-043 FR3 / 3.4)."""
+    """A resolved person/topic/org/storyline reference for entity-in-search (PRD-043 FR3 / 3.4)."""
 
-    id: str = Field(description="Canonical entity id (person:{slug} / topic:{slug} / org:{slug}).")
-    kind: Literal["person", "topic", "organization"] = Field(description="Which card to open.")
-    label: str = Field(description="Display name / topic label.")
+    id: str = Field(
+        description=(
+            "Canonical entity id — person:{slug} / topic:{slug} / org:{slug} / thc:{slug} "
+            "(storyline)."
+        )
+    )
+    kind: Literal["person", "topic", "organization", "storyline"] = Field(
+        description="Which card to open."
+    )
+    label: str = Field(description="Display name / topic label / storyline label.")
 
 
 class KeyVoice(BaseModel):

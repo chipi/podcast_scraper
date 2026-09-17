@@ -8,7 +8,7 @@
  */
 import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
-import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
+import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { resolveEntity, searchCorpus } from "../services/api"
@@ -41,6 +41,30 @@ const savedQueries = useSavedQueriesStore()
 const capture = useCaptureStore()
 // Shared rule (composables/noteTarget) — was a second, drifted copy of the same function.
 const noteRoute = (target: string, id: string) => resolveNoteRoute(target, id, capture.highlights)
+/**
+ * Episode and show titles for the note rows, built from the hits ALREADY on screen.
+ *
+ * Every hit's metadata carries `episode_slug`/`episode_title` and `feed_id`/`feed_title`, so a note
+ * about something the search also matched gets its title for free. Deliberately no extra fetch: the
+ * note list is a secondary section, and a note pointing at an episode outside these results simply
+ * shows no subtitle rather than costing a request per note.
+ */
+const hitTitles = computed(() => {
+  const episodes = new Map<string, string>()
+  const shows = new Map<string, string>()
+  for (const h of results.value) {
+    const m = h.metadata as Record<string, unknown>
+    const slug = m.episode_slug as string | undefined
+    const epTitle = m.episode_title as string | undefined
+    if (slug && epTitle) episodes.set(slug, epTitle)
+    const feed = m.feed_id as string | undefined
+    const feedTitle = (m.feed_title ?? m.podcast_title) as string | undefined
+    if (feed && feedTitle) shows.set(feed, feedTitle)
+  }
+  return { episodes, shows }
+})
+const noteLabel = (target: string, id: string) =>
+  noteTargetLabel(target, id, hitTitles.value, capture.highlights)
 // SR.1 — search the listener's OWN notes alongside the corpus. Notes are per-user and client-side,
 // so this is a local text match, shown as its own "Your notes" section rather than interleaved with
 // the corpus passages (a note is not a transcript hit).
@@ -362,7 +386,15 @@ function setScope(s: "all" | "mine"): void {
 }
 
 function openEntity(): void {
-  if (entity.value) cardTarget.value = { kind: entity.value.kind, id: entity.value.id }
+  const e = entity.value
+  if (!e) return
+  // A storyline has no EntityCard — it is a theme cluster with its own page, which is also where
+  // `noteRoute` sends a storyline note. Only person/topic/org open the overlay card.
+  if (e.kind === "storyline") {
+    void router.push({ name: "storyline", params: { id: e.id } })
+    return
+  }
+  cardTarget.value = { kind: e.kind, id: e.id }
 }
 
 function submit(): void {
@@ -417,6 +449,51 @@ watch(
   },
   { immediate: true }
 )
+
+/**
+ * Which RESULT KINDS to show — the same multi-select chips Library uses, none selected = all
+ * (operator 2026-09-17).
+ *
+ * Only chips for kinds actually present, so the filter can never empty the page on its own — the
+ * presence rule Library's bar follows. Not persisted: a filter is about the query you are reading
+ * now, and carrying it into the next search would silently hide results.
+ */
+/**
+ * Which SECTION the resolved entity belongs in — people, topics and storylines are three sections
+ * now, not one lumped list (operator 2026-09-17). `organization` never reaches here; it is filtered
+ * when the resolver answers.
+ */
+const entityKey = computed<"people" | "topics" | "storylines" | null>(() => {
+  switch (entity.value?.kind) {
+    case "person":
+      return "people"
+    case "topic":
+      return "topics"
+    case "storyline":
+      return "storylines"
+    default:
+      return null
+  }
+})
+
+const resultTypes = ref<string[]>([])
+const typeVisible = (key: string) => resultTypes.value.length === 0 || resultTypes.value.includes(key)
+const availableResultTypes = computed(() => {
+  const out: { key: string; label: string }[] = []
+  // A chip per KIND, not one lumped "entity" chip (operator 2026-09-17): the resolver returns at
+  // most one entity, so whichever kind it is gets its own chip and its own section.
+  if (entity.value) out.push({ key: entityKey.value!, label: t(`search.type_${entityKey.value}`) })
+  if (noteMatches.value.length) out.push({ key: "notes", label: t("notes.title") })
+  if (yearSections.value.length) out.push({ key: "episodes", label: t("search.typeEpisodes") })
+  return out
+})
+// A chip for a kind that has just disappeared would stay selected and hide everything, so drop any
+// selection the current results can no longer offer.
+watch(availableResultTypes, (types) => {
+  const keys = new Set(types.map((x) => x.key))
+  const kept = resultTypes.value.filter((k) => keys.has(k))
+  if (kept.length !== resultTypes.value.length) resultTypes.value = kept
+})
 
 const showEmpty = computed(
   () =>
@@ -536,19 +613,82 @@ const showEmpty = computed(
       {{ saveMsg }}
     </p>
 
+    <!-- Result-kind filter — the same multi-select chips as Library's, "All" first so clearing is
+         one tap. Only renders once there is more than one kind to choose between; with a single kind
+         a filter is decoration. -->
+    <div
+      v-if="availableResultTypes.length > 1 && !searching"
+      class="mt-3 flex flex-wrap items-center gap-2"
+      data-testid="search-type-filter"
+    >
+      <button
+        type="button"
+        class="rounded-full border px-3 py-1 text-xs font-semibold transition"
+        :class="
+          resultTypes.length === 0
+            ? 'border-accent bg-accent/10 text-accent'
+            : 'border-border text-muted hover:text-canvas-foreground'
+        "
+        :aria-pressed="resultTypes.length === 0"
+        data-testid="search-type-all"
+        @click="resultTypes = []"
+      >
+        {{ t("library.savedFilterAllTypes") }}
+      </button>
+      <button
+        v-for="ty in availableResultTypes"
+        :key="ty.key"
+        type="button"
+        class="rounded-full border px-3 py-1 text-xs font-semibold transition"
+        :class="
+          resultTypes.includes(ty.key)
+            ? 'border-accent bg-accent/10 text-accent'
+            : 'border-border text-muted hover:text-canvas-foreground'
+        "
+        :aria-pressed="resultTypes.includes(ty.key)"
+        :data-testid="`search-type-${ty.key}`"
+        @click="
+          resultTypes = resultTypes.includes(ty.key)
+            ? resultTypes.filter((k) => k !== ty.key)
+            : [...resultTypes, ty.key]
+        "
+      >
+        {{ ty.label }}
+      </button>
+    </div>
+
+    <!-- Every result section carries a HEADING (operator 2026-09-17). "Your notes" had one and the
+         other two did not, so the page read as one labelled section followed by loose content —
+         with nothing saying where the notes ended and the corpus began. The headings use the same
+         words as the filter chips, so a chip and the block it governs name the same thing. -->
+    <!-- People / Topics / Storylines are three separate sections (operator 2026-09-17), each with
+         its own heading, subtitle and filter chip. The resolver returns at most ONE entity, so
+         exactly one of them renders for a given query — but which one is now named, instead of a
+         lumped heading that made a person and a storyline look like the same kind of result. -->
+    <template v-if="entity && entityKey && !searching && typeVisible(entityKey)">
+      <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${entityKey}`">
+        {{ t(`search.type_${entityKey}`) }}
+      </h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.entitySummary") }}
+      </p>
+    </template>
     <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
     <button
-      v-if="entity && !searching"
+      v-if="entity && entityKey && !searching && typeVisible(entityKey)"
       type="button"
       class="mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:bg-overlay"
       :aria-label="t('kp.openEntity', { term: entity.label })"
       @click="openEntity"
     >
       <span class="min-w-0 flex-1">
-        <!-- Person or topic only — an `organization` never reaches here; it is filtered when the
-             resolver answers. -->
+        <!-- An `organization` never reaches here; it is filtered when the resolver answers. -->
         <span class="lp-kicker block">{{
-          entity.kind === "person" ? t("ec.person") : t("ec.topic")
+          entity.kind === "person"
+            ? t("ec.person")
+            : entity.kind === "storyline"
+              ? t("home.storylines")
+              : t("ec.topic")
         }}</span>
         <span class="block font-display text-lg font-bold text-canvas-foreground">{{
           entity.label
@@ -560,8 +700,15 @@ const showEmpty = computed(
     <!-- SR.1: the listener's OWN notes matching the query, as their own section above the corpus
          passages (a note is not a transcript hit). Independent of the results chain below, so notes
          and corpus hits can both show. Client-side text match on the capture store. -->
-    <section v-if="noteMatches.length" class="mt-4" data-testid="search-note-matches">
-      <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
+    <section
+      v-if="noteMatches.length && typeVisible('notes')"
+      class="mt-4"
+      data-testid="search-note-matches"
+    >
+      <h2 class="lp-section mb-1">{{ t("notes.title") }}</h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.notesSummary", { count: noteMatches.length }, noteMatches.length) }}
+      </p>
       <ul class="flex flex-col gap-2">
         <li
           v-for="n in noteMatches"
@@ -572,12 +719,22 @@ const showEmpty = computed(
           <p class="whitespace-pre-wrap text-sm leading-relaxed text-canvas-foreground">
             {{ n.text }}
           </p>
+          <!-- Kind AND what it is attached to: "EPISODE · Risk Is a Systems Property". The kind
+               alone left a list reading "episode, episode, topic" with no way to tell WHICH without
+               following every link (operator 2026-09-17). `min-w-0 truncate` so a long episode title
+               shortens instead of pushing "Open" off the row. -->
           <div class="mt-1.5 flex items-center gap-2 text-xs">
-            <span class="lp-kicker">{{ n.target }}</span>
+            <span class="lp-kicker shrink-0">{{ n.target }}</span>
+            <span
+              v-if="noteLabel(n.target, n.target_id)"
+              class="min-w-0 flex-1 truncate font-semibold text-canvas-foreground"
+              data-testid="search-note-target"
+              >{{ noteLabel(n.target, n.target_id) }}</span
+            >
             <RouterLink
               v-if="noteRoute(n.target, n.target_id)"
               :to="noteRoute(n.target, n.target_id)!"
-              class="font-semibold text-accent no-underline"
+              class="ml-auto shrink-0 font-semibold text-accent no-underline"
               >{{ t("notes.open") }}</RouterLink
             >
           </div>
@@ -599,8 +756,16 @@ const showEmpty = computed(
     </p>
     <p v-else-if="showEmpty" class="mt-4 text-muted">{{ t("search.noResults") }}</p>
 
-    <template v-else-if="results.length">
-      <p class="mt-4 text-xs font-semibold uppercase tracking-wider text-muted">
+    <!-- `typeVisible('episodes')` gates the whole corpus block — its count line and topic chips
+         describe the episode results, so they go when the episodes do. -->
+    <template v-else-if="results.length && typeVisible('episodes')">
+      <!-- The episodes block gets a heading like the notes block has, with the passage/episode count
+           as its SUBTITLE rather than standing in for a title (operator 2026-09-17). The count was
+           doing both jobs and neither well: it never said what the section was. -->
+      <h2 class="lp-section mb-1 mt-4" data-testid="search-section-episodes">
+        {{ t("search.typeEpisodes") }}
+      </h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
         {{ t("search.summary", { passages: results.length, episodes: groups.length }) }}
       </p>
 

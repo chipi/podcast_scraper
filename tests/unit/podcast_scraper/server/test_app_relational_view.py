@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server.app_relational_view import (
+    _storyline_ref_by_norm,
     build_org_card,
     build_person_card,
     build_topic_card,
@@ -494,6 +495,106 @@ def test_resolve_entity_blank_and_no_match_return_none(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
     assert resolve_entity(tmp_path, "   ") is None  # normalizes to empty
     assert resolve_entity(tmp_path, "quantum chromodynamics") is None
+
+
+def _write_named_theme_clusters(root: Path, clusters: list[dict[str, object]]) -> None:
+    """Write the theme-cluster artifact with CALLER-CHOSEN clusters, for the storyline resolver.
+
+    Distinct from `_write_theme_clusters` above, which writes one fixed cluster for the topic-card
+    tests — naming this the same thing shadowed that helper and broke it.
+    """
+    d = root / "enrichments"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "topic_theme_clusters.json").write_text(
+        json.dumps({"schema_version": "1", "clusters": clusters}), encoding="utf-8"
+    )
+
+
+def test_resolve_entity_resolves_a_storyline_by_label(tmp_path: Path) -> None:
+    """Storylines are INDEXED here, not matched in the client (operator 2026-09-17).
+
+    They live in a different artifact from the KG — ``enrichments/topic_theme_clusters.json``, not
+    the per-episode graphs — so this is the one place that knows a query can name a storyline. A
+    client-side label match could not rank, could not see past the list endpoint's 50-item cap, and
+    left every other consumer of this resolver blind to them.
+    """
+    _two_episode_corpus(tmp_path)
+    _write_named_theme_clusters(
+        tmp_path,
+        [
+            {
+                "graph_compound_parent_id": "thc:managing-risk",
+                "canonical_label": "Managing risk across domains",
+                "member_count": 4,
+                "members": [
+                    {"topic_id": "topic:ml", "label": "machine learning"},
+                    {"topic_id": "topic:a", "label": "a"},
+                    {"topic_id": "topic:b", "label": "b"},
+                    {"topic_id": "topic:c", "label": "c"},
+                ],
+            }
+        ],
+    )
+    _storyline_ref_by_norm.cache_clear()
+    ref = resolve_entity(tmp_path, "Managing risk across domains")
+    assert ref is not None
+    assert (ref.id, ref.kind) == ("thc:managing-risk", "storyline")
+    # Normalisation is shared with the other kinds, so case/punctuation still resolve.
+    near = resolve_entity(tmp_path, "managing risk across domains")
+    assert near is not None and near.kind == "storyline"
+
+
+def test_resolve_entity_storyline_ignores_the_surfacing_floor(tmp_path: Path) -> None:
+    """A SMALL storyline still resolves when the user types its exact name.
+
+    The 4-member floor on the Home rail is a surfacing decision about where a listener is SENT.
+    Refusing to resolve a storyline someone searched for by name would be a different and worse
+    thing: being told the thing you just named does not exist.
+    """
+    _two_episode_corpus(tmp_path)
+    _write_named_theme_clusters(
+        tmp_path,
+        [
+            {
+                "graph_compound_parent_id": "thc:tiny",
+                "canonical_label": "Tiny pairing",
+                "member_count": 2,
+                "members": [
+                    {"topic_id": "topic:ml", "label": "machine learning"},
+                    {"topic_id": "topic:x", "label": "x"},
+                ],
+            }
+        ],
+    )
+    _storyline_ref_by_norm.cache_clear()
+    ref = resolve_entity(tmp_path, "Tiny pairing")
+    assert ref is not None and ref.kind == "storyline"
+
+
+def test_resolve_entity_prefers_a_person_over_a_storyline_of_the_same_name(tmp_path: Path) -> None:
+    """Precedence is person > topic > org > storyline, so a name collision favours the person."""
+    _write_episode(
+        tmp_path,
+        stem="0001-p",
+        episode_id="ep1",
+        persons=[("person:overlap", "Overlap")],
+        topics=[],
+    )
+    _write_named_theme_clusters(
+        tmp_path,
+        [
+            {
+                "graph_compound_parent_id": "thc:overlap",
+                "canonical_label": "Overlap",
+                "member_count": 4,
+                "members": [{"topic_id": f"topic:{c}", "label": c} for c in "abcd"],
+            }
+        ],
+    )
+    _storyline_ref_by_norm.cache_clear()
+    ref = resolve_entity(tmp_path, "overlap")
+    assert ref is not None
+    assert ref.kind == "person" and ref.id == "person:overlap"
 
 
 def test_resolve_entity_prefers_person_over_topic_on_collision(tmp_path: Path) -> None:

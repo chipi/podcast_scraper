@@ -78,7 +78,12 @@ def render_highlights_markdown(
             tc = _timecode(h.start_ms)
             stamp = f"[{tc}] " if tc else ""
             if h.kind == "moment":
-                body = f"{stamp}Marked moment".rstrip()
+                # The captured WORDS, quoted — not the words "Marked moment". A moment now stores
+                # the spoken line it was taken from, and an export that dropped it gave the reader a
+                # list of timestamps with no content (operator 2026-09-17). Moments saved before
+                # that carry no text and still fall back to the label.
+                quote = (h.quote_text or "").strip()
+                body = f'{stamp}"{quote}"' if quote else f"{stamp}Marked moment".rstrip()
             elif h.kind == "insight":
                 body = f"{stamp}{(h.quote_text or 'Saved insight').strip()}"
             else:  # span

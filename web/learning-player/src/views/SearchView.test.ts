@@ -6,6 +6,7 @@ import { createMemoryHistory, createRouter } from "vue-router"
 import * as api from "../services/api"
 import en from "../i18n/locales/en.json"
 import { useAuthStore } from "../stores/auth"
+import { clearCached } from "../services/contentCache"
 import { useSavedQueriesStore } from "../stores/savedQueries"
 import SearchView from "./SearchView.vue"
 
@@ -24,15 +25,57 @@ function makeRouter() {
       // them or the mount silently drops the tree with a runtime error.
       { path: "/topic/:id", name: "topic", component: { template: "<div/>" }, props: true },
       { path: "/person/:id", name: "person", component: { template: "<div/>" }, props: true },
+      // Storyline results link here. Without the route, `router.resolve` THROWS mid-render and
+      // vue-router drops the subtree — which is why a missing route showed up as "the storylines
+      // section did not render" AND corrupted later tests in this file, rather than as a routing
+      // error (operator 2026-09-17). Same failure mode as an EpisodeCard with no feed_id.
+      { path: "/storyline/:id", name: "storyline", component: { template: "<div/>" }, props: true },
     ],
   })
 }
 
 // Default: no entity match — search tests assert passage behaviour without an entity card.
-beforeEach(() => {
+beforeEach(async () => {
+  // The capture store PERSISTS notes and highlights (`writeCached('captures', …)`) and recovers from
+  // that cache when a fetch yields nothing — so notes seeded by one test were read back by the next.
+  // It only surfaced once two tests here began seeding notes: the recall-empty case then rendered
+  // another test's note list in place of its empty state.
+  //
+  // Clearing the CACHE is the whole fix. Do NOT add `setActivePinia` here: several tests below build
+  // their own pinia, pass it to `mount`, and then read the store from the test body — which resolves
+  // against whatever pinia is active. Installing one here made those two different instances, so a
+  // store the component had written looked empty to the test.
+  await clearCached(["captures"])
   vi.spyOn(api, "resolveEntity").mockResolvedValue({ query: "", entity: null })
+  // Default: no storylines. Unmocked, the onMounted fetch rejects into an unhandled rejection that
+  // Vitest reports across the whole run.
+  vi.spyOn(api, "getStorylines").mockResolvedValue([])
+  // Default: an EMPTY capture. Unmocked, `ensureLoaded()` fails against no server and the store then
+  // RECOVERS FROM CACHE — so notes seeded by one test were served to every later test whose fetch
+  // failed, which is most of them. A succeeding empty fetch overwrites instead, and tests that want
+  // notes override these two. (Clearing the cache is not enough: it is namespaced per account, and
+  // the namespace at write time is not the one a bare clear touches.)
+  vi.spyOn(api, "getNotes").mockResolvedValue([])
+  vi.spyOn(api, "getHighlights").mockResolvedValue([])
 })
-afterEach(() => vi.restoreAllMocks())
+// Let a test's in-flight work SETTLE before its mocks are pulled. This view fires several unawaited
+// fetches from `onMounted` (captures, storylines) plus the search itself; restoring mocks while one
+// is pending let it resolve during the NEXT test and write into that test's stores. It showed up as
+// three unrelated cases failing together the moment new tests here began seeding notes and
+// storylines — each passed alone (operator 2026-09-17).
+afterEach(async () => {
+  // UNMOUNT first. This view fires unawaited fetches from `onMounted` (captures, storylines) and
+  // keeps reacting to them; a wrapper left mounted resolved those during the NEXT test and wrote
+  // into that test's stores. It surfaced as three unrelated cases failing together the moment new
+  // tests here began seeding notes — each passed alone (operator 2026-09-17).
+  mounted?.unmount()
+  mounted = null
+  await flushPromises()
+  vi.restoreAllMocks()
+})
+
+// The wrapper from the most recent `mountAt`, so afterEach can tear it down.
+let mounted: { unmount: () => void } | null = null
 
 async function mountAt(q: string) {
   const router = makeRouter()
@@ -41,6 +84,7 @@ async function mountAt(q: string) {
   const w = mount(SearchView, {
     global: { plugins: [i18n, router, createPinia()], stubs: { teleport: true } },
   })
+  mounted = w
   await flushPromises()
   return { w, router }
 }
@@ -218,6 +262,143 @@ describe("SearchView", () => {
     await flushPromises()
     expect(getPerson).toHaveBeenCalledWith("person:jane-doe")
     expect(w.find('[role="dialog"]').exists()).toBe(true)
+  })
+
+  it("surfaces a STORYLINE from the resolver, in its own section", async () => {
+    // Storylines are INDEXED server-side, in the same resolver as people and topics (operator
+    // 2026-09-17: "I don't want a client-side solution, I asked for them to be indexed"). The first
+    // pass matched labels in the client; that could not rank, could not see past the list
+    // endpoint's 50-item cap, and left every other consumer of the resolver blind to storylines.
+    //
+    // People / topics / storylines each get their OWN section, so a person and a storyline never
+    // look like the same kind of result.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "risk", error: null, results: [] })
+    vi.spyOn(api, "resolveEntity").mockResolvedValue({
+      query: "risk",
+      entity: { id: "thc:managing-risk", kind: "storyline", label: "Managing risk across domains" },
+    })
+    const { w } = await mountAt("risk")
+    await flushPromises()
+    expect(w.find('[data-testid="search-section-storylines"]').exists()).toBe(true)
+    expect(w.find('[data-testid="search-section-people"]').exists()).toBe(false)
+    expect(w.find('[data-testid="search-section-topics"]').exists()).toBe(false)
+    expect(w.text()).toContain("Managing risk across domains")
+    expect(w.text()).not.toContain("No matches found.")
+  })
+
+  it("opens a storyline on its PAGE, not as an entity card", async () => {
+    // A storyline is a theme cluster with a page of its own; there is no EntityCard for one. Same
+    // destination `noteRoute` sends a storyline note to.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "risk", error: null, results: [] })
+    vi.spyOn(api, "resolveEntity").mockResolvedValue({
+      query: "risk",
+      entity: { id: "thc:managing-risk", kind: "storyline", label: "Managing risk across domains" },
+    })
+    const { w, router } = await mountAt("risk")
+    await flushPromises()
+    const push = vi.spyOn(router, "push")
+    await w
+      .findAll("button")
+      .find((b) => b.text().includes("View"))!
+      .trigger("click")
+    await flushPromises()
+    expect(push).toHaveBeenCalledWith({ name: "storyline", params: { id: "thc:managing-risk" } })
+    expect(w.find('[role="dialog"]').exists(), "opened an entity card instead").toBe(false)
+  })
+
+  it("filters which result KINDS show, and All clears it", async () => {
+    // Same multi-select chips as Library's, none selected = all (operator 2026-09-17). Only kinds
+    // actually present get a chip, so the filter cannot empty the page by itself.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "sleep",
+      error: null,
+      results: [
+        {
+          doc_id: "d1",
+          score: 1,
+          text: "a passage about sleep",
+          source_tier: "transcript",
+          metadata: {
+            episode_slug: "ep-a",
+            episode_title: "An Episode About Sleep",
+            podcast_title: "Show",
+            publish_date: "2026-01-01T00:00:00",
+          },
+        },
+      ],
+    })
+    vi.spyOn(api, "getHighlights").mockResolvedValue([])
+    vi.spyOn(api, "getNotes").mockResolvedValue([
+      {
+        id: "n1",
+        target: "episode",
+        target_id: "ep-a",
+        text: "my own note about sleep",
+        created_at: 1,
+        updated_at: 1,
+      },
+    ])
+    const { w } = await mountAt("sleep")
+    await flushPromises()
+
+    // Both kinds present → both chips, plus All.
+    expect(w.find('[data-testid="search-type-filter"]').exists()).toBe(true)
+    expect(w.text()).toContain("my own note about sleep")
+    expect(w.text()).toContain("An Episode About Sleep")
+
+    // Notes only: the episode block goes, the note stays.
+    await w.find('[data-testid="search-type-notes"]').trigger("click")
+    await flushPromises()
+    expect(w.text()).toContain("my own note about sleep")
+    expect(w.find('[data-testid="episode-card"]').exists(), "episodes survived a notes-only filter").toBe(
+      false
+    )
+
+    // All restores everything.
+    await w.find('[data-testid="search-type-all"]').trigger("click")
+    await flushPromises()
+    expect(w.find('[data-testid="episode-card"]').exists()).toBe(true)
+  })
+
+  it("names what each note is attached to, not just its kind", async () => {
+    // A note row showed only "EPISODE" + Open, so a list read as "episode, episode, topic" with no
+    // way to tell WHICH without following every link (operator 2026-09-17). Episode titles come from
+    // the hits already on screen; entity ids carry their own label and need no lookup.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "sleep",
+      error: null,
+      results: [
+        {
+          doc_id: "d1",
+          score: 1,
+          text: "a passage",
+          source_tier: "transcript",
+          metadata: {
+            episode_slug: "ep-a",
+            episode_title: "An Episode About Sleep",
+            podcast_title: "Show",
+            publish_date: "2026-01-01T00:00:00",
+          },
+        },
+      ],
+    })
+    vi.spyOn(api, "getHighlights").mockResolvedValue([])
+    vi.spyOn(api, "getNotes").mockResolvedValue([
+      { id: "n1", target: "episode", target_id: "ep-a", text: "note one about sleep", created_at: 2, updated_at: 2 },
+      {
+        id: "n2",
+        target: "topic",
+        target_id: "topic:deep-sleep",
+        text: "note two about sleep",
+        created_at: 1,
+        updated_at: 1,
+      },
+    ])
+    const { w } = await mountAt("sleep")
+    await flushPromises()
+    const targets = w.findAll('[data-testid="search-note-target"]').map((n) => n.text())
+    expect(targets, "the episode note has no title").toContain("An Episode About Sleep")
+    expect(targets, "the topic note was not de-slugged").toContain("deep sleep")
   })
 
   it("does NOT surface an organization as a result, even when the resolver returns one", async () => {
