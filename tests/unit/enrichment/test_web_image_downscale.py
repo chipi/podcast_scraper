@@ -25,6 +25,7 @@ import hashlib
 import io
 
 import pytest
+from PIL import Image
 
 from podcast_scraper.enrichment.enrichers.person_web import (
     _downscale_image,
@@ -32,12 +33,14 @@ from podcast_scraper.enrichment.enrichers.person_web import (
     _image_sniff_ok,
 )
 
-PIL = pytest.importorskip("PIL.Image", reason="pillow is a declared runtime dep")
+# Pillow is imported at module scope deliberately. It is a BASE runtime dependency
+# (pyproject: `pillow>=10.4.0,<13.0.0`), not an ML extra, so it is always present under the
+# [dev] install unit tests run with. An `importorskip` here would be cargo-cult — it can never
+# fire — and it violates the 3-tier policy's U1 rule (`make check-test-policy`), which exists
+# because a unit test that silently skips reads exactly like one that passed.
 
 
 def _img(w: int, h: int, ext: str, mode: str = "RGB") -> bytes:
-    from PIL import Image
-
     # Incompressible noise, not flat colour and not an arithmetic ramp: both compress to
     # almost nothing, and a ramp actually compresses BETTER at full size than downscaled,
     # which is how the byte-size guard this module now rejects got written in the first place.
@@ -51,8 +54,6 @@ def _img(w: int, h: int, ext: str, mode: str = "RGB") -> bytes:
 
 
 def _size(data: bytes) -> tuple[int, int]:
-    from PIL import Image
-
     with Image.open(io.BytesIO(data)) as im:
         return im.size
 
@@ -111,8 +112,6 @@ class TestFailureNeverCostsThePhoto:
 
     def test_invalid_encoder_output_falls_back_to_the_original(self, monkeypatch):
         """If the re-encode is not a usable image of the declared type, keep what we had."""
-        from PIL import Image
-
         original = _img(1600, 1200, "png")
         monkeypatch.setattr(Image.Image, "save", lambda self, fp, *a, **kw: fp.write(b"junk"))
 
@@ -127,8 +126,6 @@ class TestDimensionsBeatBytes:
         rendition 51255 B. Rejecting on bytes would have stored the 1600px frame forever —
         the exact thing the operator asked us to stop doing.
         """
-        from PIL import Image
-
         # A gradient: highly structured, so PNG filters shrink the BIG one best.
         big = Image.frombytes(
             "RGB", (1600, 1200), bytes((i * 7919) % 256 for i in range(1600 * 1200 * 3))
