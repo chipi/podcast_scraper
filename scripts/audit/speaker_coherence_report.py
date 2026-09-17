@@ -119,7 +119,9 @@ def _migration_preview(root: Path, show_roles: bool) -> int:
         after = copy.deepcopy(kg)
         demote_non_persons(after, feed, voices)
         roles = roster_roles(md)
-        if roles:
+        # #2075, in step with m0009 `apply()`: a guessed roster writes no role in either direction,
+        # so it is skipped here too rather than modelled as promote-only.
+        if roles and not roster_is_a_guess(md, md_path):
             # `md_path` is NOT optional here. `voices_heard` returns None without it — by design,
             # it refuses to guess — and a None denominator switches OFF m0009's roster-denies
             # demotion. Omitting the path therefore produced a transition table that could not
@@ -129,7 +131,7 @@ def _migration_preview(root: Path, show_roles: bool) -> int:
             # The provenance gate is repeated from `apply()` for the same reason: an instrument
             # that models the migration differently from the migration reports a run that is not
             # the one about to happen. These two lines must stay in step.
-            heard = None if roster_is_a_guess(md, md_path) else voices_heard(md, md_path)
+            heard = voices_heard(md, md_path)
             promote_person_roles(after, roles, voices_heard=heard, feed_title=feed)
         for node in after.get("nodes", []):
             if str(node.get("type", "")).lower() != "person":

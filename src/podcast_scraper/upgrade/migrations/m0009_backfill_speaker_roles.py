@@ -298,6 +298,14 @@ def roster_is_a_guess(metadata_payload: dict, metadata_path: Optional[Path] = No
 
     ``False`` when the sidecar is unreachable: unprovable is not the same as guessed, and
     :func:`voices_heard` independently returns ``None`` there, which disables route (b) anyway.
+
+    ``True`` whenever a readable sidecar carries no named voice (#2075) — including the sidecar with
+    no voice ids at all, which is a never-diarized episode and therefore a hint roster by
+    construction. The counts above predate that: they classified only "ids, none named" (86).
+    Measured with the no-ids case included, by a dry run over a copy of the production snapshot:
+    188 episodes reach this migration with a guessed roster and roles to write, and skipping them
+    removes 112 promotions (3,175 -> 3,063). Every one of the 3,063 that remain is on an episode
+    whose sidecar names a voice.
     """
     if roster_provenance(metadata_payload) == "hint":
         return True
@@ -312,16 +320,21 @@ def roster_is_a_guess(metadata_payload: dict, metadata_path: Optional[Path] = No
     except (OSError, json.JSONDecodeError):
         return False
     rows = payload if isinstance(payload, list) else (payload.get("segments") or [])
-    heard = False
     for row in rows:
         if not isinstance(row, dict):
             continue
-        if row.get("speaker") not in (None, ""):
-            heard = True
         label = str(row.get("speaker_label") or "")
         if label and not is_bare_speaker_label(label) and not looks_like_publisher(label):
             return False  # diarization named someone — this roster is a measurement
-    return heard
+    # NO NAMED VOICE ANYWHERE IN A READABLE SIDECAR: the roster is the guess (#2075). This used to
+    # also require raw voice ids ("heard voices and named none"). But the pre-record writer took the
+    # roster from segments only when a segment carried a named label and otherwise fell back to the
+    # hint — so a sidecar with no named label means the roster IS the hint, whether or not it
+    # carries voice ids. The "no ids" case is the publisher-transcript episode that was never
+    # diarized at all, and operator decision 2026-09-17 is that such an episode casts nobody.
+    # Measured on the production snapshot: that case let m0009 write 105 promotions on 71
+    # episodes (Odd Lots 69, In Moscow's Shadows 33) with no voice ever named.
+    return True
 
 
 def voices_heard(metadata_payload: dict, metadata_path: Optional[Path] = None) -> Optional[int]:
@@ -671,6 +684,7 @@ class BackfillSpeakerRolesMigration(Migration):
         demoted_absent = 0
         demoted_non_person = 0
         no_roster = 0
+        guess_rosters = 0
         already_correct = 0
         unmatched: List[str] = []
         suspect_demotions: List[str] = []
@@ -709,32 +723,24 @@ class BackfillSpeakerRolesMigration(Migration):
             # Route 2 — the roster accounts for every voice and this person is not among them.
             roles = roster_roles(meta_payload)
             promoted = demoted = 0
-            if roles:
-                # ROUTE (b) MAY NOT DEMOTE ON THE STRENGTH OF A GUESS (#2070). Demotion reads
-                # absence from the roster as proof of not speaking. That inference is only valid
-                # if the roster is a MEASUREMENT. When `content.speakers` is the pre-diarization
-                # hint, diarization heard N voices and named nobody, so the sidecar still reports
-                # N while the "roster" is the feed's guess — and matching two guessed names
-                # against N would demote a real speaker to seat a hint. That is #2065's root
-                # cause re-entering one layer down, through the repair itself.
-                #
-                # `voices_heard=None` is the existing, tested way to switch route (b) off:
-                # promotions still run (adding information is safe whatever the roster omits),
-                # demotions do not.
-                #
-                # `unknown` — every artifact written before #2070, i.e. the whole corpus this
-                # migration repairs — is NOT refused wholesale: that would make the pass a no-op on
-                # production. It is CLASSIFIED from the sidecar instead, which can answer the
-                # question the missing label cannot. See `roster_is_a_guess`.
-                _heard = (
-                    None
-                    if roster_is_a_guess(meta_payload, meta_path)
-                    else voices_heard(meta_payload, meta_path)
-                )
+            # A GUESS WRITES NO ROLE IN EITHER DIRECTION (#2075). This gate used to switch off only
+            # DEMOTION on a guessed roster, reasoning that "promotion adds information and is safe
+            # whatever the roster omits". It is not information about who spoke: a guessed roster
+            # is names from the feed and show notes that no voice was matched to, and promoting
+            # them writes a speaking role for a person the audio never supported — irreversibly,
+            # on production. Measured by a dry run over a copy of the production snapshot: 188
+            # episodes reach here with a guessed roster; skipping them removes 112 promotions.
+            # Operator rule 2026-09-17: a person is a host or guest only if a voice was matched.
+            is_guess = bool(roles) and roster_is_a_guess(meta_payload, meta_path)
+            if is_guess:
+                guess_rosters += 1
+            elif roles:
+                # Route (b)'s denominator is the voice count the sidecar PROVES (#2070); a guessed
+                # roster never reaches here, so absence from this roster is a measurement.
                 promoted, demoted, missing = promote_person_roles(
                     payload,
                     roles,
-                    voices_heard=_heard,
+                    voices_heard=voices_heard(meta_payload, meta_path),
                     feed_title=feed_title,
                     ambiguous=ambiguous_nodes,
                     changes=episode_changes,
@@ -744,7 +750,8 @@ class BackfillSpeakerRolesMigration(Migration):
                 no_roster += 1
 
             if not promoted and not demoted and not non_person:
-                if roles:
+                # A skipped guess is not "already correct" — it was never checked (#2075).
+                if roles and not is_guess:
                     already_correct += 1
                 continue
             promoted_total += promoted
@@ -795,7 +802,8 @@ class BackfillSpeakerRolesMigration(Migration):
             f"({demoted_non_person} that are not a person at all, {demoted_absent} the roster "
             f"accounts for every voice without naming), across {len(changed)} "
             f"artifact(s); {already_correct} already "
-            f"correct, {no_roster} with no usable roster on disk, {len(unmatched)} roster name(s) "
+            f"correct, {no_roster} with no usable roster on disk, {guess_rosters} whose roster is "
+            f"a pre-listening guess (no role written either way), {len(unmatched)} roster name(s) "
             f"with no matching node (name variants — these need a re-enrich, not this migration), "
             f"{len(unparsable)} unparsable"
             + (
@@ -827,6 +835,7 @@ class BackfillSpeakerRolesMigration(Migration):
                 "ambiguous_nodes": ambiguous_nodes,
                 "already_correct": already_correct,
                 "no_roster": no_roster,
+                "guess_rosters_skipped": guess_rosters,
                 "unmatched_roster_names": len(unmatched),
                 "unmatched_sample": unmatched[:20],
                 "unparsable": unparsable[:20],

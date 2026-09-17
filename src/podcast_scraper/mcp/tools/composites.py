@@ -73,5 +73,7 @@ def episode_digest(
         "enrichment_signals": _enrichment.episode_enrichment_signals(ctx, metadata_path).get(
             "signals"
         ),
-        "speaker_roster": _enrichment.episode_speaker_roster(ctx, metadata_path).get("diagnostics"),
+        # #2075: the speaker RECORD (who is on the episode, placed or only named, talk share) —
+        # not the diagnostics, whose candidate lists include the pre-listening guess.
+        "speaker_roster": _enrichment.episode_speaker_roster(ctx, metadata_path).get("speakers"),
     }

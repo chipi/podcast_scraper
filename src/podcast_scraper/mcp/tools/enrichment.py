@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from ..context import CorpusContext
 
@@ -82,14 +82,64 @@ def episode_enrichment_signals(ctx: CorpusContext, metadata_path: str) -> Dict[s
     return {"scope": "episode", "episode": metadata_path, "signals": signals, "note": note}
 
 
-def episode_speaker_roster(ctx: CorpusContext, metadata_path: str) -> Dict[str, Any]:
-    """Diarized speaker roster + talk-share for one episode — who spoke, %, host/guest.
+def _roster_from_record(content: Any, diag: Any) -> List[Dict[str, Any]]:
+    """Who is on the episode, from the SPEAKER RECORD, with talk time from diagnostics (#2075).
 
-    Reads the ``.speakers.diagnostics.json`` the pipeline persists next to the transcript
-    (talk_share, unattributed_talk_share, per-voice_type counts, exposed metrics). This data
-    has no HTTP route, so this is net-new read capability. Distinct from ``who_said_about_topic``
-    / ``person_positions`` (knowledge-graph person queries) — this is the diarized-voice layer.
-    Returns ``diagnostics: None`` when the episode has no persisted diarization diagnostics.
+    ``content.speakers`` is the one record every surface is written from. Each entry says whether a
+    voice was matched to that person (``placed``); talk time is summed over the diagnostics voices
+    the entry names. Older records carry no voice ids, so a voice is matched by its resolved name.
+    A person only named (``placed: false``) is listed — marked — with no talk time: they are on the
+    record, and nothing here may present them as someone who spoke.
+    """
+    voices = (
+        [v for v in ((diag or {}).get("voices") or []) if isinstance(v, dict)]
+        if isinstance(diag, dict)
+        else []
+    )
+    total = sum(float(v.get("talk_time_s") or 0.0) for v in voices) or 0.0
+    out: List[Dict[str, Any]] = []
+    entries = (content or {}).get("speakers") if isinstance(content, dict) else None
+    for sp in entries or []:
+        if not isinstance(sp, dict) or not sp.get("name"):
+            continue
+        placed = sp.get("placed")
+        ids = [str(v) for v in (sp.get("voices") or [])]
+        if placed is False:
+            mine: List[Dict[str, Any]] = []
+        elif ids:
+            mine = [v for v in voices if str(v.get("voice")) in ids]
+        else:
+            mine = [
+                v for v in voices if v.get("resolved_name") == sp.get("name") and v.get("named")
+            ]
+        talk = sum(float(v.get("talk_time_s") or 0.0) for v in mine)
+        out.append(
+            {
+                "name": sp.get("name"),
+                "role": sp.get("role"),
+                "placed": placed,
+                "voices": ids or [str(v.get("voice")) for v in mine],
+                "source": sp.get("source"),
+                "talk_time_s": round(talk, 1),
+                "talk_share": round(talk / total, 4) if total else None,
+            }
+        )
+    return out
+
+
+def episode_speaker_roster(ctx: CorpusContext, metadata_path: str) -> Dict[str, Any]:
+    """Speaker roster + talk-share for one episode — who spoke, %, host/guest.
+
+    ``speakers`` is the episode's speaker RECORD (``content.speakers``, #2075): every person on the
+    episode, whether a voice was matched to them (``placed``), their role and talk share. People
+    only named — by the feed, the show notes, the pre-listening guess — are listed with
+    ``placed: false`` and no talk time; they did not speak as far as the audio shows.
+
+    ``diagnostics`` is the explanation of how the names were chosen (per-voice method, voice types,
+    exposed metrics), read from ``.speakers.diagnostics.json``. Its ``tried`` block is omitted: it
+    holds the raw candidate lists the roster was given, including the pre-listening guess, and
+    returning it here put a second, contradictory answer to "who spoke" in front of the caller.
+    Distinct from ``who_said_about_topic`` / ``person_positions`` (knowledge-graph person queries).
     """
     from ...server.app_content_source import transcript_corpus_relpath, transcript_relpath
     from ...server.app_corpus_access import load_json_artifact
@@ -99,11 +149,24 @@ def episode_speaker_roster(ctx: CorpusContext, metadata_path: str) -> Dict[str, 
     content = (meta or {}).get("content") if isinstance(meta, dict) else None
     transcript_rel = transcript_relpath(content) if isinstance(content, dict) else None
     if not transcript_rel:
-        return {"episode": metadata_path, "diagnostics": None, "note": "no transcript for episode"}
+        return {
+            "episode": metadata_path,
+            "speakers": _roster_from_record(content, None),
+            "diagnostics": None,
+            "note": "no transcript for episode",
+        }
     transcript_corpus_rel = transcript_corpus_relpath(metadata_path, transcript_rel)
     base, _ = os.path.splitext(transcript_corpus_rel)
     diag = load_json_artifact(root, base + ".speakers.diagnostics.json")
     note = (
         "" if diag else "no persisted speaker diagnostics (diarization off or pre-diagnostics run)"
     )
-    return {"episode": metadata_path, "diagnostics": diag, "note": note}
+    explanation = (
+        {k: v for k, v in diag.items() if k != "tried"} if isinstance(diag, dict) else diag
+    )
+    return {
+        "episode": metadata_path,
+        "speakers": _roster_from_record(content, diag),
+        "diagnostics": explanation,
+        "note": note,
+    }
