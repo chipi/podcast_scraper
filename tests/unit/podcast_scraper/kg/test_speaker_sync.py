@@ -211,10 +211,34 @@ class TestSplitPerson:
     the record alone (validation run: `Elad` guest / `Elad Gil` host on No Priors)."""
 
     def test_one_human_placed_twice_is_reported(self) -> None:
+        """The surviving shape: one person, two ASR spellings of the same surname."""
+        a = {
+            "id": "guest",
+            "name": "Elad Gilman",
+            "role": "guest",
+            "placed": True,
+            "voices": ["S1"],
+        }
+        b = {
+            "id": "host_2",
+            "name": "Elad Gilmann",
+            "role": "host",
+            "placed": True,
+            "voices": ["S3"],
+        }
+        v = check_episode_in_sync(_meta(BARBARO, a, b), _kg(("Michael Barbaro", "host")), None)
+        assert any(x.startswith("SPLIT_PERSON") for x in v), v
+
+    def test_a_mononym_and_a_full_name_are_no_longer_a_split(self) -> None:
+        """A DELIBERATE gap, not an oversight (#2075). `Elad` + `Elad Gil` on No Priors really was
+        one person, but the same rule made `Alex` and `Alex Maasi` one person on Made In Africa,
+        where they are two humans in the room — and merging two people is the worse error under
+        #876. The mononym clause was removed, so this split is no longer reported here.
+        """
         elad = {"id": "guest", "name": "Elad", "role": "guest", "placed": True, "voices": ["S1"]}
         gil = {"id": "host_2", "name": "Elad Gil", "role": "host", "placed": True, "voices": ["S3"]}
         v = check_episode_in_sync(_meta(BARBARO, elad, gil), _kg(("Michael Barbaro", "host")), None)
-        assert any(x.startswith("SPLIT_PERSON") for x in v), v
+        assert not any(x.startswith("SPLIT_PERSON") for x in v), v
 
     def test_two_people_sharing_a_surname_are_not_a_split(self) -> None:
         a = {"id": "guest_1", "name": "Robert Pape", "role": "guest", "placed": True}
