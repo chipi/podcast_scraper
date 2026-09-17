@@ -33,6 +33,7 @@ from ....speaker_detectors.hosts import (
     _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
     _GUEST_SPEECH_ACTS,
+    _HOST_SPEECH_ACTS,
     _NAME_RE as _INTRO_NAME_RE,
     CUE_FIRST_BODY,
     CUE_FIRST_PAST_BODY,
@@ -344,6 +345,103 @@ def _voices_by_talk(diarization: DiarizationResult, ad_voices: set) -> List[str]
             continue
         talk[seg.speaker] = talk.get(seg.speaker, 0.0) + max(0.0, seg.end - seg.start)
     return sorted(talk, key=lambda v: talk[v], reverse=True)
+
+
+def _talk_share(diarization: DiarizationResult, ad_voices: set) -> Dict[str, float]:
+    """Each non-ad voice's fraction of spoken time. Measured in SECONDS, deliberately.
+
+    Text length is the tempting proxy and it disagrees: a fast talker and a slow one produce very
+    different character counts for the same minutes, and the rule below turns on "does this voice
+    own most of a two-party interview", which is a question about time.
+    """
+    talk: Dict[str, float] = {}
+    for seg in diarization.segments:
+        if seg.speaker in ad_voices:
+            continue
+        talk[seg.speaker] = talk.get(seg.speaker, 0.0) + max(0.0, seg.end - seg.start)
+    total = sum(talk.values()) or 1.0
+    return {v: secs / total for v, secs in talk.items()}
+
+
+#: How far a host act must sit from every guest act to count as the seat's OWN evidence rather
+#: than half of a bleed pair. Measured on the 92 seats the blunt version added: a bled pair is
+#: 20-200 characters apart ("welcome to the podcast. Thanks, KG. I'm very happy to be here"),
+#: because it is one exchange that diarization failed to split.
+_BLEED_PAIR_CHARS = 200
+
+#: A voice owning most of a two-party conversation is the interviewee, not the presenter. Measured
+#: on the same 92: of 14 seats that were rank-0 with >= 50% of the talk on a <= 3-voice episode,
+#: 11 were the guest or a merged cluster. This DECLINES only — it never names anyone.
+_DOMINANT_SHARE = 0.5
+_DOMINANT_MAX_VOICES = 3
+
+#: Guest speech acts for the RESCUE check only, wider than `_GUEST_SPEECH_ACTS`. The narrow list
+#: exists to veto a name and is kept conservative on purpose; here the question is the opposite —
+#: "is there any sign a guest's reply is in this text" — so a miss costs a wrong name. "It's nice
+#: to be here" is what let the Novo Nordisk CEO through as the host of The Journal.
+_GUEST_REPLY_WIDE = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"\b(?:thanks?|thank you)(?:\s+(?:so|very)\s+much)?\s+for having me\b",
+        r"\b(?:glad|happy|great|good|nice|excited|pleased?|honou?red)\s+to be (?:here|on|back)\b",
+        r"\bit'?s (?:a )?(?:pleasure|honou?r) to be (?:here|on)\b",
+        r"\bthanks? for (?:the invite|inviting me)\b",
+    )
+]
+
+
+def _rescued_from_bleed(
+    seat: str,
+    text: str,
+    name: str,
+    *,
+    voice_intro: Mapping[str, str],
+    voice_texts: Mapping[str, str],
+    talk_share: Mapping[str, float],
+) -> bool:
+    """May a seat carrying a guest reply still take the forced host name? (#2075)
+
+    DIARIZATION BLEED PUTS THE GUEST'S REPLY IN THE HOST'S CLUSTER: "So, Charles, welcome to the
+    podcast. Thanks, KG. I'm very happy to be here." — one exchange, one cluster. The guest-act veto
+    above reads the whole cluster, so it refuses the host. Measured on the snapshot, that costs 139
+    seats, and they are the bulk of the single-host coverage this branch gave up.
+
+    THE TRAP, AND WHY THIS FUNCTION IS SO NARROW: the bled pair reads IDENTICALLY whether it landed
+    in the host's cluster or the guest's. A rule that accepts "the seat performs a host act" cannot
+    tell the two apart, and one was shipped and reverted (53df0349) — it put `Gergely Orosz` on
+    Elizabeth Stone's voice, `Ryan Knutson` on the Novo Nordisk CEO's, `Shruti Rajagopalan` on Sunny
+    Rai's. So nothing here may rest on the pair. Each test below is evidence bleed cannot fabricate:
+
+    1. A host act at least ``_BLEED_PAIR_CHARS`` from every guest reply — the seat presents
+       somewhere OTHER than the contested exchange. A bled pair is one turn wide.
+    2. The seat is not the dominant voice of a small conversation: a presenter does not own most of
+       a two-party interview, and 11 of the 14 such seats were the guest or a merged cluster.
+    3. No other voice self-introduced with this name's given name. "One spare name, one spare seat"
+       is simply false when Kevin already said he is Kevin, and the arithmetic cannot see that.
+
+    Declining is free — the voice keeps its ``SPEAKER_NN`` defect marker, which is the honest state.
+    """
+    if not text or not name:
+        return False
+    host_at = [m.start() for p in _HOST_SPEECH_ACTS for m in p.finditer(text)]
+    if not host_at:
+        return False
+    reply_at = [m.start() for p in _GUEST_REPLY_WIDE for m in p.finditer(text)]
+    if not any(all(abs(h - g) > _BLEED_PAIR_CHARS for g in reply_at) for h in host_at):
+        return False
+    share = talk_share.get(seat)
+    if (
+        share is not None
+        and share >= _DOMINANT_SHARE
+        and len([v for v in talk_share if talk_share[v] > 0]) <= _DOMINANT_MAX_VOICES
+        and share >= max(talk_share.values() or [0.0])
+    ):
+        return False
+    given = name.split()[0]
+    for other, intro in (voice_intro or {}).items():
+        if other != seat and intro and first_names_match(intro.split()[0], given):
+            return False
+    return True
 
 
 def _opening_voice(
@@ -1285,6 +1383,7 @@ def _name_host_voices(
     conv_host_voices: Optional[AbstractSet[str]] = None,
     voice_texts: Optional[Mapping[str, str]] = None,
     episode_text: Optional[str] = None,
+    talk_share: Optional[Mapping[str, float]] = None,
 ) -> Dict[str, SpeakerRole]:
     """Name host voices from EVIDENCE — a self-introduction, or a forced single answer.
 
@@ -1350,6 +1449,15 @@ def _name_host_voices(
         # speech act while wearing a host's name.
         performs_guest = any(p.search(text) for p in _GUEST_SPEECH_ACTS) if text else False
         if not performs_guest:
+            forced_name = unclaimed[0]
+        elif _rescued_from_bleed(
+            seat,
+            text,
+            unclaimed[0][0],
+            voice_intro=voice_intro,
+            voice_texts=voice_texts or {},
+            talk_share=talk_share or {},
+        ):
             forced_name = unclaimed[0]
 
     for v in host_voices:
@@ -2586,6 +2694,7 @@ def resolve_speaker_roster(
         conv_host_voices=conv_host_voices,
         voice_texts=voice_texts or {},
         episode_text=episode_text,
+        talk_share=_talk_share(diarization, ad_voices),
     )
 
     # The host also NAMES the guest out loud — "My guest today is Brian Chesky". That is a stated
