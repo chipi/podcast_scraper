@@ -353,7 +353,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section>
+  <!-- Same container as Discover — `mx-auto max-w-3xl px-4 pb-8` (operator 2026-09-17). Library was
+       a bare <section> inheriting the app shell's wider `max-w-6xl px-5`, so the SAME tile markup
+       rendered at 270px here and 176px on Browse, and 118px against 108px on a phone. The column
+       count was never the cause; the container was. Discover sets the standard, so Library adopts
+       it and the grids agree by construction instead of by compensating arithmetic. -->
+  <section class="mx-auto max-w-3xl px-4 pb-8">
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
 
     <!-- Standalone, never chained into a neighbouring v-if. -->
@@ -410,13 +415,11 @@ onMounted(async () => {
           >{{ t('library.showsBrowse') }}</RouterLink>
         </div>
         <template v-else-if="followedShows.length">
-          <!-- SIX columns from `sm`, not four (operator 2026-09-17). The show tile must be the same
-               size wherever it appears, and the column COUNT is not what fixes that — the container
-               is. Library runs the full `max-w-6xl` (1114px of content) while Browse caps itself at
-               768px, so the identical `sm:grid-cols-4` produced 270px tiles here against 176px
-               there. Six columns over 1114px lands on 176px, matching Browse and the trending rail. -->
+          <!-- Same 3/4 as every other show grid. This briefly ran at six columns to force a 176px
+               tile out of Library's wider container — arithmetic compensating for a container
+               mismatch. The container matches now, so the honest grid comes back. -->
           <ul
-            class="grid grid-cols-3 gap-3 sm:grid-cols-6"
+            class="grid grid-cols-3 gap-3 sm:grid-cols-4"
             data-testid="library-shows-grid"
           >
             <li v-for="p in visibleShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
