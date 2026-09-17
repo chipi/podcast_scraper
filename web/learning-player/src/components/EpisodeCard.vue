@@ -183,6 +183,11 @@ const canExpandSummary = computed(
       >
         {{ t("status.pending") }}
       </span>
+      <!-- Surface-specific fact under the artwork, beside the date — Search puts its match count
+           here. Empty everywhere else, so no other caller changes. -->
+      <div v-if="$slots.aside" class="text-xs font-semibold text-muted">
+        <slot name="aside" />
+      </div>
       <!-- The shared EpisodeActions row (UXS-014: nobody rolls their own), directly UNDER the
            artwork it acts on — `w-32` matches the artwork's width. It used to be `mt-auto`, footed
            against the bottom of a stretched column, which left it floating below a gap whenever the
@@ -211,14 +216,23 @@ const canExpandSummary = computed(
          columns foot their last element with `mt-auto`, so the action row and "Read more" land on
          the same line. -->
     <div class="lp-media-body">
-      <!-- Show name — full column width; only ellipsizes when genuinely long. -->
+      <!-- Show name — full column width; only ellipsizes when genuinely long.
+           A LINK only when there is a feed to link to. `feed_id` is optional on EpisodeSummary, and
+           `router.resolve({ name: 'podcast', params: { feedId: undefined } })` THROWS rather than
+           degrading — so a row whose source carries the show's NAME but not its id (Search groups
+           its hits by episode, and the feed id lives in the hit metadata) took the whole view down.
+           Plain text is the honest fallback: the name is still information without being a
+           destination. -->
       <RouterLink
-        v-if="episode.podcast_title"
+        v-if="episode.podcast_title && episode.feed_id"
         :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
         class="lp-kicker relative z-30 block truncate no-underline"
       >
         {{ episode.podcast_title }}
       </RouterLink>
+      <span v-else-if="episode.podcast_title" class="lp-kicker block truncate">
+        {{ episode.podcast_title }}
+      </span>
 
       <!-- Title (stretched link → Player). Never fades: card identity stays visible in every state. -->
       <RouterLink
@@ -227,6 +241,13 @@ const canExpandSummary = computed(
       >
         {{ episode.title }}
       </RouterLink>
+
+      <!-- Surface-specific line between the title and the summary — Search puts WHY this episode
+           matched here ("Matched: Transcript · Insight"), which belongs with the identity rather
+           than after the prose it explains. Empty everywhere else. -->
+      <div v-if="$slots.meta" class="relative z-30 mt-0.5">
+        <slot name="meta" />
+      </div>
 
       <!-- Summary: the full prose, clipped to whatever the artwork column leaves and expanded in
            place by "Read more" (BE.2). The window (`lp-media-clip`) is what constrains it — see

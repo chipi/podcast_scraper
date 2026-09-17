@@ -74,8 +74,9 @@ describe("SearchView", () => {
       params: { slug: "show-x" },
       query: { t: "20" },
     })
-    // #2 — each episode result carries per-episode quick actions (favorite + queue), like a Library row.
-    const actions = w.get('[data-testid="search-result-actions"]')
+    // #2 — each episode result carries per-episode quick actions (favorite + queue), like a Library
+    // row. The shared `episode-actions` testid, since Search renders the shared EpisodeCard now.
+    const actions = w.get('[data-testid="episode-actions"]')
     expect(actions.findAll("button").length).toBeGreaterThanOrEqual(2)
   })
 
@@ -217,6 +218,25 @@ describe("SearchView", () => {
     await flushPromises()
     expect(getPerson).toHaveBeenCalledWith("person:jane-doe")
     expect(w.find('[role="dialog"]').exists()).toBe(true)
+  })
+
+  it("does NOT surface an organization as a result, even when the resolver returns one", async () => {
+    // Organisations stay indexed and keep doing their upstream work — resolution, graph edges, the
+    // entity pages that link them. Search just declines to offer one as a destination, where an org
+    // card is a dead end beside the episodes and people a listener came for (operator 2026-09-17).
+    // Filtered at render, so the resolver is still CALLED — this asserts the call happens and the
+    // card does not.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "acme", error: null, results: [] })
+    const resolve = vi.spyOn(api, "resolveEntity").mockResolvedValue({
+      query: "acme",
+      entity: { id: "org:acme", kind: "organization", label: "Acme Corp" },
+    })
+    const { w } = await mountAt("acme")
+    expect(resolve, "the resolver should still be asked").toHaveBeenCalledWith("acme")
+    expect(w.text(), "an organization was offered as a result").not.toContain("Acme Corp")
+    // With no entity and no passages it is genuinely a no-results search, and must say so rather
+    // than sitting silently empty.
+    expect(w.text()).toContain("No matches found.")
   })
 
   it("shows the Recall scope toggle signed out, as a sign-in teaser (#1590)", async () => {
@@ -695,33 +715,41 @@ describe("SearchView", () => {
       return w
     }
 
+    // These three invariants predate the shared card and still hold — Search now renders
+    // `EpisodeCard` (operator 2026-09-17), so they are asserted against ITS structure rather than
+    // against the hand-rolled copy they were written for. The action cluster's testid is the shared
+    // `episode-actions`; the narrow column is `lp-media-aside`; the text column is `lp-media-body`.
+
     it("the match count and the actions sit in ONE column with the artwork", async () => {
       // The header was [artwork + text] | [count + actions], squeezing the text from both sides while
       // the right rail kept a column to itself with empty space under it. Everything that is not the
-      // text stacks under the artwork now, at one width.
+      // text stacks under the artwork, at one width.
       const w = await resultRow()
-      const actions = w.get('[data-testid="search-result-actions"]')
-      const column = actions.element.parentElement as HTMLElement
-      expect(column.className, "the actions are not in the narrow left column").toContain(
-        "shrink-0"
-      )
+      const column = w.get('[data-testid="episode-card"] .lp-media-aside').element as HTMLElement
+      expect(
+        column.querySelector('[data-testid="episode-actions"]'),
+        "the actions are not in the narrow left column"
+      ).not.toBeNull()
       expect(column.textContent, "the match count is not in the same column").toMatch(/match/i)
     })
 
-    it("the actions are NOT inside the open-episode button", async () => {
+    it("the actions are NOT inside another interactive", async () => {
       // An interactive control inside another interactive control: the whole reason these are
-      // siblings, and easy to undo while moving them around.
+      // siblings, and easy to undo while moving them around. Anchors count as well as buttons —
+      // EpisodeCard's title is a stretched <a>, so nesting here would be just as wrong.
       //
-      // Checked across EVERY match, not the first one. Asserting on `get()` alone passed while a
-      // second, nested action cluster existed — the first (correct) node satisfied it and the bad one
-      // was never looked at. One row must also yield exactly one cluster.
+      // Checked across EVERY match, not the first one: asserting on `get()` alone once passed while
+      // a second, nested cluster existed. One row must yield exactly one cluster.
       const w = await resultRow()
-      const all = w.findAll('[data-testid="search-result-actions"]')
+      const all = w.findAll('[data-testid="episode-actions"]')
       expect(all, "expected one action cluster per result row").toHaveLength(1)
       for (const a of all) {
         let n: HTMLElement | null = a.element.parentElement
         while (n) {
-          expect(n.tagName.toLowerCase(), "actions nested inside a button").not.toBe("button")
+          expect(
+            ["button", "a"].includes(n.tagName.toLowerCase()),
+            "actions nested inside a button or link"
+          ).toBe(false)
           n = n.parentElement
         }
       }
@@ -729,15 +757,13 @@ describe("SearchView", () => {
 
     it("the text block is a sibling of that column, free to use the rest of the row", async () => {
       const w = await resultRow()
-      const column = w.get('[data-testid="search-result-actions"]').element
-        .parentElement as HTMLElement
-      const row = column.parentElement as HTMLElement
-      const textButton = Array.from(row.children).find(
-        (c) => c !== column && c.tagName.toLowerCase() === "button"
-      ) as HTMLElement | undefined
-      expect(textButton, "no text button beside the column").toBeTruthy()
-      expect(textButton!.className).toContain("flex-1")
-      expect(textButton!.textContent).toContain("A title long enough to want the room")
+      const card = w.get('[data-testid="episode-card"]').element as HTMLElement
+      const column = card.querySelector(".lp-media-aside") as HTMLElement
+      const body = card.querySelector(".lp-media-body") as HTMLElement
+      expect(column, "no narrow column").toBeTruthy()
+      expect(body, "no text column beside the column").toBeTruthy()
+      expect(body.parentElement, "the two are not siblings").toBe(column.parentElement)
+      expect(body.textContent).toContain("A title long enough to want the room")
     })
 
     it("surfaces the listener's own matching notes (SR.1)", async () => {

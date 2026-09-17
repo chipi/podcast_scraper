@@ -13,10 +13,9 @@ defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { resolveEntity, searchCorpus } from "../services/api"
 import { resolveMediaUrl } from "../services/tier"
-import type { EntityRef, Note, SearchHit } from "../services/types"
+import type { EntityRef, EpisodeSummary, Note, SearchHit } from "../services/types"
 import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
-import { formatPublishDate } from "../utils/format"
 import { aggregateRelatedTopics } from "../utils/relatedTopics"
 import {
   collapseFoldableHits,
@@ -30,11 +29,11 @@ import { useSignInGate } from "../composables/useSignInGate"
 import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
-import EpisodeActions from "../components/EpisodeActions.vue"
+import EpisodeCard from "../components/EpisodeCard.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { isGated, gated } = useSignInGate()
@@ -125,6 +124,38 @@ interface EpisodeGroup {
   /** #1261-3: hits collapsed so multiple same-kind foldable rows (transcript,
    *  title, description, summary) render as one expandable summary row. */
   rows: CollapsedRow[]
+}
+
+/**
+ * An `EpisodeGroup` as the `EpisodeSummary` that `EpisodeCard` takes.
+ *
+ * Search renders the SAME card as Discover's and Library's episode lists rather than a
+ * near-identical hand-rolled one (operator 2026-09-17). The previous markup had drifted to its own
+ * artwork radius, title size, centred action row and bordered container — recognisably a different
+ * component for the same object.
+ *
+ * `artwork_url` is the already-resolved `g.art` (search absolutises it when grouping, so it works on
+ * native). No summary fields: a search group carries passages, not a summary, so the card renders no
+ * prose and offers no "Read more" — the match context goes in the card's `#meta` and `#aside` slots
+ * instead. `status: 'ready'` because a hit can only exist for an indexed episode.
+ */
+function groupAsEpisode(g: EpisodeGroup): EpisodeSummary {
+  return {
+    slug: g.slug ?? "",
+    title: g.title,
+    podcast_title: g.show,
+    // REQUIRED, not decorative: the card's show-name kicker is a RouterLink to
+    // `{ name: 'podcast', params: { feedId } }`, and vue-router THROWS on resolving that route with
+    // an empty param. Search never tracked the feed id, so it comes off the group's first hit —
+    // every hit in a group belongs to one episode, hence to one feed.
+    feed_id: (g.hits[0]?.metadata as Record<string, unknown> | undefined)?.feed_id ?? null,
+    publish_date: g.date,
+    artwork_url: g.art,
+    episode_image_url: null,
+    feed_image_url: null,
+    duration_seconds: null,
+    status: "ready",
+  } as unknown as EpisodeSummary
 }
 
 const md = (h: SearchHit) => h.metadata as Record<string, unknown>
@@ -284,7 +315,13 @@ async function run(q: string): Promise<void> {
     ? Promise.resolve((entity.value = null))
     : resolveEntity(term).then(
         (r) => {
-          if (current()) entity.value = r.entity
+          // ORGANISATIONS are not surfaced as a result (operator 2026-09-17). They stay indexed and
+          // still do their work upstream — resolution, graph edges, the entity pages that link them
+          // — this only declines to offer one as a destination from search, where an org card is a
+          // dead end next to the episodes and people a listener came for. Dropped at RENDER time,
+          // deliberately: nothing about the index or the resolver changes, so re-enabling it is one
+          // condition.
+          if (current()) entity.value = r.entity?.kind === "organization" ? null : r.entity
         },
         () => {
           if (current()) entity.value = null
@@ -508,12 +545,10 @@ const showEmpty = computed(
       @click="openEntity"
     >
       <span class="min-w-0 flex-1">
+        <!-- Person or topic only — an `organization` never reaches here; it is filtered when the
+             resolver answers. -->
         <span class="lp-kicker block">{{
-          entity.kind === "person"
-            ? t("ec.person")
-            : entity.kind === "organization"
-              ? t("ec.organization")
-              : t("ec.topic")
+          entity.kind === "person" ? t("ec.person") : t("ec.topic")
         }}</span>
         <span class="block font-display text-lg font-bold text-canvas-foreground">{{
           entity.label
@@ -610,69 +645,21 @@ const showEmpty = computed(
             :key="g.slug ?? g.title"
             class="overflow-hidden rounded-xl border border-border bg-surface"
           >
-            <!-- Episode header: tapping the row opens/plays the episode; a quick-action cluster
-               (favorite + queue) sits alongside, like a Library row (#2). The actions are siblings
-               of the open button, never nested inside it (no interactive-in-interactive). -->
-            <!--
-            ONE narrow left column, not a left artwork AND a right rail. Everything that is not the
-            text — artwork, match count, action row — stacks under the artwork at one width, so the
-            centre text is squeezed from one side only.
-
-            The column is `w-32` (128px), matching the Browse card's artwork (operator 2026-09-14):
-            it is the width the shared `EpisodeActions` row needs to sit on ONE line (favourite +
-            queue + ⋯ ≈ 120px), and a bigger cover reads like Browse rather than a cramped thumbnail.
-            At the old 76px the third control (⋯) wrapped to a second row.
-
-            `items-start` on the row: the artwork sits at the TOP of a multi-line title rather than
-            floating against its middle.
-          -->
-            <div class="flex w-full items-start gap-3 px-4 pt-4">
-              <div class="flex w-32 shrink-0 flex-col items-center gap-1.5">
-                <button
-                  v-if="g.art"
-                  type="button"
-                  class="w-full"
-                  :aria-label="t('search.openEpisode', { title: g.title })"
-                  @click="openEpisode(g.slug)"
-                >
-                  <img
-                    :src="g.art"
-                    alt=""
-                    loading="lazy"
-                    class="h-32 w-32 rounded-md bg-elevated object-cover"
-                  />
-                </button>
-                <span class="text-center text-xs font-semibold text-muted">
-                  {{ t("search.matchCount", g.hits.length) }}
-                </span>
-                <!-- Sibling of the open button, never nested inside it (no interactive-in-
-                   interactive). The shared EpisodeActions row (favourite/queue/download/collect). -->
-                <EpisodeActions v-if="g.slug" :slug="g.slug" data-testid="search-result-actions" />
-              </div>
-              <button
-                type="button"
-                class="flex min-w-0 flex-1 text-left"
-                @click="openEpisode(g.slug)"
-              >
-                <span class="min-w-0 flex-1">
-                  <span
-                    class="block font-display text-base font-bold leading-snug text-canvas-foreground"
-                  >
-                    {{ g.title }}
-                  </span>
-                  <span v-if="g.show || g.date" class="lp-kicker mt-0.5 block">
-                    {{ g.show }}<template v-if="g.show && g.date"> · </template
-                    >{{ g.date ? formatPublishDate(g.date, locale) : "" }}
-                  </span>
-                  <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary
-                   ×2 · Transcript") — small kicker line so the listener knows
-                   why this episode surfaced without tapping through. Hidden
-                   when nothing resolved to an episode-level field. -->
-                  <span
-                    v-if="matchedFieldChips(g.hits).length"
-                    class="lp-kicker mt-0.5 block"
-                    data-testid="matched-fields"
-                  >
+            <!-- The SHARED EpisodeCard, the same one Discover and Library render (operator
+                 2026-09-17). This was a hand-rolled near-copy that had drifted to its own artwork
+                 radius, title size, centred action row and bordered box — a visibly different
+                 component for the same object. Search's own content rides the card's slots: the
+                 match count under the artwork, the matched-field breakdown between title and
+                 summary. The passage list stays a sibling BELOW the card, since it is per-match
+                 rather than part of the episode. -->
+            <div class="px-4 pt-1">
+              <EpisodeCard :episode="groupAsEpisode(g)">
+                <template #aside>{{ t("search.matchCount", g.hits.length) }}</template>
+                <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
+                     so the listener knows WHY this episode surfaced without tapping through. Hidden
+                     when nothing resolved to an episode-level field. -->
+                <template v-if="matchedFieldChips(g.hits).length" #meta>
+                  <span class="lp-kicker block" data-testid="matched-fields">
                     {{ t("search.matchedPrefix") }}
                     <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
                       <template v-if="mi > 0"> · </template>
@@ -681,8 +668,8 @@ const showEmpty = computed(
                       </span>
                     </template>
                   </span>
-                </span>
-              </button>
+                </template>
+              </EpisodeCard>
             </div>
 
             <!-- Matching passages (#1261-3: foldable rows collapse to one
