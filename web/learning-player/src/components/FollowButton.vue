@@ -22,7 +22,14 @@ withDefaults(
     busy?: boolean
     /** Signed out: the tap routes to sign-in (label says so, no pressed state asserted). */
     gated?: boolean
-    /** `inline` = header pill; `overlay` = smaller pill floated over artwork. */
+    /**
+     * `inline` = header pill; `overlay` = the smaller, plated pill that reads over artwork.
+     *
+     * `overlay` sets the LOOK only. It used to hard-code `absolute right-1.5 top-1.5` as well,
+     * which made the button decide where it lived and left no way to put anything beside or under
+     * it — the host now positions it, so ShowTile can stack Follow and the heart into one
+     * right-aligned column (operator 2026-09-17).
+     */
     variant?: "inline" | "overlay"
   }>(),
   { busy: false, gated: false, variant: "inline" }
@@ -37,9 +44,7 @@ const { t } = useI18n()
     data-testid="follow-show"
     class="inline-flex shrink-0 items-center gap-1 rounded-full font-bold transition disabled:opacity-50"
     :class="[
-      variant === 'overlay'
-        ? 'absolute right-1.5 top-1.5 h-7 px-2 text-[0.65rem] shadow-lg backdrop-blur'
-        : 'px-3 py-1 text-xs',
+      variant === 'overlay' ? 'h-7 px-2 text-[0.65rem] shadow-lg backdrop-blur' : 'px-3 py-1 text-xs',
       following
         ? 'bg-accent text-accent-foreground'
         : variant === 'overlay'

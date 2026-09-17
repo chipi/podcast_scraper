@@ -15,6 +15,7 @@
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import FollowButton from './FollowButton.vue'
+import FavoriteButton from './FavoriteButton.vue'
 import type { Podcast } from '../services/types'
 import { showArtwork } from '../utils/episode'
 import { useLibraryStore } from '../stores/library'
@@ -71,17 +72,42 @@ const art = (): string | null => showArtwork(props.show)
       class="aspect-square w-full rounded-xl bg-elevated object-cover"
     />
     <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-    <!-- The shared show-follow pill (F2.4), overlay variant. `.prevent.stop` (inside FollowButton)
-         so following does not also navigate: the whole tile is a link, and the point is to follow
-         without leaving Home. -->
-    <FollowButton
-      v-if="followable"
-      variant="overlay"
-      :following="following"
-      :busy="busy"
-      :gated="isGated"
-      @toggle="toggleFollow"
-    />
+    <!-- Follow + Save over the artwork, as ONE right-aligned column in the top-right corner: the
+         pill on top, the heart directly under it, both flush right — the L the episode tile's icon
+         cluster makes when it wraps (operator 2026-09-17).
+
+         Stacked rather than side by side because they do not fit side by side: "+ Follow show" is
+         91px of a 108px phone tile. A column needs no width negotiation at any viewport, and
+         right-alignment is what keeps the two edges reading as one object instead of two floating
+         controls.
+
+         Save is not Follow — following surfaces new episodes in Your Week, saving puts the show in
+         the Library. `PodcastView` already offers both; the tile offered only one.
+
+         `.prevent.stop` so acting does not also navigate: the whole tile is a link, and the point is
+         to act without leaving the page. FollowButton stops its own click; the heart's wrapper does
+         it for the heart.
+
+         The plate classes match EpisodeActions' `overlay`, so contrast never depends on whatever
+         artwork happens to be underneath. -->
+    <div class="absolute right-1.5 top-1.5 flex flex-col items-end gap-1.5">
+      <FollowButton
+        v-if="followable"
+        variant="overlay"
+        :following="following"
+        :busy="busy"
+        :gated="isGated"
+        @toggle="toggleFollow"
+      />
+      <span
+        class="[&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg [&>button]:backdrop-blur-sm"
+        @click.prevent.stop
+      >
+        <FavoriteButton
+          :item="{ kind: 'show', ref: show.feed_id, label: show.title ?? show.feed_id }"
+        />
+      </span>
+    </div>
     <!--
       The NAME IS NOT CLIPPED (#2004 items 3/3c).
 

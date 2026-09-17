@@ -11,11 +11,15 @@ import ShowTile from "../components/ShowTile.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import ListToolbar from "../components/ListToolbar.vue"
 import Sparkline from "../components/Sparkline.vue"
+import FollowButton from "../components/FollowButton.vue"
+import FavoriteButton from "../components/FavoriteButton.vue"
 import { trendColor } from "../components/trending"
 import { listSortOptions, type ListSortValue } from "../utils/listSort"
 import { getPodcasts, getTrending } from "../services/api"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { showArtwork } from "../utils/episode"
+import { useLibraryStore } from "../stores/library"
+import { useSignInGate } from "../composables/useSignInGate"
 import type { Podcast, TrendingEntity } from "../services/types"
 
 // Shows adds one sort the shared list util does not carry (operator 2026-09-14): "Trending" orders
@@ -42,6 +46,31 @@ const trendById = ref<Map<string, TrendingEntity>>(new Map())
 const loading = ref(true)
 const error = ref(false)
 const stale = ref(false)
+
+// Follow from a LIST row (operator 2026-09-17). The grid had Follow via ShowTile and the list had
+// nothing, so the same catalogue exposed different capabilities depending on which view you were in
+// — the rule the episode list/grid pair already holds to. The heart needs no wiring here; the
+// favourites store backs it directly.
+const library = useLibraryStore()
+const { isGated, gated } = useSignInGate()
+// Which row is mid-toggle, so only that row's pill disables rather than all of them.
+const busyFollow = ref<string | null>(null)
+
+// Gated for the same reason ShowTile gates: the store reverts optimistically on failure, so an
+// ungated signed-out click flips the pill, fires a 401 and flips back.
+//
+// `gated()` wraps a ZERO-argument action, so the row is closed over per call rather than passed
+// through it.
+function toggleFollow(p: Podcast): void {
+  gated(async () => {
+    busyFollow.value = p.feed_id
+    try {
+      await library.toggle(p.feed_id, { title: p.title ?? p.feed_id })
+    } finally {
+      busyFollow.value = null
+    }
+  })()
+}
 
 // Filter + sort so the grid stays browsable as the catalogue grows.
 const search = ref("")
@@ -223,7 +252,23 @@ onMounted(load)
                 class="shrink-0"
                 :style="{ color: trendColor(trendById.get(p.feed_id)!.velocity) }"
               />
-              <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+              <!-- Follow + save at the row's right edge (operator 2026-09-17). List view offered
+                   NEITHER while the grid offered Follow, so the same catalogue exposed different
+                   capabilities depending on the view — the rule the episode list/grid pair already
+                   holds to. Compact variants: this row is 44px tall and dense by design.
+                   `.prevent.stop` on the wrapper so acting does not also open the show. -->
+              <span class="flex shrink-0 items-center gap-2" @click.prevent.stop>
+                <FollowButton
+                  :following="library.has(p.feed_id)"
+                  :busy="busyFollow === p.feed_id"
+                  :gated="isGated"
+                  @toggle="toggleFollow(p)"
+                />
+                <FavoriteButton
+                  :item="{ kind: 'show', ref: p.feed_id, label: titleOf(p) }"
+                  class="!h-7 !w-7 !text-sm"
+                />
+              </span>
             </RouterLink>
           </li>
         </ul>
