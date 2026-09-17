@@ -64,6 +64,44 @@ describe('FollowedInterests', () => {
     expect(w.text()).toContain('not following any topics, people, or storylines')
   })
 
+  // Regression guard (operator 2026-09-17): an EMPTY `visibleTypes` means "no filter — show every
+  // kind". That is right when nothing is selected, and it is why the Shows-only filter leaked:
+  // LibraryView filters 'shows' out of `['shows']` and also lands on `[]`, so picking Shows REVEALED
+  // topics, people and storylines instead of hiding them. One sentinel, two meanings — the fix is
+  // that LibraryView must not render this component at all in that case, so this pins the sentinel's
+  // meaning here rather than silently changing it.
+  it('treats an empty visibleTypes as NO filter, showing every kind', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['topic:ai-safety', 'person:jane-doe'])
+    vi.spyOn(api, 'getTopClusters').mockResolvedValue([])
+    vi.spyOn(api, 'getStorylines').mockResolvedValue([])
+    setActivePinia(createPinia())
+    await router.push('/')
+    await router.isReady()
+    const w = mount(FollowedInterests, {
+      props: { visibleTypes: [] },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    await flushPromises()
+    expect(w.text()).toContain('ai safety')
+    expect(w.text()).toContain('jane doe')
+  })
+
+  it('shows only the named kinds when visibleTypes names some', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['topic:ai-safety', 'person:jane-doe'])
+    vi.spyOn(api, 'getTopClusters').mockResolvedValue([])
+    vi.spyOn(api, 'getStorylines').mockResolvedValue([])
+    setActivePinia(createPinia())
+    await router.push('/')
+    await router.isReady()
+    const w = mount(FollowedInterests, {
+      props: { visibleTypes: ['topics'] },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    await flushPromises()
+    expect(w.text()).toContain('ai safety')
+    expect(w.text(), 'people leaked past a topics-only filter').not.toContain('jane doe')
+  })
+
   // Regression guard: /clusters and /theme-clusters cap at `limit ≤ 50` (server le=50,
   // app_discover.py). Requesting 60 returned 422, `.catch(() => [])` swallowed it, and the Following
   // tab's storyline/cluster labels went missing on prod.

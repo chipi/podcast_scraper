@@ -289,6 +289,20 @@ function followingTypeVisible(key: string): boolean {
 const interestVisibleTypes = computed(() =>
   followingTypes.value.filter((k) => k !== 'shows'),
 )
+/**
+ * Whether the interests block renders at all.
+ *
+ * `FollowedInterests` reads an EMPTY `visibleTypes` as "no filter — show every kind", which is right
+ * when nothing is selected and wrong when the selection is Shows-only: filtering the shows key out
+ * of `['shows']` also produces `[]`, so picking Shows revealed topics, people and storylines
+ * instead of hiding them (operator 2026-09-17). One sentinel, two meanings.
+ *
+ * Deciding it HERE keeps that ambiguity out of the child: this view knows whether a filter is
+ * active, the child only knows the list it was handed.
+ */
+const showFollowedInterests = computed(
+  () => followingTypes.value.length === 0 || interestVisibleTypes.value.length > 0,
+)
 const filteredShows = computed(() => {
   const shows = followedShows.value.filter((s) => matchesQuery(s.title, followingSearch.value))
   return followingSort.value === 'title'
@@ -396,8 +410,13 @@ onMounted(async () => {
           >{{ t('library.showsBrowse') }}</RouterLink>
         </div>
         <template v-else-if="followedShows.length">
+          <!-- SIX columns from `sm`, not four (operator 2026-09-17). The show tile must be the same
+               size wherever it appears, and the column COUNT is not what fixes that — the container
+               is. Library runs the full `max-w-6xl` (1114px of content) while Browse caps itself at
+               768px, so the identical `sm:grid-cols-4` produced 270px tiles here against 176px
+               there. Six columns over 1114px lands on 176px, matching Browse and the trending rail. -->
           <ul
-            class="grid grid-cols-3 gap-3 sm:grid-cols-4"
+            class="grid grid-cols-3 gap-3 sm:grid-cols-6"
             data-testid="library-shows-grid"
           >
             <li v-for="p in visibleShows" :key="p.feed_id"><ShowTile :show="p" followable /></li>
@@ -413,6 +432,7 @@ onMounted(async () => {
 
       <!-- Topics / People / Storylines you follow (previously invisible — the interests profile). -->
       <FollowedInterests
+        v-if="showFollowedInterests"
         :search="followingSearch"
         :sort="followingSort"
         :visible-types="interestVisibleTypes"
