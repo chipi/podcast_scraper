@@ -538,7 +538,13 @@ def test_resolve_entity_resolves_a_storyline_by_label(tmp_path: Path) -> None:
     _storyline_ref_by_norm.cache_clear()
     ref = resolve_entity(tmp_path, "Managing risk across domains")
     assert ref is not None
-    assert (ref.id, ref.kind) == ("thc:managing-risk", "storyline")
+    assert ref.kind == "storyline"
+    # The ANCHOR topic id, not `thc:managing-risk`: there is no storyline endpoint, so the anchor
+    # topic's card IS the storyline and `thc:` ids are not openable (review, 2026-09-17).
+    # The anchor is the highest-lift member (tie → topic_id ascending), so with no lifts in this
+    # fixture it is `topic:a`. The invariant that matters: the id is a MEMBER TOPIC, never `thc:…`.
+    assert ref.id == "topic:a", "a storyline must resolve to a ROUTABLE anchor topic id"
+    assert not ref.id.startswith("thc:")
     # Normalisation is shared with the other kinds, so case/punctuation still resolve.
     near = resolve_entity(tmp_path, "managing risk across domains")
     assert near is not None and near.kind == "storyline"

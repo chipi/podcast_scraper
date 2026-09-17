@@ -18,6 +18,10 @@ from podcast_scraper.search.cli_handlers import (
 )
 from podcast_scraper.search.hybrid_search import hybrid_candidates, QueryEmbeddingError
 from podcast_scraper.search.protocol import SearchResult
+from podcast_scraper.search.theme_clusters import (
+    STORYLINE_DOC_TYPE,
+    top_theme_clusters_by_member_count,
+)
 from podcast_scraper.search.topic_clusters import load_topic_cluster_enrichment_map
 from podcast_scraper.search.transcript_chunk_lift import (
     lift_row_if_transcript,
@@ -119,6 +123,49 @@ def _attach_topic_cluster_metadata(rows: List[Dict[str, Any]], corpus_root: Path
             meta["topic_cluster"] = dict(info)
 
 
+def _attach_storyline_metadata(
+    rows: List[Dict[str, Any]], corpus_root: Path
+) -> List[Dict[str, Any]]:
+    """Join the theme-cluster artifact into ``storyline`` hits, and DROP hits whose cluster is gone.
+
+    A query-time join, the sibling of :func:`_attach_topic_cluster_metadata`, and it is required
+    rather than decorative for two reasons found in review:
+
+    * **The indexed row cannot carry these fields.** The aux schema has no label/size/anchor
+      columns, and the read path rebuilds hit metadata from a fixed field list
+      (``hybrid_search._to_search_result``), so anything the indexer put in the row's metadata dict
+      never reaches a caller. Without this join a client sees ``source_id`` only and renders the raw
+      ``thc:`` slug as the title.
+    * **``anchor_topic_id`` is what a storyline is OPENED by.** There is no storyline endpoint — the
+      anchor topic's card IS the storyline — so a link built from the ``thc:`` id 404s. The anchor
+      lives in the artifact, not the index.
+
+    Dropping hits for clusters that no longer exist is the read-side half of orphan handling:
+    ``thc:`` ids are label-derived, so a relabelled or re-anchored cluster mints a NEW id and the
+    old row lingers in the index until a build prunes it. A user must never be offered a storyline
+    that is gone.
+    """
+    summaries = {
+        str(s["id"]): s
+        for s in top_theme_clusters_by_member_count(corpus_root, 10_000, min_members=1)
+    }
+    out: List[Dict[str, Any]] = []
+    for row in rows:
+        meta = row.get("metadata")
+        if not isinstance(meta, dict) or meta.get("doc_type") != STORYLINE_DOC_TYPE:
+            out.append(row)
+            continue
+        sid = meta.get("source_id")
+        info = summaries.get(str(sid).strip()) if isinstance(sid, str) else None
+        if info is None:
+            continue  # orphaned row — the cluster it names no longer exists
+        meta["storyline_label"] = info["label"]
+        meta["storyline_size"] = info["size"]
+        meta["anchor_topic_id"] = info["anchor_topic_id"]
+        out.append(row)
+    return out
+
+
 def _lift_stats_for_page(enriched: List[Dict[str, Any]]) -> Dict[str, int]:
     transcript_returned = 0
     lift_applied = 0
@@ -175,6 +222,9 @@ def _enrich_lift_and_slice(
     if dedupe_kg_surfaces:
         enriched = dedupe_kg_surface_rows(enriched)
     _attach_topic_cluster_metadata(enriched, output_dir)
+    # AFTER the topic join and BEFORE the page slice: dropping an orphaned storyline must
+    # not leave a hole in the returned page.
+    enriched = _attach_storyline_metadata(enriched, output_dir)
     page = enriched[:top_k]
     return page, _lift_stats_for_page(page)
 

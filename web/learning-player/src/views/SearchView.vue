@@ -235,10 +235,63 @@ function rowKey(row: CollapsedRow, i: number): string {
 
 // Group passages under their source episode, preserving rank order (results arrive best-first,
 // so an episode's rank is its first appearance).
+/**
+ * Storyline hits, split OUT of the passage results.
+ *
+ * A storyline row is corpus-level: it carries no `episode_id`, so the episode grouping below would
+ * key it as `doc:<id>` and render a card titled "Not found" — an episode that does not exist
+ * (operator 2026-09-17). It is not a passage and must not be grouped as one.
+ *
+ * These come from the INDEX, so unlike the name resolver they match partially and by member topic:
+ * "risk" reaches "Managing risk across domains" through its members.
+ */
+const storylineHits = computed(() =>
+  results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type === "storyline")
+)
+/** Everything the episode grouping should see — passages only. */
+const passageResults = computed(() =>
+  results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type !== "storyline")
+)
+/**
+ * The storylines to show: index hits first, plus the resolver's exact-name answer when it found one
+ * the index did not return. Two paths, one list, de-duplicated by id — a listener must never see the
+ * same storyline twice because two mechanisms found it.
+ */
+const storylineResults = computed<
+  { key: string; routeId: string; label: string; size: number | null }[]
+>(() => {
+  const out: { key: string; routeId: string; label: string; size: number | null }[] = []
+  const seen = new Set<string>()
+  for (const h of storylineHits.value) {
+    const m = h.metadata as Record<string, unknown>
+    // `routeId` is the ANCHOR TOPIC id, never the `thc:` id: there is no storyline endpoint — the
+    // anchor topic's card IS the storyline — so routing with `thc:…` 404s (review, 2026-09-17).
+    // Both fields arrive from the server's query-time join, because the indexed row cannot carry
+    // them: the aux schema has no such columns and the read path rebuilds metadata from a fixed
+    // field list. A hit without them is unusable, so it is skipped rather than rendered as a slug.
+    const anchor = String(m.anchor_topic_id ?? "")
+    const label = String(m.storyline_label ?? "")
+    const sid = String(m.source_id ?? "")
+    if (!anchor || !label || seen.has(sid)) continue
+    seen.add(sid)
+    out.push({
+      key: sid,
+      routeId: anchor,
+      label,
+      size: typeof m.storyline_size === "number" ? m.storyline_size : null,
+    })
+  }
+  // The resolver already answers with the anchor id, so its entry routes the same way.
+  const e = entity.value
+  if (e?.kind === "storyline" && !seen.has(e.id))
+    out.push({ key: e.id, routeId: e.id, label: e.label, size: null })
+  return out
+})
+
 const groups = computed<EpisodeGroup[]>(() => {
   const byKey = new Map<string, EpisodeGroup>()
   const order: string[] = []
-  for (const h of results.value) {
+  for (const h of passageResults.value) {
     const slug = hitSlug(h)
     const key = slug ?? `doc:${h.doc_id}`
     let g = byKey.get(key)
@@ -387,13 +440,9 @@ function setScope(s: "all" | "mine"): void {
 
 function openEntity(): void {
   const e = entity.value
-  if (!e) return
-  // A storyline has no EntityCard — it is a theme cluster with its own page, which is also where
-  // `noteRoute` sends a storyline note. Only person/topic/org open the overlay card.
-  if (e.kind === "storyline") {
-    void router.push({ name: "storyline", params: { id: e.id } })
-    return
-  }
+  // Person / topic / org only. A storyline has no EntityCard — it renders in the Storylines list as
+  // a RouterLink straight to its page, and the button this drives is not rendered for one.
+  if (!e || e.kind === "storyline") return
   cardTarget.value = { kind: e.kind, id: e.id }
 }
 
@@ -482,7 +531,10 @@ const availableResultTypes = computed(() => {
   const out: { key: string; label: string }[] = []
   // A chip per KIND, not one lumped "entity" chip (operator 2026-09-17): the resolver returns at
   // most one entity, so whichever kind it is gets its own chip and its own section.
-  if (entity.value) out.push({ key: entityKey.value!, label: t(`search.type_${entityKey.value}`) })
+  if (entityKey.value) out.push({ key: entityKey.value, label: t(`search.type_${entityKey.value}`) })
+  // Index-found storylines get the chip even when the resolver returned nothing (a partial match).
+  if (storylineResults.value.length && entityKey.value !== "storylines")
+    out.push({ key: "storylines", label: t("search.type_storylines") })
   if (noteMatches.value.length) out.push({ key: "notes", label: t("notes.title") })
   if (yearSections.value.length) out.push({ key: "episodes", label: t("search.typeEpisodes") })
   return out
@@ -502,6 +554,7 @@ const showEmpty = computed(
     !error.value &&
     results.value.length === 0 &&
     noteMatches.value.length === 0 &&
+    storylineResults.value.length === 0 &&
     entity.value === null
 )
 </script>
@@ -665,7 +718,7 @@ const showEmpty = computed(
          its own heading, subtitle and filter chip. The resolver returns at most ONE entity, so
          exactly one of them renders for a given query — but which one is now named, instead of a
          lumped heading that made a person and a storyline look like the same kind of result. -->
-    <template v-if="entity && entityKey && !searching && typeVisible(entityKey)">
+    <template v-if="entity && entityKey && entityKey !== 'storylines' && !searching && typeVisible(entityKey)">
       <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${entityKey}`">
         {{ t(`search.type_${entityKey}`) }}
       </h2>
@@ -675,7 +728,7 @@ const showEmpty = computed(
     </template>
     <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
     <button
-      v-if="entity && entityKey && !searching && typeVisible(entityKey)"
+      v-if="entity && entityKey && entityKey !== 'storylines' && !searching && typeVisible(entityKey)"
       type="button"
       class="mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:bg-overlay"
       :aria-label="t('kp.openEntity', { term: entity.label })"
@@ -696,6 +749,40 @@ const showEmpty = computed(
       </span>
       <span class="shrink-0 text-sm font-semibold text-accent">{{ t("search.viewEntity") }} ›</span>
     </button>
+
+    <!-- STORYLINES — from the INDEX, so a partial or member-topic query reaches them ("risk"
+         finds "Managing risk across domains" through its members), with the resolver's exact-name
+         answer folded in and de-duplicated by id. A list rather than the single entity card,
+         because an index query can legitimately match several. -->
+    <template v-if="storylineResults.length && !searching && typeVisible('storylines')">
+      <h2 class="lp-section mb-1 mt-4" data-testid="search-section-storylines">
+        {{ t("search.type_storylines") }}
+      </h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.storylinesSummary", { count: storylineResults.length }, storylineResults.length) }}
+      </p>
+      <ul class="flex flex-col gap-2" data-testid="search-storylines">
+        <li v-for="s in storylineResults" :key="s.key">
+          <RouterLink
+            :to="{ name: 'storyline', params: { id: s.routeId } }"
+            class="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 no-underline transition hover:bg-overlay"
+          >
+            <span class="min-w-0 flex-1">
+              <span class="lp-kicker block">{{ t("home.storylines") }}</span>
+              <span class="block font-display text-lg font-bold text-canvas-foreground">{{
+                s.label
+              }}</span>
+              <span v-if="s.size" class="lp-kicker mt-0.5 block">{{
+                t("search.storylineSize", { count: s.size }, s.size)
+              }}</span>
+            </span>
+            <span class="shrink-0 text-sm font-semibold text-accent"
+              >{{ t("search.viewEntity") }} ›</span
+            >
+          </RouterLink>
+        </li>
+      </ul>
+    </template>
 
     <!-- SR.1: the listener's OWN notes matching the query, as their own section above the corpus
          passages (a note is not a transcript hit). Independent of the results chain below, so notes
@@ -758,7 +845,7 @@ const showEmpty = computed(
 
     <!-- `typeVisible('episodes')` gates the whole corpus block — its count line and topic chips
          describe the episode results, so they go when the episodes do. -->
-    <template v-else-if="results.length && typeVisible('episodes')">
+    <template v-else-if="passageResults.length && typeVisible('episodes')">
       <!-- The episodes block gets a heading like the notes block has, with the passage/episode count
            as its SUBTITLE rather than standing in for a title (operator 2026-09-17). The count was
            doing both jobs and neither well: it never said what the section was. -->
@@ -766,7 +853,7 @@ const showEmpty = computed(
         {{ t("search.typeEpisodes") }}
       </h2>
       <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.summary", { passages: results.length, episodes: groups.length }) }}
+        {{ t("search.summary", { passages: passageResults.length, episodes: groups.length }) }}
       </p>
 
       <!-- #1261-2: related-topic chip row above the episode groups. Silent

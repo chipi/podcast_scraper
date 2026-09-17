@@ -125,6 +125,7 @@
     "type_storylines": "Storylines",
     "entitySummary": "Matched by name",
     "storylineSize": "1 topic | {count} topics",
+    "storylinesSummary": "1 storyline matches | {count} storylines match",
     "notesSummary": "1 of your notes mentions this | {count} of your notes mention this",
     "typeEpisodes": "Episodes",
     "noResults": "No matches found.",

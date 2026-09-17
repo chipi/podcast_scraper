@@ -80,7 +80,7 @@ def lance_index_dir(output_dir: Path) -> Path:
     return Path(output_dir) / "search" / "lance_index"
 
 
-_AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "quote", "summary"})
+_AUX_DOC_TYPES = frozenset({"kg_entity", "kg_topic", "storyline", "quote", "summary"})
 
 
 def _tier_for(doc_types: Optional[Sequence[str]]) -> Tier:

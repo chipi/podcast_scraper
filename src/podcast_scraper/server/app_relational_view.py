@@ -281,12 +281,16 @@ def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
     out: dict[str, AppEntityRef] = {}
     for s in top_theme_clusters_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
         label = str(s.get("label") or "").strip()
-        sid = str(s.get("id") or "").strip()
-        if not label or not sid:
+        # The ANCHOR TOPIC id, not the `thc:` id. There is no storyline endpoint — the anchor
+        # topic's card IS the storyline — so `thc:…` is not openable and a client that routed with
+        # it got a 404 (review, 2026-09-17). Every other producer of a storyline destination passes
+        # the anchor: FollowedInterests, PodcastSignalsBand, TopicBrowseView.
+        anchor = str(s.get("anchor_topic_id") or "").strip()
+        if not label or not anchor:
             continue
         norm = normalize_label(label)
         if norm:
-            out.setdefault(norm, AppEntityRef(id=sid, kind="storyline", label=label))
+            out.setdefault(norm, AppEntityRef(id=anchor, kind="storyline", label=label))
     return out
 
 

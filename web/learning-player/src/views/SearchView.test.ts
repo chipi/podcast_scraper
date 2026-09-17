@@ -286,24 +286,94 @@ describe("SearchView", () => {
     expect(w.text()).not.toContain("No matches found.")
   })
 
-  it("opens a storyline on its PAGE, not as an entity card", async () => {
-    // A storyline is a theme cluster with a page of its own; there is no EntityCard for one. Same
-    // destination `noteRoute` sends a storyline note to.
+  it("links a storyline straight to its page, and never as an entity card", async () => {
+    // A storyline is a theme cluster with a page of its own; there is no EntityCard for one. It
+    // renders as a plain link rather than the entity card's "View" button, so there is nothing to
+    // intercept and nothing to open as an overlay.
     vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "risk", error: null, results: [] })
     vi.spyOn(api, "resolveEntity").mockResolvedValue({
       query: "risk",
-      entity: { id: "thc:managing-risk", kind: "storyline", label: "Managing risk across domains" },
+      // The resolver answers with the ANCHOR topic id, not `thc:…` — there is no storyline
+      // endpoint, so a `thc:` id is not routable (review, 2026-09-17).
+      entity: {
+        id: "topic:risk-management",
+        kind: "storyline",
+        label: "Managing risk across domains",
+      },
     })
-    const { w, router } = await mountAt("risk")
+    const { w } = await mountAt("risk")
     await flushPromises()
-    const push = vi.spyOn(router, "push")
-    await w
-      .findAll("button")
-      .find((b) => b.text().includes("View"))!
-      .trigger("click")
-    await flushPromises()
-    expect(push).toHaveBeenCalledWith({ name: "storyline", params: { id: "thc:managing-risk" } })
+    const link = w
+      .findAllComponents({ name: "RouterLink" })
+      .find((l) => JSON.stringify(l.props("to") ?? {}).includes("topic:risk-management"))
+    expect(link, "no link to the storyline page").toBeTruthy()
+    expect(link!.props("to")).toEqual({
+      name: "storyline",
+      params: { id: "topic:risk-management" },
+    })
     expect(w.find('[role="dialog"]').exists(), "opened an entity card instead").toBe(false)
+  })
+
+  it("does NOT group a storyline hit as an episode", async () => {
+    // A storyline row is corpus-level and carries no `episode_id`, so the episode grouping would key
+    // it as `doc:<id>` and render a card titled "Not found" — an episode that does not exist
+    // (operator 2026-09-17). It belongs in the Storylines section, from the INDEX, which is what
+    // makes a partial or member-topic query reach it.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "risk",
+      error: null,
+      results: [
+        {
+          doc_id: "storyline:thc:managing-risk",
+          score: 1,
+          text: "Managing risk across domains risk management systems thinking",
+          source_tier: "aux",
+          // The shape the SERVER actually returns: `storyline_label` / `storyline_size` /
+          // `anchor_topic_id` come from the query-time join, because the indexed row cannot carry
+          // them (no such columns, and the read path rebuilds metadata from a fixed field list).
+          metadata: {
+            doc_type: "storyline",
+            source_id: "thc:managing-risk",
+            storyline_label: "Managing risk across domains",
+            storyline_size: 4,
+            anchor_topic_id: "topic:risk-management",
+            episode_id: null,
+          },
+        },
+      ],
+    })
+    const { w } = await mountAt("risk")
+    await flushPromises()
+    expect(w.find('[data-testid="search-storylines"]').exists()).toBe(true)
+    expect(w.text()).toContain("Managing risk across domains")
+    expect(w.find('[data-testid="episode-card"]').exists(), "storyline became an episode").toBe(
+      false
+    )
+    expect(w.text(), "rendered a nonexistent episode").not.toContain("Not found")
+    expect(w.text()).not.toContain("No matches found.")
+  })
+
+  it("skips a storyline hit that arrives without its joined fields", async () => {
+    // Before the query-time join existed, a hit carried only `source_id`, and the section rendered
+    // the raw `thc:` slug as a title and linked somewhere that 404s. Unusable is worse than absent,
+    // so such a hit is dropped rather than displayed (review, 2026-09-17).
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "risk",
+      error: null,
+      results: [
+        {
+          doc_id: "storyline:thc:managing-risk",
+          score: 1,
+          text: "Managing risk across domains",
+          source_tier: "aux",
+          metadata: { doc_type: "storyline", source_id: "thc:managing-risk", episode_id: null },
+        },
+      ],
+    })
+    const { w } = await mountAt("risk")
+    await flushPromises()
+    expect(w.find('[data-testid="search-storylines"]').exists()).toBe(false)
+    expect(w.text(), "rendered a raw thc: slug").not.toContain("thc:managing-risk")
   })
 
   it("filters which result KINDS show, and All clears it", async () => {
