@@ -79,7 +79,14 @@ def _write_corpus(
 
 def _cfg(
     pipeline_stage: Literal[
-        "full", "audio_only", "enrich_only", "download_only", "relabel_only", "rediarize_only"
+        "full",
+        "audio_only",
+        "enrich_only",
+        "download_only",
+        "relabel_only",
+        "rediarize_only",
+        "retranscript_only",
+        "rederive_only",
     ] = "full",
 ) -> config.Config:
     return config.Config(
@@ -536,7 +543,9 @@ def test_relabel_keeps_prose_colons_in_the_cleaned_transcript(tmp_path: Path) ->
     assert "One food scientist stuck with me: she said so." in out
 
 
-@pytest.mark.parametrize("stage", ["relabel_only", "retranscript_only"])
+@pytest.mark.parametrize(
+    "stage", ["relabel_only", "retranscript_only", "rediarize_only", "rederive_only"]
+)
 def test_a_reprocess_stage_never_redownloads_a_publisher_transcript(
     tmp_path: Path, monkeypatch, stage
 ) -> None:
@@ -549,6 +558,11 @@ def test_a_reprocess_stage_never_redownloads_a_publisher_transcript(
         raise AssertionError("a reprocess stage re-downloaded the publisher transcript")
 
     monkeypatch.setattr(ep_mod, "process_transcript_download", _must_not_download)
+    # This test is about the PUBLISHER-TRANSCRIPT branch only. `rediarize_only` and
+    # `retranscript_only` legitimately fetch the AUDIO afterwards (they re-diarize / re-ASR it),
+    # which under the suite's `--disable-socket` reaches a real connect to example.com. Stub the
+    # media fetch so the failure surface stays the branch under test.
+    monkeypatch.setattr(ep_mod, "download_media_for_transcription", lambda *_a, **_k: None)
     episode = Episode(
         idx=1,
         title="Ep",
@@ -568,3 +582,76 @@ def test_a_reprocess_stage_never_redownloads_a_publisher_transcript(
         jobs,
         None,
     )
+
+
+# --- rederive_only routing (#2075): re-derive from the transcript already on disk ---
+
+
+def _rederive_episode() -> Episode:
+    return Episode(
+        idx=1,
+        title="Ep",
+        title_safe="Ep",
+        item=ET.Element("item"),
+        transcript_urls=[],
+        media_url="https://example.com/ep1.mp3",
+        media_type="audio/mpeg",
+    )
+
+
+def test_rederive_only_reuses_the_on_disk_transcript(tmp_path: Path, monkeypatch) -> None:
+    """rederive_only was a silent no-op: it coerces ``transcribe_missing=false``, and the only
+    other exit from ``process_episode_download`` was the ``transcribe_missing and temp_dir`` gate,
+    so the function returned (False, None, None, 0), nothing was ever queued, and the run exited 0
+    having re-derived nothing. The stage must resolve the stored transcript HERE."""
+    import queue
+
+    from podcast_scraper.utils import filesystem
+
+    out_dir = tmp_path / "out"
+    run_suffix = "20260101-000000_t"
+    stored = Path(filesystem.build_whisper_output_path(1, "Ep", run_suffix, str(out_dir)))
+    stored.parent.mkdir(parents=True)
+    stored.write_text("SPEAKER_00: Welcome to the show.\n", encoding="utf-8")
+
+    def _must_not_download_media(*_a, **_k):
+        raise AssertionError("rederive_only downloaded media for transcription")
+
+    monkeypatch.setattr(ep_mod, "download_media_for_transcription", _must_not_download_media)
+
+    jobs: "queue.Queue" = queue.Queue()
+    ok, path, source, downloaded = ep_mod.process_episode_download(
+        _rederive_episode(),
+        _cfg("rederive_only"),
+        str(tmp_path / "tmp"),
+        str(out_dir),
+        run_suffix,
+        jobs,
+        None,
+    )
+
+    assert ok is True  # the stage now reports the episode as processed
+    assert path == str(stored)  # ...from the transcript already on disk
+    assert source in ("direct_download", "whisper_transcription")
+    assert downloaded == 0  # nothing was fetched
+    assert jobs.empty()  # and no ASR job was queued
+
+
+def test_rederive_only_reports_failure_when_nothing_is_on_disk(tmp_path: Path) -> None:
+    """The other half of the silent-success class: with no stored transcript there is nothing to
+    re-derive, and the episode must NOT be counted as processed."""
+    import queue
+
+    jobs: "queue.Queue" = queue.Queue()
+    ok, path, source, downloaded = ep_mod.process_episode_download(
+        _rederive_episode(),
+        _cfg("rederive_only"),
+        str(tmp_path / "tmp"),
+        str(tmp_path / "out"),
+        "20260101-000000_t",
+        jobs,
+        None,
+    )
+
+    assert (ok, path, source, downloaded) == (False, None, None, 0)
+    assert jobs.empty()
