@@ -495,7 +495,7 @@ onMounted(() => {
     <!-- Grid (CO.3): cover-forward tiles; tapping opens the board in the list accordion below. -->
     <ul
       v-if="view === 'grid' && visibleCollections.length"
-      class="grid grid-cols-2 gap-4 sm:grid-cols-3"
+      class="grid grid-cols-3 gap-3 sm:grid-cols-4"
       data-testid="boards-grid"
     >
       <li v-for="c in caps.visible('boards', visibleCollections, searchActive)" :key="c.id">

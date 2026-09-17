@@ -776,7 +776,10 @@ async function loadContinue(): Promise<void> {
            EpisodeTile's shape, re-implemented. Keeping two of them is how they drifted apart in the
            first place (title-above-show here, show-above-title there; clamped there, unclamped
            here). One component, so a change to the tile reaches every grid that uses it. -->
-      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <!-- 2 on a phone, 4 on desktop (operator 2026-09-17). Deliberately NOT the browse grids' 3/4:
+           Recommended is a short curated set on the home screen, so its tiles stay large enough to
+           read at a glance rather than matching a dense catalogue. -->
+      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="h-full">
           <EpisodeTile :episode="ep" />
         </li>
