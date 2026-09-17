@@ -7,7 +7,7 @@
  * `PersonCard`. Graph navigation (tapping a related chip / a signal) emits `open`; `close` dismisses
  * the whole card (the shell re-emits it upward).
  */
-import { computed } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, PersonCard, PersonShow, Topic } from "../services/types"
@@ -28,6 +28,27 @@ const label = computed(() => props.person.label ?? "")
 // External bio (wave-G, person_web enricher). Extractive + attributed.
 const personWeb = computed(() => props.person.web ?? null)
 // Wikimedia's image "Artist" field can carry HTML — render the visible TEXT only.
+// Bio clamp, driven by the photo column (lp-media-*). Defaults to clipped so a "Show more" is
+// never hidden before layout has happened.
+const bioEl = ref<HTMLElement | null>(null)
+const bioExpanded = ref(false)
+const bioClipped = ref(true)
+
+function measureBio(): void {
+  const el = bioEl.value
+  if (!el || el.clientHeight === 0) return
+  bioClipped.value = el.scrollHeight - el.clientHeight > 1
+}
+
+onMounted(() => {
+  measureBio()
+  if (typeof ResizeObserver !== "undefined" && bioEl.value) {
+    const ro = new ResizeObserver(() => measureBio())
+    ro.observe(bioEl.value)
+    onBeforeUnmount(() => ro.disconnect())
+  }
+})
+
 const photoArtist = computed(() =>
   (personWeb.value?.image_artist ?? "")
     .replace(/<[^>]*>/g, "")
@@ -79,10 +100,10 @@ function searchLibrary(): void {
        the name where it read as a competing subtitle. Smaller, and captioned by the descriptor, it
        reads as one identity unit. -->
   <section v-if="personWeb" class="mb-4" data-testid="ec-person-bio">
-    <div class="flex items-start gap-3">
+    <div class="lp-media-row gap-3">
       <!-- LEFT COLUMN: the photo, with the hosted shows directly beneath it — literally under the
            image, not under the whole row (operator 2026-09-17). The bio keeps flowing beside both. -->
-      <div class="w-28 shrink-0">
+      <div class="lp-media-aside w-28">
         <ProfileAvatar
           :name="label"
           :src="personWeb.image_url"
@@ -130,12 +151,28 @@ function searchLibrary(): void {
       <!-- The BIO sits beside the photo, at every width. It used to run full-width UNDER a 176px
            square, which on a phone meant the photo owned the first screen on its own and the prose
            started below the fold (operator 2026-09-17). -->
-      <p
-        class="min-w-0 flex-1 text-sm leading-relaxed text-canvas-foreground"
-        data-testid="ec-person-bio-text"
-      >
-        {{ personWeb.bio }}
-      </p>
+      <!-- The bio is driven by the photo column, not a line count (operator 2026-09-17): it fills
+           the height the photo + hosted-shows + attribution stack sets and clips there, with
+           "Show more" footed against the bottom of that column. -->
+      <div class="lp-media-body">
+        <p
+          ref="bioEl"
+          class="text-sm leading-relaxed text-canvas-foreground"
+          :class="bioExpanded ? '' : 'lp-media-fill'"
+          data-testid="ec-person-bio-text"
+        >
+          {{ personWeb.bio }}
+        </p>
+        <button
+          v-if="bioClipped || bioExpanded"
+          type="button"
+          class="lp-media-foot w-fit pt-1 text-xs font-bold text-accent"
+          data-testid="ec-person-bio-more"
+          @click="bioExpanded = !bioExpanded"
+        >
+          {{ bioExpanded ? t("podcast.showLess") : t("podcast.showMore") }}
+        </button>
+      </div>
     </div>
   </section>
 

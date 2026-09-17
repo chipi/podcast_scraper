@@ -35,7 +35,7 @@
  * identity to `opacity-0`, and the text is always in the a11y tree. The rule of thumb is refined: a
  * list card shows a bounded preview by default and reveals the rest on an explicit, reversible tap.
  */
-import { computed, ref } from "vue"
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import type { EpisodeSummary } from "../services/types"
@@ -90,10 +90,38 @@ const artwork = computed(() => episodeArtwork(props.episode))
 // Read more/less (BE.2): collapsed shows the full summary clamped to a few lines; expanded shows
 // all of it in the row. Only offered when there's full prose beyond the one-line lede.
 const summaryExpanded = ref(false)
+// Measured, not a line count: the summary fills the artwork column's height, so whether it is
+// actually cut off depends on the rendered width and the neighbouring column. Defaults TRUE — in
+// jsdom and before first paint both heights read 0, and treating that as "fits" would HIDE a
+// "Read more" the text needs.
+const summaryEl = ref<HTMLElement | null>(null)
 const summaryFull = computed(
   () => props.episode.summary_text?.trim() || props.episode.summary_preview || ""
 )
-const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
+const summaryClipped = ref(true)
+
+function measureSummary(): void {
+  const el = summaryEl.value
+  if (!el || el.clientHeight === 0) return // not laid out yet — keep the safe default
+  summaryClipped.value = el.scrollHeight - el.clientHeight > 1
+}
+
+onMounted(() => {
+  measureSummary()
+  if (typeof ResizeObserver !== "undefined" && summaryEl.value) {
+    const ro = new ResizeObserver(() => measureSummary())
+    ro.observe(summaryEl.value)
+    onBeforeUnmount(() => ro.disconnect())
+  }
+})
+watch(() => props.episode.summary_text, () => void nextTick(measureSummary))
+
+// "Read more" only when the text is ACTUALLY cut off — the summary now fills the artwork column
+// rather than a fixed line count, so on a short summary nothing is clipped and the toggle would be
+// offering to reveal nothing.
+const canExpandSummary = computed(
+  () => !!props.episode.summary_text?.trim() && (summaryClipped.value || summaryExpanded.value)
+)
 </script>
 
 <template>
@@ -181,7 +209,12 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
     <!-- RIGHT COLUMN: show name, title, summary — full width. The actions moved UNDER the artwork
          (left column), so nothing competes with the text here. NOT `relative` — the title's
          stretched ::after link stays anchored to the whole `article` so the artwork plays on tap. -->
-    <div class="min-w-0 flex-1">
+    <!-- The summary FILLS the height the artwork column sets, then clips (operator 2026-09-17).
+         A fixed `line-clamp-4` stopped the text short of the artwork's bottom, leaving dead space
+         beside the picture and a line of description the card had room for but did not show. Both
+         columns foot their last element with `mt-auto`, so the action row and "Read more" land on
+         the same line. -->
+    <div class="lp-media-body">
       <!-- Show name — full column width; only ellipsizes when genuinely long. -->
       <RouterLink
         v-if="episode.podcast_title"
@@ -205,8 +238,9 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
            lede when there's no full summary. -->
       <p
         v-if="summaryFull"
-        class="mt-2 text-sm leading-relaxed text-muted"
-        :class="summaryExpanded ? '' : 'line-clamp-4'"
+        ref="summaryEl"
+        class="mt-2 min-h-0 text-sm leading-relaxed text-muted"
+        :class="summaryExpanded ? '' : 'lp-media-fill'"
       >
         {{ summaryFull }}
       </p>
@@ -214,7 +248,7 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
       <button
         v-if="!compact && canExpandSummary"
         type="button"
-        class="relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80"
+        class="relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80 mt-auto w-fit"
         data-testid="card-read-more"
         :aria-expanded="summaryExpanded"
         @click="summaryExpanded = !summaryExpanded"

@@ -186,6 +186,56 @@
     }
   }
 
+  /* MEDIA ROW — artwork/avatar on the left, prose on the right. ONE definition for a shape the app
+     repeats: episode cards, episode rows, the show header, the person card.
+
+     The rule it encodes: the aside sets the height, and the body's prose FILLS that height and
+     clips there. Every instance had hardcoded this as a `line-clamp-N` instead, which cannot work —
+     the neighbouring column's height varies with the title's line count, the artwork size and the
+     viewport, so a fixed count leaves dead space beside the picture on one card and overshoots on
+     the next. An episode card with a one-line title sat 28px out of line with its siblings for
+     exactly this reason (operator 2026-09-17).
+
+     Usage:
+       <article class="lp-media-row">
+         <div class="lp-media-aside"> artwork … <Actions class="lp-media-foot"/> </div>
+         <div class="lp-media-body">  title … <p class="lp-media-fill">…</p>
+                                      <button class="lp-media-foot">Read more</button> </div>
+       </article>
+
+     Both columns stretch (flex default), each foots its last element, and the prose absorbs the
+     slack between — so the two sides always end on the same line whatever the content does. */
+  .lp-media-row {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .lp-media-aside {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 0.5rem;
+  }
+
+  .lp-media-body {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+  }
+
+  /* The prose. Takes whatever the aside leaves and clips — never a fixed line count. */
+  .lp-media-fill {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* The trailing control in either column — footed so both sides end level. */
+  .lp-media-foot {
+    margin-top: auto;
+  }
+
   /* The scrim behind a `.lp-sheet`: bottom-anchored on phones, centred from `sm:` up. */
   .lp-sheet-scrim {
     position: fixed;

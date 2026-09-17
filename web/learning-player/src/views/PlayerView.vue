@@ -1044,13 +1044,21 @@ function announceCapture(message: string): void {
 /** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
 const markMoment = () =>
   gated(async () => {
-    const speaker =
-      activeIndex.value >= 0 ? (segments.value[activeIndex.value]?.speaker ?? null) : null
+    const seg = activeIndex.value >= 0 ? segments.value[activeIndex.value] : null
+    const speaker = seg?.speaker ?? null
+    // The spoken line being marked. Without it the Library shows a wall of identical "Marked
+    // moment" rows (operator 2026-09-17); the segment is already resolved here for the speaker.
+    const quote = seg?.text?.trim() || null
     // Announce what ACTUALLY happened. The store swallows write failures, so this used to tell a
     // screen-reader user "Marked" — and flash the confirmation — when the POST had failed and
     // nothing was stored (S8). A confirmation of something that did not happen is worse than
     // silence: it stops the user retrying.
-    const ok = await capture.captureMoment(props.slug, Math.max(0, contentTime.value), speaker)
+    const ok = await capture.captureMoment(
+      props.slug,
+      Math.max(0, contentTime.value),
+      speaker,
+      quote,
+    )
     if (flashTimer) clearTimeout(flashTimer)
     captureState.value = ok ? 'saved' : 'failed'
     announceCapture(ok ? t('capture.marked') : t('capture.saveFailed'))

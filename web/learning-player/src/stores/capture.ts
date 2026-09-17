@@ -226,6 +226,7 @@ export const useCaptureStore = defineStore('capture', {
       slug: string,
       contentSeconds: number,
       speaker?: string | null,
+      quoteText?: string | null,
     ): Promise<boolean> {
       // Swallowed so `void capture.x()` can never raise, but the OUTCOME is reported: callers
       // were announcing "Saved" to screen readers unconditionally, so a failed POST told a blind
@@ -236,6 +237,11 @@ export const useCaptureStore = defineStore('capture', {
         kind: 'moment',
         start_ms: ms(contentSeconds),
         speaker: speaker ?? null,
+        // WHAT was marked, not just when. A moment stored only a timestamp and a speaker, so every
+        // card in the Library read "Marked moment" with no way to tell one from another — the user
+        // could see that they had marked something and not what (operator 2026-09-17). The player
+        // already has the active segment in hand; its text is the thing being marked.
+        quote_text: quoteText ?? null,
       })
     },
     /**

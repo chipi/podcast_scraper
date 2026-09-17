@@ -274,19 +274,22 @@ watch(() => props.feedId, reset)
       <!-- Capped to the artwork width (w-36): without it the action row below sets the column's
            width, so a wide row of pills pushed the column past 144px and squeezed the text column
            to a third of the row (title wrapping to 3 lines). The actions wrap WITHIN 144px instead. -->
-      <div class="flex w-36 shrink-0 flex-col gap-3">
+      <!-- 144px on a phone, 224px from `sm` up (operator 2026-09-17). The column was sized for a
+           phone and kept that width on a 1440px desktop, so the metadata wrapped to FIVE lines in a
+           144px gutter while ~950px sat empty beside the title. The artwork grows with it. -->
+      <div class="flex w-36 shrink-0 flex-col gap-3 sm:w-56">
       <!-- Placeholder so the column keeps its width when a show has no artwork — otherwise the
            actions beneath it are squeezed against a zero-width gap (same bug as EpisodeCard). -->
       <div
         v-if="!(show && showArt(show))"
-        class="h-36 w-36 rounded-xl bg-elevated"
+        class="h-36 w-36 rounded-xl bg-elevated sm:h-56 sm:w-56"
         aria-hidden="true"
       />
       <img
         v-if="show && showArt(show)"
         :src="showArt(show)!"
         :alt="show.title ?? ''"
-        class="h-36 w-36 rounded-xl bg-elevated object-cover"
+        class="h-36 w-36 rounded-xl bg-elevated object-cover sm:h-56 sm:w-56"
       />
         <!-- Feed METADATA, under the artwork and the actions (operator 2026-09-17). It used to be
              stacked between the title and the description in the right column, so the one thing
@@ -298,9 +301,13 @@ watch(() => props.feedId, reset)
              joined, so the separators fall between the values that are actually PRESENT — a
              template-level "· if not first" has to know what preceded it and gets it wrong the
              moment a field is missing. -->
+        <!-- PHONE: under the artwork, above Follow, as the operator asked. Hidden from `sm` up,
+             where the same line renders in the text column instead — at ~85 characters it can never
+             sit on one line in a 224px gutter, and three wrapped lines in a narrow column beside
+             900px of empty space is the desktop bug this fixes (operator 2026-09-17). -->
         <p
           v-if="metaLine.length"
-          class="text-xs leading-relaxed text-muted"
+          class="text-xs leading-relaxed text-muted sm:hidden"
           data-testid="podcast-feed-meta"
         >
           {{ metaLine.join(' · ') }}
@@ -327,7 +334,11 @@ watch(() => props.feedId, reset)
           </div>
         </div>
       </div>
-      <div class="min-w-0 flex-1">
+      <!-- The text column fills the artwork column's height and "Show more" foots against the
+           action icons, so the two sides end on the same line (operator 2026-09-17). A fixed
+           `line-clamp-3` ended the description well above the end of the artwork + facts + Follow +
+           icons stack, which on a phone left a block of dead space beside the picture. -->
+      <div class="lp-media-body">
         <h1 class="font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
           <template v-if="showTitle">{{ showTitle }}</template>
           <!-- Placeholder, not the feed id: same height as the real heading so nothing jumps when
@@ -339,13 +350,22 @@ watch(() => props.feedId, reset)
             data-testid="podcast-title-skeleton"
           />
         </h1>
+        <!-- DESKTOP: the same facts on ONE line under the title, where there is room for them.
+             Same `metaLine` source as the phone copy above — one computed, two placements. -->
+        <p
+          v-if="metaLine.length"
+          class="mt-1 hidden text-xs leading-relaxed text-muted sm:block"
+          data-testid="podcast-feed-meta-wide"
+        >
+          {{ metaLine.join(' · ') }}
+        </p>
         <!-- Feed by-line (#2043): host/author names straight from the RSS channel. Text for now —
              linking each to its person card is the entity-resolution follow-up (#2044). -->
         <p
           v-if="show?.description"
           ref="descEl"
-          class="mt-2 text-sm leading-relaxed text-muted"
-          :class="descExpanded ? '' : 'line-clamp-3'"
+          class="mt-2 min-h-0 text-sm leading-relaxed text-muted"
+          :class="descExpanded ? '' : 'lp-media-fill'"
         >
           {{ show.description }}
         </p>
@@ -354,7 +374,8 @@ watch(() => props.feedId, reset)
         <button
           v-if="show?.description && (descClamped || descExpanded)"
           type="button"
-          class="mt-1 text-xs font-bold text-accent"
+          class="w-fit text-xs font-bold text-accent"
+          :class="descExpanded ? 'mt-1' : 'lp-media-foot'"
           @click="toggleDesc"
         >
           {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}
@@ -386,7 +407,7 @@ watch(() => props.feedId, reset)
     <div v-else>
       <!-- Hide-played toggle (SD.9): reads the completed set (mark-as-played). -->
       <label class="mb-3 flex w-fit items-center gap-2 text-sm font-semibold text-muted">
-        <input v-model="hidePlayed" type="checkbox" data-testid="hide-played" class="accent-accent" />
+        <input v-model="hidePlayed" type="checkbox" data-testid="hide-played" class="lp-check" />
         {{ t('podcast.hidePlayed') }}
       </label>
       <p v-if="visibleEpisodes.length === 0" class="text-muted">{{ t('podcast.allPlayed') }}</p>

@@ -65,9 +65,13 @@ function noteDate(unixSeconds: number): string {
   return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ""
 }
 // --- manual board order (CO.7) -------------------------------------------------------------
+// POINTER events, not HTML5 drag-and-drop. `draggable` + `dragstart`/`drop` is desktop-mouse only:
+// iOS WKWebView never fires those from a touch, so the handle was completely inert on the device
+// this app is built for (operator 2026-09-17). Pointer events are one API for mouse and touch.
+//
 // Only offered while the list is in its own order. Sorting by name or item count is a VIEW of the
 // list; a drag under those would persist an order the very next render discards, which reads as the
-// drag having failed (operator 2026-09-17).
+// drag having failed.
 const reorderable = computed(() => sortBy.value === 'updated' && !searchActive.value)
 // The view renders from a local `collections` ref, so a store-side reorder has to flow back here
 // or the list would not move until the next full load.
@@ -79,33 +83,58 @@ watch(
 )
 const draggingId = ref<string | null>(null)
 const dragOverId = ref<string | null>(null)
+/** Row mid-points, measured once per drag — reading them per move would thrash layout. */
+let rowMids: { id: string; mid: number }[] = []
 
-function onDragStart(id: string, e: DragEvent): void {
-  draggingId.value = id
-  // Firefox refuses to start a drag without data on the transfer.
-  e.dataTransfer?.setData('text/plain', id)
-  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+function rowElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-board-row]'))
 }
 
-function onDragEnd(): void {
+function onGrabStart(id: string, e: PointerEvent): void {
+  if (!reorderable.value) return
+  draggingId.value = id
+  dragOverId.value = id
+  // Capture, so the gesture keeps reporting to this handle even when the finger slides off it.
+  ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  rowMids = rowElements().map((el) => {
+    const r = el.getBoundingClientRect()
+    return { id: el.dataset.boardRow!, mid: r.top + r.height / 2 }
+  })
+}
+
+function onGrabMove(e: PointerEvent): void {
+  if (!draggingId.value) return
+  e.preventDefault() // stop the page scrolling under the drag
+  const y = e.clientY
+  // The row whose mid-point the finger is nearest is the drop target.
+  let nearest = dragOverId.value
+  let best = Number.POSITIVE_INFINITY
+  for (const r of rowMids) {
+    const d = Math.abs(r.mid - y)
+    if (d < best) {
+      best = d
+      nearest = r.id
+    }
+  }
+  dragOverId.value = nearest
+}
+
+function onGrabEnd(): void {
+  const from = draggingId.value
+  const to = dragOverId.value
   draggingId.value = null
   dragOverId.value = null
-}
-
-/** Drop `draggingId` onto `targetId`'s slot and persist the whole order. */
-function onDrop(targetId: string): void {
-  const from = draggingId.value
-  onDragEnd()
-  if (!from || from === targetId) return
+  rowMids = []
+  if (!from || !to || from === to) return
   const ids = visibleCollections.value.map((c) => c.id)
   const a = ids.indexOf(from)
-  const b = ids.indexOf(targetId)
+  const b = ids.indexOf(to)
   if (a < 0 || b < 0) return
   ids.splice(b, 0, ...ids.splice(a, 1))
   void store.reorder(ids)
 }
 
-/** Keyboard/touch path — drag is pointer-only, so the same move is reachable as a button. */
+/** Keyboard path — a pointer drag is unreachable without one. */
 function move(id: string, delta: number): void {
   const ids = visibleCollections.value.map((c) => c.id)
   const a = ids.indexOf(id)
@@ -527,12 +556,7 @@ onMounted(() => {
         :key="c.id"
         class="rounded-xl border border-border"
         :class="[open?.collection.id === c.id ? 'bg-overlay/40' : '', dragOverId === c.id ? 'ring-2 ring-accent' : '']"
-        :draggable="reorderable"
-        @dragstart="onDragStart(c.id, $event)"
-        @dragover.prevent="dragOverId = c.id"
-        @dragleave="dragOverId === c.id && (dragOverId = null)"
-        @drop.prevent="onDrop(c.id)"
-        @dragend="onDragEnd"
+        :data-board-row="c.id"
       >
         <div class="flex items-center justify-between gap-2 p-3">
           <button
@@ -595,11 +619,15 @@ onMounted(() => {
                write an order the next render discards, which reads as the drag having failed. -->
           <span
             v-if="reorderable"
-            class="flex shrink-0 cursor-grab touch-none items-center px-1 text-muted active:cursor-grabbing"
+            class="flex shrink-0 cursor-grab touch-none items-center px-2 py-2 text-muted active:cursor-grabbing"
             data-testid="collection-drag-handle"
             :aria-label="t('collections.reorderHandle', { name: c.name })"
             role="button"
             tabindex="0"
+            @pointerdown="onGrabStart(c.id, $event)"
+            @pointermove="onGrabMove"
+            @pointerup="onGrabEnd"
+            @pointercancel="onGrabEnd"
             @keydown.up.prevent="move(c.id, -1)"
             @keydown.down.prevent="move(c.id, 1)"
           >

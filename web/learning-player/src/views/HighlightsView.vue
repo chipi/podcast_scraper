@@ -96,10 +96,11 @@ function jumpQuery(h: Highlight): Record<string, string> {
   return h.start_ms != null ? { t: String(Math.floor(h.start_ms / 1000)) } : {}
 }
 
-function label(h: Highlight): string {
-  if (h.kind === 'moment') return t('highlights.moment')
-  return h.quote_text ?? t('highlights.span')
+/** The captured words, or '' when a moment saved before this stored only a timestamp. */
+function quoteOf(h: Highlight): string {
+  return h.quote_text?.trim() ?? ''
 }
+
 
 // --- notes (inline add / edit) ---
 /**
@@ -338,21 +339,33 @@ onMounted(async () => {
           <!-- Content is full-width; the controls sit in their own row BELOW it, not in a
                shrink-0 column beside it that squeezed the quote to ~half the row. -->
           <div class="min-w-0">
-              <span
-                v-if="h.kind !== 'moment'"
-                class="lp-kicker"
-              >{{ h.kind === 'insight' ? t('highlights.insight') : t('highlights.span') }}</span>
-              <p class="text-sm font-semibold leading-snug">{{ label(h) }}</p>
-              <p v-if="h.speaker" class="lp-speaker mt-0.5 text-xs">{{ h.speaker }}</p>
+              <!-- TITLE — what kind of capture this is. A moment says so too now: it used to be
+                   the only kind with no kicker, because the words "Marked moment" were standing in
+                   as the body text (operator 2026-09-17). -->
+              <span class="lp-kicker">{{
+                h.kind === 'insight'
+                  ? t('highlights.insight')
+                  : h.kind === 'span'
+                    ? t('highlights.span')
+                    : t('highlights.moment')
+              }}</span>
+              <!-- The QUOTE — the spoken line that was captured, under the title and above the
+                   speaker who said it. Set as a quotation rather than a heading: these are somebody
+                   else's words and the card is the record of them. A moment saved before the text
+                   was captured has none, and shows nothing here rather than a placeholder
+                   pretending to be a quote. -->
+              <blockquote
+                v-if="quoteOf(h)"
+                class="mt-1 border-l-2 border-border pl-2 text-sm italic leading-snug text-canvas-foreground"
+                data-testid="highlight-quote"
+              >
+                {{ quoteOf(h) }}
+              </blockquote>
+              <p v-if="h.speaker" class="lp-speaker mt-1 text-xs">{{ h.speaker }}</p>
               <!-- Graph refs (#1419): the highlight as a node — person/topic it's linked to. -->
-              <div v-if="h.graph_refs?.length" class="mt-1 flex flex-wrap gap-1">
-                <span
-                  v-for="r in h.graph_refs"
-                  :key="r.id"
-                  class="rounded-full bg-overlay px-2 py-0.5 text-xs"
-                  :class="r.kind === 'person' ? 'text-person' : 'text-topic'"
-                >{{ r.label }}</span>
-              </div>
+              <!-- The person/topic pills that sat here are gone (operator 2026-09-17): the card is a
+                   captured moment, and a row of entity chips under it repeated what the transcript
+                   already says while pushing the text itself down. -->
               <span
                 v-if="h.anchor_status === 'drifted'"
                 class="mt-1 inline-block rounded-full bg-overlay px-2 py-0.5 text-xs text-danger"
