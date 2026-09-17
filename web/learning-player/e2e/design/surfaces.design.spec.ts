@@ -9,7 +9,8 @@ import { expectSignedIn } from '../helpers'
  * silently passes would poison the whole exercise — the critic would score an empty screen, and
  * we would act on the number.
  *
- * Output goes to `design-results/<variant>/<surface>.png`, where `<variant>` comes from
+ * Output goes to `design-results/<variant>/<viewport>/<surface>.png`, where `<viewport>` is the
+ * Playwright project (`pixel7` / `desktop`) and `<variant>` comes from
  * DESIGN_VARIANT (default `baseline`). So capturing the current app is:
  *
  *   npm run design:shots
@@ -35,7 +36,14 @@ import { expectSignedIn } from '../helpers'
  */
 const DIRECTION = process.env.DESIGN_DIRECTION || ''
 const VARIANT = process.env.DESIGN_VARIANT || DIRECTION || 'baseline'
-const dir = (name: string) => `design-results/${VARIANT}/${name}.png`
+/**
+ * Output path, namespaced by the PROJECT (viewport) as well as the variant.
+ *
+ * Both viewports shoot the same surface names, so without the project segment the desktop run
+ * would overwrite the mobile PNGs and the contact sheet would silently be half a sheet.
+ */
+const dir = (name: string) =>
+  `design-results/${VARIANT}/${test.info().project.name}/${name}.png`
 
 /**
  * Sign in — Library and Profile are auth-gated and render an empty shell signed out.
