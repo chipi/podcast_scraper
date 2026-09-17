@@ -35,7 +35,11 @@ _NONPERSON_AUTHOR_MARKERS = re.compile(
     # distinct names — Mercatus Center…, Rindman University, Alexander Committee, PC Alexander
     # Committee, Boston College — and every one is an organisation. No real person is caught.
     r"centers?|centres?|universit(?:y|ies)|colleges?|institutes?|foundations?|"
-    r"committees?|councils?|associations?|societies|society|museums?|librar(?:y|ies))\b",
+    r"committees?|councils?|associations?|societies|society|museums?|librar(?:y|ies)|"
+    # A BROADCAST BRAND suffix ("China Plus", the author of Biz Talk and Round Table China). Across
+    # 17,949 person names on the production snapshot (kg Person nodes + rosters) the only name
+    # carrying the token is `China Plus` itself.
+    r"plus)\b",
     re.IGNORECASE,
 )
 
@@ -428,7 +432,9 @@ def extract_self_introduced_host(
         + _branded_intro_matches(head, feed_title)
     )
     for match in matches:
-        name = match.group(1).strip(" .,")
+        # Collapse runs of whitespace: word-level ASR segments join as "Amanda  Aronchik" — a
+        # different person id from "Amanda Aronchik" on every other surface.
+        name = " ".join(match.group(1).split()).strip(" .,")
         if len(name) < 2:
             continue
         if is_known_network(name):
@@ -478,7 +484,9 @@ def distinct_self_introductions(
         + _branded_intro_matches(head, feed_title)
     )
     for match in matches:
-        name = match.group(1).strip(" .,")
+        # Collapse runs of whitespace: word-level ASR segments join as "Amanda  Aronchik" — a
+        # different person id from "Amanda Aronchik" on every other surface.
+        name = " ".join(match.group(1).split()).strip(" .,")
         if len(name) < 2 or is_known_network(name):
             continue
         toks = name.split()
@@ -581,12 +589,17 @@ def detect_hosts_from_transcript_intro(
 _NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){1,5})"
 _NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME}){{0,9}}"
 # Presenting verbs — what a show's own description says its hosts DO.
-_PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
+_PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring|engage)s?\b"
 #: Patterns safe to run over a TITLE as well as a description.
 _HOST_PHRASES = [
     re.compile(p, re.IGNORECASE)
     for p in (
-        rf"\bhosted\s+by\s+(?P<names>{_NAMES})",
+        # Up to three lowercase descriptor words may precede the name: "Hosted by economist Luigi
+        # Zingales and business journalist Bethany McLean" (Capitalisn't).
+        rf"\bhosted\s+by\s+(?:(?-i:[a-z][\w\-]*)\s+){{0,3}}(?P<names>{_NAMES})",
+        # The appositive: "hosted by Anglo Canadian transplant to Colombia, Richard McColl" — the
+        # descriptor comes first and the person after the comma (Colombia Calling, measured).
+        rf"\bhosted\s+by\s+[^.;,]{{1,80}},\s*(?P<names>{_NAMES})",
         rf"\bco-?hosts?\s+(?P<names>{_NAMES})",
         rf"\bjournalists?\s+(?P<names>{_NAMES})",
         rf"\bwith\s+(?P<names>{_NAME})\s*$",  # the show title: "... with Patrick O'Shaughnessy"
@@ -602,10 +615,27 @@ _HOST_PHRASES = [
 #: names "Machine Learning Street" followed by the verb "Talk", and the show became the host of
 #: itself on 6 production episodes. The host does appear in a title, but in a different shape:
 #: "... with Patrick O'Shaughnessy", which the `with` pattern above already reads.
+#:
+#: The filler may not cross a COMMA. Across one the verb has a different subject, measured on two
+#: production feeds: "…the Norman Conquest of England in 1066, Tom and Dominic bring…" made the
+#: Norman Conquest the host of The Rest Is History (placed on 49 voices), and "At Carnegie India,
+#: our diverse lineup of experts will host" made the think tank the host of Interpreting India.
+#: Commas BETWEEN names are still read — they are inside `names` ("Katie Martin, Robert Armstrong
+#: and other markets nerds at the Financial Times explain").
 _HOST_PHRASES_DESCRIPTION_ONLY = [
-    re.compile(rf"(?P<names>{_NAMES})[\w\s,'’\-]{{0,60}}?\s+{_PRESENTS}", re.IGNORECASE)
+    re.compile(rf"(?P<names>{_NAMES})[\w\s'’\-]{{0,60}}?\s+{_PRESENTS}", re.IGNORECASE),
+    # "Join hosts Eric Olander in Vietnam and …" — the plural NOUN before the names. The title
+    # patterns only read "co-host"; this shape is description prose (The China-Global South
+    # Podcast, whose author tag is the publisher).
+    re.compile(rf"\bhosts\s+(?P<names>{_NAMES})", re.IGNORECASE),
+    # "…biggest moments with Tom Holland & Dominic Sandbrook." — a sentence that ENDS on the names.
+    # Anchored on the sentence end so "conversations with Jane Doe about…" is not read.
+    re.compile(rf"\bwith\s+(?P<names>{_NAMES})\s*[.!](?:\s|$)", re.IGNORECASE),
 ]
 _NAME_RE = re.compile(_NAME)
+
+
+_ARTICLE_BEFORE = re.compile(r"\b(?:the|of)\s+$", re.IGNORECASE)
 
 
 def hosts_from_feed_statement(
@@ -623,12 +653,26 @@ def hosts_from_feed_statement(
             continue
         patterns = _HOST_PHRASES if is_title else _HOST_PHRASES + _HOST_PHRASES_DESCRIPTION_ONLY
         for pat in patterns:
-            m = pat.search(text)
+            # The first match that is not the TAIL of a longer proper noun. A person's name does not
+            # follow "the" or "of": "…Americas Society / Council of the Americas Online team
+            # brings…" made `Americas Online` the host of Latin America in Focus (32 voices).
+            m = next(
+                (
+                    x
+                    for x in pat.finditer(text)
+                    if not _ARTICLE_BEFORE.search(text[: x.start("names")])
+                ),
+                None,
+            )
             if not m:
                 continue
             for raw in _NAME_RE.findall(m.group("names")):
                 clean = _clean_stated_name(raw)
                 if len(clean.split()) < 2 or has_org_markers(clean):
+                    continue
+                # A nationality is a description of the host, not the host: "hosted by Anglo
+                # Canadian transplant to Colombia, Richard McColl".
+                if any(t.lower().strip(".,'’") in _NOT_A_MONONYM for t in clean.split()):
                     continue
                 # A publisher/platform is never the host, even inside a host phrase (#1652
                 # applied this to RSS author tags; the statement path was the last place that
@@ -812,6 +856,51 @@ _GUEST_GREETED = re.compile(
 # recorded as introducing itself as "Coming Out".
 _NOT_A_NAME_TOKEN = frozenset(
     {
+        # FUNCTION WORDS — a closed class: pronouns, determiners, auxiliaries, prepositions. No
+        # person-name token is one of them, and an ASR stretch that capitalises every word turns
+        # prose into a "name" that contains one: `Super Willing To Be`, `One Factor That`, `México
+        # She`, `Karin Zesis This` (Latin America in Focus). Measured over the full roster on
+        # 4,543 production and validation episode files: the only other change is the show name
+        # `Conversations with Tyler` leaving a voice — no person's name is lost. Name particles
+        # (`van`, `de`, `al`, `bin`) and words that are also surnames (`do`, `an`) are left out.
+        "i",
+        "me",
+        "you",
+        "he",
+        "she",
+        "it",
+        "we",
+        "they",
+        "him",
+        "us",
+        "them",
+        "that",
+        "this",
+        "these",
+        "those",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "am",
+        "does",
+        "did",
+        "has",
+        "have",
+        "had",
+        "to",
+        "of",
+        "on",
+        "at",
+        "for",
+        "with",
+        "from",
+        "by",
+        "into",
+        "about",
+        "or",
         "coming",
         "going",
         "not",
@@ -1388,6 +1477,29 @@ def recurrent_hosts_across_episodes(
     return out
 
 
+def _publisher_by_usage(author: str, feed_description: Optional[str]) -> bool:
+    """An author tag that is a PUBLISHER by how the feed itself uses it, not by a wordlist.
+
+    Measured on the production feeds, all unmarked by `_NONPERSON_AUTHOR_MARKERS`:
+
+    * a name beginning with "The" — no person is "The X": `The Brazilian Report` (Explaining
+      Brazil), `The China-Global South Project`;
+    * a name the feed's description puts after "at" / "from" / "of" — a place or a body, not a
+      presenter: "At Carnegie India, our diverse lineup of experts will host…".
+
+    "by" is deliberately NOT read: "a podcast by Jane Doe" is how a host is credited.
+    """
+    if re.match(r"(?i)the\s", author.strip()):
+        return True
+    if not feed_description:
+        return False
+    return bool(
+        re.search(
+            rf"(?i)\b(?:at|from|of)\s+(?:the\s+)?{re.escape(author.strip())}\b", feed_description
+        )
+    )
+
+
 def detect_hosts_from_feed(
     feed_title: Optional[str],
     feed_description: Optional[str],
@@ -1435,7 +1547,9 @@ def detect_hosts_from_feed(
                             feed_title,
                         )
                         continue
-                    if is_network_or_org_author(candidate):
+                    if is_network_or_org_author(candidate) or _publisher_by_usage(
+                        candidate, feed_description
+                    ):
                         logger.debug(
                             "RSS author '%s' looks like a network/organisation, not a host; "
                             "treating as publisher metadata rather than host",

@@ -61,6 +61,21 @@ def _by_name(speakers: List[mg.SpeakerInfo]) -> Dict[str, mg.SpeakerInfo]:
 
 
 class TestPlacedVoices:
+    def test_a_voice_labelled_with_the_show_is_not_placed(self, tmp_path: Path) -> None:
+        """#2064 on the record: the graph refuses the show as a person, so the record must too."""
+        rec = _by_name(
+            _record(
+                tmp_path,
+                feed_title="Conversations with Tyler",
+                segments=[
+                    _seg("Conversations with Tyler", "SPEAKER_00", "host"),
+                    _seg("Ada Brook", "SPEAKER_01", "guest"),
+                ],
+            )
+        )
+        assert "Conversations with Tyler" not in rec
+        assert rec["Ada Brook"].placed is True
+
     def test_a_named_voice_is_placed_with_its_voices_and_method(self, tmp_path: Path) -> None:
         rec = _by_name(
             _record(

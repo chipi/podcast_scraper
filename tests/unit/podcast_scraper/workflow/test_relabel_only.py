@@ -481,3 +481,56 @@ def test_transcribe_dispatches_to_rediarize(tmp_path: Path, monkeypatch) -> None
     )
     assert seen.get("hit") is True
     assert result == sentinel
+
+
+# --- the cleaned transcript follows the relabel (#2075) ---
+
+
+def _relabel_with_cleaned(tmp_path: Path, cleaned_text: str):
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    host_text = "Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)
+    co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
+    old_run, stem = _write_corpus(
+        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=[host_text, co_text]
+    )
+    cleaned = old_run / "transcripts" / f"{stem}.cleaned.txt"
+    cleaned.write_text(cleaned_text, encoding="utf-8")
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+    ok, _rel, _ = _relabel_existing_transcript(_job(), _cfg(), run_tag, str(new_run), None, None)
+    assert ok is True
+    return cleaned
+
+
+def test_relabel_rewrites_the_cleaned_transcripts_labels(tmp_path: Path) -> None:
+    """Measured before: 52/129 control and 82/163 broken-set episodes kept the OLD names here."""
+    cleaned = _relabel_with_cleaned(
+        tmp_path, "Amy Lawrence: Welcome to Hard Fork.\n\nSPEAKER_07: From Platformer.\n"
+    )
+    out = cleaned.read_text(encoding="utf-8")
+    assert "Amy Lawrence:" not in out
+    assert "Kevin Roose: Welcome to Hard Fork." in out
+    assert "\n\n" in out, "the cleaner's paragraph breaks are kept"
+
+
+def test_relabel_removes_a_cleaned_transcript_it_cannot_map(tmp_path: Path) -> None:
+    """Written from an even older labelling: its labels are not the transcript's. Wrong names in a
+    derivative are worse than none — the server falls back to the raw transcript."""
+    cleaned = _relabel_with_cleaned(tmp_path, "SPEAKER_02: Welcome.\nSPEAKER_04: Thanks.\n")
+    assert not cleaned.exists()
+
+
+def test_relabel_keeps_prose_colons_in_the_cleaned_transcript(tmp_path: Path) -> None:
+    """LLM cleaners write "So, to recap: …" and "First: …". Read as speaker labels, 569 of 2,071
+    real cleaned transcripts would have been removed or mangled."""
+    cleaned = _relabel_with_cleaned(
+        tmp_path,
+        "Amy Lawrence: Welcome to Hard Fork.\nSo, to recap: it was a big week.\n"
+        "First: the chips.\nOne food scientist stuck with me: she said so.\n",
+    )
+    out = cleaned.read_text(encoding="utf-8")
+    assert out.startswith("Kevin Roose: Welcome to Hard Fork.")
+    assert "So, to recap: it was a big week." in out
+    assert "First: the chips." in out
+    assert "One food scientist stuck with me: she said so." in out

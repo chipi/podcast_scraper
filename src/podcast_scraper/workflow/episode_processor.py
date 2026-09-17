@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import queue
+import re
 import threading
 import time
 from pathlib import Path
@@ -1084,7 +1085,10 @@ def _write_processing_manifest(
                 # cameo/commercial cleanup, split named vs Voice (unresolved). Lets the sidecar
                 # answer the clean named-vs-Voice rate without opening the graph.
                 "exposed": summary.get("exposed"),
-                "unbound_names": summary.get("unbound_names"),
+                # A COUNT, not the names: the names live in the episode's speaker record
+                # (`placed: false`) and the diagnostics explain them. A second copy here drifted
+                # from both on every relabel (#2075).
+                "unbound_count": len(summary.get("unbound_names") or []),
                 "host_named": host_named,
             },
         )
@@ -2572,12 +2576,91 @@ def _relabel_existing_transcript(
             effective_output_dir,
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+        _relabel_cleaned_transcript(txt_path, segs, new_segs, job.idx)
     # advisor #2: relabel rewrites naming on disk — the manifest MUST record the new naming
     # method_version, or "reprocess episodes below naming-3" never converges. result has no ASR/
     # diarization fields (frozen), so only the naming block is written + a pipeline_stage emitted.
     _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
     logger.info("[%s] relabel_only: re-resolved speaker names in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
+
+
+# A line prefix that is a SPEAKER label, not prose: `SPEAKER_07`, or a short run of capitalised
+# name tokens (`Joel Salinas`, `Cobus van Staden`). Measured on 2,071 real cleaned transcripts: LLM
+# cleaners write prose with colons ("So, to recap: …", "One food scientist stuck with me: …"), and
+# reading those as labels would have removed 569 files that name nobody.
+# "First: …", "Second: …" — an LLM cleaner's enumeration, not a speaker (7 of the 2,071 files).
+_ENUMERATION_WORDS = frozenset(
+    "one two three four five first second third fourth fifth sixth last finally next".split()
+)
+_NAME_TOKEN = r"[A-Z][\w'’.\-]*"
+_SPEAKER_LABEL_SHAPE = re.compile(
+    rf"SPEAKER_\d+|{_NAME_TOKEN}(?:\s+(?:{_NAME_TOKEN}|van|von|de|da|del|al|bin)){{0,4}}"
+)
+
+
+def _relabel_cleaned_transcript(
+    txt_path: Path, old_segs: Any, new_segs: List[Dict[str, Any]], idx: Any
+) -> None:
+    """Bring ``<stem>.cleaned.txt`` onto the new speaker labels, or remove it (#2075).
+
+    The cleaned transcript is written only when a SUMMARY is generated, so a relabel — which
+    re-resolves names without re-summarising — left it naming the old people. Measured before
+    this: 52 of 129 control episodes and 82 of 163 broken-set episodes carried stale labels, and
+    the server serves it whenever the raw ``.txt`` is missing.
+
+    Its lines are ``<label>: <text>`` in the same order as the transcript's, but the cleaner may
+    drop or merge lines, so it cannot be re-rendered from segments. Labels are rewritten only when
+    that is exact: every label in the file is one the transcript carried before this relabel, and
+    each such label maps to ONE new label. Otherwise (it was written from an even older labelling,
+    or one old label split into two people) it is REMOVED — a derivative with wrong names is worse
+    than none; the server falls back to the raw transcript and the next summary run rewrites it.
+    """
+    cleaned = txt_path.with_name(txt_path.name[: -len(".txt")] + ".cleaned.txt")
+    if not cleaned.is_file() or not isinstance(old_segs, list):
+        return
+    mapping: Dict[str, set] = {}
+    for old, new in zip(old_segs, new_segs):
+        if not (isinstance(old, dict) and isinstance(new, dict)):
+            continue
+        o, n = old.get("speaker_label"), new.get("speaker_label")
+        if o is not None and n is not None:
+            mapping.setdefault(str(o), set()).add(str(n))
+    try:
+        lines = cleaned.read_text(encoding="utf-8").split("\n")
+    except OSError:
+        return
+    exact = len(old_segs) == len(new_segs) and all(len(v) == 1 for v in mapping.values())
+    out: List[str] = []
+    labelled = False
+    for line in lines:
+        label, sep, rest = line.partition(": ")
+        if sep and label in mapping:
+            labelled = True
+            out.append(f"{next(iter(mapping[label]))}: {rest}")
+        elif (
+            sep
+            and _SPEAKER_LABEL_SHAPE.fullmatch(label)
+            and label.lower() not in _ENUMERATION_WORDS
+        ):
+            exact = False  # a speaker label this transcript never carried: written from another run
+            break
+        else:
+            out.append(line)  # prose, including an LLM cleaner's own "So, to recap: …"
+    if not labelled and exact:
+        return  # no speaker labels at all — nothing names anyone
+    try:
+        if exact:
+            cleaned.write_text("\n".join(out), encoding="utf-8")
+        else:
+            cleaned.unlink()
+            logger.info(
+                "[%s] relabel: removed %s — its speaker labels no longer map onto the transcript",
+                idx,
+                cleaned.name,
+            )
+    except OSError as exc:
+        logger.warning("[%s] relabel: could not update %s: %s", idx, cleaned.name, exc)
 
 
 def _segments_carry_native_speakers(result: Any) -> bool:

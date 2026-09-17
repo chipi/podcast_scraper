@@ -115,6 +115,7 @@ def _run(**overrides: Any) -> List[str]:
         segments=args["segments"],
         adfree_segments=args["adfree_segments"],
         diagnostics=args["diagnostics"],
+        context=args.get("context"),
         legacy_as_placed=args.get("legacy_as_placed", False),
     )
 
@@ -203,6 +204,36 @@ class TestEachRule:
             ]
         }
         assert _codes(_run(diagnostics=diag)) == ["RECORD_VS_DIAGNOSTICS"]
+
+
+class TestSplitPerson:
+    """A split written consistently to every surface passes every comparison rule; this one reads
+    the record alone (validation run: `Elad` guest / `Elad Gil` host on No Priors)."""
+
+    def test_one_human_placed_twice_is_reported(self) -> None:
+        elad = {"id": "guest", "name": "Elad", "role": "guest", "placed": True, "voices": ["S1"]}
+        gil = {"id": "host_2", "name": "Elad Gil", "role": "host", "placed": True, "voices": ["S3"]}
+        v = check_episode_in_sync(_meta(BARBARO, elad, gil), _kg(("Michael Barbaro", "host")), None)
+        assert any(x.startswith("SPLIT_PERSON") for x in v), v
+
+    def test_two_people_sharing_a_surname_are_not_a_split(self) -> None:
+        a = {"id": "guest_1", "name": "Robert Pape", "role": "guest", "placed": True}
+        b = {"id": "guest_2", "name": "Karen Pape", "role": "guest", "placed": True}
+        v = check_episode_in_sync(
+            _meta(a, b), _kg(("Robert Pape", "guest"), ("Karen Pape", "guest")), None
+        )
+        assert not any(x.startswith("SPLIT_PERSON") for x in v), v
+
+
+class TestContextDigest:
+    def test_context_hosts_that_are_not_the_records_are_reported(self) -> None:
+        ctx = {"basic": {"hosts": ["Michael Barbaro", "Natalie Kitroeff"], "guests": []}}
+        v = _run(context=ctx)
+        assert _codes(v) == ["CONTEXT_VS_RECORD", "CONTEXT_VS_RECORD"], v
+
+    def test_a_context_written_from_the_record_is_in_sync(self) -> None:
+        ctx = {"basic": {"hosts": ["Michael Barbaro"], "guests": ["Matina Stevis-Gridneff"]}}
+        assert _run(context=ctx) == []
 
 
 class TestWhatIsNotAViolation:

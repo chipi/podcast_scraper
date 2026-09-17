@@ -22,6 +22,7 @@ Resolution, per diarized **voice** (``SPEAKER_xx``):
 
 from __future__ import annotations
 
+import difflib
 import re
 from dataclasses import dataclass, replace
 from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
@@ -700,6 +701,111 @@ def _same_person(a: str, b: str) -> bool:
     return True  # one side is title + surname only ("Professor Pape")
 
 
+def _same_person_on_one_episode(a: str, b: str) -> bool:
+    """Whether two names placed on voices of ONE episode are the same human.
+
+    Wider than :func:`_same_person` (which needs a shared surname, because it also compares names
+    across sources): within one episode, voices named `Elad` and `Elad Gil`, or `Michael Barbaro`
+    and `Michael Babaro`, are one person diarization split in two. Every pair this adds over
+    :func:`_same_person` on the production snapshot was inspected — 24 — and each was one person.
+    """
+    ta, tb = a.lower().split(), b.lower().split()
+    if not ta or not tb:
+        return False
+    if ta == tb or _same_person(a, b):
+        return True
+    if (len(ta) == 1) != (len(tb) == 1):  # a mononym that is the other's given name
+        return ta[0] == tb[0]
+    # Same given name, near-identical surname — an ASR respelling. Short surnames are excluded:
+    # `Pape`/`Page` and `Chen`/`Chan` are one letter apart and are different families.
+    return (
+        len(ta) == len(tb) >= 2
+        and ta[0] == tb[0]
+        and min(len(ta[-1]), len(tb[-1])) >= 5
+        and difflib.SequenceMatcher(None, ta[-1], tb[-1]).ratio() >= 0.75
+    )
+
+
+def _tidy_published_name(name: str) -> str:
+    """Whitespace collapsed and stray WRAPPING punctuation removed from a published name.
+
+    Both reach voices from prose and were measured on the production snapshot: `Amanda  Aronchik`
+    (double space) and `Aaron Levie)` (a parenthesised show-notes name cut at the open bracket).
+    Left as they were, each is a different person id from the clean spelling on another surface.
+    """
+    return " ".join(name.split()).strip(" ()[]{}\"',;:")
+
+
+def _one_name_per_person(
+    by_voice: Dict[str, SpeakerRole],
+    talk: Dict[str, float],
+    stated: Sequence[str],
+    known_hosts: Sequence[str],
+    episode_text: Optional[str] = None,
+) -> Dict[str, SpeakerRole]:
+    """Give every voice of one person the SAME name and the SAME role (#2075).
+
+    Diarization over-splits a person across voices, and the naming paths name each voice on its own,
+    so one human came out under two spellings and, worse, two roles. Measured on the validation run:
+    `Elad Gil` host / `Elad` guest (No Priors), `Misha Glenny` host / `Misha Glennie` guest
+    (In Our Time), `Amanda Aronchik` host / `Amanda  Aronchik` guest (Planet Money). Every surface
+    is written from these names — transcript, quotes, the record, the graph — so they are unified
+    HERE, once.
+    No name is invented: the kept spelling is one a voice already carries.
+
+    SPELLING: one the feed or show notes state (`Misha Glenny`, not the ASR's `Misha Glennie`) — as
+    a detected name, or written verbatim in the episode's own title/description, which is how
+    Hard Fork's `Jill Lepore` beats the longer-talking voice's `Jill Laporte` when detection
+    returned no names; otherwise the fullest (`Elad Gil` over `Elad`); otherwise the voice that
+    talks most.
+
+    ROLE, when the voices disagree: "host" is a claim the FEED must make. The person is a host only
+    if they are one of the feed's known hosts; otherwise a guest. "Host wins" and "the longer voice
+    decides" were both measured and are worse: each made Olaf Storbeck a host of Unhedged and
+    Santiago Suárez a host of The a16z Show. Known miss: a feed that states no hosts (Planet Money)
+    resolves its host to guest — the conservative direction.
+    """
+    out = dict(by_voice)
+    for v, r in by_voice.items():
+        if r.named:
+            tidy = _tidy_published_name(r.name)
+            if tidy != r.name:
+                out[v] = replace(r, name=tidy)
+    named = [v for v, r in out.items() if r.named and r.role in ("host", "guest")]
+    groups: List[List[str]] = []
+    for v in named:
+        for g in groups:
+            if any(_same_person_on_one_episode(out[v].name, out[w].name) for w in g):
+                g.append(v)
+                break
+        else:
+            groups.append([v])
+    stated_lower = {_tidy_published_name(n).lower() for n in stated}
+    text_lower = " ".join((episode_text or "").split()).lower()
+
+    def _is_stated(name: str) -> bool:
+        low = name.lower()
+        return low in stated_lower or bool(
+            text_lower and re.search(rf"(?<!\w){re.escape(low)}(?!\w)", text_lower)
+        )
+
+    for g in groups:
+        if len(g) < 2:
+            continue
+        pool = [v for v in g if _is_stated(out[v].name)] or g
+        keep = max(pool, key=lambda v: (len(out[v].name.split()), talk.get(v, 0.0)))
+        roles = {out[v].role for v in g}
+        if len(roles) == 1:
+            role = out[keep].role
+        elif any(_same_person_on_one_episode(out[keep].name, h) for h in known_hosts):
+            role = "host"
+        else:
+            role = "guest"
+        for v in g:
+            out[v] = replace(out[v], name=out[keep].name, role=role)
+    return out
+
+
 def _canonicalize_to_stated_person(name: str, stated: Sequence[str]) -> str:
     """Upgrade a host-introduced title-form ("Professor Pape") to the metadata-stated WHOLE name of
     the same person ("Robert Pape").
@@ -1165,11 +1271,12 @@ def _name_host_voices(
        of contrary evidence is supportable; requiring positive proof of an unrelated behaviour is
        not.
 
-    Otherwise it ABSTAINS: the voice keeps its host SEAT and loses the NAME, and the name is left
-    unclaimed so ``stated_unbound`` reports it as a naming failure rather than a silent success.
-    Operator decision, 2026-09-16: on the two-host shows this affects (The Journal, No Priors, Hard
-    Fork, Empire, Unhedged, Capitalisn't) the names stay on the episode as feed-level participants
-    in the KG, with no voice edge — the show still lists its hosts, and no voice claims to be one.
+    Otherwise it ABSTAINS: the voice keeps its host SEAT and loses the NAME. The name is NOT counted
+    by ``stated_unbound`` — that reads ``metadata_named`` only, and the feed's hosts are not in it.
+    It survives in the diagnostics' ``tried.known_hosts``, from which the episode's speaker record
+    keeps it as ``placed: false`` (#2075; operator decision 2026-09-17, superseding the 2026-09-16
+    "feed-level participant" cast): the episode still says who the show's hosts are, and no voice
+    and no graph role claims one of them spoke.
 
     A ``guest host`` episode is refused outright: the feed's host is not presenting it.
     """
@@ -2421,6 +2528,11 @@ def resolve_speaker_roster(
     for _v, _role in list(by_voice.items()):
         if _role.named and not is_publishable_speaker_name(_role.name):
             by_voice[_v] = replace(_role, name=_v, named=False, source="raw")
+
+    # One person, one name, one role — across every voice diarization split them over.
+    by_voice = _one_name_per_person(
+        by_voice, total, stated_refs, known_hosts, episode_text=episode_text
+    )
 
     # Which unnamed voices did we FAIL on, and which could nobody have named?
     #

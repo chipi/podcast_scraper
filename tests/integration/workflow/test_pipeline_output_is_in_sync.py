@@ -152,3 +152,14 @@ def test_drift_is_caught_and_fails_the_gate(written: Path) -> None:
     assert counts["out_of_sync"] == 1
     assert any(v.startswith("UNPLACED_CAST") for v in findings[0]["violations"])
     assert audit_mod.main(["--corpus-dir", str(written), "--quiet-ok"]) == 1
+
+
+def test_the_context_digest_it_wrote_is_checked_and_its_drift_caught(written: Path) -> None:
+    ctx_files = list(written.rglob("*.context.json"))
+    assert ctx_files, "the pipeline wrote no context.json — the context rule was never exercised"
+    ctx = json.loads(ctx_files[0].read_text(encoding="utf-8"))
+    assert ctx["basic"]["hosts"] == ["Michael Barbaro"]
+    ctx["basic"]["hosts"] = ["Michael Barbaro", "Natalie Kitroeff"]  # the old guess-shaped copy
+    ctx_files[0].write_text(json.dumps(ctx), encoding="utf-8")
+    findings, _counts = audit_mod.audit(written)
+    assert any(v.startswith("CONTEXT_VS_RECORD") for f in findings for v in f["violations"])

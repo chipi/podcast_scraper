@@ -233,6 +233,10 @@ class TestWriteProcessingManifestWiring(unittest.TestCase):
         self.assertEqual(naming["metrics"]["named"], 3)
         self.assertEqual(naming["metrics"]["unattributed_talk_share"], 0.42)
         self.assertTrue(naming["metrics"]["host_named"])
+        # #2075: the manifest counts unplaced names; the names themselves live in the speaker
+        # record, so a second copy cannot drift from it on relabel.
+        self.assertEqual(naming["metrics"]["unbound_count"], 1)
+        self.assertNotIn("unbound_names", naming["metrics"])
 
         # flags: failover fired; a dominant voice unnamed; a title guest unplaced. Host WAS named
         # and the feed is not show-centric -> no empty_host_anchor.

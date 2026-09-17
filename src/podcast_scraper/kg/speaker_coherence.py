@@ -540,6 +540,41 @@ def _sync_diagnostics(diagnostics: Mapping[str, Any], placed: List[dict], prefix
     return out
 
 
+def _sync_split_people(placed: List[dict], prefix: str) -> List[str]:
+    """Two placed entries that are one human: a person diarization split and naming did not rejoin.
+
+    Every other rule compares the record with a surface, so a split written CONSISTENTLY to all of
+    them — `Elad` guest and `Elad Gil` host in the transcript, the diagnostics, the record and the
+    graph — passes each one. This rule reads the record alone.
+    """
+    from ..providers.ml.diarization.roster import _same_person_on_one_episode
+
+    out: List[str] = []
+    names = [" ".join(str(p["name"]).split()) for p in placed]
+    for i, a in enumerate(names):
+        for b in names[i + 1 :]:
+            if _same_person_on_one_episode(a, b):
+                out.append(f"{prefix}SPLIT_PERSON {a!r} and {b!r} are placed as two people")
+    return out
+
+
+def _sync_context(context: Mapping[str, Any], placed: List[dict], prefix: str) -> List[str]:
+    """``context.json`` ``basic.hosts`` / ``basic.guests`` against the record's placed people.
+
+    The digest is a denormalised copy for readers that do not open ``metadata.json`` (the MCP
+    tools). It is written from the record; this is what says it still is.
+    """
+    raw = context.get("basic")
+    basic: Mapping[str, Any] = raw if isinstance(raw, dict) else {}
+    out: List[str] = []
+    for role in ("host", "guest"):
+        want = sorted(str(p["name"]) for p in placed if p.get("role") == role)
+        got = sorted(str(n) for n in (basic.get(f"{role}s") or []))
+        if want != got:
+            out.append(f"{prefix}CONTEXT_VS_RECORD {role}s: context={got} record={want}")
+    return out
+
+
 def check_episode_in_sync(
     metadata: Mapping[str, Any],
     kg: Mapping[str, Any],
@@ -548,6 +583,7 @@ def check_episode_in_sync(
     segments: Any = None,
     adfree_segments: Any = None,
     diagnostics: Mapping[str, Any] | None = None,
+    context: Mapping[str, Any] | None = None,
     legacy_as_placed: bool = False,
     label: str = "",
 ) -> List[str]:
@@ -565,6 +601,8 @@ def check_episode_in_sync(
     * ``RAW_VS_ADFREE`` — the raw and ad-free segments name different speakers
     * ``RECORD_VS_DIAGNOSTICS`` — the record and the roster's own diagnostics disagree on who was
       named, or in what role
+    * ``SPLIT_PERSON`` — one human is placed as two entries (a diarization split never rejoined)
+    * ``CONTEXT_VS_RECORD`` — ``context.json``'s hosts/guests are not the record's placed people
 
     Names are compared with :func:`same_person`, so an ASR variant of a placed person is not a
     violation. An artifact with no record reports nothing unless ``legacy_as_placed`` is set; the
@@ -580,10 +618,13 @@ def check_episode_in_sync(
         for s in ((metadata.get("content") or {}).get("speakers") or [])
         if isinstance(s, dict) and s.get("placed") is False and s.get("name")
     ]
-    out = _sync_cast(kg, placed, unplaced, prefix)
+    out = _sync_split_people(placed, prefix)
+    out += _sync_cast(kg, placed, unplaced, prefix)
     if gi:
         out += _sync_quotes(gi, placed_names, prefix)
     out += _sync_labels(segments, adfree_segments, placed_names, prefix)
     if diagnostics and not legacy_as_placed:
         out += _sync_diagnostics(diagnostics, placed, prefix)
+    if context and not legacy_as_placed:
+        out += _sync_context(context, placed, prefix)
     return out

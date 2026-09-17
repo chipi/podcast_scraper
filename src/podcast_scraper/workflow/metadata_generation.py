@@ -1150,6 +1150,13 @@ def _build_speaker_record(
         else (None, None)
     )
     placed: List[SpeakerInfo] = list(diarized or [])
+    if feed_title:
+        # The SHOW is not a person on it (#2064). The graph already refuses it, so a record that
+        # placed it would list a speaker no surface casts. A transcript still labelled with the
+        # show's name is then reported by the sync check (LABEL_NOT_PLACED) — a roster to re-run.
+        from ..speaker_detectors.hosts import names_the_show
+
+        placed = [sp for sp in placed if not names_the_show(sp.name, feed_title)]
     diagnostics = _read_speaker_diagnostics(output_dir, transcript_file_path)
     method_by_voice: Dict[str, str] = {}
     for v in diagnostics.get("voices") or []:
@@ -2255,8 +2262,6 @@ def _auto_repair_summary(summary_text: str, out_of_source_entities: List[str], n
 
 def _build_qa_flags(
     speakers: List[SpeakerInfo],
-    detected_hosts: Optional[List[str]],
-    detected_guests: Optional[List[str]],
     summary_text: Optional[str] = None,
     nlp: Optional[Any] = None,
     corrected_entities: Optional[List[EntityCorrection]] = None,
@@ -2265,10 +2270,14 @@ def _build_qa_flags(
 ) -> QAFlags:
     """Build QA flags from speaker detection and summary information (Issue #380).
 
+    Read from the speaker RECORD (#2075), not from the pre-listening detection:
+    ``speaker_detection`` says whether a host and a guest were PLACED on voices, and the
+    summary-consistency check compares the summary against every person the record names (placed
+    or not). It used to read ``detected_hosts``/``detected_guests`` — the guess — so an episode
+    whose audio named nobody could report ``ok``.
+
     Args:
-        speakers: List of detected speakers
-        detected_hosts: List of detected host names (may be None)
-        detected_guests: List of detected guest names (may be None)
+        speakers: The episode's speaker record
         summary_text: Optional summary text for entity consistency checking
         nlp: Optional spaCy NLP model for entity extraction
         corrected_entities: Optional list of entity corrections applied
@@ -2285,9 +2294,11 @@ def _build_qa_flags(
         speaker_names = {s.name for s in speakers}
         defaults_injected = any(name in DEFAULT_SPEAKER_NAMES for name in speaker_names)
 
-    # Determine speaker detection status
-    has_hosts = bool(detected_hosts)
-    has_guests = bool(detected_guests)
+    # Determine speaker detection status — from the voices that were actually placed. A pre-1.2.0
+    # entry carries no flag and was the diarization's own output, so it counts as placed.
+    placed = [s for s in speakers or [] if s.placed is not False]
+    has_hosts = any(s.role == "host" for s in placed)
+    has_guests = any(s.role == "guest" for s in placed)
 
     if has_hosts and has_guests:
         speaker_detection = "ok"
@@ -2302,11 +2313,7 @@ def _build_qa_flags(
 
     if summary_text:
         # Combine all extracted entities for consistency check
-        extracted_entities = []
-        if detected_hosts:
-            extracted_entities.extend(detected_hosts)
-        if detected_guests:
-            extracted_entities.extend(detected_guests)
+        extracted_entities = [s.name for s in speakers or [] if s.name]
 
         summary_entity_mismatch, summary_has_named_entities = _check_entity_consistency(
             extracted_entities, summary_text, nlp
@@ -2402,8 +2409,6 @@ def _build_content_metadata(
     # Build QA flags
     qa_flags = _build_qa_flags(
         speakers=speakers,
-        detected_hosts=detected_hosts,
-        detected_guests=detected_guests,
         summary_text=summary_text,
         nlp=nlp,
         corrected_entities=corrected_entities,
@@ -2415,12 +2420,12 @@ def _build_content_metadata(
     # Extract entities from transcript (hosts/guests) and summary
     normalized_entities: List[EntityAlias] = []
 
-    # Entities from transcript (hosts and guests)
-    transcript_entities: List[str] = []
-    if detected_hosts:
-        transcript_entities.extend(detected_hosts)
-    if detected_guests:
-        transcript_entities.extend(detected_guests)
+    # Entities from transcript: the people PLACED on its voices (#2075). Provenance "transcript"
+    # claims the name was heard; the pre-listening guess (`detected_hosts`/`detected_guests`) was
+    # never heard, and a person only named stays in the record as `placed: false`, not here.
+    transcript_entities: List[str] = [
+        s.name for s in speakers or [] if s.placed is not False and s.name
+    ]
 
     # Normalize transcript entities
     transcript_entity_map: Dict[str, EntityAlias] = {}

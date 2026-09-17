@@ -83,6 +83,7 @@ def episode_surfaces(meta_path: Path) -> Optional[Dict[str, Any]]:
         "segments": segments,
         "adfree_segments": adfree,
         "diagnostics": diagnostics if isinstance(diagnostics, dict) else None,
+        "context": _load(meta_path.parent / f"{stem}.context.json"),
     }
 
 
@@ -107,6 +108,7 @@ def audit(corpus: Path, *, legacy_as_placed: bool = False) -> Tuple[List[dict], 
             segments=s["segments"],
             adfree_segments=s["adfree_segments"],
             diagnostics=s["diagnostics"],
+            context=s["context"] if isinstance(s["context"], dict) else None,
             legacy_as_placed=legacy_as_placed,
         )
         if not violations:
