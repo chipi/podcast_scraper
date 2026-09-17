@@ -543,20 +543,22 @@ def resolve_voices_and_roles(
                 # model reads the possessive as a self-introduction, and each wrong answer props up
                 # the other — the guest's name on the host's voice and the host's on the guest's.
                 other_name = next((n for n in stated if n.lower() != name.lower()), None)
-                swappable = (
-                    len(stated) == 2
-                    and other_name is not None
-                    and existing.name.lower() == other_name.lower()
-                    and not refuted_by_third_person(voice_texts[other], name)
-                    and not refuted_by_third_person(voice_texts[bad_voice], other_name)
-                )
-                if not swappable:
+                if other_name is None or len(stated) != 2:
                     continue  # that voice already has a name; do not overwrite a direct answer
+                if (
+                    existing.name.lower() != other_name.lower()
+                    or refuted_by_third_person(voice_texts[other], name)
+                    or refuted_by_third_person(voice_texts[bad_voice], other_name)
+                ):
+                    continue  # not a swap of the two stated names — the direct answer stands
                 used.add(name.lower())
-                used.add(str(other_name).lower())
+                used.add(other_name.lower())
+                # Each voice keeps the ROLE the model gave it: the swap is about which NAME belongs
+                # to which voice, and the roles were not what the refutation contradicted.
+                refuted_voice = out.get(bad_voice)
                 out[other] = LLMVoice(name=name, role=existing.role)
                 out[bad_voice] = LLMVoice(
-                    name=other_name, role=(out.get(bad_voice).role if out.get(bad_voice) else None)
+                    name=other_name, role=refuted_voice.role if refuted_voice else None
                 )
                 logger.info(
                     "speaker resolution: %r was refuted on %s while %r sat on %s — the two stated "
