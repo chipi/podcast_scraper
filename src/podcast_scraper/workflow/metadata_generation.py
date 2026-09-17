@@ -1287,47 +1287,36 @@ class _HasNameAndRole(Protocol):
 
 def _speaker_lists_for_graph(
     speakers: Optional[Sequence[_HasNameAndRole]],
-    detected_hosts: Optional[List[str]],
-    detected_guests: Optional[List[str]],
     feed_title: Optional[str] = None,
 ) -> Tuple[List[str], List[str]]:
-    """``(hosts, guests)`` for the graph, preferring the diarization ROSTER over the hint (#2062).
+    """``(hosts, guests)`` for the graph: the people a VOICE was matched to, and nobody else.
 
-    ``detected_hosts`` / ``detected_guests`` are computed BEFORE diarization, from the feed and the
-    show notes. For a network feed they are routinely empty: the host is named by the transcript
-    self-intro, not the RSS author. Diarization then resolves the real roster into *speakers*, which
-    carries each voice's authoritative ``role``.
+    THE RULE (operator decision 2026-09-17, #2075): one speaker record per episode, and a person
+    becomes a host or guest in the graph only if a diarized voice was matched to them. The record is
+    ``content.speakers``; each entry says whether it was ``placed``.
 
-    Passing the pre-diarization hint to the graph builder is what shipped a corpus where 0.6% of
-    Person nodes are ``guest`` and 89.5% are ``mentioned`` — measured over a 330-episode
-    feed-stratified production sample on 2026-09-13, where the roster had named a guest in 66.9% of
-    episodes and 93.2% of those guests never reached ``kg.json``. Every human on an episode then
-    renders as a contributor, and the guest — the reason most listeners open the episode — is never
-    shown as the guest.
+    What this function no longer does, each removed on purpose:
 
-    HOST AND GUEST ARE SPEAKING ROLES. When the roster heard the episode it is the ONLY source
-    used, because it is the only source that knows who opened their mouth. The hint is a fallback
-    for episodes with no roster at all, not a supplement to one.
+    * **It takes no pre-listening hint.** ``detected_hosts`` / ``detected_guests`` were a guess
+      made from the feed and show notes before any audio was heard. Passed to the graph, that guess
+      shipped a corpus where 0.6% of Person nodes were ``guest`` and 89.5% ``mentioned`` (#2062),
+      and later cast eight a16z hosts on episodes whose transcripts named none of them. People the
+      guess names now live in the record as ``placed: false``.
+    * **It no longer falls back to the hint when the roster is empty.** An episode that was never
+      diarized, or was diarized and named nobody, casts nobody (decision 2026-09-17, which reverses
+      the documented fallback). Measured on the production snapshot: 124 no-voice episodes carried
+      114 host/guest nodes no voice was matched to.
+    * **It no longer injects feed hosts the roster abstained on.** The 2026-09-16 decision kept
+      them as "feed-level participants" with role ``host``; it is superseded. They are kept in the
+      record as ``placed: false`` instead, where no surface can read them as speakers.
 
-    An earlier version of this merged the two additively, on the reasoning that a guest named in
-    the show notes whose voice the roster could not place should not be dropped. Production says
-    otherwise: on the episodes where diarization named every voice it heard, 19.4% of host nodes
-    and 14.3% of guest nodes belong to someone who did not speak. (Counting ALL episodes gives
-    36.5%/40%, but that conflates "was not there" with "spoke but was never named" — a partial
-    roster is silent about its anonymous voices, so the larger figure is an upper bound.) The
-    failures are not exotic — a show's regular co-host
-    injected into an episode they sat out ("Sarah Guo" on an episode where Elad Gil interviews
-    Glenn Fogel), the SHOW itself as a person ("The China-Global South Project"), and ASR/name
-    variants of someone who did speak ("Alexandra Karppi" where "Alexander Carpi" spoke, creating
-    two people out of one).
-
-    So a name the roster never heard does not become a host or a guest here. It is not erased —
-    if the transcript mentions them, extraction still puts them in the graph as ``mentioned``,
-    which is what they are.
+    Pre-1.2.0 artifacts carry no ``placed``. For them every named entry of the roster is taken, as
+    before — that roster was the diarization's own output — but neither the fallback nor the
+    injection above applies any more, so re-deriving an old artifact can only REMOVE a cast member
+    the audio never supported, never add one.
 
     Order is preserved and duplicates removed case-insensitively; the first spelling wins.
     """
-    roster_role: Dict[str, str] = {}
     hosts: List[str] = []
     guests: List[str] = []
     seen: set[str] = set()
@@ -1366,61 +1355,23 @@ def _speaker_lists_for_graph(
         seen.add(key)
         (guests if role == "guest" else hosts).append(clean)
 
-    # A RAW DIARIZATION LABEL IS NOT A PERSON. The roster now ABSTAINS rather than guess which of
-    # two co-hosts holds which voice (#2075/#2078), so a two-host episode arrives here as
-    # `SPEAKER_00`/`SPEAKER_01` with `role="host"`. Taken literally that publishes the label itself
-    # as a host Person node — followable, rankable, counted in person metrics. Same guard as
-    # `graph_id_utils.is_bare_speaker_label`, which also covers the role words ("Host", "Guest").
+    # A RAW DIARIZATION LABEL IS NOT A PERSON. An abstained seat arrives as `SPEAKER_00` with
+    # `role="host"`; taken literally that publishes the label itself as a host Person node. Same
+    # guard as `graph_id_utils.is_bare_speaker_label`, which also covers the role words.
     from ..graph_id_utils import is_bare_speaker_label
 
-    # THE SPEAKER RECORD (#2075, schema 1.2.0). When the entries carry `placed`, this is a record
-    # and the rule is absolute: only a person a voice was matched to may become a host or guest in
-    # the graph. No abstention injection, no fallback to the guess — a person who is only NAMED is
-    # never cast, whatever source named them (operator decision 2026-09-17, which supersedes the
-    # 2026-09-16 abstention decision below). Artifacts written before 1.2.0 carry no `placed`
-    # and keep the older behaviour until they are re-derived.
-    if any(getattr(sp, "placed", None) is not None for sp in speakers or []):
-        for sp in speakers or []:
-            if getattr(sp, "placed", None) is not True:
-                continue
-            nm = (getattr(sp, "name", "") or "").strip()
-            rl = (getattr(sp, "role", "") or "").strip().lower()
-            if nm and rl in ("host", "guest") and not is_bare_speaker_label(nm):
-                _take(nm, rl)
-        return hosts, guests
-
-    seated_roles: set[str] = set()
-    for sp in speakers or []:
+    entries = list(speakers or [])
+    is_record = any(getattr(sp, "placed", None) is not None for sp in entries)
+    for sp in entries:
+        if is_record and getattr(sp, "placed", None) is not True:
+            continue
         nm = (getattr(sp, "name", "") or "").strip()
+        if not nm or is_bare_speaker_label(nm):
+            continue
         rl = (getattr(sp, "role", "") or "").strip().lower()
-        if rl in ("host", "guest"):
-            seated_roles.add(rl)
-        if nm and rl in ("host", "guest") and not is_bare_speaker_label(nm):
-            roster_role.setdefault(nm.lower(), rl)
-    for sp in speakers or []:
-        nm = (getattr(sp, "name", "") or "").strip()
-        if nm and not is_bare_speaker_label(nm):
-            _take(nm, roster_role.get(nm.lower(), "host"))
-    if roster_role:
-        # THE ROSTER SAYING "I CANNOT TELL WHICH" IS NOT THE ROSTER SAYING "THEY DID NOT SPEAK".
-        # The rule above — a name the roster never heard did not speak — answers the case where the
-        # roster considered a name and did not bind it. An ABSTENTION is a different state: the
-        # episode has host seats, they are occupied, and the only open question is which name goes
-        # on which voice. Dropping the names there would report a two-host show as having no hosts.
-        #
-        # Operator decision 2026-09-16: keep them as feed-level participants. They become `HOSTS`
-        # edges on the episode with no voice edge and no quote attribution, which is exactly what
-        # is known — the show has these hosts, and no voice claims to be a particular one.
-        if "host" in seated_roles and not hosts:
-            for nm in detected_hosts or []:
-                _take(nm, "host")
-        return hosts, guests
-    # No roster: the episode was never diarized, or diarization named nobody. The hint is then the
-    # only evidence there is, so fall back to it wholesale rather than returning nothing.
-    for nm in detected_hosts or []:
-        _take(nm, "host")
-    for nm in detected_guests or []:
-        _take(nm, "guest")
+        # A voice with no usable role is treated as a host — matching
+        # `_build_speakers_from_diarized_segments`, so the two cannot disagree.
+        _take(nm, rl if rl in ("host", "guest") else "host")
     return hosts, guests
 
 
@@ -5184,9 +5135,7 @@ def generate_episode_metadata(  # noqa: C901
         # #2062: the graph must be told who the DIARIZATION ROSTER heard, not who the feed's
         # show notes guessed before a single second of audio was read. Passing the raw parameters
         # here is what left 93.2% of roster-named guests out of kg.json on production.
-        graph_hosts, graph_guests = _speaker_lists_for_graph(
-            speakers, detected_hosts, detected_guests, getattr(feed, "title", None)
-        )
+        graph_hosts, graph_guests = _speaker_lists_for_graph(speakers, getattr(feed, "title", None))
         kg_source = getattr(cfg, "kg_extraction_source", "provider")
         kg_provider_arg: Optional[Any] = None
         kg_provider_extra: Optional[Any] = None

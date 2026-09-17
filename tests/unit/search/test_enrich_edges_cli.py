@@ -46,8 +46,10 @@ def _build_corpus(tmp_path):
                 "episode": {"episode_id": "ep1"},
                 "content": {
                     "transcript_file_path": "transcript.txt",
-                    "detected_hosts": [],
-                    "detected_guests": ["Elon Musk"],
+                    # Schema 1.2.0 (#2075): enrich-edges reads the speaker record only.
+                    "speakers": [
+                        {"id": "guest", "name": "Elon Musk", "role": "guest", "placed": True}
+                    ],
                 },
                 "grounded_insights": {"artifact_path": "ep1.gi.json"},
             }
@@ -170,8 +172,12 @@ def _build_diarized_corpus(tmp_path):
                 "episode": {"episode_id": "ep1"},
                 "content": {
                     "transcript_file_path": "transcript.txt",
-                    "detected_hosts": ["Maya"],
-                    "detected_guests": ["Liam"],
+                    # Schema 1.2.0 (#2075): enrich-edges reads the speaker record only. A named
+                    # marker in the transcript is a voice the diarizer named: placed.
+                    "speakers": [
+                        {"id": "host", "name": "Maya", "role": "host", "placed": True},
+                        {"id": "guest", "name": "Liam", "role": "guest", "placed": True},
+                    ],
                 },
                 "grounded_insights": {"artifact_path": "ep1.gi.json"},
             }

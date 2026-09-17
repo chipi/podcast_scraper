@@ -3154,37 +3154,23 @@ class TestGraphSpeakersWhenTheRosterAbstains(unittest.TestCase):
         # Taken literally, an abstained host seat publishes "SPEAKER_00" as a host Person node.
         hosts, guests = metadata._speaker_lists_for_graph(
             [self._sp("SPEAKER_00", "host"), self._sp("SPEAKER_01", "host")],
-            [],
-            [],
             "A Show",
         )
         self.assertEqual(hosts, [])
         self.assertEqual(guests, [])
 
-    def test_abstained_hosts_stay_on_the_episode_as_participants(self):
-        # Operator decision 2026-09-16: keep the seat unnamed, keep the names in the KG with no
-        # voice edge. The show still lists its hosts; no voice claims to be a particular one.
+    def test_abstained_hosts_are_not_cast(self):
+        # SUPERSEDED 2026-09-17 (#2075). The 2026-09-16 decision injected the feed's hosts into the
+        # graph as `host` when the roster abstained on which voice was which. Under the one-record
+        # rule a person is cast only if a voice was matched to them; the abstained hosts are kept in
+        # the speaker record as `placed: false`, where no surface reads them as speakers.
         hosts, guests = metadata._speaker_lists_for_graph(
             [
                 self._sp("SPEAKER_00", "host"),
                 self._sp("SPEAKER_01", "host"),
                 self._sp("Grace Green", "guest"),
             ],
-            ["Anna Adams", "Ben Baker"],
-            ["Grace Green"],
             "A Show",
         )
-        self.assertEqual(hosts, ["Anna Adams", "Ben Baker"])
-        self.assertEqual(guests, ["Grace Green"])
-
-    def test_a_named_roster_still_overrides_the_hint(self):
-        # The #2062 rule is untouched: where the roster DID hear the episode, a name it never heard
-        # does not become a host. Ben Baker sat this one out.
-        hosts, guests = metadata._speaker_lists_for_graph(
-            [self._sp("Anna Adams", "host"), self._sp("Grace Green", "guest")],
-            ["Anna Adams", "Ben Baker"],
-            ["Grace Green"],
-            "A Show",
-        )
-        self.assertEqual(hosts, ["Anna Adams"])
+        self.assertEqual(hosts, [])
         self.assertEqual(guests, ["Grace Green"])

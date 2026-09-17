@@ -46,63 +46,45 @@ class TestTheRosterWins:
     def test_roster_guest_survives_an_empty_hint(self) -> None:
         # The prod shape: a network feed whose pre-diarization hint knows nobody.
         hosts, guests = _speaker_lists_for_graph(
-            [_sp("Patrick O'Shaughnessy", "host"), _sp("Brian Chesky", "guest")], [], []
+            [_sp("Patrick O'Shaughnessy", "host"), _sp("Brian Chesky", "guest")]
         )
         assert hosts == ["Patrick O'Shaughnessy"]
         assert guests == ["Brian Chesky"]
 
-    def test_roster_guest_beats_a_hint_that_calls_them_a_host(self) -> None:
-        hosts, guests = _speaker_lists_for_graph(
-            [_sp("Brian Chesky", "guest")], ["Brian Chesky"], []
-        )
-        assert guests == ["Brian Chesky"]
-        assert hosts == []
 
-    def test_roster_host_beats_a_hint_that_calls_them_a_guest(self) -> None:
-        hosts, guests = _speaker_lists_for_graph(
-            [_sp("Patrick O'Shaughnessy", "host")], [], ["Patrick O'Shaughnessy"]
-        )
-        assert hosts == ["Patrick O'Shaughnessy"]
-        assert guests == []
+class TestTheHintCannotReachTheGraph:
+    """#2075: the graph is cast from the speaker record ONLY.
 
+    These tests used to pass `detected_hosts` / `detected_guests` and check the roster won. The
+    parameters no longer exist, so that property is now structural — and this is the test that
+    fails if anyone adds a hint back.
+    """
 
-class TestTheHintIsOnlyUsedWhenThereIsNoRoster:
-    def test_a_name_the_roster_never_heard_is_not_published_as_a_guest(self) -> None:
-        # THE 40% CASE. The hint names someone the roster never heard. They did not speak, so they
-        # are not a guest of this episode. Extraction still records them as `mentioned` if the
-        # transcript mentions them — which is the truthful role.
-        hosts, guests = _speaker_lists_for_graph(
-            [_sp("Patrick O'Shaughnessy", "host")], [], ["Someone On Tape"]
-        )
-        assert guests == []
-        assert hosts == ["Patrick O'Shaughnessy"]
+    def test_the_function_takes_no_hint(self) -> None:
+        import inspect
 
-    def test_a_co_host_who_sat_the_episode_out_is_not_a_host_of_it(self) -> None:
-        # "Sarah Guo" on an episode where Elad Gil interviews Glenn Fogel — a real prod case.
-        hosts, guests = _speaker_lists_for_graph(
-            [_sp("Elad Gil", "host"), _sp("Glenn Fogel", "guest")], ["Sarah Guo"], []
-        )
-        assert hosts == ["Elad Gil"]
-        assert guests == ["Glenn Fogel"]
-        assert "Sarah Guo" not in hosts + guests
+        assert list(inspect.signature(_speaker_lists_for_graph).parameters) == [
+            "speakers",
+            "feed_title",
+        ]
 
-    def test_no_roster_at_all_falls_back_entirely_to_the_hint(self) -> None:
-        hosts, guests = _speaker_lists_for_graph(None, ["A Host"], ["A Guest"])
-        assert (hosts, guests) == (["A Host"], ["A Guest"])
+    def test_no_roster_casts_nobody(self) -> None:
+        # REVERSED by operator decision 2026-09-17: this used to fall back to the hint wholesale.
+        # An episode never diarized, or diarized with nobody named, casts nobody.
+        assert _speaker_lists_for_graph(None) == ([], [])
+        assert _speaker_lists_for_graph([]) == ([], [])
 
     def test_everything_empty_yields_empty(self) -> None:
-        assert _speaker_lists_for_graph(None, None, None) == ([], [])
+        assert _speaker_lists_for_graph(None) == ([], [])
 
 
 class TestHygiene:
     def test_duplicates_collapse_case_insensitively_first_spelling_wins(self) -> None:
-        hosts, guests = _speaker_lists_for_graph(
-            [_sp("Brian Chesky", "guest")], [], ["brian chesky", "BRIAN CHESKY"]
-        )
+        hosts, guests = _speaker_lists_for_graph([_sp("Brian Chesky", "guest")])
         assert guests == ["Brian Chesky"]
 
     def test_blank_names_are_dropped(self) -> None:
-        hosts, guests = _speaker_lists_for_graph([_sp("  ", "guest")], ["  "], [""])
+        hosts, guests = _speaker_lists_for_graph([_sp("  ", "guest")])
         assert (hosts, guests) == ([], [])
 
     def test_order_is_preserved(self) -> None:
@@ -112,18 +94,12 @@ class TestHygiene:
                 _sp("G2", "guest", "guest_2"),
                 _sp("G3", "guest", "guest_3"),
             ],
-            [],
-            [],
         )
         assert guests == ["G1", "G2", "G3"]
 
-    def test_hint_order_is_preserved_when_there_is_no_roster(self) -> None:
-        hosts, guests = _speaker_lists_for_graph(None, ["H1", "H2"], ["G1", "G2"])
-        assert (hosts, guests) == (["H1", "H2"], ["G1", "G2"])
-
     def test_a_roster_voice_with_no_usable_role_is_treated_as_host(self) -> None:
         # Matches _build_speakers_from_diarized_segments' own fallback, so the two agree.
-        hosts, guests = _speaker_lists_for_graph([_sp("Nobody Knows", "")], [], [])
+        hosts, guests = _speaker_lists_for_graph([_sp("Nobody Knows", "")])
         assert hosts == ["Nobody Knows"]
 
 
@@ -154,18 +130,18 @@ class TestEveryCallerPassesTheFeedTitle:
         return [SimpleNamespace(name=name, role=role)]
 
     def test_without_a_title_the_show_name_survives(self) -> None:
-        hosts, _g = _speaker_lists_for_graph(self._roster("Africa Tech Summit"), [], [])
+        hosts, _g = _speaker_lists_for_graph(self._roster("Africa Tech Summit"))
         assert "Africa Tech Summit" in hosts, "documents WHY the title is required, not optional"
 
     def test_with_the_title_the_show_name_is_refused(self) -> None:
         hosts, _g = _speaker_lists_for_graph(
-            self._roster("Africa Tech Summit"), [], [], feed_title="Africa Tech Summit Podcast"
+            self._roster("Africa Tech Summit"), feed_title="Africa Tech Summit Podcast"
         )
         assert "Africa Tech Summit" not in hosts
 
     def test_a_real_host_is_kept_either_way(self) -> None:
         for kwargs in ({}, {"feed_title": "Hard Fork"}):
-            hosts, _g = _speaker_lists_for_graph(self._roster("Kevin Roose"), [], [], **kwargs)
+            hosts, _g = _speaker_lists_for_graph(self._roster("Kevin Roose"), **kwargs)
             assert "Kevin Roose" in hosts
 
     def test_the_enrich_edges_caller_passes_it(self) -> None:

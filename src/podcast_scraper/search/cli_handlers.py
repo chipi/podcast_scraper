@@ -1869,19 +1869,18 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             if transcript_path and transcript_path.is_file():
                 content = doc.get("content") or {}
                 # #2062: `content.speakers` is the DIARIZATION ROSTER (present on 97.2% of a
-                # 330-episode production sample); `detected_*` is the pre-diarization hint, present
-                # on 61-83% and wrong about the guest whenever the roster disagrees. Prefer the
-                # roster and fall back to the hint, exactly as the pipeline now does.
+                # 330-episode production sample).
                 # feed_title is REQUIRED for the show-name refusal (#2064): `names_the_show`
                 # returns False on an empty title by design ("no title, no opinion"), so omitting
                 # it silently disabled the guard on this path — measured: `Africa Tech Summit`,
                 # `Machine Learning Street` and `Latent.Space` were all KEPT as hosts here while
                 # the pipeline path refused them. Two paths, two answers, which is the drift this
                 # arc keeps paying for.
+                # #2075: the speaker record only. No `detected_*` fallback — that field was the
+                # pre-listening guess (and, on pre-1.2.0 artifacts, a projection of `speakers`), so
+                # reading it here would credit quotes to people no voice was matched to.
                 roster_hosts, roster_guests = _speaker_lists_for_graph(
                     _speaker_infos(content.get("speakers")),
-                    content.get("detected_hosts") or [],
-                    content.get("detected_guests") or [],
                     feed_title=str((doc.get("feed") or {}).get("title") or ""),
                 )
                 per_episode_spoken_by = add_spoken_by_edges(

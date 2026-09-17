@@ -255,19 +255,17 @@ def _ns(entries):
 
 class TestTheGraphIsCastOnlyFromPlacedVoices:
     def test_an_unplaced_person_is_never_a_host_or_guest(self) -> None:
-        hosts, guests = mg._speaker_lists_for_graph(_ns(RECORD), [], [], "The Daily")
+        hosts, guests = mg._speaker_lists_for_graph(_ns(RECORD), "The Daily")
         assert hosts == ["Michael Barbaro"]
         assert guests == []
 
     def test_a_record_with_nobody_placed_never_falls_back_to_the_guess(self) -> None:
         only_named = [e for e in RECORD if e["placed"] is False]
-        hosts, guests = mg._speaker_lists_for_graph(
-            _ns(only_named), ["Natalie Kitroeff"], ["Diarmaid MacCulloch"], "The Daily"
-        )
+        hosts, guests = mg._speaker_lists_for_graph(_ns(only_named), "The Daily")
         assert (hosts, guests) == ([], [])
 
     def test_a_pre_record_artifact_keeps_its_old_behaviour(self) -> None:
-        hosts, guests = mg._speaker_lists_for_graph(_ns(LEGACY), [], [], "The Daily")
+        hosts, guests = mg._speaker_lists_for_graph(_ns(LEGACY), "The Daily")
         assert (hosts, guests) == (["Michael Barbaro"], ["Matina Stevis-Gridneff"])
 
 
@@ -277,7 +275,7 @@ class TestEnrichEdgesKeepsTheFlag:
         assert [i.placed for i in infos] == [True, False, False, None]
 
     def test_and_so_enrich_edges_casts_only_placed_voices(self) -> None:
-        hosts, guests = mg._speaker_lists_for_graph(_speaker_infos(RECORD), [], [], "The Daily")
+        hosts, guests = mg._speaker_lists_for_graph(_speaker_infos(RECORD), "The Daily")
         assert (hosts, guests) == (["Michael Barbaro"], [])
 
 

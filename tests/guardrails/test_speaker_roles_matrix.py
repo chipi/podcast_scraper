@@ -85,7 +85,7 @@ NON_PERSON_CASES = [
 def test_only_people_reach_the_graph_as_speakers(
     name: str, feed: str, published: bool, incident: str
 ) -> None:
-    hosts, guests = _speaker_lists_for_graph(_roster((name, "host")), [], [], feed_title=feed)
+    hosts, guests = _speaker_lists_for_graph(_roster((name, "host")), feed_title=feed)
     got = name in (hosts + guests)
     assert got is published, f"{name!r} on {feed!r} — {incident}"
 
@@ -102,7 +102,7 @@ def test_the_eponymous_host_false_positive_is_recorded_not_hidden() -> None:
     reconsidered. Until then it must not silently change.
     """
     hosts, _g = _speaker_lists_for_graph(
-        _roster(("Lex Fridman", "host")), [], [], feed_title="Lex Fridman Podcast"
+        _roster(("Lex Fridman", "host")), feed_title="Lex Fridman Podcast"
     )
     assert "Lex Fridman" not in hosts, "known false positive — see suspect_demotions"
 
@@ -118,18 +118,22 @@ def test_the_roster_is_the_only_source_when_it_heard_the_episode() -> None:
     Measured before the fix: Person roles were mentioned 89.5% / host 9.9% / guest 0.6%, while the
     roster had named a guest on 66.9% of episodes and 93.2% of those never reached kg.json.
     """
+    import inspect
+
+    # #2075 made this structural: the function takes no hint at all.
+    assert list(inspect.signature(_speaker_lists_for_graph).parameters) == [
+        "speakers",
+        "feed_title",
+    ]
     hosts, guests = _speaker_lists_for_graph(
         _roster(("Real Host", "host"), ("Real Guest", "guest")),
-        ["Hint Host"],
-        ["Hint Guest"],
     )
     assert hosts == ["Real Host"] and guests == ["Real Guest"]
-    assert "Hint Host" not in hosts, "the hint must not SUPPLEMENT a roster that heard the episode"
 
 
-def test_the_hint_is_used_only_when_there_is_no_roster_at_all() -> None:
-    hosts, guests = _speaker_lists_for_graph([], ["Hint Host"], ["Hint Guest"])
-    assert hosts == ["Hint Host"] and guests == ["Hint Guest"]
+def test_no_roster_casts_nobody() -> None:
+    """REVERSED by operator decision 2026-09-17 (#2075): this used to fall back to the hint."""
+    assert _speaker_lists_for_graph([]) == ([], [])
 
 
 # ---------------------------------------------------------------------------------------------

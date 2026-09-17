@@ -46,10 +46,8 @@ class TestTheShowNameGuardNeedsATitle:
         from podcast_scraper.workflow.metadata_generation import _speaker_lists_for_graph
 
         roster = [SimpleNamespace(name="Africa Tech Summit", role="host")]
-        without, _ = _speaker_lists_for_graph(roster, [], [])
-        with_title, _ = _speaker_lists_for_graph(
-            roster, [], [], feed_title="Africa Tech Summit Podcast"
-        )
+        without, _ = _speaker_lists_for_graph(roster)
+        with_title, _ = _speaker_lists_for_graph(roster, feed_title="Africa Tech Summit Podcast")
         assert without != with_title, "the title is the signal; if it changes nothing, it is inert"
 
 
@@ -166,10 +164,8 @@ class TestTheseTestsWouldHaveCaughtTheRealDefects:
         monkeypatch.setattr(hosts, "names_the_show", lambda *a, **k: False)
 
         roster = [SimpleNamespace(name="Africa Tech Summit", role="host")]
-        without, _ = _speaker_lists_for_graph(roster, [], [])
-        with_title, _ = _speaker_lists_for_graph(
-            roster, [], [], feed_title="Africa Tech Summit Podcast"
-        )
+        without, _ = _speaker_lists_for_graph(roster)
+        with_title, _ = _speaker_lists_for_graph(roster, feed_title="Africa Tech Summit Podcast")
         with pytest.raises(AssertionError):
             assert without != with_title, "(this is the assertion the capability check makes)"
 
