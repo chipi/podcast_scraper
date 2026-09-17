@@ -20,20 +20,38 @@ const color = defineModel<string | null>('color', { default: null })
 const sort = defineModel<string>('sort', { default: 'recent' })
 const search = defineModel<string>('search', { default: '' })
 
-const props = defineProps<{
-  /** The saved kinds that actually have items, in display order. */
-  availableTypes: { key: string; label: string }[]
-  /** Colour tokens in use across saved items — the swatch strip renders only these. */
-  colorsPresent: string[]
-  /** Sort options for the select; defaults to the shared Recent / A–Z set used by both tabs. */
-  sortOptions?: { value: string; label: string }[]
-  /** Search-box placeholder (a type-to-filter over every section). */
-  searchPlaceholder?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** The saved kinds that actually have items, in display order. */
+    availableTypes: { key: string; label: string }[]
+    /**
+     * Whether the colour strip renders at all.
+     *
+     * Following uses this same bar but nothing there CAN carry a colour — colour is a property of a
+     * saved item. It used to opt out by passing an empty `colorsPresent`, which worked only while
+     * the strip was data-driven; now that the palette is always shown, opting out has to be said
+     * rather than implied.
+     */
+    showColors?: boolean
+    /** Sort options for the select; defaults to the shared Recent / A–Z set used by both tabs. */
+    sortOptions?: { value: string; label: string }[]
+    /** Search-box placeholder (a type-to-filter over every section). */
+    searchPlaceholder?: string
+  }>(),
+  { showColors: true }
+)
 
 const { t } = useI18n()
 
-const colorOptions = computed(() => HIGHLIGHT_COLORS.filter((c) => props.colorsPresent.includes(c.token)))
+/**
+ * The WHOLE palette, always — not only the colours currently in use (operator 2026-09-17).
+ *
+ * Rendering just the present colours meant the control's size changed with the data: one saved amber
+ * highlight produced a single lone dot, which reads as a broken or disabled control rather than a
+ * colour filter. The full strip shows what the feature IS, and a colour with nothing behind it
+ * simply filters to empty — which is a legible answer, not a dead end.
+ */
+const colorOptions = HIGHLIGHT_COLORS
 // One sort model across Following AND Saved (#2042): Recent (default) or A–Z. Per-episode grouping
 // of highlights is structural and unaffected — sort only orders the groups + the flat lists.
 const resolvedSortOptions = computed(
@@ -119,11 +137,30 @@ function clearAll(): void {
          and the sort select fit a single line instead of wrapping to two. Sort is pushed right. -->
     <div class="flex flex-wrap items-center gap-2">
       <div
-        v-if="colorOptions.length"
+        v-if="showColors"
         class="flex flex-wrap items-center gap-1"
         role="group"
         :aria-label="t('library.savedFilterColor')"
       >
+        <!-- "Any colour" leads the strip as an EMPTY ring (operator 2026-09-17), so clearing a
+             colour is the same gesture in the same place as choosing one. Previously the only way
+             back was the separate "Clear" link, which also dropped the type and search filters —
+             one control undoing three things the user did not ask to undo. Mirrors the "All" chip
+             that leads the type row. -->
+        <button
+          type="button"
+          data-testid="saved-filter-swatch-any"
+          class="flex h-11 w-11 items-center justify-center rounded-full transition"
+          :aria-pressed="color === null"
+          :aria-label="t('library.savedFilterColorAny')"
+          :title="t('library.savedFilterColorAny')"
+          @click="color = null"
+        >
+          <span
+            class="h-4 w-4 rounded-full border border-border ring-offset-1 ring-offset-canvas transition"
+            :class="color === null ? 'ring-2 ring-accent' : 'opacity-70'"
+          />
+        </button>
         <button
           v-for="c in colorOptions"
           :key="c.token"

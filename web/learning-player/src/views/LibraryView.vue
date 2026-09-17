@@ -155,15 +155,6 @@ const availableTypes = computed<{ key: string; label: string }[]>(() => {
   return out
 })
 
-/** Colour tokens actually in use across every saved item — the filter offers only these. */
-const colorsPresent = computed<string[]>(() => {
-  const s = new Set<string>()
-  for (const e of favorites.episodes) if (e.color) s.add(e.color)
-  for (const e of favorites.entities) if (e.color) s.add(e.color)
-  for (const h of capture.highlights) if (h.color) s.add(h.color)
-  return [...s]
-})
-
 function typeVisible(key: string): boolean {
   return savedTypes.value.length === 0 || savedTypes.value.includes(key)
 }
@@ -385,7 +376,7 @@ onMounted(async () => {
         v-model:sort="followingSort"
         v-model:search="followingSearch"
         :available-types="followingAvailableTypes"
-        :colors-present="[]"
+        :show-colors="false"
         :search-placeholder="t('library.searchFollowing')"
       />
       <section v-if="followingTypeVisible('shows')" class="mb-6">
@@ -458,7 +449,6 @@ onMounted(async () => {
           v-model:sort="savedSort"
           v-model:search="savedSearch"
           :available-types="availableTypes"
-          :colors-present="colorsPresent"
         />
         <!-- #1261-8: Saved searches — power-listener persistent queries.
              Tap the query to re-run the search; ×  removes it. Searches carry no colour, so a

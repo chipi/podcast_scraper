@@ -711,6 +711,7 @@
     "showsSuggested": "Suggested for you",
     "savedFilterAllTypes": "All",
     "savedFilterColor": "Filter by colour",
+    "savedFilterColorAny": "Any colour",
     "savedFilterColorOnly": "Only {color}",
     "savedFilterClear": "Clear filters",
     "savedSort": "Sort",
