@@ -492,21 +492,18 @@ onMounted(async () => {
           <ul class="flex flex-col" data-testid="library-shows-list">
             <li v-for="p in visibleShows" :key="p.feed_id">
               <ShowRow :show="p">
+                <!-- Bare controls: ShowRow stacks and plates them over the artwork. -->
                 <template #actions>
-                  <!-- Circles, like the episode card's row: two 32px controls fit the 128px column
-                       in ONE line, where a labelled pill plus the heart wrapped. -->
-                  <div class="flex items-center gap-3">
-                    <FollowButton
-                      variant="icon"
-                      :following="library.has(p.feed_id)"
-                      :busy="busyFollow === p.feed_id"
-                      :gated="isGated"
-                      @toggle="toggleFollow(p)"
-                    />
-                    <FavoriteButton
-                      :item="{ kind: 'show', ref: p.feed_id, label: p.title ?? p.feed_id }"
-                    />
-                  </div>
+                  <FollowButton
+                    variant="overlay"
+                    :following="library.has(p.feed_id)"
+                    :busy="busyFollow === p.feed_id"
+                    :gated="isGated"
+                    @toggle="toggleFollow(p)"
+                  />
+                  <FavoriteButton
+                    :item="{ kind: 'show', ref: p.feed_id, label: p.title ?? p.feed_id }"
+                  />
                 </template>
               </ShowRow>
             </li>
@@ -603,14 +600,13 @@ onMounted(async () => {
               data-testid="saved-entity"
             >
               <ShowRow :show="show">
+                <!-- Bare controls: ShowRow stacks and plates them over the artwork. -->
                 <template #actions>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <SavedColorControl
-                      :color="entity.color"
-                      @pick="favorites.setColor('show', entity.ref, $event)"
-                    />
-                    <FavoriteButton :item="{ kind: 'show', ref: entity.ref, label: entity.label }" />
-                  </div>
+                  <SavedColorControl
+                    :color="entity.color"
+                    @pick="favorites.setColor('show', entity.ref, $event)"
+                  />
+                  <FavoriteButton :item="{ kind: 'show', ref: entity.ref, label: entity.label }" />
                 </template>
               </ShowRow>
             </li>
