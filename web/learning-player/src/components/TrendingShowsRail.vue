@@ -132,8 +132,17 @@ function spark(series: number[]): { line: string; area: string } {
          (operator 2026-09-14). `followable`, so the rail carries the identical Follow + save pair as
          the Shows tab's grid rather than being the one show surface you cannot act on
          (operator 2026-09-17). Tap → the show page. -->
+    <!-- Slot width mirrors the Shows-tab GRID's own formula, so a rail tile and a grid tile are the
+         same size at every viewport (operator 2026-09-17). Fixed `w-28 sm:w-32` was 128px against
+         the grid's 176px on desktop — the same component at two sizes on one page. The grid is
+         3 columns with `gap-3` (2 gaps = 1.5rem), 4 from `sm` (3 gaps = 2.25rem); this rail shares
+         that gap, so the same arithmetic gives the same result. -->
     <ul v-if="hasAny && variant === 'tiles'" class="flex gap-3 overflow-x-auto pb-1">
-      <li v-for="p in shownPodcasts" :key="p.feed_id" class="w-28 shrink-0 sm:w-32">
+      <li
+        v-for="p in shownPodcasts"
+        :key="p.feed_id"
+        class="w-[calc((100%-1.5rem)/3)] shrink-0 sm:w-[calc((100%-2.25rem)/4)]"
+      >
         <ShowTile :show="p" followable data-testid="trending-show-card" />
       </li>
     </ul>
