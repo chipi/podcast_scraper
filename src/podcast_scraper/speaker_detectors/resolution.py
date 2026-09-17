@@ -77,8 +77,10 @@ def _speaker_sample(text: str) -> str:
 _SPOKEN_FULL_NAME = re.compile(
     r"(?:(?<![A-Za-z])|(?<=[a-z]))(?=([A-Z][a-z'’\-]+)\s+([A-Z][a-zA-Z'’\-]+))"
 )
-# "I'm Tracy Allaway", "I am", "my name is", "this is": the voice saying it IS the person.
-_SELF_INTRO_BEFORE = re.compile(r"(?:\bI['’]?m|\bI am|\bmy name is|\bthis is)\s*$", re.IGNORECASE)
+# "I'm Tracy Allaway", "I am", "my name is": the voice saying it IS the person. NOT "this is": that
+# is how a host introduces a guest ("this is Matthew Cobb's seventh book"), and framed as a
+# self-introduction it told the model the host was the guest (advisor review, #2075).
+_SELF_INTRO_BEFORE = re.compile(r"(?:\bI['’]?m|\bI am|\bmy name is)\s*$", re.IGNORECASE)
 
 
 class _Span:

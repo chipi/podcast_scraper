@@ -82,3 +82,19 @@ class TestReadingTheAnswer:
         reply = json.dumps({"voices": {"SPEAKER_00": {"name": "Elon Musk", "role": "guest"}}})
         got = resolve_voices_and_roles(["Ada Alloway"], voices, lambda _p: reply)
         assert all(v.name is None for v in got.values())
+
+
+class TestThisIsIsNotASelfIntroduction:
+    """Advisor review: "this is <full name>" is how a HOST introduces a GUEST (the roster already
+    records the hazard). Framed as "INTRODUCES ITSELF as them", "this is Matthew Cobb's seventh
+    book" told the model the host was the guest."""
+
+    def test_this_is_a_name_is_a_mention_not_a_self_introduction(self) -> None:
+        turns = [("S1", "Getting warmed up here, this is Ada Brook's seventh book."), ("S2", "Hi.")]
+        hits = retrieve_mentions("Ada Brook", turns)
+        assert hits and "INTRODUCES ITSELF" not in hits[0]
+        assert "probably NOT" in hits[0]
+
+    def test_im_a_name_is_still_a_self_introduction(self) -> None:
+        hits = retrieve_mentions("Ada Brook", [("S1", "And I'm Ada Brook.")])
+        assert hits and "INTRODUCES ITSELF" in hits[0]
