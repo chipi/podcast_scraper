@@ -1675,12 +1675,7 @@ class OpenAICompatibleProvider:
             # Build speaker names list: hosts first, then guests
             speaker_names = list(detected_hosts) + guests_list
 
-            # NO CAP AT `screenplay_num_speakers` (#2075). The list was cut to that count (2 by
-            # default) with hosts FIRST, so on every show with two stated hosts each guest the
-            # model named was cut off before the pipeline could see it: Odd Lots' vLLM answer
-            # carried `"guests": ["Jeffrey Schmid"]` and detection reported nobody. The pipeline
-            # derives guests as names-minus-hosts, and the screenplay formatter receives that
-            # derived list, so nothing downstream needs this length.
+            # Ensure we have at least MIN_SPEAKERS_REQUIRED speakers
             min_speakers = getattr(self.cfg, "screenplay_num_speakers", 2)
             if len(speaker_names) < min_speakers:
                 # Add default speakers if needed
@@ -1690,7 +1685,7 @@ class OpenAICompatibleProvider:
             # Detection succeeded if we have real names (not just defaults)
             detection_succeeded = bool(detected_hosts or guests_list or (len(all_speakers) > 0))
 
-            return speaker_names, detected_hosts, detection_succeeded
+            return speaker_names[:min_speakers], detected_hosts, detection_succeeded
 
         except (json.JSONDecodeError, KeyError, AttributeError) as exc:
             logger.warning(
@@ -1756,8 +1751,7 @@ class OpenAICompatibleProvider:
 
         detection_succeeded = bool(detected_hosts or guests)
 
-        # No cap at `screenplay_num_speakers` — see `_parse_speakers_from_response` (#2075).
-        return speaker_names, detected_hosts, detection_succeeded
+        return speaker_names[:min_speakers], detected_hosts, detection_succeeded
 
     # ============================================================================
     # SummarizationProvider Protocol Implementation

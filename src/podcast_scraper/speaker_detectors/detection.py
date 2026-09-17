@@ -159,10 +159,7 @@ def _build_speaker_names_list(
         detection_succeeded = False
         used_defaults = True
     else:
-        # Every host and every guest (#2075). `guests[: max_names - len(hosts)]` was EMPTY on any
-        # show with as many stated hosts as `screenplay_num_speakers` (2), so a two-host show
-        # never had a detected guest. The pipeline derives guests as names-minus-hosts.
-        speaker_names = list(hosts) + guests
+        speaker_names = list(hosts)[:max_names] + guests[: max_names - len(hosts)]
         if len(speaker_names) < MIN_SPEAKERS_REQUIRED:
             if hosts or guests:
                 used_defaults = True
@@ -179,4 +176,4 @@ def _build_speaker_names_list(
                 speaker_names = DEFAULT_SPEAKER_NAMES.copy()
                 used_defaults = True
 
-    return speaker_names, detection_succeeded, used_defaults
+    return speaker_names[:max_names], detection_succeeded, used_defaults
