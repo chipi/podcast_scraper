@@ -129,10 +129,12 @@ function spark(series: number[]): { line: string; area: string } {
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
 
     <!-- TILES variant (Discover): the standard ShowTile in a horizontal row — same tile as Browse
-         (operator 2026-09-14). Tap → the show page. -->
+         (operator 2026-09-14). `followable`, so the rail carries the identical Follow + save pair as
+         the Shows tab's grid rather than being the one show surface you cannot act on
+         (operator 2026-09-17). Tap → the show page. -->
     <ul v-if="hasAny && variant === 'tiles'" class="flex gap-3 overflow-x-auto pb-1">
       <li v-for="p in shownPodcasts" :key="p.feed_id" class="w-28 shrink-0 sm:w-32">
-        <ShowTile :show="p" data-testid="trending-show-card" />
+        <ShowTile :show="p" followable data-testid="trending-show-card" />
       </li>
     </ul>
 

@@ -115,7 +115,14 @@ watch(
          Home uses, capped at 10 here (5 on Home). The "Trends" title + "See all →" ride one header
          row (like trending shows); the link targets the active kind tab. Tapping a row opens the
          entity page. -->
-    <div class="mt-4">
+    <!-- Half width from `lg` up (operator 2026-09-17). Each trend row is a short label on the left
+         and a sparkline + multiplier + follow on the right; stretched to the full content column
+         those two clusters end up ~500px apart with nothing between them, so the row reads as two
+         unrelated things rather than one fact. Held to half, the row is legible as a unit.
+
+         The right half is deliberately EMPTY for now — reserved, not filled with something to
+         justify the space. -->
+    <div class="mt-4 lg:w-1/2 lg:pr-4">
       <DiscoveryExplorer
         id="trends"
         :collapsed="10"
