@@ -1177,6 +1177,33 @@ def _metadata_anchored_self_intro(
     return None
 
 
+_SIGN_OFF = re.compile(
+    r"I['’]?m\s+((?-i:[A-Z][\w'’\-]+)(?:\s+(?-i:[A-Z][\w'’\-]+)){1,3})\s*[.,!]\s*"
+    r"(?=(?:And\s+)?(?:you\s+can\s+follow|follow\s+(?:me|us)|see\s+you|talk\s+(?:to\s+you\s+)?soon"
+    r"|thanks?\s+(?:you\s+)?for\s+listening|until\s+next))",
+    re.IGNORECASE,
+)
+
+
+def _sign_off_self_intro(text: Optional[str]) -> Optional[str]:
+    """A self-introduction in a voice's SIGN-OFF: "I'm Tracy Allaway. You can follow me at…".
+
+    The self-introduction reader looks only at the start of each voice's text, which is right for
+    an opening "I'm <host>" — but a publisher's diarization can fold the whole opening into a
+    fragment, leaving the host's main voice identified only at the close. Measured on Odd Lots'
+    Tungsten episode (#2075): both hosts' opening intros landed on a 34-second fragment, their main
+    voices said who they were only in the sign-off, and the LLM filled the gap by putting the
+    GUEST's name on Tracy Alloway's voice. Read only the tail, only "I'm <Name>" followed by a
+    sign-off phrase, and through the same name guards as the opening reader.
+    """
+    tail = (text or "")[-3000:]
+    for m in _SIGN_OFF.finditer(tail):
+        name = extract_self_introduced_host(f"I'm {m.group(1)}.")
+        if name:
+            return name
+    return None
+
+
 def _self_intros_by_voice(
     voice_texts: Optional[Dict[str, str]],
     metadata_named: Sequence[str] = (),
@@ -1196,7 +1223,7 @@ def _self_intros_by_voice(
     out: Dict[str, str] = {}
     for voice, text in (voice_texts or {}).items():
         head = (text or "")[:5000]
-        name = extract_self_introduced_host(text, intro_chars=5000)
+        name = extract_self_introduced_host(text, intro_chars=5000) or _sign_off_self_intro(text)
         if name and len(name.split()) >= 2:
             out[voice] = name
             continue

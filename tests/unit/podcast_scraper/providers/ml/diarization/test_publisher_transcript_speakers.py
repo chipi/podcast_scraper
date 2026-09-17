@@ -199,3 +199,81 @@ class TestTheIntroducedGuestIsNamed:
         by = {v: (r.name, r.role) for v, r in roster.by_voice.items()}
         assert by["S1"] == ("Jeffrey Schmid", "guest"), by
         assert [v for v, (n, _r) in by.items() if n == "Jeffrey Schmid"] == ["S1"], by
+
+
+class TestSignOffSelfIntroduction:
+    """Odd Lots' Tungsten episode: both hosts' opening intros landed on a 34-second fragment; their
+    main voices said who they were only at the close, and the LLM put the GUEST's name on Tracy
+    Alloway's voice."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "...and that's the show. I'm Ada Allaway. You can follow me at Ada Allaway.",
+            "Our executive producer is Manuela. I'm Ada Brook. Thanks for listening.",
+            "This show is engineered by Anli. I'm Ada Brook. Until next time.",
+        ],
+    )
+    def test_a_sign_off_names_the_voice(self, text: str) -> None:
+        from podcast_scraper.providers.ml.diarization.roster import _sign_off_self_intro
+
+        assert _sign_off_self_intro("Long conversation. " * 50 + text) is not None
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "I'm Ada Brook. And today we talk about bonds.",  # no sign-off phrase
+            "I'm Coming Out. You can follow me at home.",  # fails the name guard
+            "I'm sure. See you.",  # not a name
+        ],
+    )
+    def test_anything_else_is_not_a_sign_off(self, text: str) -> None:
+        from podcast_scraper.providers.ml.diarization.roster import _sign_off_self_intro
+
+        assert _sign_off_self_intro("Long conversation. " * 50 + text) is None
+
+    def test_through_the_roster_the_guest_name_cannot_take_a_signed_off_host(self) -> None:
+        from podcast_scraper.providers.ml.diarization.base import (
+            DiarizationResult,
+            DiarizationSegment,
+        )
+        from podcast_scraper.providers.ml.diarization.roster import resolve_speaker_roster
+
+        # Long enough that each host's sign-off sits past the opening reader's 5,000 characters,
+        # as on the real episode (Tracy Alloway's at character 8,151).
+        chat = "Talk about the market, and the prices, and the supply chain. " * 100
+        turns = [
+            ("S2", "I'm Ben Weisenthal and I'm Ada Alloway."),
+            ("S1", "Hello and welcome to another episode. Ada, I'm in a mood today. " + chat),
+            ("S3", "Oh, a mood. That sounds like a country single. " + chat),
+            ("S5", "You can look at it as a century-old prediction market for war. " + chat * 3),
+            (
+                "S3",
+                "This has been another episode of Odd Lots. I'm Ada Allaway. You can follow me.",
+            ),
+            ("S1", "And I'm Ben Wisenthal. You can follow me at The Stalwart."),
+        ]
+        segs, t = [], 30.0
+        for voice, text in turns:
+            dur = max(4.0, len(text) / 15)
+            segs.append(DiarizationSegment(start=t, end=t + dur, speaker=voice))
+            t += dur
+        voice_texts: dict = {}
+        for v, text in turns:
+            voice_texts[v] = (voice_texts.get(v, "") + " " + text).strip()
+        roster = resolve_speaker_roster(
+            DiarizationResult(segments=segs, num_speakers=4),
+            " ".join(x for _, x in turns),
+            known_hosts=["Ben Weisenthal", "Ada Alloway"],
+            detected_guests=["Cal Fickling"],
+            metadata_named=["Cal Fickling"],
+            voice_texts=voice_texts,
+            ordered_turns=turns,
+            # the measured wrong model answer: the guest's name on a host's voice
+            llm_voice_names={"S1": "Ben Weisenthal", "S2": "Ada Alloway", "S3": "Cal Fickling"},
+            llm_voice_roles={"S1": "host", "S2": "host", "S3": "guest"},
+        )
+        by = {v: (r.name, r.role) for v, r in roster.by_voice.items()}
+        assert by["S3"] == ("Ada Alloway", "host"), by
+        assert by["S1"] == ("Ben Weisenthal", "host"), by
+        assert all(n != "Cal Fickling" for v, (n, _r) in by.items() if v != "S5"), by
