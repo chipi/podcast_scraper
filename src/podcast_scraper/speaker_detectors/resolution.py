@@ -70,6 +70,71 @@ def _speaker_sample(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip())[:VOICE_SAMPLE_CHARS]
 
 
+# A spoken "First Last". The lookbehind also accepts a lowercase letter, because publisher and ASR
+# cues are often joined with no space ("Kansas City Fed PresidentJeff Schmidt").
+# Zero-width, so candidate pairs OVERLAP: "Fed PresidentJeff Schmidt" must yield "Jeff Schmidt"
+# even though "Fed PresidentJeff" is also a capitalised pair.
+_SPOKEN_FULL_NAME = re.compile(
+    r"(?:(?<![A-Za-z])|(?<=[a-z]))(?=([A-Z][a-z'’\-]+)\s+([A-Z][a-zA-Z'’\-]+))"
+)
+# "I'm Tracy Allaway", "I am", "my name is", "this is": the voice saying it IS the person.
+_SELF_INTRO_BEFORE = re.compile(r"(?:\bI['’]?m|\bI am|\bmy name is|\bthis is)\s*$", re.IGNORECASE)
+
+
+class _Span:
+    """A match position; exact and variant matches are handled alike."""
+
+    def __init__(self, start: int, end: int) -> None:
+        self._s, self._e = start, end
+
+    def start(self) -> int:
+        return self._s
+
+    def end(self) -> int:
+        return self._e
+
+
+def _one_edit_apart(a: str, b: str) -> bool:
+    """True for strings at Levenshtein distance exactly 1 (case-insensitive)."""
+    a, b = a.lower(), b.lower()
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) > len(b):
+        a, b = b, a
+    i = 0
+    while i < len(a) and a[i] == b[i]:
+        i += 1
+    return a[i + (len(a) == len(b)) :] == b[i + 1 :]
+
+
+def _mentions_of(name: str, tokens: List[str], exact: "re.Pattern[str]", body: str) -> List[Any]:
+    """Exact full-name / surname matches, plus the SPOKEN VARIANTS of the full name (#2075).
+
+    Measured on an Odd Lots episode: the show notes say `Jeffrey Schmid` and `Tracy Alloway`, the
+    transcript says "Jeff Schmidt" and "I'm Tracy Allaway", and the prompt told the model both were
+    "NEVER SPOKEN ALOUD" — which it is instructed to read as "almost certainly not in the room".
+    A variant counts only as a FULL name: the given name equal or a known nickname
+    (`first_names_match`) AND a 5+-letter surname one edit away. A bare surname stays exact, so a
+    passage about Eric Schmidt is never shown as evidence about Jeffrey Schmid.
+    """
+    from ..text_normalization import first_names_match
+
+    found: List[Any] = [_Span(m.start(), m.end()) for m in exact.finditer(body)]
+    if len(tokens) < 2 or len(tokens[-1]) < 5:
+        return found
+    for m in _SPOKEN_FULL_NAME.finditer(body):
+        given, last = m.group(1), m.group(2)
+        if not (given.lower() == tokens[0].lower() or first_names_match(tokens[0], given)):
+            continue
+        if not _one_edit_apart(last, tokens[-1]):
+            continue
+        lo, hi = m.start(1), m.end(2)
+        if any(f.start() < hi and lo < f.end() for f in found):
+            continue
+        found.append(_Span(lo, hi))
+    return sorted(found, key=lambda x: x.start())
+
+
 def retrieve_mentions(
     name: str, ordered_turns: Sequence[tuple], context_chars: int = MENTION_CONTEXT_CHARS
 ) -> List[str]:
@@ -92,17 +157,30 @@ def retrieve_mentions(
     out: List[str] = []
     for i, (voice, text) in enumerate(ordered_turns):
         body = str(text or "")
-        for m in pattern.finditer(body):
+        for m in _mentions_of(name, tokens, pattern, body):
             lo = max(0, m.start() - context_chars // 2)
             hi = min(len(body), m.end() + context_chars // 2)
             passage = re.sub(r"\s+", " ", body[lo:hi]).strip()
-            nxt = ordered_turns[i + 1][0] if i + 1 < len(ordered_turns) else None
+            # The next DIFFERENT voice. Turns arrive per ASR segment, so the turn after a mention is
+            # usually the same speaker finishing the sentence, and the hand-off was never shown:
+            # "…Kansas City Fed President Jeff Schmidt. Thank you so much for coming back on…"
+            # carried no next voice at all (#2075, Odd Lots, the pipeline's own prompt).
+            nxt = next((v for v, _t in ordered_turns[i + 1 :] if v != voice), None)
             # "said by X" reads as "X is associated with this name", which is the opposite of what a
             # third-person mention means. Say what it actually is: somebody TALKING ABOUT them.
-            out.append(
-                f'{voice} says this ABOUT them (so {voice} is probably NOT them): "...{passage}..."'
-                + (f" | the NEXT voice to speak is {nxt}" if nxt and nxt != voice else "")
-            )
+            # EXCEPT a self-introduction — "And I'm Joe Weisenthal" was being presented as Joe's
+            # own voice "probably NOT" being Joe (#2075, Odd Lots, measured on the DGX).
+            if _SELF_INTRO_BEFORE.search(body[max(0, m.start() - 20) : m.start()]):
+                line = f'{voice} INTRODUCES ITSELF as them (so {voice} IS them): "...{passage}..."'
+            else:
+                line = (
+                    f"{voice} says this ABOUT them (so {voice} is probably NOT them): "
+                    f'"...{passage}..."'
+                    + (f" | the NEXT voice to speak is {nxt}" if nxt and nxt != voice else "")
+                )
+            if line in out:
+                continue  # two matches inside one passage are one piece of evidence
+            out.append(line)
             if len(out) >= MAX_MENTIONS_PER_NAME:
                 return out
     return out
@@ -202,6 +280,26 @@ Return JSON only, one object per voice:
 {{"voices": {{"SPEAKER_00": {{"name": "Full Name or null", "role": "host|guest|null"}}}}}}"""
 
 
+def _voice_id_in(said: str, voice_texts: Dict[str, str]) -> Optional[str]:
+    """The voice id the model MEANT. It writes `SPEAKER_2` for `SPEAKER_02` (vLLM on the DGX,
+    measured on an Odd Lots episode), and an exact lookup then discarded every one of its answers —
+    both hosts, correctly identified. Same prefix and same number is the same voice; ambiguity
+    resolves to nobody."""
+    if said in voice_texts:
+        return said
+    m = re.fullmatch(r"(.*?)(\d+)", said.strip())
+    if not m:
+        return None
+    hits = [
+        v
+        for v in voice_texts
+        if (mv := re.fullmatch(r"(.*?)(\d+)", v))
+        and mv.group(1).lower() == m.group(1).lower()
+        and int(mv.group(2)) == int(m.group(2))
+    ]
+    return hits[0] if len(hits) == 1 else None
+
+
 def _parse(raw: str) -> Dict[str, LLMVoice]:
     """Pull the ``{voice: LLMVoice(name, role)}`` mapping out of the model's answer.
 
@@ -225,6 +323,15 @@ def _parse(raw: str) -> Dict[str, LLMVoice]:
         logger.warning("speaker resolution: unparsable response, resolving nobody")
         return {}
     voices = obj.get("voices") if isinstance(obj, dict) else None
+    if (
+        voices is None
+        and isinstance(obj, dict)
+        and obj
+        and all(re.fullmatch(r"[A-Za-z_]*\d+", str(k)) for k in obj)
+    ):
+        # The model dropped the `voices` wrapper and answered with the voice map itself (vLLM on the
+        # DGX, measured) — every key a voice id. Read it rather than resolving nobody.
+        voices = obj
     if not isinstance(voices, dict):
         return {}
     out: Dict[str, LLMVoice] = {}
@@ -322,6 +429,32 @@ def resolve_voices_and_roles(
         return {}
 
     by_stated = {n.lower(): n for n in stated}
+
+    def _stated_match(said: str) -> Optional[str]:
+        """The stated name the model meant. Exact first; else the ONE stated name its words are a
+        spoken variant of — same rule as retrieval (given name or nickname, surname one edit, 5+
+        letters). The model copies the spelling it read in the transcript: "Tracy Allaway" for
+        stated `Tracy Alloway` was discarded as an invented name (#2075, measured)."""
+        exact = by_stated.get(said.strip().lower())
+        if exact is not None:
+            return exact
+        toks = said.split()
+        if len(toks) < 2:
+            return None
+        from ..text_normalization import first_names_match
+
+        hits = [
+            n
+            for n in stated
+            if len(n.split()) >= 2
+            and len(n.split()[-1]) >= 5
+            and (
+                n.split()[0].lower() == toks[0].lower() or first_names_match(n.split()[0], toks[0])
+            )
+            and _one_edit_apart(n.split()[-1], toks[-1])
+        ]
+        return hits[0] if len(hits) == 1 else None
+
     out: Dict[str, LLMVoice] = {}
     used: set = set()
     invented: List[str] = []
@@ -330,12 +463,13 @@ def resolve_voices_and_roles(
     # see the complement pass below.
     refuted_pairs: List[Tuple[str, str]] = []
 
-    for voice, verdict in _parse(raw).items():
-        if voice not in voice_texts:
+    for said_voice, verdict in _parse(raw).items():
+        voice = _voice_id_in(said_voice, voice_texts)
+        if voice is None:
             continue
         canonical: Optional[str] = None
         if verdict.name:
-            match = by_stated.get(verdict.name.strip().lower())
+            match = _stated_match(verdict.name)
             if match is None:
                 invented.append(verdict.name)
             elif refuted_by_third_person(voice_texts[voice], match):
