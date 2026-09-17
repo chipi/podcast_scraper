@@ -105,14 +105,29 @@ test('clicking Following unfollows the show', async ({ page }, testInfo) => {
     .toBe(0)
 })
 
-test('the show page surfaces feed authors, language and last-updated (#2043)', async ({
+test('the show page surfaces feed authors and last-updated (#2043)', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'feed-meta', testInfo)
-  // p05 (Long Horizon Notes) — the fixture feed carries author "Nora Bakker" + language en-us.
+  // p05 (Long Horizon Notes) — the fixture feed carries author "Nora Bakker".
   await page.goto('/podcast/p05')
-  await expect(page.getByTestId('podcast-byline')).toContainText('Nora Bakker')
-  const meta = page.getByTestId('podcast-feed-meta')
-  await expect(meta).toContainText('en-us')
+
+  // The by-line is no longer its own element: authors are the first entry of the single composed
+  // meta line (`metaLine` in PodcastView), so the separators fall between the fields that are
+  // actually present. That line renders TWICE with one visible at a time — `podcast-feed-meta`
+  // under the artwork on a phone, `podcast-feed-meta-wide` under the title from `sm` up — because
+  // ~85 characters cannot sit in a 144px gutter. This spec runs on both the mobile and desktop
+  // projects, so it matches whichever copy is actually visible rather than picking one and failing
+  // on the other.
+  const meta = page.locator(
+    '[data-testid="podcast-feed-meta"]:visible, [data-testid="podcast-feed-meta-wide"]:visible',
+  )
+  await expect(meta).toContainText('Nora Bakker')
   await expect(meta).toContainText('Updated')
+
+  // LANGUAGE is deliberately absent, so this asserts its absence rather than dropping the case
+  // silently: every show in the corpus is English today, which made the chip a constant that said
+  // nothing and cost a wrap in the narrow column. The field is still on the model — restore the
+  // assertion together with the chip when the corpus is genuinely multilingual.
+  await expect(meta).not.toContainText('en-us')
 })

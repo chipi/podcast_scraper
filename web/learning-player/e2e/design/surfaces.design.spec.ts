@@ -201,7 +201,11 @@ test('search', async ({ page }) => {
   await page.getByRole('searchbox').press('Enter')
   // Wait for an ACTUAL result row, not just networkidle — the results arrive after the request
   // settles, so a bare networkidle shot caught the loading skeletons and looked like "no results".
-  await page.getByTestId('search-result-actions').first().waitFor({ timeout: 15_000 })
+  //
+  // `search-result-actions` no longer exists: Search's hand-rolled result header was replaced by
+  // the shared `EpisodeGroupCard` + `EpisodeCard`, whose actions are the shared `episode-actions`.
+  // The group is the right thing to wait for anyway — it is the result row this shot is judging.
+  await page.getByTestId('episode-group').first().waitFor({ timeout: 15_000 })
   await shoot(page, 'search-results')
 })
 
