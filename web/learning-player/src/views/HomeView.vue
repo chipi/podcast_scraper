@@ -40,6 +40,7 @@ import KeyVoicesRail from "../components/KeyVoicesRail.vue"
 import DiscoveryExplorer from "../components/DiscoveryExplorer.vue"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
+import EpisodeTile from "../components/EpisodeTile.vue"
 import QueueButton from "../components/QueueButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import StorylineCard from "../components/StorylineCard.vue"
@@ -770,43 +771,14 @@ async function loadContinue(): Promise<void> {
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
       <h2 class="lp-section mb-3">{{ t("home.recommended") }}</h2>
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
+      <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
+           This grid was hand-rolled here: square artwork, overlaid actions, show name and title —
+           EpisodeTile's shape, re-implemented. Keeping two of them is how they drifted apart in the
+           first place (title-above-show here, show-above-title there; clamped there, unclamped
+           here). One component, so a change to the tile reaches every grid that uses it. -->
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative h-full">
-          <!-- Overlay capped to the artwork width so the four-icon row WRAPS two-up in the corner
-               rather than spilling past a narrow 2-col phone tile (EpisodeActions gained a fourth
-               button; an absolutely-positioned row sizes to max-content and won't wrap unbounded). -->
-          <EpisodeActions
-            :slug="ep.slug"
-            overlay
-            class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"
-          />
-          <RouterLink
-            :to="{ name: 'player', params: { slug: ep.slug } }"
-            class="flex h-full flex-col no-underline text-canvas-foreground"
-          >
-            <img
-              v-if="epArt(ep)"
-              :src="epArt(ep)!"
-              alt=""
-              class="aspect-square w-full rounded-xl object-cover bg-elevated"
-            />
-            <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <!--
-              Neither the title nor the show name is clipped (#2004 items 3/3b).
-
-              The title clamped at two lines with a reserved height and the show name truncated to
-              one, on the reasoning that a 1-line title beside a 2-line one leaves rows ragged
-              (#1584). The requirement is real; the method cost the ends of long names, and in the
-              Recommended grid the clamped title actually overflowed INTO the show name — an
-              ellipsis at line two AND a visible third line, because the clamp computed but the
-              overflow still painted.
-
-              Rows are now even because the CARD is even: the link is a flex column filling its grid
-              cell, the artwork is fixed, and the text block takes the rest. Both lines wrap freely.
-            -->
-            <div class="mt-2 text-sm font-bold leading-tight">{{ ep.title }}</div>
-            <div class="lp-kicker mt-0.5">{{ ep.podcast_title }}</div>
-          </RouterLink>
+        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="h-full">
+          <EpisodeTile :episode="ep" />
         </li>
       </ul>
     </section>

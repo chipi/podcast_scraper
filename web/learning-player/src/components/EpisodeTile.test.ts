@@ -45,12 +45,13 @@ function tile(over: Partial<EpisodeSummary> = {}) {
  * (positioned against the card's top-right) floated over the artwork.
  */
 describe('EpisodeTile', () => {
-  it('stacks: artwork first, then actions, then the text', () => {
+  it('stacks: the overlaid action row, then artwork, then the text', () => {
     const w = tile()
     const kids = Array.from(w.element.children).map((c) => c.tagName.toLowerCase())
-    // Two links (artwork, text) around one action row — the order is the layout.
+    // The action row is absolutely positioned, so it leads in source order but paints over the
+    // artwork; the two links (artwork, text) are the flow.
     expect(kids).toHaveLength(3)
-    expect(w.element.children[0].querySelector('img'), 'artwork is not first').not.toBeNull()
+    expect(w.element.children[1].querySelector('img'), 'artwork is not the first link').not.toBeNull()
   })
 
   it('the title gets the full width and is clamped, not squeezed into a column', () => {
@@ -63,14 +64,23 @@ describe('EpisodeTile', () => {
     expect(title!.classes(), 'the title is not a full-width block').toContain('block')
   })
 
-  it('the actions are BELOW the artwork, never over it', () => {
-    // `ShowTile` overlays one follow button deliberately; two icons over episode art is the
-    // crowding this replaces. An absolutely-positioned action row is how that comes back. The row
-    // sits at the BOTTOM of the tile now (operator), so find it by testid, not child index.
+  it('overlays the actions on the artwork, width-capped so they wrap instead of spilling', () => {
+    // Home's "Recommended for you" is the same shape and overlays; the two grids disagreed about
+    // where an episode's controls live (operator 2026-09-17). The cap is load-bearing: an
+    // absolutely-positioned row sizes to max-content and will not wrap, so four icons ran off a
+    // narrow 2-column phone tile.
     const w = tile()
     const actions = w.get('[data-testid="episode-actions"]')
-    expect(actions.classes(), 'the action row is positioned over the artwork').not.toContain('absolute')
+    expect(actions.classes(), 'the action row is not over the artwork').toContain('absolute')
+    expect(actions.classes(), 'the row is uncapped and will not wrap').toContain('max-w-[76px]')
     expect(actions.findAll('button').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('names the SHOW above the episode title', () => {
+    // The scan order is context-then-title, consistent with EpisodeCard and the Discover grid.
+    const w = tile()
+    const text = w.text()
+    expect(text.indexOf('NVIDIA AI Podcast')).toBeLessThan(text.indexOf('Harrison Chase'))
   })
 
   it('shows the full shared action set — same as the list card (count must not change by view)', () => {
@@ -90,8 +100,9 @@ describe('EpisodeTile', () => {
   it('keeps its shape when the episode has no artwork', () => {
     // Otherwise one artless episode collapses its slot and the rail stops lining up.
     const w = tile({ artwork_url: null })
-    const first = w.element.children[0] as HTMLElement
-    expect(first.querySelector('img')).toBeNull()
-    expect(first.innerHTML).toContain('aspect-square')
+    // children[0] is the overlaid action row; the artwork link is the first element in FLOW.
+    const artworkLink = w.element.children[1] as HTMLElement
+    expect(artworkLink.querySelector('img')).toBeNull()
+    expect(artworkLink.innerHTML).toContain('aspect-square')
   })
 })

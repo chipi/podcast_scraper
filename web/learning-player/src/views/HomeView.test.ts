@@ -42,6 +42,7 @@ vi.mock('../services/contentCache', () => ({
   writeCached: async () => {},
 }))
 import homeViewSource from './HomeView.vue?raw'
+import episodeTileSource from '../components/EpisodeTile.vue?raw'
 import { useAuthStore } from '../stores/auth'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -437,7 +438,9 @@ describe('the primary controls share one height (#2004 item 2)', () => {
 describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () => {
   it('the Recommended grid clips neither the title nor the show name', async () => {
     // The clamped title actually overflowed INTO the show name here — an ellipsis at line two AND a
-    // visible third line, because the clamp computed but the overflow still painted.
+    // visible third line, because the clamp computed but the overflow still painted. The specific
+    // defect was the RESERVED HEIGHT (`min-h-[2.5rem]`), not clamping as such: the clamp computed
+    // against one height while the box painted at another.
     const w = mountKeptAlive()
     await flushPromises()
     expect(homeViewSource).not.toMatch(/line-clamp-2 min-h-\[2\.5rem\]/)
@@ -445,12 +448,29 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     expect(w.exists()).toBe(true)
   })
 
-  it('keeps the grid even by filling the cell instead', () => {
-    // #1584's requirement still holds — it is now paid for by the layout. Removing either class
-    // reopens ragged rows, so both are pinned.
-    expect(homeViewSource).toMatch(/name: 'player'[\s\S]{0,120}?flex h-full flex-col/)
+  it('renders the SHARED grid tile rather than its own copy of one', () => {
+    // Recommended hand-rolled EpisodeTile's shape — square artwork, overlaid actions, show name and
+    // title — and the two drifted: title-above-show here against show-above-title there, unclamped
+    // here against clamped there. One component now owns the shape (operator 2026-09-17), so this
+    // asserts the delegation rather than re-pinning a second copy's classes.
+    expect(homeViewSource).toMatch(/<EpisodeTile\s+:episode="ep"/)
+    // Scoped to the Recommended section: "Jump back in" is a rail of its own shape (fixed-width
+    // slots, a progress bar) and legitimately builds its own artwork block.
+    // Anchored to the HEADING, not to the bare key — `cacheKey: "home.recommended"` sits up in the
+    // script block, so starting there swept in every rail between it and the template.
+    const recommendedSection = homeViewSource.slice(
+      homeViewSource.indexOf('t("home.recommended")'),
+      homeViewSource.indexOf('<InterestsPicker'),
+    )
+    expect(recommendedSection.length, 'could not isolate the Recommended section').toBeGreaterThan(0)
+    expect(recommendedSection, 'the grid rebuilt its own tile again').not.toMatch(/aspect-square/)
   })
 
+  it('keeps the grid even — the cell-filling requirement moved to the tile, it did not lapse', () => {
+    // #1584's requirement still holds; EpisodeTile is what pays for it now. Asserted at the source
+    // of truth so deleting it there fails here too.
+    expect(episodeTileSource).toMatch(/<article class="relative flex h-full flex-col/)
+  })
 })
 
 /**
