@@ -272,10 +272,8 @@ class TestFullPipelineE2E:
             with open(metadata_files[0], "r", encoding="utf-8") as f:
                 metadata = json.load(f)
             assert "content" in metadata
-            # Speaker detection should populate detected_hosts or detected_guests
-            assert (
-                "detected_hosts" in metadata["content"] or "detected_guests" in metadata["content"]
-            )
+            # Schema 1.2.0 (#2075): speaker detection lands in the speaker record.
+            assert "speakers" in metadata["content"]
 
     @pytest.mark.ml_models
     @pytest.mark.critical_path
@@ -322,26 +320,22 @@ class TestFullPipelineE2E:
             assert "content" in metadata, "Metadata should have content section"
             content = metadata["content"]
 
-            # For solo speaker podcasts, we should detect hosts but NO guests
-            if "detected_hosts" in content:
-                detected_hosts = content["detected_hosts"]
-                assert isinstance(detected_hosts, list), "detected_hosts should be a list"
-                assert len(detected_hosts) > 0, "Should detect at least one host for solo speaker"
-                # Verify host name is present (Alex Morgan from feed)
-                assert any(
-                    "alex" in host.lower() or "morgan" in host.lower() for host in detected_hosts
-                ), f"Should detect 'Alex Morgan' as host, got: {detected_hosts}"
-
+            # For solo speaker podcasts, we should detect hosts but NO guests.
+            # Schema 1.2.0 (#2075): read the speaker record. The old `if "detected_hosts" in
+            # content:` guard would now make these checks silently vacuous, because the computed
+            # field no longer exists — so the record is asserted unconditionally.
+            speakers = [sp for sp in content.get("speakers", []) if isinstance(sp, dict)]
+            detected_hosts = [sp["name"] for sp in speakers if sp.get("role") == "host"]
+            detected_guests = [sp["name"] for sp in speakers if sp.get("role") == "guest"]
+            assert len(detected_hosts) > 0, "Should detect at least one host for solo speaker"
+            # Verify host name is present (Alex Morgan from feed)
+            assert any(
+                "alex" in host.lower() or "morgan" in host.lower() for host in detected_hosts
+            ), f"Should detect 'Alex Morgan' as host, got: {detected_hosts}"
             # Verify NO guests are detected (this is the key validation)
-            if "detected_guests" in content:
-                detected_guests = content["detected_guests"]
-                assert isinstance(detected_guests, list), "detected_guests should be a list"
-                assert (
-                    len(detected_guests) == 0
-                ), f"Solo speaker podcast should have NO guests, but got: {detected_guests}"
-            else:
-                # If detected_guests key doesn't exist, that's also acceptable (empty list)
-                pass
+            assert (
+                len(detected_guests) == 0
+            ), f"Solo speaker podcast should have NO guests, but got: {detected_guests}"
 
             # Verify config_snapshot reflects correct speaker detection
             if "config_snapshot" in metadata:
@@ -475,9 +469,8 @@ class TestFullPipelineE2E:
                 assert len(metadata["content"]["summary"]) > 0
 
             # Verify speaker detection
-            assert (
-                "detected_hosts" in metadata["content"] or "detected_guests" in metadata["content"]
-            )
+            # Schema 1.2.0 (#2075): speaker detection lands in the speaker record.
+            assert "speakers" in metadata["content"]
 
     @pytest.mark.slow
     def test_pipeline_multiple_episodes(self):
@@ -720,12 +713,8 @@ class TestFullPipelineE2E:
 
             # Verify REAL speaker detection results (from real spaCy model)
             # Real spaCy model processes the transcript and detects entities
-            assert (
-                "detected_hosts" in metadata["content"] or "detected_guests" in metadata["content"]
-            )
-            _ = metadata["content"].get("detected_hosts", []) + metadata["content"].get(
-                "detected_guests", []
-            )  # Check detected speakers exist
+            # Schema 1.2.0 (#2075): the speaker record replaces the computed host/guest fields.
+            assert "speakers" in metadata["content"]
             # Note: Detection depends on transcript content - real spaCy model is working
             # The key is that real model processing happened (not mocked)
 
@@ -799,7 +788,12 @@ class TestFullPipelineE2E:
         with open(metadata_files[0], "r", encoding="utf-8") as f:
             meta = json.load(f)
         assert "content" in meta
-        detected_hosts = meta["content"].get("detected_hosts", [])
+        # Schema 1.2.0 (#2075): hosts come from the speaker record.
+        detected_hosts = [
+            sp["name"]
+            for sp in meta["content"].get("speakers", [])
+            if isinstance(sp, dict) and sp.get("role") == "host"
+        ]
         assert any(
             "maya" in h.lower() for h in detected_hosts
         ), f"Should detect 'Maya' as host from itunes:author, got: {detected_hosts}"

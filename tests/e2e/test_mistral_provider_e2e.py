@@ -523,8 +523,10 @@ def _save_mistral_responses(  # noqa: C901
 
     # 2. Speaker Detection result
     content = metadata_content.get("content", {})
-    detected_hosts = content.get("detected_hosts", [])
-    detected_guests = content.get("detected_guests", [])
+    # Schema 1.2.0 (#2075): read the speaker record; the computed host/guest fields are gone.
+    _speakers = [sp for sp in content.get("speakers", []) if isinstance(sp, dict)]
+    detected_hosts = [sp["name"] for sp in _speakers if sp.get("role") == "host"]
+    detected_guests = [sp["name"] for sp in _speakers if sp.get("role") == "guest"]
     if detected_hosts or detected_guests:
         response_lines.append("\n👥 SPEAKER DETECTION RESULT:")
         response_lines.append("-" * 80)
@@ -831,15 +833,8 @@ class TestMistralProviderE2E:
             for metadata_file in sorted(metadata_files):
                 metadata_content = json_module.loads(metadata_file.read_text())
                 content = metadata_content.get("content", {})
-                assert (
-                    "detected_hosts" in content
-                    or "detected_guests" in content
-                    or "detected_hosts" in metadata_content
-                    or "detected_guests" in metadata_content
-                ), (
-                    "Speaker detection results (detected_hosts/detected_guests) "
-                    "should be in metadata"
-                )
+                # Schema 1.2.0 (#2075): speaker detection lands in the speaker record.
+                assert "speakers" in content, "Speaker detection results should be in metadata"
 
             # Save responses for all episodes
             _save_all_episode_responses(

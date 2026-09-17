@@ -116,10 +116,18 @@ def _name(node: Mapping[str, Any]) -> str:
 
 
 def roster_names(metadata: Mapping[str, Any]) -> List[str]:
-    """Names in ``content.speakers`` — the voices the roster actually placed."""
+    """Names in ``content.speakers`` — the voices the roster actually placed.
+
+    Since schema 1.2.0 (#2075) the record also lists people a source only NAMED, as
+    ``placed: false``. Those are exactly who this check exists to catch, so they are excluded: a
+    graph host whose only support is an unplaced entry must still be reported as someone who did
+    not speak. A missing flag (pre-1.2.0 artifact) is kept, as before.
+    """
     speakers = (metadata.get("content") or {}).get("speakers") or []
     return [
-        str(s.get("name") or "").strip() for s in speakers if isinstance(s, dict) and s.get("name")
+        str(s.get("name") or "").strip()
+        for s in speakers
+        if isinstance(s, dict) and s.get("name") and s.get("placed") is not False
     ]
 
 

@@ -111,8 +111,17 @@ class TestMetadataGenerationIntegration(unittest.TestCase):
 
         # Check content metadata
         self.assertEqual(data["content"]["transcript_source"], "direct_download")
-        self.assertEqual(data["content"]["detected_hosts"], ["Test Host"])
-        self.assertEqual(data["content"]["detected_guests"], ["Test Guest"])
+        # Schema 1.2.0 (#2075): `detected_hosts` / `detected_guests` are gone — they were a
+        # projection of `speakers` by role. This episode has no diarized roster, so the pre-listening
+        # hint is kept in the speaker record as people NAMED but not placed on any voice.
+        self.assertNotIn("detected_hosts", data["content"])
+        self.assertNotIn("detected_guests", data["content"])
+        by_name = {s["name"]: s for s in data["content"]["speakers"]}
+        self.assertEqual(by_name["Test Host"]["role"], "host")
+        self.assertIs(by_name["Test Host"]["placed"], False)
+        self.assertEqual(by_name["Test Host"]["source"], "hint")
+        self.assertEqual(by_name["Test Guest"]["role"], "guest")
+        self.assertIs(by_name["Test Guest"]["placed"], False)
 
         # Check processing metadata. Asserted against the module constant, not a literal: this
         # pinned "1.0.0" and #2070 bumped the writer to "1.1.0" to gate roster provenance, so the
@@ -195,8 +204,17 @@ class TestMetadataGenerationIntegration(unittest.TestCase):
         self.assertEqual(data["content"]["transcript_file_path"], "0001 - Episode_Title.txt")
 
         # Verify other content fields
-        self.assertEqual(data["content"]["detected_hosts"], ["Test Host"])
-        self.assertEqual(data["content"]["detected_guests"], ["Test Guest"])
+        # Schema 1.2.0 (#2075): `detected_hosts` / `detected_guests` are gone — they were a
+        # projection of `speakers` by role. This episode has no diarized roster, so the pre-listening
+        # hint is kept in the speaker record as people NAMED but not placed on any voice.
+        self.assertNotIn("detected_hosts", data["content"])
+        self.assertNotIn("detected_guests", data["content"])
+        by_name = {s["name"]: s for s in data["content"]["speakers"]}
+        self.assertEqual(by_name["Test Host"]["role"], "host")
+        self.assertIs(by_name["Test Host"]["placed"], False)
+        self.assertEqual(by_name["Test Host"]["source"], "hint")
+        self.assertEqual(by_name["Test Guest"]["role"], "guest")
+        self.assertIs(by_name["Test Guest"]["placed"], False)
 
         # Verify processing metadata
         self.assertIn("processing", data)
@@ -550,8 +568,17 @@ class TestMetadataGenerationComprehensive(unittest.TestCase):
         self.assertEqual(data["content"]["transcript_file_path"], "0001 - Episode_Title.txt")
 
         # Verify other content fields
-        self.assertEqual(data["content"]["detected_hosts"], ["Test Host"])
-        self.assertEqual(data["content"]["detected_guests"], ["Test Guest"])
+        # Schema 1.2.0 (#2075): `detected_hosts` / `detected_guests` are gone — they were a
+        # projection of `speakers` by role. This episode has no diarized roster, so the pre-listening
+        # hint is kept in the speaker record as people NAMED but not placed on any voice.
+        self.assertNotIn("detected_hosts", data["content"])
+        self.assertNotIn("detected_guests", data["content"])
+        by_name = {s["name"]: s for s in data["content"]["speakers"]}
+        self.assertEqual(by_name["Test Host"]["role"], "host")
+        self.assertIs(by_name["Test Host"]["placed"], False)
+        self.assertEqual(by_name["Test Host"]["source"], "hint")
+        self.assertEqual(by_name["Test Guest"]["role"], "guest")
+        self.assertIs(by_name["Test Guest"]["placed"], False)
 
         # Verify processing metadata
         self.assertIn("processing", data)

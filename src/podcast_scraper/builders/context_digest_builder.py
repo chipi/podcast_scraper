@@ -81,9 +81,29 @@ def _basic_block(metadata: Mapping[str, Any]) -> Dict[str, Any]:
         "published_date": episode.get("published_date"),
         "duration_seconds": episode.get("duration_seconds"),
         "language": feed.get("language"),
-        "hosts": list(content.get("detected_hosts") or []),
-        "guests": list(content.get("detected_guests") or []),
+        "hosts": _placed_names(content, "host"),
+        "guests": _placed_names(content, "guest"),
     }
+
+
+def _placed_names(content: Mapping[str, Any], role: str) -> List[str]:
+    """People with *role* a voice was matched to, from the speaker record (#2075).
+
+    Read ``content.speakers`` rather than the removed ``detected_hosts`` / ``detected_guests``, and
+    only placed entries: a person only named is not a host or guest of this episode. Pre-1.2.0
+    artifacts still carry the old computed fields; they are used when there is no record.
+    """
+    speakers = content.get("speakers")
+    if not speakers:
+        return list(content.get(f"detected_{role}s") or [])
+    return [
+        str(s.get("name"))
+        for s in speakers
+        if isinstance(s, dict)
+        and s.get("name")
+        and s.get("role") == role
+        and s.get("placed") is not False
+    ]
 
 
 def _summary_text(metadata: Mapping[str, Any]) -> Optional[str]:

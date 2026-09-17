@@ -17,7 +17,7 @@ from podcast_scraper.speaker_detectors.normalization import (
     filter_default_speaker_names,
     is_default_speaker_name,
 )
-from podcast_scraper.workflow.metadata_generation import _build_speakers_from_detected_names
+from podcast_scraper.workflow.metadata_generation import _unplaced_speakers
 
 
 class TestTheConstantIsStillThere:
@@ -30,23 +30,34 @@ class TestTheConstantIsStillThere:
 
 
 class TestTheHintPathRefusesThem:
-    def test_a_placeholder_host_builds_no_speaker(self) -> None:
-        assert _build_speakers_from_detected_names(["Host"], []) == []
+    """The pre-listening hint enters the speaker record as unplaced people (#2075).
 
-    def test_a_placeholder_guest_builds_no_speaker(self) -> None:
-        assert _build_speakers_from_detected_names([], ["unknown_guest_1"]) == []
+    It used to build the roster directly; the guard moved with it. A placeholder is a provider's
+    FAILURE value, not a person anyone named, so it must not appear in the record at all — not even
+    as someone only named.
+    """
+
+    @staticmethod
+    def _names(hosts, guests):
+        return [
+            (s.name, s.role)
+            for s in _unplaced_speakers(
+                [], diagnostics={}, detected_hosts=hosts, detected_guests=guests, feed_title=None
+            )
+        ]
+
+    def test_a_placeholder_host_builds_no_entry(self) -> None:
+        assert self._names(["Host"], []) == []
+
+    def test_a_placeholder_guest_builds_no_entry(self) -> None:
+        # `unknown_guest_1` is not a bare speaker label, so a single predicate let it through.
+        assert self._names([], ["unknown_guest_1"]) == []
 
     def test_a_real_person_alongside_a_placeholder_survives_alone(self) -> None:
-        speakers = _build_speakers_from_detected_names(["Host", "Russ Roberts"], ["Ada Lovelace"])
-        assert [(s.name, s.role) for s in speakers] == [
+        assert self._names(["Host", "Russ Roberts"], ["Ada Lovelace"]) == [
             ("Russ Roberts", "host"),
             ("Ada Lovelace", "guest"),
         ]
-
-    def test_the_id_reflects_the_filtered_count(self) -> None:
-        # Two hosts in, one real: the survivor is "host", not "host_1" of a phantom pair.
-        speakers = _build_speakers_from_detected_names(["Host", "Russ Roberts"], [])
-        assert [s.id for s in speakers] == ["host"]
 
 
 class TestTheFilterItself:

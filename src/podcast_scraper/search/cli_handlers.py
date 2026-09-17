@@ -1557,7 +1557,16 @@ def _speaker_infos(raw: Any) -> List[SimpleNamespace]:
     out: List[SimpleNamespace] = []
     for s in raw or []:
         if isinstance(s, dict):
-            out.append(SimpleNamespace(name=s.get("name") or "", role=s.get("role") or ""))
+            # `placed` MUST survive the conversion (#2075). Stripping it made every person the
+            # record lists as only named look like a placed voice to the merge rule — which would
+            # then credit quotes to someone no voice was matched to.
+            out.append(
+                SimpleNamespace(
+                    name=s.get("name") or "",
+                    role=s.get("role") or "",
+                    placed=s.get("placed"),
+                )
+            )
     return out
 
 

@@ -213,6 +213,12 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
     for entry in speakers:
         if not isinstance(entry, dict):
             continue
+        # A PERSON ONLY NAMED IS NOT A SPEAKER (#2075). Since schema 1.2.0 the record lists people a
+        # source named but no voice was matched to, as `placed: false`. Their role is the one the
+        # SOURCE gave them; writing it into the graph would promote them into a speaking role on
+        # production, irreversibly. A missing flag (pre-1.2.0) is today's behaviour, gated below.
+        if entry.get("placed") is False:
+            continue
         name = str(entry.get("name") or "").strip()
         role = str(entry.get("role") or "").strip().lower()
         if not name or role not in _SPEAKER_ROLES:

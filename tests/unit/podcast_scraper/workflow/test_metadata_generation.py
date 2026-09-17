@@ -681,9 +681,10 @@ class TestBuildContentMetadata(unittest.TestCase):
         # stand-in sample data, and `DEFAULT_SPEAKER_NAMES` is a provider's FAILURE value: "Host"
         # now means "detection found nobody" and is filtered before it can reach a voice (#2075).
         # The assembly this test is about is unchanged; only the sample names are.
-        speakers = metadata._build_speakers_from_detected_names(
-            detected_hosts=["Russ Roberts"], detected_guests=["Ada Lovelace"]
-        )
+        speakers = [
+            metadata.SpeakerInfo(id="host", name="Russ Roberts", role="host", placed=True),
+            metadata.SpeakerInfo(id="guest", name="Ada Lovelace", role="guest", placed=True),
+        ]
         result = metadata._build_content_metadata(
             episode=episode,
             transcript_infos=transcript_infos,
@@ -711,9 +712,7 @@ class TestBuildContentMetadata(unittest.TestCase):
         episode = create_test_episode(idx=1, title="Test Episode")
         transcript_infos = []
 
-        speakers = metadata._build_speakers_from_detected_names(
-            detected_hosts=None, detected_guests=None
-        )
+        speakers: list = []
         result = metadata._build_content_metadata(
             episode=episode,
             transcript_infos=transcript_infos,
@@ -818,7 +817,7 @@ class TestSerializeMetadata(unittest.TestCase):
         episode_metadata = metadata._build_episode_metadata(
             episode, episode_id, None, None, None, None, None, None, None
         )
-        speakers = metadata._build_speakers_from_detected_names(None, None)
+        speakers: list = []
         content_metadata = metadata._build_content_metadata(
             episode, [], None, None, None, None, speakers
         )
@@ -857,7 +856,7 @@ class TestSerializeMetadata(unittest.TestCase):
         episode_metadata = metadata._build_episode_metadata(
             episode, episode_id, None, None, None, None, None, None, None
         )
-        speakers = metadata._build_speakers_from_detected_names(None, None)
+        speakers: list = []
         content_metadata = metadata._build_content_metadata(
             episode, [], None, None, None, None, speakers
         )
@@ -896,7 +895,7 @@ class TestSerializeMetadata(unittest.TestCase):
         episode_metadata = metadata._build_episode_metadata(
             episode, episode_id, None, None, None, None, None, None, None
         )
-        speakers = metadata._build_speakers_from_detected_names(None, None)
+        speakers: list = []
         content_metadata = metadata._build_content_metadata(
             episode, [], None, None, None, None, speakers
         )
@@ -2383,58 +2382,6 @@ class TestFuzzyMatchingConstraints(unittest.TestCase):
 
         # "Warsh" should not be paired (no first name)
         self.assertFalse(metadata._has_paired_first_name("warsh", extracted_entities2, aliases2))
-
-
-@pytest.mark.unit
-class TestBuildSpeakersFromDetectedNames(unittest.TestCase):
-    """Tests for _build_speakers_from_detected_names helper function."""
-
-    def test_build_speakers_from_detected_names_with_hosts_and_guests(self):
-        """Test building speakers with both hosts and guests."""
-        detected_hosts = ["Host 1", "Host 2"]
-        detected_guests = ["Guest 1"]
-
-        result = metadata._build_speakers_from_detected_names(detected_hosts, detected_guests)
-
-        self.assertEqual(len(result), 3)
-        self.assertEqual(result[0].name, "Host 1")
-        self.assertEqual(result[0].role, "host")
-        self.assertEqual(result[0].id, "host_1")
-        self.assertEqual(result[1].name, "Host 2")
-        self.assertEqual(result[1].role, "host")
-        self.assertEqual(result[1].id, "host_2")
-        self.assertEqual(result[2].name, "Guest 1")
-        self.assertEqual(result[2].role, "guest")
-        self.assertEqual(result[2].id, "guest")
-
-    def test_build_speakers_from_detected_names_single_host(self):
-        """Test building speakers with single host."""
-        detected_hosts = ["Host 1"]
-        detected_guests = None
-
-        result = metadata._build_speakers_from_detected_names(detected_hosts, detected_guests)
-
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0].name, "Host 1")
-        self.assertEqual(result[0].role, "host")
-        self.assertEqual(result[0].id, "host")
-
-    def test_build_speakers_from_detected_names_no_speakers(self):
-        """Test building speakers with no hosts or guests."""
-        result = metadata._build_speakers_from_detected_names(None, None)
-
-        self.assertEqual(len(result), 0)
-
-    def test_build_speakers_from_detected_names_multiple_guests(self):
-        """Test building speakers with multiple guests."""
-        detected_hosts = None
-        detected_guests = ["Guest 1", "Guest 2"]
-
-        result = metadata._build_speakers_from_detected_names(detected_hosts, detected_guests)
-
-        self.assertEqual(len(result), 2)
-        self.assertEqual(result[0].id, "guest_1")
-        self.assertEqual(result[1].id, "guest_2")
 
 
 @pytest.mark.unit
