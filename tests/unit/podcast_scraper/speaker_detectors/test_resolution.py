@@ -61,7 +61,19 @@ class TestTheRefutationIsEvidenceNotJustAVeto:
             v.name is None for v in out.values()
         ), "with a third voice, 'the one not refuted' is not evidence — it misattributes ~1 in 10"
 
-    def test_it_never_overwrites_a_voice_the_model_named_directly(self) -> None:
+    def test_two_stated_names_on_each_other_s_voices_are_swapped_back(self) -> None:
+        """A direct answer outranks the complement — EXCEPT when the two answers are each other's.
+
+        This test previously asserted the opposite, and asserted a wrong answer: in this very
+        fixture SPEAKER_00 says "this is Tyler", so the model's `SPEAKER_00 = Alison Gopnik` /
+        `SPEAKER_01 = Tyler Cowen` is not one mistake but a swap, and preserving the "direct
+        answer" preserved half of it. A third-person refutation is a fact about the recording; an
+        unrefuted model answer is an opinion, so when the episode states exactly two people and
+        each sits on the other's voice, the fact decides both.
+
+        Found on Ground Truths, where the host says "this is Matthew Cobb's seventh book" and each
+        wrong answer propped up the other (#2075).
+        """
         from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
 
         out = resolve_voices_and_roles(
@@ -75,7 +87,26 @@ class TestTheRefutationIsEvidenceNotJustAVeto:
             ),
             episode_title="Alison Gopnik on Childhood Learning",
         )
-        assert out["SPEAKER_01"].name == "Tyler Cowen", "a direct answer outranks the complement"
+        assert out["SPEAKER_00"].name == "Tyler Cowen", "the voice that says 'this is Tyler'"
+        assert out["SPEAKER_01"].name == "Alison Gopnik", "so Alison is the other voice"
+
+    def test_a_direct_answer_survives_when_it_is_not_the_complementary_name(self) -> None:
+        """The protection the swap must not dissolve: the other voice's name is someone else
+        entirely, so there is no swap to undo and the model's answer stands."""
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        out = resolve_voices_and_roles(
+            stated_names=["Alison Gopnik", "Tyler Cowen", "Robin Hanson"],
+            voice_texts={"SPEAKER_00": self.HOST, "SPEAKER_01": self.GUEST},
+            complete=self._llm(
+                {
+                    "SPEAKER_00": {"name": "Alison Gopnik", "role": "guest"},
+                    "SPEAKER_01": {"name": "Robin Hanson", "role": "guest"},
+                }
+            ),
+            episode_title="Alison Gopnik on Childhood Learning",
+        )
+        assert out["SPEAKER_01"].name == "Robin Hanson", "a direct answer outranks the complement"
 
     def test_it_abstains_when_the_other_voice_also_talks_about_them(self) -> None:
         """Both voices discussing the person is no evidence either way — abstain."""

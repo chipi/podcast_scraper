@@ -348,11 +348,24 @@ def _parse(raw: str) -> Dict[str, LLMVoice]:
 
 
 def _introduces_itself_as(text: str, name: str) -> bool:
-    """Does this voice say "I'm X" / "this is X" / "my name is X" in its own turns?"""
+    """Does this voice say "I'm X" / "this is X" / "my name is X" in its own turns?
+
+    NOT when the name is POSSESSIVE. "this is Matthew Cobb's seventh book" is a host describing the
+    guest's work, and reading it as a self-introduction makes this function vouch for the model's
+    answer — which is how Ground Truths published the host's name on the guest's voice and the
+    guest's on the host's, each confirming the other. `dff4c116` removed the construction from the
+    resolver's PROMPT; this is the same defect in the code that is supposed to check the prompt's
+    output, where it actually matters (#876: a prompt is not an enforcement mechanism).
+    """
     first = re.split(r"\s+", name.strip())[0]
     return bool(
         re.search(
-            rf"\b(?:I'?m|I am|my name is|this is)\s+(?:{re.escape(name)}|{re.escape(first)})\b",
+            # The possessive lookahead spans the REST of the name phrase, not just the matched
+            # token: anchored to "Matthew" alone, "this is Matthew Cobb's seventh book" still
+            # matched, because the engine simply backtracked to the first-name alternative.
+            rf"\b(?:I'?m|I am|my name is|this is)\s+"
+            rf"(?:{re.escape(name)}|{re.escape(first)})"
+            rf"(?!(?:\s+[A-Z][\w'’\-]*){{0,2}}['’]s\b)\b",
             text or "",
             re.IGNORECASE,
         )
@@ -519,7 +532,41 @@ def resolve_voices_and_roles(
                 continue
             existing = out.get(other)
             if existing is not None and existing.name:
-                continue  # that voice already has a name; do not overwrite a direct answer
+                # THE TWO ANSWERS ARE SWAPPED, which is a different case from "the other voice is
+                # spoken for". When this episode states exactly two people, the model put the
+                # refuted name here and the OTHER stated name there, and that other name is not
+                # refuted where it would move to, then the only arrangement consistent with the
+                # audio is the swap. A third-person refutation is a fact about the recording; an
+                # unrefuted model answer is an opinion, so the fact wins.
+                #
+                # Found on Ground Truths: the host says "this is Matthew Cobb's seventh book", the
+                # model reads the possessive as a self-introduction, and each wrong answer props up
+                # the other — the guest's name on the host's voice and the host's on the guest's.
+                other_name = next((n for n in stated if n.lower() != name.lower()), None)
+                swappable = (
+                    len(stated) == 2
+                    and other_name is not None
+                    and existing.name.lower() == other_name.lower()
+                    and not refuted_by_third_person(voice_texts[other], name)
+                    and not refuted_by_third_person(voice_texts[bad_voice], other_name)
+                )
+                if not swappable:
+                    continue  # that voice already has a name; do not overwrite a direct answer
+                used.add(name.lower())
+                used.add(str(other_name).lower())
+                out[other] = LLMVoice(name=name, role=existing.role)
+                out[bad_voice] = LLMVoice(
+                    name=other_name, role=(out.get(bad_voice).role if out.get(bad_voice) else None)
+                )
+                logger.info(
+                    "speaker resolution: %r was refuted on %s while %r sat on %s — the two stated "
+                    "names are swapped, binding each to the voice the audio allows",
+                    name,
+                    bad_voice,
+                    other_name,
+                    other,
+                )
+                continue
             if refuted_by_third_person(voice_texts[other], name):
                 continue  # the other voice talks about them too — no evidence either way
             used.add(name.lower())
