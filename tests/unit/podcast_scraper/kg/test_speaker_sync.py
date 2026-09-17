@@ -249,6 +249,31 @@ class TestSplitPerson:
         assert not any(x.startswith("SPLIT_PERSON") for x in v), v
 
 
+class TestMissingGraph:
+    """A graph that does not exist is a different repair from a graph that omits the speakers."""
+
+    def test_no_graph_at_all_is_not_reported_as_the_graph_omitting_them(self) -> None:
+        v = _run(kg={})
+        assert _codes(v) == ["NO_GRAPH"], v
+
+    def test_a_graph_that_exists_but_omits_a_placed_speaker_is_still_placed_not_cast(self) -> None:
+        v = _run(kg=_kg(("Michael Barbaro", "host")))
+        assert "PLACED_NOT_CAST" in _codes(v), v
+        assert "NO_GRAPH" not in _codes(v), v
+
+    def test_no_graph_and_nobody_placed_reports_nothing(self) -> None:
+        """Nothing was placed, so there is no claim for a missing graph to contradict."""
+        v = _run(
+            kg={},
+            metadata=_meta(KITROEFF),
+            gi=None,
+            segments=None,
+            adfree_segments=None,
+            diagnostics=None,
+        )
+        assert v == [], v
+
+
 class TestContextDigest:
     def test_context_hosts_that_are_not_the_records_are_reported(self) -> None:
         ctx = {"basic": {"hosts": ["Michael Barbaro", "Natalie Kitroeff"], "guests": []}}

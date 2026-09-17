@@ -603,6 +603,8 @@ def check_episode_in_sync(
       named, or in what role
     * ``SPLIT_PERSON`` — one human is placed as two entries (a diarization split never rejoined)
     * ``CONTEXT_VS_RECORD`` — ``context.json``'s hosts/guests are not the record's placed people
+    * ``NO_GRAPH`` — the record places speakers and ``kg.json`` does not exist (re-derive needed,
+      as distinct from a graph that exists and omits them, which is ``PLACED_NOT_CAST``)
 
     Names are compared with :func:`same_person`, so an ASR variant of a placed person is not a
     violation. An artifact with no record reports nothing unless ``legacy_as_placed`` is set; the
@@ -619,7 +621,17 @@ def check_episode_in_sync(
         if isinstance(s, dict) and s.get("placed") is False and s.get("name")
     ]
     out = _sync_split_people(placed, prefix)
-    out += _sync_cast(kg, placed, unplaced, prefix)
+    # A MISSING graph is not a disagreeing graph. Comparing against an empty mapping reported every
+    # placed person as `PLACED_NOT_CAST` — "the graph omits them" — when the truth is that no graph
+    # was ever written. Both are worth reporting, but they are different repairs: one re-runs the
+    # roster, the other re-derives the episode. Counting them under one code hides the second, and
+    # once the reprocess stages began writing the record (#2075) it would have hidden it at scale.
+    if kg:
+        out += _sync_cast(kg, placed, unplaced, prefix)
+    elif placed:
+        out.append(
+            f"{prefix}NO_GRAPH the record places {len(placed)} speaker(s) but kg.json is absent"
+        )
     if gi:
         out += _sync_quotes(gi, placed_names, prefix)
     out += _sync_labels(segments, adfree_segments, placed_names, prefix)

@@ -2367,6 +2367,88 @@ def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
     )
 
 
+def _rewrite_speaker_record_in_place(
+    txt_path: Path,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    rel_path: str,
+    stage: str,
+) -> bool:
+    """Rewrite ``content.speakers`` from the labels this reprocess stage just wrote (#2075).
+
+    THE RECORD IS THE POINT OF THIS ARC, and until now no reprocess stage touched it. `relabel_only`
+    (and through it `rediarize_only` / `retranscript_only`) rewrote the transcript, the segments,
+    the diagnostics, the ad-free and cleaned copies and the manifest — and left `metadata.json`
+    exactly as it was. Measured on two DGX episodes: `metadata.json` byte-identical before and
+    after, still the pre-1.2.0 ``{id, name, role}`` shape with no ``placed``/``voices``. A relabel
+    that CHANGED a name would therefore leave the record naming the old person, which is precisely
+    the divergence the record exists to prevent.
+
+    Rebuilt through the SAME path a full run uses, reading the segments and diagnostics this stage
+    has just written to disk, so the two cannot drift. Only the three roster keys are touched: a
+    frozen stage has no new information about anything else in the artifact, and a wider write
+    would re-open summaries and derived fields it deliberately skipped.
+
+    Returns True when the record was rewritten. Never raises: a failure here must not lose the
+    relabel that already succeeded — it is logged, and the audit reports the stale record.
+    """
+    import json as _json
+
+    from ..identity.roster_provenance import roster_source
+    from .metadata_generation import _build_speaker_record
+
+    stem = txt_path.name[: -len(".txt")] if txt_path.name.endswith(".txt") else txt_path.stem
+    md_path = txt_path.parent.parent / filesystem.METADATA_SUBDIR / f"{stem}.metadata.json"
+    if not md_path.is_file():
+        logger.warning(
+            "[%s] %s: no sibling metadata at %s — the speaker record was NOT updated",
+            job.idx,
+            stage,
+            md_path,
+        )
+        return False
+    try:
+        payload = _json.loads(md_path.read_text(encoding="utf-8"))
+        feed_block = payload.get("feed") if isinstance(payload.get("feed"), dict) else {}
+        content = payload.get("content")
+        if not isinstance(content, dict):
+            raise ValueError("artifact has no content block")
+        speakers, num_speakers = _build_speaker_record(
+            effective_output_dir,
+            rel_path,
+            list(getattr(job, "feed_hosts", None) or []),
+            list(job.detected_speaker_names or []),
+            (feed_block or {}).get("title"),
+        )
+        before = content.get("speakers")
+        content["speakers"] = [sp.model_dump(exclude_none=False) for sp in speakers]
+        source = roster_source(speakers, diarized=any(sp.placed for sp in speakers))
+        if source is not None:
+            content["speakers_source"] = source
+        if num_speakers is not None:
+            content["diarization_num_speakers"] = num_speakers
+        md_path.write_text(_json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        logger.warning(
+            "[%s] %s: could not rewrite the speaker record at %s (%s) — the transcript was "
+            "relabelled but the record still describes the OLD naming",
+            job.idx,
+            stage,
+            md_path,
+            exc,
+        )
+        return False
+    logger.info(
+        "[%s] %s: speaker record rewritten — %d entries (%d placed), was %d",
+        job.idx,
+        stage,
+        len(speakers),
+        sum(1 for sp in speakers if sp.placed),
+        len(before or []) if isinstance(before, list) else 0,
+    )
+    return True
+
+
 def _existing_transcript_for(
     job: TranscriptionJob,  # type: ignore[valid-type]
     effective_output_dir: str,
@@ -2577,6 +2659,10 @@ def _relabel_existing_transcript(
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
         _relabel_cleaned_transcript(txt_path, segs, new_segs, job.idx)
+        # The record follows the labels, or the two describe different episodes (#2075).
+        _rewrite_speaker_record_in_place(
+            txt_path, job, effective_output_dir, rel_path, "relabel_only"
+        )
     # advisor #2: relabel rewrites naming on disk — the manifest MUST record the new naming
     # method_version, or "reprocess episodes below naming-3" never converges. result has no ASR/
     # diarization fields (frozen), so only the naming block is written + a pipeline_stage emitted.
@@ -2814,6 +2900,10 @@ def _rediarize_existing_transcript(
             effective_output_dir,
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+        # Fresh voices AND fresh names: the record must describe the diarization that now exists.
+        _rewrite_speaker_record_in_place(
+            txt_path, job, effective_output_dir, rel_path, "rediarize_only"
+        )
     # advisor #2: rediarize regenerates diarization + naming on disk — record both into run metrics
     # and the manifest (fresh diarization + naming blocks + pipeline_stage), else the rerun is
     # invisible in diarization_* metrics and the manifest keeps the old versions.

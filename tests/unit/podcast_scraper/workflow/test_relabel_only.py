@@ -69,7 +69,13 @@ def _write_corpus(
                         "title": "Hard Fork",
                         "description": feed_desc,
                         "authors": ["The New York Times"],
-                    }
+                    },
+                    # A finished corpus artifact: the pre-1.2.0 roster shape, plus a neighbouring
+                    # key the relabel has no new information about and must not touch.
+                    "content": {
+                        "speakers": [{"id": "host", "name": "Amy Lawrence", "role": "host"}],
+                        "transcript_source": "whisper_transcription",
+                    },
                 }
             ),
             encoding="utf-8",
@@ -417,6 +423,78 @@ def test_transcribe_media_to_text_dispatches_to_relabel(tmp_path: Path, monkeypa
     )
     assert seen.get("dispatched") is True
     assert result == sentinel
+
+
+# --- the speaker record follows the relabel (#2075) ---
+
+
+def test_relabel_rewrites_the_speaker_record_to_match_the_new_labels(tmp_path: Path) -> None:
+    """The record is the ONE source every surface is written from, and no reprocess stage updated
+    it: measured on two DGX episodes, `metadata.json` was byte-identical before and after while the
+    transcript was relabelled. A relabel that changes a name would leave the record naming the old
+    person — the exact divergence the record exists to prevent."""
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    host_text = "Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)
+    co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
+    old_run, stem = _write_corpus(
+        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=[host_text, co_text]
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    ok, _rel, _ = _relabel_existing_transcript(_job(), _cfg(), run_tag, str(new_run), None, None)
+    assert ok is True
+
+    payload = json.loads(
+        (old_run / "metadata" / f"{stem}.metadata.json").read_text(encoding="utf-8")
+    )
+    names = {s["name"] for s in payload["content"]["speakers"]}
+    # The wrong name the relabel removed from the transcript is gone from the record too.
+    assert "Amy Lawrence" not in names
+    assert "Kevin Roose" in names
+    placed = [s for s in payload["content"]["speakers"] if s.get("placed")]
+    assert placed, "a relabelled episode has voices, so the record must place someone"
+    for sp in placed:
+        assert sp["voices"], "a placed person names the diarization voices that are them"
+        assert sp["source"], "and how the name was chosen"
+    assert payload["content"]["speakers_source"] == "diarized"
+    # A frozen stage has no new information about anything else in the artifact.
+    assert payload["content"]["transcript_source"] == "whisper_transcription"
+    assert payload["feed"]["title"] == "Hard Fork"
+
+
+def test_relabel_keeps_the_relabel_when_the_record_cannot_be_written(
+    tmp_path: Path, caplog
+) -> None:
+    """A record failure must not lose the relabel that already succeeded: the transcript stays
+    rewritten and the run reports success, with the stale record logged."""
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    old_run, stem = _write_corpus(
+        base,
+        run_tag,
+        seg_labels=["Amy Lawrence", "SPEAKER_07"],
+        texts=["Welcome to Hard Fork. I'm Kevin Russo. " + ("Host turn. " * 60), "Hi. " * 80],
+    )
+    (old_run / "metadata" / f"{stem}.metadata.json").write_text("{ not json", encoding="utf-8")
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        ok, _rel, _ = _relabel_existing_transcript(
+            _job(), _cfg(), run_tag, str(new_run), None, None
+        )
+
+    assert ok is True
+    out = (old_run / "transcripts" / f"{stem}.txt").read_text(encoding="utf-8")
+    # The relabel itself still happened: v2's wrong name is gone from the transcript. (The host
+    # surname is NOT canonicalized here — the unreadable metadata is also where the feed-stated
+    # hosts come from, so there is no anchor to snap "Kevin Russo" against.)
+    assert "Amy Lawrence" not in out
+    assert any("still describes the OLD naming" in r.message for r in caplog.records)
 
 
 # --- rediarize_only (v2.2): fresh diarization aligned to the existing ASR transcript ---
