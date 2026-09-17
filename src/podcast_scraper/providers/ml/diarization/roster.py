@@ -1186,7 +1186,7 @@ _SIGN_OFF = re.compile(
 )
 
 
-def _sign_off_self_intro(text: Optional[str]) -> Optional[str]:
+def _sign_off_self_intro(text: Optional[str], vouchers: Sequence[str] = ()) -> Optional[str]:
     """A self-introduction in a voice's SIGN-OFF: "I'm Tracy Allaway. You can follow me at…".
 
     The self-introduction reader looks only at the start of each voice's text, which is right for
@@ -1196,12 +1196,27 @@ def _sign_off_self_intro(text: Optional[str]) -> Optional[str]:
     voices said who they were only in the sign-off, and the LLM filled the gap by putting the
     GUEST's name on Tracy Alloway's voice. Read only the tail, only "I'm <Name>" followed by a
     sign-off phrase, and through the same name guards as the opening reader.
+
+    VOUCHED ONLY. The name must be one the episode already states — a known host, a detected guest
+    or a metadata name — as itself, the same person, or a spoken variant. A sign-off is read at the
+    very end of a voice whose opening the diarizer may have mixed with someone else's, so an
+    unvouched name published the ASR's rendering of a presenter nobody stated ("Samea Caines" for
+    The Economics Show's Soumaya Keynes) and cast her as a guest (advisor review, #2075).
     """
     tail = (text or "")[-3000:]
     for m in _SIGN_OFF.finditer(tail):
         name = extract_self_introduced_host(f"I'm {m.group(1)}.")
-        if name:
-            return name
+        if not name:
+            continue
+        for ref in vouchers:
+            if not ref:
+                continue
+            if (
+                name.lower() == ref.lower()
+                or _same_person_on_one_episode(name, ref)
+                or _snap_spoken_variant(name, [ref]) == ref
+            ):
+                return ref
     return None
 
 
@@ -1224,7 +1239,9 @@ def _self_intros_by_voice(
     out: Dict[str, str] = {}
     for voice, text in (voice_texts or {}).items():
         head = (text or "")[:5000]
-        name = extract_self_introduced_host(text, intro_chars=5000) or _sign_off_self_intro(text)
+        name = extract_self_introduced_host(text, intro_chars=5000) or _sign_off_self_intro(
+            text, metadata_named
+        )
         if name and len(name.split()) >= 2:
             out[voice] = name
             continue

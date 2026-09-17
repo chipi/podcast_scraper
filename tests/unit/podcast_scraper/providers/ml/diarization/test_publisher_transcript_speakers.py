@@ -215,9 +215,26 @@ class TestSignOffSelfIntroduction:
         ],
     )
     def test_a_sign_off_names_the_voice(self, text: str) -> None:
+        """Only a name the episode already states: a sign-off sits at the end of a voice whose
+        opening the diarizer may have mixed with someone else's (advisor review, #2075)."""
         from podcast_scraper.providers.ml.diarization.roster import _sign_off_self_intro
 
-        assert _sign_off_self_intro("Long conversation. " * 50 + text) is not None
+        body = "Long conversation. " * 50 + text
+        assert _sign_off_self_intro(body, ["Ada Brook", "Ada Alloway"]) is not None
+        assert _sign_off_self_intro(body, []) is None, "an unvouched sign-off name is refused"
+
+    def test_a_vouched_name_is_returned_in_the_stated_spelling(self) -> None:
+        from podcast_scraper.providers.ml.diarization.roster import _sign_off_self_intro
+
+        body = "Long conversation. " * 50 + "I'm Ada Allaway. You can follow me at the show."
+        assert _sign_off_self_intro(body, ["Ada Alloway"]) == "Ada Alloway"
+
+    def test_a_name_nobody_states_is_refused(self) -> None:
+        """The Economics Show: the ASR's "Samea Caines" for Soumaya Keynes, stated by nobody."""
+        from podcast_scraper.providers.ml.diarization.roster import _sign_off_self_intro
+
+        body = "Long conversation. " * 50 + "I'm Samea Caines. Thanks for listening."
+        assert _sign_off_self_intro(body, ["Ada Brook", "Ben Carver"]) is None
 
     @pytest.mark.parametrize(
         "text",
@@ -228,9 +245,10 @@ class TestSignOffSelfIntroduction:
         ],
     )
     def test_anything_else_is_not_a_sign_off(self, text: str) -> None:
+        # noqa: D401 — the shapes below are refused whatever the episode states
         from podcast_scraper.providers.ml.diarization.roster import _sign_off_self_intro
 
-        assert _sign_off_self_intro("Long conversation. " * 50 + text) is None
+        assert _sign_off_self_intro("Long conversation. " * 50 + text, ["Ada Brook"]) is None
 
     def test_through_the_roster_the_guest_name_cannot_take_a_signed_off_host(self) -> None:
         from podcast_scraper.providers.ml.diarization.base import (
