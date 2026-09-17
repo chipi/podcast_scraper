@@ -20,6 +20,7 @@ from podcast_scraper.search.hybrid_search import hybrid_candidates, QueryEmbeddi
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.search.theme_clusters import (
     STORYLINE_DOC_TYPE,
+    storyline_episode_ids,
     top_theme_clusters_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import load_topic_cluster_enrichment_map
@@ -149,6 +150,9 @@ def _attach_storyline_metadata(
         str(s["id"]): s
         for s in top_theme_clusters_by_member_count(corpus_root, 10_000, min_members=1)
     }
+    # The episodes a storyline draws on, so a listening-scoped caller can decide whether it is
+    # "mine". A storyline has no single episode, so this union IS its only membership.
+    episodes_by_cluster = storyline_episode_ids(corpus_root)
     out: List[Dict[str, Any]] = []
     for row in rows:
         meta = row.get("metadata")
@@ -162,6 +166,7 @@ def _attach_storyline_metadata(
         meta["storyline_label"] = info["label"]
         meta["storyline_size"] = info["size"]
         meta["anchor_topic_id"] = info["anchor_topic_id"]
+        meta["storyline_episode_ids"] = sorted(episodes_by_cluster.get(str(sid).strip(), ()))
         out.append(row)
     return out
 

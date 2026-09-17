@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key
 from podcast_scraper.search.query_log import append_query_event
+from podcast_scraper.search.theme_clusters import STORYLINE_DOC_TYPE
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_search_view import build_search_response
@@ -61,6 +62,46 @@ def _attach_consumer_slugs(root: Path, resp: CorpusSearchApiResponse) -> None:
                     artwork_url(local_art, "thumb") or row.episode_image_url or row.feed_image_url
                 ),
             }
+
+
+def _storyline_slugs(root: Path, meta: dict) -> set[str]:
+    """Consumer slugs for the episodes a storyline draws on.
+
+    ``scope=mine`` is expressed in slugs; the theme-cluster artifact records episode IDS. The
+    catalogue bridges them. Keyed by episode id alone because a cluster member records no feed.
+    """
+    raw = meta.get("storyline_episode_ids")
+    if not isinstance(raw, list) or not raw:
+        return set()
+    wanted = {str(x) for x in raw if isinstance(x, str) and x.strip()}
+    if not wanted:
+        return set()
+    return {
+        slug_for_row(row)
+        for row in cached_catalog(root)
+        if row.episode_id and row.episode_id in wanted
+    }
+
+
+def _in_listening_scope(root: Path, hit: object, mine: set[str]) -> bool:
+    """Whether a hit belongs to the user's heard∪captured set.
+
+    A passage is in scope when ITS episode is. A STORYLINE has no episode, so filtering it by
+    ``episode_slug`` dropped every one of them from recall mode — silently, as a consequence of
+    filtering an episode-less row by episode rather than a decision anyone made. That hid the
+    result type best suited to recall: a storyline is the shape of a recurring thread across things
+    you have actually heard (operator 2026-09-17).
+
+    ANY overlap counts — one episode of the cluster's thirty-six makes the storyline yours
+    (operator's call). The alternative, a threshold, makes a storyline near-unreachable in the scope
+    where it is most useful.
+    """
+    meta = getattr(hit, "metadata", None)
+    if not isinstance(meta, dict):
+        return False
+    if meta.get("doc_type") == STORYLINE_DOC_TYPE:
+        return bool(_storyline_slugs(root, meta) & mine)
+    return meta.get("episode_slug") in mine
 
 
 def _data_dir(request: Request) -> Path | None:
@@ -119,7 +160,12 @@ async def app_search(
     resp = build_search_response(q, outcome)
     _attach_consumer_slugs(root, resp)
     if mine is not None:
-        resp.results = [r for r in resp.results if r.metadata.get("episode_slug") in mine][:top_k]
+        resp.results = [r for r in resp.results if _in_listening_scope(root, r, mine)][:top_k]
+    # The cluster's episode ids were carried only to answer the scope question. Strip them: a
+    # storyline can span dozens of episodes and the client has no use for the raw ids.
+    for r in resp.results:
+        if isinstance(r.metadata, dict) and "storyline_episode_ids" in r.metadata:
+            r.metadata = {k: v for k, v in r.metadata.items() if k != "storyline_episode_ids"}
     if enrich_results and resp.results:
         await apply_query_enrichers(request, root, q, resp.results)
     return resp

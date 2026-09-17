@@ -243,6 +243,42 @@ def consumer_theme_cluster_siblings(corpus_root: Path, topic_id: str) -> list[Di
     return []
 
 
+def storyline_episode_ids(corpus_root: Path) -> Dict[str, frozenset]:
+    """``thc_id`` → the set of episode ids its member topics appear in.
+
+    Used to answer "is this storyline part of MY listening?" — a storyline has no single episode, so
+    the recall scope (``scope=mine``) cannot filter it the way it filters a passage. The membership
+    it needs is the union of the cluster's members' ``episode_ids``, which the artifact already
+    carries (operator 2026-09-17).
+
+    Empty for a cluster whose members record no episodes, which then simply never matches a
+    listening scope rather than matching everything.
+    """
+    payload = _load_theme_clusters_payload(corpus_root)
+    if payload is None:
+        return {}
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return {}
+    out: Dict[str, frozenset] = {}
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = cl.get("graph_compound_parent_id")
+        if not isinstance(gpid, str) or not gpid.strip():
+            continue
+        eps: set = set()
+        members = cl.get("members")
+        for m in members if isinstance(members, list) else []:
+            if not isinstance(m, Mapping):
+                continue
+            for eid in m.get("episode_ids") or []:
+                if isinstance(eid, str) and eid.strip():
+                    eps.add(eid.strip())
+        out[gpid.strip()] = frozenset(eps)
+    return out
+
+
 #: Doc type for a storyline row in the search index. Distinct from ``kg_topic``: a storyline is a
 #: CORPUS-level object (a set of topics that recur together), not a node in one episode's graph.
 STORYLINE_DOC_TYPE = "storyline"
@@ -316,6 +352,7 @@ __all__ = [
     "STORYLINE_DOC_TYPE",
     "consumer_theme_cluster_map",
     "consumer_theme_cluster_siblings",
+    "storyline_episode_ids",
     "storyline_index_rows",
     "top_theme_clusters_by_member_count",
 ]
