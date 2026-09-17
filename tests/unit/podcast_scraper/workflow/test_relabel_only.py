@@ -632,7 +632,11 @@ def test_rederive_only_reuses_the_on_disk_transcript(tmp_path: Path, monkeypatch
 
     assert ok is True  # the stage now reports the episode as processed
     assert path == str(stored)  # ...from the transcript already on disk
-    assert source in ("direct_download", "whisper_transcription")
+    # Provenance is READ from the episode's own metadata, never assumed, so a direct-download feed
+    # is not relabelled `whisper_transcription`. This fixture stores no metadata, and the
+    # documented fallback for unreadable metadata is exactly one value — accepting either would
+    # let a wrong provenance label through on a reused transcript.
+    assert source == "whisper_transcription"
     assert downloaded == 0  # nothing was fetched
     assert jobs.empty()  # and no ASR job was queued
 

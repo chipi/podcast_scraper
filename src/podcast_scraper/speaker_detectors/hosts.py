@@ -686,10 +686,14 @@ def _feed_statement(
                 # - the tail of a longer proper noun (after "the"/"of");
                 # - a place or body: "At Carnegie India, our diverse lineup of experts will host…";
                 # - a nationality: "hosted by Anglo Canadian transplant to Colombia…".
+                # The LAST token only: `_NOT_A_MONONYM` holds demonyms and religion/politics
+                # labels, several of which are ordinary given names ("Christian"). Checking every
+                # token would throw away the whole statement of a feed hosted by Christian Schmidt.
+                # "Anglo Canadian transplant", the case this catches, ends on the demonym.
                 if (
                     after_article
                     or _PLACE_PREPOSITION.match(raw.strip())
-                    or any(t.lower().strip(".,'’") in _NOT_A_MONONYM for t in clean.split())
+                    or clean.split()[-1].lower().strip(".,'’") in _NOT_A_MONONYM
                 ):
                     rejected = True
                     continue
