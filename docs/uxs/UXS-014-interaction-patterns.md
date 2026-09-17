@@ -451,6 +451,24 @@ constant regardless of content length.
   `SavedFilterBar` search input, reused on Following) filters every section by label; a non-empty
   query lifts every cap so a match is never hidden. Following reuses the same bar minus colour, with a
   **recent / A–Z** sort; each section heading carries its count.
+- **One episode-group block, everywhere (2026-09-17).** Where a surface groups results **by
+  episode**, the group header is the real **`EpisodeCard`** — artwork, show, title, date — and never
+  a line of text: **`EpisodeGroupCard`** is that block, used by **Search** (groups of matches) and
+  **Library → Revisit** (groups of due moments). Search had the card treatment and Revisit had a
+  bare heading for the same object, which made an episode carrying moments look like a different
+  kind of thing from an episode carrying matches. The group's **count** sits under the artwork (the
+  card's `#aside`), and the rows are **collapsible** beneath it — "Hide / Show {noun}" with a
+  chevron, `aria-expanded`, and groups **starting expanded**: collapsing is an affordance for a long
+  page, not a default that hides what the listener asked for. Collapse uses `v-show`, so anything
+  expanded *inside* a group (Search's folded transcript clusters) survives a collapse and re-open.
+  The header has two weights. Search keeps the **full** card — its groups *are* the result, so the
+  episode is something you act on. Revisit uses the **slim** header (80px artwork, **no action
+  cluster**, tighter padding): every moment beneath it already carries jump + mark-reviewed, so a
+  favourite/queue/⋯ row on the header is a third set of controls competing with them, and at compact
+  width it wrapped onto its own line — which is what made the block thick. Revisit's header also
+  carries **when the episode was listened to** ("Listened {date}", from the listener's playback
+  positions), because a moment resurfacing weeks later needs to say whether you heard it recently or
+  half-remember it. It is omitted, not guessed, for an episode with no playback history.
 - **One kind-filter strip, everywhere (2026-09-17).** Filtering a list by the KIND of thing in it is
   one pattern, so it is one component: **`TypeFilterBar`** — a multi-select chip strip led by an
   explicit **All** chip (so clearing is one tap), where no selection means all, and a chip renders

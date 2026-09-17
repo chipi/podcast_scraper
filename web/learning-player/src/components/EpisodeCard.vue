@@ -59,6 +59,20 @@ const props = defineProps<{
    * Set by the Saved list, where every row is favourited by definition — see EpisodeActions.
    */
   hideFavorite?: boolean
+  /**
+   * Drop the action row entirely — the card is an IDENTITY HEADER, not something to act on.
+   *
+   * Set when the card labels a group whose rows carry their own controls (Revisit: every moment has
+   * jump + mark-reviewed), where a favourite/queue/⋯ cluster on the header is a third set of
+   * controls competing with them — and at compact width it wraps onto its own line, which is what
+   * made the header thick (operator 2026-09-17: "remove actions").
+   */
+  hideActions?: boolean
+  /**
+   * Tighter vertical rhythm for a card used as a header: less padding, and no bottom rule, since the
+   * block around it draws its own divider (operator 2026-09-17: "can we get it shorter").
+   */
+  dense?: boolean
 }>()
 const { t, locale } = useI18n()
 
@@ -137,8 +151,11 @@ const canExpandSummary = computed(
 <template>
   <article
     data-testid="episode-card"
-    class="lp-media-row group relative -mx-3 gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
-    :class="episode.color ? ['border-l-4', borderClass(episode.color)] : ''"
+    class="lp-media-row group relative -mx-3 gap-4 rounded-xl px-3 transition-colors sm:gap-5"
+    :class="[
+      dense ? 'py-2' : 'border-b border-border py-5',
+      episode.color ? ['border-l-4', borderClass(episode.color)] : '',
+    ]"
   >
     <!--
       LEFT COLUMN: artwork, then the facts about the episode (#2004 item 4).
@@ -199,6 +216,7 @@ const canExpandSummary = computed(
            `relative z-30` keeps it tappable above the title's stretched card-link overlay; the
            queue's reorder ↑/↓ ride the slot. -->
       <EpisodeActions
+        v-if="!hideActions"
         :slug="episode.slug"
         :hide-favorite="hideFavorite"
         :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 w-32'"

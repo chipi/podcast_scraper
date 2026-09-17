@@ -984,6 +984,22 @@ describe("SearchView", () => {
       expect(column.textContent, "the match count is not in the same column").toMatch(/match/i)
     })
 
+    it("an episode group collapses its matches and starts expanded", async () => {
+      // Collapsible on BOTH Search and Revisit through the shared EpisodeGroupCard (operator
+      // 2026-09-17). Expanded by default: a listener who just searched must not have to open every
+      // group to read the results they asked for. `v-show`, so a folded transcript cluster the user
+      // expanded INSIDE the group survives collapsing and re-opening it.
+      const w = await resultRow()
+      const toggle = w.get('[data-testid="episode-group-toggle"]')
+      const body = w.get('[data-testid="episode-group-body"]')
+      expect(toggle.attributes("aria-expanded")).toBe("true")
+      expect(toggle.text()).toContain("Hide matches")
+      await toggle.trigger("click")
+      expect(toggle.attributes("aria-expanded")).toBe("false")
+      expect(toggle.text()).toContain("Show matches")
+      expect(body.attributes("style")).toContain("display: none")
+    })
+
     it("the actions are NOT inside another interactive", async () => {
       // An interactive control inside another interactive control: the whole reason these are
       // siblings, and easy to undo while moving them around. Anchors count as well as buttons —

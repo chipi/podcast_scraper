@@ -8,16 +8,19 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCappedSections } from '../composables/useCappedSections'
+import { summaryFromDetail } from '../utils/episode'
 import {
   getEpisode,
+  getPlaybackList,
   getResurfacing,
   markSurfaced,
   putResurfacingSettings,
 } from '../services/api'
 import { useResurfacingStore } from '../stores/resurfacing'
-import type { ResurfacingItem } from '../services/types'
+import type { EpisodeDetail, EpisodeSummary, ResurfacingItem } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
 
@@ -37,40 +40,97 @@ const items = ref<ResurfacingItem[]>([])
 const paused = ref(false)
 const loaded = ref(false)
 
-/** Episode titles for the group headings (slug → title); the slug is the fallback. */
-const titles = ref<Record<string, string>>({})
+/**
+ * The episode each group is for (slug → detail), so the group header can be the real
+ * `EpisodeCard` — artwork included — rather than a line of text (operator 2026-09-17).
+ *
+ * The whole detail is kept, not just the title: it already carries the artwork, show name, feed id
+ * and date the card needs, so the card costs no extra request beyond the one this view was already
+ * making for the heading.
+ */
+const details = ref<Record<string, EpisodeDetail>>({})
+
+/**
+ * When the listener last played each episode (slug → unix seconds), from their playback positions.
+ *
+ * Asked for directly (operator 2026-09-17): a moment resurfaces weeks after the fact, and "when did
+ * I hear this" is the context that tells you whether you are revisiting something recent or
+ * something you half-remember. `updated_at` is the last time the position moved, which is the last
+ * time it was listened to. No new endpoint — this is the same list the queue's "recently played"
+ * reads.
+ */
+const listenedAt = ref<Record<string, number>>({})
 
 async function load(): Promise<void> {
   const resp = await getResurfacing()
   items.value = resp.items
   paused.value = resp.paused
   loaded.value = true
-  void hydrateTitles()
+  void hydrateEpisodes()
+  void hydrateListenedAt()
+}
+
+/** Tolerated like the episode hydration: no playback history just means no "listened" line. */
+async function hydrateListenedAt(): Promise<void> {
+  const positions = await getPlaybackList().catch(() => [])
+  const next: Record<string, number> = {}
+  for (const p of positions) {
+    if (p.updated_at) next[p.slug] = p.updated_at
+  }
+  listenedAt.value = next
 }
 
 /**
  * Resolve the episode each due item came from.
  *
- * Not awaited by `load`: the list is useful before the titles arrive (each group falls back to its
- * slug), and one unresolvable episode must not hold up the rest. Failures are silent per slug for
- * the same reason.
+ * Not awaited by `load`: the list is useful before the episodes arrive (each group falls back to a
+ * slug-titled card), and one unresolvable episode must not hold up the rest. Failures are silent per
+ * slug for the same reason.
  */
-async function hydrateTitles(): Promise<void> {
+async function hydrateEpisodes(): Promise<void> {
   const slugs = [...new Set(items.value.map((i) => i.highlight.episode_slug))].filter(
-    (s) => s && !titles.value[s],
+    (s) => s && !details.value[s],
   )
   await Promise.all(
     slugs.map(async (slug) => {
       const d = await getEpisode(slug).catch(() => null)
-      if (d) titles.value[slug] = d.title
+      if (d) details.value[slug] = d
     }),
   )
 }
 
 interface RevisitGroup {
   slug: string
-  title: string
+  episode: EpisodeSummary
   items: ResurfacingItem[]
+}
+
+/**
+ * The group header's episode, in the shape the shared card takes.
+ *
+ * Built through `summaryFromDetail` (the one adapter Queue / Recent / Saved use) with the SUMMARY
+ * fields cleared: this is a review surface, and the episode's prose summary would compete with the
+ * captured moment that is the actual content — the same reason Search's groups carry no summary.
+ * Before the detail arrives, or if it never does, the card still renders with the slug as its title
+ * rather than collapsing the group.
+ */
+function groupEpisode(slug: string): EpisodeSummary {
+  const d = details.value[slug]
+  const base = d
+    ? summaryFromDetail(d)
+    : ({
+        slug,
+        title: slug,
+        feed_id: null,
+        podcast_title: null,
+        publish_date: null,
+        duration_seconds: null,
+        artwork_url: null,
+        episode_image_url: null,
+        feed_image_url: null,
+        status: 'ready',
+      } as unknown as EpisodeSummary)
+  return { ...base, summary_preview: null, summary_text: null, summary_bullets: [] }
 }
 
 /**
@@ -93,7 +153,7 @@ const groups = computed<RevisitGroup[]>(() => {
   }
   return [...bySlug.entries()].map(([slug, list]) => ({
     slug,
-    title: titles.value[slug] ?? slug,
+    episode: groupEpisode(slug),
     items: list,
   }))
 })
@@ -102,6 +162,14 @@ const groups = computed<RevisitGroup[]>(() => {
 // list is unbounded, so it gets the same paging rule rather than growing without limit.
 const caps = useCappedSections()
 const visibleGroups = computed(() => caps.visible('revisit-groups', groups.value))
+
+/** "Listened 14 Sep 2026" for an episode with playback history; null when never played. */
+function listenedLabel(slug: string): string | null {
+  const at = listenedAt.value[slug]
+  if (!at) return null
+  const date = formatPublishDate(new Date(at * 1000).toISOString(), locale.value)
+  return date ? t('revisit.listenedOn', { date }) : null
+}
 
 /** The capture's own date, for the `KIND · DATE` kicker the notes rows use. */
 function itemDate(unixSeconds: number): string {
@@ -186,21 +254,31 @@ onMounted(load)
     <p v-if="paused" class="text-muted">{{ t('revisit.paused') }}</p>
     <p v-else-if="loaded && !items.length" class="text-muted">{{ t('revisit.empty') }}</p>
 
-    <!-- Grouped by the episode each moment came from (operator 2026-09-17) — the Saved / Search
-         structure: an episode heading that opens the episode, then its due captures. -->
+    <!-- Grouped by the episode each moment came from, using the SAME `EpisodeGroupCard` Search
+         renders (operator 2026-09-17): the real episode card with artwork as the header, moments
+         collapsible beneath it. The count sits under the artwork in `#aside`, exactly as Search's
+         match count does. -->
     <template v-else>
-      <section
-        v-for="g in visibleGroups"
-        :key="g.slug"
-        class="mb-6"
-        data-testid="revisit-group"
-      >
-        <RouterLink
-          :to="{ name: 'player', params: { slug: g.slug } }"
-          class="lp-section mb-2 block no-underline hover:text-accent"
-          data-testid="revisit-group-title"
-        >{{ g.title }}</RouterLink>
-        <ul class="flex flex-col gap-3">
+      <ul class="flex flex-col gap-3">
+        <EpisodeGroupCard
+          v-for="g in visibleGroups"
+          :key="g.slug"
+          :episode="g.episode"
+          :noun="t('revisit.groupNoun')"
+          :item-count="g.items.length"
+          slim
+          testid="revisit-group"
+        >
+          <template #aside>{{ t('revisit.momentCount', g.items.length) }}</template>
+          <!-- WHEN this episode was listened to (operator 2026-09-17) — between the show name and
+               the title, where the card puts surface-specific facts. Absent for an episode with no
+               playback history rather than guessed at from the capture date. -->
+          <template v-if="listenedLabel(g.slug)" #meta>
+            <span class="lp-kicker block" data-testid="revisit-listened">
+              {{ listenedLabel(g.slug) }}
+            </span>
+          </template>
+          <ul class="flex flex-col gap-3 px-4 pb-4 pt-3">
           <li
             v-for="item in g.items"
             :key="item.highlight.id"
@@ -241,8 +319,9 @@ onMounted(load)
               >{{ t('revisit.dismiss') }}</button>
             </div>
           </li>
-        </ul>
-      </section>
+          </ul>
+        </EpisodeGroupCard>
+      </ul>
       <ShowAllToggle
         v-if="caps.overflows(groups.length)"
         :expanded="caps.expanded.has('revisit-groups')"

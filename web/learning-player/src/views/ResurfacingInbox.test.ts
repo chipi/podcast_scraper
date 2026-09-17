@@ -126,18 +126,45 @@ describe('ResurfacingInbox', () => {
     await flushPromises()
     const groups = w.findAll('[data-testid="revisit-group"]')
     expect(groups).toHaveLength(2) // two episodes, not three cards
-    const headings = w.findAll('[data-testid="revisit-group-title"]').map((h) => h.text())
-    expect(headings).toEqual(['Risk as a system', 'Pacing'])
+    // The heading is now the shared EpisodeCard (artwork + title), not a line of text.
+    const headings = groups.map((g) => g.get('[data-testid="episode-card"]').text())
+    expect(headings[0]).toContain('Risk as a system')
+    expect(headings[1]).toContain('Pacing')
     expect(groups[0].findAll('[data-testid="revisit-item"]')).toHaveLength(2)
   })
 
-  it('falls back to the slug when the episode title cannot be resolved', async () => {
-    // The list is useful before titles arrive, and one dead episode must not blank a heading.
+  it('still renders the group when the episode cannot be resolved', async () => {
+    // The list is useful before the episode arrives, and one dead episode must not drop a group:
+    // the card falls back to the slug as its title rather than the group vanishing.
     vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
     vi.spyOn(api, 'getEpisode').mockRejectedValue(new Error('gone'))
     const w = mountInbox()
     await flushPromises()
-    expect(w.get('[data-testid="revisit-group-title"]').text()).toBe('show-ep01')
+    const group = w.get('[data-testid="revisit-group"]')
+    expect(group.get('[data-testid="episode-card"]').text()).toContain('show-ep01')
+    expect(group.findAll('[data-testid="revisit-item"]')).toHaveLength(1)
+  })
+
+  it('collapses an episode group and restores it', async () => {
+    // Collapsible on BOTH Search and Revisit via the shared EpisodeGroupCard (operator). Groups
+    // start OPEN — collapsing is an affordance for a long page, not a new default that hides what
+    // the listener came for.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const w = mountInbox()
+    await flushPromises()
+    const toggle = w.get('[data-testid="episode-group-toggle"]')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(toggle.text()).toContain('Hide moments')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(toggle.text()).toContain('Show moments')
+    // `v-show`, so the rows stay in the DOM but hidden — re-opening keeps their state.
+    expect(w.get('[data-testid="episode-group-body"]').attributes('style')).toContain('display: none')
+    await toggle.trigger('click')
+    expect(w.get('[data-testid="episode-group-body"]').attributes('style') ?? '').not.toContain(
+      'display: none',
+    )
   })
 
   it('labels a moment KIND · DATE and shows the captured words as the body', async () => {

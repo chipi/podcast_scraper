@@ -29,7 +29,7 @@ import { useSignInGate } from "../composables/useSignInGate"
 import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
-import EpisodeCard from "../components/EpisodeCard.vue"
+import EpisodeGroupCard from "../components/EpisodeGroupCard.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import TypeFilterBar from "../components/TypeFilterBar.vue"
@@ -860,37 +860,34 @@ const showEmpty = computed(
           </span>
         </h2>
         <ul class="mt-3 flex flex-col gap-3">
-          <li
+          <!-- The SHARED episode-group block (`EpisodeGroupCard`), also used by Revisit: the real
+               EpisodeCard as the header — the same one Discover and Library render — with the rows
+               collapsible beneath it (operator 2026-09-17). Search's own content rides the card's
+               slots: the match count under the artwork, the matched-field breakdown between title
+               and summary. The passage list stays a sibling BELOW the card, since it is per-match
+               rather than part of the episode. -->
+          <EpisodeGroupCard
             v-for="g in section.groups"
             :key="g.slug ?? g.title"
-            class="overflow-hidden rounded-xl border border-border bg-surface"
+            :episode="groupAsEpisode(g)"
+            :noun="t('search.groupNoun')"
+            :item-count="g.rows.length"
           >
-            <!-- The SHARED EpisodeCard, the same one Discover and Library render (operator
-                 2026-09-17). This was a hand-rolled near-copy that had drifted to its own artwork
-                 radius, title size, centred action row and bordered box — a visibly different
-                 component for the same object. Search's own content rides the card's slots: the
-                 match count under the artwork, the matched-field breakdown between title and
-                 summary. The passage list stays a sibling BELOW the card, since it is per-match
-                 rather than part of the episode. -->
-            <div class="px-4 pt-1">
-              <EpisodeCard :episode="groupAsEpisode(g)">
-                <template #aside>{{ t("search.matchCount", g.hits.length) }}</template>
-                <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
-                     so the listener knows WHY this episode surfaced without tapping through. Hidden
-                     when nothing resolved to an episode-level field. -->
-                <template v-if="matchedFieldChips(g.hits).length" #meta>
-                  <span class="lp-kicker block" data-testid="matched-fields">
-                    {{ t("search.matchedPrefix") }}
-                    <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
-                      <template v-if="mi > 0"> · </template>
-                      <span class="font-semibold text-canvas-foreground">
-                        {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
-                      </span>
-                    </template>
+            <template #aside>{{ t("search.matchCount", g.hits.length) }}</template>
+            <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
+                 so the listener knows WHY this episode surfaced without tapping through. Hidden
+                 when nothing resolved to an episode-level field. -->
+            <template v-if="matchedFieldChips(g.hits).length" #meta>
+              <span class="lp-kicker block" data-testid="matched-fields">
+                {{ t("search.matchedPrefix") }}
+                <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
+                  <template v-if="mi > 0"> · </template>
+                  <span class="font-semibold text-canvas-foreground">
+                    {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
                   </span>
                 </template>
-              </EpisodeCard>
-            </div>
+              </span>
+            </template>
 
             <!-- Matching passages (#1261-3: foldable rows collapse to one
                expandable summary per (episode, source-kind)). -->
@@ -993,7 +990,7 @@ const showEmpty = computed(
                 </li>
               </template>
             </ul>
-          </li>
+          </EpisodeGroupCard>
         </ul>
       </template>
     </template>

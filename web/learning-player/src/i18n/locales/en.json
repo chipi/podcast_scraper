@@ -140,6 +140,7 @@
     "playHere": "Play from {time}",
     "viewEntity": "View",
     "matchCount": "1 match | {count} matches",
+    "groupNoun": "matches",
     "kind": {
       "insight": "Insight",
       "transcript": "Transcript",
@@ -584,7 +585,14 @@
     "dismiss": "Mark reviewed",
     "open": "Open",
     "moment": "Marked moment",
-    "span": "Highlight"
+    "span": "Highlight",
+    "momentCount": "1 moment | {count} moments",
+    "groupNoun": "moments",
+    "listenedOn": "Listened {date}"
+  },
+  "episodeGroup": {
+    "hide": "Hide {noun}",
+    "show": "Show {noun}"
   },
   "capture": {
     "markMoment": "Mark this moment",
