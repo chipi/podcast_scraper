@@ -148,7 +148,18 @@
      action row falls outside it, so only ONE set of Follow / favourite / Collection / Share is
      ever reachable and a tap cannot be ambiguous about which entity it acts on. */
   .lp-sheet {
-    --lp-peek: 9dvh;
+    /* MEASURED, and in PIXELS rather than dvh (operator 2026-09-17).
+       The peek reveals a header whose height is set by FONT SIZES, so it does not scale with the
+       viewport — the same 67px is 7.9dvh on a 852px-tall iPhone 15 Pro but 10dvh on a 667px SE. A
+       dvh value that fits one device therefore clips the title on a shorter one and leaks the
+       action row on a taller one, which is exactly the pair of complaints this had collected.
+       Measured in a real browser at 390x852:
+         entity card   — title bottom 63px, action row starts 74px
+         storyline card — title bottom 67px, action row starts 79px
+       So the peek must be >= 67 to show either title in full and < 74 to keep the entity card's
+       Follow / favourite / Collection row hidden, which the operator asked for explicitly. 70px
+       sits in that window with ~3px either side. */
+    --lp-peek: 70px;
     --lp-stack-base: 92dvh;
     --lp-depth: 0;
   }

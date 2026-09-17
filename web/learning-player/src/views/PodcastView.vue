@@ -12,6 +12,7 @@ import FavoriteButton from '../components/FavoriteButton.vue'
 import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
+import StorylineCard from '../components/StorylineCard.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
 import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
@@ -127,7 +128,28 @@ const typicalLength = computed<string | null>(() => {
   if (secs.length < 3) return null
   return formatDuration(secs[Math.floor(secs.length / 2)])
 })
-const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+// A signals-band chip opens the card for what its SECTION says it is. The STORYLINES chips used
+// to emit `kind: 'topic'` carrying the cluster's anchor topic id, so tapping a chip under a
+// "STORYLINES" heading opened a TOPIC card (operator 2026-09-17). The id was right all along —
+// /storyline/:id IS an anchor topic id — it was handed to the wrong component.
+// The show's facts as ONE line: byline · N episodes · cadence · typical length · updated · LANG.
+// Built here rather than in the template because the separator belongs BETWEEN present values, and
+// a feed can be missing any of them.
+const metaLine = computed<string[]>(() => {
+  const out: string[] = []
+  const authors = show.value?.authors
+  if (authors?.length) out.push(t('podcast.byline', { authors: authors.join(', ') }))
+  if (total.value) out.push(t('podcast.episodeCount', { count: total.value }, total.value))
+  if (cadence.value) out.push(t(`podcast.cadence.${cadence.value}`))
+  if (typicalLength.value) out.push(t('podcast.typicalLength', { len: typicalLength.value }))
+  if (feedUpdated.value) out.push(t('podcast.updated', { date: feedUpdated.value }))
+  // Language deliberately omitted: every show in the corpus is English today, so the chip was a
+  // constant that said nothing and cost a wrap in a 144px column (operator 2026-09-17). Restore it
+  // when the corpus is genuinely multilingual — the field is still on the model.
+  return out
+})
+
+const cardTarget = ref<{ kind: 'person' | 'topic' | 'storyline'; id: string } | null>(null)
 
 // #2036 — the shareable card for this show: title + episode count + a canonical link. Clean (no
 // quote/byline) — the feed description is marketing copy, not a signature take. Brand-cyan accent
@@ -266,6 +288,23 @@ watch(() => props.feedId, reset)
         :alt="show.title ?? ''"
         class="h-36 w-36 rounded-xl bg-elevated object-cover"
       />
+        <!-- Feed METADATA, under the artwork and the actions (operator 2026-09-17). It used to be
+             stacked between the title and the description in the right column, so the one thing
+             that column is for — the name and what the show is about — was pushed down by four rows
+             of counts, cadence and dates.
+
+             ONE wrapping line with separators (operator 2026-09-17), not a row per value: six
+             stacked rows under a 144px column read as a spec sheet. Composed in `metaLine` and
+             joined, so the separators fall between the values that are actually PRESENT — a
+             template-level "· if not first" has to know what preceded it and gets it wrong the
+             moment a field is missing. -->
+        <p
+          v-if="metaLine.length"
+          class="text-xs leading-relaxed text-muted"
+          data-testid="podcast-feed-meta"
+        >
+          {{ metaLine.join(' · ') }}
+        </p>
         <!-- Two aligned rows under the 144px artwork: the primary Follow pill full-width on top,
              the secondary actions as an even icon row beneath (two pills can't share a 144px row,
              so Collection uses its compact icon variant here rather than the wide pill). -->
@@ -302,23 +341,6 @@ watch(() => props.feedId, reset)
         </h1>
         <!-- Feed by-line (#2043): host/author names straight from the RSS channel. Text for now —
              linking each to its person card is the entity-resolution follow-up (#2044). -->
-        <p v-if="show?.authors?.length" class="mt-1 text-sm text-muted" data-testid="podcast-byline">
-          {{ t('podcast.byline', { authors: show.authors.join(', ') }) }}
-        </p>
-        <p v-if="total" class="mt-1 text-sm text-muted">
-          {{ t('podcast.episodeCount', { count: total }, total)
-          }}<template v-if="cadence"> · {{ t(`podcast.cadence.${cadence}`) }}</template
-          ><template v-if="typicalLength"> · {{ t('podcast.typicalLength', { len: typicalLength }) }}</template>
-        </p>
-        <!-- Feed language + last-updated (#2043), when the channel carried them. -->
-        <p
-          v-if="show?.language || feedUpdated"
-          class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted"
-          data-testid="podcast-feed-meta"
-        >
-          <span v-if="show?.language" class="rounded-full bg-overlay px-2 py-0.5 uppercase">{{ show.language }}</span>
-          <span v-if="feedUpdated">{{ t('podcast.updated', { date: feedUpdated }) }}</span>
-        </p>
         <p
           v-if="show?.description"
           ref="descEl"
@@ -391,8 +413,13 @@ watch(() => props.feedId, reset)
     <!-- Notes on this show (NT.1). -->
     <NoteComposer target="show" :target-id="feedId" />
 
+    <StorylineCard
+      v-if="cardTarget?.kind === 'storyline'"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
     <EntityCard
-      v-if="cardTarget"
+      v-else-if="cardTarget"
       :kind="cardTarget.kind"
       :id="cardTarget.id"
       @close="cardTarget = null"

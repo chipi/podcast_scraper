@@ -64,16 +64,30 @@ function clearAll(): void {
 
 <template>
   <div v-if="availableTypes.length" class="mb-5 flex flex-col gap-3" data-testid="saved-filter-bar">
-    <!-- Type-to-filter search across every section — the primary find tool at 100+ items (#2042).
+    <!-- Search + sort share ONE row (operator 2026-09-17). The search was full-width with sort
+         stranded on the row below, which spent a whole line on a control two words wide. The field
+         only needs enough room to read a query back, so it flexes and the select takes its natural
+         width beside it.
+         Type-to-filter search across every section — the primary find tool at 100+ items (#2042).
          A match is never hidden behind a section cap: the parent lifts caps while this is non-empty. -->
-    <input
-      v-model="search"
-      type="search"
-      :placeholder="searchPlaceholder ?? t('library.searchSaved')"
-      :aria-label="searchPlaceholder ?? t('library.searchSaved')"
-      data-testid="saved-search"
-      class="lp-search w-full rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
-    />
+    <div class="flex items-center gap-2">
+      <input
+        v-model="search"
+        type="search"
+        :placeholder="searchPlaceholder ?? t('library.searchSaved')"
+        :aria-label="searchPlaceholder ?? t('library.searchSaved')"
+        data-testid="saved-search"
+        class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+      />
+      <select
+        v-model="sort"
+        :aria-label="t('library.savedSort')"
+        data-testid="saved-sort"
+        class="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-canvas-foreground outline-none focus:border-accent"
+      >
+        <option v-for="o in resolvedSortOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+      </select>
+    </div>
     <!-- Type chips: none selected = All. "All" is an explicit chip so clearing is one tap. -->
     <div class="flex flex-wrap items-center gap-2">
       <button
@@ -128,19 +142,10 @@ function clearAll(): void {
         </button>
       </div>
 
-      <select
-        v-model="sort"
-        :aria-label="t('library.savedSort')"
-        data-testid="saved-sort"
-        class="ml-auto rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-canvas-foreground outline-none focus:border-accent"
-      >
-        <option v-for="o in resolvedSortOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-      </select>
-
       <button
         v-if="hasFilters"
         type="button"
-        class="text-xs font-semibold text-accent"
+        class="ml-auto text-xs font-semibold text-accent"
         data-testid="saved-filter-clear"
         @click="clearAll"
       >{{ t('library.savedFilterClear') }}</button>

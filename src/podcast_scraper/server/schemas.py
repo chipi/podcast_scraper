@@ -1409,6 +1409,17 @@ class VapidKeyResponse(BaseModel):
 # --- Collections / boards — the curation layer (#1417, PRD-046 FR4 / RFC-111 §1) ---
 
 
+class CollectionReorder(BaseModel):
+    """Body for ``PATCH /api/app/collections/order`` (CO.7) — the ids in the order the user set."""
+
+    order: list[str] = Field(
+        description=(
+            "Collection ids, first to last. Ids omitted keep their relative place after "
+            "these, so a stale client cannot drop a board created since it loaded."
+        ),
+    )
+
+
 class Collection(BaseModel):
     """A user collection (GET/POST /api/app/collections)."""
 
@@ -1422,6 +1433,14 @@ class Collection(BaseModel):
         description=(
             "Derived cover thumbnail (CO.6): the first episode/highlight member's artwork, cached "
             "on the row and recomputed on membership change so the list stays a single cheap read."
+        ),
+    )
+    position: int | None = Field(
+        default=None,
+        description=(
+            "Manual sort position (CO.7), 0-based. Null for a board the user has never reordered — "
+            "those keep their newest-first place AFTER every positioned board. Not a timestamp: "
+            "position 0 and a created_at epoch cannot share one sort key."
         ),
     )
 

@@ -5,13 +5,14 @@
  * Embedded in the Library "Boards" tab (CO.7 — the tab that holds collections + notes). Auth-gated
  * (empty when signed out).
  */
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
 import { useCappedSections } from "../composables/useCappedSections"
+import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
 import { useCaptureStore } from "../stores/capture"
 import { RouterLink, useRouter } from "vue-router"
@@ -29,6 +30,10 @@ import { useQueueStore } from "../stores/queue"
 import { useSignInGate } from "../composables/useSignInGate"
 import { formatPublishDate } from "../utils/format"
 
+// Hoisted (was created inside `load`): the reorder handlers below need the same instance, and a
+// second `useCollectionsStore()` call would hand them a different local ref to keep in sync.
+const store = useCollectionsStore()
+
 const { t, locale } = useI18n()
 const router = useRouter()
 
@@ -40,6 +45,8 @@ function modifiedLabel(c: Collection): string | null {
 const queue = useQueueStore()
 const { gated } = useSignInGate()
 const capture = useCaptureStore()
+// Shared rule (composables/noteTarget); highlights let a `highlight` note reach its moment.
+const noteRoute = (target: string, id: string) => resolveNoteRoute(target, id, capture.highlights)
 
 // Search + sort across boards and notes (CO.5).
 const search = ref("")
@@ -57,16 +64,55 @@ function openFromGrid(id: string): void {
 function noteDate(unixSeconds: number): string {
   return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ""
 }
-/** A route to the note's target when it has a page; null otherwise (highlight/insight/storyline). */
-function noteRoute(
-  target: string,
-  id: string
-): { name: string; params: Record<string, string> } | null {
-  if (target === "episode") return { name: "player", params: { slug: id } }
-  if (target === "topic") return { name: "topic", params: { id } }
-  if (target === "person") return { name: "person", params: { id } }
-  if (target === "show") return { name: "podcast", params: { feedId: id } }
-  return null
+// --- manual board order (CO.7) -------------------------------------------------------------
+// Only offered while the list is in its own order. Sorting by name or item count is a VIEW of the
+// list; a drag under those would persist an order the very next render discards, which reads as the
+// drag having failed (operator 2026-09-17).
+const reorderable = computed(() => sortBy.value === 'updated' && !searchActive.value)
+// The view renders from a local `collections` ref, so a store-side reorder has to flow back here
+// or the list would not move until the next full load.
+watch(
+  () => store.items,
+  (items) => {
+    collections.value = items
+  }
+)
+const draggingId = ref<string | null>(null)
+const dragOverId = ref<string | null>(null)
+
+function onDragStart(id: string, e: DragEvent): void {
+  draggingId.value = id
+  // Firefox refuses to start a drag without data on the transfer.
+  e.dataTransfer?.setData('text/plain', id)
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+
+function onDragEnd(): void {
+  draggingId.value = null
+  dragOverId.value = null
+}
+
+/** Drop `draggingId` onto `targetId`'s slot and persist the whole order. */
+function onDrop(targetId: string): void {
+  const from = draggingId.value
+  onDragEnd()
+  if (!from || from === targetId) return
+  const ids = visibleCollections.value.map((c) => c.id)
+  const a = ids.indexOf(from)
+  const b = ids.indexOf(targetId)
+  if (a < 0 || b < 0) return
+  ids.splice(b, 0, ...ids.splice(a, 1))
+  void store.reorder(ids)
+}
+
+/** Keyboard/touch path — drag is pointer-only, so the same move is reachable as a button. */
+function move(id: string, delta: number): void {
+  const ids = visibleCollections.value.map((c) => c.id)
+  const a = ids.indexOf(id)
+  const b = a + delta
+  if (a < 0 || b < 0 || b >= ids.length) return
+  ids.splice(b, 0, ...ids.splice(a, 1))
+  void store.reorder(ids)
 }
 
 const collections = ref<Collection[]>([])
@@ -193,11 +239,11 @@ const episodeItems = computed(() => open.value?.items.filter((i) => i.kind === "
 const loadError = ref(false)
 const linkError = ref(false)
 
+
 async function load(): Promise<void> {
   // Through the STORE (#2013): a failed read falls back to the cached copy instead of rendering
   // "you have no collections yet", which is the specific lie that made the data look lost. The
   // error state is reserved for "no answer AND no cache".
-  const store = useCollectionsStore()
   await store.load()
   collections.value = store.items
   loaded.value = store.loaded
@@ -442,11 +488,21 @@ onMounted(() => {
               data-testid="board-cover"
               @error="brokenCovers.add(c.id)"
             />
+            <!-- Drawn, not a glyph: U+2637 (☷) is absent from the bundled font and rendered as
+                 tofu on device (operator 2026-09-17) — the placeholder for "no cover" was itself a
+                 broken character. Three bars read as a stack of items without needing a font. -->
             <span
               v-else
-              class="flex h-full w-full items-center justify-center text-2xl text-muted"
+              class="flex h-full w-full items-center justify-center text-muted"
               aria-hidden="true"
-              >☷</span
+              data-testid="board-cover-placeholder"
+            >
+              <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor">
+                <rect x="4" y="6" width="16" height="2.6" rx="1.3" />
+                <rect x="4" y="11" width="16" height="2.6" rx="1.3" />
+                <rect x="4" y="16" width="16" height="2.6" rx="1.3" />
+              </svg>
+            </span
             >
           </span>
           <span class="mt-1.5 block truncate text-sm font-semibold">{{ c.name }}</span>
@@ -470,7 +526,13 @@ onMounted(() => {
         v-for="c in caps.visible('boards', visibleCollections, searchActive)"
         :key="c.id"
         class="rounded-xl border border-border"
-        :class="open?.collection.id === c.id ? 'bg-overlay/40' : ''"
+        :class="[open?.collection.id === c.id ? 'bg-overlay/40' : '', dragOverId === c.id ? 'ring-2 ring-accent' : '']"
+        :draggable="reorderable"
+        @dragstart="onDragStart(c.id, $event)"
+        @dragover.prevent="dragOverId = c.id"
+        @dragleave="dragOverId === c.id && (dragOverId = null)"
+        @drop.prevent="onDrop(c.id)"
+        @dragend="onDragEnd"
       >
         <div class="flex items-center justify-between gap-2 p-3">
           <button
@@ -514,6 +576,42 @@ onMounted(() => {
           >
             ▶ {{ t("collections.playAll") }}
           </button>
+          <!-- Cover thumbnail, before the ✕ (operator 2026-09-17) — the same artwork the grid view
+               shows, so a board is recognisable by its cover in either layout rather than only in
+               one. `cover_url` is already derived server-side (CO.6); nothing new is fetched. -->
+          <img
+            v-if="c.cover_url && !brokenCovers.has(c.id)"
+            :src="c.cover_url"
+            alt=""
+            class="h-9 w-9 shrink-0 rounded-md bg-elevated object-cover"
+            data-testid="collection-thumb"
+            @error="brokenCovers.add(c.id)"
+          />
+          <!-- Grab area between the cover and the ✕ (operator 2026-09-17). Arrows were tried and
+               dropped: two extra buttons per row for something a drag already does. The grip is a
+               drawn SVG, not a glyph — U+283F rendered as tofu on device, the same failure CloseIcon
+               exists to prevent.
+               Only while the list is in its MANUAL order: dragging under a name or count sort would
+               write an order the next render discards, which reads as the drag having failed. -->
+          <span
+            v-if="reorderable"
+            class="flex shrink-0 cursor-grab touch-none items-center px-1 text-muted active:cursor-grabbing"
+            data-testid="collection-drag-handle"
+            :aria-label="t('collections.reorderHandle', { name: c.name })"
+            role="button"
+            tabindex="0"
+            @keydown.up.prevent="move(c.id, -1)"
+            @keydown.down.prevent="move(c.id, 1)"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4" fill="currentColor" aria-hidden="true">
+              <circle cx="6" cy="4" r="1.3" />
+              <circle cx="10" cy="4" r="1.3" />
+              <circle cx="6" cy="8" r="1.3" />
+              <circle cx="10" cy="8" r="1.3" />
+              <circle cx="6" cy="12" r="1.3" />
+              <circle cx="10" cy="12" r="1.3" />
+            </svg>
+          </span>
           <button
             type="button"
             class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"

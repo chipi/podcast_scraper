@@ -29,6 +29,8 @@ const TOFU: Record<string, string> = {
   "►": "► U+25BA — use ▶ U+25B6, which renders, or an SVG",
   "＋": "＋ U+FF0B — FULLWIDTH plus; use ASCII +",
   "\u{1F525}": "🔥 U+1F525 — emoji; drop it or draw it",
+  "☷": "☷ U+2637 — board cover placeholder; draw it",
+  "⠿": "⠿ U+283F — drag grip; draw it",
 }
 
 function vueFiles(dir: string, out: string[] = []): string[] {

@@ -17,7 +17,9 @@ import { getPodcastSignals } from '../services/api'
 import type { PodcastSignals } from '../services/types'
 
 const props = defineProps<{ feedId: string }>()
-const emit = defineEmits<{ (e: 'open', payload: { kind: 'topic' | 'person'; id: string }): void }>()
+const emit = defineEmits<{
+  (e: 'open', payload: { kind: 'topic' | 'person' | 'storyline'; id: string }): void
+}>()
 const { t } = useI18n()
 
 /**
@@ -129,7 +131,7 @@ const hasAny = computed(
           data-testid="ps-theme"
           class="lp-theme-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground transition disabled:opacity-60"
           :disabled="!th.anchor_topic_id"
-          @click="th.anchor_topic_id && emit('open', { kind: 'topic', id: th.anchor_topic_id })"
+          @click="th.anchor_topic_id && emit('open', { kind: 'storyline', id: th.anchor_topic_id })"
         >
           {{ th.label }} <span class="opacity-70">· {{ th.topic_count }}</span>
         </button>

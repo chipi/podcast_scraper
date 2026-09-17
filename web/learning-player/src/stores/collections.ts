@@ -20,7 +20,8 @@
  */
 
 import { defineStore } from 'pinia'
-import { getCollections } from '../services/api'
+import { getCollections,
+  reorderCollections } from '../services/api'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import type { Collection } from '../services/types'
@@ -52,6 +53,32 @@ export const useCollectionsStore = defineStore('collections', {
      * `loaded` latches only on a real answer or a cache hit — never on a bare failure, because a
      * latched empty list is exactly the "you have none" lie.
      */
+    /**
+     * Persist a manual board order (CO.7).
+     *
+     * Optimistic: the list reorders locally first, because a drag that snaps back while a request
+     * flies reads as a failed drag. The server's answer then replaces it wholesale rather than
+     * being merged — it is the only copy that accounts for a board another device added or removed
+     * since. On failure the previous order is restored, so a dropped request never leaves the user
+     * looking at an arrangement that was not saved.
+     */
+    async reorder(order: string[]): Promise<void> {
+      const previous = [...this.items]
+      const rank = new Map(order.map((id, i) => [id, i]))
+      this.items = [...this.items].sort(
+        (a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+      )
+      const generation = identityEpoch()
+      try {
+        const items = await reorderCollections(order)
+        if (identityChangedSince(generation)) return
+        this.items = items
+        void writeCached('collections', { items })
+      } catch {
+        if (!identityChangedSince(generation)) this.items = previous
+      }
+    },
+
     async load(): Promise<void> {
       const generation = identityEpoch()
       try {

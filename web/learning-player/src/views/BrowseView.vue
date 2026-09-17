@@ -68,6 +68,16 @@ const TAB_KEYS: { key: Tab; labelKey: string }[] = [
 const tabs = computed<TabSpec<Tab>[]>(() =>
   TAB_KEYS.map((tb) => ({ key: tb.key, label: t(tb.labelKey), testid: `browse-tab-${tb.key}` })),
 )
+// `?trends=topic|storyline|person` selects the kind inside the trends section. Deliberately NOT
+// `?tab=`: that one drives THIS view's own Episodes/Shows tabs, so reusing it would both miss the
+// trends tab and reset the page to Episodes (operator 2026-09-17).
+const TRENDS_KINDS = ['topic', 'storyline', 'person'] as const
+const trendsKind = computed(() => {
+  const q = String(route.query.trends || '')
+  return (TRENDS_KINDS as readonly string[]).includes(q)
+    ? (q as 'topic' | 'storyline' | 'person')
+    : undefined
+})
 const initial = String(route.query.tab || '')
 const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initial) ? (initial as Tab) : 'episodes')
 
@@ -106,7 +116,14 @@ watch(
          row (like trending shows); the link targets the active kind tab. Tapping a row opens the
          entity page. -->
     <div class="mt-4">
-      <DiscoveryExplorer :collapsed="10" see-all :title="t('browse.trendsTitle')" @open="onEntityOpen" />
+      <DiscoveryExplorer
+        id="trends"
+        :collapsed="10"
+        see-all
+        :kind="trendsKind"
+        :title="t('browse.trendsTitle')"
+        @open="onEntityOpen"
+      />
     </div>
 
     <!-- Content band below the dashboard: the things you actually play. Two tabs spread equally

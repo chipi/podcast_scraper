@@ -227,22 +227,28 @@ describe('the show header is rebalanced (#2004 item 5)', () => {
 })
 
 describe('PodcastView — feed metadata (#2043)', () => {
-  it('renders the author by-line, language badge and last-updated when the feed carries them', async () => {
+  // The facts are now ONE wrapping line under the artwork rather than a row per value, so they are
+  // asserted through that line's text instead of per-element testids (operator 2026-09-17). The
+  // language badge is deliberately gone with it: every show in the corpus is English, so it was a
+  // constant that cost a wrap in a 144px column.
+  it('renders the author by-line and last-updated when the feed carries them', async () => {
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([
       { ...show(), authors: ['Jane Host', 'Bo Guest'], language: 'en', last_updated: '2026-07-16T09:00:00' },
     ])
     const w = await mountView()
-    expect(w.find('[data-testid="podcast-byline"]').text()).toBe('By Jane Host, Bo Guest')
     const meta = w.find('[data-testid="podcast-feed-meta"]')
     expect(meta.exists()).toBe(true)
-    expect(meta.text()).toContain('en')
+    expect(meta.text()).toContain('By Jane Host, Bo Guest')
     expect(meta.text()).toContain('Updated')
+    expect(meta.text()).toContain('\u00b7')
   })
 
-  it('omits the by-line and feed-meta line when the feed carried none', async () => {
-    // Default show() has no authors/language/last_updated — the rows must not render empty.
+  it('omits the feed facts the feed did not carry', async () => {
+    // Default show() has no authors/last_updated. The line itself still renders — it also carries
+    // the episode count, which is ours and not feed metadata — but it must not invent the rest.
     const w = await mountView()
-    expect(w.find('[data-testid="podcast-byline"]').exists()).toBe(false)
-    expect(w.find('[data-testid="podcast-feed-meta"]').exists()).toBe(false)
+    const meta = w.find('[data-testid="podcast-feed-meta"]')
+    expect(meta.text()).not.toContain('By ')
+    expect(meta.text()).not.toContain('Updated')
   })
 })

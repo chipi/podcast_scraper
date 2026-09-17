@@ -155,7 +155,12 @@ export const router = createRouter({
   // under /app/ or a preview /pr-N/ prefix.
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior: () => ({ top: 0 }),
+  // Top on every navigation, EXCEPT when the link names an anchor — Home's "See all →" lands on
+  // Discover's trends section, which sits below the fold, so scrolling to the top would drop the
+  // reader above the very thing they asked for (operator 2026-09-17). `behavior: 'smooth'` makes
+  // the jump legible as a move rather than a page swap.
+  scrollBehavior: (to) =>
+    to.hash ? { el: to.hash, behavior: 'smooth', top: 8 } : { top: 0 },
 })
 
 // Login-first guard (RFC-120): a free account is required for everything except the two

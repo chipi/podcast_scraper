@@ -486,6 +486,8 @@ export interface Collection {
   count: number
   /** Derived cover thumbnail (CO.6): first episode/highlight member's artwork; null when none. */
   cover_url?: string | null
+  /** Manual sort position (CO.7); null for a board never reordered — those follow the ordered ones. */
+  position?: number | null
 }
 
 /** A pinnable kind (RFC-119). */

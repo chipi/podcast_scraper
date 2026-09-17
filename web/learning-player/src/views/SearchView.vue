@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
+import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { resolveEntity, searchCorpus } from "../services/api"
@@ -39,6 +40,8 @@ const router = useRouter()
 const { isGated, gated } = useSignInGate()
 const savedQueries = useSavedQueriesStore()
 const capture = useCaptureStore()
+// Shared rule (composables/noteTarget) — was a second, drifted copy of the same function.
+const noteRoute = (target: string, id: string) => resolveNoteRoute(target, id, capture.highlights)
 // SR.1 — search the listener's OWN notes alongside the corpus. Notes are per-user and client-side,
 // so this is a local text match, shown as its own "Your notes" section rather than interleaved with
 // the corpus passages (a note is not a transcript hit).
@@ -53,18 +56,6 @@ const noteMatches = computed<Note[]>(() => {
     .filter((n) => n.text.toLowerCase().includes(q))
     .sort((a, b) => b.created_at - a.created_at)
 })
-/** A route to the note's target, or null for a target with no page (highlight / insight). */
-function noteRoute(
-  target: string,
-  id: string
-): { name: string; params: Record<string, string> } | null {
-  if (target === "episode") return { name: "player", params: { slug: id } }
-  if (target === "topic") return { name: "topic", params: { id } }
-  if (target === "person") return { name: "person", params: { id } }
-  if (target === "show") return { name: "podcast", params: { feedId: id } }
-  if (target === "storyline") return { name: "storyline", params: { id } }
-  return null
-}
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
 // "Saved ✓" if the current query was already persisted. No per-view

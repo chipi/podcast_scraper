@@ -208,8 +208,8 @@ const personRoleLabel = computed(() => {
   const key = ROLE_LABEL_KEYS[personRole.value]
   return key ? t(key) : ""
 })
-// The external bio's one-line descriptor rides in the header ("who is this"); the rest of the bio
-// lives in the person body. Kept in the shell because it sits beside the title.
+// The external bio's one-line descriptor rides in the header ("who is this"); the bio prose itself
+// sits beside the photo in the person body.
 const personWeb = computed(() => person.value?.web ?? null)
 const isTopic = computed(() => current.value.kind === "topic")
 </script>
@@ -261,7 +261,8 @@ const isTopic = computed(() => current.value.kind === "topic")
         {{ label || "…" }}
       </h2>
       <!-- One-line "who is this" descriptor under the name (person_web) — glanceable identity
-           without reading the bio. e.g. "American financier and politician". -->
+           without reading the bio. e.g. "American financier and politician". The BIO itself sits
+           beside the photo in PersonCardContent; this is the short subtitle, not that. -->
       <span
         v-if="!isTopic && personWeb?.description"
         class="mt-0.5 block truncate text-sm text-muted"

@@ -469,6 +469,7 @@
     "searchLibrary": "Search transcripts for “{term}”",
     "personEpisodes": "In {count} episode | In {count} episodes",
     "hostOf": "Host of",
+    "andJoin": "and",
     "showEpisodeCount": "{count} episode | {count} episodes",
     "personOtherEpisodes": "Also appears in {count} episode | Also appears in {count} episodes",
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
@@ -562,7 +563,10 @@
     "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
     "confirmDelete": "Delete collection",
     "unresolved": "Couldn't load this ({ref})",
-    "episodeCount": "no episodes | {count} episode | {count} episodes"
+    "episodeCount": "no episodes | {count} episode | {count} episodes",
+    "reorderHandle": "Reorder {name}",
+    "moveUp": "Move {name} up",
+    "moveDown": "Move {name} down"
   },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule. Reviewing one — open it, or mark it reviewed — takes it off this list and drops the Library count by one.",
