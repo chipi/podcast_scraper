@@ -76,7 +76,8 @@ Hello
 world
 """
     plain, segs = parse_srt(body)
-    assert plain == "Helloworld"
+    # Two cues cut between words are two words (#2075): "Helloworld" was the bug.
+    assert plain == "Hello world"
     assert len(segs) == 2
     assert segs[0]["start"] == 0.0
     assert segs[1]["end"] == 2.0
@@ -177,3 +178,28 @@ class TestWebVTTVoiceSpans:
         assert segments[0]["start"] == 2.730
         assert segments[0]["end"] == 5.600
         assert plain == segments[0]["text"]
+
+
+class TestCuesCutBetweenWordsStaySeparate:
+    """41% of cue boundaries on the production snapshot's publisher transcripts glued two words
+    ("PresidentJeff Schmidt"), hiding spoken names from every reader (#2075)."""
+
+    VTT = (
+        "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n<v Speaker 3>speaking with the Fed President\n\n"
+        "00:00:02.000 --> 00:00:03.000\n<v Speaker 3>Jeff Schmidt. Thank you.\n"
+    )
+
+    def test_a_space_separates_the_cues(self) -> None:
+        plain, _segs = parse_webvtt(self.VTT)
+        assert "President Jeff Schmidt" in plain
+
+    def test_plain_text_is_still_exactly_the_segments_joined(self) -> None:
+        plain, segs = parse_webvtt(self.VTT)
+        assert "".join(s["text"] for s in segs) == plain
+
+    def test_an_existing_space_is_not_doubled(self) -> None:
+        body = (
+            "1\n00:00:00,000 --> 00:00:01,000\nHello \n\n2\n00:00:01,000 --> 00:00:02,000\nworld\n"
+        )
+        plain, _segs = parse_srt(body)
+        assert plain == "Hello world"

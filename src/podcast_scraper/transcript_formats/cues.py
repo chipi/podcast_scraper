@@ -33,6 +33,22 @@ _VOICE_SPAN = re.compile(r"<v(?:\.[^\s>]+)*\s+([^>]+)>")
 _SRT_SPEAKER_PREFIX = re.compile(r"^\s*(Speaker\s+\d+)\s*:\s*", re.IGNORECASE)
 
 
+def _separate_cues(segments: List[Dict[str, Any]]) -> None:
+    """End a cue with a space when neither it nor the next cue carries one at the boundary.
+
+    Plain text is the concatenation of cue texts (exact alignment, #545), and publishers cut cues
+    between words without a trailing space — so "...Kansas City Fed President" + "Jeff Schmidt"
+    became "PresidentJeff Schmidt" in the stored transcript. Measured on the production snapshot:
+    94,927 of 233,953 cue boundaries (41%) across 249 publisher-transcript episodes were glued, and
+    every sampled one sat between two words. The space goes INTO the preceding segment's text, so
+    plain text is still exactly the segments joined and character offsets stay aligned.
+    """
+    for a, b in zip(segments, segments[1:]):
+        ta, tb = a["text"], b["text"]
+        if ta and tb and not ta[-1].isspace() and not tb[0].isspace():
+            a["text"] = ta + " "
+
+
 def _timestamp_to_seconds(ts: str) -> float:
     """Parse VTT/SRT timestamp fragment to seconds."""
     ts = ts.strip().replace(",", ".")
@@ -133,6 +149,7 @@ def parse_webvtt(data: str) -> Tuple[str, List[Dict[str, Any]]]:
                     seg["speaker"] = speaker
             segments.append(seg)
 
+    _separate_cues(segments)
     plain = "".join(s["text"] for s in segments)
     return plain, segments
 
@@ -172,5 +189,6 @@ def parse_srt(data: str) -> Tuple[str, List[Dict[str, Any]]]:
             seg["speaker"] = " ".join(prefix.group(1).split())
         segments.append(seg)
 
+    _separate_cues(segments)
     plain = "".join(s["text"] for s in segments)
     return plain, segments
