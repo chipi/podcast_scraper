@@ -11,7 +11,7 @@ import re
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -2373,6 +2373,7 @@ def _rewrite_speaker_record_in_place(
     effective_output_dir: str,
     rel_path: str,
     stage: str,
+    feed_hosts: Sequence[str],
 ) -> bool:
     """Rewrite ``content.speakers`` from the labels this reprocess stage just wrote (#2075).
 
@@ -2416,7 +2417,11 @@ def _rewrite_speaker_record_in_place(
         speakers, num_speakers = _build_speaker_record(
             effective_output_dir,
             rel_path,
-            list(getattr(job, "feed_hosts", None) or []),
+            # THE SAME host anchor the relabel itself resolved with, not the live one. The stage
+            # prefers the frozen sibling metadata over live feed detection so a relabel of a stored
+            # corpus is reproducible; rebuilding the record from `job.feed_hosts` would describe a
+            # different resolution from the one that produced the labels on disk.
+            list(feed_hosts or []),
             list(job.detected_speaker_names or []),
             (feed_block or {}).get("title"),
         )
@@ -2661,7 +2666,7 @@ def _relabel_existing_transcript(
         _relabel_cleaned_transcript(txt_path, segs, new_segs, job.idx)
         # The record follows the labels, or the two describe different episodes (#2075).
         _rewrite_speaker_record_in_place(
-            txt_path, job, effective_output_dir, rel_path, "relabel_only"
+            txt_path, job, effective_output_dir, rel_path, "relabel_only", feed_hosts
         )
     # advisor #2: relabel rewrites naming on disk — the manifest MUST record the new naming
     # method_version, or "reprocess episodes below naming-3" never converges. result has no ASR/
@@ -2902,7 +2907,7 @@ def _rediarize_existing_transcript(
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
         # Fresh voices AND fresh names: the record must describe the diarization that now exists.
         _rewrite_speaker_record_in_place(
-            txt_path, job, effective_output_dir, rel_path, "rediarize_only"
+            txt_path, job, effective_output_dir, rel_path, "rediarize_only", feed_hosts
         )
     # advisor #2: rediarize regenerates diarization + naming on disk — record both into run metrics
     # and the manifest (fresh diarization + naming blocks + pipeline_stage), else the rerun is

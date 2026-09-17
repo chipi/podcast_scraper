@@ -464,6 +464,37 @@ def test_relabel_rewrites_the_speaker_record_to_match_the_new_labels(tmp_path: P
     assert payload["feed"]["title"] == "Hard Fork"
 
 
+def test_the_record_is_built_from_the_same_host_anchor_the_relabel_used(tmp_path: Path) -> None:
+    """The stage prefers the FROZEN sibling metadata over live feed detection, so a relabel of a
+    stored corpus is reproducible. Rebuilding the record from the live `job.feed_hosts` instead
+    would describe a different resolution from the one that produced the labels on disk — the two
+    would disagree about who was in the episode while claiming to be one record."""
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    old_run, stem = _write_corpus(
+        base,
+        run_tag,
+        seg_labels=["SPEAKER_00"],
+        texts=["Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)],
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+    job = _job()
+    job.feed_hosts = ["Someone Else"]  # live detection drifted from the stored feed blurb
+
+    ok, _rel, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+    assert ok is True
+
+    payload = json.loads(
+        (old_run / "metadata" / f"{stem}.metadata.json").read_text(encoding="utf-8")
+    )
+    names = {s["name"] for s in payload["content"]["speakers"]}
+    # The co-host the FROZEN blurb names, carried as a person no voice was matched to...
+    assert "Casey Newton" in names
+    # ...and never the live-detection name, which this relabel did not resolve with.
+    assert "Someone Else" not in names
+
+
 def test_relabel_keeps_the_relabel_when_the_record_cannot_be_written(
     tmp_path: Path, caplog
 ) -> None:
