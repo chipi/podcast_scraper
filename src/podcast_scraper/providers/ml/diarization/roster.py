@@ -2049,6 +2049,58 @@ def _self_intro_voice_names(
     return out
 
 
+def _hosts_not_already_seated(
+    conv_host_voices: Optional[AbstractSet[str]],
+    voice_intro: Mapping[str, str],
+    known_hosts: Sequence[str],
+) -> Optional[Set[str]]:
+    """The conversation-host voices the introduction reader should still treat as hosts (#2075).
+
+    The reader never gives an introduced guest's name to a host voice, and "host" includes any voice
+    the conversation heard perform a host act. That act is a phrase: Odd Lots' guest, who runs the
+    Jackson Hole symposium, says "Well, welcome to Jackson Hole" — flagged host, so when Tracy
+    Alloway said "we're speaking with Kansas City Fed President Jeff Schmidt" and he answered, the
+    reader skipped him and nobody was named. When EVERY stated host has already introduced themself
+    on a voice of their own, no further voice is a stated host, so those extra conversation-hosts
+    stop blocking the reader. Nothing is named from this; it only removes a skip.
+    """
+    if conv_host_voices is None:
+        return None
+    hosts_lower = {h.lower() for h in known_hosts}
+    seated = {v for v, n in voice_intro.items() if n and n.lower() in hosts_lower}
+    seated_names = {voice_intro[v].lower() for v in seated}
+    if not hosts_lower or seated_names != hosts_lower:
+        return set(conv_host_voices)
+    return {v for v in conv_host_voices if v in seated}
+
+
+def _same_spoken_person(a: str, b: str) -> bool:
+    """Either name is a spoken variant of the other (see :func:`_snap_spoken_variant`)."""
+    return _snap_spoken_variant(a, [b]) == b or _snap_spoken_variant(b, [a]) == a
+
+
+def _snap_spoken_variant(name: str, stated: Sequence[str]) -> str:
+    """The ONE stated person ``name`` is a spoken variant of, else ``name`` unchanged.
+
+    Given name equal or a known nickname (``first_names_match``), and a surname of 5+ letters one
+    edit away — the same rule retrieval uses in ``speaker_detectors.resolution``. Ambiguity keeps
+    the spoken form.
+    """
+    toks = _core_name_tokens(name)
+    if len(toks) < 2:
+        return name
+    hits = []
+    for ref in stated:
+        r = _core_name_tokens(ref)
+        if len(r) < 2 or len(r[-1]) < 5:
+            continue
+        if not (r[0].lower() == toks[0].lower() or first_names_match(r[0], toks[0])):
+            continue
+        if _edit_distance(r[-1].lower(), toks[-1].lower()) == 1:
+            hits.append(ref)
+    return hits[0] if len(set(hits)) == 1 else name
+
+
 def _intro_reader_voice_names(
     reclaimed_turns: Sequence[Tuple[str, str]],
     host_hint_voices: Set[str],
@@ -2093,7 +2145,13 @@ def _intro_reader_voice_names(
         # voice — the same guard _recover_stated_names applies (a non-host voice is never given a
         # known host's spelling). A guest still canonicalizes to the stated PERSON (its own name).
         canon = _canonicalize_to_known_host(n, known_hosts) if v in conv_host_set else n
-        out[v] = canon if canon != n else _canonicalize_to_stated_person(n, stated_persons)
+        if canon == n:
+            canon = _canonicalize_to_stated_person(n, stated_persons)
+        # The SPOKEN form of a stated person ("Jeff Schmidt" for stated `Jeffrey Schmid`) is that
+        # person, snapped HERE, before names are marked used. Snapped later, the stated spelling
+        # still looked unclaimed and the guest pool forced it onto a second voice — measured on
+        # Odd Lots (#2075), where Joe Weisenthal's question voice was named the guest.
+        out[v] = _snap_spoken_variant(canon, stated_persons) if canon == n else canon
     return out
 
 
@@ -2388,7 +2446,7 @@ def resolve_speaker_roster(
             voice_intro,
             ad_voices,
             known_hosts,
-            conv_host_voices,
+            _hosts_not_already_seated(conv_host_voices, voice_intro, known_hosts),
             list(detected_guests or ()) + list(metadata_named or ()),
             narrator_cue=profile.narrator_cue_binding,
             first_name_only=profile.first_name_only_intro,
@@ -2520,10 +2578,18 @@ def resolve_speaker_roster(
     # the VOICE ITSELF says it (`_vouched_by_metadata`, warrant (c)) — that admitted 3 names across
     # the corpus and all 3 were right.
 
+    # A pool name that is the SAME PERSON as a name a voice already holds, in either spelling, is
+    # not spare. Compared exactly, the stated `Jeffrey Schmid` claimed by one voice left the host's
+    # spoken "Jeff Schmidt" in the pool, and it was forced onto a host's question voice (Odd Lots,
+    # #2075); snapping only one side just moved the mismatch ("Sergey Levin" claimed, "Sergey
+    # Levine" forced onto an ad read — measured on the replay).
+    _claimed = list(voice_intro.values())
     guest_names = [
         g
         for g in declared
-        if g.lower() not in host_names_lower and g.lower() not in intro_names_lower
+        if g.lower() not in host_names_lower
+        and g.lower() not in intro_names_lower
+        and not any(_same_spoken_person(g, c) for c in _claimed)
     ]
     # Ad voices are excluded from GUEST naming too — otherwise the pre-roll consumes a real guest's
     # name out of the pool and the guest is left as SPEAKER_0n.
