@@ -184,10 +184,12 @@ async function retryStale(): Promise<void> {
   }
 }
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
-// "What's new": a featured #01 hero, then rows 02–06 as a numbered chart (operator 2026-09-14).
+// "What's new": a featured #01 hero, then rows 02–05 as a numbered chart (operator 2026-09-14).
+// Five items, not six — the chart ends at 05 (operator 2026-09-17). The section now shares a
+// desktop row with Trending shows, and a top five is a rounder thing to end on than a top six.
 const wnFeatured = computed(() => latest.value[0] ?? null)
-const wnRows = computed(() => latest.value.slice(1, 6))
-// Ranked "chart" rows 02–06 beneath the #01 hero (operator 2026-09-14): the numbered leaderboard
+const wnRows = computed(() => latest.value.slice(1, 5))
+// Ranked "chart" rows 02–05 beneath the #01 hero (operator 2026-09-14): the numbered leaderboard
 // look is the point. wnRows starts at latest[1], so row i is rank i+2.
 const rank = (i: number): string => String(i + 2).padStart(2, "0")
 // The row's discover-position telemetry must count a click on THIS EPISODE only. The wrapping <li>
@@ -545,9 +547,21 @@ async function loadContinue(): Promise<void> {
     <YourWeek :key="railKey" />
 
     <!-- Discovery: the shared tabbed DiscoveryExplorer (Topics / Storylines / People + sort/scope),
-         after the digest. Capped at 5 rows here; Discover uses the same section capped at 10. -->
-    <section class="mt-7" data-testid="home-discovery">
-      <DiscoveryExplorer :collapsed="3" @open="onDiscoveryOpen" />
+         after the digest. Capped at 5 rows here; Discover uses the same section capped at 10.
+
+         TITLED, with the same heading Discover gives it (operator 2026-09-17). Untitled it sat
+         directly under Your Week's first-run line, so on an empty digest it read as Your Week's own
+         content arriving without a heading — when in fact Your Week had rendered nothing and this is
+         the next section entirely.
+
+         Half width from `lg`, matching Discover: a trend row is a short label against a sparkline +
+         multiplier + follow, and across the full column those two clusters sit ~500px apart. -->
+    <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="home-discovery">
+      <DiscoveryExplorer
+        :collapsed="3"
+        :title="t('browse.trendsTitle')"
+        @open="onDiscoveryOpen"
+      />
     </section>
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
@@ -603,12 +617,19 @@ async function loadContinue(): Promise<void> {
       </div>
     </section>
 
-    <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
-         Renders while loading and on error too (#1591): the section header is the thing that tells
-         you this content exists, so hiding it on failure made an outage indistinguishable from a
-         cold corpus. Only a successful-but-empty load hides — the system has nothing to show and
-         there is no action the user can take. -->
-    <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7">
+    <!-- What's new and Trending shows SHARE a desktop row, half each (operator 2026-09-17). Both are
+         narrow-by-nature lists — a ranked chart and a stack of show bands — that were each stretched
+         across the full column, so the page became a single tall stack of half-empty rows. On a phone
+         they go back to one over the other, unchanged.
+
+         `items-start` so the shorter of the two does not stretch to match the taller. -->
+    <div class="lg:flex lg:items-start lg:gap-6">
+      <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
+           Renders while loading and on error too (#1591): the section header is the thing that tells
+           you this content exists, so hiding it on failure made an outage indistinguishable from a
+           cold corpus. Only a successful-but-empty load hides — the system has nothing to show and
+           there is no action the user can take. -->
+      <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7 min-w-0 lg:w-1/2">
       <div class="mb-3 flex items-baseline justify-between">
         <h2 class="lp-section">{{ t("home.whatsNew") }}</h2>
         <RouterLink
@@ -716,7 +737,23 @@ async function loadContinue(): Promise<void> {
           </li>
         </ul>
       </template>
-    </section>
+      </section>
+
+      <!-- Trending shows (RFC-103 §show): cover-art bands with the cadence sparkline woven over the
+           art; each links to the show page. Artwork is joined from the loaded podcasts list by
+           feed_id.
+
+           The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
+           mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
+      <div class="min-w-0 lg:w-1/2">
+        <TrendingShowsRail
+          :key="railKey"
+          :title="t('home.trendingShows')"
+          :podcasts="catalogue"
+          :scope="trendingScope"
+        />
+      </div>
+    </div>
 
     <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
          + three chips deep-linking into the /trends "see all" page on the matching tab. Renamed from
@@ -750,17 +787,6 @@ async function loadContinue(): Promise<void> {
         {{ t("home.tabPeople") }}
       </RouterLink>
     </nav>
-
-    <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
-         cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
-    <!-- The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
-         mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
-    <TrendingShowsRail
-      :key="railKey"
-      :title="t('home.trendingShows')"
-      :podcasts="catalogue"
-      :scope="trendingScope"
-    />
 
     <!-- Key voices (wave-G): the people most present in your corpus. Moved up to sit right after
          Trending shows and before Recommended (operator review) — a quiet discovery rail. Self-hides
