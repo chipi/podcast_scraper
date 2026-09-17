@@ -36,8 +36,11 @@ const bioClipped = ref(true)
 
 function measureBio(): void {
   const el = bioEl.value
-  if (!el || el.clientHeight === 0) return
-  bioClipped.value = el.scrollHeight - el.clientHeight > 1
+  if (!el || bioExpanded.value) return // expanded: the window no longer constrains anything
+  const prose = el.firstElementChild
+  if (!prose || el.clientHeight === 0) return
+  // The PROSE against the WINDOW — see EpisodeCard.measureSummary for why the reverse never fired.
+  bioClipped.value = prose.scrollHeight - el.clientHeight > 1
 }
 
 onMounted(() => {
@@ -155,14 +158,14 @@ function searchLibrary(): void {
            the height the photo + hosted-shows + attribution stack sets and clips there, with
            "Show more" footed against the bottom of that column. -->
       <div class="lp-media-body">
-        <p
-          ref="bioEl"
-          class="text-sm leading-relaxed text-canvas-foreground"
-          :class="bioExpanded ? '' : 'lp-media-fill'"
-          data-testid="ec-person-bio-text"
-        >
-          {{ personWeb.bio }}
-        </p>
+        <div ref="bioEl" class="lp-media-clip" :class="bioExpanded ? 'lp-media-clip--open' : ''">
+          <p
+            class="text-sm leading-relaxed text-canvas-foreground"
+            data-testid="ec-person-bio-text"
+          >
+            {{ personWeb.bio }}
+          </p>
+        </div>
         <button
           v-if="bioClipped || bioExpanded"
           type="button"

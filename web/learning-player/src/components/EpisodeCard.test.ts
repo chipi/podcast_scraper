@@ -144,7 +144,6 @@ describe("EpisodeCard", () => {
     // CARD's own summary/insights expander is gone.
     const w = mountCard(makeEpisode())
     expect(cardOwnExpanders(w)).toHaveLength(0)
-    expect(w.get('[data-testid="card-key-point-count"]').text()).toContain("key point")
   })
 
   it("renders the full summary clamped, expandable via Read more (BE.2)", () => {
@@ -188,11 +187,20 @@ describe("the two columns are rebalanced (#2004 items 4/7)", () => {
     expect(name.classes()).not.toContain("flex-1")
   })
 
-  it("puts date, duration and the insight count under the artwork", () => {
+  it("puts date and duration under the artwork", () => {
     const w = mountCard(makeEpisode())
-    const left = w.get("article > div.flex.shrink-0.flex-col")
+    const left = w.get("article > div.lp-media-aside")
     expect(left.text()).toMatch(/\d/) // date / duration live here now
-    expect(left.find('[data-testid="card-key-point-count"]').exists()).toBe(true)
+  })
+
+  it("keeps the action row directly under the artwork, not footed to the column's bottom", () => {
+    // `mt-auto` pushed the row to the bottom of a stretched column, so whenever the summary was the
+    // taller side the controls floated below a gap, detached from the artwork they act on
+    // (operator 2026-09-17).
+    const w = mountCard(makeEpisode())
+    const actions = w.get("article > div.lp-media-aside").find('[data-testid="episode-actions"]')
+    expect(actions.exists()).toBe(true)
+    expect(actions.classes()).not.toContain("mt-auto")
   })
 
   it("renders the artwork bigger than the old 80px", () => {
@@ -204,7 +212,7 @@ describe("the two columns are rebalanced (#2004 items 4/7)", () => {
     // Without a placeholder the left column has no fixed-width child and collapses, squeezing the
     // date and insight count beside a zero-width gap.
     const w = mountCard(makeEpisode())
-    const left = w.get("article > div.flex.shrink-0.flex-col")
+    const left = w.get("article > div.lp-media-aside")
     expect(left.find("img").exists()).toBe(false)
     expect(left.get('div[aria-hidden="true"]').classes()).toEqual(
       expect.arrayContaining(["h-32", "w-32"])
@@ -223,33 +231,12 @@ describe("the card shows the summary title, not the bullets (#2004 follow-up)", 
     expect(w.text()).toContain("A crisp recap.")
   })
 
-  it("keeps the insight COUNT, which is a fact about the episode rather than a summary", () => {
-    const w = mountCard(makeEpisode())
-    expect(w.get('[data-testid="card-key-point-count"]').text()).toContain("key point")
-  })
-
-  describe("the badge counts what it says it counts", () => {
-    it("says KEY POINTS, because that is the field it reads", () => {
-      // It read "N insights" while counting `summary_bullets`. Insights are a different thing —
-      // timestamped claims and observations, each anchored to a moment — and the card cannot show a
-      // true insight count at all: the server deliberately does not compute one per row.
-      const w = mountCard(makeEpisode({ summary_bullets: ["a", "b", "c"], has_gi: true }))
-      const badge = w.get('[data-testid="card-key-point-count"]')
-      expect(badge.text()).toContain("3")
-      expect(badge.text()).toContain("key point")
-      expect(badge.text(), "the badge still calls bullets insights").not.toContain("insight")
-    })
-
-    it("counts key points even when the episode carries no generated insights", () => {
-      // The old gate was `has_gi && bullets.length`, which is a flag about a different artifact.
-      // Bullets come from the summary; if there are bullets, there is a count.
-      const w = mountCard(makeEpisode({ summary_bullets: ["a"], has_gi: false }))
-      expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(true)
-    })
-
-    it("shows no badge when there are no key points", () => {
-      const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: true }))
-      expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(false)
-    })
+  it("carries no key-points badge at ANY viewport", () => {
+    // Removed outright (operator 2026-09-17). It had been hidden below `sm` and left visible from
+    // `sm` up, so it survived on every desktop browser — the feature was gone from the product but
+    // still on the card for anyone not on a phone. `hidden sm:inline-flex` is not a deletion.
+    const w = mountCard(makeEpisode({ summary_bullets: ["a", "b", "c"], has_gi: true }))
+    expect(w.find('[data-testid="card-key-point-count"]').exists()).toBe(false)
+    expect(w.text()).not.toContain("key point")
   })
 })

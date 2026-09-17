@@ -59,7 +59,11 @@ const descEl = ref<HTMLElement | null>(null)
 const descClamped = ref(false)
 function measureDesc(): void {
   const el = descEl.value
-  descClamped.value = !!el && el.scrollHeight - el.clientHeight > 2
+  if (!el || descExpanded.value) return // expanded: the window no longer constrains anything
+  // The PROSE against the WINDOW — measuring the window against itself always matched, because it
+  // stretched to fit, so nothing ever read as cut off (operator 2026-09-17).
+  const prose = el.firstElementChild
+  descClamped.value = !!prose && prose.scrollHeight - el.clientHeight > 2
 }
 // A single post-nextTick read is fooled by deferred layout: on a cold navigation the fonts may not
 // have settled, scrollHeight/clientHeight both read 0, and "Show more" would stay hidden on a long
@@ -361,21 +365,20 @@ watch(() => props.feedId, reset)
         </p>
         <!-- Feed by-line (#2043): host/author names straight from the RSS channel. Text for now —
              linking each to its person card is the entity-resolution follow-up (#2044). -->
-        <p
+        <div
           v-if="show?.description"
           ref="descEl"
-          class="mt-2 min-h-0 text-sm leading-relaxed text-muted"
-          :class="descExpanded ? '' : 'lp-media-fill'"
+          class="lp-media-clip mt-2"
+          :class="descExpanded ? 'lp-media-clip--open' : ''"
         >
-          {{ show.description }}
-        </p>
-        <!-- Collapsed to 3 lines, then a toggle IFF the text is actually clamped (measured, not a
-             char count) so medium descriptions that overflow the column still get "Show more". -->
+          <p class="text-sm leading-relaxed text-muted">{{ show.description }}</p>
+        </div>
+        <!-- A toggle IFF the text is actually cut off (measured against the window, not a char or
+             line count) so medium descriptions that overflow the column still get "Show more". -->
         <button
           v-if="show?.description && (descClamped || descExpanded)"
           type="button"
-          class="w-fit text-xs font-bold text-accent"
-          :class="descExpanded ? 'mt-1' : 'lp-media-foot'"
+          class="lp-media-foot w-fit pt-1 text-xs font-bold text-accent"
           @click="toggleDesc"
         >
           {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}

@@ -64,26 +64,9 @@ const { t, locale } = useI18n()
 
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
-const bullets = computed(() => props.episode.summary_bullets ?? [])
-// The TRUE key-point count — `summary_bullets` is capped for card size, so its length pinned at 8
-// for every richly-summarised episode ("every episode has 8 key points"). Fall back to the visible
-// bullets when the server didn't send a count.
-const keyPointCount = computed(() => props.episode.summary_bullet_count ?? bullets.value.length)
-
-// Show the insights affordance only when there's grounded summary content to reveal.
-/**
- * The badge counts KEY POINTS — `summary_bullets` — and now says so.
- *
- * It read "N insights" while counting bullets. Insights are a different thing: the timestamped
- * claims and observations in the Knowledge Panel, each anchored to a moment. The card cannot show a
- * true insight count — the server deliberately does not compute one per row, because it would cost
- * an artifact load per card (`schemas.py:104`) — so the honest fix is to name what is actually
- * being counted, using the same word the Insights panel uses for the same field.
- *
- * The `has_gi` gate went with it: that flag means the episode has generated insights, which is not
- * what this badge is about. Bullets come from the summary. If there are bullets, there is a count.
- */
-const hasKeyPoints = computed(() => bullets.value.length > 0)
+// The key-points badge is GONE (operator 2026-09-17), not merely hidden on phones — it had been
+// `hidden sm:inline-flex`, which kept it on every desktop browser long after the feature left the
+// product. The card's facts are now date and duration.
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
 const artwork = computed(() => episodeArtwork(props.episode))
 
@@ -102,8 +85,12 @@ const summaryClipped = ref(true)
 
 function measureSummary(): void {
   const el = summaryEl.value
-  if (!el || el.clientHeight === 0) return // not laid out yet — keep the safe default
-  summaryClipped.value = el.scrollHeight - el.clientHeight > 1
+  if (!el || summaryExpanded.value) return // expanded: the window no longer constrains anything
+  const prose = el.firstElementChild
+  if (!prose || el.clientHeight === 0) return // not laid out yet — keep the safe default
+  // The PROSE against the WINDOW. Measuring the window against itself was the old bug: it stretched
+  // to fit, so the two heights always matched and nothing ever read as clipped.
+  summaryClipped.value = prose.scrollHeight - el.clientHeight > 1
 }
 
 onMounted(() => {
@@ -127,7 +114,7 @@ const canExpandSummary = computed(
 <template>
   <article
     data-testid="episode-card"
-    class="group relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
+    class="lp-media-row group relative -mx-3 gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
     :class="episode.color ? ['border-l-4', borderClass(episode.color)] : ''"
   >
     <!--
@@ -138,7 +125,7 @@ const canExpandSummary = computed(
       one. Moving the facts under the artwork uses space that was dead and gives the summary room
       to be read.
     -->
-    <div class="flex shrink-0 flex-col gap-2">
+    <div class="lp-media-aside">
       <img
         v-if="artwork"
         :src="artwork"
@@ -167,40 +154,26 @@ const canExpandSummary = computed(
         <span v-if="date && duration" aria-hidden="true">·</span>
         <span v-if="duration">{{ duration }}</span>
       </div>
-      <!-- A COUNT, not a toggle: the card does not render the bullets themselves, so there is
-           nothing to expand. It stays because "how much is in here" is worth knowing at a glance —
-           and it says KEY POINTS, which is what it counts.
-           Hidden on small viewports (operator): the pill clutters the phone card; it returns at
-           `sm` and up where the left column has room to spare. -->
-      <div
-        v-if="!compact && hasKeyPoints"
-        data-testid="card-key-point-count"
-        class="hidden w-fit items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-canvas-foreground sm:inline-flex"
-      >
-        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-          <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
-        </svg>
-        {{ t("card.keyPointCount", { count: keyPointCount }, keyPointCount) }}
-      </div>
       <span
         v-if="episode.status !== 'ready'"
         class="w-fit rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
       >
         {{ t("status.pending") }}
       </span>
-      <!-- The shared EpisodeActions row (UXS-014: nobody rolls their own). Full card: pinned to the
-           BOTTOM of the (stretched) left column — `mt-auto` foots it against the end of the summary,
-           `w-32` matches the artwork. The row is now favourite + queue + ⋯ (download + collect live
-           in the ⋯), which is 120px and fits the 128px column in ONE row — the four-control wrap the
-           operator flagged is gone. Compact card (queue "recently played"): `w-20` matches the 80px
-           artwork, too narrow for three targets, so EpisodeActions' retained `flex-wrap` folds the ⋯
-           under favourite+queue rather than widening the column past the artwork and eating the text.
+      <!-- The shared EpisodeActions row (UXS-014: nobody rolls their own), directly UNDER the
+           artwork it acts on — `w-32` matches the artwork's width. It used to be `mt-auto`, footed
+           against the bottom of a stretched column, which left it floating below a gap whenever the
+           summary was the taller side (operator 2026-09-17). The row is favourite + queue + ⋯
+           (download + collect live in the ⋯), which is 120px and fits the 128px column in ONE row.
+           Compact card (queue "recently played"): `w-20` matches the 80px artwork, too narrow for
+           three targets, so EpisodeActions' retained `flex-wrap` folds the ⋯ under favourite+queue
+           rather than widening the column past the artwork and eating the text.
            `relative z-30` keeps it tappable above the title's stretched card-link overlay; the
            queue's reorder ↑/↓ ride the slot. -->
       <EpisodeActions
         :slug="episode.slug"
         :hide-favorite="hideFavorite"
-        :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 mt-auto w-32'"
+        :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 w-32'"
       >
         <template #lead><slot name="lead-action" /></template>
         <slot name="actions" />
@@ -232,23 +205,23 @@ const canExpandSummary = computed(
         {{ episode.title }}
       </RouterLink>
 
-      <!-- Summary: the full prose, clamped until "Read more" expands the row in place (BE.2). Four
-           lines rather than three — the left column (artwork + facts + bottom actions) is taller
-           than the text, so there is room for one more row (operator). Falls back to the one-line
-           lede when there's no full summary. -->
-      <p
+      <!-- Summary: the full prose, clipped to whatever the artwork column leaves and expanded in
+           place by "Read more" (BE.2). The window (`lp-media-clip`) is what constrains it — see
+           style.css; the <p> alone could only ever grow the row. Falls back to the one-line lede
+           when there's no full summary. -->
+      <div
         v-if="summaryFull"
         ref="summaryEl"
-        class="mt-2 min-h-0 text-sm leading-relaxed text-muted"
-        :class="summaryExpanded ? '' : 'lp-media-fill'"
+        class="lp-media-clip mt-2"
+        :class="summaryExpanded ? 'lp-media-clip--open' : ''"
       >
-        {{ summaryFull }}
-      </p>
+        <p class="text-sm leading-relaxed text-muted">{{ summaryFull }}</p>
+      </div>
       <!-- `relative z-30` so the toggle sits above the title's stretched card-link overlay. -->
       <button
         v-if="!compact && canExpandSummary"
         type="button"
-        class="relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80 mt-auto w-fit"
+        class="lp-media-foot relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80"
         data-testid="card-read-more"
         :aria-expanded="summaryExpanded"
         @click="summaryExpanded = !summaryExpanded"
