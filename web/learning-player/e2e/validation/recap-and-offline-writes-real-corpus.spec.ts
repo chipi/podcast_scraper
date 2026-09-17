@@ -88,9 +88,27 @@ test('operator queue: item writes on a real corpus, and a cached queue refuses o
   // Queue two episodes through the UI, asserting the ITEM route carries them (#1910/#1925).
   //
   // From a SHOW page: the queue control lives on the episode card, not on the player page (the
-  // player's "Queue & recently played" only opens the panel). Reaching a show from Home keeps this
-  // corpus-agnostic — no feed id is hard-coded.
+  // player's "Queue & recently played" only opens the panel).
+  //
+  // Reached EPISODE-FIRST, not via a show link on Home. Home's only route to a show page is the
+  // trending-shows rail, and that rail is ALLOWED to be absent: a corpus yielding no trending
+  // shows renders no rail at all, which `entity-and-rails-invariants.spec.ts:96` states as the
+  // contract — "Absent is CORRECT when the corpus yields no trending shows ... that is the rule,
+  // not a gap". So `a[href*="/podcast/"]` on Home was never a safe anchor; it only looked like one
+  // while the pre-redesign Home happened to render shows unconditionally. The Discover redesign
+  // (be58472b0, #2072) removed that, and this nightly has been red since — the live-smoke specs
+  // were resynced in cf56a1e91, this validation walk was missed.
+  //
+  // An episode link on Home is what both sibling tests in this file already depend on, and the
+  // player page always links back to its show (PlayerView.vue, gated only on `feed_id` which a
+  // served episode has). Still corpus-agnostic — no feed id hard-coded — and it now rests on the
+  // corpus having episodes, which the whole Tier-3 walk requires anyway.
   await page.goto('/')
+  const episode = page.locator('a[href*="/episode/"]').first()
+  await expect(episode).toBeVisible()
+  await episode.click()
+  await expect(page).toHaveURL(/\/episode\//)
+
   const show = page.locator('a[href*="/podcast/"]').first()
   await expect(show).toBeVisible()
   await show.click()
