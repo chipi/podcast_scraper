@@ -589,17 +589,12 @@ def detect_hosts_from_transcript_intro(
 _NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){1,5})"
 _NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME}){{0,9}}"
 # Presenting verbs — what a show's own description says its hosts DO.
-_PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring|engage)s?\b"
+_PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
 #: Patterns safe to run over a TITLE as well as a description.
 _HOST_PHRASES = [
     re.compile(p, re.IGNORECASE)
     for p in (
-        # Up to three lowercase descriptor words may precede the name: "Hosted by economist Luigi
-        # Zingales and business journalist Bethany McLean" (Capitalisn't).
-        rf"\bhosted\s+by\s+(?:(?-i:[a-z][\w\-]*)\s+){{0,3}}(?P<names>{_NAMES})",
-        # The appositive: "hosted by Anglo Canadian transplant to Colombia, Richard McColl" — the
-        # descriptor comes first and the person after the comma (Colombia Calling, measured).
-        rf"\bhosted\s+by\s+[^.;,]{{1,80}},\s*(?P<names>{_NAMES})",
+        rf"\bhosted\s+by\s+(?P<names>{_NAMES})",
         rf"\bco-?hosts?\s+(?P<names>{_NAMES})",
         rf"\bjournalists?\s+(?P<names>{_NAMES})",
         rf"\bwith\s+(?P<names>{_NAME})\s*$",  # the show title: "... with Patrick O'Shaughnessy"
@@ -615,27 +610,14 @@ _HOST_PHRASES = [
 #: names "Machine Learning Street" followed by the verb "Talk", and the show became the host of
 #: itself on 6 production episodes. The host does appear in a title, but in a different shape:
 #: "... with Patrick O'Shaughnessy", which the `with` pattern above already reads.
-#:
-#: The filler may not cross a COMMA. Across one the verb has a different subject, measured on two
-#: production feeds: "…the Norman Conquest of England in 1066, Tom and Dominic bring…" made the
-#: Norman Conquest the host of The Rest Is History (placed on 49 voices), and "At Carnegie India,
-#: our diverse lineup of experts will host" made the think tank the host of Interpreting India.
-#: Commas BETWEEN names are still read — they are inside `names` ("Katie Martin, Robert Armstrong
-#: and other markets nerds at the Financial Times explain").
 _HOST_PHRASES_DESCRIPTION_ONLY = [
-    re.compile(rf"(?P<names>{_NAMES})[\w\s'’\-]{{0,60}}?\s+{_PRESENTS}", re.IGNORECASE),
-    # "Join hosts Eric Olander in Vietnam and …" — the plural NOUN before the names. The title
-    # patterns only read "co-host"; this shape is description prose (The China-Global South
-    # Podcast, whose author tag is the publisher).
-    re.compile(rf"\bhosts\s+(?P<names>{_NAMES})", re.IGNORECASE),
-    # "…biggest moments with Tom Holland & Dominic Sandbrook." — a sentence that ENDS on the names.
-    # Anchored on the sentence end so "conversations with Jane Doe about…" is not read.
-    re.compile(rf"\bwith\s+(?P<names>{_NAMES})\s*[.!](?:\s|$)", re.IGNORECASE),
+    re.compile(rf"(?P<names>{_NAMES})[\w\s,'’\-]{{0,60}}?\s+{_PRESENTS}", re.IGNORECASE)
 ]
 _NAME_RE = re.compile(_NAME)
 
 
 _ARTICLE_BEFORE = re.compile(r"\b(?:the|of)\s+$", re.IGNORECASE)
+_PLACE_PREPOSITION = re.compile(r"(?:At|From|In|On)\s+", re.IGNORECASE)
 
 
 def hosts_from_feed_statement(
@@ -646,33 +628,38 @@ def hosts_from_feed_statement(
     This is the authoritative source: the show says who presents it. Only used for the names inside
     the host phrase, so a description that also lists past guests cannot smuggle them in.
     """
+    return _feed_statement(feed_title, feed_description)[0]
+
+
+def _feed_statement(
+    feed_title: Optional[str], feed_description: Optional[str]
+) -> Tuple[Set[str], bool]:
+    """``(hosts, rejected)`` — ``rejected`` when a host phrase matched but its names were refused.
+
+    A refused statement means the feed's own words point at something that is not a person
+    (`Americas Online`, the tail of "Council of the Americas Online team brings"). The caller must
+    then name NO host rather than fall back to the author tag or a later match: those fallbacks
+    added real names (Carin Zissis on 52 voices) that the single-seat host rule then placed on
+    guests' answers, clips and other presenters' episodes (#2075, advisor review). This work may
+    remove a wrong host; it must not add one.
+    """
     title_lower = (feed_title or "").lower()
     out: Set[str] = set()
+    rejected = False
     for is_title, text in ((True, feed_title or ""), (False, feed_description or "")):
         if not text.strip():
             continue
         patterns = _HOST_PHRASES if is_title else _HOST_PHRASES + _HOST_PHRASES_DESCRIPTION_ONLY
         for pat in patterns:
-            # The first match that is not the TAIL of a longer proper noun. A person's name does not
-            # follow "the" or "of": "…Americas Society / Council of the Americas Online team
-            # brings…" made `Americas Online` the host of Latin America in Focus (32 voices).
-            m = next(
-                (
-                    x
-                    for x in pat.finditer(text)
-                    if not _ARTICLE_BEFORE.search(text[: x.start("names")])
-                ),
-                None,
-            )
+            m = pat.search(text)
             if not m:
                 continue
+            # A person's name does not follow "the" or "of": "…Council of the Americas Online team
+            # brings…" made `Americas Online` the host of Latin America in Focus.
+            after_article = bool(_ARTICLE_BEFORE.search(text[: m.start("names")]))
             for raw in _NAME_RE.findall(m.group("names")):
                 clean = _clean_stated_name(raw)
                 if len(clean.split()) < 2 or has_org_markers(clean):
-                    continue
-                # A nationality is a description of the host, not the host: "hosted by Anglo
-                # Canadian transplant to Colombia, Richard McColl".
-                if any(t.lower().strip(".,'’") in _NOT_A_MONONYM for t in clean.split()):
                     continue
                 # A publisher/platform is never the host, even inside a host phrase (#1652
                 # applied this to RSS author tags; the statement path was the last place that
@@ -694,8 +681,20 @@ def hosts_from_feed_statement(
                 # so the same guard there would throw the host away.
                 if not is_title and clean.lower() in title_lower:
                     continue
+                # The rejections this work ADDS run only on a name the checks above let through,
+                # and they refuse the whole statement (no host, no fallback):
+                # - the tail of a longer proper noun (after "the"/"of");
+                # - a place or body: "At Carnegie India, our diverse lineup of experts will host…";
+                # - a nationality: "hosted by Anglo Canadian transplant to Colombia…".
+                if (
+                    after_article
+                    or _PLACE_PREPOSITION.match(raw.strip())
+                    or any(t.lower().strip(".,'’") in _NOT_A_MONONYM for t in clean.split())
+                ):
+                    rejected = True
+                    continue
                 out.add(clean)
-    return out
+    return (set() if rejected else out), rejected
 
 
 # A capitalised run is not automatically a name: it can start with a preposition ("At Planet
@@ -1513,10 +1512,13 @@ def detect_hosts_from_feed(
     tell a host from anyone else the description happens to mention — on Latent Space it returns a
     list of past guests, and on Planet Money it returns the word "Wanna".
     """
-    stated = hosts_from_feed_statement(feed_title, feed_description)
+    stated, statement_rejected = _feed_statement(feed_title, feed_description)
     if stated:
         logger.debug("Hosts stated by the feed: %s", sorted(stated))
         return stated
+    if statement_rejected:
+        logger.debug("The feed's host statement names no person; naming no host")
+        return set()
 
     hosts: Set[str] = set()
 
