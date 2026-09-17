@@ -142,7 +142,12 @@ describe("EpisodeCard", () => {
     // that expands something already visible is worse than none. The add-to-collection menu trigger
     // legitimately carries aria-expanded (it opens a popup), so it is excluded — this asserts the
     // CARD's own summary/insights expander is gone.
-    const w = mountCard(makeEpisode())
+    //
+    // NO summary of either kind: the read-more toggle also carries `aria-expanded` and is legitimate
+    // when there IS prose to reveal, so a card with prose cannot answer this question. jsdom has no
+    // layout, so the clamp holds its safe "might be clipped" default and any card with a summary
+    // offers the toggle — correctly.
+    const w = mountCard(makeEpisode({ summary_text: null, summary_preview: null } as never))
     expect(cardOwnExpanders(w)).toHaveLength(0)
   })
 
@@ -158,6 +163,20 @@ describe("EpisodeCard", () => {
     expect(w.text()).toContain("A very long unbounded editorial pull-quote.") // present, clamped by CSS
   })
 
+  it("can offer Read more for a PREVIEW-only episode, not just one with summary_text", () => {
+    // The window renders `summary_text || summary_preview`, but the toggle used to be gated on
+    // `summary_text` alone — so a preview-only episode could render prose the window genuinely
+    // clipped with no toggle able to appear: text cut off and no way to reach it (operator
+    // 2026-09-17). The gate must read the same value as the element it governs.
+    const w = mountCard(
+      makeEpisode({
+        summary_text: null,
+        summary_preview: "A preview-only lede that is long enough to be cut off.".repeat(10),
+      } as never)
+    )
+    expect(w.find('[data-testid="card-read-more"]').exists()).toBe(true)
+  })
+
   it("has no hover-triggered reveal anywhere on the card", () => {
     // group-hover is not a gesture on touch, and with no hover intent it strobed every card as the
     // pointer passed down a list.
@@ -165,7 +184,16 @@ describe("EpisodeCard", () => {
   })
 
   it("omits the insights affordance when there are no grounded bullets", () => {
-    const w = mountCard(makeEpisode({ summary_bullets: [], has_gi: false }))
+    // Summaries nulled for the same reason as above: the read-more toggle is a legitimate
+    // `aria-expanded` holder, so it has to be out of the picture for this to be about insights.
+    const w = mountCard(
+      makeEpisode({
+        summary_bullets: [],
+        has_gi: false,
+        summary_text: null,
+        summary_preview: null,
+      } as never)
+    )
     expect(cardOwnExpanders(w)).toHaveLength(0)
   })
 })

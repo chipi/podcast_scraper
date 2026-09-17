@@ -124,8 +124,13 @@ onBeforeUnmount(() => ro?.disconnect())
 // "Read more" only when the text is ACTUALLY cut off — the summary now fills the artwork column
 // rather than a fixed line count, so on a short summary nothing is clipped and the toggle would be
 // offering to reveal nothing.
+//
+// Gated on `summaryFull`, which is WHAT THE WINDOW RENDERS. It used to gate on `summary_text` while
+// the window fell back to `summary_preview`, so an episode carrying only a preview could render
+// prose the window genuinely clipped with no toggle able to appear — text cut off and no way to
+// reach it (operator 2026-09-17). The condition must read the same value as the element it governs.
 const canExpandSummary = computed(
-  () => !!props.episode.summary_text?.trim() && (summaryClipped.value || summaryExpanded.value)
+  () => !!summaryFull.value.trim() && (summaryClipped.value || summaryExpanded.value)
 )
 </script>
 
