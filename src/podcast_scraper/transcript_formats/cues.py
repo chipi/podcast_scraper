@@ -26,6 +26,11 @@ _HTML_TAG = re.compile(r"<[^>]+>")
 # WebVTT voice span: `<v Speaker 3>`, `<v.loud Mark>`, `<v Joe Wiesenthal>`. The name runs to the
 # closing angle bracket; optional `.class` suffixes on the tag itself are not part of it.
 _VOICE_SPAN = re.compile(r"<v(?:\.[^\s>]+)*\s+([^>]+)>")
+# SubRip has no voice tag; publishers write the speaker as a line prefix instead: `Speaker 3: …`
+# (Odd Lots, whose feed lists the SRT FIRST, so a fixed WebVTT parser never saw its speakers).
+# Deliberately only the generic `Speaker N` form: a free `<Name>:` prefix is indistinguishable
+# from prose ("Note: …"), and In Moscow's Shadows writes its `MG:` on the first cue only.
+_SRT_SPEAKER_PREFIX = re.compile(r"^\s*(Speaker\s+\d+)\s*:\s*", re.IGNORECASE)
 
 
 def _timestamp_to_seconds(ts: str) -> float:
@@ -156,10 +161,16 @@ def parse_srt(data: str) -> Tuple[str, List[Dict[str, Any]]]:
         start_s = _timestamp_to_seconds(m.group(1))
         end_s = _timestamp_to_seconds(m.group(2))
         raw_body = "\n".join(block_lines[li + 1 :])
+        prefix = _SRT_SPEAKER_PREFIX.match(raw_body)
+        if prefix:
+            raw_body = raw_body[prefix.end() :]
         norm = _normalize_cue_text(raw_body)
         if not norm.strip():
             continue
-        segments.append({"start": start_s, "end": end_s, "text": norm})
+        seg: Dict[str, Any] = {"start": start_s, "end": end_s, "text": norm}
+        if prefix:
+            seg["speaker"] = " ".join(prefix.group(1).split())
+        segments.append(seg)
 
     plain = "".join(s["text"] for s in segments)
     return plain, segments

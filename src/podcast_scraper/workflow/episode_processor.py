@@ -3971,7 +3971,22 @@ def process_episode_download(
         transcript_source: Optional[str], bytes_downloaded: int)
         transcript_source is "direct_download" or "whisper_transcription" or None
     """
-    chosen = choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
+    # A REPROCESS STAGE NEVER RE-DOWNLOADS THE PUBLISHER TRANSCRIPT HERE (#2075). This branch ran
+    # first for every stage, so on a feed that publishes its own transcript `relabel_only`,
+    # `rediarize_only` and `retranscript_only` downloaded it afresh into a NEW run directory and
+    # never reached `_maybe_dispatch_reprocess_stage` — the repair was a silent re-ingest that
+    # exited 0. Found running `retranscript_only` on one Odd Lots episode: a second copy of the
+    # episode appeared as `0001` in a new run, and the stored transcript was untouched.
+    # `rederive_only` works from the on-disk transcript by definition, so it is skipped too.
+    reprocess_from_disk = (
+        cfg.pipeline_stage in config.STAGES_THAT_NEVER_TRANSCRIBE
+        or cfg.pipeline_stage == "rederive_only"
+    )
+    chosen = (
+        None
+        if reprocess_from_disk
+        else choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
+    )
 
     if chosen:
         t_url, t_type = chosen

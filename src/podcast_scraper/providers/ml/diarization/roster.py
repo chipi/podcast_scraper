@@ -1932,6 +1932,50 @@ def _distinct_intros_map_to_multiple_stated(text: str, stated: Sequence[str]) ->
     return False
 
 
+def _intro_people(names: Sequence[str]) -> int:
+    """How many PEOPLE a voice's distinct self-introductions name.
+
+    The cold-open montage rule counts distinct "I'm X" names, and an ASR respelling of one host is
+    not a second host. Measured on an Odd Lots episode (publisher transcript, #2075): the voice
+    saying "And I'm Joe Weisenthal" at the open says "And I'm Jill Wiesenthal" at the close, so it
+    was suppressed as a two-host montage, and the introduction reader then gave the GUEST's name to
+    it. Two intros whose surnames are near-identical (both 5+ letters, edit distance <= 2) are one
+    person; a real montage ("I'm Kevin Roose… I'm Casey Newton…") has different surnames.
+    """
+    people: List[str] = []
+    for nm in names:
+        toks = _core_name_tokens(nm)
+        last = toks[-1].lower() if toks else nm.lower()
+        if not any(len(last) >= 5 and len(p) >= 5 and _edit_distance(last, p) <= 2 for p in people):
+            people.append(last)
+    return len(people)
+
+
+def _snap_near_identical_host(name: str, known_hosts: Sequence[str]) -> str:
+    """A self-introduction ONE LETTER from a stated host is that host, whichever voice says it.
+
+    Snapping is otherwise limited to host-candidate voices, because a guest with a host-like name
+    ("Kevin Ross" vs host Kevin Roose) must not be renamed. That guard also left a host the seating
+    missed wearing the ASR's spelling: Odd Lots' "I'm Tracy Allaway" stayed `Tracy Allaway`, which
+    the resolver then discarded as a name nobody stated, and she was cast as a guest of her own
+    show. An exact first name plus a surname one edit away is far narrower than the host-candidate
+    rule (edit <= 3 or soundex) and leaves "Kevin Ross" alone.
+    """
+    toks = _core_name_tokens(name)
+    if len(toks) < 2:
+        return name
+    for host in known_hosts:
+        h = _core_name_tokens(host)
+        if (
+            len(h) >= 2
+            and h[0].lower() == toks[0].lower()
+            and len(toks[-1]) >= 5
+            and _edit_distance(toks[-1].lower(), h[-1].lower()) <= 1
+        ):
+            return host
+    return name
+
+
 def _self_intro_voice_names(
     diarization: DiarizationResult,
     voice_texts: Optional[Dict[str, str]],
@@ -1976,7 +2020,7 @@ def _self_intro_voice_names(
         for v in intros
         if (
             talk.get(v, 0.0) < MONTAGE_CLIP_MAX_TALK_S
-            and len(distinct_self_introductions(texts.get(v, ""), intro_chars=5000)) >= 2
+            and _intro_people(distinct_self_introductions(texts.get(v, ""), intro_chars=5000)) >= 2
         )
         or (
             suppress_merged
@@ -1996,7 +2040,7 @@ def _self_intro_voice_names(
         if v in ad_voices or v in montage_suppressed:
             continue
         if v not in host_candidate_voices:
-            out[v] = n
+            out[v] = _snap_near_identical_host(n, known_hosts)
             continue
         canon = _canonicalize_to_known_host(n, known_hosts)
         # Inside the host gate: if the surname canonicalization did not fire, the strategy may still

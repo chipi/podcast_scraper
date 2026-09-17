@@ -534,3 +534,37 @@ def test_relabel_keeps_prose_colons_in_the_cleaned_transcript(tmp_path: Path) ->
     assert "So, to recap: it was a big week." in out
     assert "First: the chips." in out
     assert "One food scientist stuck with me: she said so." in out
+
+
+@pytest.mark.parametrize("stage", ["relabel_only", "retranscript_only"])
+def test_a_reprocess_stage_never_redownloads_a_publisher_transcript(
+    tmp_path: Path, monkeypatch, stage
+) -> None:
+    """#2075, found verifying retranscript_only on an Odd Lots episode: the publisher-transcript
+    branch ran before any stage check, so a feed that ships its own transcript was re-ingested into
+    a NEW run and the repair never ran — exit 0, stored transcript untouched."""
+    import queue
+
+    def _must_not_download(*_a, **_k):
+        raise AssertionError("a reprocess stage re-downloaded the publisher transcript")
+
+    monkeypatch.setattr(ep_mod, "process_transcript_download", _must_not_download)
+    episode = Episode(
+        idx=1,
+        title="Ep",
+        title_safe="Ep",
+        item=ET.Element("item"),
+        transcript_urls=[("https://example.com/ep1.srt", "application/x-subrip")],
+        media_url="https://example.com/ep1.mp3",
+        media_type="audio/mpeg",
+    )
+    jobs: "queue.Queue" = queue.Queue()
+    ep_mod.process_episode_download(
+        episode,
+        _cfg(stage),  # type: ignore[arg-type]
+        str(tmp_path / "tmp"),
+        str(tmp_path / "out"),
+        "20260101-000000_t",
+        jobs,
+        None,
+    )
