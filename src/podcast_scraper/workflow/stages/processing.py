@@ -2473,13 +2473,28 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     for j in all_jobs
                     if _processing_job_key(j) not in done_keys
                 ]
+                # The STATE of each tracked future identifies the defect: `done` and still tracked
+                # means the drain is not removing it; `running` means real work is in progress and
+                # the loop is right to wait; `pending` means the executor never picked it up.
+                states: Dict[str, int] = {}
+                for fut in list(futures.keys()):
+                    if fut.cancelled():
+                        key = "cancelled"
+                    elif fut.done():
+                        key = "done"
+                    elif fut.running():
+                        key = "running"
+                    else:
+                        key = "pending"
+                    states[key] = states.get(key, 0) + 1
                 logger.warning(
                     "Processing loop cannot finish: %d job(s) enqueued, %d marked processed, "
-                    "%d future(s) in flight. Unaccounted: %s",
+                    "%d future(s) tracked %s. Unaccounted: %s",
                     len(all_jobs),
                     len(done_keys),
                     len(futures),
-                    missing[:5] if missing else "none — a future has not completed",
+                    states,
+                    missing[:5] if missing else "none — a tracked future was never drained",
                 )
 
             while True:
