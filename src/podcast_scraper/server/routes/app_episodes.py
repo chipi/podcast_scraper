@@ -16,15 +16,17 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
 from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
-from podcast_scraper.server import app_stats
+from podcast_scraper.server import app_stats, app_user_state
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
+from podcast_scraper.server.app_capture_export import format_note
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import (
     get_content_source,
@@ -33,8 +35,14 @@ from podcast_scraper.server.app_content_source import (
     transcript_relpath,
 )
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
+from podcast_scraper.server.app_episode_notes import (
+    build_episode_notes,
+    render_episode_notes_html,
+    render_episode_notes_markdown,
+)
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
+from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
@@ -293,6 +301,69 @@ def episode_insights(
         return AppInsightsResponse(episode_slug=slug, insights=[])
     artifact = load_json_artifact(root, row.gi_relative_path)
     return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact, limit=limit))
+
+
+def _episode_notes_doc(request: Request, slug: str, user: User):
+    """The episode-notes document: the episode, plus this user's captures and notes on it.
+
+    Everything is loaded server-side rather than fanned out over HTTP — the same artifacts the
+    panel's four endpoints read, in one pass.
+    """
+    root, row = _resolve(request, slug)
+    data_dir = Path(request.app.state.app_data_dir)
+    highlights = app_user_state.get_highlights(data_dir, user.user_id, slug)
+    notes_by_target: dict[str, list[str]] = {}
+    for n in app_user_state.get_notes(data_dir, user.user_id):
+        text = str(n.get("text") or "").strip()
+        if text:
+            notes_by_target.setdefault(str(n.get("target_id") or ""), []).append(
+                format_note(text, n.get("created_at"), n.get("updated_at"))
+            )
+    return build_episode_notes(
+        root,
+        slug,
+        row=row,
+        gi_artifact=load_json_artifact(root, row.gi_relative_path) if row.has_gi else None,
+        kg_artifact=load_json_artifact(root, row.kg_relative_path) if row.has_kg else None,
+        highlights=highlights,
+        notes_by_target=notes_by_target,
+        episode_url=episode_url,
+    )
+
+
+@router.get(
+    "/episodes/{slug}/notes.md",
+    response_class=PlainTextResponse,
+    responses={200: {"description": "The whole episode as Markdown notes."}},
+)
+def episode_notes_markdown(
+    request: Request, slug: str, user: User = Depends(get_current_user)
+) -> PlainTextResponse:
+    """The episode as printed notes — title, summary, key points, topics, everything said, and
+    what the user saved (operator 2026-09-18).
+
+    A different document from the highlights export: that one answers "what did I save, across
+    everything", this one answers "what was this episode". NOTHING is capped — printed notes are
+    complete or they are a teaser.
+    """
+    doc = _episode_notes_doc(request, slug, user)
+    return PlainTextResponse(
+        render_episode_notes_markdown(doc),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{slug}-notes.md"'},
+    )
+
+
+@router.get(
+    "/episodes/{slug}/notes.html",
+    response_class=HTMLResponse,
+    responses={200: {"description": "The same notes, styled for printing to PDF."}},
+)
+def episode_notes_html(
+    request: Request, slug: str, user: User = Depends(get_current_user)
+) -> HTMLResponse:
+    """The same document, print-styled — the browser converts it to PDF (no PDF library)."""
+    return HTMLResponse(render_episode_notes_html(_episode_notes_doc(request, slug, user)))
 
 
 @router.get("/episodes/{slug}/recap", response_model=AppEpisodeRecap)

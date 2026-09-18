@@ -392,6 +392,11 @@
     "recapRegion": "Episode recap"
   },
   "kp": {
+    "exportKicker": "Episode notes",
+    "exportMarkdownShort": "Markdown",
+    "exportPdfShort": "PDF",
+    "exportNotesMarkdown": "Download these episode notes as Markdown",
+    "exportNotesPdf": "Print or save these episode notes as PDF",
     "title": "Insights",
     "ask": "Ask",
     "askPlaceholder": "Ask this episode…",

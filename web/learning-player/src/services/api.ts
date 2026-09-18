@@ -1017,6 +1017,15 @@ function exportQuery(color?: string | null, opts?: { mutedOnly?: boolean; q?: st
   return p.toString()
 }
 
+/**
+ * The whole episode as notes — summary, key points, topics, everything said, and the user's own
+ * captures on it. A different document from the highlights export, which is capture-scoped across
+ * every episode (operator 2026-09-18).
+ */
+export function episodeNotesUrl(slug: string, ext: "md" | "html"): string {
+  return `${BASE}/episodes/${encodeURIComponent(slug)}/notes.${ext}`
+}
+
 /** The same export, print-styled, for the browser's Save-as-PDF (operator 2026-09-18). */
 export function highlightsPrintUrl(
   color?: string | null,
