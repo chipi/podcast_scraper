@@ -100,8 +100,28 @@ def _processing_job_key(job: Any) -> str:
     hold (29 != 16). The transcript path is unique by construction — it is the
     artifact identity the stage actually operates on. idx remains for display
     and for the on-disk ``{idx} - *`` glob contract, never for dedup.
+
+    2026-09-18: "unique by construction" holds only while there IS a path. An
+    episode a reprocess cannot resolve a transcript for ("relabel_only: no
+    on-disk transcript to work on") reaches this function with an empty path,
+    and every such episode then shares the key ``"None"`` — the SAME wedge
+    through a different door. Measured on The Flip: 16 jobs, 3 of them
+    transcript-less, so 14 distinct keys, ``16 == 14`` never holds, and the
+    processing loop polled forever with both workers idle and all the work
+    finished. Four other feeds in the same run had no transcript-less episode
+    and every one exited cleanly. Falling back to the episode's stable identity
+    keeps such jobs distinct; they still fail, but they fail countably.
     """
-    return str(job.transcript_path)
+    path = str(job.transcript_path or "").strip()
+    if path:
+        return path
+    episode = getattr(job, "episode", None)
+    guid = str(getattr(episode, "guid", "") or "").strip()
+    if guid:
+        return f"no-transcript:guid:{guid}"
+    # No path and no guid: id() is unique for the lifetime of this list, which is exactly the
+    # lifetime of the bookkeeping that uses it.
+    return f"no-transcript:obj:{id(job)}"
 
 
 def _mark_processed(processed_job_keys: Set[str], job: Any) -> None:

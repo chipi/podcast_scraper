@@ -274,3 +274,66 @@ class TestProcessingJobKeyCollision(unittest.TestCase):
         processing._mark_processed(processed, j)
         processing._mark_processed(processed, j)
         self.assertEqual(len(processed), 1)
+
+
+class TestTranscriptlessJobsAreStillCountable(unittest.TestCase):
+    """2026-09-18: the SAME wedge, reached through a different door.
+
+    Keying on the transcript path is unique only while there IS one. An episode a reprocess cannot
+    resolve a transcript for ("relabel_only: no on-disk transcript to work on") arrives with an
+    empty path, and every such episode then shares the key ``"None"``.
+
+    Measured on The Flip during the #2075 harness: 16 jobs, 3 of them transcript-less, 14 distinct
+    keys — so ``total_jobs == len(processed_job_indices)`` could never hold and the processing loop
+    polled forever, both executor workers parked and all the work finished. A thread dump caught it
+    at ``processing.py`` in ``_run_parallel_processing_loop`` with the main thread joined on it. The
+    four feeds in the same run with no transcript-less episode all exited cleanly.
+    """
+
+    @staticmethod
+    def _job(idx: int, transcript_path, guid=None):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            episode=SimpleNamespace(idx=idx, guid=guid), transcript_path=transcript_path
+        )
+
+    def test_three_transcriptless_jobs_do_not_collapse_into_one_key(self):
+        """All three carry ``None``, as the three real Flip episodes did — `str(None)` is one key
+        for all of them. Mixing in `""` or whitespace would make this pass against the defect,
+        because those stringify differently."""
+        jobs = [
+            self._job(7, None, guid="guid-7"),
+            self._job(8, None, guid="guid-8"),
+            self._job(13, None, guid="guid-13"),
+        ]
+        keys = {processing._processing_job_key(j) for j in jobs}
+        self.assertEqual(len(keys), 3, f"transcript-less jobs shared a key: {keys}")
+
+    def test_an_empty_or_blank_path_is_treated_as_no_path(self):
+        """`""` and whitespace reach here too, and a key of `"   "` is not an identity."""
+        jobs = [self._job(1, "", guid="g1"), self._job(2, "   ", guid="g2")]
+        keys = {processing._processing_job_key(j) for j in jobs}
+        self.assertEqual(len(keys), 2)
+        self.assertTrue(all(k.startswith("no-transcript:") for k in keys), keys)
+
+    def test_the_queue_empty_invariant_can_be_satisfied(self):
+        """The wedge itself: every job must be countable, or the loop never concludes."""
+        processed: set = set()
+        jobs = [self._job(i, f"/out/t/{i:04d}.txt", guid=f"g{i}") for i in range(13)]
+        jobs += [self._job(i, None, guid=f"g{i}") for i in (13, 14, 15)]
+        for j in jobs:
+            processing._mark_processed(processed, j)
+        self.assertEqual(len(processed), len(jobs))
+
+    def test_a_job_with_neither_path_nor_guid_is_still_unique(self):
+        a = self._job(1, None)
+        b = self._job(1, None)
+        self.assertNotEqual(processing._processing_job_key(a), processing._processing_job_key(b))
+
+    def test_a_real_path_still_keys_by_path(self):
+        """The 2026-08-25 fix is untouched: where a path exists it remains the identity."""
+        j = self._job(5, "/out/run_A/transcripts/0005 - Alpha.txt", guid="g5")
+        self.assertEqual(
+            processing._processing_job_key(j), "/out/run_A/transcripts/0005 - Alpha.txt"
+        )
