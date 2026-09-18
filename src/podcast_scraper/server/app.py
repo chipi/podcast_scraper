@@ -543,6 +543,20 @@ def _install_metrics(app: FastAPI) -> None:
                 "via ``pip install -e '.[dev]'`` (or add it to the image)."
             )
 
+        # Per-cadence digest delivery health (#2119). The digest sidecar runs
+        # ``network_mode: none`` so it can neither expose nor push metrics; it writes a state
+        # file to the shared appdata volume and this API — already scraped as job ``api`` —
+        # exports it. No new scrape target. Collected at scrape time so the gauges reflect the
+        # sidecar's latest tick rather than whenever this app last did something.
+        _digest_data_dir = getattr(app.state, "app_data_dir", None)
+        if _digest_data_dir is not None:
+            try:
+                from podcast_scraper.server import app_digest_health
+
+                app_digest_health.install_metrics(app, Path(_digest_data_dir))
+            except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
+                logger.exception("digest health gauges failed to install — continuing without")
+
         # Dev-only: push the metrics registry straight to VictoriaMetrics when
         # PODCAST_METRICS_PUSH_URL is set (no daemon/scraper on the dev box). True no-op
         # otherwise — the packaged image leaves it unset and Alloy scrapes /metrics instead.

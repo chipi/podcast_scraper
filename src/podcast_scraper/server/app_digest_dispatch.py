@@ -109,4 +109,23 @@ def enqueue_all_due(corpus_root: Path, data_dir: Path, now: int | None = None) -
             logger.exception("digest dispatch: enqueuer %r failed", label)
             errors[label] = repr(exc)
 
-    return DispatchResult(ids=ids, errors=errors)
+    result = DispatchResult(ids=ids, errors=errors)
+
+    # Per-cadence health, written where the API can export it. This is the ONLY signal that can
+    # say "the expected output never arrived" — every pre-existing alert on this chain watched
+    # liveness or needed successful traffic to already exist, which is why two cadences ran dead
+    # for months behind green dashboards (#2119). Guarded: bookkeeping must never be able to
+    # break the loop it measures.
+    try:
+        from podcast_scraper.server import app_digest_health
+
+        app_digest_health.record_dispatch(
+            data_dir,
+            result,
+            consenting=app_digest_health.count_consenting_users(data_dir),
+            now=now,
+        )
+    except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
+        logger.exception("digest dispatch: health bookkeeping failed (dispatch itself was fine)")
+
+    return result
