@@ -218,8 +218,18 @@ function quoteOf(item: ResurfacingItem): string {
 
 /** Mark a highlight seen → drop it from the list (the server advances its ladder). */
 async function dismiss(item: ResurfacingItem): Promise<void> {
+  // Optimistic, but REVERSIBLE. The card left the screen before the write was awaited and there was
+  // no way back: a failed POST left the user believing they had reviewed something they had not,
+  // and it reappeared on the next load with no explanation. The resurfacing store has had this
+  // rollback since it was written; this view simply did not follow it (review 2026-09-18).
+  const before = items.value
   items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
-  await markSurfaced(item.highlight.id)
+  try {
+    await markSurfaced(item.highlight.id)
+  } catch {
+    items.value = before
+    return
+  }
   // Keep the nav badge honest: reviewing an item is exactly when the count should drop.
   void resurfacing.load()
 }
@@ -263,8 +273,14 @@ watch(
 )
 
 async function retire(item: ResurfacingItem): Promise<void> {
+  const before = items.value
   items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
-  await retireHighlight(item.highlight.id)
+  try {
+    await retireHighlight(item.highlight.id)
+  } catch {
+    items.value = before
+    return
+  }
   void resurfacing.load()
 }
 
@@ -285,8 +301,17 @@ async function confirmDelete(): Promise<void> {
   // Gated (#1590): signed out this write returns 401, the store swallows it, and the card would
   // disappear from the list and then reappear — which reads as the user's own action failing.
   await gated(async () => {
+    // Restored on failure like the other two. The capture store rolls `highlights` back on a
+    // permanent error, so without this the two surfaces disagree: the capture is gone from Revisit
+    // and still present in Saved, in the same session (review 2026-09-18).
+    const before = items.value
     items.value = items.value.filter((i) => i.highlight.id !== id)
-    await capture.remove(id)
+    try {
+      await capture.remove(id)
+    } catch {
+      items.value = before
+      return
+    }
     void resurfacing.load()
   })()
 }
