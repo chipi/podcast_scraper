@@ -579,7 +579,7 @@
     "create": "Create",
     "updated": "Updated {date}",
     "searchPlaceholder": "Search collections and notes…",
-    "sortUpdated": "Recent",
+    "sortUpdated": "Yours",
     "sortName": "A–Z",
     "sortCount": "Items",
     "loadFailed": "Couldn't load your collections.",

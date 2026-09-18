@@ -95,8 +95,13 @@ function rowElements(): HTMLElement[] {
 
 function onGrabStart(id: string, e: PointerEvent): void {
   if (!reorderable.value) return
-  // iOS decides a touch is a SELECTION gesture at touch-start, so cancelling it on the first move
-  // is already too late — the handles are up and the drag never begins.
+  // Suppress the iOS text-selection gesture, which starts at touch-down. The operator's screenshot
+  // showed selection handles over the row instead of a drag.
+  //
+  // This was NOT the reason reordering did not work — that was `visibleCollections` re-sorting the
+  // manual order away (see the note there), and the drag failed identically in Chromium where no
+  // such gesture exists. Kept because a drag handle should not be selectable regardless, but it is
+  // standard hygiene, not the fix, and it remains unverified on a device.
   e.preventDefault()
   draggingId.value = id
   dragOverId.value = id
@@ -165,7 +170,22 @@ const visibleCollections = computed(() => {
     : [...collections.value]
   if (sortBy.value === "name") return list.sort((a, b) => a.name.localeCompare(b.name))
   if (sortBy.value === "count") return list.sort((a, b) => b.count - a.count)
-  return list.sort((a, b) => (b.updated_at ?? b.created_at) - (a.updated_at ?? a.created_at))
+  // The server's order, UNSORTED — this is the manual one, and re-sorting it here is what made
+  // drag-reorder impossible (operator 2026-09-18: "dragging collections to set order never started
+  // working").
+  //
+  // This branch sorted by `updated_at` descending while `reorderable` simultaneously offered a drag
+  // handle under it. Those are mutually exclusive: `store.reorder()` wrote the new order, the server
+  // persisted it to `position`, the store updated — and then this line sorted it straight back on
+  // the very next render. The drag ran correctly end to end and was invisible.
+  //
+  // The comment above `reorderable` already described this exact failure ("a drag under those would
+  // persist an order the very next render discards, which reads as the drag having failed") and then
+  // the default mode did it anyway.
+  //
+  // `app_collections_store` sorts by `position`, falling back to `created_at` for a board never
+  // dragged, so the response IS the answer. The client's job is to render it, not to re-derive it.
+  return list
 })
 /**
  * Which entity kinds the notes filter offers — only kinds actually present (operator 2026-09-17).
