@@ -19,14 +19,15 @@ import {
 } from '../services/api'
 import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
-import type { EpisodeDetail, Highlight } from '../services/types'
+import type { EpisodeDetail, EpisodeSummary, Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
+import EpisodeRow from '../components/EpisodeRow.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
-import { episodeArtwork } from '../utils/episode'
+import { summaryFromDetail } from '../utils/episode'
 import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
 import { shareHighlightCard } from '../composables/useShareCard'
@@ -42,7 +43,25 @@ const capture = useCaptureStore()
 const props = defineProps<{ filterColor?: string | null; sort?: string; search?: string }>()
 
 // Episode groups are capped like every other Library section (#2042 follow-up); a search lifts it.
-const groupCaps = useCappedSections()
+// Episode groups AND the captures inside each one page 10 at a time (operator 2026-09-18). A heavy
+// listener has dozens of captures on a single episode, and "Show all" on that is not a page — it is
+// a scroll with no landmarks. Separate instances so walking one episode does not move the others.
+const groupCaps = useCappedSections(10, 10)
+const itemCaps = useCappedSections(10, 10)
+
+/**
+ * Episode groups the user has folded away (operator 2026-09-18).
+ *
+ * Collapsed-by-exception rather than open-by-exception: the captures are the content, so hiding
+ * them has to be a choice. Presentation-only and per-view — a fold is tidying, not a preference
+ * worth persisting across sessions.
+ */
+const collapsed = ref<Set<string>>(new Set())
+function toggleGroup(slug: string): void {
+  const next = new Set(collapsed.value)
+  if (!next.delete(slug)) next.add(slug)
+  collapsed.value = next
+}
 const searchActive = computed(() => (props.search ?? '').trim() !== '')
 
 /**
@@ -55,10 +74,30 @@ const searchActive = computed(() => (props.search ?? '').trim() !== '')
 const details = ref<Record<string, EpisodeDetail>>({})
 /** Title with the slug as fallback, so a group still reads sensibly before its episode lands. */
 const titleFor = (slug: string): string => details.value[slug]?.title ?? slug
-/** Small square thumbnail, same size the downloads list uses; null while unresolved. */
-const artFor = (slug: string): string | null => {
+
+/**
+ * The group heading's episode, in the shape `EpisodeRow` takes.
+ *
+ * Through `summaryFromDetail` — the one adapter Queue, Recent and Revisit use — so the heading
+ * cannot drift from the rows it is modelled on. Unresolved episodes still render a row, titled by
+ * slug: a heading that vanished until a fetch landed would make groups appear to pop into
+ * existence.
+ */
+function headingEpisode(slug: string): EpisodeSummary {
   const d = details.value[slug]
-  return d ? episodeArtwork(d) : null
+  if (d) return summaryFromDetail(d)
+  return {
+    slug,
+    title: slug,
+    podcast_title: null,
+    feed_id: null,
+    publish_date: null,
+    duration_seconds: null,
+    artwork_url: null,
+    episode_image_url: null,
+    feed_image_url: null,
+    status: 'ready',
+  } as unknown as EpisodeSummary
 }
 
 interface Group {
@@ -339,28 +378,39 @@ onMounted(async () => {
     </div>
 
     <section v-for="g in visibleGroups" :key="g.slug" class="mb-6">
-      <!-- The episode's artwork leads its group (operator 2026-09-18), at the size the downloads
-           rows use — image in front, heading beside it. A text-only heading made a page of captures
-           read as a list of sentences with no sense of WHICH show they came from, which is the one
-           thing the grouping exists to convey. No artwork (or not resolved yet) simply renders the
-           title, rather than reserving a grey square for something that may never arrive. -->
-      <RouterLink
-        :to="{ name: 'player', params: { slug: g.slug } }"
-        class="mb-2 flex items-center gap-2 no-underline hover:text-accent"
-        data-testid="highlight-group-heading"
-      >
-        <img
-          v-if="artFor(g.slug)"
-          :src="artFor(g.slug)!"
-          alt=""
-          loading="lazy"
-          class="h-10 w-10 shrink-0 rounded object-cover"
-        />
-        <span class="lp-section min-w-0">{{ g.title }}</span>
-      </RouterLink>
-      <ul class="flex flex-col gap-3">
+      <!-- The episode heads its own group as the SHARED compact row (operator 2026-09-18) — the
+           same `EpisodeRow` Home's What's New 2-5, the entity cards and the storyline sheet use.
+           It already is the standard small view: 40px artwork, title, and the show name under it,
+           which is the part a text-only heading was missing. Hand-rolling an img + title here was
+           a fourth near-copy of a row that already exists.
+
+           Before the episode resolves, the row still renders with the slug as its title rather
+           than the group disappearing or reserving a grey box for something that may not arrive. -->
+      <div class="mb-2" data-testid="highlight-group-heading">
+        <EpisodeRow :episode="headingEpisode(g.slug)">
+          <!-- Collapse the episode (operator 2026-09-18), in the row's own `#trailing` slot so the
+               control is a SIBLING of the link rather than nested inside it — an interactive inside
+               an interactive is the thing EpisodeRow's slot exists to avoid. Groups start open:
+               collapsing is for tidying a long Saved list, not a default that hides your captures. -->
+          <template #trailing>
+            <button
+              type="button"
+              class="lp-tap shrink-0 rounded-full px-2 py-1 text-xs font-bold text-accent"
+              :aria-expanded="!collapsed.has(g.slug)"
+              :aria-label="
+                collapsed.has(g.slug)
+                  ? t('highlights.expandGroup', { title: g.title })
+                  : t('highlights.collapseGroup', { title: g.title })
+              "
+              data-testid="highlight-group-collapse"
+              @click="toggleGroup(g.slug)"
+            >{{ collapsed.has(g.slug) ? '▼' : '▲' }}</button>
+          </template>
+        </EpisodeRow>
+      </div>
+      <ul v-show="!collapsed.has(g.slug)" class="flex flex-col gap-3">
         <li
-          v-for="h in g.highlights"
+          v-for="h in itemCaps.visible(g.slug, g.highlights, searchActive)"
           :key="h.id"
           class="rounded-xl border border-l-4 border-border p-3"
           :class="borderClass(h.color)"
@@ -377,13 +427,24 @@ onMounted(async () => {
                    capture three lines tall. The kicker line was half empty; this is space the card
                    already had. -->
               <div class="flex items-start justify-between gap-2">
-                <span class="lp-kicker">{{
-                  h.kind === 'insight'
-                    ? t('highlights.insight')
-                    : h.kind === 'span'
-                      ? t('highlights.span')
-                      : t('highlights.moment')
-                }}</span>
+                <span class="flex min-w-0 flex-wrap items-center gap-2">
+                  <span class="lp-kicker">{{
+                    h.kind === 'insight'
+                      ? t('highlights.insight')
+                      : h.kind === 'span'
+                        ? t('highlights.span')
+                        : t('highlights.moment')
+                  }}</span>
+                  <!-- Drift sits BESIDE the kind (operator 2026-09-18) — both are facts about what
+                       this capture IS, so they belong on the same line. Under the speaker it read
+                       as a comment on the quote instead, and pushed the card a line taller. -->
+                  <span
+                    v-if="h.anchor_status === 'drifted'"
+                    class="rounded-full bg-overlay px-2 py-0.5 text-xs text-danger"
+                    :title="t('highlights.driftedHint')"
+                    data-testid="highlight-drifted"
+                  >⚠ {{ t('highlights.drifted') }}</span>
+                </span>
                 <div class="-mt-1 flex shrink-0 items-center gap-1">
                   <!-- Colour: the shared collapsed control (one current-colour dot that expands the
                        palette on tap) — identical on every saved surface (#2042). -->
@@ -422,11 +483,6 @@ onMounted(async () => {
               <!-- The person/topic pills that sat here are gone (operator 2026-09-17): the card is a
                    captured moment, and a row of entity chips under it repeated what the transcript
                    already says while pushing the text itself down. -->
-              <span
-                v-if="h.anchor_status === 'drifted'"
-                class="mt-1 inline-block rounded-full bg-overlay px-2 py-0.5 text-xs text-danger"
-                :title="t('highlights.driftedHint')"
-              >⚠ {{ t('highlights.drifted') }}</span>
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-2">
               <RouterLink
@@ -504,14 +560,24 @@ onMounted(async () => {
           </div>
         </li>
       </ul>
+      <!-- Captures WITHIN this episode page 10 at a time, keyed by slug so each episode is walked
+           independently. A search lifts it, same rule as everywhere else. -->
+      <ShowAllToggle
+        v-if="!collapsed.has(g.slug) && itemCaps.overflows(g.highlights.length, searchActive, g.slug)"
+        :expanded="itemCaps.remaining(g.slug, g.highlights.length) === 0"
+        :count="g.highlights.length"
+        :remaining="itemCaps.remaining(g.slug, g.highlights.length)"
+        @toggle="itemCaps.toggle(g.slug, g.highlights.length)"
+      />
     </section>
 
-    <!-- Cap the number of episode groups shown; a search lifts it (#2042 follow-up). -->
+    <!-- Episode groups page 10 at a time; a search lifts it (#2042 follow-up). -->
     <ShowAllToggle
-      v-if="groupCaps.overflows(groups.length, searchActive)"
-      :expanded="groupCaps.expanded.has('groups')"
+      v-if="groupCaps.overflows(groups.length, searchActive, 'groups')"
+      :expanded="groupCaps.remaining('groups', groups.length) === 0"
       :count="groups.length"
-      @toggle="groupCaps.toggle('groups')"
+      :remaining="groupCaps.remaining('groups', groups.length)"
+      @toggle="groupCaps.toggle('groups', groups.length)"
     />
 
     <ConfirmDialog

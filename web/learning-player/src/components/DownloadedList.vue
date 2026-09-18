@@ -17,6 +17,8 @@ import { localArtworkFor } from '../services/downloads'
 import { resolveMediaUrl } from '../services/tier'
 import { isNative } from '../services/native'
 import { useDownloadsStore } from '../stores/downloads'
+import { useCappedSections } from '../composables/useCappedSections'
+import ShowAllToggle from './ShowAllToggle.vue'
 
 const { t } = useI18n()
 const downloads = useDownloadsStore()
@@ -26,6 +28,13 @@ const native = isNative()
 const items = computed(() =>
   Object.values(downloads.entries).sort((a, b) => b.updatedAt - a.updatedAt),
 )
+
+// Five at a time, then five more (operator 2026-09-18). Downloads is the densest row in Saved —
+// artwork, title, show, size and a per-row control — so dumping everything on the device buries
+// the sections above it. A smaller first page than the 10 used elsewhere, for the same reason.
+const caps = useCappedSections(5, 5)
+const DOWNLOADS_KEY = 'downloads'
+const visibleItems = computed(() => caps.visible(DOWNLOADS_KEY, items.value))
 
 function minutes(seconds?: number): string | null {
   if (!seconds) return null
@@ -49,7 +58,7 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
 
     <ul class="flex flex-col">
       <li
-        v-for="e in items"
+        v-for="e in visibleItems"
         :key="e.slug"
         data-testid="downloaded-item"
         class="flex items-start gap-3 border-b border-border py-3"
@@ -92,6 +101,14 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
         <DownloadButton :slug="e.slug" />
       </li>
     </ul>
+
+    <ShowAllToggle
+      v-if="caps.overflows(items.length, false, DOWNLOADS_KEY)"
+      :expanded="caps.remaining(DOWNLOADS_KEY, items.length) === 0"
+      :count="items.length"
+      :remaining="caps.remaining(DOWNLOADS_KEY, items.length)"
+      @toggle="caps.toggle(DOWNLOADS_KEY, items.length)"
+    />
 
     <p data-testid="downloaded-storage" class="lp-kicker mt-3">
       {{ t('downloads.storageUsed') }}: {{ usedMb }} MB ·

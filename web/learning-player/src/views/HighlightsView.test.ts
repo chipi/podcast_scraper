@@ -168,6 +168,20 @@ describe('HighlightsView', () => {
     expect(w.text()).toContain('Marked moment')
   })
 
+  it('names a saved transcript line a QUOTE, not a "Transcript"', async () => {
+    // Operator 2026-09-18: "Transcript" named the SOURCE, not the thing — and what the card shows
+    // is a quotation. The kind stays `span` on the wire; only the word changed, and it is one i18n
+    // key (`highlights.span`) so Saved and Revisit cannot drift apart.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      hl({ kind: 'span', quote_text: 'Index funds are not a strategy.' }),
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.text()).toContain('Quote')
+    expect(w.text(), 'the old source-named label survived').not.toContain('Transcript')
+  })
+
   it('removes a highlight, once confirmed', async () => {
     // The ✕ now opens a confirmation instead of deleting (#1594) — a highlight is authored content
     // and there is no undo, because the create endpoint mints a new id.

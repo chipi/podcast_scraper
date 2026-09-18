@@ -171,19 +171,31 @@ describe('LibraryView', () => {
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
   })
 
-  it('caps a long Saved episodes list and expands it in place (#2042)', async () => {
-    const episodes = Array.from({ length: 9 }, (_, i) =>
+  it('pages a long Saved episodes list TEN at a time (#2042, operator 2026-09-18)', async () => {
+    // Was "show 6, then show all". A hundred saved episodes revealed in one press is not a page —
+    // it is a scroll with no landmarks — so each press adds another ten instead.
+    const episodes = Array.from({ length: 25 }, (_, i) =>
       summary({ slug: `e${i}`, title: `Saved Episode ${i}` }),
     )
     vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes })
     const w = mountKeptAlive()
     await flushPromises()
-    // Capped to the top 6 (SECTION_CAP) with a Show-all toggle.
-    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(6)
+
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(10)
     const toggle = w.find('[data-testid="show-all-toggle"]')
     expect(toggle.exists()).toBe(true)
+    // The label counts what is still HIDDEN — the question the control actually answers.
+    expect(toggle.text()).toContain('15')
+
     await toggle.trigger('click')
-    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(9)
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(20)
+    await toggle.trigger('click')
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(25)
+
+    // Everything is out: the same control folds it back to the first page.
+    expect(toggle.text()).toContain('Show less')
+    await toggle.trigger('click')
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(10)
   })
 
   it('the Saved search narrows every section and lifts the caps (#2042)', async () => {

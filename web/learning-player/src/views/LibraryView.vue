@@ -128,7 +128,10 @@ const savedSort = ref<string>('recent')
 // A non-empty query lifts every cap so a match is never hidden behind "Show all".
 const savedSearch = ref('')
 const savedSearchActive = computed(() => savedSearch.value.trim() !== '')
-const savedCaps = useCappedSections()
+// Saved's per-type sections page 10 at a time (operator 2026-09-18) rather than the default 6 with
+// an all-or-nothing expand: at a hundred saved episodes "Show all" produces a scroll with no
+// landmarks, so each press adds another ten.
+const savedCaps = useCappedSections(10, 10)
 
 /** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
  *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
@@ -578,8 +581,6 @@ onMounted(async () => {
             </li>
           </ul>
         </section>
-        <!-- Downloaded (#1905) — device-local, native only, renders with no API calls. -->
-        <DownloadedList />
 
         <!-- SHOWS lead the saved content, before episodes (operator 2026-09-17), as a list row with
              44px artwork — the shape Discover's Shows LIST uses.
@@ -636,10 +637,11 @@ onMounted(async () => {
             </EpisodeCard>
           </div>
           <ShowAllToggle
-            v-if="savedCaps.overflows(filteredEpisodes.length, savedSearchActive)"
-            :expanded="savedCaps.expanded.has('episodes')"
+            v-if="savedCaps.overflows(filteredEpisodes.length, savedSearchActive, 'episodes')"
+            :expanded="savedCaps.remaining('episodes', filteredEpisodes.length) === 0"
             :count="filteredEpisodes.length"
-            @toggle="savedCaps.toggle('episodes')"
+            :remaining="savedCaps.remaining('episodes', filteredEpisodes.length)"
+            @toggle="savedCaps.toggle('episodes', filteredEpisodes.length)"
           />
         </section>
         <!-- Topics, then storylines, then people — each its own section (operator 2026-09-17).
@@ -685,6 +687,13 @@ onMounted(async () => {
           </h2>
           <HighlightsView :filter-color="savedColor" :sort="savedSort" :search="savedSearch" />
         </section>
+
+        <!-- Downloaded (#1905) — device-local, native only, renders with no API calls.
+             LAST of the Saved sections (operator 2026-09-18). It sat second, above everything the
+             user actually saved, so a native build opened Saved on a device-storage list rather
+             than on their own captures. It is a utility view of what happens to be on this phone,
+             not a thing they curated — so it reads last. -->
+        <DownloadedList />
 
         <!-- Filters can empty every section while the account is NOT empty — say so, rather than
              show a blank tab that reads as a bug. -->
