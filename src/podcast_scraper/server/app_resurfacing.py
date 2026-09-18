@@ -104,8 +104,9 @@ def select_due(
         #
         # The ladder had no exit. Reviewing advances a rung and tops out at 90 days, so a
         # capture you have answered five times still returns every quarter; ignoring one
-        # leaves `last_seen` at its capture date, so it stays permanently overdue and —
-        # since this sorts most-overdue-first — climbs to the TOP for ever. Both paths
+        # leaves `last_seen` at its capture date, so it stays permanently overdue. (That
+        # used to climb to the TOP for ever, since this sorted most-overdue-first; the
+        # ordering has since been replaced, but the ladder still has no exit.) Both paths
         # loop, and the only way out was deleting the capture, which is a different
         # decision: "stop asking me" is not "I no longer want this".
         #

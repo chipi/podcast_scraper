@@ -1100,7 +1100,12 @@ class ResurfacingItem(BaseModel):
 
 
 class ResurfacingResponse(BaseModel):
-    """Due resurfacing items, most-overdue first (empty when paused / nothing due)."""
+    """Due resurfacing items (empty when paused / nothing due).
+
+    Ordered by episode — most recently listened-or-captured first, then newest capture within
+    the episode. NOT most-overdue-first, which this replaced (see ``select_due``). Published in
+    the OpenAPI schema, so a stale claim here misinforms every client and SDK.
+    """
 
     items: list[ResurfacingItem] = Field(default_factory=list)
     paused: bool = Field(default=False, description="Whether the user has paused resurfacing.")

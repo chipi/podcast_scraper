@@ -288,7 +288,12 @@ def build_push_envelope(
 
 
 def _nudge_payload(revisit_items: list[dict[str, Any]]) -> dict[str, Any]:
-    """A resurface-nudge payload: a count + the single most-overdue lead item."""
+    """A resurface-nudge payload: a count + the lead item.
+
+    The lead is simply the first of ``revisit_items``, so it inherits ``select_due``'s order:
+    the most recently listened-or-captured episode, newest capture within it. It was the
+    most-overdue item until the ordering was replaced (operator 2026-09-18).
+    """
     return {"highlight_count": len(revisit_items), "lead": revisit_items[0]}
 
 
