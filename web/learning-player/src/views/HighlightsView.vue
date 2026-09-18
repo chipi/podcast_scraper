@@ -578,8 +578,18 @@ onMounted(async () => {
                 :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
                 class="font-mono text-xs text-accent no-underline"
               >▶ {{ formatTime(h.start_ms / 1000) }}</RouterLink>
+              <!-- The failed-load case is SAID, not implied by an absent control. Hiding the
+                   select on error reads as "you have no collections", which is the exact reading
+                   the ref was added to prevent — and then it was never rendered (review
+                   2026-09-18). -->
+              <span
+                v-if="collectionsError"
+                class="text-xs text-muted"
+                data-testid="collections-unavailable"
+                :title="t('collections.loadFailedHint')"
+              >{{ t('collections.loadFailed') }}</span>
               <select
-                v-if="collections.length"
+                v-else-if="collections.length"
                 class="max-w-[9rem] rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs"
                 :aria-label="t('collections.addTo')"
                 @change="addHighlightTo(h.id, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"

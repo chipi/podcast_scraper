@@ -300,4 +300,41 @@ describe('ResurfacingInbox', () => {
     )
     expect(ringed).toHaveLength(0)
   })
+
+  /**
+   * A failed load is NOT an empty state.
+   *
+   * `load()` had no try/catch, so a throw left `loaded` false forever: neither the items branch nor
+   * the empty-state branch rendered, and the tab showed its intro line over nothing. The route 503s
+   * whenever the corpus is briefly unavailable, so a restart blanked Revisit for everyone — looking
+   * exactly like "you have no captures" (review 2026-09-18).
+   */
+  it('a failed load says so and offers a retry, instead of claiming nothing is due', async () => {
+    vi.spyOn(api, 'getResurfacing').mockRejectedValue(new Error('503'))
+    const w = mountInbox()
+    await flushPromises()
+
+    expect(w.find('[data-testid="revisit-load-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="revisit-retry"]').exists()).toBe(true)
+    // The empty state must NOT be shown — it would assert something false about their captures.
+    expect(w.text()).not.toContain('Nothing due')
+  })
+
+  it('retry re-requests, and a recovered server renders the items', async () => {
+    const get = vi
+      .spyOn(api, 'getResurfacing')
+      .mockRejectedValueOnce(new Error('503'))
+      .mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const w = mountInbox()
+    await flushPromises()
+    expect(w.find('[data-testid="revisit-load-error"]').exists()).toBe(true)
+
+    await w.get('[data-testid="revisit-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(get).toHaveBeenCalledTimes(2)
+    expect(w.find('[data-testid="revisit-load-error"]').exists()).toBe(false)
+    expect(w.find('[data-testid="revisit-item"]').exists()).toBe(true)
+  })
 })
