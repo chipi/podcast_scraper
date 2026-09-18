@@ -21,7 +21,7 @@ import {
   highlightsPrintUrl,
 } from '../services/api'
 import type { Collection } from '../services/types'
-import { isNative, openExternal, saveAndShareBinary, saveAndShareText } from '../services/native'
+import { deliverFile, isNative, openExternal, saveAndShareText } from '../services/native'
 import type { EpisodeDetail, EpisodeSummary, Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
@@ -297,9 +297,8 @@ async function doObsidianExport(): Promise<void> {
     //
     // Restore the cursor here only alongside a programmatic applier (an Obsidian plugin, or the
     // native shell writing files itself). Until then `since=0` is the only safe request.
-    const r = await exportObsidian(0, undefined, isNative()
-      ? (blob) => saveAndShareBinary('closelistening-obsidian.zip', blob)
-      : undefined)
+    const r = await exportObsidian(0)
+    await deliverFile('closelistening-obsidian.zip', r.zip)
     localStorage.setItem(OBSIDIAN_CURSOR_KEY, String(r.revision))
     // Stored beside the cursor, not instead of it. A revision only identifies a snapshot within
     // one server epoch (#41); persisting the number alone would leave whatever applier arrives

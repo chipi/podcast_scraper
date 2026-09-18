@@ -278,6 +278,31 @@ export async function saveAndShareBinary(filename: string, blob: Blob): Promise<
 }
 
 /**
+ * Deliver a file to the user, whatever the platform.
+ *
+ * The one place that knows how a file reaches a human: share sheet on native, `<a download>` on
+ * web. Callers — including the transport layer in `api.ts`, which has no business touching the DOM
+ * — just hand over bytes and a name.
+ *
+ * Centralised because the alternative was every export re-deciding it, and they decided differently:
+ * highlights Markdown had a native branch, the Obsidian zip did not (and was hidden on native to
+ * cover for it), and the episode-notes chip did not (and silently did nothing). Three exports,
+ * three answers, two of them broken on the only build the operator uses.
+ */
+export async function deliverFile(filename: string, blob: Blob): Promise<void> {
+  if (isNative()) {
+    await saveAndShareBinary(filename, blob)
+    return
+  }
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/**
  * Open a URL somewhere the OS can act on it.
  *
  * `window.open(url, '_blank')` is a silent no-op in WKWebView — nothing opens, no error fires, and

@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import * as shareCard from '../composables/useShareCard'
+import * as native from '../services/native'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Highlight, Note } from '../services/types'
 import HighlightsView from './HighlightsView.vue'
@@ -113,7 +114,17 @@ describe('HighlightsView', () => {
     })
     const exp = vi
       .spyOn(api, 'exportObsidian')
-      .mockResolvedValue({ mode: 'full', revision: 5, written: 7, removed: 0 })
+      .mockResolvedValue({
+        mode: 'full',
+        revision: 5,
+        epoch: 'e1',
+        written: 7,
+        removed: 0,
+        zip: new Blob(['PK'], { type: 'application/zip' }),
+      })
+    // The bytes now come back from the transport and the VIEW delivers them — the split that keeps
+    // `api.ts` from hard-coding `<a download>`, which is what made this export dead on iOS.
+    const deliver = vi.spyOn(native, 'deliverFile').mockResolvedValue(undefined)
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const w = mountView()
@@ -122,9 +133,10 @@ describe('HighlightsView', () => {
     await w.findAll('button').find((b) => b.text() === 'Obsidian')!.trigger('click')
     await flushPromises()
 
-    // `undefined` delivery = the web download path; native passes a share-sheet deliverer. The
-    // assertion that matters is the FIRST arg: never the stored cursor.
-    expect(exp).toHaveBeenCalledWith(0, undefined, undefined)
+    expect(exp).toHaveBeenCalledWith(0) // never the stored cursor
+    // Fetching the zip is not the feature; the user RECEIVING it is. Asserting only the request is
+    // what let the export ship broken on the phone — the call was made, the bytes went nowhere.
+    expect(deliver).toHaveBeenCalledWith('closelistening-obsidian.zip', expect.any(Blob))
     expect(store.obsidian_export_cursor).toBe('5') // still recorded, for a future applier
     expect(w.text()).toContain('7')
     // And the user is told what to do with the zip — the export used to end at "here is a file".

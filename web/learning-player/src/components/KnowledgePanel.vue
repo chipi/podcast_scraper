@@ -12,7 +12,7 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue"
 import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from "vue-i18n"
-import { episodeNotesUrl, getRelated, searchEpisode } from "../services/api"
+import { episodeNotesUrl, fetchEpisodeNotes, getRelated, searchEpisode } from "../services/api"
 import type {
   EpisodeDetail,
   EpisodeSummary,
@@ -35,6 +35,7 @@ import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
+import { isNative, openExternal, saveAndShareText } from "../services/native"
 
 const props = withDefaults(
   defineProps<{
@@ -83,8 +84,35 @@ function notesUrl(ext: 'md' | 'html'): string {
   return episodeNotesUrl(props.episode.slug, ext)
 }
 
-function openPrintableNotes(): void {
-  window.open(notesUrl('html'), '_blank')
+/**
+ * Open the print-styled notes so the browser can save them as PDF.
+ *
+ * `window.open(url, '_blank')` is a silent no-op in WKWebView, so on the phone this button did
+ * nothing at all — the same defect found in the highlights PDF export (operator 2026-09-18).
+ * `openExternal` hands it to SFSafariViewController / Custom Tabs, where Print -> Save to Files is
+ * the real print-to-PDF path.
+ */
+async function openPrintableNotes(): Promise<void> {
+  await openExternal(notesUrl('html'))
+}
+
+/**
+ * Markdown notes on native: fetch and hand to the share sheet.
+ *
+ * The template's `<a download>` is ignored by WKWebView, so tapping "Markdown" on the phone
+ * produced nothing — found alongside the PDF defect above. Both formats of the episode-notes export
+ * were unreachable on the only build the operator actually uses.
+ */
+const savingNotes = ref(false)
+async function saveNotesNative(): Promise<void> {
+  if (savingNotes.value) return
+  savingNotes.value = true
+  try {
+    const md = await fetchEpisodeNotes(props.episode.slug)
+    await saveAndShareText(`${props.episode.slug}-notes.md`, md)
+  } finally {
+    savingNotes.value = false
+  }
 }
 
 const summary = computed(() => props.episode.summary_text || null)
@@ -494,7 +522,19 @@ watch(() => auth.isAuthenticated, loadCaptures)
              print-styled page the browser saves as PDF. -->
         <div class="mb-5 flex items-center gap-2" data-testid="episode-notes-export">
           <span class="text-xs text-muted">{{ t("kp.exportKicker") }}</span>
+          <!-- Native shell: fetch + share sheet (WKWebView ignores `<a download>`, so this chip
+               did nothing at all on the phone); web: plain download link. Mirrors the Library's
+               highlights export, which already had the native branch this one was missing. -->
+          <button
+            v-if="isNative()"
+            type="button"
+            :disabled="savingNotes"
+            :aria-label="t('kp.exportNotesMarkdown')"
+            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+            @click="saveNotesNative"
+          >{{ t("kp.exportMarkdownShort") }}</button>
           <a
+            v-else
             :href="notesUrl('md')"
             :download="`${episode.slug}-notes.md`"
             :aria-label="t('kp.exportNotesMarkdown')"
