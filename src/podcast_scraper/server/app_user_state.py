@@ -356,6 +356,36 @@ def _record_listening_unlocked(
         logger.debug("listening accrual failed for %s/%s", user_id, slug, exc_info=True)
 
 
+def listened_at_by_episode(data_dir: Path, user_id: str) -> dict[str, int]:
+    """``episode_slug -> when the user last PLAYED it`` (unix seconds).
+
+    From ``playback.json``'s ``updated_at``, which the client writes continuously while audio
+    plays, so it is genuinely "last listened", not "last opened".
+
+    Orders the resurfacing queue (:func:`app_resurfacing.select_due`): an episode you went back to
+    should bring its captures with it, even when replaying produced no new capture. Deliberately
+    NOT the publish date — publishing is not listening, and keying on it buried an old episode
+    played today underneath everything newer.
+
+    Tolerates the file being absent or malformed: a bad playback record must not take down the
+    Revisit tab, it must only cost that episode its listened-at signal.
+    """
+    data = _read(data_dir, user_id, "playback", {})
+    if not isinstance(data, dict):
+        return {}
+    out: dict[str, int] = {}
+    for slug, rec in data.items():
+        if not isinstance(rec, dict):
+            continue
+        try:
+            ts = int(rec.get("updated_at") or 0)
+        except (TypeError, ValueError):
+            continue
+        if ts > 0:
+            out[str(slug)] = ts
+    return out
+
+
 def list_playback(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     """All saved playback positions, newest-updated first (for the Home 'Continue' rail)."""
     data = _read(data_dir, user_id, "playback", {})

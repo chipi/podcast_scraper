@@ -533,6 +533,32 @@ highlights path, never a favorite" (RFC-121 / #1593) — so a heart here would o
 something that was never hearted. `BookmarkIcon` is shared with `TranscriptList` rather than
 redrawn, so the saved glyph cannot drift between the place you save and the place you unsave.
 
+**Ordering: episodes by `max(listened_at, newest capture)`, newest first (operator 2026-09-18).**
+This replaced most-overdue-first, which sounded right and measured worst.
+
+An unreviewed capture never moves `last_seen` off its capture date, so it grows more overdue for
+ever AND sits on the 90-day rung — it returns quickly and re-occupies the top. Sorting by
+overdue-ness therefore spent every session on the same ancient set while new captures queued
+behind: the surface *recirculated* its oldest items instead of draining. Reviewing a fresh capture
+advances it 2d → 7d → 30d → 90d, so it leaves for months.
+
+Simulated over a year (2 captures/day; opens the tab weekly, answers ten):
+
+| ordering | coverage | median age at review |
+| --- | --- | --- |
+| most-overdue-first (was) | 44% | 118 days |
+| episode by max(listened, captured) | 71% | 4 days |
+
+Coverage is the share of captures surfaced even once in the year — the old order never showed the
+user 406 of their 730 captures.
+
+`listened_at` is `playback[slug].updated_at`, i.e. when the episode was last PLAYED. Not the
+publish date: publishing is not listening, and keying on it collapsed coverage to 49% for a
+listener whose diet is half back-catalogue, because an old episode played today sank to the bottom.
+Re-listening without capturing counts too — replaying something is renewed interest. Grouping is by
+episode because captures are made while listening, so an episode's captures are one session's
+thinking and are worth meeting together.
+
 `retired` lives in the per-highlight resurfacing record beside `last_surfaced`/`count`, so "is this
 resurfacing?" sits next to "when did it last surface?" rather than splitting one concept over two
 stores. It is removed rather than written `false`, so absence is the only "still resurfacing" state.

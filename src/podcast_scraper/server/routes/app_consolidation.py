@@ -40,7 +40,11 @@ def _data_dir(request: Request) -> Path:
 async def resurfacing(
     request: Request, user: User = Depends(get_current_user)
 ) -> ResurfacingResponse:
-    """Highlights due to resurface (most-overdue first) + a reflection prompt; honours pacing.
+    """Highlights due to resurface + a reflection prompt; honours pacing.
+
+    Ordered by episode, most recently listened-or-captured first — NOT most-overdue-first,
+    which recirculated the oldest captures and never showed the user most of their own
+    library (see ``select_due``).
 
     Graph-gated, exactly like Your Week and the digest email (#38). Until now this route had NO
     such requirement while the digest assembler dropped refless items, so the Revisit tab listed
@@ -54,7 +58,13 @@ async def resurfacing(
     paused = bool(settings["paused"])
     highlights = app_user_state.get_highlights(data_dir, user.user_id)
     state = app_user_state.get_resurfacing_state(data_dir, user.user_id)
-    due = select_due(highlights, state, int(time.time()), paused=paused)
+    due = select_due(
+        highlights,
+        state,
+        int(time.time()),
+        paused=paused,
+        listened_at=app_user_state.listened_at_by_episode(data_dir, user.user_id),
+    )
 
     items: list[ResurfacingItem] = []
     withheld = 0

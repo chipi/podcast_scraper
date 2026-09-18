@@ -119,7 +119,13 @@ def assemble_digest_payload(
     # separate comms.digest_schedule.paused consent gate governs whether the EMAIL is sent at all;
     # this governs whether resurfacing CONTENT exists to send.
     paused = bool(app_user_state.get_resurfacing_settings(data_dir, user_id).get("paused"))
-    due = select_due(highlights, state, now, paused=paused)
+    due = select_due(
+        highlights,
+        state,
+        now,
+        paused=paused,
+        listened_at=app_user_state.listened_at_by_episode(data_dir, user_id),
+    )
     items: list[dict[str, Any]] = []
     for h in due:
         item = _digest_item(root, h)

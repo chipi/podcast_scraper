@@ -38,17 +38,63 @@ def select_due(
     *,
     ladder: tuple[int, ...] = LADDER_SECONDS,
     paused: bool = False,
+    listened_at: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
-    """Highlights due to resurface, most-overdue first.
+    """Highlights due to resurface, grouped by episode, most recently engaged episode first.
 
     A highlight is due when ``now - last_seen >= ladder[surface_count]``, where ``last_seen`` is the
     last time it was surfaced (or its ``created_at`` if never) and ``surface_count`` is how many
     times it has already been shown (capped at the last ladder step). Paused → nothing is due.
+
+    **Ordering: episodes by ``max(listened_at, newest capture)``, newest first** (operator
+    2026-09-18). This replaced most-overdue-first, which sounded right and measured worst.
+
+    Why the obvious order was wrong. An unreviewed capture never moves ``last_seen`` off its
+    capture date, so it grows more overdue for ever, and an old capture sits on the 90-day rung —
+    it comes back fast and re-occupies the top. Sorting by overdue-ness therefore spent every
+    session on the same ancient set while new captures queued behind it: the surface RECIRCULATED
+    its oldest items instead of draining. Reviewing a FRESH capture instead advances it
+    2d → 7d → 30d → 90d, so it leaves for months.
+
+    Simulated over a year of 2 captures/day for a user who opens the tab weekly and answers ten:
+
+    ===============================  ========  ====================
+    ordering                         coverage  median age at review
+    ===============================  ========  ====================
+    most-overdue-first (was)              44%                118 days
+    episode by max(listened, capture)     71%                  4 days
+    ===============================  ========  ====================
+
+    Coverage is the share of captures surfaced even once in the year; the old order never showed
+    the user 406 of their 730 captures.
+
+    ``listened_at`` is ``playback[slug].updated_at`` — when the user last PLAYED that episode, not
+    when it was published. Publishing is not listening: keying on publish date collapsed back to
+    49% for a listener whose diet is half back-catalogue, because an old episode played today sank
+    to the bottom. Re-listening without capturing also counts, since replaying something is renewed
+    interest even when it produces no new capture.
+
+    Grouping is by episode because captures are made while listening, so an episode's captures form
+    one session's thinking and are worth meeting together.
     """
     if paused:
         return []
+    rows = list(highlights)
+    # The episode's recency: its newest capture, or when it was last played, whichever is later.
+    # Computed over ALL captures rather than only the due ones, so an episode does not jump around
+    # as individual captures fall due.
+    engaged: dict[str, int] = dict(listened_at or {})
+    for h in rows:
+        slug = str(h.get("episode_slug") or "")
+        try:
+            made = int(h.get("created_at") or 0)
+        except (TypeError, ValueError):
+            made = 0
+        if slug and made > engaged.get(slug, 0):
+            engaged[slug] = made
+
     scored: list[tuple[int, dict[str, Any]]] = []
-    for h in highlights:
+    for h in rows:
         hid = str(h.get("id") or "")
         created = int(h.get("created_at") or 0)
         if not hid or not created:
@@ -86,7 +132,16 @@ def select_due(
         overdue = (now - last_seen) - interval
         if overdue >= 0:
             scored.append((overdue, h))
-    scored.sort(key=lambda pair: pair[0], reverse=True)
+    # Episode recency first, then newest capture within the episode. `overdue` no longer orders
+    # anything — it only decides IS-DUE — but it stays in the tuple as the final tie-break so the
+    # sort is total and therefore stable across calls.
+    scored.sort(
+        key=lambda pair: (
+            -engaged.get(str(pair[1].get("episode_slug") or ""), 0),
+            -int(pair[1].get("created_at") or 0),
+            -pair[0],
+        )
+    )
     return [h for _, h in scored]
 
 
