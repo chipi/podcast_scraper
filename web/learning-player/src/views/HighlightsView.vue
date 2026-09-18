@@ -393,9 +393,12 @@ onMounted(async () => {
                an interactive is the thing EpisodeRow's slot exists to avoid. Groups start open:
                collapsing is for tidying a long Saved list, not a default that hides your captures. -->
           <template #trailing>
+            <!-- `self-center`: EpisodeRow's row is `items-start` (correct for artwork beside two
+                 lines of text), which pinned this control to the top corner. It acts on the whole
+                 row, so it centres against it. -->
             <button
               type="button"
-              class="lp-tap shrink-0 rounded-full px-2 py-1 text-xs font-bold text-accent"
+              class="lp-tap shrink-0 self-center rounded-full px-2 py-1 text-xs font-bold text-accent"
               :aria-expanded="!collapsed.has(g.slug)"
               :aria-label="
                 collapsed.has(g.slug)
