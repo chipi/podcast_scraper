@@ -206,6 +206,16 @@ host naming a guest, who reads the outro, who is addressed by name.
 **A wrong measurement is worse than no measurement.** It produces confident, wrong
 conclusions faster. Budget for verifying the instrument, not just the fix.
 
+**Measure how often a candidate rule FIRES before arguing about whether it is right.**
+The firing rate usually settles the design on its own, and it is far cheaper to obtain
+than a correctness judgement. "A voice greeted by name is not that person" is obviously
+true, and the only real question is which textual shape to match. Counted over the
+corpus's 6,121 named voices: the start-of-voice shape (`"Hey, Jordan."`) fires on 2
+records, both the episode the bug was reported on; the sentence-anywhere shape
+(`", Jordan."`) fires on 858 of 4,896 self-introduced voices, because that is not people
+being addressed, it is diarization bleed. Same rule, same intuition, two orders of
+magnitude apart — and no amount of reasoning about the rule would have told you which.
+
 **A harness that skips a filter will manufacture a defect, and you will fix it.** The worst
 case is not a harness that misses a bug — it is one that invents a plausible one. The swap
 rule is gated on the episode having exactly two voices. Replaying Ground Truths showed

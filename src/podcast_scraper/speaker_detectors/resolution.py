@@ -382,6 +382,35 @@ def _talks_about(text: str, name: str) -> bool:
     )
 
 
+# "Hey, Jordan." — a voice GREETED by name at the very start of its own text is being addressed,
+# and the one thing being addressed by name proves is that you are not that person.
+#
+# ONLY the start-of-text shape, and that restriction is the whole design. Measured over 6,121 named
+# voices on the stored corpus, this fires on 2 records — both the ChinaTalk episode it was written
+# for. A sentence-ANYWHERE variant (", Eric.") fires on 858 of 4,896 self-introduced voices and 78
+# of 821 forced hosts: those are diarization bleed, the guest's closing line merged into the host's
+# cluster, and on a two-voice show the complement pass would then swap two correct names. A guard
+# that fires on 2 true positives is worth having; one that fires on 858 mostly-false ones is a
+# regression with a rationale.
+_ADDRESSED_AT_OPEN = (
+    r"^\W*(?:hey|hi|hello|good\s+(?:morning|afternoon|evening)|morning)[,!]?\s+{first}\b[,.!?]"
+)
+
+
+def _addressed_at_open(text: str, name: str) -> bool:
+    """Whether this voice OPENS by greeting ``name`` — "Hey, Jordan. Good morning."
+
+    Complements :func:`_talks_about`, which matches the full name or the SURNAME and therefore
+    never sees a first-name greeting. That gap is why ChinaTalk published `Jordan Schneider` on the
+    voice that says "Hey, Jordan" while Jordan's real voice went unnamed (#2078).
+    """
+    tokens = [t for t in re.split(r"\s+", (name or "").strip()) if t]
+    if not tokens or not text:
+        return False
+    pattern = _ADDRESSED_AT_OPEN.format(first=re.escape(tokens[0]))
+    return bool(re.search(pattern, text, re.IGNORECASE))
+
+
 def refuted_by_third_person(voice_text: str, name: str) -> bool:
     """IF YOU SAY SOMEBODY'S NAME IN THE THIRD PERSON, YOU ARE NOT THEM.
 
@@ -395,7 +424,9 @@ def refuted_by_third_person(voice_text: str, name: str) -> bool:
     it is talking ABOUT that person, and cannot BE them. Deterministic, like the closed-list rule —
     a prompt is not an enforcement mechanism (#876).
     """
-    return _talks_about(voice_text, name) and not _introduces_itself_as(voice_text, name)
+    return (
+        _talks_about(voice_text, name) or _addressed_at_open(voice_text, name)
+    ) and not _introduces_itself_as(voice_text, name)
 
 
 def resolve_voices_and_roles(

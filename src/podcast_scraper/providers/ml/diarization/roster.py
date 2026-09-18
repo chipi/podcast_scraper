@@ -51,7 +51,7 @@ from ....speaker_detectors.hosts import (
     NAME_FIRST_TAIL,
     roles_from_conversation,
 )
-from ....speaker_detectors.resolution import refuted_by_third_person
+from ....speaker_detectors.resolution import _addressed_at_open, refuted_by_third_person
 from ....text_normalization import (
     first_names_match,
     normalize_for_match,
@@ -1549,7 +1549,15 @@ def _name_host_voices(
         # host, whatever the arithmetic says. 117 pool-named voices in the snapshot perform a guest
         # speech act while wearing a host's name.
         performs_guest = any(p.search(text) for p in _GUEST_SPEECH_ACTS) if text else False
-        if not performs_guest:
+        # ...AND A VOICE THAT IS GREETED BY NAME IS NOT THE PERSON BEING GREETED. The same error
+        # the LLM path makes is made here, deterministically and independently: on ChinaTalk the
+        # voice opening "Hey, Jordan. Good morning." was handed `Jordan Schneider` by THIS path
+        # (source `known_hosts`, `voice_intro` empty) while Jordan's real voice stayed unnamed.
+        # `_GUEST_SPEECH_ACTS` cannot see it — being addressed is not a speech act — and
+        # `_talks_about` cannot either, because it matches the full name or the SURNAME and the
+        # greeting uses the first name. Fixing it only in `resolve_voices_and_roles` would leave
+        # every no-LLM profile wrong, which is why the veto is applied at both sites (#2078).
+        if not performs_guest and not _addressed_at_open(text, unclaimed[0][0]):
             forced_name = unclaimed[0]
         elif _rescued_from_bleed(
             seat,
