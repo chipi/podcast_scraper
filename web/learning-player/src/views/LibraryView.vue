@@ -461,10 +461,15 @@ onMounted(async () => {
         :search-placeholder="t('library.searchFollowing')"
       />
       <section v-if="followingTypeVisible('shows')" class="mb-6">
-        <h3 class="lp-kicker mb-2">
+        <!-- Same heading as every other Library section (operator 2026-09-18): `lp-section` with
+             the count as a muted kicker beside it. Following used a small uppercase kicker while
+             Saved used this, so two tabs of the same hub labelled their sections two ways. -->
+        <h2 class="lp-section mb-2">
           {{ t('library.followingShows') }}
-          <span v-if="filteredShows.length" class="font-normal">({{ filteredShows.length }})</span>
-        </h3>
+          <span v-if="filteredShows.length" class="lp-kicker ml-1 font-normal">{{
+            filteredShows.length
+          }}</span>
+        </h2>
         <SectionStatus :phase="showsSection.phase.value" :rows="2" @retry="loadFollowedShows" />
         <div
           v-if="showsSection.isReady.value && !followedShows.length"
