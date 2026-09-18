@@ -76,7 +76,14 @@ function insight(over: Partial<Insight> = {}): Insight {
   }
 }
 
-function mountPanel(props: Partial<Parameters<typeof KnowledgePanel>[0]> = {}) {
+function mountPanel(props: {
+  episode?: EpisodeDetail
+  insights?: Insight[]
+  topics?: Topic[]
+  persons?: Entity[]
+  slug?: string
+  activeInsightId?: string | null
+} = {}) {
   return mount(KnowledgePanel, {
     props: {
       episode: episode(),
@@ -260,6 +267,8 @@ describe("KnowledgePanel", () => {
           artwork_url: null,
           status: "ready",
           summary_preview: null,
+          summary_text: null,
+          summary_bullets: [],
           topics: [],
           has_transcript: true,
           has_summary: false,

@@ -4,6 +4,7 @@ import { createI18n } from "vue-i18n"
 
 import en from "../i18n/locales/en.json"
 import ShareMenu from "./ShareMenu.vue"
+import type { EntityCardModel } from "../composables/entityShareCard"
 
 const shareEntityCard = vi.fn().mockResolvedValue(undefined)
 const shareEntityLink = vi.fn().mockResolvedValue("shared")
@@ -18,7 +19,7 @@ const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const WITH_URL = { kicker: "Topic", title: "Risk", url: "https://closelistening.app/topic/risk" }
 const NO_URL = { kicker: "Organization", title: "The Fed" }
 
-function mountMenu(model: object) {
+function mountMenu(model: EntityCardModel) {
   // The menu teleports to <body> via the shared popover shell; stub teleport so it renders inline
   // for `find`, and attach to the document so the outside-pointer/Escape dismissal is real.
   return mount(ShareMenu, {

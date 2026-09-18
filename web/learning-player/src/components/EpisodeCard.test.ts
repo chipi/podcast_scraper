@@ -44,6 +44,7 @@ function makeEpisode(over: Partial<EpisodeSummary> = {}): EpisodeSummary {
     artwork_url: null,
     status: "ready",
     summary_preview: "A crisp recap.",
+    summary_text: null,
     summary_bullets: ["Sleep clears metabolic waste.", "Deep sleep consolidates memory."],
     topics: ["memory", "sleep"],
     has_transcript: true,
