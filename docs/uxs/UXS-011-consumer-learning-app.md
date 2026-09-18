@@ -541,7 +541,13 @@ user *assembled* the least visible thing they own.
 
 Ordered by **most recently changed**, not alphabetically and not by the manual board order: on Home
 the question is "what am I working on", and the board you added to yesterday answers it. The manual
-`position` arrangement is the Boards tab's own affordance and stays there. A board with no members
+`position` arrangement is the Boards tab's own affordance and stays there.
+
+**A tile deep-links to its board OPEN** (`?tab=collections&board=<id>`): the Boards list is an
+accordion, and landing on a collapsed list with no sign of which board was tapped makes the tile
+feel like it did nothing. The link also **lifts the list's cap** while a board is targeted —
+otherwise a link to a board outside the visible window would open a row that is not rendered, and
+nothing would happen at all. A board with no members
 renders a flat tile rather than a broken image or a placeholder pretending to be artwork, since
 `cover_url` is derived from its first member.
 

@@ -5,7 +5,7 @@
  * Embedded in the Library "Boards" tab (CO.7 — the tab that holds collections + notes). Auth-gated
  * (empty when signed out).
  */
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, nextTick, onMounted, ref, watch } from "vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
@@ -15,8 +15,9 @@ import TypeFilterBar from "../components/TypeFilterBar.vue"
 import { useCappedSections } from "../composables/useCappedSections"
 import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
+import { scrollBehavior } from "../utils/motion"
 import { useCaptureStore } from "../stores/capture"
-import { RouterLink, useRouter } from "vue-router"
+import { RouterLink, useRoute, useRouter } from "vue-router"
 import {
   addToCollection,
   createCollection,
@@ -37,6 +38,7 @@ const store = useCollectionsStore()
 
 const { t, locale } = useI18n()
 const router = useRouter()
+const route = useRoute()
 
 /** "Last modified" date for a collection (CO.2), or null when unknown. */
 function modifiedLabel(c: Collection): string | null {
@@ -348,6 +350,36 @@ async function openCollection(id: string): Promise<void> {
   void hydrate(detail)
 }
 
+/**
+ * Open the board a deep link names (`?board=<id>`), and scroll to it (operator 2026-09-18).
+ *
+ * Home's boards teaser links here. Landing on a collapsed list with no indication of which board
+ * was tapped makes the tile feel like it did nothing — the link has to finish the job it started.
+ *
+ * It also LIFTS THE CAP while a board is targeted: the list shows a capped window, so a deep link
+ * to the twelfth board would otherwise open a row that is not rendered, and nothing would happen
+ * at all.
+ */
+const focusBoardId = computed(() => {
+  const b = route.query.board
+  return typeof b === "string" && b ? b : null
+})
+
+watch(
+  () => [focusBoardId.value, collections.value.length] as const,
+  async ([id]) => {
+    if (!id || open.value?.collection.id === id) return
+    if (!collections.value.some((c: Collection) => c.id === id)) return
+    view.value = "list"
+    await openCollection(id)
+    await nextTick()
+    document
+      .querySelector(`[data-board-row="${CSS.escape(id)}"]`)
+      ?.scrollIntoView({ block: "center", behavior: scrollBehavior() })
+  },
+  { immediate: true },
+)
+
 /** Queue every episode in this collection, oldest-pinned first, and open the first (#1839 P4). */
 const playAll = gated(async () => {
   const eps = episodeItems.value
@@ -538,7 +570,7 @@ onMounted(() => {
       class="grid grid-cols-3 gap-3 sm:grid-cols-4"
       data-testid="boards-grid"
     >
-      <li v-for="c in caps.visible('boards', visibleCollections, searchActive)" :key="c.id">
+      <li v-for="c in caps.visible('boards', visibleCollections, searchActive || !!focusBoardId)" :key="c.id">
         <button
           type="button"
           class="block w-full text-left"
@@ -592,7 +624,7 @@ onMounted(() => {
     -->
     <ul v-if="view === 'list' && visibleCollections.length" class="flex flex-col gap-2">
       <li
-        v-for="c in caps.visible('boards', visibleCollections, searchActive)"
+        v-for="c in caps.visible('boards', visibleCollections, searchActive || !!focusBoardId)"
         :key="c.id"
         class="rounded-xl border border-border"
         :class="[open?.collection.id === c.id ? 'bg-overlay/40' : '', dragOverId === c.id ? 'ring-2 ring-accent' : '']"
