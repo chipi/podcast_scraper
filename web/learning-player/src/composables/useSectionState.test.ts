@@ -130,7 +130,10 @@ describe('useSectionState with a cacheKey (#1909)', () => {
       'from disk',
     ])
     expect(s.phase.value).toBe('ready')
-    expect(s.stale.value).toBe(true)
+    // NOT stale: this assertion used to be `true`, which is the defect itself written down. A
+    // snapshot painted while the request is still in flight is loading-with-content; staleness is
+    // reserved for a fetch that actually failed (operator 2026-09-18).
+    expect(s.stale.value, 'an in-flight request was reported as stale').toBe(false)
     release(['fresh'])
     await pending
   })
@@ -244,6 +247,53 @@ describe('useSectionState with a cacheKey (#1909)', () => {
     await s.load(async () => ['a'])
     expect(readCached).not.toHaveBeenCalled()
     expect(writeCached).not.toHaveBeenCalled()
+  })
+
+  /**
+   * A HEALTHY cold start must not accuse the server (operator 2026-09-18).
+   *
+   * Reported as: every launch shows "Showing what you had last time — we couldn't reach the
+   * server", a retry "fixes" it, and the app was working the whole time. Not a timeout, and not
+   * intermittent: a local cache read beats a network round-trip essentially always, so on every
+   * cold start the snapshot wins the race, the section is marked stale at hydration, `anyStale`
+   * flips, and the page-level notice renders for the full duration of a perfectly good request.
+   *
+   * The wording made it worse: nothing had failed, so `offlineReason` was `none` and StaleNotice
+   * fell to the branch asserting a request "really was made and really failed" — false here.
+   *
+   * `stale` must mean ONE thing: a fetch failed and you are looking at older content. Painting a
+   * snapshot while the request is still in flight is loading-with-content, and it is silent.
+   */
+  it('a slow but SUCCESSFUL fetch never announces staleness while it is in flight', async () => {
+    readCached.mockResolvedValue(['from disk'])
+    const s = useSectionState<string[]>([], { cacheKey: 'home.cold-start' })
+    let release!: (v: string[]) => void
+    const pending = s.load(() => new Promise<string[]>((r) => (release = r)))
+    // Let the snapshot win the race, exactly as it does on a real cold start.
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(s.data.value, 'the snapshot did not paint').toEqual(['from disk'])
+    expect(s.stale.value, 'a request still in flight was reported as stale').toBe(false)
+    expect(anyStale.value, 'the page-level notice fired during a healthy cold start').toBe(false)
+
+    release(['fresh'])
+    await pending
+    expect(s.data.value).toEqual(['fresh'])
+    expect(anyStale.value).toBe(false)
+  })
+
+  it('but a fetch that FAILS after the snapshot painted does announce it', async () => {
+    // The other half of the contract: the banner must keep working where it tells the truth.
+    readCached.mockResolvedValue(['from disk'])
+    const s = useSectionState<string[]>([], { cacheKey: 'home.cold-start-fails' })
+    await s.load(async () => {
+      throw new Error('offline')
+    })
+    expect(s.data.value, 'the failure destroyed content the user already had').toEqual(['from disk'])
+    expect(s.stale.value).toBe(true)
+    expect(anyStale.value, 'a genuine failure went unannounced').toBe(true)
   })
 
   it('the stale tally is per-key and clears when a key recovers', async () => {
