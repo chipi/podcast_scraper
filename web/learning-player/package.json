@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "type-check:test": "vue-tsc --noEmit -p tsconfig.test.json",
     "preview": "vite preview",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",

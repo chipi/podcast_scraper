@@ -1679,6 +1679,26 @@ build-viewer:
 test-app:
 	@echo "Vitest unit tests + coverage gate (Learning Player)..."
 	@cd $(APP_DIR) && npm install && npm run test:coverage
+	@# Type-check the TESTS. `tsconfig.app.json` excludes `src/**/*.test.ts` and nothing else
+	@# covered them, so no fixture was ever checked against the types it claims — three
+	@# `EpisodeSummary` factories had drifted from the API contract and were exercising a shape the
+	@# app never receives. vitest transpiles without type-checking, so it cannot catch this.
+	@# Deliberately a separate invocation rather than a project reference in `tsconfig.json`:
+	@# `composite: true` requires the project to list every file it imports, which is the whole
+	@# `src` tree and collides with the app project (176 TS6307s when tried).
+	@#
+	@# `tsconfig.test.json` carries no comments because no tsconfig in this repo does — the
+	@# pre-commit JSON validator parses them as strict JSON, not JSONC. Two things in it are
+	@# load-bearing and non-obvious, so they are recorded here instead:
+	@#   "exclude": []  — `extends` INHERITS `exclude: ["src/**/*.test.ts"]` from the app config,
+	@#     i.e. exactly the files this project exists to check. Without clearing it the program
+	@#     resolves to a single `env.d.ts` and reports zero errors having checked nothing. That is
+	@#     how the first version of this config passed while a known defect was still present.
+	@#   "types": [... "node", "vitest/globals"] — tests use `node:fs`, `__dirname` and `process`,
+	@#     which the browser build's types do not carry. 51 of the original 111 errors were this
+	@#     alone, and none of them were real defects.
+	@echo "Type-checking the Learning Player test files..."
+	@cd $(APP_DIR) && npm run type-check:test
 
 # Consumer Learning Player — Playwright E2E (mobile + desktop projects).
 # Install browsers once: cd $(APP_DIR) && npx playwright install chromium
