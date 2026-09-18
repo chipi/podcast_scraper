@@ -551,6 +551,23 @@ nothing would happen at all. A board with no members
 renders a flat tile rather than a broken image or a placeholder pretending to be artwork, since
 `cover_url` is derived from its first member.
 
+**Profile → Stats carries "What you've kept" and "Your review loop" (operator 2026-09-18).** Stats
+were listening-only — episodes opened, shows, a day streak — which measured consumption and said
+nothing about the half of the product that is the user's own. The kept block shows captures (with
+how many this week), notes, and distinct episodes captured from, plus a one-line breakdown by kind;
+the review block shows reviews answered, captures revisited, and muted.
+
+Those review numbers exist nowhere else: the ladder records a `count` per highlight, so "how many
+reviews have I done" was a sum nothing had ever added up. **Muted is reported separately from
+revisited** because they are different decisions and merging them would overstate the loop.
+
+The section gates on **having captures, not on listening**. `hasStats` asks whether an episode has
+been opened, which is right for the listening tiles and wrong here — someone who captures from a
+handful of episodes but whose play history is thin would have had their own writing hidden behind a
+listening threshold. (Observed: a seeded account shows "Start listening to build your stats" above
+a kept block reading 12 captures.) The fields are optional on the type, so a server predating them
+hides the section rather than rendering zeroes that look like a real answer.
+
 **Home carries a "Worth revisiting" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
 captures, **at most one per episode** so it shows the breadth of what is waiting rather than one
 session's thinking. Each card is the **quote, with the episode as a small square thumbnail on its right** and the

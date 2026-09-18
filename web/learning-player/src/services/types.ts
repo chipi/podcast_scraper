@@ -977,6 +977,19 @@ export interface UserStats {
   active_days: number
   day_streak: number
   daily: StatPoint[]
+  /** What the user has KEPT, and the review loop over it. Optional: a server that predates these
+   *  returns the listening half alone, and the panel hides the section rather than showing zeroes
+   *  that look like a real answer. */
+  captures?: number
+  capture_moments?: number
+  capture_quotes?: number
+  capture_insights?: number
+  captures_last_7_days?: number
+  capture_episodes?: number
+  notes?: number
+  captures_reviewed?: number
+  reviews_total?: number
+  captures_muted?: number
 }
 
 /** Cross-user reach for one episode (GET /api/app/episodes/{slug}/stats). */
