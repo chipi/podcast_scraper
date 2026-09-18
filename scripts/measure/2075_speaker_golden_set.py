@@ -61,6 +61,17 @@ CASES = [
         why="the episode states him in its title and description",
     ),
     # --- a stated guest must reach the record on a two-host show (#2078) -------------
+    #
+    # READ THIS BEFORE "FIXING" THE NEXT CASE. It fails, and this harness CANNOT make it pass.
+    # The screenplay seat cap that deleted her was fixed in `_build_speaker_names_list`, but
+    # detection runs at INGEST: every stored diagnostics file already holds the capped
+    # `detected_guests`, and this harness replays those stored artifacts. So the case reads
+    # identically before and after the fix. It is verified instead by
+    # tests/unit/podcast_scraper/speaker_detectors/test_stated_guest_survives_the_seat_cap.py
+    # and by a real `relabel_only` run, which re-runs detection.
+    #
+    # The case is kept because it states something true about the corpus, and because a harness
+    # that silently drops what it cannot check is worse than one that fails honestly.
     dict(
         id="hardfork-guest-in-record",
         ep="A.I. School Is in Session",
