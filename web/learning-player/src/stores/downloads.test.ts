@@ -254,6 +254,38 @@ describe('downloads store', () => {
     await d.setNamespace('u_alice')
     expect(d.folderFor('offline-audio')).toBe('offline-audio/u_alice')
   })
+
+  /**
+   * A registry read that THROWS leaves the store permanently unable to persist (#2120).
+   *
+   * `load()` has no try/catch. If `getDeviceJson` rejects, `this.loaded` never becomes true and the
+   * `finally` clears `inflightLoad`. `ensureLoaded()` only calls `load()` when `!this.loaded` — it
+   * already ran and threw, and nothing retries — so from then on EVERY `_persist()` hits
+   * `if (!this.loaded) return` and silently does nothing, while `_put` keeps populating `entries`
+   * in memory.
+   *
+   * The user sees "Downloaded — tap to remove" on the episode, an empty Downloaded list, and
+   * nothing after a restart. Observed on the simulator: the Preferences plist was written
+   * throughout the run (auth, playback positions) and carried no `downloads.registry.*` key at
+   * all, with zero audio files in the container.
+   */
+  it('a failed registry read does not leave downloads silently unpersistable', async () => {
+    vi.spyOn(deviceStore, 'getDeviceJson').mockRejectedValueOnce(
+      new Error('Preferences unavailable'),
+    )
+    const d = useDownloadsStore()
+
+    // The app swallows this at the call site; the store has to survive it.
+    await d.ensureLoaded().catch(() => {})
+    await d.mark('ep-1')
+
+    expect(
+      disk[REGISTRY_KEY],
+      'the registry was never written — every later download is silently lost',
+    ).toBeDefined()
+    expect(JSON.parse(disk[REGISTRY_KEY] ?? '{}')).toHaveProperty('ep-1')
+  })
+
 })
 
 it('a successful download clears the previous attempt error KIND, not just the message', async () => {
