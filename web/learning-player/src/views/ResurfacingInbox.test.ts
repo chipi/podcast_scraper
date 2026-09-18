@@ -59,7 +59,9 @@ describe('ResurfacingInbox', () => {
     const link = w.find('[data-testid="revisit-jump"]')
     expect(link.attributes('href')).toContain('t=65')
     // dismiss removes it locally + advances the ladder server-side
-    await w.findAll('button').find((b) => b.text() === 'Mark reviewed')!.trigger('click')
+    // Addressed by testid, not by its text: the control is the card's right-hand action edge now
+    // (a ✓ glyph over a short "Reviewed" label), so matching the full sentence found nothing.
+    await w.find('[data-testid="revisit-dismiss"]').trigger('click')
     expect(api.markSurfaced).toHaveBeenCalledWith('h1')
     await flushPromises()
     expect(w.text()).not.toContain('What still resonates about this?')

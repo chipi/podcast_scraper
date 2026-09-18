@@ -315,10 +315,12 @@ onMounted(load)
           <li
             v-for="item in g.items"
             :key="item.highlight.id"
-            class="rounded-xl border border-l-4 border-border p-3"
+            class="overflow-hidden rounded-xl border border-l-4 border-border"
             :class="borderClass(item.highlight.color)"
             data-testid="revisit-item"
           >
+            <div class="flex items-stretch">
+              <div class="min-w-0 flex-1 p-3">
             <!-- KIND · DATE, the same label the notes rows on Boards carry (operator). "Marked
                  moment" used to stand in as the BODY text, which is why a moment card said nothing
                  about itself — it is the label, and the quote below is the content. -->
@@ -346,11 +348,28 @@ onMounted(load)
                 class="font-mono text-xs font-bold text-accent no-underline"
                 data-testid="revisit-jump"
               >▶ {{ item.highlight.start_ms != null ? formatTime(item.highlight.start_ms / 1000) : t('revisit.open') }}</RouterLink>
+            </div>
+              </div>
+              <!-- The PRIMARY action, as a column of its own on the right (operator 2026-09-18).
+                   It was muted text in the footer row, the same weight as the timestamp beside it —
+                   "looks like a label, not a button, easy to miss". The entire loop this feature
+                   exists for is "you came, you reviewed, the badge clears", so the control that
+                   closes it is the most prominent thing on the card: a filled accent disc, 48px,
+                   centred against the content, with the words under it so the check is never a
+                   guess. -->
               <button
                 type="button"
-                class="text-xs text-muted transition hover:text-canvas-foreground"
+                class="flex w-16 shrink-0 flex-col items-center justify-center gap-1 self-stretch border-l border-border bg-overlay text-accent transition hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+                data-testid="revisit-dismiss"
+                :aria-label="t('revisit.dismiss')"
+                :title="t('revisit.dismiss')"
                 @click="dismiss(item)"
-              >{{ t('revisit.dismiss') }}</button>
+              >
+                <span class="text-2xl leading-none" aria-hidden="true">✓</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider">{{
+                  t('revisit.dismissShort')
+                }}</span>
+              </button>
             </div>
           </li>
         </ul>
