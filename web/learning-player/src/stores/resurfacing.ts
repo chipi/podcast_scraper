@@ -30,7 +30,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { getResurfacing, markSurfaced } from '../services/api'
+import { getResurfacing, markSurfaced, retireHighlight } from '../services/api'
 import type { ResurfacingItem } from '../services/types'
 
 interface State {
@@ -60,22 +60,28 @@ export const useResurfacingStore = defineStore('resurfacing', {
      *
      * `select_due` groups by episode, so the first four would often be four captures from one
      * episode — a rail meant to show the breadth of what is waiting would show one episode's
-     * session instead. One per episode until four are found, then fill from what is left so a
-     * user with a single active episode still sees a populated rail.
+     * session instead.
+     *
+     * STRICTLY one per episode, with no filling from episodes already shown. Filling produced two
+     * cards carrying the same words: a user who marks the same line as a moment and as a quote has
+     * two captures with identical text, and the rail rendered both, which reads as a bug
+     * (observed 2026-09-18). Fewer, distinct cards is the honest answer — the rail is a sample of
+     * what is waiting, not a queue that must be four long.
      *
      * Empty while paused, for the reason the badge is: the user said stop asking.
      */
     railItems: (s): ResurfacingItem[] => {
       if (s.paused) return []
       const seen = new Set<string>()
-      const spread = s.items.filter((i) => {
-        const slug = i.highlight.episode_slug
-        if (seen.has(slug)) return false
+      const out: ResurfacingItem[] = []
+      for (const item of s.items) {
+        const slug = item.highlight.episode_slug
+        if (seen.has(slug)) continue
         seen.add(slug)
-        return true
-      })
-      const rest = s.items.filter((i) => !spread.includes(i))
-      return [...spread, ...rest].slice(0, 4)
+        out.push(item)
+        if (out.length === 4) break
+      }
+      return out
     },
   },
 
@@ -117,6 +123,25 @@ export const useResurfacingStore = defineStore('resurfacing', {
       this.due = Math.max(0, this.due - 1)
       try {
         await markSurfaced(id)
+      } catch {
+        this.items = before
+        this.due = before.length
+      }
+    },
+
+    /**
+     * Stop resurfacing one capture, from Home (operator 2026-09-18).
+     *
+     * The second of the two inline actions. It is not a delete — the capture stays in Saved, where
+     * the bell marker makes it reversible — so it is safe to offer without a confirmation at this
+     * size. Drops and backfills exactly like `review`, and restores on failure.
+     */
+    async mute(id: string): Promise<void> {
+      const before = this.items
+      this.items = this.items.filter((i) => i.highlight.id !== id)
+      this.due = Math.max(0, this.due - 1)
+      try {
+        await retireHighlight(id)
       } catch {
         this.items = before
         this.due = before.length

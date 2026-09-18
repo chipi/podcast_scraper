@@ -34,6 +34,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getEpisode } from '../services/api'
 import type { EpisodeDetail } from '../services/types'
+import BellOffIcon from './BellOffIcon.vue'
 import CheckIcon from './CheckIcon.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { borderClass } from '../utils/highlightColors'
@@ -86,6 +87,11 @@ function quoteOf(h: { quote_text?: string | null }): string {
   return (h.quote_text ?? '').trim()
 }
 
+/** Stop resurfacing one, in place. Not a delete — it stays in Saved, reversible there. */
+function mute(id: string): void {
+  void resurfacing.mute(id)
+}
+
 /** Answer one, in place. The store drops it and `railItems` pulls the next one in. */
 function review(id: string): void {
   void resurfacing.review(id)
@@ -109,7 +115,7 @@ const titleOf = (slug: string): string => details.value[slug]?.title ?? ''
     </div>
 
     <ul class="flex flex-col gap-2">
-      <li v-for="item in items" :key="item.highlight.id" class="flex items-stretch gap-2">
+      <li v-for="item in items" :key="item.highlight.id" class="flex items-center gap-2">
         <RouterLink
           :to="{
             name: 'library',
@@ -142,20 +148,39 @@ const titleOf = (slug: string): string => details.value[slug]?.title ?? ''
             class="h-11 w-11 shrink-0 rounded-lg bg-overlay object-cover"
           />
         </RouterLink>
-        <!-- ONE action, not three (operator 2026-09-18).
+        <!-- TWO actions, stacked and right-aligned (operator 2026-09-18).
              Reviews-answered-per-week is the only number that moves this loop, so the common
-             answer — "seen it, done" — is worth a tap in place. The other two outcomes, stop
-             resurfacing and unsave, are consequential and keep the context of the Revisit card;
-             four cards x three controls would also put twelve buttons on Home.
-             Same accent-outlined tick as that card, so it is a control already learned. -->
-        <button
-          type="button"
-          class="lp-tap flex w-10 shrink-0 items-center justify-center rounded-xl border border-accent text-accent transition hover:bg-accent/10"
-          :aria-label="t('home.revisitMarkReviewed')"
-          :title="t('home.revisitMarkReviewed')"
-          data-testid="home-revisit-reviewed"
-          @click="review(item.highlight.id)"
-        ><CheckIcon /></button>
+             answer is worth a tap in place — and mute earns the second slot because "stop asking
+             me about this" is the other thing a glance produces, and it is NOT destructive: the
+             capture stays in Saved, where the bell marker makes it reversible.
+
+             Unsave is the one that stays on the Revisit card. It destroys authored content and is
+             confirm-gated there; a confirmation dialog raised from a homepage rail would be the
+             app stopping you mid-scroll.
+
+             The SAME 32px circles the Revisit card uses, quiet until hovered. They were one
+             full-height accent-outlined rectangle, which failed twice over: strong colour on a
+             tick reads as "this IS checked" rather than "check this" — the mistake already
+             rejected as a filled accent disc on the Revisit card — and a tall rectangle is simply
+             not the control that lives in the tab. -->
+        <div class="flex shrink-0 flex-col gap-1.5">
+          <button
+            type="button"
+            class="lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:border-accent hover:text-accent"
+            :aria-label="t('home.revisitMarkReviewed')"
+            :title="t('home.revisitMarkReviewed')"
+            data-testid="home-revisit-reviewed"
+            @click="review(item.highlight.id)"
+          ><CheckIcon /></button>
+          <button
+            type="button"
+            class="lp-tap flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted transition hover:border-accent hover:text-accent"
+            :aria-label="t('home.revisitMute')"
+            :title="t('home.revisitMute')"
+            data-testid="home-revisit-mute"
+            @click="mute(item.highlight.id)"
+          ><BellOffIcon /></button>
+        </div>
       </li>
     </ul>
   </section>

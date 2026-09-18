@@ -1657,6 +1657,31 @@ class UserStatsResponse(BaseModel):
     active_days: int = Field(ge=0, description="Distinct days with at least one open.")
     day_streak: int = Field(ge=0, description="Current consecutive-day listening run.")
     daily: list[StatPoint] = Field(default_factory=list, description="Daily opens sparkline.")
+    # --- what the user has KEPT, and the review loop over it (operator 2026-09-18) --------------
+    # Stats were listening-only, which measured consumption and said nothing about the half of the
+    # product that is the user's own writing.
+    captures: int = Field(default=0, ge=0, description="Highlights the user has saved.")
+    capture_moments: int = Field(default=0, ge=0, description="Of those, marked moments.")
+    capture_quotes: int = Field(default=0, ge=0, description="Of those, captured quotes.")
+    capture_insights: int = Field(default=0, ge=0, description="Of those, saved insights.")
+    captures_last_7_days: int = Field(
+        default=0, ge=0, description="Captures made in the last week."
+    )
+    capture_episodes: int = Field(default=0, ge=0, description="Distinct episodes captured from.")
+    notes: int = Field(default=0, ge=0, description="Notes the user has written.")
+    captures_reviewed: int = Field(
+        default=0,
+        ge=0,
+        description="Captures that have resurfaced and been answered at least once.",
+    )
+    reviews_total: int = Field(
+        default=0, ge=0, description="Total reviews answered — the ladder's `count` summed."
+    )
+    captures_muted: int = Field(
+        default=0,
+        ge=0,
+        description="Captures the user stopped resurfacing (kept, never asked again).",
+    )
 
 
 class EpisodeStatsResponse(BaseModel):

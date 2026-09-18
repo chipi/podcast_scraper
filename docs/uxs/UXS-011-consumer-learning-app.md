@@ -546,12 +546,26 @@ to the player: from Home the user is deciding what to do with a capture, and the
 live on that card. Jumping to the player would also mark it reviewed on arrival (#35) — deciding
 for them the one thing they went there to decide.
 
-**One action inline: the tick.** Reviews-answered-per-week is the only number that moves this loop,
-so the common answer is worth a tap in place; the card leaves optimistically and the next due
-capture fills the slot at once, because a spinner between answers is a reason to stop answering (it
-returns on failure — a card that vanished without counting would be a lie). "Stop resurfacing" and
-"unsave" are consequential and keep the context of the Revisit card, and four cards times three
-controls would put twelve buttons on Home.
+**Two actions inline, stacked and right-aligned: the tick and the bell.** Reviews-answered-per-week
+is the only number that moves this loop, so the common answer is worth a tap in place; mute earns
+the second slot because "stop asking me about this" is the other thing a glance produces, and it is
+NOT destructive — the capture stays in Saved, where the bell marker makes it reversible. Both drop
+the card optimistically and the next due capture fills the slot at once, because a spinner between
+answers is a reason to stop answering (both restore on failure — a card that vanished without
+counting would be a lie).
+
+**Unsave stays on the Revisit card.** It destroys authored content and is confirm-gated there, and
+a confirmation dialog raised from a homepage rail would be the app stopping you mid-scroll.
+
+The controls are the **same 32px circles the Revisit card uses, muted at rest and accent on hover**.
+A full-height accent-outlined rectangle was tried and failed twice over: strong colour on a tick
+reads as "this IS checked" rather than "check this" — the mistake already rejected as a filled
+accent disc on that card — and a tall rectangle is simply not the control that lives in the tab.
+
+**Strictly one card per episode, with no filling from episodes already shown.** Filling produced two
+cards carrying identical words: a line saved as both a moment and a quote is two captures with the
+same text, and the rail rendered both, which reads as a bug. Fewer, distinct cards is the honest
+answer — the rail is a sample of what is waiting, not a queue that must be four long.
 
 A "See all" goes to the tab; the rail deliberately shows no count, because the Library nav badge
 already carries the number and two places saying "7" is two places to disagree.
