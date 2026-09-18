@@ -1012,6 +1012,107 @@ def _canonicalize_to_stated_name(name: str, stated: Sequence[str]) -> str:
     return _canonicalize_to_known_host(name, stated, first_name_max_edit=2, mononym_ok=True)
 
 
+#: Loosest whole-name similarity at which a spoken spelling may be treated as a mangling of a
+#: stated name rather than as a different person. Only ever used to REFUSE a name, never to bind
+#: one, so it is deliberately permissive — see :func:`_resembles_stated`.
+_MANGLING_RATIO = 0.6
+
+
+def _resembles_stated(name: str, stated: Sequence[str]) -> Optional[str]:
+    """The stated name ``name`` is plausibly an ASR mangling of, or ``None``.
+
+    This is NOT a binding rule and must never be used as one. Binding requires the strong,
+    reference-bounded matchers (:func:`_canonicalize_to_stated_name` and friends); this is the
+    far weaker question "is this spelling close enough to a stated person that publishing it as
+    a SEPARATE person would be a claim we cannot support?". Because the only consequence is
+    refusing a name, a false positive costs an unnamed voice and a false negative costs a wrong
+    name — and those are not symmetric (#876).
+
+    Measured over the branch's 1,458 introduction-reader bindings: 741 already publish a stated
+    name, 549 belong to shows that state nobody (Planet Money — no stated person, so nothing to
+    resemble and this returns ``None``), and ~21 voices publish an unstated spelling while a
+    stated non-host who resembles it sits unbound. Reading those 21 against their episodes, every
+    one is the same person the metadata states: ``Drance Anderson``/Grant Sanderson,
+    ``Dara Khadrshahid``/Dara Khosrowshahi, ``Danny Stockman``/Daniela Stockmann,
+    ``Paula Villar``/Pallavi Aiyar. The 75 bindings with no resemblance (``David Sanger``,
+    ``Chase Harrison``) are left alone: about half are real people the metadata simply omits.
+    """
+    toks = _core_name_tokens(name)
+    if not toks:
+        return None
+    first, last = toks[0].lower(), toks[-1].lower()
+    for ref in stated:
+        r = _core_name_tokens(ref)
+        if not r:
+            continue
+        r_first, r_last = r[0].lower(), r[-1].lower()
+        if len(toks) >= 2 and len(r) >= 2:
+            if first == r_first or first_names_match(r[0], toks[0]):
+                return ref
+            if _soundex(last) == _soundex(r_last) or _edit_distance(last, r_last) <= 2:
+                return ref
+        if difflib.SequenceMatcher(None, name.lower(), ref.lower()).ratio() >= _MANGLING_RATIO:
+            return ref
+    return None
+
+
+def _refuse_unstated_introductions(
+    out: Dict[str, str],
+    stated_persons: Sequence[str],
+    known_hosts: Sequence[str],
+    voice_intro: Mapping[str, str],
+) -> Set[str]:
+    """Drop each introduced name that names nobody the episode states while a stated non-host it
+    resembles is still unbound. Returns the voices whose name was refused, so the caller can keep
+    their ROLE — the host did introduce a guest there; we just cannot spell them.
+
+    The defect this closes (#2095): on a Dwarkesh episode the host says "chatting with Drance
+    Anderson", the ASR's rendering of Grant Sanderson. The introduction reader binds the spoken
+    spelling verbatim, every downstream matcher treats it as an extra person (``grant``/``drance``
+    is 3 edits, past every tolerance the roster will defend), and the episode publishes 27 turns
+    under a person who does not exist — while the correct ``Grant Sanderson`` sits unbound in the
+    metadata and the LLM's correct closed-list answer is discarded because the reader got there
+    first. Refusing here puts the voice back in front of the LLM, which names it from the closed
+    stated list, so the fix RESTORES a correct name rather than merely removing a wrong one.
+    """
+    host_lower = {h.lower() for h in known_hosts}
+    stated_non_hosts = [s for s in stated_persons if s.lower() not in host_lower]
+    if not stated_non_hosts:
+        return set()  # nothing stated to resemble — a no-metadata show, leave it alone
+    bound = {n.lower() for n in out.values()} | {n.lower() for n in voice_intro.values()}
+    unbound = [s for s in stated_non_hosts if s.lower() not in bound]
+    if not unbound:
+        return set()
+    refused: Set[str] = set()
+    stated_lower = {s.lower() for s in stated_persons}
+    for voice, name in list(out.items()):
+        if name.lower() in stated_lower:
+            continue  # it already names a stated person — the good case, keep it
+        # "Names nobody the episode states" is a question about PEOPLE, not about strings. Asking
+        # it with string equality deleted 71 correct names on the corpus: the reader legitimately
+        # binds a first name ("Afra" for the stated `Afra Wang`) or a title form ("Professor
+        # Wang"), and neither is character-equal to the metadata spelling. Resolve through the
+        # same reference-bounded matcher the roster binds with, and keep — indeed CORRECT — any
+        # spelling that lands on a stated person.
+        # The spelling is REWRITTEN to the stated one, not merely accepted. Measured both ways on
+        # the full corpus: testing without rewriting keeps the pass purely subtractive (1 name
+        # gained instead of 4) but LOSES four stated people — `Marty Beard` and `Jonathan Cohen`
+        # each drop off episodes that state them — because the mangled spelling goes on occupying
+        # the seat and the pool never sees the real name go spare. Keeping a stated person is
+        # worth more than keeping the diff subtractive, so the rewrite stays.
+        resolved = _canonicalize_to_stated_name(name, stated_persons)
+        if resolved.lower() in stated_lower:
+            out[voice] = resolved
+            continue
+        if any(_same_person(name, s) for s in stated_persons):
+            continue  # title-only / initial forms the snapper declines to rewrite
+        if _resembles_stated(name, unbound) is None:
+            continue
+        del out[voice]
+        refused.add(voice)
+    return refused
+
+
 def _recover_stated_names(
     by_voice: Dict[str, "SpeakerRole"],
     stated_refs: Sequence[str],
@@ -1591,6 +1692,7 @@ def _name_guest_voices(
     voice_texts: Optional[Mapping[str, str]] = None,
     self_intros: Optional[Mapping[str, str]] = None,
     known_hosts: Sequence[str] = (),
+    refused_intro_voices: AbstractSet[str] = frozenset(),
 ) -> Dict[str, SpeakerRole]:
     """Name the remaining voices from EVIDENCE, never from position.
 
@@ -1611,11 +1713,19 @@ def _name_guest_voices(
     # turns "one name, one voice" into "one name, two voices" and the forced match declines — which
     # is how removing positional painting first cost the NVIDIA guest her name, on an episode whose
     # host says "Jia Li is with us today" out loud.
+    # A voice whose introduced spelling was REFUSED is spoken for, not vacant: the host introduced
+    # somebody there and only the ASR's rendering was rejected. It must therefore be neither a
+    # candidate for the forced match nor a blocker of it. Leaving it in this pool broke the
+    # arithmetic for OTHER voices — on Cuba Under Siege the roster held the same reporter twice,
+    # mangled ("Lindsay Garrison") on one cluster and correct ("Lynsea Garrison", forced) on
+    # another; dropping the mangling put a second voice back in the pool, "one name, one voice"
+    # stopped holding, and the CORRECT name was lost along with the wrong one (#2095).
     unassigned = [
         v
         for v in voices_by_total
         if v not in assigned
         and v not in voice_intro
+        and v not in refused_intro_voices
         and (talk is None or talk.get(v, 0.0) >= cameo_max_talk_s)
     ]
     # A detected-guest name is only spare if the SAME PERSON is not already on the roster. Same
@@ -1707,6 +1817,13 @@ def _name_guest_voices(
             # SPEAKER_NN, which is the defect marker; binding leaves a real person credited with
             # someone else's words.
             and not refuted_by_third_person((voice_texts or {}).get(v, ""), forced)
+            # A voice whose introduced name we REFUSED is not an empty seat. We know who is on
+            # it — the unbound stated person the host introduced — we simply could not spell it
+            # from the ASR. Letting arithmetic fill that seat with some other harvested name is
+            # strictly worse than leaving it blank: measured, refusing freed three seats and the
+            # forced path put `Jack Selman` on the Veronique de Rugy episode and `Alice Callahan`
+            # on Ronda Kaysen's. The LLM's closed-list answer still reaches this voice (#2095).
+            and v not in refused_intro_voices
         ):
             used_lower.add(forced.lower())
             out[v] = SpeakerRole(name=forced, role="guest", named=True, source="forced")
@@ -1734,7 +1851,12 @@ def _name_guest_voices(
             # and the voice-type pass reads it to decide whether a declared guest is still going
             # spare — i.e. whether we FAILED to name a voice we should have. Spending a name here
             # would erase that signal and report a naming failure as an unidentifiable voice.
-            if len(unclaimed_names) > spent_unnamed_guest_evidence:
+            if v in refused_intro_voices:
+                # The host DID introduce a guest on this voice; only the spelling was refused.
+                # The role is evidence we still have, and it is what keeps the voice from being
+                # reported as an unexplained cluster rather than as a guest we could not name.
+                role = "guest"
+            elif len(unclaimed_names) > spent_unnamed_guest_evidence:
                 role = "guest"
                 spent_unnamed_guest_evidence += 1
             else:
@@ -2266,6 +2388,7 @@ def _intro_reader_voice_names(
     first_name_only: bool = True,
     corroborated_persons: Sequence[str] = (),
     voice_texts: Optional[Mapping[str, str]] = None,
+    refused_out: Optional[Set[str]] = None,
 ) -> Dict[str, str]:
     """``{voice: canonical name}`` for voices a host introduced by name — "and now, Bobby Allen" —
     since the person a host introduces is the one who speaks next. Complements the self-intro:
@@ -2305,6 +2428,13 @@ def _intro_reader_voice_names(
         # still looked unclaimed and the guest pool forced it onto a second voice — measured on
         # Odd Lots (#2075), where Joe Weisenthal's question voice was named the guest.
         out[v] = _snap_spoken_variant(canon, stated_persons) if canon == n else canon
+    # A spelling that named nobody the episode states, while a stated non-host it resembles sits
+    # unbound, is the ASR's rendering of that person and not a new one. Refuse it HERE, before the
+    # LLM merge: a voice absent from `voice_intro` is one the resolver's closed-list answer can
+    # still reach, so the correct stated name is recovered rather than merely suppressed (#2095).
+    refused = _refuse_unstated_introductions(out, stated_persons, known_hosts, voice_intro)
+    if refused_out is not None:
+        refused_out.update(refused)
     return out
 
 
@@ -2592,6 +2722,10 @@ def resolve_speaker_roster(
 
     # A voice the HOST introduced by name is that person (the introduced person speaks next),
     # guarded against the interview-CLOSE case where the next voice is the host resuming (R3/#876).
+    # Voices whose introduced spelling was refused for naming a person the episode never states.
+    # They are still GUESTS — the host did introduce somebody there — so the role survives even
+    # though the name does not; see `_refuse_unstated_introductions`.
+    introduced_but_unspellable: Set[str] = set()
     voice_intro.update(
         _intro_reader_voice_names(
             reclaimed_turns,
@@ -2603,6 +2737,7 @@ def resolve_speaker_roster(
             list(detected_guests or ()) + list(metadata_named or ()),
             narrator_cue=profile.narrator_cue_binding,
             first_name_only=profile.first_name_only_intro,
+            refused_out=introduced_but_unspellable,
             # Report-verb tails resolve only against CORROBORATED names (detected guests + known
             # hosts), never a bare metadata subject like an episode's topic-person (fix 3).
             corroborated_persons=list(detected_guests or ()) + list(known_hosts or ()),
@@ -2707,10 +2842,30 @@ def resolve_speaker_roster(
     # so much for coming to my defense...") harvest that name into the guest pool, where the forced
     # one-name-one-voice match then painted it onto an unrelated voice (N2). A wrong name is worse
     # than no name (#876) — with no resolved host there is no trustworthy introducer, harvest none.
+    # The SAME refusal as the introduction reader's, because this path harvests from the SAME three
+    # regexes and would otherwise bypass it: with the reader's binding removed, "Drance Anderson"
+    # was still picked up here, entered the guest pool as a person, and the forced one-name-one
+    # -voice match painted it onto a 13s cameo. Snap toward the stated spelling first, and drop what
+    # remains unstated but resembles an unbound stated non-host (#2095).
+    stated_for_harvest = list(detected_guests or ()) + list(metadata_named or ())
     host_voice_texts = {v: (voice_texts or {}).get(v, "") for v in host_voices}
     for n in sorted(guests_introduced_by_the_host(host_voice_texts)):
-        if n.lower() not in {d.lower() for d in declared}:
-            declared.append(n)
+        snapped = _canonicalize_to_stated_name(n, stated_for_harvest)
+        stated_h_lower = {s.lower() for s in stated_for_harvest}
+        if snapped.lower() not in stated_h_lower and not any(
+            _same_person(snapped, s) for s in stated_for_harvest
+        ):
+            bound_now = {x.lower() for x in voice_intro.values()}
+            unbound_stated = [
+                s
+                for s in stated_for_harvest
+                if s.lower() not in bound_now
+                and s.lower() not in {h.lower() for h in (known_hosts or ())}
+            ]
+            if _resembles_stated(snapped, unbound_stated) is not None:
+                continue
+        if snapped.lower() not in {d.lower() for d in declared}:
+            declared.append(snapped)
 
     # DELIBERATELY NOT DONE HERE: an "anchor" rule, letting one confirmed guest vouch for the other
     # people the description names ("Qasar Younis and Peter Ludwig have spent the last decade...";
@@ -2761,6 +2916,7 @@ def resolve_speaker_roster(
             voice_texts=voice_texts or {},
             self_intros=_names_self_intro,
             known_hosts=known_hosts,
+            refused_intro_voices=introduced_but_unspellable,
         )
     )
     # They still belong in the roster — as "Advertisement", not as a missing id.
