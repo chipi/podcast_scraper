@@ -421,8 +421,13 @@ def _export_document(
         highlights = [
             h
             for h in highlights
+            # One expression for the id, used for BOTH the membership test and the lookup. They
+            # differed — `str(h.get("id") or "")` then `str(h.get("id"))` — so a highlight with a
+            # missing id probed the key "" and then read the key "None". Harmless today because
+            # every real highlight has a uuid, but two spellings of one value is how that stops
+            # being true (review 2026-09-18).
             if isinstance(state.get(str(h.get("id") or "")), dict)
-            and state[str(h.get("id"))].get("retired")
+            and state[str(h.get("id") or "")].get("retired")
         ]
     if q:
         needle = q.strip().lower()
@@ -551,7 +556,7 @@ async def export_highlights_html(
     color: str | None = Query(default=None, description="Same colour filter as export.md."),
     muted_only: bool = Query(default=False, description="Same muted filter as export.md."),
     q: str | None = Query(default=None, description="Same search filter as export.md."),
-) -> HTMLResponse:
+) -> HtmlResponse:
     """The export as a print-styled page — the PDF path, with no PDF library.
 
     There is no server-side renderer here on purpose. Every option cost something the others did
@@ -563,4 +568,4 @@ async def export_highlights_html(
     Same filters as ``export.md``, because it is literally the same document (``_export_document``).
     """
     episodes, orphans = _export_document(request, user, color, muted_only, q)
-    return HTMLResponse(render_highlights_html(episodes, orphans))
+    return HtmlResponse(render_highlights_html(episodes, orphans))

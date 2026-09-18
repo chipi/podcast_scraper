@@ -169,7 +169,7 @@ the **public + anonymous** cross-user reach.
 | Method | Path | Description |
 | --- | --- | --- |
 | POST | `/api/app/listen/{slug}` | Append one "episode opened" event to the user's listen log (`<data_dir>/users/<id>/listen_events.jsonl`) for analytics. **204**; best-effort, never blocks playback. |
-| GET | `/api/app/me/stats` | The signed-in user's own listening summary: `{episodes, shows, listening_seconds, active_days, day_streak, daily[{date, count}]}` (`UserStatsResponse`). `daily` is a 14-day opens sparkline; `StatPoint` = `{date, count}`. |
+| GET | `/api/app/me/stats` | The signed-in user's own summary (`UserStatsResponse`). **Listening:** `{episodes, shows, listening_seconds, active_days, day_streak, daily[{date, count}]}` — `daily` is a 14-day opens sparkline, `StatPoint` = `{date, count}`. **Captures (2026-09-18):** `{captures, capture_moments, capture_quotes, capture_insights, capture_episodes, captures_last_7_days, notes}` — `capture_*` break the total down by kind, `capture_episodes` is the count of DISTINCT episodes captured from. **Review loop:** `{captures_reviewed, reviews_total, captures_muted}` — `captures_reviewed` is distinct captures reviewed at least once, `reviews_total` counts review EVENTS, so the two differ and are not interchangeable; `captures_muted` are retired off the ladder. |
 
 ---
 

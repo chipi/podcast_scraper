@@ -433,6 +433,15 @@ describe('the primary controls share one height (#2004 item 2)', () => {
     // test is a static class. Pinned so the three cannot drift apart again.
     expect(homeViewSource).toMatch(/data-testid="home-resume"[\s\S]{0,200}?\bh-11\b/)
   })
+
+  it('Resume RESUMES — it carries play=1, not just the right height', () => {
+    // The only assertion on this control was its height class, so the fix that made it start
+    // playing instead of opening paused could be reverted silently (review 2026-09-18). Source-level
+    // for the same reason as above: the hero needs auth + playback history to render.
+    expect(homeViewSource).toMatch(
+      /data-testid="home-resume"[\s\S]{0,400}?play:\s*'1'|play:\s*'1'[\s\S]{0,400}?data-testid="home-resume"/,
+    )
+  })
 })
 
 describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () => {
