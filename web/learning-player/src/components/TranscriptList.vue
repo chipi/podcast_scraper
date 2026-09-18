@@ -8,6 +8,7 @@
  * selected phrase, or the whole paragraph when nothing is selected.
  */
 import { computed, nextTick, ref, watch } from 'vue'
+import BookmarkIcon from './BookmarkIcon.vue'
 import { useI18n } from 'vue-i18n'
 import { scrollBehavior } from '../utils/motion'
 import type { Segment } from '../services/types'
@@ -213,9 +214,7 @@ watch(
           :aria-pressed="gated ? undefined : paraSaved(para)"
           @click="onCaptureParagraph(pi, para)"
         >
-          <svg viewBox="0 0 24 24" :fill="paraSaved(para) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
-            <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-          </svg>
+          <BookmarkIcon :size="16" :filled="paraSaved(para)" />
         </button>
       </div>
     </div>

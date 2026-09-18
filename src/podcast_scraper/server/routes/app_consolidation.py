@@ -111,6 +111,30 @@ async def mark_surfaced(
     app_user_state.mark_surfaced(data_dir, user.user_id, highlight_id, int(time.time()))
 
 
+@router.post("/resurfacing/{highlight_id}/retire", status_code=204)
+async def retire_highlight(
+    highlight_id: str, request: Request, user: User = Depends(get_current_user)
+) -> None:
+    """Stop resurfacing this highlight. It stays in Saved — this is NOT a delete.
+
+    The ladder had no exit before this (operator 2026-09-18): reviewing tops out at the 90-day rung
+    and repeats for ever, ignoring leaves an item permanently overdue at the top of the list, and
+    the only way to stop either was deleting the capture. That put two different decisions — "stop
+    asking me about this" and "I do not want this" — behind one destructive action.
+
+    Ownership-checked exactly like ``mark_surfaced``, and for the same reason: the id arrives
+    off the wire, and an unchecked write lets any string a caller invents accumulate in
+    ``resurfacing.json``.
+    """
+    data_dir = _data_dir(request)
+    owned = any(
+        h.get("id") == highlight_id for h in app_user_state.get_highlights(data_dir, user.user_id)
+    )
+    if not owned:
+        raise HTTPException(status_code=404, detail="highlight not found")
+    app_user_state.set_resurfacing_retired(data_dir, user.user_id, highlight_id, True)
+
+
 @router.get("/resurfacing/settings", response_model=ResurfacingSettings)
 async def get_settings(
     request: Request, user: User = Depends(get_current_user)

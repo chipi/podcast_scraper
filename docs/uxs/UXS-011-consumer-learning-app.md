@@ -451,6 +451,49 @@ deterministic **reflection prompt** (no LLM), the highlight, a one-tap **jump-to
 **"Got it"** dismiss (advances the ladder). A header **Pause/Resume** control governs pacing;
 paused or nothing-due shows an honest empty state.
 
+**Every card offers four outcomes (2026-09-18).** The ladder previously had no exit: reviewing
+advances a rung and tops out at 90 days, so a capture answered five times still returns quarterly,
+while ignoring one leaves it permanently overdue at the *top* of the list (the surface sorts
+most-overdue-first). Both paths loop, and the only way out was deleting the capture — which
+conflates "stop asking me about this" with "I no longer want this". So the card carries:
+
+| action | control | effect |
+| --- | --- | --- |
+| Mark as reviewed | accent-outlined tick (**`CheckIcon`**) | advances the rung — returns in 7d, 30d, then quarterly |
+| Stop resurfacing this | outlined **`BellOffIcon`** | `retired` flag; never resurfaces again, and stays in Saved untouched |
+| Saved — tap to remove | **filled `BookmarkIcon`** | destroys the capture + its notes — confirm-gated (#1594) and sign-in gated (#1590) |
+| Jump to the moment | `▶ mm:ss` | opens the player at that point; arriving marks it reviewed (#35) |
+
+All three buttons are the app's 32px circle (`lp-tap h-8 w-8 rounded-full border border-border`),
+always visible rather than behind a `⋯` — these are the decisions the surface exists to collect, so
+none of them costs an extra tap. Icons are **drawn**, never characters — `CloseIcon` records that
+"✕" as a glyph rendered as a tofu box in the iOS UI font across every sheet at once, and
+`BellOffIcon` reuses the masthead bell's own path so the icon inherits a meaning already learned.
+
+**All three are outlines, and emphasis is carried by colour, not fill (operator 2026-09-18).** The
+tick was first a filled accent disc to mark it as the primary. But a filled tick is the universal
+"this is done" marker — a *state* — which is the same error as labelling the control "✓ Reviewed",
+already rejected above. There is no reviewed state to render here in any case: pressing it removes
+the card, so a reviewed item is never on this screen. Accent *colour* says "press this" without
+claiming the thing is done.
+
+**The third control is an unsave, so it shows the glyph that did the saving (operator 2026-09-18).**
+It was a `CloseIcon` ✕, which named a generic destroy and not what the tap undoes. It is now the
+**filled** `BookmarkIcon` — the same bookmark the transcript fills when you save a line — and its
+label is `capture.savedLine`'s established phrasing, "Saved — tap to remove". It is accent at rest
+(the saved state it is showing) and danger on hover (what pressing it does).
+
+A bookmark and **not a heart**, which is the near-miss worth recording: the heart (`FavoriteButton`)
+is the save affordance for episodes, people, topics, shows and storylines, whereas every Revisit item
+is a *capture*. `types.ts` draws the line outright — an insight "is a capture, saved via the
+highlights path, never a favorite" (RFC-121 / #1593) — so a heart here would offer to un-heart
+something that was never hearted. `BookmarkIcon` is shared with `TranscriptList` rather than
+redrawn, so the saved glyph cannot drift between the place you save and the place you unsave.
+
+`retired` lives in the per-highlight resurfacing record beside `last_surfaced`/`count`, so "is this
+resurfacing?" sits next to "when did it last surface?" rather than splitting one concept over two
+stores. It is removed rather than written `false`, so absence is the only "still resurfacing" state.
+
 **Grouped by the episode the moment came from (2026-09-17).** The inbox was a flat list of prompts
 in which the words "Marked moment" stood in as the card's BODY text, so a card said neither what it
 was nor where it came from. Each group is now the shared **`EpisodeGroupCard`** (see UXS-014) — the

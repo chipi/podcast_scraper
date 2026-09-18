@@ -1079,6 +1079,23 @@ export async function getResurfacing(): Promise<ResurfacingResponse> {
   }
 }
 
+/**
+ * Stop resurfacing one highlight — it stays in Saved (operator 2026-09-18).
+ *
+ * The ladder's only exit. Reviewing tops out at a 90-day rung and repeats for ever; ignoring leaves
+ * an item permanently overdue at the top of the list. Without this the only way to stop either was
+ * deleting the capture, which answers a different question.
+ */
+export async function retireHighlight(id: string): Promise<void> {
+  const resp = await apiFetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/retire`, {
+    method: "POST",
+    credentials: "include",
+  })
+  if (!resp.ok && resp.status !== 401) {
+    throw new ApiError(resp.status, `POST /resurfacing/retire → ${resp.status}`)
+  }
+}
+
 /** Record that the user has seen a resurfaced highlight (advances its ladder). Best-effort. */
 export async function markSurfaced(id: string): Promise<void> {
   const resp = await apiFetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/surfaced`, {

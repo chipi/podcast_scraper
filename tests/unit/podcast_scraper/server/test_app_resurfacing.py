@@ -113,3 +113,45 @@ def test_an_orphan_state_entry_changes_nothing() -> None:
     hl = _hl("h1", NOW - 3 * DAY)
     state = {"h1": {"count": 0, "last_surfaced": NOW - 3 * DAY}, "h_deleted": {"count": 0}}
     assert [h["id"] for h in select_due([hl], state, NOW)] == ["h1"]
+
+
+# --- retiring: kept, but never asked about again (operator 2026-09-18) --------------------------
+
+
+def test_a_retired_highlight_is_never_due() -> None:
+    """The ladder's only exit.
+
+    Reviewing tops out at the 90-day rung and repeats for ever; ignoring leaves `last_seen` at the
+    capture date, so the item is permanently overdue AND sorts first. Both loop. Retiring is how a
+    capture leaves this surface without being deleted.
+    """
+    hl = _hl("h1", NOW - 400 * DAY)  # wildly overdue by any rung
+    assert [h["id"] for h in select_due([hl], {"h1": {"retired": True}}, NOW)] == []
+
+
+def test_retiring_beats_every_other_signal() -> None:
+    """Checked before the date maths, so no amount of overdue-ness resurrects it."""
+    hl = _hl("h1", NOW - 10_000 * DAY)
+    state: dict[str, Any] = {
+        "h1": {"retired": True, "count": 0, "last_surfaced": NOW - 9_000 * DAY}
+    }
+    assert select_due([hl], state, NOW) == []
+
+
+def test_an_unretired_highlight_is_due_again() -> None:
+    """`retired` is removed rather than written False, so absence is the only resurfacing state."""
+    hl = _hl("h1", NOW - 3 * DAY)
+    assert [h["id"] for h in select_due([hl], {"h1": {"count": 0}}, NOW)] == ["h1"]
+
+
+def test_retiring_one_highlight_leaves_the_others_due() -> None:
+    a, b = _hl("a", NOW - 3 * DAY), _hl("b", NOW - 3 * DAY)
+    state: dict[str, Any] = {"a": {"retired": True}}
+    assert [h["id"] for h in select_due([a, b], state, NOW)] == ["b"]
+
+
+def test_a_non_boolean_retired_value_is_honoured_when_truthy() -> None:
+    """The file can be hand-edited; `retired: 1` means what a human meant by it."""
+    hl = _hl("h1", NOW - 3 * DAY)
+    assert select_due([hl], {"h1": {"retired": 1}}, NOW) == []
+    assert [h["id"] for h in select_due([hl], {"h1": {"retired": 0}}, NOW)] == ["h1"]

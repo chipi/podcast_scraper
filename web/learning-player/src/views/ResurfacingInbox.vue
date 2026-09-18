@@ -9,6 +9,12 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import EpisodeRow from '../components/EpisodeRow.vue'
+import CheckIcon from '../components/CheckIcon.vue'
+import BellOffIcon from '../components/BellOffIcon.vue'
+import BookmarkIcon from '../components/BookmarkIcon.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { useCaptureStore } from '../stores/capture'
+import { useSignInGate } from '../composables/useSignInGate'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCappedSections } from '../composables/useCappedSections'
 import { summaryFromDetail } from '../utils/episode'
@@ -18,6 +24,7 @@ import {
   getResurfacing,
   markSurfaced,
   putResurfacingSettings,
+  retireHighlight,
 } from '../services/api'
 import { useResurfacingStore } from '../stores/resurfacing'
 import type { EpisodeDetail, EpisodeSummary, ResurfacingItem } from '../services/types'
@@ -215,6 +222,42 @@ async function dismiss(item: ResurfacingItem): Promise<void> {
   void resurfacing.load()
 }
 
+/**
+ * Keep it, stop asking (operator 2026-09-18).
+ *
+ * Dropped from the list exactly like a review, because from here the two look the same — the item
+ * leaves this surface. What differs is the server state: reviewing advances the ladder so it
+ * returns later, retiring takes it off the ladder for good. Neither touches the capture.
+ */
+async function mute(item: ResurfacingItem): Promise<void> {
+  items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
+  await retireHighlight(item.highlight.id)
+  void resurfacing.load()
+}
+
+/**
+ * Deleting the capture itself — the fourth outcome, and the only destructive one.
+ *
+ * Confirm-gated per #1594: it destroys something the user WROTE, along with any notes on it, and
+ * the create endpoint mints new ids so there is no undo to offer. The capture store owns the
+ * cascade, so this goes through it rather than calling the endpoint directly.
+ */
+const pendingDelete = ref<string | null>(null)
+const capture = useCaptureStore()
+const { gated } = useSignInGate()
+async function confirmDelete(): Promise<void> {
+  const id = pendingDelete.value
+  pendingDelete.value = null
+  if (!id) return
+  // Gated (#1590): signed out this write returns 401, the store swallows it, and the card would
+  // disappear from the list and then reappear — which reads as the user's own action failing.
+  await gated(async () => {
+    items.value = items.value.filter((i) => i.highlight.id !== id)
+    await capture.remove(id)
+    void resurfacing.load()
+  })()
+}
+
 async function togglePause(): Promise<void> {
   const next = !paused.value
   paused.value = next
@@ -315,12 +358,10 @@ onMounted(load)
           <li
             v-for="item in g.items"
             :key="item.highlight.id"
-            class="overflow-hidden rounded-xl border border-l-4 border-border"
+            class="rounded-xl border border-l-4 border-border p-3"
             :class="borderClass(item.highlight.color)"
             data-testid="revisit-item"
           >
-            <div class="flex items-stretch">
-              <div class="min-w-0 flex-1 p-3">
             <!-- KIND · DATE, the same label the notes rows on Boards carry (operator). "Marked
                  moment" used to stand in as the BODY text, which is why a moment card said nothing
                  about itself — it is the label, and the quote below is the content. -->
@@ -348,28 +389,57 @@ onMounted(load)
                 class="font-mono text-xs font-bold text-accent no-underline"
                 data-testid="revisit-jump"
               >▶ {{ item.highlight.start_ms != null ? formatTime(item.highlight.start_ms / 1000) : t('revisit.open') }}</RouterLink>
-            </div>
-              </div>
-              <!-- The PRIMARY action, as a column of its own on the right (operator 2026-09-18).
-                   It was muted text in the footer row, the same weight as the timestamp beside it —
-                   "looks like a label, not a button, easy to miss". The entire loop this feature
-                   exists for is "you came, you reviewed, the badge clears", so the control that
-                   closes it is the most prominent thing on the card: a filled accent disc, 48px,
-                   centred against the content, with the words under it so the check is never a
-                   guess. -->
-              <button
-                type="button"
-                class="flex w-16 shrink-0 flex-col items-center justify-center gap-1 self-stretch border-l border-border bg-overlay text-accent transition hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
-                data-testid="revisit-dismiss"
-                :aria-label="t('revisit.dismiss')"
-                :title="t('revisit.dismiss')"
-                @click="dismiss(item)"
-              >
-                <span class="text-2xl leading-none" aria-hidden="true">✓</span>
-                <span class="text-[10px] font-bold uppercase tracking-wider">{{
-                  t('revisit.dismissShort')
-                }}</span>
-              </button>
+              <!-- Three outcomes, all visible, in the app's 32px circle idiom (operator
+                   2026-09-18) — the same `lp-tap h-8 w-8 rounded-full border border-border` shape
+                   FavoriteButton and the Saved cards use, so these read as controls the user has
+                   already met. Icons are DRAWN, never characters: CloseIcon records why.
+
+                   All three are OUTLINES. The tick was a filled accent disc to mark it as the
+                   primary, but a filled tick is the universal "this is done" marker — a state, and
+                   the same mistake as labelling the button "✓ Reviewed" (operator 2026-09-18).
+                   There is no reviewed state to show here anyway: pressing it removes the card from
+                   the list, so a reviewed item is never on this screen. Emphasis comes from the
+                   tick's accent COLOUR instead, which says "press this" without claiming done. -->
+              <span class="ms-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent text-accent transition hover:bg-accent/10"
+                  data-testid="revisit-dismiss"
+                  :aria-label="t('revisit.dismiss')"
+                  :title="t('revisit.dismiss')"
+                  @click="dismiss(item)"
+                ><CheckIcon /></button>
+                <button
+                  type="button"
+                  class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
+                  data-testid="revisit-mute"
+                  :aria-label="t('revisit.mute')"
+                  :title="t('revisit.mute')"
+                  @click="mute(item)"
+                ><BellOffIcon /></button>
+                <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18). This action is an UNSAVE,
+                     and an unsave should show the glyph that did the saving, filled, so that tapping
+                     it reads as undoing the save rather than as a generic delete.
+
+                     Bookmark and not a heart because of which save it was: the heart
+                     (`FavoriteButton`) takes episodes, people, topics, shows and storylines, while
+                     everything on this screen is a CAPTURE, saved with the transcript's bookmark —
+                     `types.ts` puts it plainly, "an insight is a capture, saved via the highlights
+                     path, never a favorite" (RFC-121 / #1593).
+
+                     Accent by default, danger on hover: accent is the saved state it currently
+                     shows; danger is what pressing it does. Still destructive, so it still asks
+                     first — the #1594 rule, via the same ConfirmDialog the Saved list opens for this
+                     very object. -->
+                <button
+                  type="button"
+                  class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-accent transition hover:text-danger"
+                  data-testid="revisit-delete"
+                  :aria-label="t('revisit.remove')"
+                  :title="t('revisit.remove')"
+                  @click="pendingDelete = item.highlight.id"
+                ><BookmarkIcon filled /></button>
+              </span>
             </div>
           </li>
         </ul>
@@ -381,5 +451,15 @@ onMounted(load)
         @toggle="caps.toggle('revisit-groups')"
       />
     </template>
+
+    <ConfirmDialog
+      :open="pendingDelete !== null"
+      :title="t('highlights.confirmDeleteTitle')"
+      :body="t('highlights.confirmDeleteBody')"
+      :confirm-label="t('highlights.confirmDelete')"
+      data-testid="revisit-delete-confirm"
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = null"
+    />
   </div>
 </template>

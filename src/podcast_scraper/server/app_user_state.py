@@ -1283,6 +1283,34 @@ def mark_surfaced(data_dir: Path, user_id: str, highlight_id: str, ts: int) -> d
         return rec
 
 
+def set_resurfacing_retired(
+    data_dir: Path, user_id: str, highlight_id: str, retired: bool
+) -> dict[str, Any]:
+    """Stop (or resume) resurfacing ONE highlight, without touching the capture itself.
+
+    "Keep it, but stop asking me" (operator 2026-09-18). A scheduling flag and nothing else: the
+    highlight stays in Saved with its notes and colour. Deleting is a separate action with a
+    separate meaning, and it is the one that gets a confirmation.
+
+    Merged into the existing per-highlight record rather than given a file of its own, so "is this
+    resurfacing?" sits beside "when did it last surface?" instead of splitting one concept across
+    two stores.
+    """
+    with _user_lock(data_dir, user_id, "resurfacing"):
+        data = _mapping_for_update(data_dir, user_id, "resurfacing")
+        prev = data.get(highlight_id)
+        rec: dict[str, Any] = dict(prev) if isinstance(prev, dict) else {}
+        if retired:
+            rec["retired"] = True
+        else:
+            # Removed rather than written as False: absent already means "resurfacing", and a False
+            # would be a second way to say the same thing that every reader would have to handle.
+            rec.pop("retired", None)
+        data[highlight_id] = rec
+        _write(data_dir, user_id, "resurfacing", data)
+        return rec
+
+
 def remove_resurfacing_state(data_dir: Path, user_id: str, highlight_id: str) -> None:
     """Drop a highlight's schedule entry (no-op if absent) — the delete cascade for #39.
 

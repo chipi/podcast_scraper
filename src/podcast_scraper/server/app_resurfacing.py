@@ -54,6 +54,18 @@ def select_due(
         if not hid or not created:
             continue
         st = state.get(hid, {})
+        # RETIRED: kept, but never asked about again (operator 2026-09-18).
+        #
+        # The ladder had no exit. Reviewing advances a rung and tops out at 90 days, so a
+        # capture you have answered five times still returns every quarter; ignoring one
+        # leaves `last_seen` at its capture date, so it stays permanently overdue and —
+        # since this sorts most-overdue-first — climbs to the TOP for ever. Both paths
+        # loop, and the only way out was deleting the capture, which is a different
+        # decision: "stop asking me" is not "I no longer want this".
+        #
+        # Checked before any date maths: a retired highlight is not due, however overdue it looks.
+        if isinstance(st, dict) and st.get("retired"):
+            continue
         # Defensive: `state` comes off disk, so it may be hand-edited, half-written, or left by an
         # older build. `mark_surfaced` clamps what IT writes, but this is the function that READS,
         # and it trusted the value outright — a non-numeric count raised ValueError and 500'd both
