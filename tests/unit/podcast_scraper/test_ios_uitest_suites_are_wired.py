@@ -61,7 +61,9 @@ def test_uitests_dir_is_found() -> None:
     "every suite is wired" having checked none of them.
     """
     assert UITESTS_DIR.is_dir(), f"iOS UITests directory not found at {UITESTS_DIR}"
-    assert _suite_names(), f"no XCTestCase suites found under {UITESTS_DIR} — has the layout changed?"
+    assert (
+        _suite_names()
+    ), f"no XCTestCase suites found under {UITESTS_DIR} — has the layout changed?"
 
 
 @pytest.mark.unit
@@ -71,9 +73,7 @@ def test_every_ios_uitest_suite_is_reachable_from_a_make_target() -> None:
     referenced = set(re.findall(r"-only-testing:\w+/(\w+)", makefile))
 
     orphaned = [
-        name
-        for name in _suite_names()
-        if name not in referenced and name not in _UNWIRED_BY_DESIGN
+        name for name in _suite_names() if name not in referenced and name not in _UNWIRED_BY_DESIGN
     ]
 
     assert not orphaned, (
