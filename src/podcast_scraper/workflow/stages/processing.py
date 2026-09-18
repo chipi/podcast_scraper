@@ -1629,6 +1629,28 @@ def _detect_speakers_for_episode(
                 "known_host_count": len(host_strings | combined_hosts),
             },
         )
+        # NO SEAT CAP HERE, AND THAT IS DELIBERATE — it was tried and it was wrong (#2095/#2078).
+        #
+        # The worry is real: `guests` becomes `detected_guests`, then the roster's `guest_names`,
+        # then `spare`, and finally the FORCED "one spare name, one spare voice" binding, which
+        # publishes a name on nothing but a count. Uncapping detection therefore lets a guest
+        # reach that path on exactly the two-host shows this fix targets, and a previous attempt
+        # at uncapping was reverted for producing wrong forced names (7d083c4b).
+        #
+        # Re-imposing `screenplay_num_speakers - len(hosts)` here fails
+        # `test_the_pipeline_still_returns_the_real_guest`, and that test is right: on a two-host
+        # show the bound is ZERO, so `Dr. Adam Rodman` — corroborated, genuinely in the room —
+        # is deleted from `guests` altogether. And `guests` is not only the arithmetic pool; it
+        # also feeds `corroborated_persons`, which gates the EVIDENCE-based report-verb binding in
+        # the roster. Capping it starves the very path that is supposed to name her.
+        #
+        # What actually bounds the risk is `corroborate_guests` above: a name reaches `guests`
+        # only with textual evidence that the person SPOKE, which is the gate the reverted attempt
+        # bypassed by drawing on `metadata_named` (topic-people) instead.
+        #
+        # NOT VERIFIED: the forced-path effect of the wider `guests` list is not measured. The
+        # offline replay feeds stored `detected_guests`, which are pre-fix and capped, so no tier
+        # available here can observe it. It needs a real run.
         return DetectedSpeakers(guests=corroborated, stated=proposed)
     return None
 

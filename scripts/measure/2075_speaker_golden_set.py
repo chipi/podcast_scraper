@@ -63,12 +63,17 @@ CASES = [
     # --- a stated guest must reach the record on a two-host show (#2078) -------------
     #
     # READ THIS BEFORE "FIXING" THE NEXT CASE. It fails, and this harness CANNOT make it pass.
-    # The screenplay seat cap that deleted her was fixed in `_build_speaker_names_list`, but
-    # detection runs at INGEST: every stored diagnostics file already holds the capped
+    # Detection runs at INGEST: every stored diagnostics file already holds the CAPPED
     # `detected_guests`, and this harness replays those stored artifacts. So the case reads
     # identically before and after the fix. It is verified instead by
-    # tests/unit/podcast_scraper/speaker_detectors/test_stated_guest_survives_the_seat_cap.py
+    #   tests/unit/podcast_scraper/speaker_detectors/test_stated_guest_survives_the_seat_cap.py
+    #   tests/unit/podcast_scraper/providers/openai/test_stated_guest_survives_the_seat_cap.py
+    #   tests/unit/podcast_scraper/workflow/stages/test_stated_and_arithmetic_lists_are_separate.py
     # and by a real `relabel_only` run, which re-runs detection.
+    #
+    # The two provider files are not duplication: the cap existed on BOTH the spaCy detector and
+    # the OpenAI-compatible one, and production runs the latter (`prod_dgx_full` -> `vllm`).
+    # Fixing only the first was reported as a complete fix by every offline check here.
     #
     # The case is kept because it states something true about the corpus, and because a harness
     # that silently drops what it cannot check is worse than one that fails honestly.
@@ -221,14 +226,36 @@ def run_case(case, mods, snapshot: Path):
     if ep is None:
         return "NO DATA", f"no episode matching {case['ep']!r} under {snapshot}"
     roster_mod, hosts_mod, base = mods
-    known_hosts = sorted(
-        hosts_mod.detect_hosts_from_feed(
+    # RECOMPUTE the hosts; do NOT read `tried.known_hosts`. This looks like the "verify the
+    # instrument" trap and is the opposite of it, so it is written down.
+    #
+    # The stage this harness imitates is `relabel_only`, and that path recomputes:
+    # `_relabel_existing_transcript` calls `_feed_hosts_from_sibling_metadata`
+    # (episode_processor.py:2631), which reads the sibling metadata's `feed` block and runs
+    # `detect_hosts_from_feed` over it. It never reads the stored diagnostics.
+    #
+    # `tried.known_hosts` is that computation's OUTPUT, recorded at the time of the original run —
+    # so it carries whatever host detection believed back then. Feeding it back in pins the
+    # harness to pre-fix behaviour and hides every improvement to host detection. Concretely: The
+    # Rest Is History's stored value is `['Norman Conquest']`, a historical event that the
+    # branch's `_NOT_A_MONONYM` / demonym guards now reject. Replaying the stored value republishes
+    # it on two voices and reports a fixed defect as live.
+    #
+    # An earlier version of the full replay harness had the mirror-image bug — it reused stored
+    # values where the pipeline recomputes — and that cost 89 episodes across 3 feeds.
+    # Same principle, opposite direction: imitate the CALLER, not the record.
+    known_hosts = list(
+        hosts_mod.drop_non_person_names(
+            sorted(
+                hosts_mod.detect_hosts_from_feed(
+                    ep["feed"].get("title"),
+                    ep["feed"].get("description"),
+                    ep["feed"].get("authors") or [],
+                )
+            ),
             ep["feed"].get("title"),
-            ep["feed"].get("description"),
-            ep["feed"].get("authors") or [],
         )
     )
-    known_hosts = list(hosts_mod.drop_non_person_names(known_hosts, ep["feed"].get("title")))
     voice_texts: dict[str, str] = collections.defaultdict(str)
     turns: list[tuple[str, str]] = []
     for s in ep["segs"]:
@@ -287,18 +314,34 @@ def run_case(case, mods, snapshot: Path):
         ok = (got or "").lower() != want
         return ("PASS", "") if ok else ("FAIL", f"{case['voice']} carries it")
     if case["kind"] == "record":
-        # The record includes people no voice was matched to; the roster's own unbound
-        # list is the closest in-process equivalent without building the artifact.
-        diag = getattr(roster, "diagnostics", None) or {}
-        unbound = {str(n).lower() for n in ((diag.get("summary") or {}).get("unbound_names") or [])}
-        stated = {
+        # The record carries people no voice was matched to, as `placed: false`. Reproduce the
+        # pipeline's own definition rather than inventing one: `build_speaker_diagnostics`
+        # computes `unbound_names` as `_clean_person_names(metadata_named)` minus the names the
+        # roster bound, and `_unplaced_speakers` writes exactly that.
+        #
+        # This used to read `roster.diagnostics`, which does not exist — `SpeakerRoster` has only
+        # `by_voice` and `num_speakers`. The lookup silently returned {} and the case then passed
+        # whenever the name appeared in the STORED metadata, making it an assertion about the
+        # snapshot rather than about the code under test. Caught in review; the guide's own
+        # "verify the instrument" rule, missed inside the instrument.
+        unbound = {
             str(n).lower()
-            for n in (ep["tried"].get("metadata_named") or [])
-            + (ep["tried"].get("detected_guests") or [])
+            for n in roster_mod._clean_person_names(ep["tried"].get("metadata_named") or ())
+            if str(n).lower() not in published
         }
-        if want in published or want in unbound or want in stated:
+        if want in published or want in unbound:
             return ("PASS", "")
-        return ("FAIL", f"absent from roster and stated lists (stated={sorted(stated)[:4]})")
+        stated = sorted(
+            {
+                str(n)
+                for n in (ep["tried"].get("metadata_named") or [])
+                + (ep["tried"].get("detected_guests") or [])
+            }
+        )
+        return (
+            "FAIL",
+            f"neither bound to a voice nor unplaced in the record (stated={stated[:4]})",
+        )
     return ("SKIP", f"unknown kind {case['kind']}")
 
 

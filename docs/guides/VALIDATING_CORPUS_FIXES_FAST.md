@@ -185,6 +185,15 @@ policies in seconds:
 > **Lesson.** When a previous attempt failed, the episodes that failed it ARE the
 > regression suite. Keep their inputs on disk; they are worth more than a larger sample.
 
+**A measured policy still has to survive contact with the code.** The second row above is
+the policy that was chosen — and it is *not* what shipped, because re-imposing the bound at
+the obvious seam deletes the corroborated guest outright: on a two-host show the bound is
+zero, and the list it bounds also feeds an evidence-based binder, not only the arithmetic.
+An existing test said so immediately. What bounds the risk in the end is the corroboration
+gate the reverted attempt had bypassed, and the forced-path effect is left explicitly
+unmeasured, because no tier available offline can see it. Record the gap; do not let a table
+of measured policies imply that the measured one is the one in the tree.
+
 **And know when the cheap tiers simply cannot answer.** This fix is upstream of everything
 the stored artifacts record: detection runs at ingest, so `detected_guests` is frozen in the
 diagnostics as the capped list it was. Tiers 1 and 2 replay those artifacts, so neither can
@@ -252,6 +261,16 @@ successfully eliminated.
 **A diagnostic can defeat its own watchdog.** A stalled-run detector keyed on log
 freshness stopped working the moment the stalled loop began logging why it was stuck.
 Detect *progress* (episodes completed), never liveness (bytes written).
+
+**Check which PROVIDER the profile you care about actually runs.** The same decision often
+exists on several provider paths, and fixing the one you happen to be reading is not fixing
+the bug. The seat-cap fix below was written against the spaCy detector, unit-tested, and
+measured — while production runs `prod_dgx_full` → `vllm` →
+`OpenAICompatibleProvider`, which carried the identical cap in two other places. Six
+providers inherit that class, 21 of 41 configured profile entries. Every offline check
+reported success on a change that did nothing where it mattered. Nothing in the tiers above
+can catch this, because they all exercise the path you chose to call: grep the decision, not
+the module, and read the profile before believing a provider-level fix.
 
 **Distinguish "not caused by this change" from "not a problem".** Both deserve to be
 written down; only one of them blocks a merge. Establish which by running the *old code*
