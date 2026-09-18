@@ -568,11 +568,12 @@ listening threshold. (Observed: a seeded account shows "Start listening to build
 a kept block reading 12 captures.) The fields are optional on the type, so a server predating them
 hides the section rather than rendering zeroes that look like a real answer.
 
-**The listening block itself is conditional (operator 2026-09-18).** "Start listening to build your
-stats" sat above a kept block reading 12 captures — telling someone plainly using the app that they
-had not started. It renders when there IS listening, when the stats call failed, or when the
-account is empty everywhere; it disappears only in the one case that was wrong. A brand-new account
-still sees it, because a blank tab answers nothing.
+**The listening block is always rendered.** A conditional was tried and reverted the same day: it
+looked wrong that "Start listening to build your stats" sat above a kept block reading 12 captures,
+but that seeded account had genuinely never listened, so the prompt was correct and the DATA was
+the artificial thing. A capture cannot exist without having opened its episode, and an open counts
+— so "captures but no listening" is not a state the app can produce, and a branch that cannot fire
+is a branch nobody will verify again.
 
 **Home carries a "Worth revisiting" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
 captures, **at most one per episode** so it shows the breadth of what is waiting rather than one

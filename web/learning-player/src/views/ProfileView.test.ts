@@ -305,29 +305,13 @@ describe("ProfileView — Your listening panel", () => {
     expect(w.text()).toContain("3")
   })
 
-  it("shows the stats empty state when the account is empty EVERYWHERE", async () => {
+  it("shows the stats empty state when the user has no episodes", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
-    vi.spyOn(api, "getMyStats").mockResolvedValue(stats({ episodes: 0, captures: 0 }))
+    vi.spyOn(api, "getMyStats").mockResolvedValue(stats({ episodes: 0 }))
     const w = mountProfile()
     await flushPromises()
     expect(w.text()).toContain("Start listening to build your stats.")
     expect(w.text()).not.toContain("Day streak")
-  })
-
-  it("drops the listening panel when there are captures but no listening", async () => {
-    // "Start listening to build your stats" sat above a kept block reading 12 captures — telling
-    // someone plainly using the app that they have not started (operator 2026-09-18). The prompt
-    // is a first-run message, not a permanent header for a thin play history.
-    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
-    vi.spyOn(api, "getMyStats").mockResolvedValue(
-      stats({ episodes: 0, captures: 12, notes: 5, reviews_total: 8, captures_reviewed: 4 }),
-    )
-    const w = mountProfile()
-    await flushPromises()
-    expect(w.text(), "the app told an active user to start").not.toContain("Start listening")
-    expect(w.find('[data-testid="stats-listening"]').exists()).toBe(false)
-    expect(w.find('[data-testid="stats-kept"]').exists()).toBe(true)
-    expect(w.text()).toContain("What you've kept")
   })
 
   it("keeps the listening panel when there IS listening, alongside the kept block", async () => {
