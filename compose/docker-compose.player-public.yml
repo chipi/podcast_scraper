@@ -56,6 +56,15 @@ services:
       # OAuth callback as https://<player-domain>/... (#1163).
       FORWARDED_ALLOW_IPS: "*"
       APP_DATA_DIR: /app/appdata
+      # Origin the EXPORTS link back to, e.g. https://closelistening.app/episode/<slug>?t=42.
+      # Export links must be absolute or they are dead where the export is actually read: Obsidian
+      # resolves "/episode/x" against the vault, and a .md file on disk has no origin at all.
+      #
+      # Configured rather than derived from the request Host on purpose — Obsidian vault notes are
+      # HASHED to drive the incremental-export cursor, so a host-derived URL would rewrite every
+      # note in the user's vault the first time they exported from a different origin (the native
+      # shell, a tunnel, localhost). Defaults to the public player domain when unset.
+      APP_PUBLIC_ORIGIN: ${APP_PUBLIC_ORIGIN:-https://closelistening.app}
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
       # Tags backend Sentry events as prod (sentry_init reads PODCAST_ENV, default dev).
       # Must be listed here — the --env-file only feeds compose interpolation, not the

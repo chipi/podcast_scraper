@@ -16,7 +16,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import PlainTextResponse
 
-from podcast_scraper.server import app_graph_refs, app_user_state
+from podcast_scraper.server import app_graph_refs, app_pkm_export, app_user_state
 from podcast_scraper.server.app_capture_export import (
     EpisodeHighlights,
     HighlightLine,
@@ -348,6 +348,16 @@ async def export_highlights_markdown(
         "#2042) — so 'filter to amber, then Export' gives just the amber highlights. Episode / "
         "insight notes carry no colour, so a colour-filtered export omits them.",
     ),
+    muted_only: bool = Query(
+        default=False,
+        description="When true, export only captures the user stopped resurfacing — the Saved "
+        "tab's muted filter, so 'filter, then Export' agrees with the screen.",
+    ),
+    q: str | None = Query(
+        default=None,
+        description="When set, export only captures whose quote or speaker matches — the Saved "
+        "tab's search box.",
+    ),
 ) -> PlainTextResponse:
     """Export the user's highlights AND (unfiltered) their notes, as a Markdown document.
 
@@ -362,9 +372,52 @@ async def export_highlights_markdown(
     would otherwise leak past the filter).
     """
     data_dir = _data_dir(request)
+    root = _corpus_root_opt(request)
     highlights = app_user_state.get_highlights(data_dir, user.user_id)
     if color:
         highlights = [h for h in highlights if h.get("color") == color]
+    if muted_only:
+        # The Saved tab can narrow to muted captures, so Export had to be able to as well —
+        # otherwise "filter, then export" silently returned everything and the file disagreed with
+        # the screen that produced it.
+        state = app_user_state.get_resurfacing_state(data_dir, user.user_id)
+        highlights = [
+            h
+            for h in highlights
+            if isinstance(state.get(str(h.get("id") or "")), dict)
+            and state[str(h.get("id"))].get("retired")
+        ]
+    if q:
+        needle = q.strip().lower()
+        # Same fields the Saved search matches (quote / speaker) — episode titles are findable via
+        # the Episodes section there, and matching them here would return captures the screen did
+        # not show.
+        highlights = [
+            h
+            for h in highlights
+            if needle in str(h.get("quote_text") or "").lower()
+            or needle in str(h.get("speaker") or "").lower()
+        ]
+
+    def _ref_labels(h: dict) -> list[str]:
+        """People and topics this capture is about, as plain labels.
+
+        Through ``refs_for_highlight``, which is the same resolution the Obsidian export and the
+        revisit surfaces use: stored refs when the capture has them, else the episode's KG. Most
+        captures store none, so reading `graph_refs` directly would have produced an empty list
+        almost every time and looked like "this episode has no entities".
+
+        Best-effort: no corpus root (or an episode with no KG) means no labels, never an error —
+        an export must not fail because the graph is unavailable.
+        """
+        if root is None:
+            return []
+        return [
+            str(r.get("label") or "").strip()
+            for r in app_graph_refs.refs_for_highlight(root, h)
+            if str(r.get("label") or "").strip()
+        ]
+
     notes = app_user_state.get_notes(data_dir, user.user_id)
     notes_by_target: dict[str, list[str]] = {}
     for n in notes:
@@ -392,7 +445,9 @@ async def export_highlights_markdown(
     def _episode(slug: str) -> EpisodeHighlights:
         if slug not in grouped:
             title, show = titles.get(slug, (None, None))
-            grouped[slug] = EpisodeHighlights(slug=slug, title=title, show=show)
+            grouped[slug] = EpisodeHighlights(
+                slug=slug, title=title, show=show, url=app_pkm_export.episode_url(slug)
+            )
         return grouped[slug]
 
     for h in highlights:
@@ -400,11 +455,14 @@ async def export_highlights_markdown(
             HighlightLine(
                 kind=str(h.get("kind", "span")),
                 start_ms=h.get("start_ms"),
-                end_ms=h.get("end_ms"),
                 quote_text=h.get("quote_text"),
                 speaker=h.get("speaker"),
                 color=h.get("color"),
-                anchor_status=h.get("anchor_status"),
+                created_at=h.get("created_at"),
+                entities=_ref_labels(h),
+                jump_url=app_pkm_export.episode_url(
+                    str(h.get("episode_slug") or ""), h.get("start_ms")
+                ),
                 notes=notes_by_target.get(str(h.get("id")), []),
             )
         )

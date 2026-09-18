@@ -93,7 +93,11 @@ frontmatter `aliases:` and in the link's display text.
 ---
 id: h_1a2b3c
 episode: acquired-nvidia
+kind: "span"            # span | moment | insight
+speaker: "Jensen Huang"
 t_ms: 3921000
+captured: 2026-09-18    # YYYY-MM-DD, UTC
+color: "amber"
 entities: [person_ab12, topic_scaling]
 source: user            # or "auto" (GI editor's-pick)
 aliases: ["“The bottleneck was never compute…”"]
@@ -101,8 +105,31 @@ aliases: ["“The bottleneck was never compute…”"]
 > “The bottleneck was never compute; it was our willingness to throw away a working model.”
 — [[Episodes/acquired-nvidia|NVIDIA: The Machine…]] · [▶ 1:05:21](https://…/episode/acquired-nvidia?t=3921)
 Discusses [[People/person_ab12|Jensen Huang]] · [[Topics/topic_scaling|Scaling Laws]]
+
+## Notes
+- the user's own writing about this capture
 ```
 **Entity note** is thin (id, label, source) — the graph emerges from backlinks, not duplicated body.
+
+**What the vault carries, and what it deliberately does not (operator 2026-09-18).** An export is
+CONTENT: the words, who said them, what kind of capture it is, when it was made, the user's colour,
+what it is about, and anything they wrote about it. App scheduling state — the resurfacing ladder's
+`count`/`last_surfaced`, and the `retired` flag behind "stop resurfacing" — does **not** travel: it
+describes how this product nags you, which means nothing in a vault read years later in another
+tool. `anchor_status` is excluded for the same reason: drift matters because the app can JUMP to a
+timestamp, and a vault note is a record of what was said.
+
+Five of those were absent until audited against the schema. The costly one was **notes**:
+`get_notes()` was never called, so a vault kept the podcast's words and dropped the reader's —
+the wrong half to lose. Notes on an EPISODE land on the episode note, mirroring where the Markdown
+export puts them.
+
+**Deep links are ABSOLUTE**, exactly as the example above always showed — the emitter shipped a
+site-relative `/episode/<slug>?t=<s>`, which is dead where a vault is actually read: Obsidian
+resolves it against the vault, not a website. The origin comes from `APP_PUBLIC_ORIGIN`
+(default `https://closelistening.app`), **not** from the request `Host`, because note content is
+hashed to drive the incremental cursor below — a host-derived URL would rewrite every note in the
+user's vault the first time they exported from a different origin (native shell, tunnel, localhost).
 
 ### 2. The emitter + incremental cursor
 

@@ -229,7 +229,10 @@ async function exportHighlightsNative(): Promise<void> {
   if (exporting.value) return
   exporting.value = true
   try {
-    const md = await fetchHighlightsExport(props.filterColor)
+    const md = await fetchHighlightsExport(props.filterColor, {
+      mutedOnly: props.mutedOnly,
+      q: props.search,
+    })
     await saveAndShareText('my-highlights.md', md)
   } finally {
     exporting.value = false
@@ -341,7 +344,7 @@ onMounted(async () => {
         >{{ t('highlights.exportMarkdownShort') }}</button>
         <a
           v-else
-          :href="highlightsExportUrl(filterColor)"
+          :href="highlightsExportUrl(filterColor, { mutedOnly, q: search })"
           download="my-highlights.md"
           :aria-label="t('highlights.export')"
           class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"

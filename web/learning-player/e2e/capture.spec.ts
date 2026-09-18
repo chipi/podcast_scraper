@@ -84,6 +84,34 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   const exportLink = page.getByRole('link', { name: 'Export Markdown' })
   await expect(exportLink).toHaveAttribute('href', /\/api\/app\/highlights\/export\.md/)
 
+  // ...and FETCHING it returns a document that matches the screen (operator 2026-09-18).
+  //
+  // Asserting the href shape alone passed while the export was missing the things that make it
+  // worth having: an unreachable link, no capture date, no kind. The only assertion that can tell
+  // is one that reads the bytes the user would download.
+  const exportHref = await exportLink.getAttribute('href')
+  const exported = await page.request.get(new URL(exportHref!, page.url()).toString())
+  expect(exported.ok(), 'the export route the UI links to did not respond').toBeTruthy()
+  const md = await exported.text()
+  // The jump link must be ABSOLUTE. Relative, it is dead everywhere the export is actually read —
+  // Obsidian resolves "/episode/x" against the vault, and a file on disk has no origin at all.
+  expect(md, 'the export has no absolute player link').toMatch(
+    /\[\d+:\d{2}\]\(https?:\/\/[^)]+\/episode\/[^)]+\?t=\d+\)/,
+  )
+  expect(md, 'the export lost the capture kind').toMatch(/- \*\*(Quote|Marked moment|Insight)\*\*/)
+  expect(md, 'the export lost the capture date').toMatch(/· captured \d{4}-\d{2}-\d{2}/)
+
+  // Filters travel with the export: what you filtered is what you get. Colour was passed already;
+  // search and muted were silently dropped, so "filter, then Export" handed back everything.
+  const filtered = await page.request.get(
+    new URL(`${exportHref}${exportHref!.includes('?') ? '&' : '?'}q=__no_such_text__`, page.url())
+      .toString(),
+  )
+  expect(
+    await filtered.text(),
+    'a filtered export ignored the filter and returned captures anyway',
+  ).not.toMatch(/- \*\*(Quote|Marked moment|Insight)\*\*/)
+
   // Attach a note to the first highlight and confirm it persists in the view.
   const noteText = `e2e note ${Date.now()}`
   await page.getByRole('button', { name: 'Add note' }).first().click()

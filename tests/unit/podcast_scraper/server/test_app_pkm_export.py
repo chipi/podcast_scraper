@@ -235,7 +235,9 @@ def test_an_episode_title_containing_link_syntax_cannot_truncate_the_link(
     assert line.count("[[") == 1, line
     assert line.count("]]") == 1, line
     assert "closelistening/Episodes/acquired-nvidia|" in line
-    assert "[▶ jump](/episode/acquired-nvidia" in line  # the rest of the line survived intact
+    # Absolute since 2026-09-18: inside Obsidian a "/episode/x" link resolves against the
+    # VAULT, not a website, so the relative form silently dead-ended.
+    assert "[▶ jump](https://" in line and "/episode/acquired-nvidia" in line
 
 
 def test_a_multi_line_quote_stays_inside_the_blockquote(monkeypatch: pytest.MonkeyPatch) -> None:

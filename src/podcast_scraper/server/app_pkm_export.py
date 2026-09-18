@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -132,11 +134,48 @@ def _usable_refs(refs: Any) -> list[dict[str, Any]]:
     return out
 
 
-def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
+def public_origin() -> str:
+    """The origin export links point at, e.g. ``https://closelistening.app``.
+
+    Configured, NOT derived from the request Host, for a reason specific to this exporter: vault
+    note content is HASHED to drive the incremental-export cursor. A host-derived URL would change
+    every note's hash the moment the user exported from a different origin (native shell, a tunnel,
+    localhost), turning a no-op export into a full rewrite of their vault.
+
+    Links must be ABSOLUTE or they do not work at all: a vault note is read inside Obsidian, where
+    ``/episode/x`` resolves against the VAULT, not against any website, and silently dead-ends.
+    """
+    raw = (os.environ.get("APP_PUBLIC_ORIGIN") or "https://closelistening.app").strip()
+    return raw.rstrip("/").splitlines()[0] if raw else "https://closelistening.app"
+
+
+def episode_url(slug: str, t_ms: Any = None) -> str:
+    """Absolute player link for an episode, positioned at ``t_ms`` when it is a real offset."""
+    url = f"{public_origin()}/episode/{slug}"
+    return f"{url}?t={int(t_ms) // 1000}" if isinstance(t_ms, int) else url
+
+
+def _captured_on(ts: Any) -> str:
+    """Capture date as ``YYYY-MM-DD``; empty when unknown or unusable."""
+    try:
+        return time.strftime("%Y-%m-%d", time.gmtime(int(ts)))
+    except (TypeError, ValueError, OSError):
+        return ""
+
+
+def _highlight_note(h: dict[str, Any], episode_title: str, notes: list[str] | None = None) -> str:
+    """One highlight as a vault note.
+
+    Carries CONTENT, not app state (operator 2026-09-18): the words, who said them, what kind of
+    capture it is, when it was made, what it is about, and anything the user wrote about it. The
+    resurfacing schedule and the muted flag deliberately do NOT travel — they describe how this
+    product nags you, which is meaningless in a vault read years later in another tool.
+    """
     refs = _usable_refs(h.get("graph_refs"))
     slug = str(h.get("episode_slug") or "")
     t_ms = h.get("start_ms")
     quote = str(h.get("quote_text") or "").strip()
+    speaker = str(h.get("speaker") or "").strip()
     ent_ids = [_entity_stem(str(r["id"])) for r in refs]
     alias = _yaml_scalar(quote[:80] if quote else episode_title)
     lines = [
@@ -144,8 +183,28 @@ def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
         f"id: {_safe_id(str(h.get('id') or ''))}",
         f"episode: {_yaml_scalar(slug)}",
     ]
+    # `kind` distinguishes a quotation from a bookmarked instant from a saved insight. The vault
+    # rendered all three identically, so a reader could not tell a thing somebody SAID from a thing
+    # the user merely marked the position of.
+    kind = str(h.get("kind") or "").strip()
+    if kind:
+        lines.append(f"kind: {_yaml_scalar(kind)}")
+    if speaker:
+        # Was reachable only by coincidence, via an entity link that happens to be a person. An
+        # unattributed moment simply lost who was talking.
+        lines.append(f"speaker: {_yaml_scalar(speaker)}")
     if isinstance(t_ms, int):
         lines.append(f"t_ms: {t_ms}")
+    # WHEN it was captured. Without it a year of captures has no chronology once it leaves the app;
+    # `t_ms` is a position inside an episode, which is a different question entirely. Date-only and
+    # ISO so it sorts lexically and claims no timezone the stored epoch cannot support.
+    captured = _captured_on(h.get("created_at"))
+    if captured:
+        lines.append(f"captured: {captured}")
+    colour = str(h.get("color") or "").strip()
+    if colour:
+        # The user's own classification — the one piece of metadata here they authored themselves.
+        lines.append(f"color: {_yaml_scalar(colour)}")
     lines.append(f"entities: {_fm_list(ent_ids)}")
     # Quoted like every other string field. No client path can set `source` today (HighlightCreate
     # has no such field, so it is always "user"), which is exactly why it is worth doing now —
@@ -159,11 +218,18 @@ def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
         # quote and the remainder as body text attributed to nobody.
         lines.append("\n".join(f"> {line}" for line in quote.splitlines() or [quote]))
     ep_link = f"[[{_ROOT}/Episodes/{_safe_id(slug)}|{_wikilink_text(episode_title)}]]"
-    deep = f"/episode/{slug}" + (f"?t={t_ms // 1000}" if isinstance(t_ms, int) else "")
+    deep = episode_url(slug, t_ms)
     lines.append(f"— {ep_link} · [▶ jump]({deep})")
     if refs:
         chips = " · ".join(_entity_link(r) for r in refs)
         lines.append(f"Discusses {chips}")
+    # The user's OWN writing. It was dropped entirely — `get_notes()` was never called — so a vault
+    # kept the podcast's words and lost the reader's, which is the wrong half to lose.
+    kept = [n.strip() for n in (notes or []) if n.strip()]
+    if kept:
+        lines.append("")
+        lines.append("## Notes")
+        lines.extend(f"- {n}" for n in kept)
     return "\n".join(lines) + "\n"
 
 
@@ -180,15 +246,25 @@ def _entity_note(ref: dict[str, Any]) -> str:
     )
 
 
-def _episode_note(slug: str, title: str) -> str:
-    return (
+def _episode_note(slug: str, title: str, notes: list[str] | None = None) -> str:
+    """The episode's vault note, carrying any notes the user wrote on the EPISODE itself.
+
+    A note's target can be a highlight, an insight or an episode. The vault read none of them; the
+    Markdown export already places episode notes under the episode heading, and this is that same
+    writing in the other format.
+    """
+    out = (
         "---\n"
         f"slug: {_yaml_scalar(slug)}\n"
         f"aliases: [{_yaml_scalar(title)}]\n"
         "---\n"
         f"# {title}\n"
-        f"[Open in player](/episode/{slug})\n"
+        f"[Open in player]({episode_url(slug)})\n"
     )
+    kept = [n.strip() for n in (notes or []) if n.strip()]
+    if kept:
+        out += "\n## Notes\n" + "".join(f"- {n}\n" for n in kept)
+    return out
 
 
 def _title_index(root: Path) -> dict[str, str]:
@@ -217,6 +293,13 @@ def _with_backfilled_refs(root: Path, highlight: dict[str, Any]) -> dict[str, An
 def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
     """The full current vault as ``{path: content}`` — highlight + entity + episode notes."""
     highlights = app_user_state.get_highlights(data_dir, user_id)
+    # The user's own writing, keyed by what it is attached to. Notes were never read here at all,
+    # so a vault carried the podcast's words and dropped the reader's.
+    notes_by_target: dict[str, list[str]] = {}
+    for n in app_user_state.get_notes(data_dir, user_id):
+        text = str(n.get("text") or "").strip()
+        if text:
+            notes_by_target.setdefault(str(n.get("target_id") or ""), []).append(text)
     files: dict[str, str] = {}
     entity_refs: dict[str, dict[str, Any]] = {}
     episode_titles: dict[str, str] = {}
@@ -242,7 +325,9 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
         # old highlight was about.
         h = _with_backfilled_refs(root, h)
         hid = _safe_id(str(h.get("id") or ""))
-        files[f"{_ROOT}/Highlights/{hid}.md"] = _highlight_note(h, episode_titles[slug])
+        files[f"{_ROOT}/Highlights/{hid}.md"] = _highlight_note(
+            h, episode_titles[slug], notes_by_target.get(str(h.get("id") or ""))
+        )
         for ref in _usable_refs(h.get("graph_refs")):
             if True:
                 # Last-write-wins on a repeated id with a different (stale) label. Deterministic:
@@ -254,7 +339,9 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
         path = f"{_ROOT}/{_entity_dir(str(ref['kind']))}/{_entity_stem(str(ref['id']))}.md"
         files[path] = _entity_note(ref)
     for slug, title in episode_titles.items():
-        files[f"{_ROOT}/Episodes/{_safe_id(slug)}.md"] = _episode_note(slug, title)
+        files[f"{_ROOT}/Episodes/{_safe_id(slug)}.md"] = _episode_note(
+            slug, title, notes_by_target.get(slug)
+        )
     return files
 
 

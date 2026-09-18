@@ -1008,9 +1008,20 @@ export async function deleteNote(id: string): Promise<Note[]> {
 
 /** The URL for the Markdown export of highlights (a download link / new tab). With `color`, the
  *  export obeys the Saved surface's colour filter — only highlights of that colour (#2042). */
-export function highlightsExportUrl(color?: string | null): string {
-  const base = `${BASE}/highlights/export.md`
-  return color ? `${base}?color=${encodeURIComponent(color)}` : base
+export function highlightsExportUrl(
+  color?: string | null,
+  opts?: { mutedOnly?: boolean; q?: string },
+): string {
+  // Export mirrors the Saved filters, all of them. Colour alone was passed, so narrowing by search
+  // or by muted and then pressing Export handed back a file that disagreed with the screen that
+  // produced it (operator 2026-09-18).
+  const p = new URLSearchParams()
+  if (color) p.set("color", color)
+  if (opts?.mutedOnly) p.set("muted_only", "true")
+  const q = opts?.q?.trim()
+  if (q) p.set("q", q)
+  const qs = p.toString()
+  return qs ? `${BASE}/highlights/export.md?${qs}` : `${BASE}/highlights/export.md`
 }
 
 /**
@@ -1018,8 +1029,11 @@ export function highlightsExportUrl(color?: string | null): string {
  * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link. Honours
  * the active colour filter when one is passed.
  */
-export async function fetchHighlightsExport(color?: string | null): Promise<string> {
-  const resp = await apiFetch(highlightsExportUrl(color), { credentials: "include" })
+export async function fetchHighlightsExport(
+  color?: string | null,
+  opts?: { mutedOnly?: boolean; q?: string },
+): Promise<string> {
+  const resp = await apiFetch(highlightsExportUrl(color, opts), { credentials: "include" })
   if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
   return resp.text()
 }

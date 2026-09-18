@@ -406,6 +406,7 @@ the player surface** — see "Player-surface Queue & Recent" below):
   jump-to-moment (`?t=`), a drift badge when the timestamp re-anchored on re-scrape, inline notes
   (add/edit/remove), a per-highlight colour swatch picker, a header **colour filter**, and an
   **Export Markdown** link.
+
 - **Following** — the shows and interest tokens (`topic:`/`person:`/`thc:`) the user follows.
 - **Collections** ("Boards") — its own first-class tab (was nested under Saved); see "Collections"
   below. It also holds **Your notes**: every note the user has written, beside their boards. The
@@ -431,6 +432,24 @@ the player surface** — see "Player-surface Queue & Recent" below):
     and a successful capture (the only in-app action that adds to the ladder).
   - **An unknown count shows nothing.** A badge is a claim; a failed fetch must not render a stale
     or invented number.
+
+**Export mirrors the filters — what you narrowed to is what you get (operator 2026-09-18).** Colour
+already travelled; **search** and the **muted** toggle did not, so narrowing the list and pressing
+Export handed back a file that disagreed with the screen that produced it. All three are query
+parameters on `/highlights/export.md` now.
+
+The **Obsidian** export stays deliberately unfiltered. It is a *sync*, not a report: incremental,
+cursor-based, and a full export sets `replace_namespace: true`. A colour filter there would not
+narrow a document — it would tombstone every other note out of the user's vault. Markdown is the
+report; Obsidian is the mirror (RFC-113).
+
+Each exported capture carries its **kind**, timestamp, speaker, colour, **capture date**, the
+people/topics it is about, the user's notes, and an **absolute** player link on the timecode, so one
+click from any tool opens the player at that second. Entities are plain names here, not `[[wikilinks]]`:
+this is one flat document, and `[[…]]` renders as broken links for anyone not in Obsidian — who are
+exactly the audience the other export exists for. What does NOT travel: the resurfacing schedule,
+the muted flag itself, and drift. Drift exists because the app can *jump* to a timestamp; an export
+is a record of what was said.
 
 ### Recall scope lens (Search) + your-corpus lens (entity cards)
 
