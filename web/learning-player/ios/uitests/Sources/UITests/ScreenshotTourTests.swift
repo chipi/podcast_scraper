@@ -17,13 +17,13 @@ import XCTest
  * PRECONDITIONS: app installed, signed in (`make ios-journey-signin`), fixture api reachable.
  * Run AFTER the personalisation suite if you want Stats/Topics populated rather than empty.
  */
-final class ScreenshotTourTests: XCTestCase {
+final class ScreenshotTourTests: UITestCase {
+
+  /// SHARED account, deliberately: this suite photographs a populated app; `ios-contact-sheet` runs the journey + personalisation suites first on purpose.
+  /// Per-suite isolation (#2091) would give it an empty account and the seed would be invisible.
+  override var accountIdentity: String { Self.sharedSeededIdentity }
   private let episodeSlug = "p09-a4bbb5dde3"
 
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true
-  }
 
   /// Every frame this tour is supposed to produce. The run FAILS if any is missing.
   ///

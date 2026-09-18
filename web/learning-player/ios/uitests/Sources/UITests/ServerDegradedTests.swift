@@ -23,14 +23,10 @@ import XCTest
  * Before the fix this test fails on the first assertion: with the network up and the server merely
  * broken, `isOffline()` was false, so no banner appeared at all.
  */
-final class ServerDegradedTests: XCTestCase {
+final class ServerDegradedTests: UITestCase {
   private let episodeSlug = "p09-a4bbb5dde3"
   private let episodeTitle = "Risk Is a Systems Property"
 
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true
-  }
 
   /// ARRANGE (api healthy): browse enough surfaces that there is a cache worth preserving.
   func test11aWarmTheCacheWhileHealthy() {
