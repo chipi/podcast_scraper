@@ -8,8 +8,15 @@ import { describe, expect, it } from 'vitest'
  * ## The class of bug this exists for
  *
  * Three separate features were dead on the installed iOS build, each for the same reason and each
- * shipped green: the build passes, the type-check passes, and 1500 unit tests pass, because nothing
- * in the suite runs in a WKWebView.
+ * shipped green: the build passes, the type-check passes, and 1500 unit tests pass — none of which
+ * runs in a WKWebView.
+ *
+ * I first wrote here that "nothing in the suite runs in a WKWebView". That was false, and the
+ * operator caught it. `ios/uitests/` holds a full XCUITest suite, and `NativeCapabilityTests`
+ * covers the share sheet specifically — the very mechanism these exports use. What is true is
+ * narrower and more damning: that suite had NO make target, so it had never run. A test nobody
+ * invokes is indistinguishable from a test nobody wrote, which is exactly the trap of asserting
+ * absence instead of checking.
  *
  * - `<a download>` saves nothing in WKWebView. The Obsidian export hit this, and the "fix" was to
  *   hide the button on native — so the feature simply vanished on the phone rather than appearing

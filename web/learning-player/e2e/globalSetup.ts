@@ -33,8 +33,23 @@ import { join, resolve } from 'node:path'
  * the suite actually depends on, and only when something is ALREADY listening, which is the sole
  * case where reuse can happen. If the port is free, Playwright starts a correctly-configured server
  * and there is nothing to check.
+ *
+ * TWO NARROWINGS, both learned by breaking CI with the first version of this (2026-09-18):
+ *
+ * 1. It only runs when reuse is POSSIBLE. `reuseExistingServer: !process.env.CI`, so on CI the
+ *    server is always started fresh by the workflow and can never be an adopted stale one. The
+ *    first version ran everywhere and failed the whole job.
+ *
+ * 2. It rejects `embed_failed` ONLY — not any error. `no_index` means the LanceDB index has not
+ *    been built, which is not a misconfiguration: it is the normal pre-setup state, and building
+ *    it is what the rest of THIS function does a few lines below. The first version treated it as
+ *    fatal, so the guard rejected a perfectly healthy server for lacking something the guard's own
+ *    caller was about to create. `embed_failed` is specifically the model-cache problem, which is
+ *    independent of the index and which nothing downstream repairs.
  */
 async function rejectMisconfiguredReusedApi(): Promise<void> {
+  if (process.env.CI) return // reuseExistingServer is off there; nothing to adopt
+
   const base = 'http://127.0.0.1:8011'
   let probe: Response
   try {
@@ -46,7 +61,7 @@ async function rejectMisconfiguredReusedApi(): Promise<void> {
   }
 
   const body = (await probe.json().catch(() => ({}))) as { error?: string; detail?: string }
-  if (!body.error) return
+  if (body.error !== 'embed_failed') return
 
   throw new Error(
     `An API is already listening on ${base} and cannot serve search: ${body.error}\n` +

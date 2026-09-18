@@ -62,6 +62,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
+.PHONY: test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
 .PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
@@ -1970,6 +1971,62 @@ test-app-ios-journey-ui:
 			-only-testing:OfflineSpikeUITests/OfflineCacheTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_JOURNEY_EXIT=$$rc"; exit $$rc
+
+# The Capacitor-only capabilities + the deep-stack/boards surfaces (operator 2026-09-18).
+#
+# WHY THIS TARGET EXISTS: these suites were written on 2026-09-16 and NOTHING RAN THEM. Six
+# XCTestCase classes sat in `ios/uitests/` with no `-only-testing:` reference anywhere in this file,
+# so they had never executed once.
+#
+# That is worse than having no test at all. An unreachable suite reads as coverage — it is what you
+# find when you grep before asking "is the share sheet tested?", and it answers yes. On 2026-09-18
+# four native features shipped broken (two exports delivered by `<a download>`, two by
+# `window.open`, none of which does anything in WKWebView) and the agent then told the operator
+# "nothing in the suite runs in a WKWebView". False: `NativeCapabilityTests.testN2NativeShareSheetOpens`
+# covers the exact mechanism those exports use. It had simply never been invoked.
+#
+# `tests/unit/podcast_scraper/test_ios_uitest_suites_are_wired.py` now fails if a suite has no
+# target, so this cannot silently recur. That guard is Python precisely so it runs on CI's Linux
+# boxes, where none of the Xcode targets below can.
+#
+# LOCAL ONLY — everything here needs a macOS host with Xcode and a booted simulator. CI is Linux and
+# must never try to run it. Nothing in `ci-fast` references these targets; only the wiring guard
+# does, and that one just reads files.
+#
+# PRECONDITION, same as `test-app-ios-journey-ui`: a signed-in session. Run `ios-origin-up` and
+# `ios-journey-signin` first, or use `test-app-ios-native-full` below, which chains them.
+test-app-ios-native:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/NativeCapabilityTests \
+			-only-testing:OfflineSpikeUITests/ConfigOfflineToggleTests \
+			-only-testing:OfflineSpikeUITests/StackDepthProbeTests \
+			-only-testing:OfflineSpikeUITests/HostShowLinkTests \
+			-only-testing:OfflineSpikeUITests/BoardsShotTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_NATIVE_EXIT=$$rc"; exit $$rc
+
+#: The same, but sets up its own preconditions end to end (build, install, origin, sign-in).
+test-app-ios-native-full:
+	@$(MAKE) test-app-ios-sim-download
+	@$(MAKE) ios-origin-up
+	@$(MAKE) ios-journey-signin
+	@$(MAKE) test-app-ios-native
+
+# The signed-out PRODUCTION tour. Separate because its preconditions are different in kind: it wants
+# the real prod backend and NO session, where every target above wants the fixture api and a seeded
+# one. Kept out of `test-app-ios-native` so a prod outage can never be mistaken for a native-shell
+# regression — and so nothing that talks to prod runs by accident.
+test-app-ios-prod-tour:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/ProdTourTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_PROD_TOUR_EXIT=$$rc"; exit $$rc
 
 # Mint a real session through the mock provider's NATIVE flow and seed it into the app's durable
 # store, so the journey suite starts signed in. Write through the preferences DAEMON (the app reads
