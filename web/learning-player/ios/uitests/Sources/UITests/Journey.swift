@@ -147,8 +147,12 @@ enum Journey {
       if let el = find(app, labels: labels, contains: contains, timeout: 2) { return el }
       app.swipeUp()
       usleep(800_000)
+      // Label AND vertical position. Labels alone assume the first twelve change as you scroll —
+      // true on these surfaces today (only "Skip to content" is fixed chrome) but nowhere written
+      // down, so a sticky header would silently make every page look stalled after two swipes.
+      // Frames move whenever the page does, which is the thing actually being detected.
       let signature = app.staticTexts.allElementsBoundByIndex
-        .prefix(12).map(\.label).joined(separator: "|")
+        .prefix(12).map { "\($0.label)@\(Int($0.frame.origin.y))" }.joined(separator: "|")
       if signature == lastSignature {
         stalled += 1
         if stalled >= 2 { break }

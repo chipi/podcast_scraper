@@ -6,7 +6,28 @@ This page is the source-of-truth catalogue of endpoints and response models. The
 
 ## Authentication
 
-Local **dev** server: no auth. Treat **production** deployments as out-of-scope for this guide unless you add your own reverse proxy or middleware.
+Local **dev** server: no auth.
+
+**Production is login-first (RFC-120): every `/api/app/*` route requires a session** and answers
+`401` without one. The complete set of exceptions is the allow-list in
+`tests/integration/server/test_rfc120_login_first_matrix.py`, which fails if any other route is
+reachable anonymously — treat that test as the source of truth over this page:
+
+- `/api/app/discover`, `/api/app/corpus/trending-topics`, `/api/app/artwork`
+- `/api/app/comms/unsubscribe`
+- `/api/app/auth/{login,callback,logout,dev-users,status}`
+- `/api/app/mcp/oauth/{register,token}` + `/.well-known/oauth-authorization-server`
+- `/api/app/profile/{user_id}/avatar` — deliberately open (#2109): an `<img src>` cannot send a
+  bearer header, and the id is an opaque token that is never displayed
+- `/api/health`
+
+**NOT covered by this page:** the operator/viewer surface (`/api/corpus/*`, `/api/jobs/*`) has its
+own gating, and nothing here describes rate limits, CORS, or the shared Caddy edge (ADR-114).
+
+Two rows on this page claimed otherwise until 2026-09-18 — `episodes/{slug}/stats` was marked
+"public, no auth" and `episodes/{slug}/segments` said access "becomes auth-gated in later Epic-1
+tasks". Both have carried `Depends(get_current_user)` for some time. An integration written against
+either would have been built for anonymous reads and met a wall of 401s.
 
 ## Endpoints
 
@@ -57,7 +78,7 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | GET | `/api/app/episodes/{slug}/insights` | app | **Consumer platform**: grounded GIL insights with supporting quotes for one episode (RFC-049 projection: `{id, text, grounded, insight_type?, confidence?, position_hint?, quotes[]}`). Empty list (200) when the episode has no GI. [#1068](https://github.com/chipi/podcast_scraper/issues/1068). | — |
 | GET | `/api/app/episodes/{slug}/entities` | app | **Consumer platform**: KG `{persons[], orgs[], topics[]}` for one episode (typed v2 or legacy `Entity`+`kind`). Empty when no KG. [#1068](https://github.com/chipi/podcast_scraper/issues/1068). | — |
 | GET | `/api/app/episodes/{slug}/related` | app | **Consumer platform**: "more like this" semantic peer episodes via the vector index (reuses `run_similar_episodes`), projected to the catalog card shape. **200 + empty** when the index is unavailable. [#1084](https://github.com/chipi/podcast_scraper/issues/1084). | `top_k` |
-| GET | `/api/app/episodes/{slug}/segments` | app | **Consumer platform** (read-only; access becomes auth-gated in later Epic-1 tasks): transcript **`segments.json`** contract `{version, episode_slug, segments[{id, start, end, text, speaker?}]}` for one episode addressed by stable **slug** (RFC-098 §4–§5, [#1067](https://github.com/chipi/podcast_scraper/issues/1067)). Reads `*.segments.json` (ad-free base preferred). **404** for unknown slug or missing transcript/segments. Serves the single shared corpus at `output_dir`; no `path` override. | — |
+| GET | `/api/app/episodes/{slug}/segments` | app | **Consumer platform** (read-only, **auth**): transcript **`segments.json`** contract `{version, episode_slug, segments[{id, start, end, text, speaker?}]}` for one episode addressed by stable **slug** (RFC-098 §4–§5, [#1067](https://github.com/chipi/podcast_scraper/issues/1067)). Reads `*.segments.json` (ad-free base preferred). **404** for unknown slug or missing transcript/segments. Serves the single shared corpus at `output_dir`; no `path` override. | — |
 | GET | `/api/app/episodes/{slug}/audio-source` | app | **Consumer platform**: resolve the **origin enclosure URL** the client plays directly — *bridge, never rehost* (RFC-100, [#1070](https://github.com/chipi/podcast_scraper/issues/1070)). Returns `{episode_slug, url, mime?, duration_seconds?, media_id?, strategy:"direct", resolved_url?, verified?, content_length?}` from `content.media_url`. **404** when no origin URL. With **`validate=true`** a HEAD follows redirects and reports `resolved_url`/`verified`/`content_length` (adds a network call); the no-store proxy stays deferred. | `validate` |
 | GET | `/api/app/episodes/{slug}/search` | app | **Consumer platform**: episode-scoped grounded search — hybrid retrieval (RFC-090) over-fetched by feed and narrowed to this episode; extractive, **no request-time LLM** (D6). [#1068](https://github.com/chipi/podcast_scraper/issues/1068). Same hit shape as `/api/search`. | `q` (required), `top_k` |
 | GET | `/api/app/search` | app | **Consumer platform**: library-wide grounded search — whole shared corpus for now (scoped to the user's library once auth lands), extractive, **no request-time LLM**. Hit `metadata` enriched with `episode_slug`/`episode_title`/`podcast_title` for jump-to-moment, plus `episode_artwork` (thumb, remote-image fallback) so results render like library cards (Home, [#1090](https://github.com/chipi/podcast_scraper/issues/1090)). [#1068](https://github.com/chipi/podcast_scraper/issues/1068). | `q` (required), `top_k`, `grounded_only` |
@@ -76,7 +97,7 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | GET | `/api/app/clusters` | app | **Consumer platform**: top interest clusters by corpus prevalence for the picker — `{items[{id, label, size}]}` (`AppInterestClustersResponse`). PRD-043 / RFC-102, [#1098](https://github.com/chipi/podcast_scraper/issues/1098). | `limit` (`1`–`50`, default 12) |
 | POST | `/api/app/listen/{slug}` | app | **Consumer platform** (auth): append one "episode opened" event to the user's append-only listen log (`listen_events.jsonl`) for analytics — **204**, best-effort, never blocks playback. PRD-043 / RFC-102. | — |
 | GET | `/api/app/me/stats` | app | **Consumer platform** (auth): the signed-in user's own listening summary — `{episodes, shows, listening_seconds, active_days, day_streak, daily[{date, count}]}` (`UserStatsResponse`); `daily` is a 14-day opens sparkline. Computed from per-user playback + listen log (no DB, no LLM). PRD-043 / RFC-102. | — |
-| GET | `/api/app/episodes/{slug}/stats` | app | **Consumer platform** (**public**, no auth): anonymous cross-user reach — `{slug, listeners, opens, insights, daily[{date, count}]}` (`EpisodeStatsResponse`). Aggregate counts only (never identities), from scanning every user's listen log; zeroed when no `APP_DATA_DIR`. PRD-043 / RFC-102. | — |
+| GET | `/api/app/episodes/{slug}/stats` | app | **Consumer platform** (**auth**): anonymous cross-user reach — `{slug, listeners, opens, insights, daily[{date, count}]}` (`EpisodeStatsResponse`). Aggregate counts only (never identities), from scanning every user's listen log; zeroed when no `APP_DATA_DIR`. PRD-043 / RFC-102. | — |
 
 Design and response field semantics: [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md). Topic strings: repo `config/digest_topics.yaml`.
 

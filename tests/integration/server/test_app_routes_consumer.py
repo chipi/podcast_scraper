@@ -816,6 +816,46 @@ def test_episode_notes_routes_assemble_from_live_state(tmp_path: Path) -> None:
     assert "deep sleep consolidates memory" in html.text
 
 
+def test_export_drops_a_capture_that_lost_its_episode_rather_than_inventing_one(
+    tmp_path: Path,
+) -> None:
+    """A row with no `episode_slug` must not reach the document at all.
+
+    A review flagged `str(h.get("episode_slug"))` in the grouping as producing a section headed
+    `## None` — `str(None)` being the string "None". Tracing it: the export reads through
+    `get_highlights`, which requires `episode_slug` and drops rows without it, so that heading is
+    UNREACHABLE. The finding was wrong about impact.
+
+    The guard it depends on was itself untested, which is why the claim was credible. This pins it:
+    a corrupted row is dropped, and no fabricated episode appears. (The grouping now also uses
+    `or ""` as defence in depth, so the two layers are independent.)
+    """
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 1000, "quote_text": "real one"},
+    )
+
+    hl_files = [p for p in (tmp_path / "appdata").rglob("*.json") if p.name == "highlights.json"]
+    assert hl_files, "expected a highlights.json to doctor"
+    import json as _json
+
+    rows = _json.loads(hl_files[0].read_text())
+    assert isinstance(rows, list) and rows, "unexpected highlights shape"
+    orphan = dict(rows[0])
+    orphan.update({"id": "orphaned-capture", "episode_slug": None, "quote_text": "orphaned words"})
+    rows.append(orphan)
+    hl_files[0].write_text(_json.dumps(rows))
+
+    for route in ("/api/app/highlights/export.md", "/api/app/highlights/export.html"):
+        body = client.get(route).text
+        assert "real one" in body, f"{route} lost the healthy capture"
+        assert "orphaned words" not in body, f"{route} rendered a capture with no episode"
+        assert "## None" not in body and ">None<" not in body, f"{route} invented an episode"
+
+
 def test_episode_notes_unknown_slug_is_404_not_500(tmp_path: Path) -> None:
     _corpus(tmp_path)
     client = _authed(tmp_path)

@@ -66,6 +66,9 @@ function ep(slug: string, title: string): EpisodeSummary {
     duration_seconds: 1800, episode_image_url: null, feed_image_url: null, artwork_url: null,
     status: 'ready', summary_preview: 'r', topics: [], has_transcript: true, has_summary: true,
     has_gi: false, has_kg: false, has_bridge: false,
+    // Required by EpisodeSummary. Absent here for a long time — test files are excluded
+    // from tsconfig.app.json, so nothing type-checks fixtures against the real shape.
+    summary_text: null, summary_bullets: [],
   }
 }
 

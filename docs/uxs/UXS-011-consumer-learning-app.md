@@ -489,7 +489,7 @@ state, not a new view:
 
 ### Resurfacing inbox (Revisit tab)
 
-Past highlights resurfaced on a spaced ladder (2d/1w/1mo/3mo, computed on read). Each card shows a
+Past highlights resurfaced on a spaced ladder (2d/7d/30d/90d, computed on read — `LADDER_SECONDS` in `app_resurfacing.py`; "1mo/3mo" here previously implied calendar months, which it is not). Each card shows a
 deterministic **reflection prompt** (no LLM), the highlight, a one-tap **jump-to-moment**, and a
 **"Got it"** dismiss (advances the ladder). A header **Pause/Resume** control governs pacing;
 paused or nothing-due shows an honest empty state.

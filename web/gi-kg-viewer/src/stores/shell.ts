@@ -266,6 +266,12 @@ export const useShellStore = defineStore('shell', () => {
       operatorConfigApiAvailable.value = false
       jobsApiAvailable.value = false
       corpusVersionWarning.value = null
+      // Back to UNKNOWN, not to the last thing a live server said. Every other flag is reset here
+      // and these two were not, so a server that went away entirely kept reporting whatever its
+      // final healthy poll claimed — `authDegraded` reading false while the server is gone, which
+      // is the exact inverse of the signal (adversarial review 2026-09-18, on my own fix).
+      authReady.value = null
+      authEpoch.value = null
       healthError.value = e instanceof Error ? e.message : String(e)
     }
   }
