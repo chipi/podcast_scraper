@@ -22,13 +22,9 @@ import XCTest
  *
  * PRECONDITIONS: app installed, signed in (`make ios-journey-signin`), fixture api reachable.
  */
-final class NativeCapabilityTests: XCTestCase {
+final class NativeCapabilityTests: UITestCase {
   private let episodeSlug = "p09-a4bbb5dde3"
 
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true
-  }
 
   /// Springboard owns the system permission alerts; the app under test cannot see or tap them.
   private var springboard: XCUIApplication {

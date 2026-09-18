@@ -23,7 +23,7 @@ import XCTest
  * PRECONDITIONS: app installed and signed in (host seeds `CapacitorStorage.lp_native_token`), and
  * the fixture api reachable. Fixture ids below are from the committed v3 corpus.
  */
-final class AppJourneyTests: XCTestCase {
+final class AppJourneyTests: UITestCase {
   /// An episode that actually HAS insights — picked from the fixture corpus (5 insights), so the
   /// insights assertions are testing rendering and not an empty-state.
   private let episodeSlug = "p09-a4bbb5dde3"
@@ -41,10 +41,6 @@ final class AppJourneyTests: XCTestCase {
     ("p07-2aceab172c", "Violet"),
   ]
 
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true // collect every screenshot in a run, don't stop at the first gap
-  }
 
   // MARK: - 01 profile
 

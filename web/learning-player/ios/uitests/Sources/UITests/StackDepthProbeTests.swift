@@ -12,14 +12,10 @@ import XCTest
  * `<dialog>` in the browser's top layer, so anything opened from it has to be teleported INTO that
  * dialog or it renders invisibly underneath.
  */
-final class StackDepthProbeTests: XCTestCase {
+final class StackDepthProbeTests: UITestCase {
   private let episodeSlug = "p09-a4bbb5dde3"
   private let people = ["Dr. Elena Fischer", "Sam", "Skanda Amarnath", "Alex Morgan"]
 
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true
-  }
 
   func testStackFourDeep() {
     let app = Journey.launch()
@@ -91,13 +87,9 @@ final class StackDepthProbeTests: XCTestCase {
  * close owed a `router.back()` that ran before the route settled and popped the push (#2004). A
  * link that looks right and lands somewhere else is invisible in a screenshot.
  */
-final class HostShowLinkTests: XCTestCase {
+final class HostShowLinkTests: UITestCase {
   private let episodeSlug = "p09-a4bbb5dde3"
 
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true
-  }
 
   func testHostShowLinkOpensTheShow() {
     let app = Journey.launch()
@@ -154,7 +146,7 @@ final class HostShowLinkTests: XCTestCase {
 
 
 /// Photograph the Boards tab with its reorder handles + cover thumbnails (CO.7).
-final class BoardsShotTests: XCTestCase {
+final class BoardsShotTests: UITestCase {
   func testBoardsTab() {
     let app = Journey.launch()
     Journey.openTab(app, "Library")

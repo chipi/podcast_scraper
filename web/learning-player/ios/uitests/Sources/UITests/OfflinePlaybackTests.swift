@@ -19,7 +19,11 @@ import XCTest
  * dedicated `uitest` identity — a separate account from any manual signed-in one.
  */
 
-final class OfflinePlaybackTests: XCTestCase {
+final class OfflinePlaybackTests: UITestCase {
+
+  /// SHARED account, deliberately: this suite reads the downloads `seed-ios-download` writes under the shared account.
+  /// Per-suite isolation (#2091) would give it an empty account and the seed would be invisible.
+  override var accountIdentity: String { Self.sharedSeededIdentity }
   func testDownloadedEpisodePlaysAndSeeksOffline() throws {
     let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
     let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
@@ -29,8 +33,8 @@ final class OfflinePlaybackTests: XCTestCase {
     // Idempotent: the session persists across runs, so only sign in when signed out — and the
     // question is asked AFTER the boot revalidation lands, not while the painted session is still
     // on screen (see AppSession).
-    if !AppSession.isSignedIn(app) {
-      guard AppSession.signIn(app, springboard) else {
+    if !AppSession.isSignedIn(app, as: accountIdentity) {
+      guard AppSession.signIn(app, springboard, as: accountIdentity) else {
         print("=====POST_SUBMIT_TREE_START====="); print(app.debugDescription); print("=====POST_SUBMIT_TREE_END=====")
         XCTFail("sign-in did not complete"); return
       }

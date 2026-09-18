@@ -20,7 +20,11 @@ import XCTest
  * alone on :8011 every download 404s. That, not the defaults plumbing, is why nothing downloaded
  * here before.
  */
-final class DownloadThroughUITests: XCTestCase {
+final class DownloadThroughUITests: UITestCase {
+
+  /// SHARED account, deliberately: this suite is the target that CREATES the seed the two offline suites consume.
+  /// Per-suite isolation (#2091) would give it an empty account and the seed would be invisible.
+  override var accountIdentity: String { Self.sharedSeededIdentity }
   /// Real episodes of "The Drift" (p06) — slugs and titles read from the fixture corpus, not
   /// invented. The old seed wrote titles ("Signal Offline One") that no episode has, so it could
   /// not have noticed the app disagreeing with the server.
@@ -36,12 +40,14 @@ final class DownloadThroughUITests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
 
-    if !AppSession.isSignedIn(app) {
-      guard AppSession.signIn(app, springboard) else {
-        print("=====SIGNIN_TREE_START====="); print(app.debugDescription); print("=====SIGNIN_TREE_END=====")
-        XCTFail("sign-in did not complete"); return
-      }
+    // Known state, then THIS suite's account (#2091). `startClean` also forces offline OFF, which
+    // is device-local and therefore survives both a relaunch and an account change — the exact leak
+    // that made `ConfigOfflineToggleTests` break three unrelated suites on 2026-09-16.
+    guard startClean(app) else {
+      print("=====SIGNIN_TREE_START====="); print(app.debugDescription); print("=====SIGNIN_TREE_END=====")
+      XCTFail("sign-in did not complete as \(accountIdentity)"); return
     }
+    _ = springboard
 
     // Downloaded in order so the QUEUE ends up [first, second] — auto-advance needs a known one,
     // and the queue button appends.

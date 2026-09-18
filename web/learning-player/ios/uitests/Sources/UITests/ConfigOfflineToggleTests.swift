@@ -17,7 +17,7 @@ import XCTest
  * `CapacitorStorage.lp_native_token`), and the fixture api reachable on the origin the build was
  * pointed at.
  */
-final class ConfigOfflineToggleTests: XCTestCase {
+final class ConfigOfflineToggleTests: UITestCase {
   private func openSettings(_ app: XCUIApplication) -> Bool {
     // The masthead avatar is a link whose accessible name is the user's display name, falling back
     // to "Your profile" when the profile has no name. Accept either so the test does not depend on
