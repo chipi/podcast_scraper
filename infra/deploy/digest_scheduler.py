@@ -34,6 +34,7 @@ Hardening rationale (advisor review 2026-08-07):
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from pathlib import Path
@@ -49,6 +50,22 @@ OFFSET_S = int(os.environ.get("DIGEST_INTERVAL_OFFSET_SECONDS", "120"))
 
 def _log(msg: str) -> None:
     print(f"[digest-scheduler] {msg}", flush=True)
+
+
+def _log_json(**fields: object) -> None:
+    """One structured line per event, alongside the human one.
+
+    Why structured: the delivery worker already stamps ``correlation_id`` (= the envelope id) on
+    every metric, log, span and the outbound Resend header, so a delivered email is traceable end
+    to end — EXCEPT backwards. This side only ever wrote envelope ids as free text appended to a
+    tick line, so "when was this envelope enqueued, and by which cadence?" was not answerable
+    without regex over logs. Emitting the same ``correlation_id`` key here closes the join
+    (#2119).
+
+    The sidecar runs ``network_mode: none`` and cannot emit OTEL spans; a structured log line
+    carrying the trace key is the correlation that isolation permits.
+    """
+    print("[digest-scheduler-json] " + json.dumps(fields, sort_keys=True, default=str), flush=True)
 
 
 def _beat() -> None:
@@ -69,11 +86,37 @@ def _run_once() -> None:
     from podcast_scraper.server import app_digest_dispatch
 
     result = app_digest_dispatch.enqueue_all_due(CORPUS_ROOT, DATA_DIR)
+    ts = int(time.time())
+
     for label, err in result.errors.items():
         _log(f"enqueuer {label} failed: {err}")
+        _log_json(event="digest.enqueuer.failed", cadence=label, error=err, ts=ts)
+
+    # One structured line PER ENVELOPE, keyed on correlation_id — the same key the delivery
+    # worker stamps on its spans, logs, metrics and the Resend header. This is what makes an
+    # envelope traceable backwards from "delivered" to "enqueued at T by cadence X".
+    for label, ids in result.ids.items():
+        for envelope_id in ids:
+            _log_json(
+                event="digest.envelope.enqueued",
+                correlation_id=envelope_id,
+                cadence=label,
+                ts=ts,
+            )
+
+    # Per-cadence tick summary. Counts per enqueuer, not just a total: "enqueued 0" is
+    # ambiguous across several enqueuers and that ambiguity is what hid #2119.
+    _log_json(
+        event="digest.tick",
+        total=result.total,
+        cadences={
+            label: len(result.ids.get(label, [])) for label, _, _ in app_digest_dispatch.ENQUEUERS
+        },
+        errored=sorted(result.errors),
+        ts=ts,
+    )
+
     detail = ": " + ", ".join(result.all_ids) if result.all_ids else ""
-    # Per-enqueuer counts, not just the total: "enqueued 0" is ambiguous across several
-    # enqueuers and that ambiguity is what hid #2119.
     _log(f"tick: enqueued {result.total} envelope(s) [{result.summary()}]{detail}")
 
 

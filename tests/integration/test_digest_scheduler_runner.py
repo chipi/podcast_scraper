@@ -157,6 +157,91 @@ def test_neither_scheduler_owns_a_private_enqueuer_list(tmp_path: Path, monkeypa
         )
 
 
+def _json_lines(out: str) -> list[dict]:
+    import json
+
+    return [
+        json.loads(line.split("] ", 1)[1])
+        for line in out.splitlines()
+        if line.startswith("[digest-scheduler-json] ")
+    ]
+
+
+def test_structured_log_emits_correlation_id_per_envelope(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    """THE trace join (#2119).
+
+    The delivery worker already stamps ``correlation_id`` (= the envelope id) on every span,
+    log, metric and the outbound Resend header, so a delivered email is traceable end to end —
+    but only FORWARDS. Without this, "when was this envelope enqueued, and by which cadence?"
+    required regex over a free-text tick line. The sidecar cannot emit OTEL spans
+    (``network_mode: none``), so a structured line carrying the same key is the correlation its
+    isolation permits.
+    """
+    mod = _load(tmp_path, monkeypatch)
+    _stub_all(mod, monkeypatch, weekly=["dgst_2026W38_u_abc"], daily_recap=["drcp_20260918_u_abc"])
+    mod._run_once()
+
+    events = _json_lines(capsys.readouterr().out)
+    enqueued = [e for e in events if e["event"] == "digest.envelope.enqueued"]
+    assert len(enqueued) == 2
+    by_id = {e["correlation_id"]: e for e in enqueued}
+    assert by_id["dgst_2026W38_u_abc"]["cadence"] == "weekly"
+    assert by_id["drcp_20260918_u_abc"]["cadence"] == "daily_recap"
+    # Every event carries the key the delivery side joins on.
+    assert all("correlation_id" in e for e in enqueued)
+
+
+def test_structured_tick_carries_per_cadence_counts(tmp_path: Path, monkeypatch, capsys) -> None:
+    """Machine-readable counts per cadence, so a dashboard or query never has to parse prose."""
+    from podcast_scraper.server import app_digest_dispatch
+
+    mod = _load(tmp_path, monkeypatch)
+    _stub_all(mod, monkeypatch, weekly=["a", "b"])
+    mod._run_once()
+
+    ticks = [e for e in _json_lines(capsys.readouterr().out) if e["event"] == "digest.tick"]
+    assert len(ticks) == 1
+    tick = ticks[0]
+    assert tick["total"] == 2
+    assert tick["cadences"]["weekly"] == 2
+    # EVERY cadence is present with an explicit count — a missing key would reintroduce the
+    # "is it zero or is it never called?" ambiguity that hid #2119.
+    assert set(tick["cadences"]) == {label for label, _, _ in app_digest_dispatch.ENQUEUERS}
+    assert tick["errored"] == []
+
+
+def test_structured_log_reports_a_failing_cadence(tmp_path: Path, monkeypatch, capsys) -> None:
+    mod = _load(tmp_path, monkeypatch)
+    _stub_all(mod, monkeypatch, weekly=RuntimeError("outbox unreachable"), daily_recap=["x"])
+    mod._run_once()
+
+    events = _json_lines(capsys.readouterr().out)
+    failed = [e for e in events if e["event"] == "digest.enqueuer.failed"]
+    assert [e["cadence"] for e in failed] == ["weekly"]
+    assert "outbox unreachable" in failed[0]["error"]
+    tick = next(e for e in events if e["event"] == "digest.tick")
+    assert tick["errored"] == ["weekly"]
+    assert tick["cadences"]["daily_recap"] == 1  # healthy cadence still reported
+
+
+def test_structured_lines_are_valid_json(tmp_path: Path, monkeypatch, capsys) -> None:
+    """A line that does not parse is worse than no line — the log pipeline would drop it
+    silently, which is the same class of failure as the bug this all came from."""
+    import json
+
+    mod = _load(tmp_path, monkeypatch)
+    _stub_all(mod, monkeypatch, weekly=["a"])
+    mod._run_once()
+    raw = [
+        line for line in capsys.readouterr().out.splitlines() if "[digest-scheduler-json] " in line
+    ]
+    assert raw
+    for line in raw:
+        json.loads(line.split("] ", 1)[1])  # raises if malformed
+
+
 def test_sidecar_drives_every_shared_enqueuer(tmp_path: Path, monkeypatch, capsys) -> None:
     """End to end through the real sidecar entrypoint: every enqueuer in the shared list is
     driven, and each one's count is reported separately."""
