@@ -229,7 +229,7 @@ async function dismiss(item: ResurfacingItem): Promise<void> {
  * leaves this surface. What differs is the server state: reviewing advances the ladder so it
  * returns later, retiring takes it off the ladder for good. Neither touches the capture.
  */
-async function mute(item: ResurfacingItem): Promise<void> {
+async function retire(item: ResurfacingItem): Promise<void> {
   items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
   await retireHighlight(item.highlight.id)
   void resurfacing.load()
@@ -412,10 +412,10 @@ onMounted(load)
                 <button
                   type="button"
                   class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
-                  data-testid="revisit-mute"
-                  :aria-label="t('revisit.mute')"
-                  :title="t('revisit.mute')"
-                  @click="mute(item)"
+                  data-testid="revisit-retire"
+                  :aria-label="t('revisit.retire')"
+                  :title="t('revisit.retire')"
+                  @click="retire(item)"
                 ><BellOffIcon /></button>
                 <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18). This action is an UNSAVE,
                      and an unsave should show the glyph that did the saving, filled, so that tapping

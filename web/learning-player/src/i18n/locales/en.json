@@ -583,7 +583,7 @@
     "pause": "Pause",
     "resume": "Resume",
     "dismiss": "Mark as reviewed",
-    "mute": "Stop resurfacing this",
+    "retire": "Stop resurfacing this",
     "remove": "Saved \u2014 tap to remove",
     "open": "Open",
     "momentCount": "1 moment | {count} moments",
