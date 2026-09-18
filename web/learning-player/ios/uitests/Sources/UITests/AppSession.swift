@@ -28,6 +28,8 @@ enum AppSession {
   /// reported signed-out for every session and `signIn` then failed looking for a "Sign in" link
   /// that was correctly absent on a signed-in app. `Journey` already carried the fallback list;
   /// only this copy was stale. Two helpers knowing the same UI differently is the actual defect.
+  /// Signed in AT ALL. Prefer `isSignedIn(_:as:)` — with per-suite accounts (#2091) "a session
+  /// exists" is no longer the question worth asking.
   static func isSignedIn(_ app: XCUIApplication) -> Bool {
     _ = Journey.openProfile(app)
     // SCROLL to it. "Sign out" is deliberately the last control on Profile (#1962 — "quiet, last,
@@ -72,9 +74,17 @@ enum AppSession {
     _ = app.wait(for: .runningForeground, timeout: 15)
   }
 
-  /// Sign in as the dedicated `uitest` identity through the dev picker. Idempotent-ish: call it
-  /// only when `isSignedIn` is false.
-  static func signIn(_ app: XCUIApplication, _ springboard: XCUIApplication) -> Bool {
+  /// Sign in through the dev picker as `identity`. Idempotent-ish: call it only when
+  /// `isSignedIn(as:)` is false.
+  ///
+  /// The identity is a PARAMETER because suites now get their own account (#2091) — a hard-coded
+  /// `uitest` put every suite in one shared world, where one suite's favourites decided another
+  /// suite's result. The mock provider mints an account for any name, so the picker is the whole
+  /// mechanism; nothing server-side had to change.
+  @discardableResult
+  static func signIn(
+    _ app: XCUIApplication, _ springboard: XCUIApplication, as identity: String = "uitest"
+  ) -> Bool {
     let signIn = app.links["Sign in"].firstMatch
     guard signIn.waitForExistence(timeout: 20) else {
       XCTFail("neither Sign in nor Sign out present")
@@ -90,7 +100,7 @@ enum AppSession {
       return false
     }
     input.tap()
-    input.typeText("uitest")
+    input.typeText(identity)
 
     let submit = app.buttons["Sign in"].firstMatch
     guard submit.waitForExistence(timeout: 10), submit.isEnabled else {
@@ -108,5 +118,47 @@ enum AppSession {
     // minted token was in the simulator's preferences with an `iat` from that very run. Ask the
     // page that can actually answer.
     return isSignedIn(app)
+  }
+
+  /**
+   * Signed in AS `identity` specifically.
+   *
+   * With one shared account "is there a session" was a sufficient question. With per-suite accounts
+   * it is actively wrong: a session left by the PREVIOUS suite satisfies it, the suite proceeds
+   * against someone else's data, and the collisions #2091 exists to remove come straight back — now
+   * harder to see, because everything looks signed in.
+   *
+   * The masthead entry point is labelled with the display name, which for a dev-picker account IS
+   * the identity, so Profile being reachable by that label answers both questions at once.
+   */
+  static func isSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
+    guard Journey.tap(app, labels: [identity], contains: true, timeout: 12) else { return false }
+    guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else { return false }
+    // The painted session is not the answer — the revalidation that follows it is.
+    sleep(6)
+    return Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil
+  }
+
+  /**
+   * Leave the app signed in as `identity`, whatever it was signed in as before.
+   *
+   * Signs OUT first when the session belongs to someone else. Without that the dev picker is
+   * unreachable — the app is already signed in, so there is no "Sign in" link to tap — and the
+   * suite would silently keep the previous suite's account.
+   */
+  @discardableResult
+  static func ensureSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
+    if isSignedIn(app, as: identity) { return true }
+    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    if isSignedIn(app) {
+      _ = Journey.openProfile(app)
+      guard let out = Journey.scrollTo(app, labels: ["Sign out"], contains: false) else {
+        XCTFail("signed in as someone else and Sign out was unreachable")
+        return false
+      }
+      out.tap()
+      sleep(3)
+    }
+    return signIn(app, springboard, as: identity)
   }
 }
