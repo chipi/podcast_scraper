@@ -60,6 +60,7 @@ nav:
       - Mobile E2E Testing: guides/MOBILE_E2E_TESTING.md
       - Gemini E2E Testing: guides/GEMINI_E2E_TESTING.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
+      - Validating corpus fixes fast: guides/VALIDATING_CORPUS_FIXES_FAST.md
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
       - Provider Deep Dives: guides/PROVIDER_DEEP_DIVES.md
       - Evaluation Reports:
