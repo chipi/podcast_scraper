@@ -441,7 +441,8 @@ constant regardless of content length.
   Saved tab is topped by **`SavedFilterBar`**, lifted out of the Highlights list so one bar governs
   every section: **type** chips (which saved kinds show — none selected = all, and a chip renders only
   for a kind that has items, per the #1962 presence rule), a collapsed **colour** filter (only
-  colours in use), and a **sort** — **Recent** (default) or **A–Z**, the one sort model shared with
+  colours in use), and a **sort** — **Yours** (default, the manual drag order the server persists) or
+  **A–Z**, the one sort model shared with
   Following. Colour is a filter, not a sort; per-episode grouping of highlights is structural and
   unaffected (sort only orders the groups). When the active filters empty every section while the
   account is not empty, the tab says so rather than showing a blank that reads as a bug.
