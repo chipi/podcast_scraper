@@ -32,17 +32,49 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { getEpisode } from '../services/api'
+import { getEpisode, getMyStats } from '../services/api'
 import type { EpisodeDetail } from '../services/types'
 import BellOffIcon from './BellOffIcon.vue'
 import CheckIcon from './CheckIcon.vue'
+import SectionHeading from './SectionHeading.vue'
+import { useIsDesktop } from '../composables/useMediaQuery'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { borderClass } from '../utils/highlightColors'
 
 const { t } = useI18n()
 const resurfacing = useResurfacingStore()
 
-const items = computed(() => resurfacing.railItems)
+/**
+ * Three cards on a phone, four on a desktop (operator 2026-09-18).
+ *
+ * The rail sits beside Trends on `lg`, where a fourth card earns its place; on a phone it is a
+ * full-width stack above the fold and a fourth pushes the next section off screen. The store hands
+ * over every one-per-episode candidate and the view takes what fits — how many fit is a layout
+ * question, not a data one.
+ */
+const isDesktop = useIsDesktop()
+const items = computed(() => resurfacing.railItems.slice(0, isDesktop.value ? 4 : 3))
+/**
+ * The loop in one line: what you have kept, and what you have done with it.
+ *
+ * Its own small fetch rather than another field on the resurfacing response — these are PROFILE
+ * stats, and `/me/stats` already computes them. Failing softly to null hides the line: a header
+ * that said "0 kept" while four captures sat beneath it would be worse than saying nothing.
+ *
+ * Deliberately NOT the due count. The Library nav badge already carries that, and two places
+ * showing the same number is two places to disagree; kept-and-answered is progress rather than
+ * workload, so it adds instead of repeating.
+ */
+const loop = ref<{ kept: number; reviewed: number } | null>(null)
+
+onMounted(async () => {
+  const s = await getMyStats().catch(() => null)
+  const kept = s?.captures ?? 0
+  // `captures_reviewed`, NOT `reviews_total`: the latter counts review EVENTS, so a header saying
+  // "8 reviewed" would claim eight captures when it was eight passes over four of them.
+  if (s && kept > 0) loop.value = { kept, reviewed: s.captures_reviewed ?? 0 }
+})
+
 
 /**
  * Home is now one of the events that refreshes the count.
@@ -103,16 +135,20 @@ const titleOf = (slug: string): string => details.value[slug]?.title ?? ''
 
 <template>
   <section v-if="items.length" class="mt-7" data-testid="home-revisit-rail">
-    <div class="mb-3 flex items-baseline justify-between gap-3">
-      <h2 class="lp-section">{{ t('home.revisitTitle') }}</h2>
-      <!-- "See all" rather than a count: the badge on the Library icon already carries the number,
-           and two places saying "7" is two places to disagree. -->
-      <RouterLink
-        :to="{ name: 'library', query: { tab: 'revisit' } }"
-        class="shrink-0 text-xs font-semibold text-accent no-underline"
-        data-testid="home-revisit-see-all"
-      >{{ t('home.revisitSeeAll') }}</RouterLink>
-    </div>
+    <SectionHeading
+      :title="t('home.revisitTitle')"
+      :kicker="loop ? t('home.revisitLoop', { kept: loop.kept, reviewed: loop.reviewed }) : null"
+    >
+      <template #action>
+        <!-- "See all" rather than a count: the kicker already carries the numbers, and the Library
+             nav badge carries the due count. -->
+        <RouterLink
+          :to="{ name: 'library', query: { tab: 'revisit' } }"
+          class="text-xs font-semibold text-accent no-underline"
+          data-testid="home-revisit-see-all"
+        >{{ t('home.revisitSeeAll') }}</RouterLink>
+      </template>
+    </SectionHeading>
 
     <ul class="flex flex-col gap-2">
       <li v-for="item in items" :key="item.highlight.id" class="flex items-center gap-2">

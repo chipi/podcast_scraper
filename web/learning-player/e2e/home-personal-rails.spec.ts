@@ -93,3 +93,55 @@ test('the revisit rail stays absent while nothing is due', async ({ page }, test
   await page.goto('/library?tab=revisit')
   await expect(page.getByText(/Nothing to revisit right now/)).toBeVisible()
 })
+
+
+test('every Home section header is the same shape', async ({ page }, testInfo) => {
+  /**
+   * Home had grown three headers by hand — kicker above the title on some sections and beside it on
+   * others, three title fonts (`h1` display, `h2` display, `lp-section`), and nothing stopping
+   * either line wrapping to a second row (operator 2026-09-18). `SectionHeading` now owns the
+   * shape; this asserts the shape rather than the component, so hand-rolling a seventh variant
+   * fails here even if it never imports the component.
+   */
+  await signInIsolated(page, 'home-heading-uniformity', testInfo)
+  await page.goto('/')
+  await page.waitForLoadState('networkidle')
+
+  const titles = page.getByTestId('section-title')
+  await expect(titles.first()).toBeVisible()
+
+  const shape = await titles.evaluateAll((els) =>
+    els.map((el) => {
+      const cs = getComputedStyle(el)
+      const r = el.getBoundingClientRect()
+      return {
+        text: (el.textContent ?? '').trim(),
+        left: Math.round(r.left),
+        fontSize: cs.fontSize,
+        // A wrapped heading is taller than one line of its own line-height.
+        wrapped: r.height > parseFloat(cs.lineHeight) + 2,
+      }
+    }),
+  )
+
+  expect(shape.length, 'no shared section headings rendered').toBeGreaterThan(2)
+  expect(
+    [...new Set(shape.map((s) => s.fontSize))],
+    'section titles render at more than one size',
+  ).toHaveLength(1)
+  expect(
+    [...new Set(shape.map((s) => s.left))],
+    'section titles do not share a left edge',
+  ).toHaveLength(1)
+  expect(
+    shape.filter((s) => s.wrapped).map((s) => s.text),
+    'a section title wrapped to a second row',
+  ).toEqual([])
+
+  // The kicker is a count or a date — never the title again in other words. Two did exactly that
+  // ("For you" over "Your Week"; "Ask across every episode" over "Find any moment you've heard.").
+  const kickers = await page.getByTestId('section-kicker').allTextContents()
+  for (const k of kickers) {
+    expect(k, `kicker "${k}" carries no number or date`).toMatch(/\d/)
+  }
+})

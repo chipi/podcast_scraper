@@ -17,6 +17,7 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import SectionHeading from './SectionHeading.vue'
 import { useCollectionsStore } from '../stores/collections'
 
 /** How many fit the space beside the ask box without the row becoming its own section. */
@@ -29,6 +30,8 @@ onMounted(() => {
   void collections.ensureLoaded()
 })
 
+const total = computed(() => collections.items.length)
+
 const items = computed(() =>
   [...collections.items]
     .sort((a, b) => (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0))
@@ -38,14 +41,18 @@ const items = computed(() =>
 
 <template>
   <section v-if="items.length" class="mt-7" data-testid="home-collections-teaser">
-    <div class="mb-3 flex items-baseline justify-between gap-3">
-      <h2 class="lp-section">{{ t('home.collectionsTitle') }}</h2>
-      <RouterLink
-        :to="{ name: 'library', query: { tab: 'collections' } }"
-        class="shrink-0 text-xs font-semibold text-accent no-underline"
-        data-testid="home-collections-see-all"
-      >{{ t('home.collectionsSeeAll') }}</RouterLink>
-    </div>
+    <SectionHeading
+      :title="t('home.collectionsTitle')"
+      :kicker="t('home.collectionsCount', total, { named: { count: total } })"
+    >
+      <template #action>
+        <RouterLink
+          :to="{ name: 'library', query: { tab: 'collections' } }"
+          class="text-xs font-semibold text-accent no-underline"
+          data-testid="home-collections-see-all"
+        >{{ t('home.collectionsSeeAll') }}</RouterLink>
+      </template>
+    </SectionHeading>
 
     <ul class="grid grid-cols-4 gap-3">
       <li v-for="c in items" :key="c.id" class="min-w-0">

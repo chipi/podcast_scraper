@@ -575,6 +575,37 @@ the artificial thing. A capture cannot exist without having opened its episode, 
 — so "captures but no listening" is not a state the app can produce, and a branch that cannot fire
 is a branch nobody will verify again.
 
+**Every Home section uses one header: `SectionHeading` (operator 2026-09-18).**
+
+```text
+KICKER              small caps, muted, ONE line — a count or a date
+Title    [action]   lp-section, ONE line; the action sits at the far right of the same row
+```
+
+Home had grown three headers by hand: the kicker above the title on some sections and beside it on
+others, three different title fonts (`h1` display, `h2` display, `h2 lp-section`), and nothing
+stopping either line wrapping. It read as several designs sharing a page.
+
+**The kicker is a NUMBER or a DATE, never a restatement.** Two eyebrows said the title again in
+weaker words — "For you" above *Your Week*, and "Ask across every episode" above *Find any moment
+you've heard.* The first became a count, the second was removed. Sections with no honest number
+(Trends, Trending shows, Recommended) carry no kicker: an invented metric to fill a slot is worse
+than an empty one.
+
+**Both lines truncate rather than wrap**, so otherwise-identical sections keep identical heights and
+every title starts at the same x. The kicker sits ABOVE rather than beside, where it would compete
+with the action link for the same edge and collide in a narrow column.
+
+The **resume hero keeps its `h1`** as the page's single deliberate exception, and is **full width**
+on desktop — it had been `max-w-3xl` to match the "What's new" featured card, but that card became
+a half-width column later (it is now 166px), leaving the hero the only element matching neither the
+542px column nor the 1114px row.
+
+**Counts adapt to the viewport where a prop, not CSS, decides them** (`useMediaQuery`): Trends shows
+5 rows on desktop and 3 on a phone; the revisit rail shows 4 and 3. The store hands over every
+one-per-episode candidate and the VIEW slices — how many fit is a layout question, and a store that
+knew the viewport would have to be told about the next breakpoint.
+
 **Home carries a "Worth revisiting" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
 captures, **at most one per episode** so it shows the breadth of what is waiting rather than one
 session's thinking. Each card is the **quote, with the episode as a small square thumbnail on its right** and the

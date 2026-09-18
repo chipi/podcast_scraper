@@ -66,7 +66,11 @@ export const useResurfacingStore = defineStore('resurfacing', {
      * cards carrying the same words: a user who marks the same line as a moment and as a quote has
      * two captures with identical text, and the rail rendered both, which reads as a bug
      * (observed 2026-09-18). Fewer, distinct cards is the honest answer — the rail is a sample of
-     * what is waiting, not a queue that must be four long.
+     * what is waiting, not a queue that must be a fixed length.
+     *
+     * NOT truncated here. How many fit is a layout question — three on a phone, four on a desktop
+     * — and a store that knew the viewport would be a store that has to be told about the next
+     * breakpoint. The view slices.
      *
      * Empty while paused, for the reason the badge is: the user said stop asking.
      */
@@ -79,7 +83,6 @@ export const useResurfacingStore = defineStore('resurfacing', {
         if (seen.has(slug)) continue
         seen.add(slug)
         out.push(item)
-        if (out.length === 4) break
       }
       return out
     },

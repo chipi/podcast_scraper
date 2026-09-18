@@ -458,10 +458,17 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     // slots, a progress bar) and legitimately builds its own artwork block.
     // Anchored to the HEADING, not to the bare key — `cacheKey: "home.recommended"` sits up in the
     // script block, so starting there swept in every rail between it and the template.
-    const recommendedSection = homeViewSource.slice(
+    // Either quote style: the heading moved into `<SectionHeading :title="t('home.recommended')" />`,
+    // where the attribute's own double quotes force single quotes inside (operator 2026-09-18).
+    const recommendedAnchor = Math.max(
       homeViewSource.indexOf('t("home.recommended")'),
+      homeViewSource.indexOf("t('home.recommended')"),
+    )
+    const recommendedSection = homeViewSource.slice(
+      recommendedAnchor,
       homeViewSource.indexOf('<InterestsPicker'),
     )
+    expect(recommendedAnchor, 'the Recommended heading anchor vanished').toBeGreaterThan(-1)
     expect(recommendedSection.length, 'could not isolate the Recommended section').toBeGreaterThan(0)
     expect(recommendedSection, 'the grid rebuilt its own tile again').not.toMatch(/aspect-square/)
   })

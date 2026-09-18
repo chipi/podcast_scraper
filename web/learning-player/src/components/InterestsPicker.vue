@@ -11,6 +11,7 @@ import { useI18n } from "vue-i18n"
 import { getStorylines, getTopClusters, getUserInterests, putUserInterests } from "../services/api"
 import type { InterestCluster, Storyline } from "../services/types"
 import { useModalSheet } from "../composables/useModalSheet"
+import { dedupeByLabel, interestKind, interestLabel } from "../utils/interests"
 
 const emit = defineEmits<{ (e: "close"): void; (e: "saved", ids: string[]): void }>()
 const { t } = useI18n()
@@ -34,6 +35,31 @@ function toggle(id: string): void {
   else next.add(id)
   selected.value = next
 }
+
+/**
+ * Follows the picker does NOT offer, shown so they can be seen and removed (operator 2026-09-18).
+ *
+ * The picker lists the top interest clusters and the storylines — but a user also follows people
+ * and topics straight from entity cards, and clusters outside the top set. Those were saved,
+ * rendered on the profile, and INVISIBLE here: the screen that edits interests showed five while
+ * the profile showed twenty-five, and the difference was unexplained and unremovable.
+ *
+ * They were never at risk (`save` preserves un-offered ids, below) — they were just unreachable.
+ */
+const alsoFollowing = computed(() => {
+  const offered = new Set<string>([
+    ...clusters.value.map((c) => c.id),
+    ...storylines.value.map((st) => st.id),
+  ])
+  const known = new Map<string, string>([
+    ...clusters.value.map((c) => [c.id, c.label] as const),
+    ...storylines.value.map((st) => [st.id, st.label] as const),
+  ])
+  return dedupeByLabel(
+    initialInterests.value.filter((id) => !offered.has(id) && selected.value.has(id)),
+    known,
+  ).map((id) => ({ id, kind: interestKind(id), label: interestLabel(id, known) }))
+})
 
 async function save(): Promise<void> {
   saving.value = true
@@ -145,6 +171,28 @@ onMounted(async () => {
                   @click="toggle(s.id)"
                 >
                   {{ s.label }}
+                </button>
+              </div>
+            </section>
+
+            <!-- Everything else the user follows. Tapping removes it: this is the only place these
+                 can be un-followed, since the sections above never list them. -->
+            <section v-if="alsoFollowing.length" class="mt-5" data-testid="interests-also-following">
+              <h3 class="lp-section mb-1">{{ t("interests.alsoHeading") }}</h3>
+              <p class="mb-2 text-xs text-muted">{{ t("interests.alsoHint") }}</p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="f in alsoFollowing"
+                  :key="f.id"
+                  type="button"
+                  :aria-pressed="true"
+                  :aria-label="t('interests.alsoRemove', { name: f.label })"
+                  class="flex items-center gap-1.5 rounded-full border border-accent bg-accent px-3 py-1.5 text-sm text-accent-foreground transition hover:opacity-90"
+                  data-testid="interests-also-chip"
+                  @click="toggle(f.id)"
+                >
+                  {{ f.label }}
+                  <CloseIcon :size="12" />
                 </button>
               </div>
             </section>

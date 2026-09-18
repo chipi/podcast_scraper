@@ -34,6 +34,7 @@ import Sparkline from "../components/Sparkline.vue"
 import ListeningRecap from "../components/ListeningRecap.vue"
 import ProfileAvatar from "../components/ProfileAvatar.vue"
 import AvatarCropModal from "../components/AvatarCropModal.vue"
+import { dedupeByLabel, interestKind, interestLabel } from "../utils/interests"
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -154,15 +155,17 @@ const hasStats = computed(() => !!stats.value && stats.value.episodes > 0)
  */
 const kept = computed(() => (stats.value?.captures ?? 0) > 0 ? stats.value : null)
 
-// Map saved interest tokens → human labels. Clusters resolve via the top-cluster set; topics and
-// people (followed from entity cards) de-slug from their id (`topic:personal-growth` → "personal
-// growth"). `kind` drives the chip hue so people read distinct from topics.
+// Map saved interest tokens → human labels, through the SHARED helper (utils/interests).
+//
+// This stripped `^(tc|topic|person):` inline, which omits `thc:` — so a followed storyline rendered
+// as the literal "thc:managing on the edge of chaos" on the user's own profile. It also showed one
+// label twice when two prefixes pointed at the same thing (operator 2026-09-18).
 const interestLabels = computed(() => {
   const byId = new Map(clusters.value.map((c) => [c.id, c.label]))
-  return interests.value.map((id) => ({
+  return dedupeByLabel(interests.value, byId).map((id) => ({
     id,
-    kind: id.startsWith("person:") ? "person" : "topic",
-    label: byId.get(id) ?? id.replace(/^(tc|topic|person):/, "").replace(/-/g, " "),
+    kind: interestKind(id),
+    label: interestLabel(id, byId),
   }))
 })
 
