@@ -24,8 +24,8 @@ describe("ToolbarMenu", () => {
     expect(w.find('[data-testid="sort-opt-az"]').exists()).toBe(false)
     await w.get('[data-testid="sort"]').trigger("click")
     expect(w.get('[data-testid="sort"]').attributes("aria-expanded")).toBe("true")
-    expect(w.get('[data-testid="sort-opt-az"]').exists()).toBe(true)
-    expect(w.get('[data-testid="sort-opt-episodes"]').exists()).toBe(true)
+    expect(w.find('[data-testid="sort-opt-az"]').exists()).toBe(true)
+    expect(w.find('[data-testid="sort-opt-episodes"]').exists()).toBe(true)
   })
 
   it("marks the active option and emits + closes on pick", async () => {

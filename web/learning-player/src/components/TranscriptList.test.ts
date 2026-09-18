@@ -7,8 +7,14 @@ import type { GroundedSpan } from '../player/insights'
 import TranscriptList from './TranscriptList.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-const mountList = (props: Record<string, unknown>) =>
-  mount(TranscriptList, { props, global: { plugins: [i18n] } })
+const mountList = (props: {
+  segments: Segment[]
+  activeIndex: number
+  grounded?: Record<number, GroundedSpan>
+  canCapture?: boolean
+  gated?: boolean
+  savedSegmentIds?: Set<string>
+}) => mount(TranscriptList, { props, global: { plugins: [i18n] } })
 
 const segments: Segment[] = [
   { id: 's0', start: 0, end: 2.5, text: 'Hello world.', speaker: 'person:matthew-walker' },

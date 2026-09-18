@@ -33,9 +33,9 @@ describe('ListToolbar', () => {
     // The controls are now compact ToolbarMenu triggers (search wide, sort/view little circles),
     // NOT native <select>s — a select reserved width for its widest option and ate the row.
     const w = mountBar()
-    expect(w.get('[data-testid="list-toolbar-search"]').exists()).toBe(true)
-    expect(w.get('[data-testid="list-toolbar-sort"]').exists()).toBe(true)
-    expect(w.get('[data-testid="list-toolbar-view"]').exists()).toBe(true)
+    expect(w.find('[data-testid="list-toolbar-search"]').exists()).toBe(true)
+    expect(w.find('[data-testid="list-toolbar-sort"]').exists()).toBe(true)
+    expect(w.find('[data-testid="list-toolbar-view"]').exists()).toBe(true)
     expect(w.findAll('select')).toHaveLength(0)
     // No filter control unless the caller supplies options.
     expect(w.find('[data-testid="list-toolbar-filter"]').exists()).toBe(false)

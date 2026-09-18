@@ -100,7 +100,7 @@ beforeEach(() => {
     episode_slug: 'ep-1', persons: [], orgs: [], topics: [],
   })
   vi.spyOn(api, 'getEpisodeStats').mockResolvedValue(epStats())
-  vi.spyOn(api, 'logListen').mockResolvedValue()
+  vi.spyOn(api, 'logListen').mockResolvedValue(true)
   vi.spyOn(api, 'putPlayback').mockResolvedValue()
   vi.spyOn(api, 'getRelated').mockResolvedValue({
     items: [],

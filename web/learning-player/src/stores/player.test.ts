@@ -259,7 +259,8 @@ describe('player store — MediaSession (#1308)', () => {
     ms = { metadata: null, playbackState: 'none', setActionHandler: vi.fn(), setPositionState: vi.fn() }
     ;(navigator as unknown as { mediaSession: unknown }).mediaSession = ms
     ;(globalThis as unknown as { MediaMetadata: unknown }).MediaMetadata = class {
-      constructor(public init: Record<string, unknown>) {}
+      init: Record<string, unknown>
+      constructor(init: Record<string, unknown>) { this.init = init }
     }
   })
   afterEach(() => {
