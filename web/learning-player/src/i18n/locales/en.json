@@ -14,7 +14,6 @@
     "person": "Person",
     "storyline": "Storyline",
     "browse": "Discover",
-    "trends": "Trends",
     "settings": "Settings",
     "about-page": "About"
   },
@@ -70,7 +69,6 @@
     "jumpBackIn": "Jump back in",
     "yourWeek": "Your Week",
     "yourWeekCount": "1 new | {count} new",
-    "yourWeekKicker": "For you",
     "yourWeekShowMore": "Show more",
     "yourWeekShowLess": "Show less",
     "yourWeekSection": {

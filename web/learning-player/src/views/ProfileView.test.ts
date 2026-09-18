@@ -323,6 +323,21 @@ describe("ProfileView — Your listening panel", () => {
     expect(w.find('[data-testid="stats-kept"]').exists()).toBe(true)
   })
 
+  it("the kept breakdown renders the ACTUAL per-kind counts", async () => {
+    // Presence-only assertions passed while every number was wrong or zero (review 2026-09-18).
+    // The breakdown exists to say WHAT you kept; the values are the feature.
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    vi.spyOn(api, "getMyStats").mockResolvedValue(
+      stats({ captures: 5, capture_quotes: 3, capture_moments: 1, capture_insights: 1 }),
+    )
+    const w = mountProfile()
+    await flushPromises()
+    const text = w.find('[data-testid="stats-capture-breakdown"]').text().replace(/\s+/g, " ")
+    expect(text).toContain("3 quotes")
+    expect(text).toContain("1 moments")
+    expect(text).toContain("1 insights")
+  })
+
   it("hides the kept block entirely when the server does not send those fields", async () => {
     // A server predating them returns the listening half alone; a row of zeroes would look like a
     // real answer rather than an absent one.
