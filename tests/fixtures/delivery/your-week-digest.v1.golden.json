@@ -28,7 +28,7 @@
               { "id": "person:jensen-huang", "kind": "person", "label": "Jensen Huang" },
               { "id": "topic:scaling-laws", "kind": "topic", "label": "Scaling Laws" }
             ],
-            "deep_link": "/player/acquired-nvidia-the-machine-that-makes-the-machine?t=3921",
+            "deep_link": "/episode/acquired-nvidia-the-machine-that-makes-the-machine?t=3921",
             "source": "user"
           },
           {
@@ -40,7 +40,7 @@
               { "id": "person:paul-christiano", "kind": "person", "label": "Paul Christiano" },
               { "id": "topic:ai-safety", "kind": "topic", "label": "AI Safety" }
             ],
-            "deep_link": "/player/dwarkesh-paul-christiano-how-ai-could-go-wrong?t=1180",
+            "deep_link": "/episode/dwarkesh-paul-christiano-how-ai-could-go-wrong?t=1180",
             "source": "auto"
           }
         ]
@@ -55,7 +55,7 @@
             "graph_refs": [
               { "id": "topic:semiconductors", "kind": "topic", "label": "Semiconductors" }
             ],
-            "deep_link": "/player/acquired-tsmc-part-ii"
+            "deep_link": "/episode/acquired-tsmc-part-ii"
           }
         ]
       },

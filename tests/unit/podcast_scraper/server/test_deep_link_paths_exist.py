@@ -80,3 +80,33 @@ def test_the_retired_player_path_is_gone() -> None:
         if "/player/" in p.read_text(encoding="utf-8")
     ]
     assert not hits, f"'/player/' is not a route; use '/episode/'. Still present in: {hits}"
+
+
+def test_the_delivery_golden_fixtures_use_real_routes() -> None:
+    """The delivery goldens are a CONTRACT with another repo, so they have to be right too.
+
+    Fixing the producers alone left these carrying ``/player/``: they are the envelopes the homelab
+    delivery worker (``agentic-ai-homelab/infra/delivery``) renders its Jinja email templates
+    against, per RFC-110. A golden that documents a dead path teaches the other side of the seam to
+    emit one, and the first guard here only scanned ``server/**.py`` — which is exactly how these
+    were missed (operator asked "what else should we check", 2026-09-18).
+    """
+    fixtures = sorted((_REPO / "tests" / "fixtures" / "delivery").glob("*.golden.json"))
+    assert fixtures, "no delivery goldens found — this guard would pass vacuously"
+
+    roots = _router_roots()
+    offenders: list[str] = []
+    for path in fixtures:
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "deep_link" not in line:
+                continue
+            for root in _DEEP_LINK.findall(line):
+                if root.startswith("/api"):
+                    continue
+                if root not in roots:
+                    offenders.append(f"{path.relative_to(_REPO)}:{lineno} -> {root}")
+
+    assert not offenders, (
+        "Delivery goldens name paths the app does not define. These are the contract another repo "
+        "renders emails from:\n  " + "\n  ".join(offenders) + f"\n\nReal routes: {sorted(roots)}"
+    )

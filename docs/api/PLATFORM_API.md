@@ -286,7 +286,7 @@ revision) lets a consumer poll deltas incl. **tombstones**. No request-time LLM 
 
 Serializes the personal corpus as a **connected** Obsidian vault: each highlight becomes a note that
 **wikilinks** to id-keyed `[[People/…]]` / `[[Topics/…]]` / `[[Episodes/…]]` under `closelistening/`.
-Extractive, **bridge-only** (transcript quotes + `/player/{slug}?t=` deep links, never audio), **no
+Extractive, **bridge-only** (transcript quotes + `/episode/{slug}?t=` deep links, never audio), **no
 LLM** (D6). **Incremental**: a server-side content-hash vault snapshot + cursor — `since` matching the
 last export returns only changed notes + a `removed` tombstone list; a mismatch (new device / behind)
 returns a **full** export with `replace_namespace: true` (replace the whole folder). **Auth-gated.**

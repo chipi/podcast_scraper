@@ -151,7 +151,7 @@
         "deep_link": {
           "type": "string",
           "minLength": 1,
-          "description": "Relative in-app link with jump-to-moment, e.g. /player/{slug}?t={sec}. For source='user' items it also carries &revisit={highlight_id} (url-encoded): arriving at the player with that marker records the review, which is how an EMAIL reader advances the spaced ladder at all. Without it the digest was write-only — it selected due items every week and nothing it sent could mark one reviewed, so the same five items were re-sent indefinitely."
+          "description": "Relative in-app link with jump-to-moment, e.g. /episode/{slug}?t={sec}. For source='user' items it also carries &revisit={highlight_id} (url-encoded): arriving at the player with that marker records the review, which is how an EMAIL reader advances the spaced ladder at all. Without it the digest was write-only — it selected due items every week and nothing it sent could mark one reviewed, so the same five items were re-sent indefinitely."
         },
         "source": {
           "enum": ["user", "auto"],

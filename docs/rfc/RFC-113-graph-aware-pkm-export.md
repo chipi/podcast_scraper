@@ -99,7 +99,7 @@ source: user            # or "auto" (GI editor's-pick)
 aliases: ["“The bottleneck was never compute…”"]
 ---
 > “The bottleneck was never compute; it was our willingness to throw away a working model.”
-— [[Episodes/acquired-nvidia|NVIDIA: The Machine…]] · [▶ 1:05:21](https://…/player/acquired-nvidia?t=3921)
+— [[Episodes/acquired-nvidia|NVIDIA: The Machine…]] · [▶ 1:05:21](https://…/episode/acquired-nvidia?t=3921)
 Discusses [[People/person_ab12|Jensen Huang]] · [[Topics/topic_scaling|Scaling Laws]]
 ```
 **Entity note** is thin (id, label, source) — the graph emerges from backlinks, not duplicated body.

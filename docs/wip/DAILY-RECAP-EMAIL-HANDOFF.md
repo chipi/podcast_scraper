@@ -54,7 +54,7 @@ worker change.
       "insights": ["…", "…"],     // top salience insights, ≤3 (full view only)
       "topics": [{ "id": "topic:…", "label": "…" }],       // chips → /topic/:id
       "storylines": [{ "id": "topic:…", "label": "…" }],   // → /storyline/:id (anchor topic id)
-      "deep_link": "/player/feed_ep"
+      "deep_link": "/episode/feed_ep"
     }
   ]
 }

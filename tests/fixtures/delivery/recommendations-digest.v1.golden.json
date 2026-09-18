@@ -38,7 +38,7 @@
             "graph_refs": [
               { "id": "topic:semiconductors", "kind": "topic", "label": "Semiconductors" }
             ],
-            "deep_link": "/player/acquired-tsmc-part-ii"
+            "deep_link": "/episode/acquired-tsmc-part-ii"
           }
         ]
       }
