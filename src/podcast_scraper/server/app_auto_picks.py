@@ -40,7 +40,7 @@ def _pick_for_slug(root: Path, slug: str) -> dict[str, Any] | None:
     return {
         "episode_slug": slug,
         "graph_refs": refs,
-        "deep_link": f"/player/{slug}" + (f"?t={t_ms // 1000}" if t_ms is not None else ""),
+        "deep_link": f"/episode/{slug}" + (f"?t={t_ms // 1000}" if t_ms is not None else ""),
         "t_ms": t_ms,
         "quote": ins.text,
         "source": "auto",

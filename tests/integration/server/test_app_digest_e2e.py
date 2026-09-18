@@ -112,7 +112,7 @@ def test_auto_pick_real_gi_chain(tmp_path: Path) -> None:
     assert revisit[0]["source"] == "auto"
     assert revisit[0]["quote"] == "a grounded point"
     assert revisit[0]["graph_refs"] == [{"id": "topic:ai", "kind": "topic", "label": "AI"}]
-    assert revisit[0]["deep_link"] == f"/player/{slug}?t=60"
+    assert revisit[0]["deep_link"] == f"/episode/{slug}?t=60"
 
 
 def test_new_in_follows_section(tmp_path: Path) -> None:

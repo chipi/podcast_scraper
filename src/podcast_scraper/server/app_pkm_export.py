@@ -159,7 +159,7 @@ def _highlight_note(h: dict[str, Any], episode_title: str) -> str:
         # quote and the remainder as body text attributed to nobody.
         lines.append("\n".join(f"> {line}" for line in quote.splitlines() or [quote]))
     ep_link = f"[[{_ROOT}/Episodes/{_safe_id(slug)}|{_wikilink_text(episode_title)}]]"
-    deep = f"/player/{slug}" + (f"?t={t_ms // 1000}" if isinstance(t_ms, int) else "")
+    deep = f"/episode/{slug}" + (f"?t={t_ms // 1000}" if isinstance(t_ms, int) else "")
     lines.append(f"— {ep_link} · [▶ jump]({deep})")
     if refs:
         chips = " · ".join(_entity_link(r) for r in refs)
@@ -187,7 +187,7 @@ def _episode_note(slug: str, title: str) -> str:
         f"aliases: [{_yaml_scalar(title)}]\n"
         "---\n"
         f"# {title}\n"
-        f"[Open in player](/player/{slug})\n"
+        f"[Open in player](/episode/{slug})\n"
     )
 
 

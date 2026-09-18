@@ -79,7 +79,7 @@ def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None
     item: dict[str, Any] = {
         "episode_slug": slug,
         "graph_refs": refs,
-        "deep_link": f"/player/{slug}" + (f"?{'&'.join(params)}" if params else ""),
+        "deep_link": f"/episode/{slug}" + (f"?{'&'.join(params)}" if params else ""),
         "t_ms": t_ms,
         "source": "user",
     }

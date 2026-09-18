@@ -86,7 +86,7 @@ def _recap_email_item(recap: AppEpisodeRecap) -> dict[str, Any]:
         "insights": [ins.text for ins in recap.insights[:3]],
         "topics": [{"id": t.id, "label": t.label} for t in recap.topics[:4]],
         "storylines": [{"id": s.id, "label": s.label} for s in recap.storylines[:2]],
-        "deep_link": f"/player/{recap.slug}",
+        "deep_link": f"/episode/{recap.slug}",
     }
 
 

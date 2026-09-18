@@ -42,7 +42,7 @@ def test_list_returns_seeded_newest_first(tmp_path: Path) -> None:
     client, data_dir, uid = _authed(tmp_path)
     app_notifications_store.add_notification(data_dir, uid, ntype="product", title="Old", now=1000)
     app_notifications_store.add_notification(
-        data_dir, uid, ntype="new_episodes", title="New", deep_link="/player/x", now=2000
+        data_dir, uid, ntype="new_episodes", title="New", deep_link="/episode/x", now=2000
     )
     body = client.get("/api/app/notifications").json()
     assert [i["title"] for i in body["items"]] == ["New", "Old"]

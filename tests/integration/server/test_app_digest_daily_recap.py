@@ -96,7 +96,7 @@ def test_assemble_recaps_todays_finished_episode(tmp_path: Path) -> None:
     assert ep["title"] == "Hello"
     assert ep["key_points"] == ["First point", "Second point"]
     assert ep["signature_quote"] == {"text": "a memorable line", "speaker": "Jane Doe"}
-    assert ep["deep_link"] == f"/player/{slug}"
+    assert ep["deep_link"] == f"/episode/{slug}"
     assert {"id": "topic:ai", "label": "AI"} in ep["topics"]
 
 

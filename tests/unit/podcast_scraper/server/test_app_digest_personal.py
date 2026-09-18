@@ -112,7 +112,7 @@ def test_payload_carries_the_graph(tmp_path: Path) -> None:
     assert payload is not None
     item = payload["sections"][0]["items"][0]
     assert item["graph_refs"] == _REFS
-    assert item["deep_link"] == "/player/ep-one?t=60&revisit=h1"
+    assert item["deep_link"] == "/episode/ep-one?t=60&revisit=h1"
     assert item["source"] == "user"
 
 
@@ -167,7 +167,7 @@ def test_passive_user_gets_auto_seeded_digest(
     auto_item = {
         "episode_slug": "ep-heard",
         "graph_refs": _REFS,
-        "deep_link": "/player/ep-heard?t=60",
+        "deep_link": "/episode/ep-heard?t=60",
         "t_ms": 60_000,
         "quote": "auto pick",
         "source": "auto",
@@ -360,7 +360,7 @@ def test_paused_pacing_also_suppresses_auto_picks(
     monkeypatch.setattr(
         app_auto_picks,
         "auto_pick_items",
-        lambda *a, **k: [{"source": "auto", "graph_refs": _REFS, "deep_link": "/player/x?t=0"}],
+        lambda *a, **k: [{"source": "auto", "graph_refs": _REFS, "deep_link": "/episode/x?t=0"}],
     )
     uid = _user(tmp_path)
     assert app_digest_personal.assemble_digest_payload(_ROOT, tmp_path, uid, now=10**9) is not None
@@ -385,7 +385,7 @@ def test_push_nudge_selects_the_revisit_section_by_kind(
     monkeypatch.setattr(
         app_digest_sections,
         "new_in_follows_items",
-        lambda *a, **k: [{"source": "follow", "graph_refs": _REFS, "deep_link": "/player/y?t=0"}],
+        lambda *a, **k: [{"source": "follow", "graph_refs": _REFS, "deep_link": "/episode/y?t=0"}],
     )
     monkeypatch.setattr(app_digest_sections, "trending_items", lambda *a, **k: [])
     uid = _user(tmp_path)  # no highlights at all → no revisit section

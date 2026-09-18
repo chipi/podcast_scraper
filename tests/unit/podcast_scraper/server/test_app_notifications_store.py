@@ -21,11 +21,11 @@ def test_empty_inbox_defaults(tmp_path: Path) -> None:
 def test_add_and_list_newest_first(tmp_path: Path) -> None:
     app_notifications_store.add_notification(tmp_path, _UID, ntype="product", title="Old", now=1000)
     app_notifications_store.add_notification(
-        tmp_path, _UID, ntype="new_episodes", title="New", deep_link="/player/x", now=2000
+        tmp_path, _UID, ntype="new_episodes", title="New", deep_link="/episode/x", now=2000
     )
     items = app_notifications_store.list_notifications(tmp_path, _UID)
     assert [i["title"] for i in items] == ["New", "Old"]  # newest-first
-    assert items[0]["deep_link"] == "/player/x"
+    assert items[0]["deep_link"] == "/episode/x"
     assert app_notifications_store.unread_count(tmp_path, _UID) == 2
 
 

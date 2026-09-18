@@ -141,7 +141,7 @@ def test_your_week_route_surfaces_real_graph_content(tmp_path: Path) -> None:
     assert revisit["source"] == "auto"
     assert revisit["quote"] == "a grounded point"
     assert revisit["graph_refs"] == [{"id": "topic:ai", "kind": "topic", "label": "AI"}]
-    assert revisit["deep_link"] == f"/player/{heard}?t=60"
+    assert revisit["deep_link"] == f"/episode/{heard}?t=60"
     # In-app route enriches items with the show/episode art for the card backdrop.
     assert revisit["image_url"] == "https://img.example/fa.jpg"
 

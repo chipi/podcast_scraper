@@ -107,7 +107,7 @@ def test_highlight_note_wikilinks_and_deep_link(monkeypatch: pytest.MonkeyPatch)
     assert "> the bottleneck was never compute" in note
     assert "[[closelistening/People/person_jensen-huang|Jensen Huang]]" in note
     assert "[[closelistening/Topics/topic_scaling|Scaling]]" in note
-    assert "/player/acquired-nvidia?t=3921" in note  # deep-link with jump
+    assert "/episode/acquired-nvidia?t=3921" in note  # deep-link with jump
     # Quoted since #43 — YAML-equivalent, and consistent with every other string field.
     assert 'source: "user"' in note
 
@@ -235,7 +235,7 @@ def test_an_episode_title_containing_link_syntax_cannot_truncate_the_link(
     assert line.count("[[") == 1, line
     assert line.count("]]") == 1, line
     assert "closelistening/Episodes/acquired-nvidia|" in line
-    assert "[▶ jump](/player/acquired-nvidia" in line  # the rest of the line survived intact
+    assert "[▶ jump](/episode/acquired-nvidia" in line  # the rest of the line survived intact
 
 
 def test_a_multi_line_quote_stays_inside_the_blockquote(monkeypatch: pytest.MonkeyPatch) -> None:
