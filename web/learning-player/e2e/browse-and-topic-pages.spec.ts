@@ -4,7 +4,7 @@ import { signInIsolated } from './helpers'
 /**
  * Browse hub + standalone Topic/Person deep-links (#1261-6, #1261-9, #14). Real API +
  * committed corpus. Home surfaces a compact "Discover" strip (Topics · Storylines · People); each
- * chip deep-links into the /trends "see all" page on the matching tab (operator 2026-09-14, renamed
+ * chip deep-links into Browse's Trends section on the matching kind (operator 2026-09-14, renamed
  * from the old "Browse topics/people" links). Tapping a topic chip lands on the standalone Topic page.
  *
  * The hub replaces the mobile-hostile Cmd-K palette that was explicitly ruled out of the player.
@@ -12,7 +12,7 @@ import { signInIsolated } from './helpers'
  * RFC-120: all routes below are login-first; each test signs in.
  */
 
-test('Home surfaces the compact "Discover" strip and each chip deep-links into /trends', async ({
+test('Home surfaces the compact "Discover" strip and each chip deep-links into the Browse Trends section', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'browse-home-nav', testInfo)

@@ -312,7 +312,8 @@ describe('HomeView interests card (3.5)', () => {
   })
 
   // Compact "Discover" strip (renamed from Browse topics/people, operator 2026-09-14): three chips
-  // deep-linking into the /trends see-all page on the matching tab.
+  // deep-linking into Browse's Trends section on the matching kind. The standalone /trends page
+  // they used to open was a thinner copy of that section and is deleted (operator 2026-09-18).
   it('renders the compact "Discover" strip as Browse trends deep links', async () => {
     const w = mountKeptAlive()
     await flushPromises()

@@ -56,7 +56,7 @@ type Tab = 'episodes' | 'shows'
 // Discover page = the shared DiscoveryExplorer under "Trends" (Topics/Storylines/People, the
 // "what/who"), then the CONTENT band below — just Episodes · Shows (operator 2026-09-14). Tapping a
 // row opens the entity as a full page here (Home opens overlays instead); the explorer's own
-// "See all →" link handles the deep /trends page per kind.
+// "See all →" on the explorer deep-links back into this same section per kind (`?trends=`).
 function onEntityOpen(p: { kind: Kind; id: string }): void {
   const name = p.kind === 'topic' ? 'topic' : p.kind === 'person' ? 'person' : 'storyline'
   void router.push({ name, params: { id: p.id } })

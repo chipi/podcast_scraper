@@ -39,7 +39,7 @@ describe('BrowseView (Discover)', () => {
     const w = await mountView()
     expect(w.find('[data-testid="browse-view"]').exists()).toBe(true)
     expect(w.find('[data-testid="stub-explorer"]').exists()).toBe(true)
-    // The band is only the content containers now — entities live in the dashboard + /trends.
+    // The band is only the content containers now — entities live in the dashboard above it.
     for (const key of ['episodes', 'shows']) {
       expect(w.find(`[data-testid="browse-tab-${key}"]`).exists()).toBe(true)
     }
