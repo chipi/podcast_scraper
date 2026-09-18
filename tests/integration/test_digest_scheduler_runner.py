@@ -55,10 +55,12 @@ def test_beat_writes_heartbeat(tmp_path: Path, monkeypatch) -> None:
 
 
 def _stub_all(mod, monkeypatch, **returns):
-    """Stub every enqueuer in ``_ENQUEUERS``; unnamed ones return []."""
+    """Stub every enqueuer in the SHARED dispatcher; unnamed ones return []."""
     import importlib
 
-    for label, module_name, func_name in mod._ENQUEUERS:
+    from podcast_scraper.server import app_digest_dispatch
+
+    for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
         module = importlib.import_module(f"podcast_scraper.server.{module_name}")
         value = returns.get(label, [])
         if isinstance(value, Exception):
@@ -126,30 +128,46 @@ def test_cycle_survives_a_non_enqueuer_error(tmp_path: Path, monkeypatch, capsys
     assert (tmp_path / "hb" / "tick").exists()
 
 
-def test_enqueuers_match_the_in_process_scheduler(tmp_path: Path, monkeypatch) -> None:
-    """THE REGRESSION GUARD for #2119.
+def test_neither_scheduler_owns_a_private_enqueuer_list(tmp_path: Path, monkeypatch) -> None:
+    """THE REGRESSION GUARD for #2119, at cause.
 
-    ``infra/deploy/digest_scheduler.py`` is a separate process from
-    ``server/scheduler.py``, and prod runs ONLY the sidecar. When ``daily_recap`` (#2039) and the
-    monthly ``recommendations`` digest were added to the in-process scheduler and not to the
-    sidecar, both shipped dead to production and stayed dead — silently, because the sidecar kept
-    logging a healthy 'enqueued 0 envelope(s)'.
+    The bug was two hand-maintained dispatch lists. ``daily_recap`` (#2039) and the monthly
+    ``recommendations`` digest were added to ``server/scheduler.py`` and not to the sidecar; since
+    the player runs ONLY the sidecar (``PODCAST_SERVE_APP_ONLY=1``, ADR-116), both shipped dead to
+    production and stayed dead — silently, because the sidecar logged a healthy 'enqueued 0'.
 
-    This fails the moment ``scheduler.py`` calls an ``enqueue_due_*`` the sidecar does not.
+    The fix is that there is now exactly ONE list, in ``app_digest_dispatch.ENQUEUERS``. This test
+    fails if either scheduler starts calling ``enqueue_due_*`` directly again, which is the only
+    way the two paths can diverge.
     """
     import re
 
+    sources = {
+        "server/scheduler.py": _REPO_ROOT / "src" / "podcast_scraper" / "server" / "scheduler.py",
+        "infra/deploy/digest_scheduler.py": _RUNNER,
+    }
+    for label, path in sources.items():
+        direct = re.findall(
+            r"app_digest_\w+\.(enqueue_due_\w+)\(", path.read_text(encoding="utf-8")
+        )
+        assert not direct, (
+            f"{label} calls {sorted(set(direct))} directly instead of going through "
+            "app_digest_dispatch.enqueue_all_due(). That reintroduces a second dispatch list, "
+            "which is exactly how #2119 shipped two digests dead to prod."
+        )
+
+
+def test_sidecar_drives_every_shared_enqueuer(tmp_path: Path, monkeypatch, capsys) -> None:
+    """End to end through the real sidecar entrypoint: every enqueuer in the shared list is
+    driven, and each one's count is reported separately."""
+    from podcast_scraper.server import app_digest_dispatch
+
     mod = _load(tmp_path, monkeypatch)
-    scheduler_src = (_REPO_ROOT / "src" / "podcast_scraper" / "server" / "scheduler.py").read_text(
-        encoding="utf-8"
+    _stub_all(
+        mod, monkeypatch, **{label: [f"{label}-1"] for label, _, _ in app_digest_dispatch.ENQUEUERS}
     )
-
-    called = set(re.findall(r"(app_digest_\w+)\.(enqueue_due_\w+)\(", scheduler_src))
-    assert called, "found no enqueue_due_* calls in scheduler.py — did the call shape change?"
-
-    declared = {(module_name, func_name) for _, module_name, func_name in mod._ENQUEUERS}
-    missing = called - declared
-    assert not missing, (
-        "scheduler.py drives enqueuers the production sidecar does not call, so they are DEAD in "
-        f"prod: {sorted(missing)}. Add them to _ENQUEUERS in infra/deploy/digest_scheduler.py."
-    )
+    mod._run_once()
+    out = capsys.readouterr().out
+    for label, _, _ in app_digest_dispatch.ENQUEUERS:
+        assert f"{label}=1" in out, f"sidecar did not report {label}"
+        assert f"{label}-1" in out, f"sidecar dropped {label}'s envelope id"

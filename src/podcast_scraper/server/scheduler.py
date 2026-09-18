@@ -421,34 +421,26 @@ def make_app_spawn_callback(app: Any) -> Any:
         # The digest kind (#1415) doesn't spawn a pipeline job — it enqueues per-user delivery
         # envelopes to the outbox (extractive, idempotent per period). No event loop / post_submit.
         if kind == JOB_KIND_DIGEST:
-            from podcast_scraper.server import (
-                app_digest_daily_recap,
-                app_digest_personal,
-                app_digest_recommendations,
-            )
+            from podcast_scraper.server import app_digest_dispatch
 
             data_dir = getattr(app.state, "app_data_dir", None)
             if data_dir is None:
                 logger.warning("scheduler: digest %r fired but app_data_dir unset; skipping", name)
                 return
-            ids = app_digest_personal.enqueue_due_digests(corpus_root, Path(data_dir))
-            # Same hourly fire also enqueues the MONTHLY recommendations digest (wave-H); its own
-            # monthly-slot gate (1st of the month at the user's hour) keeps it to once a month, and
-            # the per-month envelope id makes the hourly cron idempotent.
-            rec_ids = app_digest_recommendations.enqueue_due_recommendations(
-                corpus_root, Path(data_dir)
-            )
-            # And the DAILY post-episode recap (#2039) — its own daily-hour slot gate keeps it to
-            # once a day, per-day envelope id keeps the hourly cron idempotent (RFC-122).
-            recap_ids = app_digest_daily_recap.enqueue_due_daily_recaps(corpus_root, Path(data_dir))
+            # Every enqueuer lives in app_digest_dispatch.ENQUEUERS, which the production sidecar
+            # (infra/deploy/digest_scheduler.py) drives from the same list. Adding one there wires
+            # both paths; maintaining two lists is what shipped daily_recap and the monthly
+            # recommendations digest dead to prod (#2119). Each enqueuer applies its own
+            # cadence-slot gate and per-period envelope id, so an hourly fire is idempotent.
+            result = app_digest_dispatch.enqueue_all_due(corpus_root, Path(data_dir))
             logger.info(
-                "scheduler: digest %r enqueued %d digest + %d recommendation + %d daily-recap"
-                " envelope(s)",
+                "scheduler: digest %r enqueued %d envelope(s) [%s]",
                 name,
-                len(ids),
-                len(rec_ids),
-                len(recap_ids),
+                result.total,
+                result.summary(),
             )
+            for label, err in result.errors.items():
+                logger.error("scheduler: digest %r enqueuer %s failed: %s", name, label, err)
             return
         loop: Optional[asyncio.AbstractEventLoop] = getattr(app.state, "event_loop", None)
         if loop is None or not loop.is_running():
