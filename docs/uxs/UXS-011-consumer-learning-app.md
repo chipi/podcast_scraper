@@ -533,6 +533,42 @@ highlights path, never a favorite" (RFC-121 / #1593) — so a heart here would o
 something that was never hearted. `BookmarkIcon` is shared with `TranscriptList` rather than
 redrawn, so the saved glyph cannot drift between the place you save and the place you unsave.
 
+**Home carries a "Worth revisiting" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
+captures, **at most one per episode** so it shows the breadth of what is waiting rather than one
+session's thinking. Each card is the **quote, with the episode as a small square thumbnail on its right** and the
+capture's colour on the left edge — the same row idiom `EpisodeRow` and the downloads list use. Two
+overlay treatments were tried first (artwork dimmed behind the text, then a cropped strip fading
+into it) and both looked forced: the episode is a fact ABOUT the quote, not a backdrop for it, and
+inventing a treatment for one surface is how a design system stops being one.
+
+Tapping goes to the **Revisit tab, scrolled to that capture** (`?focus=<id>`, briefly ringed), not
+to the player: from Home the user is deciding what to do with a capture, and the three outcomes
+live on that card. Jumping to the player would also mark it reviewed on arrival (#35) — deciding
+for them the one thing they went there to decide.
+
+**One action inline: the tick.** Reviews-answered-per-week is the only number that moves this loop,
+so the common answer is worth a tap in place; the card leaves optimistically and the next due
+capture fills the slot at once, because a spinner between answers is a reason to stop answering (it
+returns on failure — a card that vanished without counting would be a lie). "Stop resurfacing" and
+"unsave" are consequential and keep the context of the Revisit card, and four cards times three
+controls would put twelve buttons on Home.
+
+A "See all" goes to the tab; the rail deliberately shows no count, because the Library nav badge
+already carries the number and two places saying "7" is two places to disagree.
+
+It fills the **right half of the `lg` row beside Discovery**, which had been half-width with an
+empty neighbour since it was titled. Stacked on phones.
+
+**Why Home rather than more email.** Simulated over a year, the only thing that moves the
+resurfacing loop is the NUMBER of reviews answered per week, and it saturates: 7/week reaches 50%
+of captures, 14/week reaches 99%, and beyond that nothing improves. **Cadence alone is worth
+nothing** — the same weekly budget spread across seven days scores identically to one weekly
+session (0 points difference, at every budget tested). So the only intervention that helps is one
+that causes reviews which would not otherwise happen. The user is already on Home every day to
+listen, while Revisit sat two taps away behind a tab signalled only by a number on an icon. Asking
+for two answers a day from someone already standing there is the whole 14/week, at no notification
+cost — and therefore with no risk of provoking the pause switch that suppresses everything.
+
 **Ordering: episodes by `max(listened_at, newest capture)`, newest first (operator 2026-09-18).**
 This replaced most-overdue-first, which sounded right and measured worst.
 

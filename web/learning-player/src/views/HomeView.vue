@@ -38,6 +38,7 @@ import EntityCard from "../components/EntityCard.vue"
 import InterestsPicker from "../components/InterestsPicker.vue"
 import KeyVoicesRail from "../components/KeyVoicesRail.vue"
 import DiscoveryExplorer from "../components/DiscoveryExplorer.vue"
+import RevisitRail from "../components/RevisitRail.vue"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
@@ -559,13 +560,23 @@ async function loadContinue(): Promise<void> {
 
          Half width from `lg`, matching Discover: a trend row is a short label against a sparkline +
          multiplier + follow, and across the full column those two clusters sit ~500px apart. -->
-    <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="home-discovery">
-      <DiscoveryExplorer
-        :collapsed="3"
-        :title="t('browse.trendsTitle')"
-        @open="onDiscoveryOpen"
-      />
-    </section>
+    <!-- Discovery and Revisit share the row on `lg` (operator 2026-09-18). Discovery has been
+         half-width since it was titled, which left the right half of the column EMPTY on desktop —
+         this is the gap the rail was asked to fill, so the two sit side by side rather than the
+         rail pushing everything below it down a screen. Stacked on phones, where there is one
+         column and no gap to fill. -->
+    <div class="lg:flex lg:items-start lg:gap-8">
+      <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="home-discovery">
+        <DiscoveryExplorer
+          :collapsed="3"
+          :title="t('browse.trendsTitle')"
+          @open="onDiscoveryOpen"
+        />
+      </section>
+      <div class="lg:w-1/2">
+        <RevisitRail />
+      </div>
+    </div>
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
          the forward-looking digest ("what to play") comes first and this is the quieter follow-up.

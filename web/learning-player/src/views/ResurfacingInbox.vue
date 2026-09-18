@@ -5,9 +5,9 @@
  * (pause/resume) live here. Read-time: the server decides what's due; this just renders + dismisses.
  * Embedded in the Library "Revisit" tab. Auth-gated (empty signed out).
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import EpisodeRow from '../components/EpisodeRow.vue'
 import CheckIcon from '../components/CheckIcon.vue'
 import BellOffIcon from '../components/BellOffIcon.vue'
@@ -31,8 +31,10 @@ import type { EpisodeDetail, EpisodeSummary, ResurfacingItem } from '../services
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
 import { borderClass } from '../utils/highlightColors'
+import { scrollBehavior } from '../utils/motion'
 
 const { t, locale } = useI18n()
+const route = useRoute()
 /**
  * The inbox writes THROUGH the store (#2004 item 14 follow-up).
  *
@@ -229,6 +231,37 @@ async function dismiss(item: ResurfacingItem): Promise<void> {
  * leaves this surface. What differs is the server state: reviewing advances the ladder so it
  * returns later, retiring takes it off the ladder for good. Neither touches the capture.
  */
+/**
+ * Scroll to the capture Home sent us to (`?focus=<id>`), and ring it (operator 2026-09-18).
+ *
+ * Home's rail links HERE rather than to the player: from Home the user is choosing what to do
+ * with a capture, and the three outcomes live on this card. Landing at the top of a long list
+ * with no idea which item was tapped is the thing that would make the rail feel broken.
+ *
+ * The ring is presentation only and is dropped on the first interaction, so it marks "this is the
+ * one" without becoming a second kind of selected state the user has to dismiss.
+ */
+const focusId = ref<string | null>(null)
+const cardEls = new Map<string, HTMLElement>()
+
+function registerCard(id: string, el: unknown): void {
+  if (el instanceof HTMLElement) cardEls.set(id, el)
+  else cardEls.delete(id)
+}
+
+watch(
+  () => [route.query.focus, items.value.length] as const,
+  async ([focus]) => {
+    const id = typeof focus === 'string' ? focus : null
+    if (!id || !items.value.some((i) => i.highlight.id === id)) return
+    focusId.value = id
+    await nextTick()
+    // `center`, not `start`: a card scrolled to the very top sits under the sticky masthead.
+    cardEls.get(id)?.scrollIntoView({ block: 'center', behavior: scrollBehavior() })
+  },
+  { immediate: true },
+)
+
 async function retire(item: ResurfacingItem): Promise<void> {
   items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
   await retireHighlight(item.highlight.id)
@@ -358,8 +391,12 @@ onMounted(load)
           <li
             v-for="item in g.items"
             :key="item.highlight.id"
-            class="rounded-xl border border-l-4 border-border p-3"
-            :class="borderClass(item.highlight.color)"
+            :ref="(el) => registerCard(item.highlight.id, el)"
+            class="rounded-xl border border-l-4 border-border p-3 transition"
+            :class="[
+              borderClass(item.highlight.color),
+              focusId === item.highlight.id ? 'ring-2 ring-accent' : '',
+            ]"
             data-testid="revisit-item"
           >
             <!-- KIND · DATE, the same label the notes rows on Boards carry (operator). "Marked
