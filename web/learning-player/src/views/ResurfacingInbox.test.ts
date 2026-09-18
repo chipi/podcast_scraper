@@ -196,4 +196,55 @@ describe('ResurfacingInbox', () => {
     await flushPromises()
     expect(w.find('[data-testid="revisit-quote"]').exists()).toBe(false)
   })
+
+  /**
+   * The three outcomes had NO tests — the entire proposition of the Revisit tab (operator review
+   * 2026-09-18). Dismiss was covered; retire and delete were not, and all three removed the card
+   * BEFORE awaiting the write with no way back, so a failed call told the user they had acted when
+   * nothing had been stored.
+   *
+   * These assert the ROLLBACK, not just the happy path. A test that only checks "the card goes
+   * away" passes on the broken version too.
+   */
+  it('retire drops the card and tells the server', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const retire = vi.spyOn(api, 'retireHighlight').mockResolvedValue(undefined as never)
+    const w = mountInbox()
+    await flushPromises()
+
+    await w.get('[data-testid="revisit-retire"]').trigger('click')
+    await flushPromises()
+
+    expect(retire).toHaveBeenCalledWith('h1')
+    expect(w.find('[data-testid="revisit-item"]').exists()).toBe(false)
+  })
+
+  it('a FAILED retire puts the card back rather than pretending it worked', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    vi.spyOn(api, 'retireHighlight').mockRejectedValue(new Error('offline'))
+    const w = mountInbox()
+    await flushPromises()
+
+    await w.get('[data-testid="revisit-retire"]').trigger('click')
+    await flushPromises()
+
+    // The capture was never retired, so the card has to still be here. Without the rollback it
+    // vanishes and returns on the next load with no explanation.
+    expect(w.find('[data-testid="revisit-item"]').exists()).toBe(true)
+  })
+
+  it('a FAILED review puts the card back', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    vi.spyOn(api, 'markSurfaced').mockRejectedValue(new Error('offline'))
+    const w = mountInbox()
+    await flushPromises()
+
+    await w.get('[data-testid="revisit-dismiss"]').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="revisit-item"]').exists()).toBe(true)
+  })
 })
