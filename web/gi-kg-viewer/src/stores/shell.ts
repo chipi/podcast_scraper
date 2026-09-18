@@ -94,6 +94,17 @@ export const useShellStore = defineStore('shell', () => {
   const healthError = ref<string | null>(null)
   /** From GET /api/health when corpus/code versions may be mismatched (#796). */
   const corpusVersionWarning = ref<string | null>(null)
+  /**
+   * Whether the server can actually mint and verify sessions (#2118-era health change).
+   *
+   * `status` goes to "degraded" for this, but so does everything else, so a broken signing secret
+   * looked identical to a corpus API being unavailable: a yellow badge with no cause. The two need
+   * very different responses — one is "set the corpus path", the other is "every user is about to
+   * be signed out". `null` = the server did not report it (older build).
+   */
+  const authReady = ref<boolean | null>(null)
+  /** The server's session-secret identity. A CHANGE here means every existing session just died. */
+  const authEpoch = ref<string | null>(null)
   /** True only when /api/health reports corpus_library_api (avoids 404 on /api/corpus/* catalog). */
   const corpusLibraryApiAvailable = ref(false)
   /**
@@ -156,6 +167,16 @@ export const useShellStore = defineStore('shell', () => {
     return s.toLowerCase() === 'ok' ? 'OK' : s
   })
 
+  /**
+   * A degraded server whose CAUSE is authentication — the case worth naming.
+   *
+   * Everything else that degrades the server is recoverable by the operator on the spot (set a
+   * corpus path, wait for an index). This one is not: sessions cannot be minted or verified, so
+   * every user is signed out or about to be, and no amount of clicking in the viewer fixes it.
+   * Reported separately so it does not hide inside a generic yellow badge.
+   */
+  const authDegraded = computed(() => authReady.value === false)
+
   function healthAdvertisesRoute(value: unknown): boolean {
     return value !== false
   }
@@ -189,10 +210,15 @@ export const useShellStore = defineStore('shell', () => {
         operator_config_api?: boolean
         jobs_api?: boolean
         corpus_version_warning?: string | null
+        auth_ready?: boolean
+        auth_epoch?: string | null
       }
       if (healthFetchGate.isStale(seq)) {
         return
       }
+      // Read BEFORE the status collapse below, which flattens every non-ok cause into one word.
+      authReady.value = typeof body.auth_ready === 'boolean' ? body.auth_ready : null
+      authEpoch.value = typeof body.auth_epoch === 'string' ? body.auth_epoch : null
       const rawStatus = body.status ?? 'unknown'
       const st = typeof rawStatus === 'string' ? rawStatus.trim() : String(rawStatus)
       /** Canonicalize so refetch / server casing does not spuriously notify watchers. */
@@ -304,6 +330,9 @@ export const useShellStore = defineStore('shell', () => {
     setLeftPanelSurface,
     healthStatus,
     healthStatusDisplay,
+    authReady,
+    authEpoch,
+    authDegraded,
     healthError,
     corpusVersionWarning,
     corpusLibraryApiAvailable,
