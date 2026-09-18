@@ -386,7 +386,19 @@ onMounted(load)
     <!-- STATS tab: listening analytics + the recap. -->
     <div v-show="tab === 'stats'" v-bind="panelAttrs('profile', 'stats')">
       <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
-      <section class="rounded-2xl border border-border p-5">
+      <!-- The listening block renders only when there IS listening, or when the account is empty
+           EVERYWHERE (operator 2026-09-18).
+
+           "Start listening to build your stats" sat above a kept block reading 12 captures, which
+           tells someone plainly using the app that they have not started — the prompt is a
+           first-run message for an empty account, not a permanent header for anyone whose play
+           history happens to be thin. When there is nothing at all it still shows, because a
+           blank tab answers nothing. -->
+      <section
+        v-if="hasStats || statsFailed || !kept"
+        class="rounded-2xl border border-border p-5"
+        data-testid="stats-listening"
+      >
         <h2 class="lp-section mb-4">{{ t("stats.title") }}</h2>
         <template v-if="hasStats">
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -438,7 +450,12 @@ onMounted(load)
       <!-- What the user has KEPT, and what they have done with it. Its own section because it
            answers a different question from the tiles above: those measure consumption, this
            measures the half of the product that is the user's own. -->
-      <section v-if="kept" class="mt-6 rounded-2xl border border-border p-5" data-testid="stats-kept">
+      <section
+        v-if="kept"
+        class="rounded-2xl border border-border p-5"
+        :class="hasStats || statsFailed ? 'mt-6' : ''"
+        data-testid="stats-kept"
+      >
         <h2 class="lp-section mb-4">{{ t("stats.keptTitle") }}</h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div class="rounded-xl bg-overlay p-4">

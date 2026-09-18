@@ -568,6 +568,12 @@ listening threshold. (Observed: a seeded account shows "Start listening to build
 a kept block reading 12 captures.) The fields are optional on the type, so a server predating them
 hides the section rather than rendering zeroes that look like a real answer.
 
+**The listening block itself is conditional (operator 2026-09-18).** "Start listening to build your
+stats" sat above a kept block reading 12 captures — telling someone plainly using the app that they
+had not started. It renders when there IS listening, when the stats call failed, or when the
+account is empty everywhere; it disappears only in the one case that was wrong. A brand-new account
+still sees it, because a blank tab answers nothing.
+
 **Home carries a "Worth revisiting" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
 captures, **at most one per episode** so it shows the breadth of what is waiting rather than one
 session's thinking. Each card is the **quote, with the episode as a small square thumbnail on its right** and the
