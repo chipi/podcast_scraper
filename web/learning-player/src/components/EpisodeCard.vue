@@ -35,7 +35,7 @@
  * identity to `opacity-0`, and the text is always in the a11y tree. The rule of thumb is refined: a
  * list card shows a bounded preview by default and reveals the rest on an explicit, reversible tap.
  */
-import { computed, ref } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import type { EpisodeSummary } from "../services/types"
@@ -59,48 +59,103 @@ const props = defineProps<{
    * Set by the Saved list, where every row is favourited by definition — see EpisodeActions.
    */
   hideFavorite?: boolean
+  /**
+   * Drop the action row entirely — the card is an IDENTITY HEADER, not something to act on.
+   *
+   * Set when the card labels a group whose rows carry their own controls (Revisit: every moment has
+   * jump + mark-reviewed), where a favourite/queue/⋯ cluster on the header is a third set of
+   * controls competing with them — and at compact width it wraps onto its own line, which is what
+   * made the header thick (operator 2026-09-17: "remove actions").
+   */
+  hideActions?: boolean
+  /**
+   * Tighter vertical rhythm for a card used as a header: less padding, and no bottom rule, since the
+   * block around it draws its own divider (operator 2026-09-17: "can we get it shorter").
+   */
+  dense?: boolean
 }>()
 const { t, locale } = useI18n()
 
 const duration = computed(() => formatDuration(props.episode.duration_seconds))
 const date = computed(() => formatPublishDate(props.episode.publish_date, locale.value))
-const bullets = computed(() => props.episode.summary_bullets ?? [])
-// The TRUE key-point count — `summary_bullets` is capped for card size, so its length pinned at 8
-// for every richly-summarised episode ("every episode has 8 key points"). Fall back to the visible
-// bullets when the server didn't send a count.
-const keyPointCount = computed(() => props.episode.summary_bullet_count ?? bullets.value.length)
-
-// Show the insights affordance only when there's grounded summary content to reveal.
-/**
- * The badge counts KEY POINTS — `summary_bullets` — and now says so.
- *
- * It read "N insights" while counting bullets. Insights are a different thing: the timestamped
- * claims and observations in the Knowledge Panel, each anchored to a moment. The card cannot show a
- * true insight count — the server deliberately does not compute one per row, because it would cost
- * an artifact load per card (`schemas.py:104`) — so the honest fix is to name what is actually
- * being counted, using the same word the Insights panel uses for the same field.
- *
- * The `has_gi` gate went with it: that flag means the episode has generated insights, which is not
- * what this badge is about. Bullets come from the summary. If there are bullets, there is a count.
- */
-const hasKeyPoints = computed(() => bullets.value.length > 0)
+// The key-points badge is GONE (operator 2026-09-17), not merely hidden on phones — it had been
+// `hidden sm:inline-flex`, which kept it on every desktop browser long after the feature left the
+// product. The card's facts are now date and duration.
 // Prefer our locally-stored copy (artwork_url); fall back to the remote feed image URLs.
 const artwork = computed(() => episodeArtwork(props.episode))
 
 // Read more/less (BE.2): collapsed shows the full summary clamped to a few lines; expanded shows
 // all of it in the row. Only offered when there's full prose beyond the one-line lede.
 const summaryExpanded = ref(false)
+// Measured, not a line count: the summary fills the artwork column's height, so whether it is
+// actually cut off depends on the rendered width and the neighbouring column. Defaults TRUE — in
+// jsdom and before first paint both heights read 0, and treating that as "fits" would HIDE a
+// "Read more" the text needs.
+const summaryEl = ref<HTMLElement | null>(null)
 const summaryFull = computed(
   () => props.episode.summary_text?.trim() || props.episode.summary_preview || ""
 )
-const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
+const summaryClipped = ref(true)
+
+function measureSummary(): void {
+  const el = summaryEl.value
+  if (!el || summaryExpanded.value) return // expanded: the window no longer constrains anything
+  const prose = el.firstElementChild
+  if (!prose || el.clientHeight === 0) return // not laid out yet — keep the safe default
+  // The PROSE against the WINDOW. Measuring the window against itself was the old bug: it stretched
+  // to fit, so the two heights always matched and nothing ever read as clipped.
+  summaryClipped.value = prose.scrollHeight - el.clientHeight > 1
+}
+
+// Observe the window WHENEVER IT APPEARS, not once at mount. The window is behind
+// `v-if="summaryFull"`, so a card whose text arrives in a SECOND render — after the element the
+// mount-time guard looked for was absent — got no observer at all, and then only the `watch` below
+// as a single chance to measure. That chance is lost if the row is in a hidden tab panel at that
+// instant, leaving the safe `true` default stuck and a "Read more" on prose that fits.
+//
+// EpisodeCard's own data happens to arrive complete today, so this was latent here and live in
+// ShowRow (operator 2026-09-17). Both carry the identical measurement, so both carry the identical
+// fix — mirroring the accident instead is what produced a wrong diagnosis. `immediate: true` makes
+// this a strict superset of `onMounted`; `flush: 'post'` guarantees the DOM exists; ResizeObserver's
+// initial callback delivers the first size and it fires again across `display: none` → visible.
+//
+// `onBeforeUnmount` stays at setup top level — Vue does not set `currentInstance` for watcher
+// callbacks, so registering it inside would warn and not bind.
+let ro: ResizeObserver | null = null
+watch(
+  summaryEl,
+  (el) => {
+    ro?.disconnect()
+    ro = null
+    if (!el || typeof ResizeObserver === "undefined") return
+    ro = new ResizeObserver(() => measureSummary())
+    ro.observe(el)
+  },
+  { flush: "post", immediate: true }
+)
+onBeforeUnmount(() => ro?.disconnect())
+
+// "Read more" only when the text is ACTUALLY cut off — the summary now fills the artwork column
+// rather than a fixed line count, so on a short summary nothing is clipped and the toggle would be
+// offering to reveal nothing.
+//
+// Gated on `summaryFull`, which is WHAT THE WINDOW RENDERS. It used to gate on `summary_text` while
+// the window fell back to `summary_preview`, so an episode carrying only a preview could render
+// prose the window genuinely clipped with no toggle able to appear — text cut off and no way to
+// reach it (operator 2026-09-17). The condition must read the same value as the element it governs.
+const canExpandSummary = computed(
+  () => !!summaryFull.value.trim() && (summaryClipped.value || summaryExpanded.value)
+)
 </script>
 
 <template>
   <article
     data-testid="episode-card"
-    class="group relative -mx-3 flex gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
-    :class="episode.color ? ['border-l-4', borderClass(episode.color)] : ''"
+    class="lp-media-row group relative -mx-3 gap-4 rounded-xl px-3 transition-colors sm:gap-5"
+    :class="[
+      dense ? 'py-2' : 'border-b border-border py-5',
+      episode.color ? ['border-l-4', borderClass(episode.color)] : '',
+    ]"
   >
     <!--
       LEFT COLUMN: artwork, then the facts about the episode (#2004 item 4).
@@ -110,7 +165,7 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
       one. Moving the facts under the artwork uses space that was dead and gives the summary room
       to be read.
     -->
-    <div class="flex shrink-0 flex-col gap-2">
+    <div class="lp-media-aside">
       <img
         v-if="artwork"
         :src="artwork"
@@ -139,40 +194,32 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
         <span v-if="date && duration" aria-hidden="true">·</span>
         <span v-if="duration">{{ duration }}</span>
       </div>
-      <!-- A COUNT, not a toggle: the card does not render the bullets themselves, so there is
-           nothing to expand. It stays because "how much is in here" is worth knowing at a glance —
-           and it says KEY POINTS, which is what it counts.
-           Hidden on small viewports (operator): the pill clutters the phone card; it returns at
-           `sm` and up where the left column has room to spare. -->
-      <div
-        v-if="!compact && hasKeyPoints"
-        data-testid="card-key-point-count"
-        class="hidden w-fit items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-bold text-canvas-foreground sm:inline-flex"
-      >
-        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-          <path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5z" />
-        </svg>
-        {{ t("card.keyPointCount", { count: keyPointCount }, keyPointCount) }}
-      </div>
       <span
         v-if="episode.status !== 'ready'"
         class="w-fit rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"
       >
         {{ t("status.pending") }}
       </span>
-      <!-- The shared EpisodeActions row (UXS-014: nobody rolls their own). Full card: pinned to the
-           BOTTOM of the (stretched) left column — `mt-auto` foots it against the end of the summary,
-           `w-32` matches the artwork. The row is now favourite + queue + ⋯ (download + collect live
-           in the ⋯), which is 120px and fits the 128px column in ONE row — the four-control wrap the
-           operator flagged is gone. Compact card (queue "recently played"): `w-20` matches the 80px
-           artwork, too narrow for three targets, so EpisodeActions' retained `flex-wrap` folds the ⋯
-           under favourite+queue rather than widening the column past the artwork and eating the text.
+      <!-- Surface-specific fact under the artwork, beside the date — Search puts its match count
+           here. Empty everywhere else, so no other caller changes. -->
+      <div v-if="$slots.aside" class="text-xs font-semibold text-muted">
+        <slot name="aside" />
+      </div>
+      <!-- The shared EpisodeActions row (UXS-014: nobody rolls their own), directly UNDER the
+           artwork it acts on — `w-32` matches the artwork's width. It used to be `mt-auto`, footed
+           against the bottom of a stretched column, which left it floating below a gap whenever the
+           summary was the taller side (operator 2026-09-17). The row is favourite + queue + ⋯
+           (download + collect live in the ⋯), which is 120px and fits the 128px column in ONE row.
+           Compact card (queue "recently played"): `w-20` matches the 80px artwork, too narrow for
+           three targets, so EpisodeActions' retained `flex-wrap` folds the ⋯ under favourite+queue
+           rather than widening the column past the artwork and eating the text.
            `relative z-30` keeps it tappable above the title's stretched card-link overlay; the
            queue's reorder ↑/↓ ride the slot. -->
       <EpisodeActions
+        v-if="!hideActions"
         :slug="episode.slug"
         :hide-favorite="hideFavorite"
-        :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 mt-auto w-32'"
+        :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 w-32'"
       >
         <template #lead><slot name="lead-action" /></template>
         <slot name="actions" />
@@ -181,15 +228,29 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
     <!-- RIGHT COLUMN: show name, title, summary — full width. The actions moved UNDER the artwork
          (left column), so nothing competes with the text here. NOT `relative` — the title's
          stretched ::after link stays anchored to the whole `article` so the artwork plays on tap. -->
-    <div class="min-w-0 flex-1">
-      <!-- Show name — full column width; only ellipsizes when genuinely long. -->
+    <!-- The summary FILLS the height the artwork column sets, then clips (operator 2026-09-17).
+         A fixed `line-clamp-4` stopped the text short of the artwork's bottom, leaving dead space
+         beside the picture and a line of description the card had room for but did not show. Both
+         columns foot their last element with `mt-auto`, so the action row and "Read more" land on
+         the same line. -->
+    <div class="lp-media-body">
+      <!-- Show name — full column width; only ellipsizes when genuinely long.
+           A LINK only when there is a feed to link to. `feed_id` is optional on EpisodeSummary, and
+           `router.resolve({ name: 'podcast', params: { feedId: undefined } })` THROWS rather than
+           degrading — so a row whose source carries the show's NAME but not its id (Search groups
+           its hits by episode, and the feed id lives in the hit metadata) took the whole view down.
+           Plain text is the honest fallback: the name is still information without being a
+           destination. -->
       <RouterLink
-        v-if="episode.podcast_title"
+        v-if="episode.podcast_title && episode.feed_id"
         :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
         class="lp-kicker relative z-30 block truncate no-underline"
       >
         {{ episode.podcast_title }}
       </RouterLink>
+      <span v-else-if="episode.podcast_title" class="lp-kicker block truncate">
+        {{ episode.podcast_title }}
+      </span>
 
       <!-- Title (stretched link → Player). Never fades: card identity stays visible in every state. -->
       <RouterLink
@@ -199,22 +260,30 @@ const canExpandSummary = computed(() => !!props.episode.summary_text?.trim())
         {{ episode.title }}
       </RouterLink>
 
-      <!-- Summary: the full prose, clamped until "Read more" expands the row in place (BE.2). Four
-           lines rather than three — the left column (artwork + facts + bottom actions) is taller
-           than the text, so there is room for one more row (operator). Falls back to the one-line
-           lede when there's no full summary. -->
-      <p
+      <!-- Surface-specific line between the title and the summary — Search puts WHY this episode
+           matched here ("Matched: Transcript · Insight"), which belongs with the identity rather
+           than after the prose it explains. Empty everywhere else. -->
+      <div v-if="$slots.meta" class="relative z-30 mt-0.5">
+        <slot name="meta" />
+      </div>
+
+      <!-- Summary: the full prose, clipped to whatever the artwork column leaves and expanded in
+           place by "Read more" (BE.2). The window (`lp-media-clip`) is what constrains it — see
+           style.css; the <p> alone could only ever grow the row. Falls back to the one-line lede
+           when there's no full summary. -->
+      <div
         v-if="summaryFull"
-        class="mt-2 text-sm leading-relaxed text-muted"
-        :class="summaryExpanded ? '' : 'line-clamp-4'"
+        ref="summaryEl"
+        class="lp-media-clip mt-2"
+        :class="summaryExpanded ? 'lp-media-clip--open' : ''"
       >
-        {{ summaryFull }}
-      </p>
+        <p class="text-sm leading-relaxed text-muted">{{ summaryFull }}</p>
+      </div>
       <!-- `relative z-30` so the toggle sits above the title's stretched card-link overlay. -->
       <button
         v-if="!compact && canExpandSummary"
         type="button"
-        class="relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80"
+        class="lp-media-foot relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80"
         data-testid="card-read-more"
         :aria-expanded="summaryExpanded"
         @click="summaryExpanded = !summaryExpanded"

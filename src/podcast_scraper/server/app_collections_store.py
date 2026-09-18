@@ -165,11 +165,25 @@ def list_collections(
             **c,
             "count": _count(c["id"]),
             "updated_at": int(c.get("updated_at") or c.get("created_at") or 0),
+            # A board the user has never dragged has no `position`; fall back to `created_at` so it
+            # keeps its newest-first place among the ordered ones rather than jumping to the top.
+            "position": c.get("position"),
         }
         for c in doc["collections"]
         if isinstance(c, dict) and c.get("id")
     ]
-    return sorted(out, key=lambda c: int(c.get("created_at", 0)), reverse=True)
+
+    # MANUAL order first, then newest-first for anything never dragged (operator 2026-09-17).
+    # Sorting on `position or created_at` alone cannot work: they are different scales — a position
+    # of 0 would sort below every epoch timestamp. Ordered rows form their own block ahead of the
+    # rest, which is also what a user who has just arranged their boards expects to see.
+    def _key(c: dict[str, Any]) -> tuple[int, int]:
+        pos = c.get("position")
+        if isinstance(pos, int):
+            return (0, pos)
+        return (1, -int(c.get("created_at", 0)))
+
+    return sorted(out, key=_key)
 
 
 def create_collection(
@@ -236,6 +250,34 @@ def set_cover(data_dir: Path, user_id: str, collection_id: str, cover_url: str |
             return
         row["cover_url"] = cover_url
         _write(data_dir, user_id, doc)
+
+
+def reorder_collections(data_dir: Path, user_id: str, order: list[str]) -> bool:
+    """Persist a manual board order (CO.7). Returns False when the user has no collections.
+
+    ``order`` is the ids as the user arranged them. Ids it does not mention keep their relative
+    place AFTER the ones it does — a client holding a stale list (an older tab, an offline replay)
+    therefore reorders what it knew about without silently dropping a board created since. Unknown
+    ids are ignored rather than rejected: the same stale client may name one that has been deleted,
+    and failing the whole call over that would lose a reorder the user actually made.
+    """
+    if not _is_safe_user_id(user_id):
+        return False
+    with _lock(data_dir, user_id):
+        doc = _read(data_dir, user_id, strict=True)
+        rows = [c for c in doc["collections"] if isinstance(c, dict) and c.get("id")]
+        if not rows:
+            return False
+        rank = {cid: i for i, cid in enumerate(order)}
+        # Everything the client named takes position 0..n-1 in that order; the rest follow, keeping
+        # the order they already had so an unmentioned board does not jump.
+        named = [r for r in rows if r["id"] in rank]
+        named.sort(key=lambda r: rank[r["id"]])
+        rest = [r for r in rows if r["id"] not in rank]
+        for i, row in enumerate(named + rest):
+            row["position"] = i
+        _write(data_dir, user_id, doc)
+        return True
 
 
 def delete_collection(data_dir: Path, user_id: str, collection_id: str) -> bool:

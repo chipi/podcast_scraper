@@ -12,6 +12,7 @@ import FavoriteButton from '../components/FavoriteButton.vue'
 import EntityCard from '../components/EntityCard.vue'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import PodcastSignalsBand from '../components/PodcastSignalsBand.vue'
+import StorylineCard from '../components/StorylineCard.vue'
 import ShowActivityChart from '../components/ShowActivityChart.vue'
 import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
@@ -58,7 +59,11 @@ const descEl = ref<HTMLElement | null>(null)
 const descClamped = ref(false)
 function measureDesc(): void {
   const el = descEl.value
-  descClamped.value = !!el && el.scrollHeight - el.clientHeight > 2
+  if (!el || descExpanded.value) return // expanded: the window no longer constrains anything
+  // The PROSE against the WINDOW — measuring the window against itself always matched, because it
+  // stretched to fit, so nothing ever read as cut off (operator 2026-09-17).
+  const prose = el.firstElementChild
+  descClamped.value = !!prose && prose.scrollHeight - el.clientHeight > 2
 }
 // A single post-nextTick read is fooled by deferred layout: on a cold navigation the fonts may not
 // have settled, scrollHeight/clientHeight both read 0, and "Show more" would stay hidden on a long
@@ -127,7 +132,28 @@ const typicalLength = computed<string | null>(() => {
   if (secs.length < 3) return null
   return formatDuration(secs[Math.floor(secs.length / 2)])
 })
-const cardTarget = ref<{ kind: 'person' | 'topic'; id: string } | null>(null)
+// A signals-band chip opens the card for what its SECTION says it is. The STORYLINES chips used
+// to emit `kind: 'topic'` carrying the cluster's anchor topic id, so tapping a chip under a
+// "STORYLINES" heading opened a TOPIC card (operator 2026-09-17). The id was right all along —
+// /storyline/:id IS an anchor topic id — it was handed to the wrong component.
+// The show's facts as ONE line: byline · N episodes · cadence · typical length · updated · LANG.
+// Built here rather than in the template because the separator belongs BETWEEN present values, and
+// a feed can be missing any of them.
+const metaLine = computed<string[]>(() => {
+  const out: string[] = []
+  const authors = show.value?.authors
+  if (authors?.length) out.push(t('podcast.byline', { authors: authors.join(', ') }))
+  if (total.value) out.push(t('podcast.episodeCount', { count: total.value }, total.value))
+  if (cadence.value) out.push(t(`podcast.cadence.${cadence.value}`))
+  if (typicalLength.value) out.push(t('podcast.typicalLength', { len: typicalLength.value }))
+  if (feedUpdated.value) out.push(t('podcast.updated', { date: feedUpdated.value }))
+  // Language deliberately omitted: every show in the corpus is English today, so the chip was a
+  // constant that said nothing and cost a wrap in a 144px column (operator 2026-09-17). Restore it
+  // when the corpus is genuinely multilingual — the field is still on the model.
+  return out
+})
+
+const cardTarget = ref<{ kind: 'person' | 'topic' | 'storyline'; id: string } | null>(null)
 
 // #2036 — the shareable card for this show: title + episode count + a canonical link. Clean (no
 // quote/byline) — the feed description is marketing copy, not a signature take. Brand-cyan accent
@@ -252,20 +278,44 @@ watch(() => props.feedId, reset)
       <!-- Capped to the artwork width (w-36): without it the action row below sets the column's
            width, so a wide row of pills pushed the column past 144px and squeezed the text column
            to a third of the row (title wrapping to 3 lines). The actions wrap WITHIN 144px instead. -->
-      <div class="flex w-36 shrink-0 flex-col gap-3">
+      <!-- 144px on a phone, 224px from `sm` up (operator 2026-09-17). The column was sized for a
+           phone and kept that width on a 1440px desktop, so the metadata wrapped to FIVE lines in a
+           144px gutter while ~950px sat empty beside the title. The artwork grows with it. -->
+      <div class="flex w-36 shrink-0 flex-col gap-3 sm:w-56">
       <!-- Placeholder so the column keeps its width when a show has no artwork — otherwise the
            actions beneath it are squeezed against a zero-width gap (same bug as EpisodeCard). -->
       <div
         v-if="!(show && showArt(show))"
-        class="h-36 w-36 rounded-xl bg-elevated"
+        class="h-36 w-36 rounded-xl bg-elevated sm:h-56 sm:w-56"
         aria-hidden="true"
       />
       <img
         v-if="show && showArt(show)"
         :src="showArt(show)!"
         :alt="show.title ?? ''"
-        class="h-36 w-36 rounded-xl bg-elevated object-cover"
+        class="h-36 w-36 rounded-xl bg-elevated object-cover sm:h-56 sm:w-56"
       />
+        <!-- Feed METADATA, under the artwork and the actions (operator 2026-09-17). It used to be
+             stacked between the title and the description in the right column, so the one thing
+             that column is for — the name and what the show is about — was pushed down by four rows
+             of counts, cadence and dates.
+
+             ONE wrapping line with separators (operator 2026-09-17), not a row per value: six
+             stacked rows under a 144px column read as a spec sheet. Composed in `metaLine` and
+             joined, so the separators fall between the values that are actually PRESENT — a
+             template-level "· if not first" has to know what preceded it and gets it wrong the
+             moment a field is missing. -->
+        <!-- PHONE: under the artwork, above Follow, as the operator asked. Hidden from `sm` up,
+             where the same line renders in the text column instead — at ~85 characters it can never
+             sit on one line in a 224px gutter, and three wrapped lines in a narrow column beside
+             900px of empty space is the desktop bug this fixes (operator 2026-09-17). -->
+        <p
+          v-if="metaLine.length"
+          class="text-xs leading-relaxed text-muted sm:hidden"
+          data-testid="podcast-feed-meta"
+        >
+          {{ metaLine.join(' · ') }}
+        </p>
         <!-- Two aligned rows under the 144px artwork: the primary Follow pill full-width on top,
              the secondary actions as an even icon row beneath (two pills can't share a 144px row,
              so Collection uses its compact icon variant here rather than the wide pill). -->
@@ -288,7 +338,11 @@ watch(() => props.feedId, reset)
           </div>
         </div>
       </div>
-      <div class="min-w-0 flex-1">
+      <!-- The text column fills the artwork column's height and "Show more" foots against the
+           action icons, so the two sides end on the same line (operator 2026-09-17). A fixed
+           `line-clamp-3` ended the description well above the end of the artwork + facts + Follow +
+           icons stack, which on a phone left a block of dead space beside the picture. -->
+      <div class="lp-media-body">
         <h1 class="font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
           <template v-if="showTitle">{{ showTitle }}</template>
           <!-- Placeholder, not the feed id: same height as the real heading so nothing jumps when
@@ -300,39 +354,31 @@ watch(() => props.feedId, reset)
             data-testid="podcast-title-skeleton"
           />
         </h1>
+        <!-- DESKTOP: the same facts on ONE line under the title, where there is room for them.
+             Same `metaLine` source as the phone copy above — one computed, two placements. -->
+        <p
+          v-if="metaLine.length"
+          class="mt-1 hidden text-xs leading-relaxed text-muted sm:block"
+          data-testid="podcast-feed-meta-wide"
+        >
+          {{ metaLine.join(' · ') }}
+        </p>
         <!-- Feed by-line (#2043): host/author names straight from the RSS channel. Text for now —
              linking each to its person card is the entity-resolution follow-up (#2044). -->
-        <p v-if="show?.authors?.length" class="mt-1 text-sm text-muted" data-testid="podcast-byline">
-          {{ t('podcast.byline', { authors: show.authors.join(', ') }) }}
-        </p>
-        <p v-if="total" class="mt-1 text-sm text-muted">
-          {{ t('podcast.episodeCount', { count: total }, total)
-          }}<template v-if="cadence"> · {{ t(`podcast.cadence.${cadence}`) }}</template
-          ><template v-if="typicalLength"> · {{ t('podcast.typicalLength', { len: typicalLength }) }}</template>
-        </p>
-        <!-- Feed language + last-updated (#2043), when the channel carried them. -->
-        <p
-          v-if="show?.language || feedUpdated"
-          class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted"
-          data-testid="podcast-feed-meta"
-        >
-          <span v-if="show?.language" class="rounded-full bg-overlay px-2 py-0.5 uppercase">{{ show.language }}</span>
-          <span v-if="feedUpdated">{{ t('podcast.updated', { date: feedUpdated }) }}</span>
-        </p>
-        <p
+        <div
           v-if="show?.description"
           ref="descEl"
-          class="mt-2 text-sm leading-relaxed text-muted"
-          :class="descExpanded ? '' : 'line-clamp-3'"
+          class="lp-media-clip mt-2"
+          :class="descExpanded ? 'lp-media-clip--open' : ''"
         >
-          {{ show.description }}
-        </p>
-        <!-- Collapsed to 3 lines, then a toggle IFF the text is actually clamped (measured, not a
-             char count) so medium descriptions that overflow the column still get "Show more". -->
+          <p class="text-sm leading-relaxed text-muted">{{ show.description }}</p>
+        </div>
+        <!-- A toggle IFF the text is actually cut off (measured against the window, not a char or
+             line count) so medium descriptions that overflow the column still get "Show more". -->
         <button
           v-if="show?.description && (descClamped || descExpanded)"
           type="button"
-          class="mt-1 text-xs font-bold text-accent"
+          class="lp-media-foot w-fit pt-1 text-xs font-bold text-accent"
           @click="toggleDesc"
         >
           {{ descExpanded ? t('podcast.showLess') : t('podcast.showMore') }}
@@ -364,7 +410,7 @@ watch(() => props.feedId, reset)
     <div v-else>
       <!-- Hide-played toggle (SD.9): reads the completed set (mark-as-played). -->
       <label class="mb-3 flex w-fit items-center gap-2 text-sm font-semibold text-muted">
-        <input v-model="hidePlayed" type="checkbox" data-testid="hide-played" class="accent-accent" />
+        <input v-model="hidePlayed" type="checkbox" data-testid="hide-played" class="lp-check" />
         {{ t('podcast.hidePlayed') }}
       </label>
       <p v-if="visibleEpisodes.length === 0" class="text-muted">{{ t('podcast.allPlayed') }}</p>
@@ -391,8 +437,13 @@ watch(() => props.feedId, reset)
     <!-- Notes on this show (NT.1). -->
     <NoteComposer target="show" :target-id="feedId" />
 
+    <StorylineCard
+      v-if="cardTarget?.kind === 'storyline'"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
     <EntityCard
-      v-if="cardTarget"
+      v-else-if="cardTarget"
       :kind="cardTarget.kind"
       :id="cardTarget.id"
       @close="cardTarget = null"

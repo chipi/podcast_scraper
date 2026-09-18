@@ -13,12 +13,14 @@ from __future__ import annotations
 
 import urllib.parse
 from collections import Counter
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from podcast_scraper.search.theme_clusters import (
     consumer_theme_cluster_map,
     consumer_theme_cluster_siblings,
+    top_theme_clusters_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import (
     consumer_cluster_siblings,
@@ -204,16 +206,29 @@ def _org_episodes(
     ]
 
 
+# How many storylines the entity resolver indexes. The artifact is small (a corpus has tens of
+# themes, not thousands) and this is a NAME lookup, so the cap only guards against a pathological
+# artifact rather than shaping results.
+_STORYLINE_INDEX_CAP = 500
+
+
 def resolve_entity(
     root: Path,
     query: str,
     *,
     rows: Sequence[CatalogEpisodeRow] | None = None,
 ) -> AppEntityRef | None:
-    """Resolve an exact/near-exact person/topic/org name match for ``query``, else ``None`` (3.4).
+    """Resolve an exact/near-exact person/topic/org/storyline match for ``query``, else ``None``.
 
-    Precedence person > topic > org on a tie (all three now have cards — #2031). Default path is an
+    Precedence person > topic > org > storyline on a tie (all four have cards). Default path is an
     O(1) lookup in the cached KG index; a ``rows`` override scans that subset.
+
+    Storylines are resolved here rather than matched in the client (operator 2026-09-17). They live
+    in a different artifact from the KG — ``enrichments/topic_theme_clusters.json``, not the
+    per-episode graphs — so they are read from the theme-cluster summaries and normalised the same
+    way, which keeps ONE definition of "does this query name an entity". A label match in the client
+    could not rank, could not see past the endpoint's 50-item cap, and left every other consumer of
+    this resolver blind to storylines.
     """
     norm = normalize_label(query)
     if not norm:
@@ -224,6 +239,7 @@ def resolve_entity(
             index.person_ref_by_norm.get(norm)
             or index.topic_ref_by_norm.get(norm)
             or index.org_ref_by_norm.get(norm)  # #2031 — orgs now have cards, so search finds them
+            or _storyline_ref_by_norm(root).get(norm)
         )
     persons_idx: dict[str, AppEntityRef] = {}
     topics_idx: dict[str, AppEntityRef] = {}
@@ -242,7 +258,40 @@ def resolve_entity(
                 normalize_label(o.name),
                 AppEntityRef(id=o.id, kind="organization", label=o.name),
             )
-    return persons_idx.get(norm) or topics_idx.get(norm) or orgs_idx.get(norm)
+    return (
+        persons_idx.get(norm)
+        or topics_idx.get(norm)
+        or orgs_idx.get(norm)
+        # Storylines are corpus-level, not per-episode, so the `rows` subset does not bound them —
+        # the same map serves both paths.
+        or _storyline_ref_by_norm(root).get(norm)
+    )
+
+
+@lru_cache(maxsize=8)
+def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
+    """Normalised storyline label → ref, from the theme-cluster artifact.
+
+    Cached per corpus root like the KG index, because this is read on every entity search and the
+    artifact only changes when the corpus is re-enriched. ``min_members=1`` deliberately: the /4
+    floor on the Home rail is a SURFACING decision about where a listener is sent, and refusing to
+    resolve a storyline the user typed the exact name of would be a different, worse thing —
+    searching for something by name and being told it does not exist.
+    """
+    out: dict[str, AppEntityRef] = {}
+    for s in top_theme_clusters_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
+        label = str(s.get("label") or "").strip()
+        # The ANCHOR TOPIC id, not the `thc:` id. There is no storyline endpoint — the anchor
+        # topic's card IS the storyline — so `thc:…` is not openable and a client that routed with
+        # it got a 404 (review, 2026-09-17). Every other producer of a storyline destination passes
+        # the anchor: FollowedInterests, PodcastSignalsBand, TopicBrowseView.
+        anchor = str(s.get("anchor_topic_id") or "").strip()
+        if not label or not anchor:
+            continue
+        norm = normalize_label(label)
+        if norm:
+            out.setdefault(norm, AppEntityRef(id=anchor, kind="storyline", label=label))
+    return out
 
 
 def _enrich_topic(

@@ -61,7 +61,7 @@ PYTEST_WORKERS ?= 2
 
 .PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
-.PHONY: ios-contact-sheet
+.PHONY: ios-contact-sheet design-contact-sheets
 .PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
@@ -1648,6 +1648,50 @@ test-app-e2e:
 	@# checkout. Only this repo's own container, never a sibling worktree's.
 	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
 	@cd $(APP_DIR) && npm install && npx playwright install chromium && npm run test:e2e
+
+# ONE image per viewport of every player surface, for a visual sweep (operator 2026-09-17).
+#
+# The web counterpart of `ios-contact-sheet`, and the answer to "there should be a make target for
+# this": reviewing a redesign surface-by-surface means asking for mobile AND desktop every time, and
+# assembling those by hand is how a review ends up judging whichever framing was cheap to produce.
+#
+# Uses the DESIGN harness (`playwright.design.config.ts` — vite dev, not a production build), which
+# now shoots two projects: `pixel7` (375px, judged first) and `desktop` (1440px). Each writes its
+# own folder, so the two runs cannot overwrite each other, and each gets its own sheet.
+#
+# Deliberately NOT wired into ci-fast: these are inspection artifacts, they prove no correctness,
+# and they cost a browser run.
+DESIGN_VARIANT ?= baseline
+DESIGN_RESULTS ?= $(APP_DIR)/design-results/$(DESIGN_VARIANT)
+# 6 columns over the 20 frames each viewport produces (9 surfaces x full-page + viewport framings).
+#
+# Tile width 560, NOT 0. `ios-contact-sheet` uses 0 (native device pixels) because a phone frame is
+# already sheet-sized; here a desktop shot is 2880px wide at 2x, so native produced an 11600px,
+# 13 MB sheet that the tool then split into FIVE parts per viewport — twelve files to review instead
+# of two. At 560 the desktop sweep is one 2 MB sheet. Mobile still splits into two parts because a
+# full-page phone capture is ~9000px tall; that is the honest shape of the content, not a setting to
+# fight.
+DESIGN_SHEET_COLS ?= 6
+DESIGN_SHEET_TILE_W ?= 560
+design-contact-sheets:
+	@echo "Design shots (pixel7 + desktop) -> $(DESIGN_RESULTS)"
+	@# Reap this repo's containerised api first, for the same reason test-app-e2e does: the design
+	@# config sets reuseExistingServer, so a stale container would be adopted and the sheet would
+	@# show a differently-populated app than the fixture corpus.
+	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
+	@cd $(APP_DIR) && npm install && npx playwright install chromium && \
+		DESIGN_VARIANT=$(DESIGN_VARIANT) npm run design:shots
+	@set -e; for vp in pixel7 desktop; do \
+		d="$(DESIGN_RESULTS)/$$vp"; \
+		[ -d "$$d" ] || { echo "FAIL: no shots for $$vp at $$d"; exit 1; }; \
+		n=$$(ls "$$d"/*.png 2>/dev/null | wc -l | tr -d ' '); \
+		[ "$$n" -gt 0 ] || { echo "FAIL: $$d has no PNGs"; exit 1; }; \
+		echo "  $$vp: $$n shots -> $$d/contact-sheet-$$vp.png"; \
+		$(PYTHON) scripts/tools/contact_sheet.py \
+			--in "$$d" --out "$$d/contact-sheet-$$vp.png" \
+			--cols $(DESIGN_SHEET_COLS) --tile-width $(DESIGN_SHEET_TILE_W); \
+	done
+	@echo "OK: contact sheets under $(DESIGN_RESULTS)/<viewport>/"
 
 # Learning Player e2e against a CONTAINERISED api (#1905/#1906).
 #

@@ -1291,7 +1291,22 @@ export async function getCollections(): Promise<Collection[]> {
    * end state (the app has `gated()` for exactly that) and is not built yet. Recorded on #2004 so
    * the gap is visible rather than implied by this comment.
    */
-  return (await getJSON<{ items: Collection[] }>("/collections")).items
+  return withAbsoluteCovers((await getJSON<{ items: Collection[] }>("/collections")).items)
+}
+
+/**
+ * Absolutise each board's `cover_url` for the native shell.
+ *
+ * The API returns it RELATIVE (`/api/app/artwork?ref=…`). On web that is correct — the app and the
+ * API share an origin. On native the document origin is `capacitor://localhost`, so the same string
+ * resolves into the app bundle and the thumbnail renders as a broken image (operator 2026-09-17).
+ * `fetch` was never affected because `apiFetch` prefixes an absolute base itself; `<img src>` has
+ * nothing doing that for it — the identical trap the avatar hit.
+ */
+function withAbsoluteCovers(items: Collection[]): Collection[] {
+  return items.map((c) =>
+    c.cover_url ? { ...c, cover_url: resolveMediaUrl(c.cover_url) ?? c.cover_url } : c
+  )
 }
 
 export async function getCollection(id: string): Promise<CollectionDetail> {
@@ -1317,7 +1332,19 @@ export async function deleteCollection(id: string): Promise<Collection[]> {
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id} → ${resp.status}`)
-  return ((await resp.json()) as { items: Collection[] }).items
+  return withAbsoluteCovers(((await resp.json()) as { items: Collection[] }).items)
+}
+
+/** Persist the manual board order (CO.7). Returns the server's full list, not the optimistic one. */
+export async function reorderCollections(order: string[]): Promise<Collection[]> {
+  const resp = await apiFetch(`${BASE}/collections/order`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `PATCH /collections/order → ${resp.status}`)
+  return withAbsoluteCovers(((await resp.json()) as { items: Collection[] }).items)
 }
 
 export async function addToCollection(id: string, item: CollectionItemRef): Promise<Collection> {

@@ -72,6 +72,12 @@ describe('UXS-014 pattern rules that can be executed', () => {
       'components/TrendingShowsRail.vue', // rail slice; its comment notes "truncates only at the edge"
       'components/EntityCardBody.vue', // "Host of" chips
       'views/HomeView.vue', // Recommended grid kicker — clamped for the same reserved-height reason
+      // EpisodeCard's show name is a one-line KICKER above the episode title, not the row's own
+      // identity — :70 protects the name a row is FOR, and here the title is that. It has always
+      // truncated ("only ellipsizes when genuinely long"); it escaped this check only because the
+      // class and the binding sat on separate lines, the same line-formatting evasion that hid
+      // ShowBrowseView's real violation. Declared rather than left to luck (operator 2026-09-17).
+      'components/EpisodeCard.vue',
     ]
     const KNOWN_VIOLATIONS = FIXED_WIDTH_TILES
     const offenders: string[] = []
@@ -80,9 +86,15 @@ describe('UXS-014 pattern rules that can be executed', () => {
       if (KNOWN_VIOLATIONS.includes(rel)) continue
       const body = strip(src)
       // A truncate class on the same element as a show/podcast title binding.
+      //
+      // `titleOf(` is in the list because ShowBrowseView's list row truncated a show name for months
+      // and this guard never saw it: the binding reads `titleOf(p)`, so matching only on field names
+      // meant the rule could be evaded by naming (operator 2026-09-17). Match how the title is
+      // RESOLVED as well as where it is stored.
       for (const line of body.split('\n')) {
         if (!line.includes('truncate')) continue
-        if (/podcast_title|show\.title|feed_title/.test(line)) offenders.push(`${rel}: ${line.trim().slice(0, 90)}`)
+        if (/podcast_title|show\.title|feed_title|titleOf\(/.test(line))
+          offenders.push(`${rel}: ${line.trim().slice(0, 90)}`)
       }
     }
     expect(

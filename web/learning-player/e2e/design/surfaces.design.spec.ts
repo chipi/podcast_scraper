@@ -9,7 +9,8 @@ import { expectSignedIn } from '../helpers'
  * silently passes would poison the whole exercise — the critic would score an empty screen, and
  * we would act on the number.
  *
- * Output goes to `design-results/<variant>/<surface>.png`, where `<variant>` comes from
+ * Output goes to `design-results/<variant>/<viewport>/<surface>.png`, where `<viewport>` is the
+ * Playwright project (`pixel7` / `desktop`) and `<variant>` comes from
  * DESIGN_VARIANT (default `baseline`). So capturing the current app is:
  *
  *   npm run design:shots
@@ -35,7 +36,14 @@ import { expectSignedIn } from '../helpers'
  */
 const DIRECTION = process.env.DESIGN_DIRECTION || ''
 const VARIANT = process.env.DESIGN_VARIANT || DIRECTION || 'baseline'
-const dir = (name: string) => `design-results/${VARIANT}/${name}.png`
+/**
+ * Output path, namespaced by the PROJECT (viewport) as well as the variant.
+ *
+ * Both viewports shoot the same surface names, so without the project segment the desktop run
+ * would overwrite the mobile PNGs and the contact sheet would silently be half a sheet.
+ */
+const dir = (name: string) =>
+  `design-results/${VARIANT}/${test.info().project.name}/${name}.png`
 
 /**
  * Sign in — Library and Profile are auth-gated and render an empty shell signed out.
@@ -201,7 +209,11 @@ test('search', async ({ page }) => {
   await page.getByRole('searchbox').press('Enter')
   // Wait for an ACTUAL result row, not just networkidle — the results arrive after the request
   // settles, so a bare networkidle shot caught the loading skeletons and looked like "no results".
-  await page.getByTestId('search-result-actions').first().waitFor({ timeout: 15_000 })
+  //
+  // `search-result-actions` no longer exists: Search's hand-rolled result header was replaced by
+  // the shared `EpisodeGroupCard` + `EpisodeCard`, whose actions are the shared `episode-actions`.
+  // The group is the right thing to wait for anyway — it is the result row this shot is judging.
+  await page.getByTestId('episode-group').first().waitFor({ timeout: 15_000 })
   await shoot(page, 'search-results')
 })
 

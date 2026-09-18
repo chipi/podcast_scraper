@@ -1,5 +1,7 @@
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { createI18n } from 'vue-i18n'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
@@ -17,11 +19,23 @@ const podcasts: Podcast[] = [
   { feed_id: 'f1', title: 'The Daily', artwork_url: null, image_url: 'https://img/f1.jpg', description: null, episode_count: 20 },
 ]
 
+// Pinia + a router: the slice rows carry Follow and the heart now, which read the library and
+// favourites stores and route signed-out taps to sign-in.
+const routes = [
+  { path: '/', name: 'home', component: { template: '<div/>' } },
+  { path: '/login', name: 'login', component: { template: '<div/>' } },
+  { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
+]
+
 const mountIt = (items = rows) => {
   vi.spyOn(api, 'getTrending').mockResolvedValue(items)
+  setActivePinia(createPinia())
   return mount(TrendingShowsRail, {
     props: { title: 'Trending shows', podcasts },
-    global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } },
+    global: {
+      plugins: [i18n, createPinia(), createRouter({ history: createMemoryHistory(), routes })],
+      stubs: { RouterLink: RouterLinkStub },
+    },
   })
 }
 
@@ -39,7 +53,29 @@ describe('TrendingShowsRail', () => {
       params: { feedId: 'f0' },
     })
     expect(cards[0].text()).toContain('Latent Space')
-    expect(cards[0].text()).toContain('1.7×')
+    // Velocity lives on the ROW, beside Follow and the heart — not inside the link. Follow and the
+    // heart are <button>s and cannot be nested in an <a>, so the whole cluster sits outside it.
+    expect(w.findAll('[data-testid="trending-show-row"]')[0].text()).toContain('1.7×')
+  })
+
+  it('carries Follow and save on every row, outside the link', async () => {
+    // Home's trending shows were the one show surface with no action on it at all (operator
+    // 2026-09-17). Outside the link matters: an interactive inside an interactive is the bug this
+    // shape avoids.
+    const w = mountIt()
+    await flushPromises()
+    const row = w.findAll('[data-testid="trending-show-row"]')[0]
+    const follow = row.find('[data-testid="follow-show"]')
+    const heart = row.find('[data-testid="favorite-button"]')
+    expect(follow.exists(), 'the row lost Follow').toBe(true)
+    expect(heart.exists(), 'the row lost the heart').toBe(true)
+    const link = row.get('[data-testid="trending-show-card"]')
+    expect(link.find('[data-testid="follow-show"]').exists(), 'Follow is nested in the <a>').toBe(
+      false,
+    )
+    expect(link.find('[data-testid="favorite-button"]').exists(), 'the heart is nested in the <a>').toBe(
+      false,
+    )
   })
 
   it('joins artwork from the podcasts list by feed_id (artwork_url then image_url)', async () => {

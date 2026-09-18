@@ -39,6 +39,7 @@ from .corpus_scope import (
 )
 from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
 from .segments import link_insights_to_segments, link_insights_to_segments_by_text
+from .theme_clusters import STORYLINE_DOC_TYPE, storyline_index_rows
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ _AUX_DOC_TYPES = frozenset(
     {
         "kg_entity",
         "kg_topic",
+        STORYLINE_DOC_TYPE,
         "quote",
         "summary",
         "episode_title",
@@ -350,6 +352,73 @@ def _mark_reindexed(doc: dict, reindexed_episode_ids: set, clear_requested: bool
         reindexed_episode_ids.add(str(episode_id))
 
 
+#: Fingerprint scope key for the corpus's storyline row set. Not an episode, so it cannot collide
+#: with `index_fingerprint_scope_key(feed_id, episode_id)` output.
+_STORYLINE_FP_KEY = "::storylines"
+
+
+def _append_storyline_rows(
+    corpus_root: Path,
+    aux_buf: List[AuxDocument],
+    index_metadata: Dict[str, Dict[str, object]],
+    model_id: str,
+    *,
+    allow_download: bool,
+    stored_fps: Dict[str, str],
+    result_fps: Dict[str, str],
+    clear_requested: bool,
+) -> Tuple[int, set]:
+    """Append the corpus's storyline rows to the aux buffer; return how many were added.
+
+    A storyline (theme cluster) is a set of topics that recur together across the corpus. It is not
+    a property of any single episode, so unlike ``kg_topic`` / ``kg_entity`` it gets exactly ONE
+    row, with no ``episode_id``. That is also what keeps it safe: ``_record_emitted_ids`` skips
+    falsy episode ids and ``_prune_superseded_rows`` deletes per episode, so a corpus row is never
+    a prune candidate. Re-emitting the same ids on an incremental run upserts by id.
+
+    Emitted unconditionally rather than behind the per-episode fingerprint skip: there are tens of
+    these in a corpus, so the embed cost is trivial, and a storyline can change when ANY episode's
+    topics change — no single episode fingerprint would tell us it had.
+    """
+    rows = storyline_index_rows(corpus_root)
+    ids = {doc_id for doc_id, _t, _m in rows}
+    for doc_id, text, meta in rows:
+        index_metadata[doc_id] = {k: v for k, v in meta.items() if k != "text"}
+
+    # FINGERPRINT the whole storyline set, exactly as an episode's rows are fingerprinted.
+    #
+    # Emitting unconditionally looked free — tens of rows, trivial embed cost — but it is not: an
+    # append forces the final flush to open the backend, and `_finalize_index_build` then rebuilds
+    # the FTS index on ALL THREE tables, rebuilds the vector index and compacts, on every build.
+    # That turned a nightly where every episode fingerprint-skipped (backend never opened, nothing
+    # finalized) into a full finalize over the whole corpus (review, 2026-09-17).
+    #
+    # A set-level fingerprint keeps the "any episode's topics can change a storyline" argument
+    # intact — the artifact changing is exactly what changes this hash — while restoring the no-op.
+    fp = _episode_fingerprint(rows, model_id)
+    result_fps[_STORYLINE_FP_KEY] = fp
+    if not clear_requested and stored_fps.get(_STORYLINE_FP_KEY) == fp:
+        logger.debug("storylines unchanged (%d row(s)) — skipping embed", len(rows))
+        return 0, ids
+
+    for doc_id, text, meta in rows:
+        aux_buf.append(
+            AuxDocument(
+                id=doc_id,
+                text=text,
+                show_id="",
+                episode_id="",
+                doc_type=str(meta["doc_type"]),
+                publish_date=None,
+                source_id=meta.get("source_id"),
+                embedding=_embed(text, model_id, allow_download=allow_download),
+            )
+        )
+    if rows:
+        logger.info("indexed %d storyline row(s)", len(rows))
+    return len(rows), ids
+
+
 def _record_emitted_ids(
     tier: str,
     buf: List,
@@ -365,6 +434,26 @@ def _record_emitted_ids(
         episode_id = getattr(row, "episode_id", None)
         if episode_id and episode_id in reindexed_episode_ids:
             emitted_ids[tier].setdefault(episode_id, set()).add(row.id)
+
+
+def _prune_orphaned_storylines(
+    backend: Optional[LanceDBBackend], storyline_ids: set, clear_requested: bool
+) -> int:
+    """Remove storyline rows this build did not emit.
+
+    ``thc:`` ids are label-derived, so relabelling or re-anchoring a theme cluster mints a NEW id
+    and leaves its predecessor in the index. The per-episode prune cannot reach those rows: its
+    predicate is scoped to an ``episode_id`` and a corpus row has none. The pipeline path is always
+    incremental, so without this the orphans accumulate on every enrichment rerun and keep
+    surfacing in search (review, 2026-09-17).
+
+    Skipped when ``storyline_ids`` is empty: a corpus whose artifact is missing or unreadable must
+    not have its existing storyline rows deleted by a build that simply could not see them. A
+    genuinely emptied artifact is handled by the read-time drop instead.
+    """
+    if backend is None or not storyline_ids or clear_requested:
+        return 0
+    return backend.prune_rows_by_doc_type("aux", STORYLINE_DOC_TYPE, storyline_ids)
 
 
 def _prune_superseded_rows(
@@ -650,6 +739,18 @@ def build_two_tier_index(
         if len(aux_buf) >= batch:
             _flush_auxes()
 
+    storyline_added, storyline_ids = _append_storyline_rows(
+        out,
+        aux_buf,
+        index_metadata,
+        model_id,
+        allow_download=allow_download,
+        stored_fps=stored_fps,
+        result_fps=result_fps,
+        clear_requested=clear_requested,
+    )
+    stats.aux += storyline_added
+
     # Final flush of any partial buffers.
     _flush_segments()
     _flush_insights()
@@ -658,6 +759,7 @@ def build_two_tier_index(
     stats.stale_rows_pruned = _prune_superseded_rows(
         backend, emitted_ids, reindexed_episode_ids, clear_requested
     )
+    stats.stale_rows_pruned += _prune_orphaned_storylines(backend, storyline_ids, clear_requested)
 
     _finalize_index_build(
         backend,

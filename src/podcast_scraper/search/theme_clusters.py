@@ -243,8 +243,116 @@ def consumer_theme_cluster_siblings(corpus_root: Path, topic_id: str) -> list[Di
     return []
 
 
+def storyline_episode_ids(corpus_root: Path) -> Dict[str, frozenset]:
+    """``thc_id`` → the set of episode ids its member topics appear in.
+
+    Used to answer "is this storyline part of MY listening?" — a storyline has no single episode, so
+    the recall scope (``scope=mine``) cannot filter it the way it filters a passage. The membership
+    it needs is the union of the cluster's members' ``episode_ids``, which the artifact already
+    carries (operator 2026-09-17).
+
+    Empty for a cluster whose members record no episodes, which then simply never matches a
+    listening scope rather than matching everything.
+    """
+    payload = _load_theme_clusters_payload(corpus_root)
+    if payload is None:
+        return {}
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return {}
+    out: Dict[str, frozenset] = {}
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = cl.get("graph_compound_parent_id")
+        if not isinstance(gpid, str) or not gpid.strip():
+            continue
+        eps: set = set()
+        members = cl.get("members")
+        for m in members if isinstance(members, list) else []:
+            if not isinstance(m, Mapping):
+                continue
+            for eid in m.get("episode_ids") or []:
+                if isinstance(eid, str) and eid.strip():
+                    eps.add(eid.strip())
+        out[gpid.strip()] = frozenset(eps)
+    return out
+
+
+#: Doc type for a storyline row in the search index. Distinct from ``kg_topic``: a storyline is a
+#: CORPUS-level object (a set of topics that recur together), not a node in one episode's graph.
+STORYLINE_DOC_TYPE = "storyline"
+
+
+def storyline_index_rows(corpus_root: Path) -> list[tuple[str, str, Dict[str, Any]]]:
+    """Storyline rows for the search index — ONE per theme cluster, corpus-scoped.
+
+    Returns ``[(id, embed_text, metadata), ...]`` in the shape the indexer already uses, so the
+    caller can hand these to the aux tier alongside everything else.
+
+    Two deliberate departures from the per-episode KG rows (``kg_topic`` / ``kg_entity``):
+
+    * **No ``episode_id``.** A storyline spans episodes; it is not a property of any one of them.
+      Emitting it once per episode and de-duplicating on read — what following the ``kg_topic``
+      pattern literally would mean — multiplies rows for an object with exactly one identity.
+      ``episode_id`` is nullable in the aux schema, so this needs no schema change.
+    * **No member-count floor.** The /4 minimum is a SURFACING rule for the Home rail; refusing to
+      index a smaller storyline would make it unfindable by any means.
+
+    The embed text is the canonical label followed by its member topic labels — that is what lets a
+    query naming a MEMBER reach the storyline, which exact-name resolution cannot do.
+    """
+    payload = _load_theme_clusters_payload(corpus_root)
+    if payload is None:
+        return []
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return []
+    rows: list[tuple[str, str, Dict[str, Any]]] = []
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        summary = _theme_cluster_summary(cl)
+        if summary is None:
+            continue  # anchorless / unopenable — the same skip the rail makes
+        members = cl.get("members")
+        labels = [
+            str(m.get("label")).strip()
+            for m in (members if isinstance(members, list) else [])
+            if isinstance(m, Mapping)
+            and isinstance(m.get("label"), str)
+            and str(m.get("label")).strip()
+        ]
+        sid = str(summary["id"])
+        label = str(summary["label"])
+        # Label first so a name query matches strongly; members after so a member query reaches it.
+        text = " ".join([label, *labels]).strip()
+        if not text:
+            continue
+        rows.append(
+            (
+                f"storyline:{sid}",
+                text,
+                {
+                    "doc_type": STORYLINE_DOC_TYPE,
+                    "episode_id": None,
+                    "feed_id": None,
+                    "publish_date": None,
+                    "source_id": sid,
+                    "storyline_label": label,
+                    "storyline_size": summary["size"],
+                    "anchor_topic_id": summary["anchor_topic_id"],
+                },
+            )
+        )
+    return rows
+
+
 __all__ = [
+    "STORYLINE_DOC_TYPE",
     "consumer_theme_cluster_map",
     "consumer_theme_cluster_siblings",
+    "storyline_episode_ids",
+    "storyline_index_rows",
     "top_theme_clusters_by_member_count",
 ]

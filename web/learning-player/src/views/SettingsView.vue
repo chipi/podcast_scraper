@@ -138,7 +138,7 @@ async function openHelp(): Promise<void> {
         </span>
         <input
           type="checkbox"
-          class="h-5 w-5 shrink-0 accent-accent"
+          class="lp-check"
           data-testid="settings-voice-input"
           :checked="voiceEnabled"
           @change="setVoiceEnabled(($event.target as HTMLInputElement).checked)"
@@ -177,7 +177,7 @@ async function openHelp(): Promise<void> {
         </span>
         <input
           type="checkbox"
-          class="h-5 w-5 shrink-0 accent-accent"
+          class="lp-check"
           data-testid="settings-offline-mode"
           :checked="forcedOffline"
           @change="setForcedOffline(($event.target as HTMLInputElement).checked)"

@@ -159,3 +159,105 @@ def test_run_corpus_search_multi_doc_type_filter(mock_hybrid: object, tmp_path: 
     dts = {r["metadata"]["doc_type"] for r in out.results}
     assert dts <= {"insight", "quote"}
     assert "summary" not in dts
+
+
+# --- storyline hits: the query-time join (#2114 / review 2026-09-17) ----------------------------
+
+
+def _write_theme_artifact(root: Path, clusters: list[dict]) -> None:
+    (root / "enrichments").mkdir(parents=True, exist_ok=True)
+    (root / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps({"data": {"clusters": clusters}}), encoding="utf-8"
+    )
+
+
+def _storyline_hit(source_id: str) -> SearchResult:
+    """A storyline hit exactly as the index returns one — `source_id` and nothing else.
+
+    This is the shape that matters: the aux schema has no label/size/anchor columns and
+    ``hybrid_search._to_search_result`` rebuilds metadata from a fixed field list, so whatever the
+    indexer wrote into the row's metadata dict never reaches a caller.
+    """
+    return SearchResult(
+        doc_id=f"storyline:{source_id}",
+        score=0.99,
+        metadata={
+            "doc_type": "storyline",
+            "episode_id": None,
+            "source_id": source_id,
+            "text": "Managing risk across domains risk management",
+        },
+    )
+
+
+def test_storyline_hit_is_joined_to_a_usable_label_and_anchor(tmp_path: Path) -> None:
+    """A storyline hit must come back with a LABEL and a ROUTABLE id.
+
+    Without this join the client had only `source_id`, so it rendered the raw ``thc:`` slug as the
+    title and linked to a page that 404s — there is no storyline endpoint, the anchor topic's card
+    IS the storyline. The index cannot supply either field, so the read path must.
+    """
+    _write_theme_artifact(
+        tmp_path,
+        [
+            {
+                "graph_compound_parent_id": "thc:managing-risk",
+                "canonical_label": "Managing risk across domains",
+                "member_count": 4,
+                "members": [
+                    {"topic_id": "topic:risk-management", "label": "risk management"},
+                    {"topic_id": "topic:systems", "label": "systems thinking"},
+                ],
+            }
+        ],
+    )
+    with patch(_HYBRID) as hybrid:
+        hybrid.return_value = [_storyline_hit("thc:managing-risk")]
+        out = run_corpus_search(tmp_path, "risk", top_k=5, dedupe_kg_surfaces=False)
+    assert out.error is None
+    assert len(out.results) == 1
+    meta = out.results[0]["metadata"]
+    assert meta["storyline_label"] == "Managing risk across domains"
+    assert meta["storyline_size"] == 4
+    assert meta["anchor_topic_id"] == "topic:risk-management"
+    assert not str(meta["anchor_topic_id"]).startswith("thc:"), "must be routable, not a thc: id"
+
+
+def test_storyline_hit_for_a_vanished_cluster_is_dropped(tmp_path: Path) -> None:
+    """An orphaned row is DROPPED, not shown.
+
+    ``thc:`` ids are label-derived, so relabelling or re-anchoring a cluster mints a new id and
+    leaves the old row in the index until a build prunes it. A user must never be offered a
+    storyline that no longer exists.
+    """
+    _write_theme_artifact(
+        tmp_path,
+        [
+            {
+                "graph_compound_parent_id": "thc:still-here",
+                "canonical_label": "Still here",
+                "member_count": 4,
+                "members": [{"topic_id": "topic:a", "label": "a"}],
+            }
+        ],
+    )
+    with patch(_HYBRID) as hybrid:
+        hybrid.return_value = [_storyline_hit("thc:long-gone")]
+        out = run_corpus_search(tmp_path, "risk", top_k=5, dedupe_kg_surfaces=False)
+    assert out.error is None
+    assert out.results == [], "an orphaned storyline row was served to the client"
+
+
+def test_storyline_join_leaves_other_doc_types_alone(tmp_path: Path) -> None:
+    """A passage hit passes through untouched, and is never dropped by the storyline join."""
+    _write_theme_artifact(tmp_path, [])
+    with patch(_HYBRID) as hybrid:
+        hybrid.return_value = [
+            SearchResult(
+                doc_id="d1",
+                score=0.9,
+                metadata={"doc_type": "insight", "episode_id": "e1", "text": "hello"},
+            )
+        ]
+        out = run_corpus_search(tmp_path, "q", top_k=5, dedupe_kg_surfaces=False)
+    assert [r["doc_id"] for r in out.results] == ["d1"]

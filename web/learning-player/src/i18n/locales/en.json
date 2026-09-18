@@ -110,7 +110,6 @@
     "insights": "Insights",
     "readFullSummary": "Read full summary →",
     "moreInsights": "+{count} more insight → | +{count} more insights →",
-    "keyPointCount": "{count} key point | {count} key points",
     "insightCount": "{count} insight | {count} insights",
     "readMore": "Read more",
     "readLess": "Read less"
@@ -121,6 +120,14 @@
     "recent": "Recent",
     "tryPrompt": "New here? Try one — results jump you to the exact moment it's discussed:",
     "searching": "Searching…",
+    "type_people": "People",
+    "type_topics": "Topics",
+    "type_storylines": "Storylines",
+    "entitySummary": "Matched by name",
+    "storylineSize": "1 topic | {count} topics",
+    "storylinesSummary": "1 storyline matches | {count} storylines match",
+    "notesSummary": "1 of your notes mentions this | {count} of your notes mention this",
+    "typeEpisodes": "Episodes",
     "noResults": "No matches found.",
     "recallEmpty": "Nothing in your listening on this yet — play or save episodes to build it up.",
     "scopeLabel": "Search scope",
@@ -133,6 +140,7 @@
     "playHere": "Play from {time}",
     "viewEntity": "View",
     "matchCount": "1 match | {count} matches",
+    "groupNoun": "matches",
     "kind": {
       "insight": "Insight",
       "transcript": "Transcript",
@@ -469,6 +477,7 @@
     "searchLibrary": "Search transcripts for “{term}”",
     "personEpisodes": "In {count} episode | In {count} episodes",
     "hostOf": "Host of",
+    "andJoin": "and",
     "showEpisodeCount": "{count} episode | {count} episodes",
     "personOtherEpisodes": "Also appears in {count} episode | Also appears in {count} episodes",
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
@@ -562,7 +571,10 @@
     "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
     "confirmDelete": "Delete collection",
     "unresolved": "Couldn't load this ({ref})",
-    "episodeCount": "no episodes | {count} episode | {count} episodes"
+    "episodeCount": "no episodes | {count} episode | {count} episodes",
+    "reorderHandle": "Reorder {name}",
+    "moveUp": "Move {name} up",
+    "moveDown": "Move {name} down"
   },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule. Reviewing one — open it, or mark it reviewed — takes it off this list and drops the Library count by one.",
@@ -573,7 +585,14 @@
     "dismiss": "Mark reviewed",
     "open": "Open",
     "moment": "Marked moment",
-    "span": "Highlight"
+    "span": "Highlight",
+    "momentCount": "1 moment | {count} moments",
+    "groupNoun": "moments",
+    "listenedOn": "Listened {date}"
+  },
+  "episodeGroup": {
+    "hide": "Hide {noun}",
+    "show": "Show {noun}"
   },
   "capture": {
     "markMoment": "Mark this moment",
@@ -708,6 +727,7 @@
     "showsSuggested": "Suggested for you",
     "savedFilterAllTypes": "All",
     "savedFilterColor": "Filter by colour",
+    "savedFilterColorAny": "Any colour",
     "savedFilterColorOnly": "Only {color}",
     "savedFilterClear": "Clear filters",
     "savedSort": "Sort",
@@ -841,7 +861,15 @@
     "dictate": "Dictate a note",
     "dictateStop": "Stop dictation",
     "dictateError": "Couldn't start dictation — check microphone access.",
-    "open": "Open"
+    "open": "Open",
+    "noneMatch": "No notes of that kind.",
+    "kind_highlight": "Highlight",
+    "kind_insight": "Insight",
+    "kind_episode": "Episode",
+    "kind_show": "Show",
+    "kind_topic": "Topic",
+    "kind_person": "Person",
+    "kind_storyline": "Storyline"
   },
   "common": {
     "cancel": "Cancel",

@@ -5,13 +5,15 @@
  * Embedded in the Library "Boards" tab (CO.7 — the tab that holds collections + notes). Auth-gated
  * (empty when signed out).
  */
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
+import TypeFilterBar from "../components/TypeFilterBar.vue"
 import { useCappedSections } from "../composables/useCappedSections"
+import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
 import { useCaptureStore } from "../stores/capture"
 import { RouterLink, useRouter } from "vue-router"
@@ -29,6 +31,10 @@ import { useQueueStore } from "../stores/queue"
 import { useSignInGate } from "../composables/useSignInGate"
 import { formatPublishDate } from "../utils/format"
 
+// Hoisted (was created inside `load`): the reorder handlers below need the same instance, and a
+// second `useCollectionsStore()` call would hand them a different local ref to keep in sync.
+const store = useCollectionsStore()
+
 const { t, locale } = useI18n()
 const router = useRouter()
 
@@ -40,6 +46,8 @@ function modifiedLabel(c: Collection): string | null {
 const queue = useQueueStore()
 const { gated } = useSignInGate()
 const capture = useCaptureStore()
+// Shared rule (composables/noteTarget); highlights let a `highlight` note reach its moment.
+const noteRoute = (target: string, id: string) => resolveNoteRoute(target, id, capture.highlights)
 
 // Search + sort across boards and notes (CO.5).
 const search = ref("")
@@ -57,16 +65,84 @@ function openFromGrid(id: string): void {
 function noteDate(unixSeconds: number): string {
   return formatPublishDate(new Date(unixSeconds * 1000).toISOString(), locale.value) ?? ""
 }
-/** A route to the note's target when it has a page; null otherwise (highlight/insight/storyline). */
-function noteRoute(
-  target: string,
-  id: string
-): { name: string; params: Record<string, string> } | null {
-  if (target === "episode") return { name: "player", params: { slug: id } }
-  if (target === "topic") return { name: "topic", params: { id } }
-  if (target === "person") return { name: "person", params: { id } }
-  if (target === "show") return { name: "podcast", params: { feedId: id } }
-  return null
+// --- manual board order (CO.7) -------------------------------------------------------------
+// POINTER events, not HTML5 drag-and-drop. `draggable` + `dragstart`/`drop` is desktop-mouse only:
+// iOS WKWebView never fires those from a touch, so the handle was completely inert on the device
+// this app is built for (operator 2026-09-17). Pointer events are one API for mouse and touch.
+//
+// Only offered while the list is in its own order. Sorting by name or item count is a VIEW of the
+// list; a drag under those would persist an order the very next render discards, which reads as the
+// drag having failed.
+const reorderable = computed(() => sortBy.value === 'updated' && !searchActive.value)
+// The view renders from a local `collections` ref, so a store-side reorder has to flow back here
+// or the list would not move until the next full load.
+watch(
+  () => store.items,
+  (items) => {
+    collections.value = items
+  }
+)
+const draggingId = ref<string | null>(null)
+const dragOverId = ref<string | null>(null)
+/** Row mid-points, measured once per drag — reading them per move would thrash layout. */
+let rowMids: { id: string; mid: number }[] = []
+
+function rowElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-board-row]'))
+}
+
+function onGrabStart(id: string, e: PointerEvent): void {
+  if (!reorderable.value) return
+  draggingId.value = id
+  dragOverId.value = id
+  // Capture, so the gesture keeps reporting to this handle even when the finger slides off it.
+  ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  rowMids = rowElements().map((el) => {
+    const r = el.getBoundingClientRect()
+    return { id: el.dataset.boardRow!, mid: r.top + r.height / 2 }
+  })
+}
+
+function onGrabMove(e: PointerEvent): void {
+  if (!draggingId.value) return
+  e.preventDefault() // stop the page scrolling under the drag
+  const y = e.clientY
+  // The row whose mid-point the finger is nearest is the drop target.
+  let nearest = dragOverId.value
+  let best = Number.POSITIVE_INFINITY
+  for (const r of rowMids) {
+    const d = Math.abs(r.mid - y)
+    if (d < best) {
+      best = d
+      nearest = r.id
+    }
+  }
+  dragOverId.value = nearest
+}
+
+function onGrabEnd(): void {
+  const from = draggingId.value
+  const to = dragOverId.value
+  draggingId.value = null
+  dragOverId.value = null
+  rowMids = []
+  if (!from || !to || from === to) return
+  const ids = visibleCollections.value.map((c) => c.id)
+  const a = ids.indexOf(from)
+  const b = ids.indexOf(to)
+  if (a < 0 || b < 0) return
+  ids.splice(b, 0, ...ids.splice(a, 1))
+  void store.reorder(ids)
+}
+
+/** Keyboard path — a pointer drag is unreachable without one. */
+function move(id: string, delta: number): void {
+  const ids = visibleCollections.value.map((c) => c.id)
+  const a = ids.indexOf(id)
+  const b = a + delta
+  if (a < 0 || b < 0 || b >= ids.length) return
+  ids.splice(b, 0, ...ids.splice(a, 1))
+  void store.reorder(ids)
 }
 
 const collections = ref<Collection[]>([])
@@ -82,10 +158,49 @@ const visibleCollections = computed(() => {
   if (sortBy.value === "count") return list.sort((a, b) => b.count - a.count)
   return list.sort((a, b) => (b.updated_at ?? b.created_at) - (a.updated_at ?? a.created_at))
 })
-// Notes newest-first, filtered by the same search box (NT.4 + CO.5).
+/**
+ * Which entity kinds the notes filter offers — only kinds actually present (operator 2026-09-17).
+ *
+ * Derived from the notes themselves rather than from the `NoteTarget` union: a chip for a kind the
+ * user has never written a note on filters to an empty list, which reads as a bug. Ordered by the
+ * union so the strip does not reshuffle as notes come and go.
+ */
+const NOTE_KIND_ORDER = [
+  "highlight",
+  "insight",
+  "episode",
+  "show",
+  "topic",
+  "person",
+  "storyline",
+] as const
+const noteTypes = ref<string[]>([])
+/** The kind in words. Falls back to the raw target so an unknown kind still labels its row. */
+function noteKindLabel(target: string): string {
+  const key = `notes.kind_${target}`
+  const out = t(key)
+  return out === key ? target : out
+}
+const availableNoteTypes = computed(() => {
+  const present = new Set(capture.notes.map((n) => n.target))
+  return NOTE_KIND_ORDER.filter((k) => present.has(k)).map((k) => ({
+    key: k,
+    // Same words as the row's own kicker, so a chip and the rows it governs name the same thing.
+    label: t(`notes.kind_${k}`),
+  }))
+})
+// A chip for a kind whose last note was just removed would stay selected and hide everything.
+watch(availableNoteTypes, (types) => {
+  const keys = new Set<string>(types.map((x) => x.key))
+  const kept = noteTypes.value.filter((k) => keys.has(k))
+  if (kept.length !== noteTypes.value.length) noteTypes.value = kept
+})
+
+// Notes newest-first, filtered by the same search box (NT.4 + CO.5) and the kind chips.
 const visibleNotes = computed(() => {
   const q = search.value.trim().toLowerCase()
-  const base = [...capture.notes].sort((a, b) => b.created_at - a.created_at)
+  let base = [...capture.notes].sort((a, b) => b.created_at - a.created_at)
+  if (noteTypes.value.length) base = base.filter((n) => noteTypes.value.includes(n.target))
   return q ? base.filter((n) => n.text.toLowerCase().includes(q)) : base
 })
 
@@ -193,11 +308,11 @@ const episodeItems = computed(() => open.value?.items.filter((i) => i.kind === "
 const loadError = ref(false)
 const linkError = ref(false)
 
+
 async function load(): Promise<void> {
   // Through the STORE (#2013): a failed read falls back to the cached copy instead of rendering
   // "you have no collections yet", which is the specific lie that made the data look lost. The
   // error state is reserved for "no answer AND no cache".
-  const store = useCollectionsStore()
   await store.load()
   collections.value = store.items
   loaded.value = store.loaded
@@ -420,7 +535,7 @@ onMounted(() => {
     <!-- Grid (CO.3): cover-forward tiles; tapping opens the board in the list accordion below. -->
     <ul
       v-if="view === 'grid' && visibleCollections.length"
-      class="grid grid-cols-2 gap-4 sm:grid-cols-3"
+      class="grid grid-cols-3 gap-3 sm:grid-cols-4"
       data-testid="boards-grid"
     >
       <li v-for="c in caps.visible('boards', visibleCollections, searchActive)" :key="c.id">
@@ -442,11 +557,21 @@ onMounted(() => {
               data-testid="board-cover"
               @error="brokenCovers.add(c.id)"
             />
+            <!-- Drawn, not a glyph: U+2637 (☷) is absent from the bundled font and rendered as
+                 tofu on device (operator 2026-09-17) — the placeholder for "no cover" was itself a
+                 broken character. Three bars read as a stack of items without needing a font. -->
             <span
               v-else
-              class="flex h-full w-full items-center justify-center text-2xl text-muted"
+              class="flex h-full w-full items-center justify-center text-muted"
               aria-hidden="true"
-              >☷</span
+              data-testid="board-cover-placeholder"
+            >
+              <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor">
+                <rect x="4" y="6" width="16" height="2.6" rx="1.3" />
+                <rect x="4" y="11" width="16" height="2.6" rx="1.3" />
+                <rect x="4" y="16" width="16" height="2.6" rx="1.3" />
+              </svg>
+            </span
             >
           </span>
           <span class="mt-1.5 block truncate text-sm font-semibold">{{ c.name }}</span>
@@ -470,7 +595,8 @@ onMounted(() => {
         v-for="c in caps.visible('boards', visibleCollections, searchActive)"
         :key="c.id"
         class="rounded-xl border border-border"
-        :class="open?.collection.id === c.id ? 'bg-overlay/40' : ''"
+        :class="[open?.collection.id === c.id ? 'bg-overlay/40' : '', dragOverId === c.id ? 'ring-2 ring-accent' : '']"
+        :data-board-row="c.id"
       >
         <div class="flex items-center justify-between gap-2 p-3">
           <button
@@ -514,6 +640,46 @@ onMounted(() => {
           >
             ▶ {{ t("collections.playAll") }}
           </button>
+          <!-- Cover thumbnail, before the ✕ (operator 2026-09-17) — the same artwork the grid view
+               shows, so a board is recognisable by its cover in either layout rather than only in
+               one. `cover_url` is already derived server-side (CO.6); nothing new is fetched. -->
+          <img
+            v-if="c.cover_url && !brokenCovers.has(c.id)"
+            :src="c.cover_url"
+            alt=""
+            class="h-9 w-9 shrink-0 rounded-md bg-elevated object-cover"
+            data-testid="collection-thumb"
+            @error="brokenCovers.add(c.id)"
+          />
+          <!-- Grab area between the cover and the ✕ (operator 2026-09-17). Arrows were tried and
+               dropped: two extra buttons per row for something a drag already does. The grip is a
+               drawn SVG, not a glyph — U+283F rendered as tofu on device, the same failure CloseIcon
+               exists to prevent.
+               Only while the list is in its MANUAL order: dragging under a name or count sort would
+               write an order the next render discards, which reads as the drag having failed. -->
+          <span
+            v-if="reorderable"
+            class="flex shrink-0 cursor-grab touch-none items-center px-2 py-2 text-muted active:cursor-grabbing"
+            data-testid="collection-drag-handle"
+            :aria-label="t('collections.reorderHandle', { name: c.name })"
+            role="button"
+            tabindex="0"
+            @pointerdown="onGrabStart(c.id, $event)"
+            @pointermove="onGrabMove"
+            @pointerup="onGrabEnd"
+            @pointercancel="onGrabEnd"
+            @keydown.up.prevent="move(c.id, -1)"
+            @keydown.down.prevent="move(c.id, 1)"
+          >
+            <svg viewBox="0 0 16 16" class="h-4 w-4" fill="currentColor" aria-hidden="true">
+              <circle cx="6" cy="4" r="1.3" />
+              <circle cx="10" cy="4" r="1.3" />
+              <circle cx="6" cy="8" r="1.3" />
+              <circle cx="10" cy="8" r="1.3" />
+              <circle cx="6" cy="12" r="1.3" />
+              <circle cx="10" cy="12" r="1.3" />
+            </svg>
+          </span>
           <button
             type="button"
             class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
@@ -633,12 +799,26 @@ onMounted(() => {
     <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. A divider +
          the heading separate them clearly from the boards above (operator). -->
     <section
-      v-if="visibleNotes.length"
+      v-if="capture.notes.length"
       class="mt-8 border-t border-border pt-6"
       data-testid="collections-notes"
     >
       <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
-      <ul class="flex flex-col gap-2">
+      <!-- Kind chips at the TOP of the section (operator 2026-09-17), filtering by the entity a note
+           is ON. The section is gated on `capture.notes.length`, not on the filtered list: gating on
+           the result would delete the filter bar the moment a chip matched nothing, stranding the
+           user with no way back. An empty result says so instead. -->
+      <TypeFilterBar
+        v-if="availableNoteTypes.length > 1"
+        v-model="noteTypes"
+        :options="availableNoteTypes"
+        testid-prefix="notes-type"
+        class="mb-3"
+      />
+      <p v-if="!visibleNotes.length" class="text-sm text-muted" data-testid="collections-notes-empty">
+        {{ t("notes.noneMatch") }}
+      </p>
+      <ul v-else class="flex flex-col gap-2">
         <li
           v-for="n in caps.visible('notes', visibleNotes, searchActive)"
           :key="n.id"
@@ -649,7 +829,7 @@ onMounted(() => {
             {{ n.text }}
           </p>
           <div class="mt-1.5 flex items-center gap-2 text-xs">
-            <span class="lp-kicker">{{ n.target }} · {{ noteDate(n.created_at) }}</span>
+            <span class="lp-kicker">{{ noteKindLabel(n.target) }} · {{ noteDate(n.created_at) }}</span>
             <RouterLink
               v-if="noteRoute(n.target, n.target_id)"
               :to="noteRoute(n.target, n.target_id)!"

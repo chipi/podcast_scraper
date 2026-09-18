@@ -100,6 +100,37 @@ test('search results render the "Matched:" kicker on the episode header', async 
   await expect(matched).toContainText('Transcript')
 })
 
+test('an episode group starts expanded and collapses its matches', async ({ page }, testInfo) => {
+  // The episode-group block is shared with Library → Revisit (`EpisodeGroupCard`). Expanded by
+  // default: a listener who just searched must not have to open every group to read the results
+  // they asked for. Collapse is `v-show`, so the rows stay in the DOM but stop being visible —
+  // asserted through visibility rather than through counting nodes, which is what a listener
+  // actually experiences.
+  await signInIsolated(page, 'search-group-collapse', testInfo)
+  await stubSearch(page)
+  await page.goto('/search?q=risk')
+
+  const group = page.getByTestId('episode-group').first()
+  await expect(group).toBeVisible()
+  const toggle = group.getByTestId('episode-group-toggle')
+  const body = group.getByTestId('episode-group-body')
+
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(toggle).toContainText('Hide matches')
+  await expect(body).toBeVisible()
+
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(toggle).toContainText('Show matches')
+  await expect(body).toBeHidden()
+
+  // The episode itself stays — collapsing hides the matches, not the result.
+  await expect(group.getByTestId('episode-card')).toBeVisible()
+
+  await toggle.click()
+  await expect(body).toBeVisible()
+})
+
 test('save-query button toggles Save/Saved-✓ on click', async ({ page }, testInfo) => {
   // Saving is per-account, so it is sign-in gated now (a signed-out tap routes to sign-in).
   await signInIsolated(page, 'search-save', testInfo)

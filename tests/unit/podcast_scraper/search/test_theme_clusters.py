@@ -13,7 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.search.theme_clusters import top_theme_clusters_by_member_count
+from podcast_scraper.search.theme_clusters import (
+    STORYLINE_DOC_TYPE,
+    storyline_index_rows,
+    top_theme_clusters_by_member_count,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -167,3 +171,119 @@ def test_withholding_everything_returns_empty_rather_than_falling_back(tmp_path:
         },
     )
     assert top_theme_clusters_by_member_count(tmp_path) == []
+
+
+# --- storyline_index_rows: the search-index rows (#2114 / operator 2026-09-17) ------------------
+
+
+def test_storyline_index_rows_empty_without_artifact(tmp_path: Path) -> None:
+    assert storyline_index_rows(tmp_path) == []
+
+
+def test_storyline_index_rows_one_row_per_cluster_with_no_episode_id(tmp_path: Path) -> None:
+    """ONE row per storyline, corpus-scoped — not one per episode.
+
+    A storyline spans episodes; it is not a property of any one of them. Emitting it per episode and
+    de-duplicating on read (what following the ``kg_topic`` pattern literally would mean) multiplies
+    rows for an object with a single identity. ``episode_id`` is nullable in the aux schema, so the
+    corpus-level row needs no schema change.
+    """
+    _write(
+        tmp_path,
+        {
+            "data": {
+                "clusters": [
+                    _cluster(
+                        "thc:risk",
+                        "Managing risk across domains",
+                        [
+                            {"topic_id": "topic:risk-management", "label": "risk management"},
+                            {"topic_id": "topic:systems", "label": "systems thinking"},
+                        ],
+                        member_count=4,
+                    ),
+                    _cluster(
+                        "thc:learning",
+                        "How people learn",
+                        [{"topic_id": "topic:learning", "label": "lifelong learning"}],
+                        member_count=2,
+                    ),
+                ]
+            }
+        },
+    )
+    rows = storyline_index_rows(tmp_path)
+    assert len(rows) == 2, "expected exactly one row per cluster"
+    by_id = {rid: (text, meta) for rid, text, meta in rows}
+    assert set(by_id) == {"storyline:thc:risk", "storyline:thc:learning"}
+    text, meta = by_id["storyline:thc:risk"]
+    assert meta["doc_type"] == STORYLINE_DOC_TYPE
+    assert meta["source_id"] == "thc:risk"
+    assert meta["episode_id"] is None, "a storyline is not scoped to an episode"
+    assert meta["storyline_label"] == "Managing risk across domains"
+    assert meta["storyline_size"] == 4
+    assert meta["anchor_topic_id"]
+
+
+def test_storyline_embed_text_carries_member_labels(tmp_path: Path) -> None:
+    """The label AND its members are embedded — that is what exact-name resolution cannot do.
+
+    Indexing only the canonical label would make the index no better than the name resolver. With
+    the members in the text, a query naming a MEMBER ("risk management") can reach the storyline.
+    """
+    _write(
+        tmp_path,
+        {
+            "data": {
+                "clusters": [
+                    _cluster(
+                        "thc:risk",
+                        "Managing risk across domains",
+                        [
+                            {"topic_id": "topic:risk-management", "label": "risk management"},
+                            {"topic_id": "topic:safety", "label": "safety practices"},
+                        ],
+                        member_count=4,
+                    )
+                ]
+            }
+        },
+    )
+    _rid, text, _meta = storyline_index_rows(tmp_path)[0]
+    assert text.startswith("Managing risk across domains"), "the label should lead the embed text"
+    assert "risk management" in text
+    assert "safety practices" in text
+
+
+def test_storyline_index_rows_ignore_the_surfacing_floor(tmp_path: Path) -> None:
+    """A 2-member storyline is INDEXED even though the Home rail would not show it.
+
+    The /4 minimum is a surfacing rule about where a listener is sent. Applying it here would make a
+    small storyline unfindable by any means, which is a different and worse thing.
+    """
+    _write(
+        tmp_path,
+        {
+            "data": {
+                "clusters": [
+                    _cluster(
+                        "thc:tiny",
+                        "Tiny pairing",
+                        [
+                            {"topic_id": "topic:a", "label": "a"},
+                            {"topic_id": "topic:b", "label": "b"},
+                        ],
+                        member_count=2,
+                    )
+                ]
+            }
+        },
+    )
+    rows = storyline_index_rows(tmp_path)
+    assert [r[2]["source_id"] for r in rows] == ["thc:tiny"]
+
+
+def test_storyline_index_rows_skip_an_anchorless_cluster(tmp_path: Path) -> None:
+    """No resolvable anchor → not indexed, as the rail also skips an unopenable cluster."""
+    _write(tmp_path, {"data": {"clusters": [_cluster("thc:broken", "Broken", [], member_count=4)]}})
+    assert storyline_index_rows(tmp_path) == []

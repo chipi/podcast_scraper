@@ -148,7 +148,18 @@
      action row falls outside it, so only ONE set of Follow / favourite / Collection / Share is
      ever reachable and a tap cannot be ambiguous about which entity it acts on. */
   .lp-sheet {
-    --lp-peek: 9dvh;
+    /* MEASURED, and in PIXELS rather than dvh (operator 2026-09-17).
+       The peek reveals a header whose height is set by FONT SIZES, so it does not scale with the
+       viewport — the same 67px is 7.9dvh on a 852px-tall iPhone 15 Pro but 10dvh on a 667px SE. A
+       dvh value that fits one device therefore clips the title on a shorter one and leaks the
+       action row on a taller one, which is exactly the pair of complaints this had collected.
+       Measured in a real browser at 390x852:
+         entity card   — title bottom 63px, action row starts 74px
+         storyline card — title bottom 67px, action row starts 79px
+       So the peek must be >= 67 to show either title in full and < 74 to keep the entity card's
+       Follow / favourite / Collection row hidden, which the operator asked for explicitly. 70px
+       sits in that window with ~3px either side. */
+    --lp-peek: 70px;
     --lp-stack-base: 92dvh;
     --lp-depth: 0;
   }
@@ -173,6 +184,94 @@
     .lp-sheet {
       --lp-stack-base: 85dvh;
     }
+  }
+
+  /* MEDIA ROW — artwork/avatar on the left, prose on the right. ONE definition for a shape the app
+     repeats: episode cards, episode rows, the show header, the person card.
+
+     The rule it encodes: the aside sets the height, and the body's prose FILLS that height and
+     clips there. Every instance had hardcoded this as a `line-clamp-N` instead, which cannot work —
+     the neighbouring column's height varies with the title's line count, the artwork size and the
+     viewport, so a fixed count leaves dead space beside the picture on one card and overshoots on
+     the next. An episode card with a one-line title sat 28px out of line with its siblings for
+     exactly this reason (operator 2026-09-17).
+
+     Usage:
+       <article class="lp-media-row">
+         <div class="lp-media-aside"> artwork … <Actions/> </div>
+         <div class="lp-media-body">  title …
+           <div class="lp-media-clip"><p>…</p></div>
+           <button class="lp-media-foot">Read more</button> </div>
+       </article>
+
+     The aside runs top-down in normal flow — the artwork's controls belong UNDER the artwork, not
+     pushed to the bottom of the column by `mt-auto`, which stranded them below a gap whenever the
+     prose was the taller side (operator 2026-09-17).
+
+     Both columns stretch (flex default), each foots its last element, and the prose absorbs the
+     slack between — so the two sides always end on the same line whatever the content does. */
+  .lp-media-row {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .lp-media-aside {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 0.5rem;
+  }
+
+  .lp-media-body {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+  }
+
+  /* The prose WINDOW — the whole mechanism, and the reason the prose is a child rather than this
+     element itself.
+
+     A flex row is as tall as its TALLEST column, so any element that reports a height can grow the
+     row. Put the prose here directly and it does exactly that: the row stretches to fit the text,
+     the text is therefore never constrained, `scrollHeight === clientHeight`, and "Read more" can
+     never appear — while the stretched box still lines up with the aside, so the layout LOOKS
+     aligned and measures aligned even though the text ends well short of it. That is the bug this
+     replaced (operator 2026-09-17: read-more never kicks in, dead space beside the artwork).
+
+     `flex-basis: 0` + `min-height: 0` means this window contributes NOTHING to the row's height, so
+     the ASIDE alone decides it; the window then receives whatever the aside left over. The prose is
+     absolutely positioned, so it too adds no height and is simply clipped by the window. Its
+     `scrollHeight` against the window's `clientHeight` is then a real overflow test. */
+  .lp-media-clip {
+    position: relative;
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .lp-media-clip > * {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    margin: 0;
+  }
+
+  /* Expanded: the window stops constraining and the prose flows, growing the row as it should. */
+  .lp-media-clip--open {
+    position: static;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .lp-media-clip--open > * {
+    position: static;
+  }
+
+  /* The trailing control in either column — footed so both sides end level. */
+  .lp-media-foot {
+    margin-top: auto;
   }
 
   /* The scrim behind a `.lp-sheet`: bottom-anchored on phones, centred from `sm:` up. */

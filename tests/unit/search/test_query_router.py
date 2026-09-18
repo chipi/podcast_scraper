@@ -32,6 +32,9 @@ def test_tier_for_doc_type_maps_primary_tiers():
         "summary_short",
         "episode_title",
         "episode_description",
+        # #2114: one corpus-scoped row per theme cluster, `episode_id` null — a
+        # non-segment surface, so it routes to aux like the rest of this list.
+        "storyline",
     ],
 )
 def test_tier_for_doc_type_aux(doc_type):
@@ -48,6 +51,12 @@ def test_doc_type_to_tier_covers_known_doc_types():
     # episode_title / episode_description / summary_short landed via #1182 aux
     # routing (commit 049b7736) — episode-level metadata surfaces that share the
     # aux tier alongside quote / kg_* / summary.
+    #
+    # `storyline` joined the aux tier when theme clusters became real index rows
+    # (#2114): ONE corpus-scoped row per cluster, `episode_id` null, so it belongs
+    # with the other non-segment surfaces rather than in segment/insight. This
+    # enumeration is the guard that made the addition visible — it caught the new
+    # doc_type on the first full test run after the indexing change.
     assert set(DOC_TYPE_TO_TIER) == {
         "insight",
         "transcript",
@@ -58,6 +67,7 @@ def test_doc_type_to_tier_covers_known_doc_types():
         "summary_short",
         "episode_title",
         "episode_description",
+        "storyline",
     }
 
 

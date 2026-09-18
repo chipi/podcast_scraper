@@ -9,7 +9,7 @@
  * "See all →" link into the full /trends page on the active tab. Opening a row is the PARENT's call
  * (Home opens overlays, Discover navigates), so it is emitted.
  */
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import Tabs from "./Tabs.vue"
@@ -20,11 +20,20 @@ import { useTrendingScope } from "../composables/useTrendingScope"
 
 type Kind = "topic" | "storyline" | "person"
 
-withDefaults(defineProps<{ collapsed?: number; seeAll?: boolean; title?: string }>(), {
-  collapsed: 5,
-  seeAll: false,
-  title: "",
-})
+const props = withDefaults(
+  defineProps<{
+    collapsed?: number
+    seeAll?: boolean
+    title?: string
+    /**
+     * Which kind tab to open on. Arrives from the route so Home's "See all →" can land on Discover
+     * with the SAME tab the reader was looking at (operator 2026-09-17) — before this the explorer
+     * always opened on Topics, so "See all" from the People rail dropped you somewhere else.
+     */
+    kind?: Kind
+  }>(),
+  { collapsed: 5, seeAll: false, title: "", kind: undefined }
+)
 const emit = defineEmits<{ (e: "open", payload: { kind: Kind; id: string }): void }>()
 
 const { t } = useI18n()
@@ -36,7 +45,15 @@ const DISCOVERY_TABS = [
   { key: "storyline", labelKey: "home.storylines" },
   { key: "person", labelKey: "home.tabPeople" },
 ] as const
-const discoveryTab = ref<Kind>("topic")
+const discoveryTab = ref<Kind>(props.kind ?? "topic")
+// Kept-alive view: setup runs once, so a later navigation carrying a different kind has to be
+// picked up here or the stale tab stays selected — same trap BrowseView documents for its own tabs.
+watch(
+  () => props.kind,
+  (k) => {
+    if (k) discoveryTab.value = k
+  }
+)
 const discoverySort = ref<"rising" | "trending">("rising")
 const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
   DISCOVERY_TABS.map((tb) => ({ key: tb.key, label: t(tb.labelKey), testid: `discovery-tab-${tb.key}` }))

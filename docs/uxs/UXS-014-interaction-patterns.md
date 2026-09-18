@@ -205,6 +205,16 @@ Two components, and the choice is not stylistic:
   player, top-aligned, with a `#trailing` slot for a row action. It is the one idiom for the dense
   episode lists inside a card or sheet (the entity card, the storyline sheet, the Knowledge Panel's
   "More like this"), where the full `EpisodeCard`'s summary column would be noise.
+- **`ShowRow`** is `EpisodeCard`'s shape with a show's content — 128px artwork with the episode count
+  and the surface's controls beneath it, the name and description filling the right. It is the one
+  show row: Discover → Shows (list view) and Library → Saved both render it, differing only through
+  its `#actions` slot.
+
+  **A show and an episode are the same kind of thing to a reader** — cover art, a name, a line about
+  it, something to open — so a list of shows must not read as a different species from the list of
+  episodes one tab across. It did: Discover used a 44px thumbnail with a title and a count, Library
+  used a bare line of text, and neither resembled the episode rows beside them (operator 2026-09-17).
+  Two representations of one object, both unlike the thing they sat next to.
 
 The browsable lists share one compact control, **`ToolbarMenu`** (operator 2026-09-14): a small
 trigger that opens a vertical option menu with the active choice ticked, replacing native selects and
@@ -441,6 +451,35 @@ constant regardless of content length.
   `SavedFilterBar` search input, reused on Following) filters every section by label; a non-empty
   query lifts every cap so a match is never hidden. Following reuses the same bar minus colour, with a
   **recent / A–Z** sort; each section heading carries its count.
+- **One episode-group block, everywhere (2026-09-17).** Where a surface groups results **by
+  episode**, the group header is the real **`EpisodeCard`** — artwork, show, title, date — and never
+  a line of text: **`EpisodeGroupCard`** is that block, used by **Search** (groups of matches) and
+  **Library → Revisit** (groups of due moments). Search had the card treatment and Revisit had a
+  bare heading for the same object, which made an episode carrying moments look like a different
+  kind of thing from an episode carrying matches. The group's **count** sits under the artwork (the
+  card's `#aside`), and the rows are **collapsible** beneath it — "Hide / Show {noun}" with a
+  chevron, `aria-expanded`, and groups **starting expanded**: collapsing is an affordance for a long
+  page, not a default that hides what the listener asked for. Collapse uses `v-show`, so anything
+  expanded *inside* a group (Search's folded transcript clusters) survives a collapse and re-open.
+  The header has two weights. Search keeps the **full** card — its groups *are* the result, so the
+  episode is something you act on. Revisit uses the **slim** header (80px artwork, **no action
+  cluster**, tighter padding): every moment beneath it already carries jump + mark-reviewed, so a
+  favourite/queue/⋯ row on the header is a third set of controls competing with them, and at compact
+  width it wrapped onto its own line — which is what made the block thick. Revisit's header also
+  carries **when the episode was listened to** ("Listened {date}", from the listener's playback
+  positions), because a moment resurfacing weeks later needs to say whether you heard it recently or
+  half-remember it. It is omitted, not guessed, for an episode with no playback history.
+- **One kind-filter strip, everywhere (2026-09-17).** Filtering a list by the KIND of thing in it is
+  one pattern, so it is one component: **`TypeFilterBar`** — a multi-select chip strip led by an
+  explicit **All** chip (so clearing is one tap), where no selection means all, and a chip renders
+  only for a kind that actually has items (the #1962 presence rule). Three surfaces use it: **Saved**
+  (which saved kinds show), **Search** (which result kinds show), and **Boards → Your notes**, where
+  the chips are the **entity a note is attached to** (Highlight / Insight / Episode / Show / Topic /
+  Person / Storyline) and each note row carries the matching `KIND · DATE` label, so a chip and the
+  rows it governs name the same thing. A strip with a single kind to offer is not drawn — one choice
+  is decoration. The section it filters is gated on *having* notes, never on the filtered result: a
+  filter that empties its own list must not delete the control that clears it, so an empty result
+  says so and the strip stays.
 - Favorites / queue / interests / playback are **per-user files** (no DB). Interests are viewable +
   editable on the **Profile** page (header → user icon).
 - **Following an interest** is a one-tap toggle on a person/topic **entity card** (`Follow` /

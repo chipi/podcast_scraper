@@ -30,6 +30,7 @@ from podcast_scraper.server.schemas import (
     CollectionDetail,
     CollectionItem,
     CollectionItemBody,
+    CollectionReorder,
     CollectionsResponse,
 )
 
@@ -246,6 +247,24 @@ async def delete_collection(
 ) -> CollectionsResponse:
     """Delete a collection (its membership goes; the referenced things stay)."""
     app_collections_store.delete_collection(_data_dir(request), user.user_id, collection_id)
+    data_dir = _data_dir(request)
+    return CollectionsResponse(items=[Collection(**c) for c in _rows(data_dir, user.user_id)])
+
+
+@router.patch("/collections/order", response_model=CollectionsResponse)
+async def reorder_collections(
+    request: Request, body: CollectionReorder, user: User = Depends(get_current_user)
+) -> CollectionsResponse:
+    """Set the manual board order (CO.7).
+
+    Declared BEFORE ``/collections/{collection_id}`` on purpose: FastAPI matches in definition
+    order, so a later declaration would let the id route swallow ``/collections/order`` and treat
+    "order" as a collection id.
+
+    Returns the full list so the client renders the server's truth rather than its optimistic
+    guess — the two diverge the moment another device reordered, or a board was created since.
+    """
+    app_collections_store.reorder_collections(_data_dir(request), user.user_id, body.order)
     data_dir = _data_dir(request)
     return CollectionsResponse(items=[Collection(**c) for c in _rows(data_dir, user.user_id)])
 

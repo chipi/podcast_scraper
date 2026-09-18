@@ -253,7 +253,9 @@ onMounted(async () => {
           <EpisodeCard v-for="ep in group.items" :key="ep.slug" :episode="ep" />
         </template>
       </template>
-      <ul v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3" data-testid="episode-grid">
+      <!-- 3 columns on a phone, 4 from `sm` — the same shape the Shows grid and Library already use
+           (operator 2026-09-17). Episodes were 2/3, so switching tabs changed the column count. -->
+      <ul v-else class="grid grid-cols-3 gap-3 sm:grid-cols-4" data-testid="episode-grid">
         <li v-for="ep in visible" :key="ep.slug"><EpisodeTile :episode="ep" /></li>
       </ul>
 

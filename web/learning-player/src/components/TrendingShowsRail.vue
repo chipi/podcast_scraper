@@ -11,7 +11,7 @@
  * Cover art joins from the loaded podcasts list by feed_id (trending show entity_id == feed_id) —
  * no back-end change. Each band links to the show page.
  */
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
@@ -19,6 +19,10 @@ import { getTrending } from '../services/api'
 import type { Podcast, TrendingEntity } from '../services/types'
 import { showArtwork } from '../utils/episode'
 import ShowTile from './ShowTile.vue'
+import FollowButton from './FollowButton.vue'
+import FavoriteButton from './FavoriteButton.vue'
+import { useLibraryStore } from '../stores/library'
+import { useSignInGate } from '../composables/useSignInGate'
 import { trendArrow, trendColor, trendDirection } from './trending'
 
 const props = withDefaults(
@@ -51,6 +55,27 @@ void load()
 watch(() => props.scope, load)
 const shown = computed(() => section.data.value.slice(0, props.top))
 const hasAny = computed(() => shown.value.length > 0)
+
+// Follow from a SLICE row (operator 2026-09-17). The `tiles` variant gets this from ShowTile; the
+// slices had no action at all, so Home's trending shows were the one show surface you could only
+// look at. A trending show's entity_id IS its feed_id.
+const library = useLibraryStore()
+const { isGated, gated } = useSignInGate()
+const busyFollow = ref<string | null>(null)
+
+// `gated()` wraps a ZERO-argument action, so the row is closed over per call rather than passed in.
+// Gated because the store reverts optimistically: an ungated signed-out click flips the pill, fires
+// a 401 and flips back.
+function toggleFollow(e: TrendingEntity): void {
+  gated(async () => {
+    busyFollow.value = e.entity_id
+    try {
+      await library.toggle(e.entity_id, { title: e.label })
+    } finally {
+      busyFollow.value = null
+    }
+  })()
+}
 
 // The `tiles` variant renders the standard ShowTile, which needs a full Podcast. A trending show's
 // entity_id IS its feed_id, so resolve it from the catalogue; a show that has left the catalogue
@@ -129,20 +154,39 @@ function spark(series: number[]): { line: string; area: string } {
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
 
     <!-- TILES variant (Discover): the standard ShowTile in a horizontal row — same tile as Browse
-         (operator 2026-09-14). Tap → the show page. -->
+         (operator 2026-09-14). `followable`, so the rail carries the identical Follow + save pair as
+         the Shows tab's grid rather than being the one show surface you cannot act on
+         (operator 2026-09-17). Tap → the show page. -->
+    <!-- Slot width mirrors the Shows-tab GRID's own formula, so a rail tile and a grid tile are the
+         same size at every viewport (operator 2026-09-17). Fixed `w-28 sm:w-32` was 128px against
+         the grid's 176px on desktop — the same component at two sizes on one page. The grid is
+         3 columns with `gap-3` (2 gaps = 1.5rem), 4 from `sm` (3 gaps = 2.25rem); this rail shares
+         that gap, so the same arithmetic gives the same result. -->
     <ul v-if="hasAny && variant === 'tiles'" class="flex gap-3 overflow-x-auto pb-1">
-      <li v-for="p in shownPodcasts" :key="p.feed_id" class="w-28 shrink-0 sm:w-32">
-        <ShowTile :show="p" data-testid="trending-show-card" />
+      <li
+        v-for="p in shownPodcasts"
+        :key="p.feed_id"
+        class="w-[calc((100%-1.5rem)/3)] shrink-0 sm:w-[calc((100%-2.25rem)/4)]"
+      >
+        <ShowTile :show="p" followable data-testid="trending-show-card" />
       </li>
     </ul>
 
-    <!-- SLICES variant (Home, default): full-width artwork bands with a sparkline horizon woven in. -->
+    <!-- SLICES variant (Home, default): full-width artwork bands with a sparkline horizon woven in.
+
+         Each band is a ROW wrapping the link, not the link itself: Follow and the heart have to live
+         OUTSIDE the <a> — never an interactive inside an interactive, the same rule the What's new
+         rows and EpisodeRow's trailing slot follow (operator 2026-09-17). -->
     <div v-else-if="hasAny" class="overflow-hidden rounded-2xl border border-border">
-      <RouterLink
+      <div
         v-for="(e, i) in shown"
         :key="e.entity_id"
+        class="relative [&:not(:first-child)]:border-t [&:not(:first-child)]:border-black/40"
+        data-testid="trending-show-row"
+      >
+      <RouterLink
         :to="{ name: 'podcast', params: { feedId: e.entity_id } }"
-        class="group relative block h-14 overflow-hidden no-underline [&:not(:first-child)]:border-t [&:not(:first-child)]:border-black/40"
+        class="group relative block h-14 overflow-hidden no-underline"
         :title="titleOf(e)"
         data-testid="trending-show-card"
       >
@@ -183,21 +227,42 @@ function spark(series: number[]): { line: string; area: string } {
             vector-effect="non-scaling-stroke"
           />
         </svg>
-        <!-- 4. Name across the whole slice (truncates only at the edge). -->
+        <!-- 4. Name. `pr-[11.5rem]` reserves the right cluster (velocity + Follow + heart) so a long
+             name truncates before it reaches them instead of running underneath. -->
         <div class="relative flex h-full items-center gap-2.5 px-4">
           <span class="shrink-0 text-sm font-bold tabular-nums text-white/55">{{ i + 1 }}</span>
           <span
-            class="min-w-0 flex-1 truncate pr-12 font-display text-lg font-extrabold tracking-tight text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.85)]"
+            class="min-w-0 flex-1 truncate pr-[11.5rem] font-display text-lg font-extrabold tracking-tight text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.85)]"
             >{{ e.label }}</span
           >
         </div>
-        <!-- 5. Velocity chip, tucked top-right. -->
+      </RouterLink>
+      <!-- 5. Velocity + the two actions as ONE right-aligned cluster, outside the link.
+           The velocity chip used to float alone at top-right; with Follow and the heart arriving at
+           the same edge, three separately-placed things at one corner reads as clutter, so they
+           become a single group. Vertically centred — the band is only 56px, so there is no room to
+           stack. -->
+      <div class="absolute right-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
         <span
-          class="absolute right-3 top-2 rounded-full bg-black/50 px-1.5 py-0.5 text-[0.7rem] font-bold tabular-nums backdrop-blur"
+          class="rounded-full bg-black/50 px-1.5 py-0.5 text-[0.7rem] font-bold tabular-nums backdrop-blur"
           :style="{ color: trendColor(e.velocity) }"
           >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
         >
-      </RouterLink>
+        <FollowButton
+          variant="overlay"
+          :following="library.has(e.entity_id)"
+          :busy="busyFollow === e.entity_id"
+          :gated="isGated"
+          @toggle="toggleFollow(e)"
+        />
+        <span
+          class="[&>button]:h-7 [&>button]:w-7 [&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:text-sm [&>button]:shadow-lg [&>button]:backdrop-blur-sm"
+          @click.prevent.stop
+        >
+          <FavoriteButton :item="{ kind: 'show', ref: e.entity_id, label: e.label }" />
+        </span>
+      </div>
+      </div>
     </div>
   </section>
 </template>

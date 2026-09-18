@@ -130,9 +130,15 @@ describe('HighlightsView', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders graph-ref chips hued by kind (#1419)', async () => {
+  it('shows the captured QUOTE under the kind, above the speaker — and no entity chips', async () => {
+    // The pills were removed and the moment's own text put in their place (operator 2026-09-17): a
+    // moment stored only a timestamp, so every card read "Marked moment" and a Library of captures
+    // was indistinguishable rows. The chips repeated what the transcript already said.
     vi.spyOn(api, 'getHighlights').mockResolvedValue([
       hl({
+        kind: 'moment',
+        quote_text: 'Correlation is the real exposure, not component failure.',
+        speaker: 'Daniel Cho',
         graph_refs: [
           { id: 'person:jane-doe', kind: 'person', label: 'Jane Doe' },
           { id: 'topic:ai', kind: 'topic', label: 'AI' },
@@ -142,9 +148,24 @@ describe('HighlightsView', () => {
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const w = mountView()
     await flushPromises()
+
+    const quote = w.find('[data-testid="highlight-quote"]')
+    expect(quote.exists()).toBe(true)
+    expect(quote.text()).toContain('Correlation is the real exposure')
+
+    // Entity chips are gone even though the highlight still carries graph_refs.
     const chips = w.findAll('span').filter((s) => s.text() === 'Jane Doe' || s.text() === 'AI')
-    expect(chips.find((c) => c.text() === 'Jane Doe')!.classes()).toContain('text-person')
-    expect(chips.find((c) => c.text() === 'AI')!.classes()).toContain('text-topic')
+    expect(chips).toHaveLength(0)
+  })
+
+  it('falls back to the kind when a moment was saved before its text was captured', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ kind: 'moment', quote_text: null })])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView()
+    await flushPromises()
+    // No empty quotation block pretending to be a quote; the kicker still names the kind.
+    expect(w.find('[data-testid="highlight-quote"]').exists()).toBe(false)
+    expect(w.text()).toContain('Marked moment')
   })
 
   it('removes a highlight, once confirmed', async () => {

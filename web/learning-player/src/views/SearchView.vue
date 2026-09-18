@@ -8,14 +8,14 @@
  */
 import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
+import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { resolveEntity, searchCorpus } from "../services/api"
 import { resolveMediaUrl } from "../services/tier"
-import type { EntityRef, Note, SearchHit } from "../services/types"
+import type { EntityRef, EpisodeSummary, Note, SearchHit } from "../services/types"
 import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
-import { formatPublishDate } from "../utils/format"
 import { aggregateRelatedTopics } from "../utils/relatedTopics"
 import {
   collapseFoldableHits,
@@ -29,16 +29,43 @@ import { useSignInGate } from "../composables/useSignInGate"
 import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
-import EpisodeActions from "../components/EpisodeActions.vue"
+import EpisodeGroupCard from "../components/EpisodeGroupCard.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
+import TypeFilterBar from "../components/TypeFilterBar.vue"
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { isGated, gated } = useSignInGate()
 const savedQueries = useSavedQueriesStore()
 const capture = useCaptureStore()
+// Shared rule (composables/noteTarget) — was a second, drifted copy of the same function.
+const noteRoute = (target: string, id: string) => resolveNoteRoute(target, id, capture.highlights)
+/**
+ * Episode and show titles for the note rows, built from the hits ALREADY on screen.
+ *
+ * Every hit's metadata carries `episode_slug`/`episode_title` and `feed_id`/`feed_title`, so a note
+ * about something the search also matched gets its title for free. Deliberately no extra fetch: the
+ * note list is a secondary section, and a note pointing at an episode outside these results simply
+ * shows no subtitle rather than costing a request per note.
+ */
+const hitTitles = computed(() => {
+  const episodes = new Map<string, string>()
+  const shows = new Map<string, string>()
+  for (const h of results.value) {
+    const m = h.metadata as Record<string, unknown>
+    const slug = m.episode_slug as string | undefined
+    const epTitle = m.episode_title as string | undefined
+    if (slug && epTitle) episodes.set(slug, epTitle)
+    const feed = m.feed_id as string | undefined
+    const feedTitle = (m.feed_title ?? m.podcast_title) as string | undefined
+    if (feed && feedTitle) shows.set(feed, feedTitle)
+  }
+  return { episodes, shows }
+})
+const noteLabel = (target: string, id: string) =>
+  noteTargetLabel(target, id, hitTitles.value, capture.highlights)
 // SR.1 — search the listener's OWN notes alongside the corpus. Notes are per-user and client-side,
 // so this is a local text match, shown as its own "Your notes" section rather than interleaved with
 // the corpus passages (a note is not a transcript hit).
@@ -53,18 +80,6 @@ const noteMatches = computed<Note[]>(() => {
     .filter((n) => n.text.toLowerCase().includes(q))
     .sort((a, b) => b.created_at - a.created_at)
 })
-/** A route to the note's target, or null for a target with no page (highlight / insight). */
-function noteRoute(
-  target: string,
-  id: string
-): { name: string; params: Record<string, string> } | null {
-  if (target === "episode") return { name: "player", params: { slug: id } }
-  if (target === "topic") return { name: "topic", params: { id } }
-  if (target === "person") return { name: "person", params: { id } }
-  if (target === "show") return { name: "podcast", params: { feedId: id } }
-  if (target === "storyline") return { name: "storyline", params: { id } }
-  return null
-}
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
 // "Saved ✓" if the current query was already persisted. No per-view
@@ -136,6 +151,38 @@ interface EpisodeGroup {
   rows: CollapsedRow[]
 }
 
+/**
+ * An `EpisodeGroup` as the `EpisodeSummary` that `EpisodeCard` takes.
+ *
+ * Search renders the SAME card as Discover's and Library's episode lists rather than a
+ * near-identical hand-rolled one (operator 2026-09-17). The previous markup had drifted to its own
+ * artwork radius, title size, centred action row and bordered container — recognisably a different
+ * component for the same object.
+ *
+ * `artwork_url` is the already-resolved `g.art` (search absolutises it when grouping, so it works on
+ * native). No summary fields: a search group carries passages, not a summary, so the card renders no
+ * prose and offers no "Read more" — the match context goes in the card's `#meta` and `#aside` slots
+ * instead. `status: 'ready'` because a hit can only exist for an indexed episode.
+ */
+function groupAsEpisode(g: EpisodeGroup): EpisodeSummary {
+  return {
+    slug: g.slug ?? "",
+    title: g.title,
+    podcast_title: g.show,
+    // REQUIRED, not decorative: the card's show-name kicker is a RouterLink to
+    // `{ name: 'podcast', params: { feedId } }`, and vue-router THROWS on resolving that route with
+    // an empty param. Search never tracked the feed id, so it comes off the group's first hit —
+    // every hit in a group belongs to one episode, hence to one feed.
+    feed_id: (g.hits[0]?.metadata as Record<string, unknown> | undefined)?.feed_id ?? null,
+    publish_date: g.date,
+    artwork_url: g.art,
+    episode_image_url: null,
+    feed_image_url: null,
+    duration_seconds: null,
+    status: "ready",
+  } as unknown as EpisodeSummary
+}
+
 const md = (h: SearchHit) => h.metadata as Record<string, unknown>
 const hitSlug = (h: SearchHit) => (md(h).episode_slug as string | undefined) ?? null
 const hitEpisode = (h: SearchHit) => (md(h).episode_title as string | undefined) ?? null
@@ -189,10 +236,63 @@ function rowKey(row: CollapsedRow, i: number): string {
 
 // Group passages under their source episode, preserving rank order (results arrive best-first,
 // so an episode's rank is its first appearance).
+/**
+ * Storyline hits, split OUT of the passage results.
+ *
+ * A storyline row is corpus-level: it carries no `episode_id`, so the episode grouping below would
+ * key it as `doc:<id>` and render a card titled "Not found" — an episode that does not exist
+ * (operator 2026-09-17). It is not a passage and must not be grouped as one.
+ *
+ * These come from the INDEX, so unlike the name resolver they match partially and by member topic:
+ * "risk" reaches "Managing risk across domains" through its members.
+ */
+const storylineHits = computed(() =>
+  results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type === "storyline")
+)
+/** Everything the episode grouping should see — passages only. */
+const passageResults = computed(() =>
+  results.value.filter((h) => (h.metadata as Record<string, unknown>)?.doc_type !== "storyline")
+)
+/**
+ * The storylines to show: index hits first, plus the resolver's exact-name answer when it found one
+ * the index did not return. Two paths, one list, de-duplicated by id — a listener must never see the
+ * same storyline twice because two mechanisms found it.
+ */
+const storylineResults = computed<
+  { key: string; routeId: string; label: string; size: number | null }[]
+>(() => {
+  const out: { key: string; routeId: string; label: string; size: number | null }[] = []
+  const seen = new Set<string>()
+  for (const h of storylineHits.value) {
+    const m = h.metadata as Record<string, unknown>
+    // `routeId` is the ANCHOR TOPIC id, never the `thc:` id: there is no storyline endpoint — the
+    // anchor topic's card IS the storyline — so routing with `thc:…` 404s (review, 2026-09-17).
+    // Both fields arrive from the server's query-time join, because the indexed row cannot carry
+    // them: the aux schema has no such columns and the read path rebuilds metadata from a fixed
+    // field list. A hit without them is unusable, so it is skipped rather than rendered as a slug.
+    const anchor = String(m.anchor_topic_id ?? "")
+    const label = String(m.storyline_label ?? "")
+    const sid = String(m.source_id ?? "")
+    if (!anchor || !label || seen.has(sid)) continue
+    seen.add(sid)
+    out.push({
+      key: sid,
+      routeId: anchor,
+      label,
+      size: typeof m.storyline_size === "number" ? m.storyline_size : null,
+    })
+  }
+  // The resolver already answers with the anchor id, so its entry routes the same way.
+  const e = entity.value
+  if (e?.kind === "storyline" && !seen.has(e.id))
+    out.push({ key: e.id, routeId: e.id, label: e.label, size: null })
+  return out
+})
+
 const groups = computed<EpisodeGroup[]>(() => {
   const byKey = new Map<string, EpisodeGroup>()
   const order: string[] = []
-  for (const h of results.value) {
+  for (const h of passageResults.value) {
     const slug = hitSlug(h)
     const key = slug ?? `doc:${h.doc_id}`
     let g = byKey.get(key)
@@ -293,7 +393,13 @@ async function run(q: string): Promise<void> {
     ? Promise.resolve((entity.value = null))
     : resolveEntity(term).then(
         (r) => {
-          if (current()) entity.value = r.entity
+          // ORGANISATIONS are not surfaced as a result (operator 2026-09-17). They stay indexed and
+          // still do their work upstream — resolution, graph edges, the entity pages that link them
+          // — this only declines to offer one as a destination from search, where an org card is a
+          // dead end next to the episodes and people a listener came for. Dropped at RENDER time,
+          // deliberately: nothing about the index or the resolver changes, so re-enabling it is one
+          // condition.
+          if (current()) entity.value = r.entity?.kind === "organization" ? null : r.entity
         },
         () => {
           if (current()) entity.value = null
@@ -334,7 +440,11 @@ function setScope(s: "all" | "mine"): void {
 }
 
 function openEntity(): void {
-  if (entity.value) cardTarget.value = { kind: entity.value.kind, id: entity.value.id }
+  const e = entity.value
+  // Person / topic / org only. A storyline has no EntityCard — it renders in the Storylines list as
+  // a RouterLink straight to its page, and the button this drives is not rendered for one.
+  if (!e || e.kind === "storyline") return
+  cardTarget.value = { kind: e.kind, id: e.id }
 }
 
 function submit(): void {
@@ -390,6 +500,54 @@ watch(
   { immediate: true }
 )
 
+/**
+ * Which RESULT KINDS to show — the same multi-select chips Library uses, none selected = all
+ * (operator 2026-09-17).
+ *
+ * Only chips for kinds actually present, so the filter can never empty the page on its own — the
+ * presence rule Library's bar follows. Not persisted: a filter is about the query you are reading
+ * now, and carrying it into the next search would silently hide results.
+ */
+/**
+ * Which SECTION the resolved entity belongs in — people, topics and storylines are three sections
+ * now, not one lumped list (operator 2026-09-17). `organization` never reaches here; it is filtered
+ * when the resolver answers.
+ */
+const entityKey = computed<"people" | "topics" | "storylines" | null>(() => {
+  switch (entity.value?.kind) {
+    case "person":
+      return "people"
+    case "topic":
+      return "topics"
+    case "storyline":
+      return "storylines"
+    default:
+      return null
+  }
+})
+
+const resultTypes = ref<string[]>([])
+const typeVisible = (key: string) => resultTypes.value.length === 0 || resultTypes.value.includes(key)
+const availableResultTypes = computed(() => {
+  const out: { key: string; label: string }[] = []
+  // A chip per KIND, not one lumped "entity" chip (operator 2026-09-17): the resolver returns at
+  // most one entity, so whichever kind it is gets its own chip and its own section.
+  if (entityKey.value) out.push({ key: entityKey.value, label: t(`search.type_${entityKey.value}`) })
+  // Index-found storylines get the chip even when the resolver returned nothing (a partial match).
+  if (storylineResults.value.length && entityKey.value !== "storylines")
+    out.push({ key: "storylines", label: t("search.type_storylines") })
+  if (noteMatches.value.length) out.push({ key: "notes", label: t("notes.title") })
+  if (yearSections.value.length) out.push({ key: "episodes", label: t("search.typeEpisodes") })
+  return out
+})
+// A chip for a kind that has just disappeared would stay selected and hide everything, so drop any
+// selection the current results can no longer offer.
+watch(availableResultTypes, (types) => {
+  const keys = new Set(types.map((x) => x.key))
+  const kept = resultTypes.value.filter((k) => keys.has(k))
+  if (kept.length !== resultTypes.value.length) resultTypes.value = kept
+})
+
 const showEmpty = computed(
   () =>
     ran.value &&
@@ -397,6 +555,7 @@ const showEmpty = computed(
     !error.value &&
     results.value.length === 0 &&
     noteMatches.value.length === 0 &&
+    storylineResults.value.length === 0 &&
     entity.value === null
 )
 </script>
@@ -508,20 +667,48 @@ const showEmpty = computed(
       {{ saveMsg }}
     </p>
 
+    <!-- Result-kind filter — the same multi-select chips as Library's, "All" first so clearing is
+         one tap. Only renders once there is more than one kind to choose between; with a single kind
+         a filter is decoration. -->
+    <TypeFilterBar
+      v-if="availableResultTypes.length > 1 && !searching"
+      v-model="resultTypes"
+      :options="availableResultTypes"
+      testid-prefix="search-type"
+      class="mt-3"
+    />
+
+    <!-- Every result section carries a HEADING (operator 2026-09-17). "Your notes" had one and the
+         other two did not, so the page read as one labelled section followed by loose content —
+         with nothing saying where the notes ended and the corpus began. The headings use the same
+         words as the filter chips, so a chip and the block it governs name the same thing. -->
+    <!-- People / Topics / Storylines are three separate sections (operator 2026-09-17), each with
+         its own heading, subtitle and filter chip. The resolver returns at most ONE entity, so
+         exactly one of them renders for a given query — but which one is now named, instead of a
+         lumped heading that made a person and a storyline look like the same kind of result. -->
+    <template v-if="entity && entityKey && entityKey !== 'storylines' && !searching && typeVisible(entityKey)">
+      <h2 class="lp-section mb-1 mt-4" :data-testid="`search-section-${entityKey}`">
+        {{ t(`search.type_${entityKey}`) }}
+      </h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.entitySummary") }}
+      </p>
+    </template>
     <!-- Entity match (3.4): a person/topic card above the passages, opening the full card on tap. -->
     <button
-      v-if="entity && !searching"
+      v-if="entity && entityKey && entityKey !== 'storylines' && !searching && typeVisible(entityKey)"
       type="button"
       class="mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left transition hover:bg-overlay"
       :aria-label="t('kp.openEntity', { term: entity.label })"
       @click="openEntity"
     >
       <span class="min-w-0 flex-1">
+        <!-- An `organization` never reaches here; it is filtered when the resolver answers. -->
         <span class="lp-kicker block">{{
           entity.kind === "person"
             ? t("ec.person")
-            : entity.kind === "organization"
-              ? t("ec.organization")
+            : entity.kind === "storyline"
+              ? t("home.storylines")
               : t("ec.topic")
         }}</span>
         <span class="block font-display text-lg font-bold text-canvas-foreground">{{
@@ -531,11 +718,52 @@ const showEmpty = computed(
       <span class="shrink-0 text-sm font-semibold text-accent">{{ t("search.viewEntity") }} ›</span>
     </button>
 
+    <!-- STORYLINES — from the INDEX, so a partial or member-topic query reaches them ("risk"
+         finds "Managing risk across domains" through its members), with the resolver's exact-name
+         answer folded in and de-duplicated by id. A list rather than the single entity card,
+         because an index query can legitimately match several. -->
+    <template v-if="storylineResults.length && !searching && typeVisible('storylines')">
+      <h2 class="lp-section mb-1 mt-4" data-testid="search-section-storylines">
+        {{ t("search.type_storylines") }}
+      </h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.storylinesSummary", { count: storylineResults.length }, storylineResults.length) }}
+      </p>
+      <ul class="flex flex-col gap-2" data-testid="search-storylines">
+        <li v-for="s in storylineResults" :key="s.key">
+          <RouterLink
+            :to="{ name: 'storyline', params: { id: s.routeId } }"
+            class="flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-4 no-underline transition hover:bg-overlay"
+          >
+            <span class="min-w-0 flex-1">
+              <span class="lp-kicker block">{{ t("home.storylines") }}</span>
+              <span class="block font-display text-lg font-bold text-canvas-foreground">{{
+                s.label
+              }}</span>
+              <span v-if="s.size" class="lp-kicker mt-0.5 block">{{
+                t("search.storylineSize", { count: s.size }, s.size)
+              }}</span>
+            </span>
+            <span class="shrink-0 text-sm font-semibold text-accent"
+              >{{ t("search.viewEntity") }} ›</span
+            >
+          </RouterLink>
+        </li>
+      </ul>
+    </template>
+
     <!-- SR.1: the listener's OWN notes matching the query, as their own section above the corpus
          passages (a note is not a transcript hit). Independent of the results chain below, so notes
          and corpus hits can both show. Client-side text match on the capture store. -->
-    <section v-if="noteMatches.length" class="mt-4" data-testid="search-note-matches">
-      <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
+    <section
+      v-if="noteMatches.length && typeVisible('notes')"
+      class="mt-4"
+      data-testid="search-note-matches"
+    >
+      <h2 class="lp-section mb-1">{{ t("notes.title") }}</h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.notesSummary", { count: noteMatches.length }, noteMatches.length) }}
+      </p>
       <ul class="flex flex-col gap-2">
         <li
           v-for="n in noteMatches"
@@ -546,12 +774,22 @@ const showEmpty = computed(
           <p class="whitespace-pre-wrap text-sm leading-relaxed text-canvas-foreground">
             {{ n.text }}
           </p>
+          <!-- Kind AND what it is attached to: "EPISODE · Risk Is a Systems Property". The kind
+               alone left a list reading "episode, episode, topic" with no way to tell WHICH without
+               following every link (operator 2026-09-17). `min-w-0 truncate` so a long episode title
+               shortens instead of pushing "Open" off the row. -->
           <div class="mt-1.5 flex items-center gap-2 text-xs">
-            <span class="lp-kicker">{{ n.target }}</span>
+            <span class="lp-kicker shrink-0">{{ n.target }}</span>
+            <span
+              v-if="noteLabel(n.target, n.target_id)"
+              class="min-w-0 flex-1 truncate font-semibold text-canvas-foreground"
+              data-testid="search-note-target"
+              >{{ noteLabel(n.target, n.target_id) }}</span
+            >
             <RouterLink
               v-if="noteRoute(n.target, n.target_id)"
               :to="noteRoute(n.target, n.target_id)!"
-              class="font-semibold text-accent no-underline"
+              class="ml-auto shrink-0 font-semibold text-accent no-underline"
               >{{ t("notes.open") }}</RouterLink
             >
           </div>
@@ -573,9 +811,17 @@ const showEmpty = computed(
     </p>
     <p v-else-if="showEmpty" class="mt-4 text-muted">{{ t("search.noResults") }}</p>
 
-    <template v-else-if="results.length">
-      <p class="mt-4 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.summary", { passages: results.length, episodes: groups.length }) }}
+    <!-- `typeVisible('episodes')` gates the whole corpus block — its count line and topic chips
+         describe the episode results, so they go when the episodes do. -->
+    <template v-else-if="passageResults.length && typeVisible('episodes')">
+      <!-- The episodes block gets a heading like the notes block has, with the passage/episode count
+           as its SUBTITLE rather than standing in for a title (operator 2026-09-17). The count was
+           doing both jobs and neither well: it never said what the section was. -->
+      <h2 class="lp-section mb-1 mt-4" data-testid="search-section-episodes">
+        {{ t("search.typeEpisodes") }}
+      </h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.summary", { passages: passageResults.length, episodes: groups.length }) }}
       </p>
 
       <!-- #1261-2: related-topic chip row above the episode groups. Silent
@@ -614,85 +860,34 @@ const showEmpty = computed(
           </span>
         </h2>
         <ul class="mt-3 flex flex-col gap-3">
-          <li
+          <!-- The SHARED episode-group block (`EpisodeGroupCard`), also used by Revisit: the real
+               EpisodeCard as the header — the same one Discover and Library render — with the rows
+               collapsible beneath it (operator 2026-09-17). Search's own content rides the card's
+               slots: the match count under the artwork, the matched-field breakdown between title
+               and summary. The passage list stays a sibling BELOW the card, since it is per-match
+               rather than part of the episode. -->
+          <EpisodeGroupCard
             v-for="g in section.groups"
             :key="g.slug ?? g.title"
-            class="overflow-hidden rounded-xl border border-border bg-surface"
+            :episode="groupAsEpisode(g)"
+            :noun="t('search.groupNoun')"
+            :item-count="g.rows.length"
           >
-            <!-- Episode header: tapping the row opens/plays the episode; a quick-action cluster
-               (favorite + queue) sits alongside, like a Library row (#2). The actions are siblings
-               of the open button, never nested inside it (no interactive-in-interactive). -->
-            <!--
-            ONE narrow left column, not a left artwork AND a right rail. Everything that is not the
-            text — artwork, match count, action row — stacks under the artwork at one width, so the
-            centre text is squeezed from one side only.
-
-            The column is `w-32` (128px), matching the Browse card's artwork (operator 2026-09-14):
-            it is the width the shared `EpisodeActions` row needs to sit on ONE line (favourite +
-            queue + ⋯ ≈ 120px), and a bigger cover reads like Browse rather than a cramped thumbnail.
-            At the old 76px the third control (⋯) wrapped to a second row.
-
-            `items-start` on the row: the artwork sits at the TOP of a multi-line title rather than
-            floating against its middle.
-          -->
-            <div class="flex w-full items-start gap-3 px-4 pt-4">
-              <div class="flex w-32 shrink-0 flex-col items-center gap-1.5">
-                <button
-                  v-if="g.art"
-                  type="button"
-                  class="w-full"
-                  :aria-label="t('search.openEpisode', { title: g.title })"
-                  @click="openEpisode(g.slug)"
-                >
-                  <img
-                    :src="g.art"
-                    alt=""
-                    loading="lazy"
-                    class="h-32 w-32 rounded-md bg-elevated object-cover"
-                  />
-                </button>
-                <span class="text-center text-xs font-semibold text-muted">
-                  {{ t("search.matchCount", g.hits.length) }}
-                </span>
-                <!-- Sibling of the open button, never nested inside it (no interactive-in-
-                   interactive). The shared EpisodeActions row (favourite/queue/download/collect). -->
-                <EpisodeActions v-if="g.slug" :slug="g.slug" data-testid="search-result-actions" />
-              </div>
-              <button
-                type="button"
-                class="flex min-w-0 flex-1 text-left"
-                @click="openEpisode(g.slug)"
-              >
-                <span class="min-w-0 flex-1">
-                  <span
-                    class="block font-display text-base font-bold leading-snug text-canvas-foreground"
-                  >
-                    {{ g.title }}
+            <template #aside>{{ t("search.matchCount", g.hits.length) }}</template>
+            <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
+                 so the listener knows WHY this episode surfaced without tapping through. Hidden
+                 when nothing resolved to an episode-level field. -->
+            <template v-if="matchedFieldChips(g.hits).length" #meta>
+              <span class="lp-kicker block" data-testid="matched-fields">
+                {{ t("search.matchedPrefix") }}
+                <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
+                  <template v-if="mi > 0"> · </template>
+                  <span class="font-semibold text-canvas-foreground">
+                    {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
                   </span>
-                  <span v-if="g.show || g.date" class="lp-kicker mt-0.5 block">
-                    {{ g.show }}<template v-if="g.show && g.date"> · </template
-                    >{{ g.date ? formatPublishDate(g.date, locale) : "" }}
-                  </span>
-                  <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary
-                   ×2 · Transcript") — small kicker line so the listener knows
-                   why this episode surfaced without tapping through. Hidden
-                   when nothing resolved to an episode-level field. -->
-                  <span
-                    v-if="matchedFieldChips(g.hits).length"
-                    class="lp-kicker mt-0.5 block"
-                    data-testid="matched-fields"
-                  >
-                    {{ t("search.matchedPrefix") }}
-                    <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
-                      <template v-if="mi > 0"> · </template>
-                      <span class="font-semibold text-canvas-foreground">
-                        {{ m.label }}<template v-if="m.count > 1"> ×{{ m.count }}</template>
-                      </span>
-                    </template>
-                  </span>
-                </span>
-              </button>
-            </div>
+                </template>
+              </span>
+            </template>
 
             <!-- Matching passages (#1261-3: foldable rows collapse to one
                expandable summary per (episode, source-kind)). -->
@@ -795,7 +990,7 @@ const showEmpty = computed(
                 </li>
               </template>
             </ul>
-          </li>
+          </EpisodeGroupCard>
         </ul>
       </template>
     </template>

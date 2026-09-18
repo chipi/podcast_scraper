@@ -134,6 +134,25 @@ closelistening.app {
 		reverse_proxy 127.0.0.1:8092
 	}
 
+	# A user's avatar, fetched by an `<img src>` — which cannot send an Authorization header at all,
+	# and does not send the gate cookie from the native shell because the document origin there is
+	# `capacitor://localhost`, making the image load CROSS-ORIGIN. The endpoint is already
+	# deliberately unauthenticated at the app layer (routes/app_profile.py serve_avatar), but the
+	# edge was never told: the gate answered these requests with the coming-soon HTML and a 200, the
+	# browser failed to decode HTML as an image, and every native avatar silently fell back to
+	# initials while web — same user, same server — worked from its same-origin cookie
+	# (operator 2026-09-17). Artwork already sits in @teaser above for exactly this reason.
+	#
+	# GET only, and the wildcard cannot collapse: the sibling upload is POST /api/app/profile/avatar
+	# with no id segment, so it does not match this pattern and stays gated.
+	@avatar {
+		method GET
+		path /api/app/profile/*/avatar
+	}
+	handle @avatar {
+		reverse_proxy 127.0.0.1:8092
+	}
+
 	# Fallback: a valid Basic-auth Authorization header also reaches the app. Keeps
 	# `curl -u` verification working; browsers use the cookie above.
 	@authed header Authorization *

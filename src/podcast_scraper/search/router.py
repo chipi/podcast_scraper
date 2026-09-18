@@ -73,6 +73,8 @@ DOC_TYPE_TO_TIER: Dict[str, str] = {
     "quote": "aux",
     "kg_entity": "aux",
     "kg_topic": "aux",
+    # A storyline is a corpus-level label set — aux, like the other non-passage surfaces.
+    "storyline": "aux",
     "summary": "aux",
     # 2026-07-22: episode-level metadata surfaces (indexer.py rows carry a
     # ``matched_field`` marker so the client can render "matched: Title /

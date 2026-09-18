@@ -158,3 +158,44 @@ every surface, and stitches the frames into one labelled grid.
 At native resolution the grid lands around 82 MP, which macOS Preview will not open, so
 `contact_sheet.py` also emits row-aligned `-partN.png` files. Cuts fall **between** rows — splitting
 on a fixed pixel height slices screenshots in half.
+
+---
+
+## Screenshots for UI work: use the WEB app, not the simulator
+
+**Default to the browser.** A web screenshot is seconds; the iOS path is minutes — rebuild the
+bundle, `cap sync`, xcodebuild, install, re-seed the session, launch, navigate, export attachments,
+resize. Whole review cycles have gone into producing one picture of a CSS change (operator
+2026-09-17).
+
+```bash
+make ios-origin-up                      # once: api + audio on :4174
+# then, in a browser at 127.0.0.1:4174 — sign in through the fixture provider:
+#   fetch('/api/app/auth/login?as=simtest&platform=web', { credentials: 'include' })
+```
+
+The player renders the same components either way, so a layout change looks the same in both. Reach
+for the simulator only when the thing under test is genuinely native:
+
+- Capacitor plugins — dictation, push, the photo picker, `Preferences`
+- The `capacitor://localhost` origin — anything where a relative URL or a cookie behaves differently
+  from web (the avatar and collection-cover bugs were both of this kind)
+- Offline / downloaded playback
+- The operator explicitly asks for an iOS screenshot
+
+Everything else — spacing, clamping, ordering, tab state, icon rendering — verify on web.
+
+### A contact sheet is TWO sheets: mobile and desktop
+
+Standing instruction (operator 2026-09-17). Every contact sheet request means one sweep at phone
+width and one at desktop width, delivered together.
+
+Days of layout work were reviewed at phone width alone, and the desktop rendering of the same
+components was never looked at — so a change that read correctly on a phone left a 144px column of
+wrapped text beside 900px of empty space on a 1440px screen, and nobody saw it. The app has four
+surfaces (iOS app, Android app, mobile browser, desktop browser) sharing ONE web build, so a single
+viewport can never be evidence that a layout is right.
+
+Fixes are universal too: no mobile-only patch that leaves desktop broken, and no `sm:`-gated
+half-fix unless the two viewports genuinely need different compositions — and when they do, both are
+driven from one source value rather than two copies that can drift.

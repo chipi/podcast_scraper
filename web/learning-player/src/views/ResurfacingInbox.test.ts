@@ -53,9 +53,11 @@ describe('ResurfacingInbox', () => {
     const w = mountInbox()
     await flushPromises()
     expect(w.text()).toContain('What still resonates about this?')
-    // jump link carries ?t=65 (65_000ms) to the player
-    const link = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/show-ep01'))
-    expect(link?.attributes('href')).toContain('t=65')
+    // jump link carries ?t=65 (65_000ms) to the player. Addressed by testid, not by "the first
+    // link mentioning the episode": the rows are grouped under an episode HEADING that links to the
+    // episode top, so that locator matched the heading and saw no timestamp.
+    const link = w.find('[data-testid="revisit-jump"]')
+    expect(link.attributes('href')).toContain('t=65')
     // dismiss removes it locally + advances the ladder server-side
     await w.findAll('button').find((b) => b.text() === 'Mark reviewed')!.trigger('click')
     expect(api.markSurfaced).toHaveBeenCalledWith('h1')
@@ -86,9 +88,7 @@ describe('ResurfacingInbox', () => {
     vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
     const w = mountInbox()
     await flushPromises()
-    const href =
-      w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/show-ep01'))
-        ?.attributes('href') ?? ''
+    const href = w.find('[data-testid="revisit-jump"]').attributes('href') ?? ''
     expect(href).toContain('revisit=h1')
     expect(href).toContain('t=65')
     expect(api.markSurfaced).not.toHaveBeenCalled() // rendering the link marks nothing
@@ -103,5 +103,96 @@ describe('ResurfacingInbox', () => {
     await flushPromises()
     expect(api.putResurfacingSettings).toHaveBeenCalledWith(true)
     expect(w.text()).toContain('Resurfacing is paused.')
+  })
+
+  // --- what each due item is FROM and ABOUT (operator 2026-09-17) ---
+
+  it('groups due items under the episode they came from, by title', async () => {
+    // A flat list said nothing about WHERE a moment was from, so two moments from one episode read
+    // as two unrelated cards. Same structure as Saved and Search: episode heading, then its items.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [
+        item(),
+        item({ highlight: hl({ id: 'h2', start_ms: 5_000 }) }),
+        item({ highlight: hl({ id: 'h3', episode_slug: 'show-ep02' }) }),
+      ],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockImplementation(
+      async (slug: string) =>
+        ({ slug, title: slug === 'show-ep01' ? 'Risk as a system' : 'Pacing' }) as never,
+    )
+    const w = mountInbox()
+    await flushPromises()
+    const groups = w.findAll('[data-testid="revisit-group"]')
+    expect(groups).toHaveLength(2) // two episodes, not three cards
+    // The heading is now the shared EpisodeCard (artwork + title), not a line of text.
+    const headings = groups.map((g) => g.get('[data-testid="episode-card"]').text())
+    expect(headings[0]).toContain('Risk as a system')
+    expect(headings[1]).toContain('Pacing')
+    expect(groups[0].findAll('[data-testid="revisit-item"]')).toHaveLength(2)
+  })
+
+  it('still renders the group when the episode cannot be resolved', async () => {
+    // The list is useful before the episode arrives, and one dead episode must not drop a group:
+    // the card falls back to the slug as its title rather than the group vanishing.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockRejectedValue(new Error('gone'))
+    const w = mountInbox()
+    await flushPromises()
+    const group = w.get('[data-testid="revisit-group"]')
+    expect(group.get('[data-testid="episode-card"]').text()).toContain('show-ep01')
+    expect(group.findAll('[data-testid="revisit-item"]')).toHaveLength(1)
+  })
+
+  it('collapses an episode group and restores it', async () => {
+    // Collapsible on BOTH Search and Revisit via the shared EpisodeGroupCard (operator). Groups
+    // start OPEN — collapsing is an affordance for a long page, not a new default that hides what
+    // the listener came for.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const w = mountInbox()
+    await flushPromises()
+    const toggle = w.get('[data-testid="episode-group-toggle"]')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(toggle.text()).toContain('Hide moments')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(toggle.text()).toContain('Show moments')
+    // `v-show`, so the rows stay in the DOM but hidden — re-opening keeps their state.
+    expect(w.get('[data-testid="episode-group-body"]').attributes('style')).toContain('display: none')
+    await toggle.trigger('click')
+    expect(w.get('[data-testid="episode-group-body"]').attributes('style') ?? '').not.toContain(
+      'display: none',
+    )
+  })
+
+  it('labels a moment KIND · DATE and shows the captured words as the body', async () => {
+    // "Marked moment" used to BE the body text, so the card said nothing about itself. It is the
+    // label; the quote is the content.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [
+        item({
+          highlight: hl({ quote_text: 'Correlation is the real exposure', speaker: 'Ada' }),
+        }),
+      ],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const w = mountInbox()
+    await flushPromises()
+    expect(w.get('[data-testid="revisit-item"]').text()).toContain('Marked moment')
+    expect(w.get('[data-testid="revisit-quote"]').text()).toBe('Correlation is the real exposure')
+    expect(w.get('[data-testid="revisit-item"]').text()).toContain('Ada')
+    // The prompt survives the restructure — it is the question asked OF the moment, below it.
+    expect(w.get('[data-testid="revisit-prompt"]').text()).toBe('What still resonates about this?')
+  })
+
+  it('renders no quote block for a moment stored without text', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const w = mountInbox()
+    await flushPromises()
+    expect(w.find('[data-testid="revisit-quote"]').exists()).toBe(false)
   })
 })

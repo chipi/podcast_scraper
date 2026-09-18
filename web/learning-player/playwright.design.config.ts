@@ -27,15 +27,24 @@ import { defineConfig, devices } from '@playwright/test'
  * CI, screenshots as inspection artifacts. This is a separate, faster path for EXPLORATION. Do not
  * wire this into CI; it proves nothing about correctness.
  *
- * ## Viewport
+ * ## Viewports
  *
- * Pixel 7 only. The runbook's do-not-break list names mobile-first as non-negotiable and the app
- * is judged at 375px — so the critic should never be shown a desktop composition that flatters a
- * layout nobody uses.
+ * TWO projects: `pixel7` (the judged 375px mobile composition) and `desktop` (1440px).
+ *
+ * This was Pixel 7 only, on the reasoning that a desktop shot would flatter a layout nobody uses.
+ * That held while the app was phone-first in review too, and stopped holding once every surface
+ * review asked for both framings — mobile-first means mobile is the one that must not break, not
+ * that the desktop composition goes unjudged (operator 2026-09-17). Mobile stays listed first, so
+ * it is the first thing seen.
+ *
+ * Each project writes its OWN folder (`design-results/<variant>/<project>/`): both shoot the same
+ * surface names, so a shared folder would leave the second run silently overwriting the first.
  *
  * Run:
- *   npm run design:shots            # screenshot every surface
+ *   npm run design:shots                        # both viewports, every surface
+ *   npm run design:shots -- --project pixel7    # one viewport
  *   npm run design:shots -- --grep home
+ *   make design-contact-sheets                  # shots + one stitched sheet per viewport
  */
 export default defineConfig({
   testDir: './e2e/design',
@@ -50,12 +59,24 @@ export default defineConfig({
   outputDir: 'design-results/.playwright',
   use: {
     baseURL: 'http://127.0.0.1:5174',
-    ...devices['Pixel 7'],
     // Screenshots are the product here, so take them deliberately in the spec — not on failure.
     screenshot: 'off',
     trace: 'off',
   },
-  projects: [{ name: 'pixel7', use: {} }],
+  projects: [
+    // Mobile first, and first in this list: it is the composition that must not break.
+    { name: 'pixel7', use: { ...devices['Pixel 7'] } },
+    // 1440x900 — the same desktop framing the surface reviews are done at. `deviceScaleFactor: 2`
+    // so the sheet is legible when scaled down rather than a soft 1x screenshot.
+    {
+      name: 'desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 900 },
+        deviceScaleFactor: 2,
+      },
+    },
+  ],
 
   webServer: [
     {

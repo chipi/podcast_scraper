@@ -116,10 +116,13 @@ describe("EntityCardBody — person web bio + photo credit (wave-G)", () => {
     const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
     expect(w.find('[data-testid="ec-person-photo"]').exists()).toBe(true)
-    const credit = w.find('[data-testid="ec-photo-artist"]')
-    expect(credit.exists()).toBe(true)
-    expect(credit.text()).toContain("A. Photographer")
-    expect(credit.text()).not.toContain("<a") // markup stripped to visible text, not shown literally
+    // The artist rides in the source link's title alongside the licences (operator 2026-09-17), so
+    // it is asserted there rather than as its own element. The point of the test is unchanged and
+    // still worth holding: Wikimedia's "Artist" field carries HTML, and it must reach the user as
+    // visible text rather than as literal markup.
+    const title = w.find('[data-testid="ec-person-attribution"]').find("a").attributes("title") ?? ""
+    expect(title).toContain("A. Photographer")
+    expect(title).not.toContain("<a")
   })
 })
 
@@ -429,10 +432,16 @@ describe("EntityCardBody — person bio (wave-G person_web)", () => {
     const bio = w.find('[data-testid="ec-person-bio"]')
     expect(bio.exists()).toBe(true)
     expect(bio.text()).toContain("Jane Doe is a researcher in AI safety.")
-    const link = bio.find("a")
+    // The source LINK rides with the attribution, not the bio prose — same move as the credits.
+    const link = w.find('[data-testid="ec-person-attribution"]').find("a")
     expect(link.attributes("href")).toBe("https://en.wikipedia.org/wiki/Jane_Doe")
-    expect(bio.text()).toContain("via wikipedia")
-    expect(bio.text()).toContain("CC-BY-SA 4.0")
+    // Attribution sits in its OWN element after the hosted-shows line (operator 2026-09-17), so
+    // it is asserted there rather than inside the bio block it used to be nested in.
+    const credit = w.find('[data-testid="ec-person-attribution"]')
+    // The visible credit is the SOURCE alone; the licences ride on the link's title so a 112px
+    // column does not wrap to six lines (operator 2026-09-17). Assert both halves.
+    expect(credit.text()).toContain("via wikipedia")
+    expect(credit.find("a").attributes("title")).toContain("CC-BY-SA 4.0")
   })
 
   it("shows no bio section when the person has no web info", async () => {
@@ -460,7 +469,9 @@ describe("EntityCardBody — person bio (wave-G person_web)", () => {
     // The face is the title identity anchor now (not duplicated in the bio); a hosted photo → <img>.
     expect(w.find('[data-testid="ec-person-photo"]').find("img").exists()).toBe(true)
     // The license/attribution still reads in the bio block.
-    expect(w.find('[data-testid="ec-person-bio"]').text()).toContain("photo CC BY-SA 4.0")
+    expect(
+      w.find('[data-testid="ec-person-attribution"]').find("a").attributes("title")
+    ).toContain("photo CC BY-SA 4.0")
   })
 
   it("still gives a person with no hosted photo an initials title avatar (every card has a face)", async () => {

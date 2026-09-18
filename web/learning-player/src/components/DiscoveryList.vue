@@ -226,10 +226,14 @@ function rowLabel(r: Row): string {
          Shown on EVERY tab, not only when rows are hidden (operator 2026-09-16): a tab that happens
          to fit its rows is still a summary of a bigger list, and a link that appears and disappears
          by tab reads as a bug rather than as a rule. "See all" also says what it does now — the old
-         "Show N more" promised an inline expansion this no longer performs. -->
+         "Show N more" promised an inline expansion this no longer performs.
+
+         Lands on DISCOVER's trends section with this kind selected, not on the standalone /trends
+         page (operator 2026-09-17). `?trends=` and not `?tab=`: the latter drives Discover's own
+         Episodes/Shows tabs, so it would both miss the kind and reset the page. -->
     <RouterLink
       v-if="!hideMore && hasAny"
-      :to="{ name: 'trends', query: { tab: kind } }"
+      :to="{ name: 'browse', query: { trends: kind }, hash: '#trends' }"
       class="mt-2 inline-block text-sm font-bold text-accent no-underline"
       data-testid="discovery-expand"
     >

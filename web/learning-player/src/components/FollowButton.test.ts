@@ -20,9 +20,14 @@ describe('FollowButton (F2.4)', () => {
     expect(on.get('[data-testid="follow-show"]').attributes('aria-pressed')).toBe('true')
   })
 
-  it('the overlay variant floats over artwork; the inline variant does not', () => {
-    expect(mountBtn({ variant: 'overlay' }).get('button').classes()).toContain('absolute')
-    expect(mountBtn({ variant: 'inline' }).get('button').classes()).not.toContain('absolute')
+  it('the overlay variant is plated to read over artwork, and positions NOTHING', () => {
+    // `overlay` sets the look; the HOST places it. It used to hard-code `absolute right-1.5 top-1.5`,
+    // which meant the button chose its own corner and nothing could sit beside or under it — so
+    // ShowTile could not stack Follow and the heart into one column (operator 2026-09-17).
+    const overlay = mountBtn({ variant: 'overlay' }).get('button').classes()
+    expect(overlay, 'the overlay variant lost its plate').toContain('backdrop-blur')
+    expect(overlay, 'the button still positions itself').not.toContain('absolute')
+    expect(mountBtn({ variant: 'inline' }).get('button').classes()).not.toContain('backdrop-blur')
   })
 
   it('signed out, the label routes to sign-in and no pressed state is asserted', () => {

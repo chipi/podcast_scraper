@@ -325,6 +325,24 @@ tests/fixtures/app-validation-corpus/v3/search/lance_index/
 # locally — see docs/wip/2026-08-13-e2e-on-intel-mac.md.
 tests/fixtures/app-validation-corpus/v3/search/episode_fingerprints.json
 tests/fixtures/app-validation-corpus/v3/search/metadata.json
+# Per-user app state the e2e api writes INTO the fixture corpus (sessions, per-user files) — the
+# same class of runtime leak the `e2e/.app-state/` rules above cover, but written under the corpus
+# because the api is pointed at it directly. `/.app/` only anchors the repo root, so this path was
+# left showing up as untracked after any local player/viewer e2e run.
+tests/fixtures/app-validation-corpus/v3/.app/
+# The operator jobs queue + its lock, written into the corpus by the jobs API. Only these two
+# FILES: `.viewer/` itself holds tracked fixture data (enrichment_health.json,
+# enrichment_status.json), so ignoring the directory would hide real fixtures.
+tests/fixtures/app-validation-corpus/v3/.viewer/jobs.jsonl
+tests/fixtures/app-validation-corpus/v3/.viewer/jobs.jsonl.lock
+
+# Design-surface screenshots from the Playwright `shoot()` helper, written to <root>/test-results/
+# when the suite runs from the repo root. The per-package `test-results/` rules above do not anchor
+# here. Re-shot on every run.
+/test-results/
+
+# Viewer coverage summary staged by the coverage tooling before the report is assembled.
+web/gi-kg-viewer/coverage-tmp/
 
 # Upgrade migration lock (runtime, never committed)
 tests/fixtures/**/upgrade_ledger.json.lock

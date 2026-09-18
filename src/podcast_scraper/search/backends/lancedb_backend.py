@@ -457,6 +457,46 @@ class LanceDBBackend:
             return
         self.db.create_table(self.TABLES[tier], schema=existing.schema, mode="overwrite")
 
+    def prune_rows_by_doc_type(self, tier: str, doc_type: str, keep_ids: set[str]) -> int:
+        """Delete rows of *doc_type* in *tier* whose id is NOT in *keep_ids*.
+
+        The corpus-level sibling of :meth:`prune_episode_rows`, which cannot help here: it scopes
+        its predicate to one ``episode_id``, and a corpus-level row has none.
+
+        Needed because ``thc:`` storyline ids are LABEL-DERIVED — relabel or re-anchor a theme
+        cluster and it mints a new id, leaving the previous row in the index. The pipeline path is
+        always incremental (nothing passes ``drop_existing``), so without this those orphans
+        accumulate on every enrichment rerun and keep surfacing in search (review, 2026-09-17).
+
+        Same ordering discipline as the per-episode prune: called AFTER this build's rows are
+        written, so a crash leaves both generations rather than none. An empty ``keep_ids`` removes
+        every row of the type — correct when the artifact is gone, and the caller decides that.
+
+        Returns the number of rows removed.
+        """
+        table = self._open_if_exists(tier)
+        if table is None:
+            return 0
+        dt = self._sql_str(doc_type)
+        if keep_ids:
+            keep = ", ".join(f"'{self._sql_str(k)}'" for k in sorted(keep_ids))
+            predicate = f"doc_type = '{dt}' AND id NOT IN ({keep})"
+        else:
+            predicate = f"doc_type = '{dt}'"
+        try:
+            before = int(table.count_rows())
+            table.delete(predicate)
+            return max(0, before - int(table.count_rows()))
+        except Exception:  # noqa: BLE001 - a prune failure must not fail the build
+            logger.warning(
+                "prune_rows_by_doc_type: delete failed for tier=%s doc_type=%s; "
+                "orphaned rows may remain until a full reindex",
+                tier,
+                doc_type,
+                exc_info=True,
+            )
+            return 0
+
     def prune_episode_rows(self, tier: str, episode_id: str, keep_ids: set[str]) -> int:
         """Delete rows for *episode_id* in *tier* whose id is NOT in *keep_ids* (#1969).
 

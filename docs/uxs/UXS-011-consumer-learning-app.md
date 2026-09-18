@@ -407,7 +407,13 @@ the player surface** — see "Player-surface Queue & Recent" below):
   (add/edit/remove), a per-highlight colour swatch picker, a header **colour filter**, and an
   **Export Markdown** link.
 - **Following** — the shows and interest tokens (`topic:`/`person:`/`thc:`) the user follows.
-- **Collections** — its own first-class tab (was nested under Saved); see "Collections" below.
+- **Collections** ("Boards") — its own first-class tab (was nested under Saved); see "Collections"
+  below. It also holds **Your notes**: every note the user has written, beside their boards. The
+  section is topped by the shared kind-filter strip (UXS-014) whose chips are the **entity each note
+  is attached to** — Highlight / Insight / Episode / Show / Topic / Person / Storyline — with a chip
+  only for kinds that actually have notes, and each row labelled `KIND · DATE` in the same words as
+  its chip. The section is gated on *having* notes rather than on the filtered result, so a filter
+  that matches nothing says so instead of removing the control that would clear it.
 - **Revisit** (`ResurfacingInbox`) — the spaced-resurfacing inbox (see below).
 
   **Due-count badge on the Library nav (#1592).** The inbox is well built and nothing pointed at it:
@@ -444,6 +450,25 @@ Past highlights resurfaced on a spaced ladder (2d/1w/1mo/3mo, computed on read).
 deterministic **reflection prompt** (no LLM), the highlight, a one-tap **jump-to-moment**, and a
 **"Got it"** dismiss (advances the ladder). A header **Pause/Resume** control governs pacing;
 paused or nothing-due shows an honest empty state.
+
+**Grouped by the episode the moment came from (2026-09-17).** The inbox was a flat list of prompts
+in which the words "Marked moment" stood in as the card's BODY text, so a card said neither what it
+was nor where it came from. Each group is now the shared **`EpisodeGroupCard`** (see UXS-014) — the
+real episode card as the header, with the due moments collapsible beneath it — so an episode
+carrying moments looks like an episode carrying search matches rather than a different kind of
+object:
+
+- **Header:** the episode's artwork, show and title, in the **slim** weight (80px artwork, no action
+  cluster, tight padding) because every moment below already carries jump + mark-reviewed. It also
+  states **when the episode was listened to** ("Listened {date}", from the listener's playback
+  positions) — a moment resurfacing weeks later needs to say whether you heard it recently or
+  half-remember it — and the **moment count** under the artwork. An episode with no playback history
+  simply omits the listened line; an episode that cannot be resolved still renders its group, titled
+  by slug.
+- **Each moment:** a `KIND · DATE` label (the same label the Boards notes rows carry), then the
+  **captured words** as the content, the speaker, and the reflection prompt below it as the question
+  asked *of* the moment.
+- **Scale:** the same capped sections + "Show all (N)" the Library hub and the Boards notes list use.
 
 ### States & a11y for these surfaces
 
@@ -747,3 +772,4 @@ design home:
 | 2026-06-28 | Add Capture & Consolidation surfaces (P2/P3): capture, Library Highlights/Revisit tabs, Recall + your-corpus scope lenses, resurfacing inbox                                                                                         |
 | 2026-08-26 | Mobile pass: Browse hub (#14), player-surface Queue & Recent (#1838), holistic Collections (RFC-119/#1839), Following + Settings tabs; Library tabs now Saved · Following · Collections · Revisit (Queue/Recent moved to the player) |
 | 2026-09-03 | Offline arc: downloads + device settings (native), queue offline behaviour, the listening recap + Home prompt, `?t=` deep links, and the removal of the fabricated "Hours" tile                                                      |
+| 2026-09-17 | Boards → Your notes gains the shared kind-filter strip (chips = the entity a note is on); Revisit rebuilt on the shared episode-group block — artwork, slim header, 'Listened {date}', collapsible moments                           |

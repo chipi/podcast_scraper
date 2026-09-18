@@ -40,6 +40,7 @@ import KeyVoicesRail from "../components/KeyVoicesRail.vue"
 import DiscoveryExplorer from "../components/DiscoveryExplorer.vue"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
+import EpisodeTile from "../components/EpisodeTile.vue"
 import QueueButton from "../components/QueueButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import StorylineCard from "../components/StorylineCard.vue"
@@ -183,10 +184,12 @@ async function retryStale(): Promise<void> {
   }
 }
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
-// "What's new": a featured #01 hero, then rows 02–06 as a numbered chart (operator 2026-09-14).
+// "What's new": a featured #01 hero, then rows 02–05 as a numbered chart (operator 2026-09-14).
+// Five items, not six — the chart ends at 05 (operator 2026-09-17). The section now shares a
+// desktop row with Trending shows, and a top five is a rounder thing to end on than a top six.
 const wnFeatured = computed(() => latest.value[0] ?? null)
-const wnRows = computed(() => latest.value.slice(1, 6))
-// Ranked "chart" rows 02–06 beneath the #01 hero (operator 2026-09-14): the numbered leaderboard
+const wnRows = computed(() => latest.value.slice(1, 5))
+// Ranked "chart" rows 02–05 beneath the #01 hero (operator 2026-09-14): the numbered leaderboard
 // look is the point. wnRows starts at latest[1], so row i is rank i+2.
 const rank = (i: number): string => String(i + 2).padStart(2, "0")
 // The row's discover-position telemetry must count a click on THIS EPISODE only. The wrapping <li>
@@ -544,9 +547,21 @@ async function loadContinue(): Promise<void> {
     <YourWeek :key="railKey" />
 
     <!-- Discovery: the shared tabbed DiscoveryExplorer (Topics / Storylines / People + sort/scope),
-         after the digest. Capped at 5 rows here; Discover uses the same section capped at 10. -->
-    <section class="mt-7" data-testid="home-discovery">
-      <DiscoveryExplorer :collapsed="3" @open="onDiscoveryOpen" />
+         after the digest. Capped at 5 rows here; Discover uses the same section capped at 10.
+
+         TITLED, with the same heading Discover gives it (operator 2026-09-17). Untitled it sat
+         directly under Your Week's first-run line, so on an empty digest it read as Your Week's own
+         content arriving without a heading — when in fact Your Week had rendered nothing and this is
+         the next section entirely.
+
+         Half width from `lg`, matching Discover: a trend row is a short label against a sparkline +
+         multiplier + follow, and across the full column those two clusters sit ~500px apart. -->
+    <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="home-discovery">
+      <DiscoveryExplorer
+        :collapsed="3"
+        :title="t('browse.trendsTitle')"
+        @open="onDiscoveryOpen"
+      />
     </section>
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
@@ -602,12 +617,19 @@ async function loadContinue(): Promise<void> {
       </div>
     </section>
 
-    <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
-         Renders while loading and on error too (#1591): the section header is the thing that tells
-         you this content exists, so hiding it on failure made an outage indistinguishable from a
-         cold corpus. Only a successful-but-empty load hides — the system has nothing to show and
-         there is no action the user can take. -->
-    <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7">
+    <!-- What's new and Trending shows SHARE a desktop row, half each (operator 2026-09-17). Both are
+         narrow-by-nature lists — a ranked chart and a stack of show bands — that were each stretched
+         across the full column, so the page became a single tall stack of half-empty rows. On a phone
+         they go back to one over the other, unchanged.
+
+         `items-start` so the shorter of the two does not stretch to match the taller. -->
+    <div class="lg:flex lg:items-start lg:gap-6">
+      <!-- What's new — editorial ranked: a featured #1 + ranked rows, all on screen, NO scroll.
+           Renders while loading and on error too (#1591): the section header is the thing that tells
+           you this content exists, so hiding it on failure made an outage indistinguishable from a
+           cold corpus. Only a successful-but-empty load hides — the system has nothing to show and
+           there is no action the user can take. -->
+      <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7 min-w-0 lg:w-1/2">
       <div class="mb-3 flex items-baseline justify-between">
         <h2 class="lp-section">{{ t("home.whatsNew") }}</h2>
         <RouterLink
@@ -715,7 +737,23 @@ async function loadContinue(): Promise<void> {
           </li>
         </ul>
       </template>
-    </section>
+      </section>
+
+      <!-- Trending shows (RFC-103 §show): cover-art bands with the cadence sparkline woven over the
+           art; each links to the show page. Artwork is joined from the loaded podcasts list by
+           feed_id.
+
+           The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
+           mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
+      <div class="min-w-0 lg:w-1/2">
+        <TrendingShowsRail
+          :key="railKey"
+          :title="t('home.trendingShows')"
+          :podcasts="catalogue"
+          :scope="trendingScope"
+        />
+      </div>
+    </div>
 
     <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
          + three chips deep-linking into the /trends "see all" page on the matching tab. Renamed from
@@ -750,17 +788,6 @@ async function loadContinue(): Promise<void> {
       </RouterLink>
     </nav>
 
-    <!-- Trending shows (RFC-103 §show): cover-art carousel with the cadence sparkline over the art;
-         cards link to the show page. Artwork joined from the loaded podcasts list by feed_id. -->
-    <!-- The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
-         mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
-    <TrendingShowsRail
-      :key="railKey"
-      :title="t('home.trendingShows')"
-      :podcasts="catalogue"
-      :scope="trendingScope"
-    />
-
     <!-- Key voices (wave-G): the people most present in your corpus. Moved up to sit right after
          Trending shows and before Recommended (operator review) — a quiet discovery rail. Self-hides
          when empty. -->
@@ -770,43 +797,17 @@ async function loadContinue(): Promise<void> {
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
       <h2 class="lp-section mb-3">{{ t("home.recommended") }}</h2>
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
-      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="relative h-full">
-          <!-- Overlay capped to the artwork width so the four-icon row WRAPS two-up in the corner
-               rather than spilling past a narrow 2-col phone tile (EpisodeActions gained a fourth
-               button; an absolutely-positioned row sizes to max-content and won't wrap unbounded). -->
-          <EpisodeActions
-            :slug="ep.slug"
-            overlay
-            class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"
-          />
-          <RouterLink
-            :to="{ name: 'player', params: { slug: ep.slug } }"
-            class="flex h-full flex-col no-underline text-canvas-foreground"
-          >
-            <img
-              v-if="epArt(ep)"
-              :src="epArt(ep)!"
-              alt=""
-              class="aspect-square w-full rounded-xl object-cover bg-elevated"
-            />
-            <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <!--
-              Neither the title nor the show name is clipped (#2004 items 3/3b).
-
-              The title clamped at two lines with a reserved height and the show name truncated to
-              one, on the reasoning that a 1-line title beside a 2-line one leaves rows ragged
-              (#1584). The requirement is real; the method cost the ends of long names, and in the
-              Recommended grid the clamped title actually overflowed INTO the show name — an
-              ellipsis at line two AND a visible third line, because the clamp computed but the
-              overflow still painted.
-
-              Rows are now even because the CARD is even: the link is a flex column filling its grid
-              cell, the artwork is fixed, and the text block takes the rest. Both lines wrap freely.
-            -->
-            <div class="mt-2 text-sm font-bold leading-tight">{{ ep.title }}</div>
-            <div class="lp-kicker mt-0.5">{{ ep.podcast_title }}</div>
-          </RouterLink>
+      <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
+           This grid was hand-rolled here: square artwork, overlaid actions, show name and title —
+           EpisodeTile's shape, re-implemented. Keeping two of them is how they drifted apart in the
+           first place (title-above-show here, show-above-title there; clamped there, unclamped
+           here). One component, so a change to the tile reaches every grid that uses it. -->
+      <!-- 2 on a phone, 4 on desktop (operator 2026-09-17). Deliberately NOT the browse grids' 3/4:
+           Recommended is a short curated set on the home screen, so its tiles stay large enough to
+           read at a glance rather than matching a dense catalogue. -->
+      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="h-full">
+          <EpisodeTile :episode="ep" />
         </li>
       </ul>
     </section>

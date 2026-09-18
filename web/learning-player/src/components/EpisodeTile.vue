@@ -22,8 +22,17 @@
  *   favourite, queue, download, add-to-collection. It used to omit add-to-collection, which is
  *   exactly what made the grid show 3 icons while the list showed 4; the action count must not
  *   change with the type of view (operator 2026-09-13). Download self-hides on web.
- * * **No overlay.** The actions sit BELOW the artwork. `ShowTile` overlays its single follow button
- *   deliberately, which works for one; two icons over episode art is the crowding this replaces.
+ *
+ * ## The actions OVERLAY the artwork
+ *
+ * They used to sit below it, on the reasoning that icons over episode art crowd it. Home's
+ * "Recommended for you" is the same shape — a square-artwork tile in a 2/3/4-column grid — and it
+ * overlays, so the two grids disagreed about where an episode's controls live (operator
+ * 2026-09-17). Overlaying also gives the title back the vertical space the row cost.
+ *
+ * The crowding objection was really about WIDTH: an absolutely-positioned row sizes to max-content
+ * and will not wrap, so four icons ran off a narrow 2-column phone tile. `max-w-[76px]` is the fix
+ * Home already uses — the row wraps two-up in the corner instead of spilling.
  */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -38,7 +47,15 @@ const artwork = computed(
 </script>
 
 <template>
-  <article class="flex h-full flex-col gap-2">
+  <article class="relative flex h-full flex-col gap-2">
+    <!-- Capped to the artwork's corner so the icon row WRAPS two-up rather than spilling past a
+         narrow 2-column phone tile — an absolutely-positioned row sizes to max-content and will not
+         wrap unbounded. Same treatment as Home's "Recommended for you". -->
+    <EpisodeActions
+      :slug="episode.slug"
+      overlay
+      class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"
+    />
     <RouterLink
       :to="{ name: 'player', params: { slug: episode.slug } }"
       class="block no-underline"
@@ -69,12 +86,5 @@ const artwork = computed(
       >{{ episode.title }}</span>
     </RouterLink>
 
-    <!-- Actions at the BOTTOM (operator), matching the list card. `mt-auto` drops them to the foot
-         of the tile so every tile lines its action row up regardless of how many lines its title
-         took — but that only works because the article is `h-full` and the rail stretches each slot
-         to the tallest tile; without `h-full` the article is content-height and the actions sit
-         unevenly right under each title (operator 2026-09-14). The shared EpisodeActions set owns its
-         own tap-target spacing. -->
-    <EpisodeActions :slug="episode.slug" class="mt-auto pt-1" />
   </article>
 </template>

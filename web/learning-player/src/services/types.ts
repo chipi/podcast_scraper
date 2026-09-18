@@ -486,6 +486,8 @@ export interface Collection {
   count: number
   /** Derived cover thumbnail (CO.6): first episode/highlight member's artwork; null when none. */
   cover_url?: string | null
+  /** Manual sort position (CO.7); null for a board never reordered — those follow the ordered ones. */
+  position?: number | null
 }
 
 /** A pinnable kind (RFC-119). */
@@ -695,7 +697,8 @@ export interface TrendingEntity {
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
 export interface EntityRef {
   id: string
-  kind: "person" | "topic" | "organization"
+  /** `storyline` ids are `thc:{slug}` — the resolver indexes theme clusters too (#2004 follow-up). */
+  kind: "person" | "topic" | "organization" | "storyline"
   label: string
 }
 
