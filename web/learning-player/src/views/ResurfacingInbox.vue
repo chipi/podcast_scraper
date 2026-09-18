@@ -8,7 +8,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
+import EpisodeRow from '../components/EpisodeRow.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCappedSections } from '../composables/useCappedSections'
 import { summaryFromDetail } from '../utils/episode'
@@ -23,6 +23,7 @@ import { useResurfacingStore } from '../stores/resurfacing'
 import type { EpisodeDetail, EpisodeSummary, ResurfacingItem } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
+import { borderClass } from '../utils/highlightColors'
 
 const { t, locale } = useI18n()
 /**
@@ -161,6 +162,18 @@ const groups = computed<RevisitGroup[]>(() => {
 // Same capped sections + "Show all (N)" as the notes list on Boards (operator 2026-09-17): the due
 // list is unbounded, so it gets the same paging rule rather than growing without limit.
 const caps = useCappedSections()
+
+/**
+ * Episode groups the user has folded away — the same idiom as Library → Saved (operator
+ * 2026-09-18). Per-view and collapsed-by-exception: the moments are the content, so hiding them is
+ * a choice rather than a default.
+ */
+const collapsed = ref<Set<string>>(new Set())
+function toggleGroup(slug: string): void {
+  const next = new Set(collapsed.value)
+  if (!next.delete(slug)) next.add(slug)
+  collapsed.value = next
+}
 const visibleGroups = computed(() => caps.visible('revisit-groups', groups.value))
 
 /** "Listened 14 Sep 2026" for an episode with playback history; null when never played. */
@@ -254,35 +267,56 @@ onMounted(load)
     <p v-if="paused" class="text-muted">{{ t('revisit.paused') }}</p>
     <p v-else-if="loaded && !items.length" class="text-muted">{{ t('revisit.empty') }}</p>
 
-    <!-- Grouped by the episode each moment came from, using the SAME `EpisodeGroupCard` Search
-         renders (operator 2026-09-17): the real episode card with artwork as the header, moments
-         collapsible beneath it. The count sits under the artwork in `#aside`, exactly as Search's
-         match count does. -->
+    <!-- Revisit IS Saved, in a different context (operator 2026-09-18): the same captures, surfaced
+         because they are due rather than because you went looking. So it renders the same way —
+         episode heading, fold control, flat list of captures — and only the framing differs: a
+         reflection prompt on each, "Mark reviewed" instead of the Saved row's edit controls. -->
     <template v-else>
-      <ul class="flex flex-col gap-3">
-        <EpisodeGroupCard
-          v-for="g in visibleGroups"
-          :key="g.slug"
-          :episode="g.episode"
-          :noun="t('revisit.groupNoun')"
-          :item-count="g.items.length"
-          slim
-          testid="revisit-group"
-        >
-          <template #aside>{{ t('revisit.momentCount', g.items.length) }}</template>
-          <!-- WHEN this episode was listened to (operator 2026-09-17) — between the show name and
-               the title, where the card puts surface-specific facts. Absent for an episode with no
-               playback history rather than guessed at from the capture date. -->
-          <template v-if="listenedLabel(g.slug)" #meta>
-            <span class="lp-kicker block" data-testid="revisit-listened">
-              {{ listenedLabel(g.slug) }}
-            </span>
-          </template>
-          <ul class="flex flex-col gap-3 px-4 pb-4 pt-3">
+      <section v-for="g in visibleGroups" :key="g.slug" class="mb-6" data-testid="revisit-group">
+        <!-- Same shape as Library → Saved (operator 2026-09-18): the shared `EpisodeRow` as the
+             heading, with the fold control in its `#trailing` slot, and the moments as a flat list
+             beneath it.
+
+             This replaced a card-in-a-card-in-a-card: an outer bordered container per group, a
+             toggle row of its own, and then a bordered box per moment. Three nested frames to say
+             "these four moments are from this episode", when a heading and a list say it with one. -->
+        <div class="mb-2">
+          <EpisodeRow :episode="g.episode">
+            <template #trailing>
+              <button
+                type="button"
+                class="lp-tap shrink-0 self-center rounded-full px-2 py-1 text-xs font-bold text-accent"
+                :aria-expanded="!collapsed.has(g.slug)"
+                :aria-label="
+                  collapsed.has(g.slug)
+                    ? t('highlights.expandGroup', { title: g.episode.title })
+                    : t('highlights.collapseGroup', { title: g.episode.title })
+                "
+                data-testid="revisit-group-collapse"
+                @click="toggleGroup(g.slug)"
+              >{{ collapsed.has(g.slug) ? '▼' : '▲' }}</button>
+            </template>
+          </EpisodeRow>
+          <!-- WHEN this episode was listened to, and how many moments are due — one muted line
+               under the row rather than two slots inside a card. Absent when there is no playback
+               history rather than guessed at from the capture date. -->
+          <p class="lp-kicker mt-1">
+            <span v-if="listenedLabel(g.slug)" data-testid="revisit-listened">{{
+              listenedLabel(g.slug)
+            }}</span>
+            <template v-if="listenedLabel(g.slug)"> · </template>
+            <span>{{ t('revisit.momentCount', g.items.length) }}</span>
+          </p>
+        </div>
+        <ul v-show="!collapsed.has(g.slug)" class="flex flex-col gap-3">
+          <!-- The same card frame Saved uses, colour stripe included: it is the same capture, so
+               a moment you filed under amber stays amber when it comes back to you. Revisit was
+               dropping the colour entirely, which made the two surfaces look like two features. -->
           <li
             v-for="item in g.items"
             :key="item.highlight.id"
-            class="rounded-xl border border-border p-3"
+            class="rounded-xl border border-l-4 border-border p-3"
+            :class="borderClass(item.highlight.color)"
             data-testid="revisit-item"
           >
             <!-- KIND · DATE, the same label the notes rows on Boards carry (operator). "Marked
@@ -319,9 +353,8 @@ onMounted(load)
               >{{ t('revisit.dismiss') }}</button>
             </div>
           </li>
-          </ul>
-        </EpisodeGroupCard>
-      </ul>
+        </ul>
+      </section>
       <ShowAllToggle
         v-if="caps.overflows(groups.length)"
         :expanded="caps.expanded.has('revisit-groups')"
