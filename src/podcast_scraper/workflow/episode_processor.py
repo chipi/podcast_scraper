@@ -687,8 +687,13 @@ def _format_transcript_if_needed(
     """
     text = (result.get("text") or "").strip()
     if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
-        # Use detected speaker names (manual names are already used as fallback in workflow)
-        speaker_names = detected_speaker_names or []
+        # Use detected speaker names (manual names are already used as fallback in workflow).
+        # THE SEAT CAP LIVES HERE NOW (#2095). `detect_speaker_names` used to apply
+        # `screenplay_num_speakers` to the list of people the episode STATES, which silently
+        # deleted the guest on any two-host show and removed them from the record entirely. The
+        # screenplay is the one consumer that genuinely has a fixed number of seats, so it is the
+        # one that truncates — everything upstream keeps the full stated list.
+        speaker_names = (detected_speaker_names or [])[: cfg.screenplay_num_speakers]
         try:
             segments = result["segments"]
             has_diarized_labels = any(

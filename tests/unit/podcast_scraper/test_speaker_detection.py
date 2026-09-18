@@ -532,14 +532,35 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
         # Should NOT include "Guest" default
         self.assertNotIn("Guest", names)
 
-        # Test: Multiple hosts, no guests, max_names limits
+        # Test: max_names NO LONGER truncates the stated people (#2095/#2078).
+        #
+        # This assertion used to require `len(names) == 2`, and that requirement WAS the bug. The
+        # value is `cfg.screenplay_num_speakers` — how many seats the screenplay renders — and
+        # applying it here deleted people the episode states. On a two-host show the arithmetic
+        # was `hosts[:2] + guests[:2 - 2]`, an empty guest slice, so the guest never reached
+        # `detected_guests` or `metadata_named`, and the record builder reads only those: the
+        # person was absent from `content.speakers` entirely, not even `placed: false`.
+        # `Mackenzie Price` was in NO record file in the whole control corpus, on an episode whose
+        # transcript says "So let's bring in Alpha School cofounder, Mackenzie Price".
+        #
+        # The cap now lives at the screenplay formatter, which is the only consumer with a fixed
+        # number of seats. See `_format_transcript_if_needed`.
         names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(
             {"Alice", "Bob", "Charlie"}, [], 2
         )
         self.assertTrue(succeeded)
-        self.assertEqual(len(names), 2)  # Limited by max_names
-        # Should be sorted deterministically
-        self.assertEqual(names, sorted(["Alice", "Bob", "Charlie"])[:2])
+        self.assertEqual(names, ["Alice", "Bob", "Charlie"])
+
+        # And the shape that lost the guest: two hosts fill the old cap, the guest must survive.
+        names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(
+            {"Kevin Roose", "Casey Newton"}, ["Mackenzie Price"], 2
+        )
+        self.assertTrue(succeeded)
+        self.assertIn(
+            "Mackenzie Price",
+            names,
+            "a stated guest must reach the record even when the hosts fill every screenplay seat",
+        )
 
 
 class TestSanitizePersonName(unittest.TestCase):
