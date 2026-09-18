@@ -1086,6 +1086,17 @@ export async function getResurfacing(): Promise<ResurfacingResponse> {
  * an item permanently overdue at the top of the list. Without this the only way to stop either was
  * deleting the capture, which answers a different question.
  */
+/** Resume resurfacing a retired highlight — the undo, reachable only from Saved. */
+export async function unretireHighlight(id: string): Promise<void> {
+  const resp = await apiFetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/retire`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  if (!resp.ok && resp.status !== 401) {
+    throw new ApiError(resp.status, `DELETE /resurfacing/retire → ${resp.status}`)
+  }
+}
+
 export async function retireHighlight(id: string): Promise<void> {
   const resp = await apiFetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/retire`, {
     method: "POST",

@@ -143,11 +143,23 @@ async def list_highlights(
     """The user's highlights, optionally scoped to one episode (``?episode=<slug>``).
 
     Re-anchored against the current transcript on the way out (RFC-098 / PRD-040 FR3.1a).
+
+    ``retired`` is joined from the resurfacing state here rather than stored on the highlight, for
+    the same reason ``anchor_status`` is computed on read: it is a fact about the SCHEDULE, and
+    duplicating it onto the capture would give two places to disagree. Saved needs it because
+    retiring must be reversible somewhere, and Saved is the only surface that lists every capture
+    — a retired highlight is by definition absent from Revisit, so it cannot be undone there.
     """
-    rows = app_user_state.get_highlights(_data_dir(request), user.user_id, episode)
+    data_dir = _data_dir(request)
+    rows = app_user_state.get_highlights(data_dir, user.user_id, episode)
     root = _corpus_root_opt(request)
     if root is not None and rows:
         rows = _reanchored(root, rows)
+    state = app_user_state.get_resurfacing_state(data_dir, user.user_id)
+    for row in rows:
+        st = state.get(str(row.get("id") or ""))
+        # Mirrors select_due's tolerance: this file is hand-editable and may hold a non-mapping.
+        row["retired"] = bool(st.get("retired")) if isinstance(st, dict) else False
     return HighlightsResponse(items=[Highlight(**r) for r in rows])
 
 

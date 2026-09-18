@@ -19,6 +19,7 @@ import {
   getNotes,
   patchHighlight,
   patchNote,
+  unretireHighlight,
 } from '../services/api'
 import { newCaptureId } from '../services/captureIds'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
@@ -295,6 +296,23 @@ export const useCaptureStore = defineStore('capture', {
         else if (!updatePendingHighlightColor(id, color) && !hasPendingHighlightCreate(id)) {
           enqueue({ op: 'highlight.edit', id, color })
         }
+      }
+    },
+    /**
+     * Resume resurfacing a capture the user retired — the undo for the Revisit bell.
+     *
+     * Only ever un-retires. Retiring happens on Revisit, where the card is already leaving the
+     * list; here the item STAYS in Saved and only its badge changes, so the optimistic update is
+     * a field flip rather than a removal. On failure the flag goes back, because a badge that
+     * silently disagrees with the server is worse than one that visibly did not change.
+     */
+    async unretire(id: string): Promise<void> {
+      const prev = this.highlights
+      this.highlights = this.highlights.map((h) => (h.id === id ? { ...h, retired: false } : h))
+      try {
+        await unretireHighlight(id)
+      } catch {
+        this.highlights = prev
       }
     },
     /** Remove a highlight by id (and any notes that targeted it, locally). */

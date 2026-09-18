@@ -769,6 +769,7 @@
     "drifted": "anchor drifted",
     "driftedHint": "The transcript changed since you saved this; the timestamp still points to roughly the right place.",
     "remove": "Remove highlight",
+    "resumeResurfacing": "Not resurfacing \u2014 tap to resume",
     "addNote": "Add note",
     "editNote": "Edit",
     "removeNote": "Remove note",

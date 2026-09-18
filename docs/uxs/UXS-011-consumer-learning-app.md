@@ -494,6 +494,22 @@ redrawn, so the saved glyph cannot drift between the place you save and the plac
 resurfacing?" sits next to "when did it last surface?" rather than splitting one concept over two
 stores. It is removed rather than written `false`, so absence is the only "still resurfacing" state.
 
+**Retiring is reversible, and the undo lives in Saved (operator 2026-09-18).** It shipped as a
+one-way door: the flag hid the capture from Revisit, which makes Revisit the one surface the undo
+CANNOT live on, and nothing else showed the state — so a mis-tap silently ended a capture's
+resurfacing for good and the user could not find out which ones they had done it to. Saved is the
+only surface listing every capture, so that is where it belongs.
+
+Saved stays **one straight list of every capture**; `retired` is one more FIELD on the highlight,
+joined from the resurfacing state on read exactly as `anchor_status` is, rather than a second list,
+a second store or a filter. A retired row shows the same bell-with-slash pressed on the Revisit
+card — pressing it again undoes precisely what that press did — and `DELETE` on the retire path
+unsets the flag. `count` and `last_surfaced` are untouched, so a resumed capture returns on the rung
+it was already on instead of restarting the ladder.
+
+The marker renders **only when retired**: by default a capture is not quiet, so the overwhelming
+majority of rows are unchanged and the badge means something when it does appear.
+
 **Grouped by the episode the moment came from (2026-09-17).** The inbox was a flat list of prompts
 in which the words "Marked moment" stood in as the card's BODY text, so a card said neither what it
 was nor where it came from. Each group is now the shared **`EpisodeGroupCard`** (see UXS-014) — the

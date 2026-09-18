@@ -50,6 +50,10 @@ const GATED_WRITES = [
   'capture.captureMoment(',
   'capture.setColor(',
   'capture.remove(',
+  // Only called from Saved today, which is auth-only and therefore exempt below. Registered
+  // anyway: the exemption is about WHERE it is called from, and the next call site may not be
+  // behind a route guard.
+  'capture.unretire(',
   'capture.addNote(',
   'capture.editNote(',
   'capture.removeNote(',

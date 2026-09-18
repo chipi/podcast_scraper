@@ -386,6 +386,10 @@ export interface Highlight {
   created_at: number
   /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
   anchor_status: string | null
+  /** True when the user stopped this capture resurfacing. Joined from the resurfacing schedule
+   *  server-side on read, like `anchor_status` — Saved stays one straight list of every capture,
+   *  and this is a field on it rather than a second list (operator 2026-09-18). */
+  retired?: boolean
   /** Canonical person/topic refs (#1419) — the highlight as a graph node. Optional: absent on
    *  pre-#1419 highlights and when the episode has no KG, so callers must guard (`?? []`). */
   graph_refs?: EntityRef[]

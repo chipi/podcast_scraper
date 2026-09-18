@@ -6,6 +6,7 @@
  * "Highlights" tab. Auth-gated (the store no-ops + stays empty when signed out).
  */
 import { computed, onMounted, ref } from 'vue'
+import BellOffIcon from "../components/BellOffIcon.vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -238,6 +239,11 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
 }
 
 // Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
+/** Undo a retire. Only reachable from a row that IS retired, so there is no toggle to reason about. */
+async function resume(id: string): Promise<void> {
+  await capture.unretire(id)
+}
+
 async function share(h: Highlight): Promise<void> {
   await shareHighlightCard(h, titleFor(h.episode_slug))
 }
@@ -449,6 +455,25 @@ onMounted(async () => {
                   >⚠ {{ t('highlights.drifted') }}</span>
                 </span>
                 <div class="-mt-1 flex shrink-0 items-center gap-1">
+                  <!-- RETIRED: shown ONLY when it is (operator 2026-09-18) — "by default, things
+                       are not quiet", so a not-retired capture carries no badge and the row is
+                       unchanged for the overwhelming majority.
+
+                       This exists because retiring was otherwise a one-way door. Stopping a
+                       capture resurfacing removes it from Revisit, which makes Revisit the one
+                       place the undo CANNOT live; Saved is the only surface listing every capture,
+                       so it is where the state has to be visible and reversible. The icon is the
+                       same bell-with-slash pressed on the Revisit card — pressing it again undoes
+                       exactly what that press did. -->
+                  <button
+                    v-if="h.retired"
+                    type="button"
+                    class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent text-accent transition hover:bg-accent/10"
+                    :aria-label="t('highlights.resumeResurfacing')"
+                    :title="t('highlights.resumeResurfacing')"
+                    data-testid="highlight-retired"
+                    @click="resume(h.id)"
+                  ><BellOffIcon /></button>
                   <!-- Colour: the shared collapsed control (one current-colour dot that expands the
                        palette on tap) — identical on every saved surface (#2042). -->
                   <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
