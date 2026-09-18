@@ -522,6 +522,13 @@ def resolve_voices_and_roles(
     # Every existing guard still applies to the complement: the name must be one the metadata
     # stated (it came from `by_stated`), it must not already be used by another voice, and it must
     # not itself be third-person-refuted on the voice it is about to land on.
+    #
+    # NOTE ON THE VOICE COUNT: `voice_texts` here is already the REAL voices — the caller
+    # (`pipeline._resolve_voices_via_llm`) is fed `real_voice_texts`, which `classify_voices` has
+    # filtered by `cameo_max_talk_s` (20s). So a 9-second backchannel cluster does NOT make a
+    # two-person interview look like a three-way, and this gate must not try to re-derive that
+    # filter from text length. An offline replay that passes RAW clusters here will see three voices
+    # on Ground Truths and wrongly conclude this gate is broken.
     if len(voice_texts) == 2 and refuted_pairs:
         for bad_voice, name in refuted_pairs:
             others = [v for v in voice_texts if v != bad_voice]
@@ -553,13 +560,15 @@ def resolve_voices_and_roles(
                     continue  # not a swap of the two stated names — the direct answer stands
                 used.add(name.lower())
                 used.add(other_name.lower())
-                # Each voice keeps the ROLE the model gave it: the swap is about which NAME belongs
-                # to which voice, and the roles were not what the refutation contradicted.
+                # THE ROLE TRAVELS WITH THE NAME, not with the voice. What the model got right is
+                # the person-to-role mapping ("Topol hosts, Cobb is the guest"); what it got wrong
+                # is which voice is which. Leaving each role where it sat therefore keeps the half
+                # of the error the swap exists to undo — measured on Ground Truths, it published
+                # `Matthew Cobb` as the host and `Eric Topol`, the one name in `known_hosts`, as
+                # the guest. Moving each role alongside its name makes both halves agree.
                 refuted_voice = out.get(bad_voice)
-                out[other] = LLMVoice(name=name, role=existing.role)
-                out[bad_voice] = LLMVoice(
-                    name=other_name, role=refuted_voice.role if refuted_voice else None
-                )
+                out[other] = LLMVoice(name=name, role=refuted_voice.role if refuted_voice else None)
+                out[bad_voice] = LLMVoice(name=other_name, role=existing.role)
                 logger.info(
                     "speaker resolution: %r was refuted on %s while %r sat on %s — the two stated "
                     "names are swapped, binding each to the voice the audio allows",

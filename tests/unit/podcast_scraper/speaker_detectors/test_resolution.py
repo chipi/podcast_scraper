@@ -89,6 +89,12 @@ class TestTheRefutationIsEvidenceNotJustAVeto:
         )
         assert out["SPEAKER_00"].name == "Tyler Cowen", "the voice that says 'this is Tyler'"
         assert out["SPEAKER_01"].name == "Alison Gopnik", "so Alison is the other voice"
+        # The ROLE travels with the NAME. The model had the person-to-role mapping right (Tyler
+        # hosts, Alison is the guest) and only the voices wrong, so leaving each role where it sat
+        # would keep half the error — on Ground Truths that published Matthew Cobb as the host and
+        # Eric Topol, the one name in known_hosts, as the guest (#2075).
+        assert out["SPEAKER_00"].role == "host", "Tyler hosts, and the role follows his name"
+        assert out["SPEAKER_01"].role == "guest", "Alison is the guest, on the voice she speaks on"
 
     def test_a_direct_answer_survives_when_it_is_not_the_complementary_name(self) -> None:
         """The protection the swap must not dissolve: the other voice's name is someone else
