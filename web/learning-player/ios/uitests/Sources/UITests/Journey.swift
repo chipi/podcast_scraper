@@ -124,20 +124,51 @@ enum Journey {
     return true
   }
 
-  /// Scroll down until a matching element appears, or give up. Rails and long lists mean the thing
-  /// we want is usually below the fold on first paint.
+  /// Scroll down until a matching element appears, or the page stops moving.
+  ///
+  /// The terminating condition is the PAGE ENDING, not a swipe count. It was a fixed 8, and on
+  /// 2026-09-18 two suites failed because surfaces legitimately grew past it: Downloaded moved to
+  /// the end of Saved, and Profile gained a capture-stats block above "Sign out". Both reported as
+  /// product failures — "the UI download did not land", "sign-in did not complete" — when the app
+  /// was working perfectly and the content was simply further down.
+  ///
+  /// A count encodes how long a page happens to be today, so every section added anywhere silently
+  /// erodes it. Stalling does not: two identical frames mean scrolling achieves nothing more,
+  /// whatever the page now holds. `maxSwipes` survives only as a runaway ceiling.
   static func scrollTo(
     _ app: XCUIApplication,
     labels: [String],
     contains: Bool = true,
-    maxSwipes: Int = 8
+    maxSwipes: Int = 40
   ) -> XCUIElement? {
+    var lastSignature = ""
+    var stalled = 0
     for _ in 0...maxSwipes {
       if let el = find(app, labels: labels, contains: contains, timeout: 2) { return el }
       app.swipeUp()
       usleep(800_000)
+      let signature = app.staticTexts.allElementsBoundByIndex
+        .prefix(12).map(\.label).joined(separator: "|")
+      if signature == lastSignature {
+        stalled += 1
+        if stalled >= 2 { break }
+      } else {
+        stalled = 0
+      }
+      lastSignature = signature
     }
-    return find(app, labels: labels, contains: contains, timeout: 2)
+    if let el = find(app, labels: labels, contains: contains, timeout: 2) { return el }
+
+    // NOT FOUND — rewind to the top before giving up.
+    //
+    // Scrolling is a side effect, and a failed search used to leave the app wherever it stopped,
+    // which is the bottom of the surface. That broke the very next step: `isSignedIn` scrolls
+    // hunting "Sign out", does not find it, and `signIn` then looks for the masthead — by then at
+    // y = -623, above the viewport — and reports "neither Sign in nor Sign out present" on a
+    // perfectly healthy app (2026-09-18). A search that changes where you are standing has to put
+    // you back when it finds nothing.
+    for _ in 0..<12 { app.swipeDown() }
+    return nil
   }
 
   // MARK: - navigation
@@ -155,7 +186,12 @@ enum Journey {
   /// "Your profile" when the account has no name, so both are accepted.
   @discardableResult
   static func openProfile(_ app: XCUIApplication) -> Bool {
-    tap(app, labels: ["Your profile", "simtest", "uitest"], timeout: 25)
+    // TOP first. The control is the masthead avatar, so it scrolls away with the page — and an
+    // element above the viewport is in the accessibility tree with a NEGATIVE y, where `tap()`
+    // lands on nothing. Whatever the previous step left on screen, the header is reachable from the
+    // top (2026-09-18).
+    for _ in 0..<12 { app.swipeDown() }
+    return tap(app, labels: ["Your profile", "simtest", "uitest"], timeout: 25)
   }
 
   /// Bottom tab bar.

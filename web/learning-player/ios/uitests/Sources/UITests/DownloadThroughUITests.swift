@@ -56,17 +56,24 @@ final class DownloadThroughUITests: XCTestCase {
       _ = app.staticTexts["Downloaded"].waitForExistence(timeout: 6)
       libTries += 1
     }
+    // Downloaded moved to the END of Saved on 2026-09-18 — it had sat second, so a native build
+    // opened Saved on a device-storage list instead of the user's own captures. It is now below
+    // every capture the account holds, which the old fixed swipe budget could not reach: this suite
+    // failed with "the UI download did not land" when the download had landed perfectly.
+    //
+    // `Journey.scrollTo` now terminates on the page ending rather than a count, so it stays correct
+    // wherever the section sits next. Scroll to the top first — the tab keeps its prior position.
     for title in [first.title, second.title] {
       let listed = app.staticTexts[title].firstMatch
       for _ in 0..<6 where !listed.exists { app.swipeDown() }
-      var scrolls = 0
-      while !listed.exists && scrolls < 8 {
-        app.swipeUp()
-        scrolls += 1
-      }
+      _ = Journey.scrollTo(app, labels: [title], contains: false)
+
       if !listed.exists {
         print("=====LIBRARY_TREE_START====="); print(app.debugDescription); print("=====LIBRARY_TREE_END=====")
-        XCTFail("\(title) is not in the Downloaded list — the UI download did not land")
+        XCTFail(
+          "\(title) is not in the Downloaded list after scrolling to the end of Saved — the UI "
+            + "download did not land"
+        )
         return
       }
     }
