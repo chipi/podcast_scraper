@@ -52,7 +52,7 @@ the answer demands it.
 
 | tier | what it runs | population | cost | answers |
 | --- | --- | --- | --- | --- |
-| 1. Golden set | the decision functions, in-process | ~40 chosen episodes | **~5 s** | did I fix the case, and break a known-good one? |
+| 1. Golden set | the decision functions, in-process | 11 chosen episodes | **~5 s** | did I fix the case, and break a known-good one? |
 | 2. Full replay | the decision functions, in-process | all 4,543 stored episodes | **~10 min** | what else moved, anywhere in the corpus? |
 | 3. Targeted pipeline | the real CLI, one stage | 1–2 episodes | ~5–20 min | does it hold end-to-end, through the LLM and the artifacts? |
 | 4. Harness | the real CLI, every stage | 292 episodes | **~8.5 h** | acceptance, for the PR |

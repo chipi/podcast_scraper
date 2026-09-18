@@ -87,13 +87,6 @@ CASES = [
         why="episode titled for him; the 66% voice is him describing his bilingual childhood",
     ),
     # --- must NOT regress: names the branch currently gets right ---------------------
-    dict(
-        id="oddlots-stated-spelling",
-        ep="Tungsten Market Is Warning",
-        kind="present",
-        name="Tracy Alloway",
-        why="sign-off names her; the stated spelling must win over the ASR's",
-    ),
     # KNOWN GAP, and a warning about this harness. These two FAIL today and that is real:
     # with no LLM the forced-host path puts the one known host's name on whichever voice is
     # dominant, and here the dominant voice is the GUEST (42 min of author vs 12 min of
@@ -122,11 +115,19 @@ CASES = [
         why='SPEAKER_02 is the host: "this is Matthew Cobb\'s seventh book"',
     ),
     dict(
-        id="mccoll-not-emily-hart",
-        ep="Colombia Calling",
+        id="pravda-host-says-who-he-is",
+        ep="Pavel Durov_s Russian biographer",
+        kind="absent-on",
+        voice="SPEAKER_00",
+        name="Boris Goryachev",
+        why='SPEAKER_00 says "your host, Kevin Rothrock" — it cannot be another person',
+    ),
+    dict(
+        id="ilb-stated-spelling",
+        ep="Ep182_ Andy Rachleff",
         kind="absent",
-        name="Emily Hart",
-        why='the voice says "this is me your host richard mccall"',
+        name="Andy Ratcliffe",
+        why="the episode states `Andy Rachleff`; Ratcliffe is the ASR's spelling of him",
     ),
     dict(
         id="rest-is-history-no-event",
