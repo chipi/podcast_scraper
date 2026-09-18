@@ -2270,6 +2270,23 @@ ios-testflight-preflight:
 # device got the previous build with no indication anything was wrong. The recipe ended that line
 # with `;` rather than `&&`, and the `[ -d App.app ]` check passed on the leftover.
 #
+# Freshness is proven by CONTENT, not mtime. The first version of this gate compared `App.app`'s
+# Info.plist against a stamp taken before the build — and then refused every incremental build,
+# because `ProcessInfoPlistFile` only re-runs when its inputs change, so a build that only swapped
+# web assets left Info.plist untouched. A timestamp on an arbitrary file is a proxy for "did the
+# build run", and it was the wrong file. Vite content-hashes every chunk name, so asserting that
+# each `dist/assets/*.js` exists inside the bundle tests the thing actually at stake: does the app
+# about to be installed contain the code in this working tree.
+#
+# xcodebuild's output is NOT swallowed. It was piped to /dev/null, which is how a build failure
+# first reached the device — the only thing on screen was an unrelated warning.
+#
+# `$$dist` is ABSOLUTE, and its emptiness is a failure rather than a pass. The first attempt used a
+# repo-relative `cd $(APP_DIR)` inside a recipe that had already `cd`'d to `$(APP_DIR)/ios/App`, so
+# the glob matched nothing, the "missing chunks" list came back empty, and the gate reported the
+# bundle fresh — having compared zero files. A check that cannot fail is worse than no check: it
+# reads as verification in the log. Mutation-tested by deleting a chunk from the built bundle.
+#
 # It also retries ONCE after wiping the derived-data dir, because the common failure is a stale
 # precompiled-module cache in /tmp rather than anything wrong with the code.
 #
@@ -2290,12 +2307,11 @@ ios-device-install:
 		echo "      show it as 'available (paired)'."; exit 1; }; \
 	app="$(IOS_DEVICE_DD)/Build/Products/Debug-iphoneos/App.app"; \
 	echo "--> building for device $$udid"; \
-	stamp=$$(mktemp); \
 	build_once() { \
 		env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 			-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
 			-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
-			build >/dev/null; \
+			build; \
 	}; \
 	if ! build_once; then \
 		echo "--> build failed; clearing $(IOS_DEVICE_DD) and retrying once"; \
@@ -2303,14 +2319,22 @@ ios-device-install:
 		echo "     that no longer exist, and every Cordova source then fails to compile)"; \
 		rm -rf $(IOS_DEVICE_DD); \
 		build_once || { echo "FAIL: xcodebuild failed. Nothing was installed — the app on the"; \
-			echo "      device is whatever was there before."; rm -f "$$stamp"; exit 1; }; \
+			echo "      device is whatever was there before."; exit 1; }; \
 	fi; \
-	[ -d "$$app" ] || { echo "FAIL: no App.app at $$app"; rm -f "$$stamp"; exit 1; }; \
-	[ "$$app/Info.plist" -nt "$$stamp" ] || { \
-		echo "FAIL: $$app predates this build — it is a leftover from an earlier run, and"; \
-		echo "      installing it would put OLD code on the device while reporting success."; \
-		rm -f "$$stamp"; exit 1; }; \
-	rm -f "$$stamp"; \
+	[ -d "$$app" ] || { echo "FAIL: no App.app at $$app"; exit 1; }; \
+	dist="$(CURDIR)/$(APP_DIR)/dist/assets"; \
+	ls "$$dist"/*.js >/dev/null 2>&1 || { \
+		echo "FAIL: no web build at $$dist — the freshness check below would pass by checking"; \
+		echo "      nothing, which is how a vacuous gate reports success."; exit 1; }; \
+	stale=$$(for f in "$$dist"/*.js; do \
+		b=$$(basename "$$f"); \
+		[ -f "$$app/public/assets/$$b" ] || echo "$$b"; \
+	done | head -3); \
+	[ -z "$$stale" ] || { \
+		echo "FAIL: the built App.app does not carry this web build — missing chunk(s):"; \
+		echo "$$stale" | sed 's/^/        /'; \
+		echo "      Installing it would put OLD code on the device while reporting success."; \
+		exit 1; }; \
 	if ls "$$app"/public/assets/*.js >/dev/null 2>&1 && \
 	   grep -qhE 'https://[a-z.]+/api/app' "$$app"/public/assets/*.js; then \
 		echo "OK: PROD tier targets a hosted api"; \
