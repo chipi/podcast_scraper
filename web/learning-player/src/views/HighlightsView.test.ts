@@ -307,4 +307,59 @@ describe('HighlightsView', () => {
     await flushPromises()
     expect(del).toHaveBeenCalledWith('n1')
   })
+
+  /**
+   * The muted filter and the PDF export had ZERO tests anywhere — vitest, Playwright, pytest or
+   * XCUITest (operator review 2026-09-18). Both are features the operator personally reported
+   * missing or broken on device, fixed, and then shipped with nothing guarding them.
+   */
+  it('mutedOnly narrows the list to retired captures', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      hl({ id: 'active', quote_text: 'still resurfacing' }),
+      hl({ id: 'gone', quote_text: 'stopped asking', retired: true } as Partial<Highlight>),
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+
+    const off = mountView()
+    await flushPromises()
+    expect(off.text()).toContain('still resurfacing')
+    expect(off.text()).toContain('stopped asking')
+
+    const on = mountView({ mutedOnly: true })
+    await flushPromises()
+    // The retired one is the ONLY thing left. Asserting just "the retired one is present" would
+    // pass while the filter did nothing at all.
+    expect(on.text()).toContain('stopped asking')
+    expect(on.text()).not.toContain('still resurfacing')
+  })
+
+  it('the Markdown export link carries the muted filter, so what you filtered is what you get', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      hl({ id: 'gone', retired: true } as Partial<Highlight>),
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView({ mutedOnly: true })
+    await flushPromises()
+    const href = w.get('a[download]').attributes('href') ?? ''
+    expect(href).toContain('muted_only=true')
+  })
+
+  it('the PDF button opens the print route externally, with the active filters', async () => {
+    // `openExternal`, not `window.open` — the latter is a silent no-op in WKWebView, which is how
+    // this button did nothing at all on the operator's phone.
+    const open = vi.spyOn(native, 'openExternal').mockResolvedValue(undefined)
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView({ filterColor: 'amber', mutedOnly: true })
+    await flushPromises()
+
+    await w.get('[data-testid="export-pdf"]').trigger('click')
+    await flushPromises()
+
+    expect(open).toHaveBeenCalledTimes(1)
+    const url = open.mock.calls[0][0]
+    expect(url).toContain('export.html')
+    expect(url).toContain('color=amber')
+    expect(url).toContain('muted_only=true')
+  })
 })
