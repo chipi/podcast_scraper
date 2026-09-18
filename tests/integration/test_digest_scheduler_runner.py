@@ -54,25 +54,102 @@ def test_beat_writes_heartbeat(tmp_path: Path, monkeypatch) -> None:
     assert beat.isdigit()  # a unix timestamp
 
 
-def test_run_once_reports_enqueued_count(tmp_path: Path, monkeypatch, capsys) -> None:
-    mod = _load(tmp_path, monkeypatch)
-    from podcast_scraper.server import app_digest_personal
+def _stub_all(mod, monkeypatch, **returns):
+    """Stub every enqueuer in ``_ENQUEUERS``; unnamed ones return []."""
+    import importlib
 
-    monkeypatch.setattr(app_digest_personal, "enqueue_due_digests", lambda root, data: ["a", "b"])
+    for label, module_name, func_name in mod._ENQUEUERS:
+        module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+        value = returns.get(label, [])
+        if isinstance(value, Exception):
+
+            def _boom(root, data, _exc=value):
+                raise _exc
+
+            monkeypatch.setattr(module, func_name, _boom)
+        else:
+            monkeypatch.setattr(module, func_name, lambda root, data, _v=value: _v)
+
+
+def test_run_once_reports_per_enqueuer_counts(tmp_path: Path, monkeypatch, capsys) -> None:
+    """A bare total is ambiguous across several enqueuers, and that ambiguity is what hid #2119:
+    the sidecar logged a healthy 'enqueued 0' for months while daily_recap was never called."""
+    mod = _load(tmp_path, monkeypatch)
+    _stub_all(mod, monkeypatch, weekly=["a", "b"], daily_recap=["c"])
     mod._run_once()
-    assert "enqueued 2 envelope(s)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "enqueued 3 envelope(s)" in out
+    assert "weekly=2" in out
+    assert "daily_recap=1" in out
+    assert "recommendations=0" in out
+
+
+def test_one_failing_enqueuer_does_not_mute_the_others(tmp_path: Path, monkeypatch, capsys) -> None:
+    """The cadences are independent. A broken assembler in one must not silence every
+    notification the product has — which is what coupling them would do."""
+    mod = _load(tmp_path, monkeypatch)
+    _stub_all(
+        mod,
+        monkeypatch,
+        weekly=RuntimeError("outbox unreachable"),
+        daily_recap=["still-delivered"],
+    )
+    mod._run_once()
+    out = capsys.readouterr().out
+    assert "enqueuer weekly failed" in out
+    assert "weekly=ERR" in out
+    assert "daily_recap=1" in out  # the healthy one still ran
+    assert "still-delivered" in out
 
 
 def test_cycle_survives_enqueue_error_and_still_beats(tmp_path: Path, monkeypatch, capsys) -> None:
     """The crux: a failing enqueue must be caught (loop survives) AND the heartbeat still fires
     (the container stays healthy; a persistently-empty loop is caught by the homelab dead-man)."""
     mod = _load(tmp_path, monkeypatch)
-    from podcast_scraper.server import app_digest_personal
+    _stub_all(mod, monkeypatch, weekly=RuntimeError("outbox unreachable"))
+    mod._cycle()  # must NOT raise
+    assert "enqueuer weekly failed" in capsys.readouterr().out
+    assert (tmp_path / "hb" / "tick").exists()  # beat happened despite the error
 
-    def boom(root, data):
-        raise RuntimeError("outbox unreachable")
 
-    monkeypatch.setattr(app_digest_personal, "enqueue_due_digests", boom)
+def test_cycle_survives_a_non_enqueuer_error(tmp_path: Path, monkeypatch, capsys) -> None:
+    """Per-enqueuer isolation must not remove the outer backstop: anything else that throws in a
+    cycle still has to be caught and still has to beat."""
+    mod = _load(tmp_path, monkeypatch)
+
+    def boom() -> None:
+        raise RuntimeError("something else entirely")
+
+    monkeypatch.setattr(mod, "_run_once", boom)
     mod._cycle()  # must NOT raise
     assert "cycle error" in capsys.readouterr().out
-    assert (tmp_path / "hb" / "tick").exists()  # beat happened despite the error
+    assert (tmp_path / "hb" / "tick").exists()
+
+
+def test_enqueuers_match_the_in_process_scheduler(tmp_path: Path, monkeypatch) -> None:
+    """THE REGRESSION GUARD for #2119.
+
+    ``infra/deploy/digest_scheduler.py`` is a separate process from
+    ``server/scheduler.py``, and prod runs ONLY the sidecar. When ``daily_recap`` (#2039) and the
+    monthly ``recommendations`` digest were added to the in-process scheduler and not to the
+    sidecar, both shipped dead to production and stayed dead — silently, because the sidecar kept
+    logging a healthy 'enqueued 0 envelope(s)'.
+
+    This fails the moment ``scheduler.py`` calls an ``enqueue_due_*`` the sidecar does not.
+    """
+    import re
+
+    mod = _load(tmp_path, monkeypatch)
+    scheduler_src = (_REPO_ROOT / "src" / "podcast_scraper" / "server" / "scheduler.py").read_text(
+        encoding="utf-8"
+    )
+
+    called = set(re.findall(r"(app_digest_\w+)\.(enqueue_due_\w+)\(", scheduler_src))
+    assert called, "found no enqueue_due_* calls in scheduler.py — did the call shape change?"
+
+    declared = {(module_name, func_name) for _, module_name, func_name in mod._ENQUEUERS}
+    missing = called - declared
+    assert not missing, (
+        "scheduler.py drives enqueuers the production sidecar does not call, so they are DEAD in "
+        f"prod: {sorted(missing)}. Add them to _ENQUEUERS in infra/deploy/digest_scheduler.py."
+    )

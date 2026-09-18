@@ -5,8 +5,12 @@ The public player backend runs ``PODCAST_SERVE_APP_ONLY=1`` (ADR-116), which for
 the in-process job scheduler (``src/podcast_scraper/server/app.py``: ``enable_jobs_api = False``
 under app_only) — so the "Your Week" digest would never auto-fire on the player. This tiny
 sidecar owns that cadence instead: it wakes at the top of every interval and calls the SAME
-assembler the in-process scheduler would have, ``app_digest_personal.enqueue_due_digests``,
-which itself gates each user on their own consent + cadence slot and dedupes per period.
+assemblers the in-process scheduler would have (``_ENQUEUERS`` below), each of which gates every
+user on their own consent + cadence slot and dedupes per period.
+
+``_ENQUEUERS`` must mirror ``server/scheduler.py``'s digest branch. It did not, for the entire
+life of ``daily_recap``: that enqueuer was added to ``scheduler.py`` and not here, so the only
+code path prod runs never called it and no daily recap was ever produced (#2119).
 
 It is pure filesystem work — reads the read-only corpus (``/app/output``) and the shared appdata
 bind mount (``/app/appdata``), writes ``DeliveryEnvelope``s to the outbox. NO network (the
@@ -53,12 +57,41 @@ def _beat() -> None:
         _log(f"heartbeat write failed: {exc}")
 
 
-def _run_once() -> None:
-    from podcast_scraper.server import app_digest_personal
+#: Every enqueuer the in-process scheduler drives, so this sidecar cannot silently cover a
+#: subset of them. Adding one to ``scheduler.py`` without adding it here is exactly how
+#: ``daily_recap`` shipped dead to prod for its whole life (#2119) — the sidecar kept logging a
+#: healthy "enqueued 0 envelope(s)" because the enqueuer that would have produced them was
+#: never called. Keep this list in step with ``server/scheduler.py``'s digest branch.
+_ENQUEUERS: tuple[tuple[str, str, str], ...] = (
+    ("weekly", "app_digest_personal", "enqueue_due_digests"),
+    ("recommendations", "app_digest_recommendations", "enqueue_due_recommendations"),
+    ("daily_recap", "app_digest_daily_recap", "enqueue_due_daily_recaps"),
+)
 
-    ids = app_digest_personal.enqueue_due_digests(CORPUS_ROOT, DATA_DIR)
-    detail = ": " + ", ".join(ids) if ids else ""
-    _log(f"tick: enqueued {len(ids)} envelope(s){detail}")
+
+def _run_once() -> None:
+    import importlib
+
+    all_ids: list[str] = []
+    counts: list[str] = []
+    for label, module_name, func_name in _ENQUEUERS:
+        # Isolated per enqueuer: a failure in one must not stop the others from running. They
+        # are independent cadences and coupling them would let one broken assembler silence
+        # every notification the product has.
+        try:
+            module = importlib.import_module(f"podcast_scraper.server.{module_name}")
+            ids = list(getattr(module, func_name)(CORPUS_ROOT, DATA_DIR))
+        except Exception as exc:  # noqa: BLE001 — one bad enqueuer must not mute the rest
+            _log(f"enqueuer {label} failed: {exc!r}")
+            counts.append(f"{label}=ERR")
+            continue
+        all_ids.extend(ids)
+        counts.append(f"{label}={len(ids)}")
+
+    detail = ": " + ", ".join(all_ids) if all_ids else ""
+    # Per-enqueuer counts, not just the total: "enqueued 0" is ambiguous across several
+    # enqueuers and that ambiguity is what hid #2119.
+    _log(f"tick: enqueued {len(all_ids)} envelope(s) [{' '.join(counts)}]{detail}")
 
 
 def _sleep_to_next_interval(sleep: Callable[[float], object] = time.sleep) -> None:
