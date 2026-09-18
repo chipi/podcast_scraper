@@ -247,4 +247,57 @@ describe('ResurfacingInbox', () => {
 
     expect(w.find('[data-testid="revisit-item"]').exists()).toBe(true)
   })
+
+  /**
+   * The RECEIVING side of the Home rail's deep link.
+   *
+   * `RevisitRail.test.ts` asserts the card's href carries `focus=<id>`. Nothing asserted that this
+   * view consumes it — so the link could point at a surface that ignores it and both sides would
+   * look green. The user taps a rail card and lands at the top of a long list with no sign of the
+   * capture they asked about (operator review 2026-09-18: cover both sides of a contract).
+   */
+  it('?focus=<id> rings the requested card and scrolls it into view', async () => {
+    const scrollIntoView = vi.fn()
+    // jsdom does not implement it; without the stub the watch throws instead of scrolling.
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      value: scrollIntoView,
+      writable: true,
+      configurable: true,
+    })
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [item({ highlight: hl({ id: 'h1' }) }), item({ highlight: hl({ id: 'h2' }) })],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+
+    await router.replace({ path: '/library', query: { focus: 'h2' } })
+    const w = mountInbox()
+    await flushPromises()
+    await flushPromises()
+
+    expect(scrollIntoView).toHaveBeenCalled()
+    // The RIGHT card is ringed — a test that only checks "something scrolled" passes while the
+    // wrong capture is highlighted.
+    const ringed = w.findAll('[data-testid="revisit-item"]').filter((c) =>
+      c.classes().some((k) => k.includes('ring-accent')),
+    )
+    expect(ringed).toHaveLength(1)
+  })
+
+  it('an unknown ?focus id rings nothing rather than guessing', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [item({ highlight: hl({ id: 'h1' }) })],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+
+    await router.replace({ path: '/library', query: { focus: 'not-here' } })
+    const w = mountInbox()
+    await flushPromises()
+
+    const ringed = w.findAll('[data-testid="revisit-item"]').filter((c) =>
+      c.classes().some((k) => k.includes('ring-accent')),
+    )
+    expect(ringed).toHaveLength(0)
+  })
 })
