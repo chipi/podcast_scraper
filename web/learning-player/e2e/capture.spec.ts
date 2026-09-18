@@ -55,6 +55,27 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   // The episode group renders with its captured items (the marked moment is always present).
   await expect(page.getByText('Marked moment').first()).toBeVisible()
 
+  // The moment must carry WHAT was marked, not merely that something was (operator 2026-09-18).
+  //
+  // This spec asserted only the "Marked moment" kicker, so the mark → store → render path for the
+  // captured LINE was uncovered end to end: a moment that stored a timestamp and nothing else
+  // passed here and produced a Library card with no content — exactly what was reported.
+  const momentCard = page.locator('li', { has: page.getByText('Marked moment') }).first()
+  await expect(
+    momentCard.getByTestId('highlight-quote'),
+    'the marked moment rendered no captured text',
+  ).toBeVisible()
+  await expect(momentCard.getByTestId('highlight-quote')).not.toBeEmpty()
+
+  // The per-card icon actions ride the kicker line now rather than a wrapped row of their own.
+  await expect(momentCard.getByTestId('highlight-delete')).toBeVisible()
+
+  // Each episode group is headed by its episode — artwork in front of the title.
+  await expect(
+    page.getByTestId('highlight-group-heading').first(),
+    'the episode group lost its heading',
+  ).toBeVisible()
+
   // a11y: the Highlights review surface (swatch pickers, colour filter, notes, export) is clean.
   const highlightsAxe = await new AxeBuilder({ page }).analyze()
   expect(serious(highlightsAxe.violations)).toEqual([])

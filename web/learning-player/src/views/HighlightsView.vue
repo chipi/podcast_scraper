@@ -19,13 +19,14 @@ import {
 } from '../services/api'
 import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
-import type { Highlight } from '../services/types'
+import type { EpisodeDetail, Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
+import { episodeArtwork } from '../utils/episode'
 import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
 import { shareHighlightCard } from '../composables/useShareCard'
@@ -44,8 +45,21 @@ const props = defineProps<{ filterColor?: string | null; sort?: string; search?:
 const groupCaps = useCappedSections()
 const searchActive = computed(() => (props.search ?? '').trim() !== '')
 
-// Episode titles for the group headings (slug → title), hydrated lazily; slug is the fallback.
-const titles = ref<Record<string, string>>({})
+/**
+ * The episode behind each group heading (slug → detail), hydrated lazily.
+ *
+ * Whole detail rather than just the title: the heading carries the episode's ARTWORK now (operator
+ * 2026-09-18, matching Revisit and the downloads rows), and the detail this view already fetched
+ * for the title carries it — so the thumbnail costs no extra request.
+ */
+const details = ref<Record<string, EpisodeDetail>>({})
+/** Title with the slug as fallback, so a group still reads sensibly before its episode lands. */
+const titleFor = (slug: string): string => details.value[slug]?.title ?? slug
+/** Small square thumbnail, same size the downloads list uses; null while unresolved. */
+const artFor = (slug: string): string | null => {
+  const d = details.value[slug]
+  return d ? episodeArtwork(d) : null
+}
 
 interface Group {
   slug: string
@@ -72,7 +86,7 @@ const groups = computed<Group[]>(() => {
   // group, newest first. Group ORDER: A–Z by episode title for 'title', else most-recent group first.
   const out = [...bySlug.entries()].map(([slug, highlights]) => ({
     slug,
-    title: titles.value[slug] ?? slug,
+    title: titleFor(slug),
     highlights: [...highlights].sort(byRecent),
   }))
   if (sort === 'title') {
@@ -186,7 +200,7 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
 
 // Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
 async function share(h: Highlight): Promise<void> {
-  await shareHighlightCard(h, titles.value[h.episode_slug] ?? h.episode_slug)
+  await shareHighlightCard(h, titleFor(h.episode_slug))
 }
 
 // Graph-aware Obsidian export (#1472). Incremental: the last-applied revision is remembered in
@@ -244,7 +258,7 @@ onMounted(async () => {
   await Promise.all(
     slugs.map(async (slug) => {
       const d = await getEpisode(slug).catch(() => null)
-      if (d) titles.value[slug] = d.title
+      if (d) details.value[slug] = d
     }),
   )
 })
@@ -325,10 +339,25 @@ onMounted(async () => {
     </div>
 
     <section v-for="g in visibleGroups" :key="g.slug" class="mb-6">
+      <!-- The episode's artwork leads its group (operator 2026-09-18), at the size the downloads
+           rows use — image in front, heading beside it. A text-only heading made a page of captures
+           read as a list of sentences with no sense of WHICH show they came from, which is the one
+           thing the grouping exists to convey. No artwork (or not resolved yet) simply renders the
+           title, rather than reserving a grey square for something that may never arrive. -->
       <RouterLink
         :to="{ name: 'player', params: { slug: g.slug } }"
-        class="lp-section mb-2 block no-underline hover:text-accent"
-      >{{ g.title }}</RouterLink>
+        class="mb-2 flex items-center gap-2 no-underline hover:text-accent"
+        data-testid="highlight-group-heading"
+      >
+        <img
+          v-if="artFor(g.slug)"
+          :src="artFor(g.slug)!"
+          alt=""
+          loading="lazy"
+          class="h-10 w-10 shrink-0 rounded object-cover"
+        />
+        <span class="lp-section min-w-0">{{ g.title }}</span>
+      </RouterLink>
       <ul class="flex flex-col gap-3">
         <li
           v-for="h in g.highlights"
@@ -342,13 +371,40 @@ onMounted(async () => {
               <!-- TITLE — what kind of capture this is. A moment says so too now: it used to be
                    the only kind with no kicker, because the words "Marked moment" were standing in
                    as the body text (operator 2026-09-17). -->
-              <span class="lp-kicker">{{
-                h.kind === 'insight'
-                  ? t('highlights.insight')
-                  : h.kind === 'span'
-                    ? t('highlights.span')
-                    : t('highlights.moment')
-              }}</span>
+              <!-- The kicker and the per-card icon actions share ONE line, actions hard right
+                   (operator 2026-09-18). They used to wrap onto a second row beneath the controls,
+                   giving every card a trailing strip of three lonely glyphs and making a two-line
+                   capture three lines tall. The kicker line was half empty; this is space the card
+                   already had. -->
+              <div class="flex items-start justify-between gap-2">
+                <span class="lp-kicker">{{
+                  h.kind === 'insight'
+                    ? t('highlights.insight')
+                    : h.kind === 'span'
+                      ? t('highlights.span')
+                      : t('highlights.moment')
+                }}</span>
+                <div class="-mt-1 flex shrink-0 items-center gap-1">
+                  <!-- Colour: the shared collapsed control (one current-colour dot that expands the
+                       palette on tap) — identical on every saved surface (#2042). -->
+                  <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
+                  <button
+                    type="button"
+                    class="rounded-full p-1 text-muted transition hover:text-accent"
+                    :aria-label="t('highlights.share')"
+                    :title="t('highlights.share')"
+                    @click="share(h)"
+                  >↗</button>
+                  <button
+                    type="button"
+                    class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
+                    :aria-label="t('highlights.remove')"
+                    :title="t('highlights.remove')"
+                    data-testid="highlight-delete"
+                    @click="pendingHighlight = h.id"
+                  ><CloseIcon /></button>
+                </div>
+              </div>
               <!-- The QUOTE — the spoken line that was captured, under the title and above the
                    speaker who said it. Set as a quotation rather than a heading: these are somebody
                    else's words and the card is the record of them. A moment saved before the text
@@ -395,24 +451,6 @@ onMounted(async () => {
                 data-testid="highlight-add-note"
                 @click="startAdd(h.id)"
               >+ {{ t('highlights.addNote') }}</button>
-              <!-- Colour: the shared collapsed control (one current-colour dot that expands the
-                   palette on tap) — identical on every saved surface (#2042). -->
-              <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
-              <button
-                type="button"
-                class="rounded-full p-1 text-muted transition hover:text-accent"
-                :aria-label="t('highlights.share')"
-                :title="t('highlights.share')"
-                @click="share(h)"
-              >↗</button>
-              <button
-                type="button"
-                class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
-                :aria-label="t('highlights.remove')"
-                :title="t('highlights.remove')"
-                data-testid="highlight-delete"
-                @click="pendingHighlight = h.id"
-              ><CloseIcon /></button>
             </div>
 
           <!-- Notes attached to this highlight -->
