@@ -126,6 +126,8 @@ const savedColor = ref<string | null>(null)
 const savedSort = ref<string>('recent')
 // Type-to-filter search + per-section caps keep the hub scannable at 100+ items (#2042 follow-up).
 // A non-empty query lifts every cap so a match is never hidden behind "Show all".
+/** Muted filter (operator 2026-09-18) — highlights only; every other Saved section ignores it. */
+const savedMutedOnly = ref(false)
 const savedSearch = ref('')
 const savedSearchActive = computed(() => savedSearch.value.trim() !== '')
 // Saved's per-type sections page 10 at a time (operator 2026-09-18) rather than the default 6 with
@@ -135,6 +137,10 @@ const savedCaps = useCappedSections(10, 10)
 
 /** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
  *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
+/** Whether any capture is muted. The muted toggle renders only then, matching the bar's existing
+ *  presence rule: never offer a filter that can only produce an empty list. */
+const hasMutedHighlights = computed(() => capture.highlights.some((h) => h.retired))
+
 function highlightMatches(h: { quote_text?: string | null; speaker?: string | null }): boolean {
   return matchesQuery(h.quote_text, savedSearch.value) || matchesQuery(h.speaker, savedSearch.value)
 }
@@ -246,11 +252,20 @@ const savedShowPodcasts = computed(() => {
   }))
 })
 
-/** Colour- + search-filtered highlight count, so the Highlights section hides when empty. */
+/**
+ * Colour-, muted- and search-filtered highlight count, so the Highlights section hides when empty.
+ *
+ * Must apply EVERY filter `HighlightsView` applies. Adding the muted filter to the list but not
+ * here put "Highlights 6" directly above a list of 2 — the same class of disagreement the count
+ * was made filter-aware to fix in the first place.
+ */
 const visibleHighlightCount = computed(
   () =>
     capture.highlights.filter(
-      (h) => (!savedColor.value || h.color === savedColor.value) && highlightMatches(h),
+      (h) =>
+        (!savedColor.value || h.color === savedColor.value) &&
+        (!savedMutedOnly.value || h.retired) &&
+        highlightMatches(h),
     ).length,
 )
 
@@ -549,7 +564,9 @@ onMounted(async () => {
           v-model:color="savedColor"
           v-model:sort="savedSort"
           v-model:search="savedSearch"
+          v-model:muted-only="savedMutedOnly"
           :available-types="availableTypes"
+          :show-muted="hasMutedHighlights"
         />
         <!-- #1261-8: Saved searches — power-listener persistent queries.
              Tap the query to re-run the search; ×  removes it. Searches carry no colour, so a
@@ -690,7 +707,12 @@ onMounted(async () => {
             {{ t('library.highlights') }}
             <span class="lp-kicker ml-1 font-normal">{{ visibleHighlightCount }}</span>
           </h2>
-          <HighlightsView :filter-color="savedColor" :sort="savedSort" :search="savedSearch" />
+          <HighlightsView
+            :filter-color="savedColor"
+            :sort="savedSort"
+            :search="savedSearch"
+            :muted-only="savedMutedOnly"
+          />
         </section>
 
         <!-- Downloaded (#1905) — device-local, native only, renders with no API calls.

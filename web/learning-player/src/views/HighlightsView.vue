@@ -7,6 +7,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import BellOffIcon from "../components/BellOffIcon.vue"
+import BookmarkIcon from "../components/BookmarkIcon.vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -41,7 +42,13 @@ const capture = useCaptureStore()
  * in, so one bar governs every Saved section rather than a strip buried in this list. Defaults keep
  * the pre-lift behaviour (all colours, grouped by episode) for any standalone mount.
  */
-const props = defineProps<{ filterColor?: string | null; sort?: string; search?: string }>()
+const props = defineProps<{
+  filterColor?: string | null
+  sort?: string
+  search?: string
+  /** `true` = only captures the user stopped resurfacing; default/false = everything. */
+  mutedOnly?: boolean
+}>()
 
 // Episode groups are capped like every other Library section (#2042 follow-up); a search lifts it.
 // Episode groups AND the captures inside each one page 10 at a time (operator 2026-09-18). A heavy
@@ -115,6 +122,10 @@ const groups = computed<Group[]>(() => {
   const bySlug = new Map<string, Highlight[]>()
   for (const h of capture.highlights) {
     if (props.filterColor && h.color !== props.filterColor) continue
+    // Muted filter (operator 2026-09-18): sits beside the colour filter and reads the same way
+    // — unset shows everything, set narrows. `retired` is optional on the type, so the coerce
+    // keeps an older cached payload (no field) out of the muted bucket rather than in it.
+    if (props.mutedOnly && !h.retired) continue
     // Search matches a highlight's own text (quote / speaker); episode titles are findable through
     // the Episodes section. Mirrors LibraryView's count predicate so the two agree.
     if (!(matchesQuery(h.quote_text, query) || matchesQuery(h.speaker, query))) continue
@@ -455,6 +466,13 @@ onMounted(async () => {
                   >⚠ {{ t('highlights.drifted') }}</span>
                 </span>
                 <div class="-mt-1 flex shrink-0 items-center gap-1">
+                  <!-- ORDER: colour first, share last (operator 2026-09-18). Colour is what
+                       this capture IS, so it leads; share sends it somewhere else, so it
+                       trails. The state and unsave controls sit between, bell before
+                       bookmark — the same order as the Revisit card. -->
+                  <!-- Colour: the shared collapsed control (one current-colour dot that expands the
+                       palette on tap) — identical on every saved surface (#2042). -->
+                  <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
                   <!-- RETIRED: shown ONLY when it is (operator 2026-09-18) — "by default, things
                        are not quiet", so a not-retired capture carries no badge and the row is
                        unchanged for the overwhelming majority.
@@ -474,9 +492,24 @@ onMounted(async () => {
                     data-testid="highlight-retired"
                     @click="resume(h.id)"
                   ><BellOffIcon /></button>
-                  <!-- Colour: the shared collapsed control (one current-colour dot that expands the
-                       palette on tap) — identical on every saved surface (#2042). -->
-                  <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
+                  <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18) — the same control, and the
+                       same reasoning, as the Revisit card's third outcome. This action UNSAVES, so
+                       it shows the glyph that did the saving, filled: tapping it reads as undoing
+                       the save rather than as a generic destroy.
+
+                       Identical here and on Revisit deliberately. These are the two surfaces that
+                       list the same objects, so an unsave that looked like ✕ on one and a bookmark
+                       on the other would be two controls for one action. Accent at rest (the saved
+                       state it shows), danger on hover (what pressing it does), and still
+                       confirm-gated (#1594) — the capture and its notes do not come back. -->
+                  <button
+                    type="button"
+                    class="lp-tap rounded-full p-1 text-accent transition hover:text-danger"
+                    :aria-label="t('highlights.unsave')"
+                    :title="t('highlights.unsave')"
+                    data-testid="highlight-delete"
+                    @click="pendingHighlight = h.id"
+                  ><BookmarkIcon filled /></button>
                   <button
                     type="button"
                     class="rounded-full p-1 text-muted transition hover:text-accent"
@@ -484,14 +517,6 @@ onMounted(async () => {
                     :title="t('highlights.share')"
                     @click="share(h)"
                   >↗</button>
-                  <button
-                    type="button"
-                    class="lp-tap rounded-full p-1 text-muted transition hover:text-danger"
-                    :aria-label="t('highlights.remove')"
-                    :title="t('highlights.remove')"
-                    data-testid="highlight-delete"
-                    @click="pendingHighlight = h.id"
-                  ><CloseIcon /></button>
                 </div>
               </div>
               <!-- The QUOTE — the spoken line that was captured, under the title and above the

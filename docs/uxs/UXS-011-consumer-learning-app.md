@@ -510,6 +510,24 @@ it was already on instead of restarting the ladder.
 The marker renders **only when retired**: by default a capture is not quiet, so the overwhelming
 majority of rows are unchanged and the badge means something when it does appear.
 
+**Saved unsaves with the same filled bookmark as Revisit (operator 2026-09-18).** Its control was a
+`CloseIcon` ✕, which named a generic destroy rather than what the tap undoes. These are the two
+surfaces listing the same objects, so an unsave that looked like ✕ on one and a bookmark on the
+other would be two controls for one action. Same glyph, same wording ("Saved — tap to remove"), same
+confirm gate. The ✕ survives on NOTES, which are a different object.
+
+**Row order is colour · state · unsave · share (operator 2026-09-18).** Colour is what the capture
+IS, so it leads; share sends it elsewhere, so it trails; the bell and bookmark sit between, in the
+Revisit card's order.
+
+**The Saved filter bar carries a muted toggle**, beside the colour swatches and reading the same
+way — off shows everything, on narrows to muted captures. It uses the same bell-with-slash the rows
+do, so the filter and the thing it filters share one glyph, and it renders only once something IS
+muted (the bar's existing rule: never offer a filter that can only empty the list). A two-state
+toggle rather than an any/muted/active triple: "everything except muted" is the default minus a
+handful. Every count that sits above the list applies this filter too — adding it to the list alone
+put "Highlights 6" directly over a list of 2.
+
 **Grouped by the episode the moment came from (2026-09-17).** The inbox was a flat list of prompts
 in which the words "Marked moment" stood in as the card's BODY text, so a card said neither what it
 was nor where it came from. Each group is now the shared **`EpisodeGroupCard`** (see UXS-014) — the

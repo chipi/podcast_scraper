@@ -14,12 +14,15 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { HIGHLIGHT_COLORS } from '../utils/highlightColors'
+import BellOffIcon from './BellOffIcon.vue'
 import TypeFilterBar from './TypeFilterBar.vue'
 
 const types = defineModel<string[]>('types', { default: () => [] })
 const color = defineModel<string | null>('color', { default: null })
 const sort = defineModel<string>('sort', { default: 'recent' })
 const search = defineModel<string>('search', { default: '' })
+/** Muted filter: `false` shows everything (default), `true` narrows to retired captures only. */
+const mutedOnly = defineModel<boolean>('mutedOnly', { default: false })
 
 const props = withDefaults(
   defineProps<{
@@ -34,12 +37,19 @@ const props = withDefaults(
      * rather than implied.
      */
     showColors?: boolean
+    /**
+     * Whether the muted toggle renders.
+     *
+     * Opt-IN, unlike `showColors`: only highlights can be muted, so on any surface without them the
+     * control would filter nothing. Same reason Following opts out of the colour strip.
+     */
+    showMuted?: boolean
     /** Sort options for the select; defaults to the shared Recent / A–Z set used by both tabs. */
     sortOptions?: { value: string; label: string }[]
     /** Search-box placeholder (a type-to-filter over every section). */
     searchPlaceholder?: string
   }>(),
-  { showColors: true }
+  { showColors: true, showMuted: false }
 )
 
 const { t } = useI18n()
@@ -67,11 +77,16 @@ function pickColor(token: string): void {
   color.value = color.value === token ? null : token
 }
 const hasFilters = computed(
-  () => types.value.length > 0 || color.value !== null || search.value.trim() !== '',
+  () =>
+    types.value.length > 0 ||
+    color.value !== null ||
+    mutedOnly.value ||
+    search.value.trim() !== '',
 )
 function clearAll(): void {
   types.value = []
   color.value = null
+  mutedOnly.value = false
   search.value = ''
 }
 </script>
@@ -151,6 +166,29 @@ function clearAll(): void {
           />
         </button>
       </div>
+
+      <!-- Muted: one toggle, sitting with the colour swatches because it reads the same way — off
+           shows everything, on narrows. The icon is the bell-with-slash the row itself uses when a
+           capture is muted, so the filter and the thing it filters carry one glyph.
+
+           A toggle rather than an any/muted/active triple like the colours: "everything except the
+           muted" is the default minus a handful, and the operator asked for one icon. If reviewing
+           the ACTIVE set alone turns out to matter, this becomes a three-state control. -->
+      <button
+        v-if="showMuted"
+        type="button"
+        class="flex h-11 w-11 items-center justify-center rounded-full transition"
+        data-testid="saved-filter-muted"
+        :aria-pressed="mutedOnly"
+        :aria-label="t('library.savedFilterMuted')"
+        :title="t('library.savedFilterMuted')"
+        @click="mutedOnly = !mutedOnly"
+      >
+        <span
+          class="flex h-7 w-7 items-center justify-center rounded-full border transition"
+          :class="mutedOnly ? 'border-accent text-accent' : 'border-border text-muted'"
+        ><BellOffIcon :size="14" /></span>
+      </button>
 
       <button
         v-if="hasFilters"

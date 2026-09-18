@@ -183,15 +183,16 @@ describe('HighlightsView', () => {
   })
 
   it('removes a highlight, once confirmed', async () => {
-    // The ✕ now opens a confirmation instead of deleting (#1594) — a highlight is authored content
-    // and there is no undo, because the create endpoint mints a new id.
+    // The unsave control opens a confirmation instead of deleting (#1594) — a highlight is
+    // authored content and there is no undo, because the create endpoint mints a new id.
+    // Found by testid: its LABEL is wording ("Saved — tap to remove") and has already moved once.
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
-    await w.find('[aria-label="Remove highlight"]').trigger('click')
-    expect(del, 'the ✕ deleted immediately — the confirm is not wired').not.toHaveBeenCalled()
+    await w.find('[data-testid="highlight-delete"]').trigger('click')
+    expect(del, 'the unsave deleted immediately — the confirm is not wired').not.toHaveBeenCalled()
     await w.get('[data-testid="highlight-delete-confirm"] [data-testid="confirm-accept"]').trigger('click')
     await flushPromises()
     expect(del).toHaveBeenCalledWith('h1')
@@ -203,7 +204,7 @@ describe('HighlightsView', () => {
     const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
-    await w.find('[aria-label="Remove highlight"]').trigger('click')
+    await w.find('[data-testid="highlight-delete"]').trigger('click')
     await w.get('[data-testid="highlight-delete-confirm"] [data-testid="confirm-cancel"]').trigger('click')
     await flushPromises()
     expect(del).not.toHaveBeenCalled()
