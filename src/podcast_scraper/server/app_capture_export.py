@@ -34,7 +34,42 @@ def _timecode(ms: int | None) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
-def _captured_on(ts: int | None) -> str:
+def format_duration(seconds: object) -> str:
+    """``416`` -> ``"6 min"``; ``3920`` -> ``"1 h 5 min"``. Blank when unknown.
+
+    Rendered, not raw: ``duration_seconds`` is an integer and a reader wants a length, not a count
+    of seconds. The Obsidian frontmatter keeps the integer as well, because frontmatter is queried.
+    """
+    if not isinstance(seconds, (int, float)) or isinstance(seconds, bool):
+        return ""
+    total = int(seconds)
+    if total <= 0:
+        return ""
+    h, m = divmod(total // 60, 60)
+    if h and m:
+        return f"{h} h {m} min"
+    if h:
+        return f"{h} h"
+    return f"{m} min" if m else "under a minute"
+
+
+def format_note(text: str, created_at: int | None = None, updated_at: int | None = None) -> str:
+    """A note with its date: ``(2026-09-13)``, or ``(2026-09-13, edited 2026-09-18)``.
+
+    "Edited" only when it actually differs (operator 2026-09-18). ``updated_at`` equals
+    ``created_at`` on a note that was never touched, so printing it unconditionally would label
+    every note as edited and make the word meaningless.
+    """
+    body = text.strip()
+    made = captured_on(created_at)
+    if not made:
+        return body
+    edited = captured_on(updated_at)
+    when = f"{made}, edited {edited}" if edited and edited != made else made
+    return f"({when}) {body}"
+
+
+def captured_on(ts: int | None) -> str:
     """The capture date as ``YYYY-MM-DD`` (blank when unknown or unusable).
 
     ISO and date-only on purpose: the export is read in other tools and possibly other locales, so
@@ -69,6 +104,7 @@ class HighlightLine:
     #: said. A site-relative path would not do it — outside the app there is no origin to resolve
     #: against (operator 2026-09-18).
     jump_url: str | None = None
+    #: Pre-formatted note lines (see :func:`format_note`) — text plus when it was written.
     notes: list[str] = field(default_factory=list)
 
 
@@ -81,6 +117,15 @@ class EpisodeHighlights:
     show: str | None = None
     #: Absolute player URL for the episode itself.
     url: str | None = None
+    #: Episode metadata. Three DISTINCT summary fields, each with its own job in the app, so each
+    #: travels (operator 2026-09-18): `summary_title` is a headline and explicitly "not a short
+    #: summary" (KnowledgePanel), `summary_text` is the prose the player's Summary button renders,
+    #: and `summary_bullets` is the digest that opens the insights panel.
+    publish_date: str | None = None
+    duration_seconds: int | None = None
+    summary_title: str | None = None
+    summary_text: str | None = None
+    summary_bullets: list[str] = field(default_factory=list)
     highlights: list[HighlightLine] = field(default_factory=list)
     #: Notes attached to the EPISODE rather than to a highlight. The export only ever matched notes
     #: by highlight id, so these silently never appeared — while the endpoint described itself as
@@ -122,9 +167,28 @@ def render_highlights_markdown(
             heading = f"{heading} — {ep.show}"
         lines.append(f"## {heading}")
         lines.append(f"<!-- {ep.slug} -->")
+        # Date · length · link on one line: the facts that place an episode, none of them worth a
+        # line of their own.
+        meta = [x for x in (ep.publish_date, format_duration(ep.duration_seconds)) if x]
         if ep.url:
-            lines.append(f"[Open in player]({ep.url})")
+            meta.append(f"[Open in player]({ep.url})")
+        if meta:
+            lines.append(" · ".join(meta))
         lines.append("")
+        # The three summary fields, in the order the player presents them and each doing its own
+        # job — headline, then the prose the Summary button shows, then the digest that opens the
+        # insights panel. They are NOT three renderings of one thing: `summary_title` is a headline
+        # and, per KnowledgePanel, "is not a short summary".
+        if ep.summary_title:
+            lines.append(f"**{ep.summary_title.strip()}**")
+            lines.append("")
+        if ep.summary_text:
+            lines.append(ep.summary_text.strip())
+            lines.append("")
+        bullets = [b.strip() for b in ep.summary_bullets if b and b.strip()]
+        if bullets:
+            lines.extend(f"- {b}" for b in bullets)
+            lines.append("")
         for note in ep.episode_notes:
             note_text = note.strip()
             if note_text:
@@ -144,7 +208,7 @@ def render_highlights_markdown(
                 suffix.append(f"— {h.speaker}")
             if h.color:
                 suffix.append(f"_{h.color}_")
-            captured = _captured_on(h.created_at)
+            captured = captured_on(h.created_at)
             if captured:
                 suffix.append(f"· captured {captured}")
             tail = (" " + " ".join(suffix)) if suffix else ""

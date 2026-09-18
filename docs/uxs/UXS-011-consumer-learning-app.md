@@ -444,8 +444,12 @@ narrow a document — it would tombstone every other note out of the user's vaul
 report; Obsidian is the mirror (RFC-113).
 
 Each exported capture carries its **kind**, timestamp, speaker, colour, **capture date**, the
-people/topics it is about, the user's notes, and an **absolute** player link on the timecode, so one
-click from any tool opens the player at that second. Entities are plain names here, not `[[wikilinks]]`:
+people/topics it is about, the user's notes (each with the date it was written, and `edited` only
+when that actually differs), and an **absolute** player link on the timecode, so one click from any
+tool opens the player at that second. Every episode heading carries **date · length · link** and all
+**three** summary fields — headline, the prose the Summary button shows, and the bullets that open
+the insights panel — because the app treats those as three distinct things, not three renderings of
+one. Entities are plain names here, not `[[wikilinks]]`:
 this is one flat document, and `[[…]]` renders as broken links for anyone not in Obsidian — who are
 exactly the audience the other export exists for. What does NOT travel: the resurfacing schedule,
 the muted flag itself, and drift. Drift exists because the app can *jump* to a timestamp; an export

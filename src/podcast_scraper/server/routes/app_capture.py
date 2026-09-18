@@ -19,6 +19,7 @@ from fastapi.responses import PlainTextResponse
 from podcast_scraper.server import app_graph_refs, app_pkm_export, app_user_state
 from podcast_scraper.server.app_capture_export import (
     EpisodeHighlights,
+    format_note,
     HighlightLine,
     render_highlights_markdown,
 )
@@ -303,9 +304,14 @@ async def delete_note(
 # --- Markdown export ----------------------------------------------------------
 
 
-def _episode_titles(request: Request, slugs: set[str]) -> dict[str, tuple[str | None, str | None]]:
-    """Best-effort (title, show) per slug; never breaks export when the corpus is unavailable."""
-    out: dict[str, tuple[str | None, str | None]] = {}
+def _episode_meta(request: Request, slugs: set[str]) -> dict[str, dict]:
+    """Best-effort episode metadata per slug; never breaks export when the corpus is unavailable.
+
+    Carries what places an episode — title, show, publish date, duration — and all THREE summary
+    fields, because the app treats them as three different things and so must the export: a
+    headline, the prose the Summary button renders, and the digest that opens the insights panel.
+    """
+    out: dict[str, dict] = {}
     try:
         root = corpus_root_or_503(request)
     except Exception:  # noqa: BLE001 — export must still render with bare slugs.
@@ -316,7 +322,15 @@ def _episode_titles(request: Request, slugs: set[str]) -> dict[str, tuple[str | 
         except Exception:  # noqa: BLE001
             row = None
         if row is not None:
-            out[slug] = (row.episode_title, row.feed_title)
+            out[slug] = {
+                "title": row.episode_title,
+                "show": row.feed_title,
+                "publish_date": getattr(row, "publish_date", None),
+                "duration_seconds": getattr(row, "duration_seconds", None),
+                "summary_title": getattr(row, "summary_title", None),
+                "summary_text": getattr(row, "summary_text", None),
+                "summary_bullets": list(getattr(row, "summary_bullets", ()) or ()),
+            }
     return out
 
 
@@ -421,7 +435,9 @@ async def export_highlights_markdown(
     notes = app_user_state.get_notes(data_dir, user.user_id)
     notes_by_target: dict[str, list[str]] = {}
     for n in notes:
-        notes_by_target.setdefault(str(n.get("target_id")), []).append(str(n.get("text", "")))
+        notes_by_target.setdefault(str(n.get("target_id")), []).append(
+            format_note(str(n.get("text", "")), n.get("created_at"), n.get("updated_at"))
+        )
 
     highlight_ids = {str(h.get("id")) for h in highlights}
     # A colour filter is about highlights; episode- and insight-level notes have no colour, so a
@@ -436,7 +452,7 @@ async def export_highlights_markdown(
         }
     )
     # Every episode that needs a heading: one the user highlighted, or one they only made a note on.
-    titles = _episode_titles(
+    titles = _episode_meta(
         request, {str(h.get("episode_slug")) for h in highlights} | episode_note_slugs
     )
 
@@ -444,9 +460,17 @@ async def export_highlights_markdown(
 
     def _episode(slug: str) -> EpisodeHighlights:
         if slug not in grouped:
-            title, show = titles.get(slug, (None, None))
+            m = titles.get(slug, {})
             grouped[slug] = EpisodeHighlights(
-                slug=slug, title=title, show=show, url=app_pkm_export.episode_url(slug)
+                slug=slug,
+                title=m.get("title"),
+                show=m.get("show"),
+                url=app_pkm_export.episode_url(slug),
+                publish_date=m.get("publish_date"),
+                duration_seconds=m.get("duration_seconds"),
+                summary_title=m.get("summary_title"),
+                summary_text=m.get("summary_text"),
+                summary_bullets=list(m.get("summary_bullets") or []),
             )
         return grouped[slug]
 
@@ -477,7 +501,11 @@ async def export_highlights_markdown(
     orphans = (
         []
         if color
-        else [str(n.get("text", "")) for n in notes if str(n.get("target_id")) not in placed]
+        else [
+            format_note(str(n.get("text", "")), n.get("created_at"), n.get("updated_at"))
+            for n in notes
+            if str(n.get("target_id")) not in placed
+        ]
     )
 
     markdown = render_highlights_markdown(list(grouped.values()), orphans)

@@ -9,6 +9,7 @@ auth-gated endpoints — are covered by the unit suite (the codecov PR upload is
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 
@@ -642,7 +643,11 @@ def test_highlights_markdown_export_groups_and_resolves_titles(tmp_path: Path) -
     assert "# My Highlights" in body
     assert "Episode ep1" in body  # episode_title resolved through the corpus
     assert '"deep sleep consolidates memory"' in body
-    assert "_note:_ remember this" in body
+    # The note now carries WHEN it was written (operator 2026-09-18); "edited" would only appear
+    # if updated_at actually differed.
+    assert re.search(r"_note:_ \(\d{4}-\d{2}-\d{2}\) remember this", body), body
+    # Episode metadata rides the heading, and all three summary fields are distinct things.
+    assert re.search(r"\d{4}-\d{2}-\d{2} · \d+ min · \[Open in player\]\(https?://", body), body
 
 
 def test_highlights_markdown_export_empty(tmp_path: Path) -> None:

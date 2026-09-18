@@ -20,7 +20,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -29,6 +28,7 @@ from filelock import FileLock
 
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.server import app_graph_refs, app_user_state
+from podcast_scraper.server.app_capture_export import captured_on, format_duration, format_note
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.atomic_write import atomic_write_text
@@ -155,14 +155,6 @@ def episode_url(slug: str, t_ms: Any = None) -> str:
     return f"{url}?t={int(t_ms) // 1000}" if isinstance(t_ms, int) else url
 
 
-def _captured_on(ts: Any) -> str:
-    """Capture date as ``YYYY-MM-DD``; empty when unknown or unusable."""
-    try:
-        return time.strftime("%Y-%m-%d", time.gmtime(int(ts)))
-    except (TypeError, ValueError, OSError):
-        return ""
-
-
 def _highlight_note(h: dict[str, Any], episode_title: str, notes: list[str] | None = None) -> str:
     """One highlight as a vault note.
 
@@ -198,7 +190,7 @@ def _highlight_note(h: dict[str, Any], episode_title: str, notes: list[str] | No
     # WHEN it was captured. Without it a year of captures has no chronology once it leaves the app;
     # `t_ms` is a position inside an episode, which is a different question entirely. Date-only and
     # ISO so it sorts lexically and claims no timezone the stored epoch cannot support.
-    captured = _captured_on(h.get("created_at"))
+    captured = captured_on(h.get("created_at"))
     if captured:
         lines.append(f"captured: {captured}")
     colour = str(h.get("color") or "").strip()
@@ -246,29 +238,64 @@ def _entity_note(ref: dict[str, Any]) -> str:
     )
 
 
-def _episode_note(slug: str, title: str, notes: list[str] | None = None) -> str:
-    """The episode's vault note, carrying any notes the user wrote on the EPISODE itself.
+def _episode_note(
+    slug: str,
+    title: str,
+    notes: list[str] | None = None,
+    meta: dict[str, Any] | None = None,
+) -> str:
+    """The episode's vault note: what it is, when it aired, how long, and what it said.
+
+    It used to be a title and a link, which made the Episodes/ folder a set of stubs — every
+    highlight pointed at a note carrying no information the link text did not already have.
+
+    Three DISTINCT summary fields travel, because the app treats them as three things and so should
+    a vault (operator 2026-09-18): ``summary_title`` is a headline and, per ``KnowledgePanel``,
+    "is not a short summary"; ``summary_text`` is the prose the player's Summary button renders;
+    ``summary_bullets`` is the digest that opens the insights panel.
 
     A note's target can be a highlight, an insight or an episode. The vault read none of them; the
     Markdown export already places episode notes under the episode heading, and this is that same
     writing in the other format.
     """
-    out = (
-        "---\n"
-        f"slug: {_yaml_scalar(slug)}\n"
-        f"aliases: [{_yaml_scalar(title)}]\n"
-        "---\n"
-        f"# {title}\n"
-        f"[Open in player]({episode_url(slug)})\n"
-    )
+    m = meta or {}
+    published = str(m.get("publish_date") or "").strip()
+    duration = m.get("duration_seconds")
+    stitle = str(m.get("summary_title") or "").strip()
+    stext = str(m.get("summary_text") or "").strip()
+    bullets = [str(b).strip() for b in (m.get("summary_bullets") or []) if str(b).strip()]
+
+    fm = ["---", f"slug: {_yaml_scalar(slug)}"]
+    if published:
+        fm.append(f"published: {published}")
+    if isinstance(duration, int) and duration > 0:
+        # The integer, not the rendered string: frontmatter is QUERIED ("episodes over an hour"),
+        # and "6 min" does not sort or compare. The body carries the human form.
+        fm.append(f"duration_seconds: {duration}")
+    if stitle:
+        fm.append(f"summary_title: {_yaml_scalar(stitle)}")
+    fm.append(f"aliases: [{_yaml_scalar(title)}]")
+    fm.append("---")
+
+    body = [f"# {title}"]
+    line = [x for x in (published, format_duration(duration)) if x]
+    line.append(f"[Open in player]({episode_url(slug)})")
+    body.append(" · ".join(line))
+    if stitle:
+        body += ["", f"**{stitle}**"]
+    if stext:
+        body += ["", stext]
+    if bullets:
+        body += [""] + [f"- {b}" for b in bullets]
+
     kept = [n.strip() for n in (notes or []) if n.strip()]
     if kept:
-        out += "\n## Notes\n" + "".join(f"- {n}\n" for n in kept)
-    return out
+        body += ["", "## Notes"] + [f"- {n}" for n in kept]
+    return "\n".join(fm + body) + "\n"
 
 
-def _title_index(root: Path) -> dict[str, str]:
-    """``slug -> episode title``, from ONE catalog walk (#42).
+def _episode_meta(root: Path) -> dict[str, dict[str, Any]]:
+    """``slug -> {title, publish_date, duration_seconds, summary_*}``, from ONE catalog walk (#42).
 
     This replaced a ``resolve_slug`` call per unique highlighted episode. Highlights across 300
     episodes of a 1000-episode corpus meant ~300 catalog resolutions, all while HOLDING the export
@@ -276,7 +303,17 @@ def _title_index(root: Path) -> dict[str, str]:
     for — then raised ``filelock.Timeout`` and 500'd. One catalog read (now corpus-mtime-cached via
     :func:`cached_catalog`), one dict.
     """
-    return {slug_for_row(row): (row.episode_title or "") for row in cached_catalog(root)}
+    return {
+        slug_for_row(row): {
+            "title": row.episode_title or "",
+            "publish_date": getattr(row, "publish_date", None),
+            "duration_seconds": getattr(row, "duration_seconds", None),
+            "summary_title": getattr(row, "summary_title", None),
+            "summary_text": getattr(row, "summary_text", None),
+            "summary_bullets": list(getattr(row, "summary_bullets", ()) or ()),
+        }
+        for row in cached_catalog(root)
+    }
 
 
 def _with_backfilled_refs(root: Path, highlight: dict[str, Any]) -> dict[str, Any]:
@@ -299,22 +336,27 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
     for n in app_user_state.get_notes(data_dir, user_id):
         text = str(n.get("text") or "").strip()
         if text:
-            notes_by_target.setdefault(str(n.get("target_id") or ""), []).append(text)
+            notes_by_target.setdefault(str(n.get("target_id") or ""), []).append(
+                format_note(text, n.get("created_at"), n.get("updated_at"))
+            )
     files: dict[str, str] = {}
     entity_refs: dict[str, dict[str, Any]] = {}
     episode_titles: dict[str, str] = {}
+    episode_meta: dict[str, dict[str, Any]] = {}
     # Built on first need, so a user with no highlights still costs zero catalog walks.
-    titles: dict[str, str] | None = None
+    catalog: dict[str, dict[str, Any]] | None = None
 
     for h in highlights:
         slug = str(h.get("episode_slug") or "")
         if not slug:
             continue
         if slug not in episode_titles:
-            if titles is None:
-                titles = _title_index(root)
+            if catalog is None:
+                catalog = _episode_meta(root)
+            row = catalog.get(slug) or {}
             # An unresolvable slug falls back to itself, exactly as resolve_slug -> None did.
-            episode_titles[slug] = titles.get(slug) or slug
+            episode_titles[slug] = str(row.get("title") or "") or slug
+            episode_meta[slug] = row
         # Backfill refs frozen EMPTY at capture (#44). Refs are stored on the highlight when it is
         # captured, so a moment captured while its episode had no KG carried zero entity links —
         # for ever, even once the KG landed. That is the one case where "the vault mirrors your
@@ -340,7 +382,7 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
         files[path] = _entity_note(ref)
     for slug, title in episode_titles.items():
         files[f"{_ROOT}/Episodes/{_safe_id(slug)}.md"] = _episode_note(
-            slug, title, notes_by_target.get(slug)
+            slug, title, notes_by_target.get(slug), episode_meta.get(slug)
         )
     return files
 

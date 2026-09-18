@@ -109,6 +109,17 @@ Discusses [[People/person_ab12|Jensen Huang]] · [[Topics/topic_scaling|Scaling 
 ## Notes
 - the user's own writing about this capture
 ```
+**Episode note** carries what places an episode and what it said — `published` / `duration_seconds`
+/ `summary_title` in frontmatter (the integer, not "6 min": frontmatter is queried, and a rendered
+string neither sorts nor compares), then title · length · link, then the summary. It was a title and
+a link, which made `Episodes/` a folder of stubs: every highlight pointed at a note carrying nothing
+the link text did not already have.
+
+**All THREE summary fields travel, because the app treats them as three different things** (operator
+2026-09-18): `summary_title` is a headline and, per `KnowledgePanel`, "is not a short summary";
+`summary_text` is the prose the player's Summary button renders; `summary_bullets` is the digest
+that opens the insights panel. They are rendered in that order — the order the player presents them.
+
 **Entity note** is thin (id, label, source) — the graph emerges from backlinks, not duplicated body.
 
 **What the vault carries, and what it deliberately does not (operator 2026-09-18).** An export is
