@@ -250,7 +250,7 @@ capture (RFC-101 §1).
 | --- | --- | --- |
 | GET | `/api/app/episodes/{slug}/enrichment` | Per-episode enrichment signals `{slug, signals{<enricher_id>: data}}` for the viewed episode (RFC-088 envelopes; only OK enrichers). **404** unknown slug. |
 | GET | `/api/app/corpus/enrichment` | Corpus-scope signals `{signals{<enricher_id>: data}}` (temporal velocity, topic similarity, …). |
-| GET | `/api/app/resurfacing` | Highlights due to resurface, most-overdue first: `{items[{highlight, reflection_prompt}], paused}`. Read-time ladder (2d/1w/1mo/3mo on `created_at`/`last_surfaced`); empty when paused. **Auth-gated.** |
+| GET | `/api/app/resurfacing` | Highlights due to resurface, grouped by episode, most recently engaged episode first (`max(listened_at, newest capture)` — 2026-09-18, replacing most-overdue-first): `{items[{highlight, reflection_prompt}], paused}`. Read-time ladder (2d/1w/1mo/3mo on `created_at`/`last_surfaced`); empty when paused. **Auth-gated.** |
 | POST | `/api/app/resurfacing/{id}/surfaced` | Record a resurfaced highlight as seen (advances its ladder). **204.** |
 | GET, PUT | `/api/app/resurfacing/settings` | Pacing `{paused}` (`PUT` to pause/resume). |
 | GET | `/api/app/interests/derived` | Implicit interests ranked by occurrence across the user's corpus: `{items[{token, kind, label, count}]}` — `person:`/`topic:` tokens, beside explicit follows. **Auth-gated.** |
