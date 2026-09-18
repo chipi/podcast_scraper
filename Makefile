@@ -61,7 +61,7 @@ PYTEST_WORKERS ?= 2
 
 .PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
-.PHONY: ios-contact-sheet design-contact-sheets
+.PHONY: ios-contact-sheet design-contact-sheets ios-device-install
 .PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
@@ -2236,6 +2236,80 @@ ios-fastlane-install:
 # seconds instead of after a ten-minute archive.
 ios-testflight-preflight:
 	@cd $(IOS_DIR) && bundle exec fastlane preflight
+
+# Build the player and install it straight onto a PAIRED iPhone (operator 2026-09-18).
+#
+# The gap this fills: `ios-app-install` builds for the SIMULATOR (`-sdk iphonesimulator`) and
+# `ios-testflight` goes out through App Store Connect. Neither puts the current tree on the phone in
+# your hand, which is the common ask — so it was a hand-run xcodebuild + devicectl each time.
+#
+# Two things cost real time when done by hand, and are why this is a target:
+#
+#  1. THE DEVICE ID IS NOT THE ONE `devicectl` PRINTS. `xcrun devicectl list devices` reports a
+#     CoreDevice UUID (D71D1E4E-…); `xcodebuild -destination` wants the hardware UDID
+#     (00008130-…). Passing the first fails with "no available devices matched the request" while
+#     the device is sitting there paired and listed. So the UDID is read from xcodebuild's OWN
+#     destination list, which is the only place the two are guaranteed to agree.
+#  2. A BUILD THAT TARGETS THE WRONG BACKEND LOOKS FINE UNTIL YOU OPEN IT. The symptom is an app
+#     with no data while the browser works, and nothing on screen says why. `mobile-build-internal`
+#     bakes `VITE_API_BASE_URL` at build time, so this asserts the SHIPPED bundle carries an https
+#     api base before installing.
+#
+# This is the INTERNAL build (`mobile-build-internal`), so the app keeps its in-app dev/prod switch
+# and lands on PROD. The check is deliberately about the PROD tier only: the dev tier's last resort
+# is loopback (`services/tier.ts` rung 3), which is a legitimate thing to find in an internal bundle
+# and merely unreachable from a physical device — so that prints a NOTE, not a failure. A
+# prod-locked build with the switch tree-shaken out is `mobile-build-release` / `ios-testflight-release`.
+#
+# Debug + automatic signing = a development profile, so the build is tied to your developer account
+# and expires like any dev build. Use `ios-testflight` for a copy that does not.
+#
+#   make ios-device-install                         # current tree -> paired iPhone, prod backend
+#   make ios-device-install IOS_DEVICE_UDID=00008130-…   # pin the device when two are attached
+ios-device-install:
+	@$(MAKE) mobile-build-internal
+	@cd $(APP_DIR)/ios/App && \
+	udid="$(IOS_DEVICE_UDID)"; \
+	if [ -z "$$udid" ]; then \
+		udid=$$(env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App \
+			-showdestinations 2>/dev/null \
+			| grep 'platform:iOS,' | grep -vE 'Simulator|placeholder' \
+			| sed -n 's/.*id:\([0-9A-Fa-f-]*\).*/\1/p' | head -1); \
+	fi; \
+	[ -n "$$udid" ] || { echo "FAIL: no paired iOS device found. Plug it in / join the same wifi,"; \
+		echo "      unlock it, trust this Mac, then re-run. \`xcrun devicectl list devices\` should"; \
+		echo "      show it as 'available (paired)'."; exit 1; }; \
+	echo "--> building for device $$udid"; \
+	env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
+		-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
+		build >/dev/null; \
+	app="$(IOS_DEVICE_DD)/Build/Products/Debug-iphoneos/App.app"; \
+	[ -d "$$app" ] || { echo "FAIL: no App.app at $$app"; exit 1; }; \
+	if ls "$$app"/public/assets/*.js >/dev/null 2>&1 && \
+	   grep -qhE 'https://[a-z.]+/api/app' "$$app"/public/assets/*.js; then \
+		echo "OK: PROD tier targets a hosted api"; \
+	else \
+		echo "FAIL: the built bundle has no https api base — the prod tier would open with no"; \
+		echo "      data. Check VITE_API_BASE_URL in $(APP_DIR)/.env.mobile."; exit 1; \
+	fi; \
+	if grep -qhE '127\.0\.0\.1:[0-9]+/api/app|localhost:[0-9]+/api/app' "$$app"/public/assets/*.js; then \
+		echo "NOTE: the DEV tier fell back to loopback, which a physical device cannot reach"; \
+		echo "      (services/tier.ts rung 3). The prod tier is fine; flipping the in-app switch"; \
+		echo "      to dev will fail until VITE_DEV_API_BASE is set or \`tailscale serve\` fronts"; \
+		echo "      this host so rung 2 derives a tailnet name."; \
+	fi; \
+	echo "--> installing on $$udid"; \
+	xcrun devicectl device install app --device "$$udid" "$$app"
+	@echo "OK: app.closelistening.player installed. It talks to the api in $(APP_DIR)/.env.mobile."
+
+#: Signing team for device builds — the cert's OU, not the Apple ID.
+IOS_TEAM_ID ?= 3P3PX275ZM
+#: Kept out of the repo and out of the simulator tier's $(IOS_DD) so a device build never reuses
+#: simulator-arch objects (the two differ, and a mixed derived-data dir fails late and obscurely).
+IOS_DEVICE_DD ?= /tmp/lp-ios-device
+#: Empty = auto-detect the single paired device. Set it when more than one is attached.
+IOS_DEVICE_UDID ?=
 
 # Internal build (dev/prod tier switch still available) -> TestFlight. This is the one to use for
 # testing the app on your own device against either tier.
