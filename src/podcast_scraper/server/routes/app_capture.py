@@ -481,7 +481,7 @@ def _export_document(
     )
     # Every episode that needs a heading: one the user highlighted, or one they only made a note on.
     titles = _episode_meta(
-        request, {str(h.get("episode_slug")) for h in highlights} | episode_note_slugs
+        request, {str(h.get("episode_slug") or "") for h in highlights} | episode_note_slugs
     )
 
     grouped: "OrderedDict[str, EpisodeHighlights]" = OrderedDict()
@@ -503,7 +503,12 @@ def _export_document(
         return grouped[slug]
 
     for h in highlights:
-        _episode(str(h.get("episode_slug"))).highlights.append(
+        # `or ""` — NOT bare str(). `str(None)` is the string "None", so a capture that lost its
+        # episode reference produced an export section headed `## None`, with the user's own quotes
+        # filed under an episode that does not exist and jump links resolving nowhere. The export is
+        # the canonical record; a fabricated episode title in it is permanent (review 2026-09-18).
+        # An empty slug groups under the orphan heading, which is what it is.
+        _episode(str(h.get("episode_slug") or "")).highlights.append(
             HighlightLine(
                 kind=str(h.get("kind", "span")),
                 start_ms=h.get("start_ms"),

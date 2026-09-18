@@ -357,4 +357,27 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.authReady).toBeNull()
     expect(shell.authDegraded).toBe(false)
   })
+
+  it('a server that goes AWAY resets auth to unknown, not to its last healthy answer', async () => {
+    // The throw path was untested. Every other flag was reset in the catch; these two were not, so
+    // after a healthy poll the client kept asserting "auth is fine" while the server was gone.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ status: 'ok', auth_ready: true, auth_epoch: 'e1' }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.authReady).toBe(true)
+
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('ECONNREFUSED') }) as unknown as typeof fetch)
+    await shell.fetchHealth()
+
+    expect(shell.authReady).toBeNull()
+    expect(shell.authEpoch).toBeNull()
+    // Unknown is not "broken" — an unreachable server is a different problem from a dead secret.
+    expect(shell.authDegraded).toBe(false)
+  })
 })
