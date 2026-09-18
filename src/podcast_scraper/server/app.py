@@ -543,24 +543,41 @@ def _install_metrics(app: FastAPI) -> None:
                 "via ``pip install -e '.[dev]'`` (or add it to the image)."
             )
 
-        # Per-cadence digest delivery health (#2119). The digest sidecar runs
-        # ``network_mode: none`` so it can neither expose nor push metrics; it writes a state
-        # file to the shared appdata volume and this API — already scraped as job ``api`` —
-        # exports it. No new scrape target. Collected at scrape time so the gauges reflect the
-        # sidecar's latest tick rather than whenever this app last did something.
-        _digest_data_dir = getattr(app.state, "app_data_dir", None)
-        if _digest_data_dir is not None:
-            try:
-                from podcast_scraper.server import app_digest_health
-
-                app_digest_health.install_metrics(app, Path(_digest_data_dir))
-            except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
-                logger.exception("digest health gauges failed to install — continuing without")
-
         # Dev-only: push the metrics registry straight to VictoriaMetrics when
         # PODCAST_METRICS_PUSH_URL is set (no daemon/scraper on the dev box). True no-op
         # otherwise — the packaged image leaves it unset and Alloy scrapes /metrics instead.
         _start_dev_metrics_pusher()
+
+
+def _install_digest_health_metrics(app: FastAPI) -> None:
+    """Register the per-cadence digest delivery gauges (#2119).
+
+    ORDERING IS THE WHOLE POINT. This must be called AFTER ``_configure_platform_auth``, which
+    is what sets ``app.state.app_data_dir``. It was first written inside :func:`_install_metrics`
+    — called ~27 lines earlier — where the guard read ``None``, skipped, and exported nothing.
+    It shipped to production that way: the sidecar wrote its state file correctly and no
+    ``podcast_digest_*`` series existed at all. Silently, because the ``except`` below only fires
+    on a raised exception and "the guard was falsy" is not one.
+
+    ``tests/integration/server/test_app_digest_health_wiring.py`` pins the order by building a
+    real app; it fails if this is moved back above the line that sets ``app_data_dir``.
+
+    The digest sidecar runs ``network_mode: none`` and can neither expose nor push metrics. It
+    writes a state file to the shared appdata volume and this API — already scraped as job
+    ``api`` — exports it. Collected at scrape time, so the gauges reflect the sidecar's latest
+    tick rather than whenever this app last did something.
+    """
+    if not _env_truthy("PODCAST_METRICS_ENABLED"):
+        return
+    data_dir = getattr(app.state, "app_data_dir", None)
+    if data_dir is None:
+        return
+    try:
+        from podcast_scraper.server import app_digest_health
+
+        app_digest_health.install_metrics(app, Path(data_dir))
+    except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
+        logger.exception("digest health gauges failed to install — continuing without")
 
 
 def _install_exception_handlers(app: FastAPI) -> None:
@@ -751,6 +768,9 @@ def create_app(
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output
     _configure_platform_auth(app, resolved_output)
+
+    # MUST stay below _configure_platform_auth — see the function's docstring for why.
+    _install_digest_health_metrics(app)
 
     app.state.feeds_api_enabled = bool(enable_feeds_api)
     app.state.operator_config_api_enabled = bool(enable_operator_config_api)
