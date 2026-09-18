@@ -517,6 +517,9 @@ export const usePlayerStore = defineStore('player', () => {
     onDurationChange,
     onError,
     resetForLoad,
+    // Exposed for the `?play=1` intent (Home's Resume). NOT `toggle`, which would PAUSE an episode
+    // that is already playing — the opposite of what a resume link promises.
+    play,
     toggle,
     seek,
     skip,

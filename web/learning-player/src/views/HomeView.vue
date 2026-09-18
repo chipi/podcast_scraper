@@ -451,8 +451,11 @@ async function loadContinue(): Promise<void> {
             }"
           />
         </div>
+        <!-- `play=1`: Resume means RESUME (operator 2026-09-18). This reads as a play control and
+             behaved as a link — it opened the episode paused at the saved position, so continuing
+             took a second tap on a transport further down the page. -->
         <RouterLink
-          :to="{ name: 'player', params: { slug: resumeTop.detail.slug } }"
+          :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
           data-testid="home-resume"
           class="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
         >
