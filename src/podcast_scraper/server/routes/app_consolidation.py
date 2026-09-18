@@ -40,7 +40,11 @@ def _data_dir(request: Request) -> Path:
 async def resurfacing(
     request: Request, user: User = Depends(get_current_user)
 ) -> ResurfacingResponse:
-    """Highlights due to resurface (most-overdue first) + a reflection prompt; honours pacing.
+    """Highlights due to resurface + a reflection prompt; honours pacing.
+
+    Ordered by episode, most recently listened-or-captured first — NOT most-overdue-first,
+    which recirculated the oldest captures and never showed the user most of their own
+    library (see ``select_due``).
 
     Graph-gated, exactly like Your Week and the digest email (#38). Until now this route had NO
     such requirement while the digest assembler dropped refless items, so the Revisit tab listed
@@ -54,7 +58,13 @@ async def resurfacing(
     paused = bool(settings["paused"])
     highlights = app_user_state.get_highlights(data_dir, user.user_id)
     state = app_user_state.get_resurfacing_state(data_dir, user.user_id)
-    due = select_due(highlights, state, int(time.time()), paused=paused)
+    due = select_due(
+        highlights,
+        state,
+        int(time.time()),
+        paused=paused,
+        listened_at=app_user_state.listened_at_by_episode(data_dir, user.user_id),
+    )
 
     items: list[ResurfacingItem] = []
     withheld = 0
@@ -109,6 +119,58 @@ async def mark_surfaced(
         # 404 rather than 403: whether some other user holds this id is not this caller's business.
         raise HTTPException(status_code=404, detail="highlight not found")
     app_user_state.mark_surfaced(data_dir, user.user_id, highlight_id, int(time.time()))
+
+
+def _owned_or_404(request: Request, user: User, highlight_id: str) -> Path:
+    """The data dir, once the caller is known to own ``highlight_id``.
+
+    404 rather than 403: whether some other user holds this id is not this caller's business.
+    """
+    data_dir = _data_dir(request)
+    owned = any(
+        h.get("id") == highlight_id for h in app_user_state.get_highlights(data_dir, user.user_id)
+    )
+    if not owned:
+        raise HTTPException(status_code=404, detail="highlight not found")
+    return data_dir
+
+
+@router.post("/resurfacing/{highlight_id}/retire", status_code=204)
+async def retire_highlight(
+    highlight_id: str, request: Request, user: User = Depends(get_current_user)
+) -> None:
+    """Stop resurfacing this highlight. It stays in Saved — this is NOT a delete.
+
+    The ladder had no exit before this (operator 2026-09-18): reviewing tops out at the 90-day rung
+    and repeats for ever, ignoring leaves an item permanently overdue at the top of the list, and
+    the only way to stop either was deleting the capture. That put two different decisions — "stop
+    asking me about this" and "I do not want this" — behind one destructive action.
+
+    Ownership-checked exactly like ``mark_surfaced``, and for the same reason: the id arrives
+    off the wire, and an unchecked write lets any string a caller invents accumulate in
+    ``resurfacing.json``.
+    """
+    data_dir = _owned_or_404(request, user, highlight_id)
+    app_user_state.set_resurfacing_retired(data_dir, user.user_id, highlight_id, True)
+
+
+@router.delete("/resurfacing/{highlight_id}/retire", status_code=204)
+async def unretire_highlight(
+    highlight_id: str, request: Request, user: User = Depends(get_current_user)
+) -> None:
+    """Resume resurfacing a retired highlight — the undo for the route above.
+
+    Without this, retiring was a ONE-WAY DOOR (operator 2026-09-18). The store already supported
+    reversal — ``set_resurfacing_retired`` removes the key rather than writing ``False`` — but
+    nothing could reach it, so a mis-tap silently ended a capture's resurfacing for good, and the
+    user could not even find out which captures they had done it to.
+
+    DELETE on the same path as the POST because it is the same fact being unset, and the schedule
+    it returns to is the one it always had: ``count`` and ``last_surfaced`` are untouched, so a
+    highlight resumes on its existing rung rather than restarting the ladder.
+    """
+    data_dir = _owned_or_404(request, user, highlight_id)
+    app_user_state.set_resurfacing_retired(data_dir, user.user_id, highlight_id, False)
 
 
 @router.get("/resurfacing/settings", response_model=ResurfacingSettings)

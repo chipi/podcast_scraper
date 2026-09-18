@@ -22,6 +22,7 @@ import {
 import type { EpisodeDetail, EpisodeSummary, Podcast } from "../services/types"
 import { formatTime } from "../player/transcriptSync"
 import { formatDuration } from "../utils/format"
+import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
 import { useAuthStore } from "../stores/auth"
 import { useLibraryStore } from "../stores/library"
@@ -38,6 +39,10 @@ import EntityCard from "../components/EntityCard.vue"
 import InterestsPicker from "../components/InterestsPicker.vue"
 import KeyVoicesRail from "../components/KeyVoicesRail.vue"
 import DiscoveryExplorer from "../components/DiscoveryExplorer.vue"
+import CollectionsTeaser from "../components/CollectionsTeaser.vue"
+import RevisitRail from "../components/RevisitRail.vue"
+import SectionHeading from "../components/SectionHeading.vue"
+import { useIsDesktop } from "../composables/useMediaQuery"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
@@ -49,7 +54,8 @@ import YourWeek from "../components/YourWeek.vue"
 
 const INTERESTS_DISMISSED_KEY = "lp.interests.dismissed"
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const isDesktop = useIsDesktop()
 const router = useRouter()
 const auth = useAuthStore()
 const library = useLibraryStore()
@@ -188,6 +194,18 @@ const resumeState = computed(() => auth.isAuthenticated && continueItems.value.l
 // Five items, not six — the chart ends at 05 (operator 2026-09-17). The section now shares a
 // desktop row with Trending shows, and a top five is a rounder thing to end on than a top six.
 const wnFeatured = computed(() => latest.value[0] ?? null)
+/**
+ * "Since <date>" for What's new — the publish date of the newest episode ALREADY on screen.
+ *
+ * No fetch and no invented metric: it is the date of `wnFeatured`, which this section renders
+ * anyway. Blank when the episode carries no date, so the kicker disappears rather than reading
+ * "Since —".
+ */
+const whatsNewSince = computed(() =>
+  wnFeatured.value?.publish_date
+    ? formatPublishDate(wnFeatured.value.publish_date, locale.value)
+    : "",
+)
 const wnRows = computed(() => latest.value.slice(1, 5))
 // Ranked "chart" rows 02–05 beneath the #01 hero (operator 2026-09-14): the numbered leaderboard
 // look is the point. wnRows starts at latest[1], so row i is rank i+2.
@@ -421,11 +439,16 @@ async function loadContinue(): Promise<void> {
       :rows="1"
       @retry="loadContinue"
     />
-    <!-- Same max width as the "What's new" featured card — both are a single-episode hero, so they
-         present identically instead of the resume card stretching full-bleed on a wide screen. -->
+    <!-- FULL WIDTH on desktop (operator 2026-09-18). It was `max-w-3xl` to match the "What's new"
+         featured card, but What's new became a half-width column later and its featured card is now
+         166px — so the pairing that justified 766px has not existed for a while, and the hero was
+         the only thing on the page matching neither the 542px column nor the 1114px full row.
+
+         Full rather than half because nothing sits beside it: at half width the top-right of the
+         page would simply be empty, which is a worse first impression than a wide card. -->
     <div
       v-else-if="resumeState && resumeTop"
-      class="relative max-w-3xl overflow-hidden rounded-2xl border border-border"
+      class="relative overflow-hidden rounded-2xl border border-border"
     >
       <img
         v-if="resumeArt(resumeTop.detail)"
@@ -451,8 +474,11 @@ async function loadContinue(): Promise<void> {
             }"
           />
         </div>
+        <!-- `play=1`: Resume means RESUME (operator 2026-09-18). This reads as a play control and
+             behaved as a link — it opened the episode paused at the saved position, so continuing
+             took a second tap on a transport further down the page. -->
         <RouterLink
-          :to="{ name: 'player', params: { slug: resumeTop.detail.slug } }"
+          :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
           data-testid="home-resume"
           class="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
         >
@@ -508,8 +534,14 @@ async function loadContinue(): Promise<void> {
          announcement. Populated, it renders in full as before. -->
     <!-- Jump back in (H.5): every OTHER in-progress listen beyond the resume hero, so more than one
          active episode is reachable, not just the most recent. -->
+    <!-- Kicker carries the QUANTITY, title says what the section is (operator 2026-09-18).
+         A kicker that names the category ("IN PROGRESS" over "Jump back in") says the same thing
+         twice, which is the redundancy the ask block had. A number does not. -->
     <section v-if="jumpBackIn.length" class="mt-7" data-testid="home-jump-back-in">
-      <h2 class="lp-section mb-3">{{ t("home.jumpBackIn") }}</h2>
+      <SectionHeading
+        :title="t('home.jumpBackIn')"
+        :kicker="t('home.jumpBackInCount', jumpBackIn.length, { named: { count: jumpBackIn.length } })"
+      />
       <ul class="flex gap-3 overflow-x-auto pb-1">
         <li v-for="it in jumpBackIn" :key="it.detail.slug" class="w-40 shrink-0">
           <RouterLink
@@ -556,13 +588,26 @@ async function loadContinue(): Promise<void> {
 
          Half width from `lg`, matching Discover: a trend row is a short label against a sparkline +
          multiplier + follow, and across the full column those two clusters sit ~500px apart. -->
-    <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="home-discovery">
-      <DiscoveryExplorer
-        :collapsed="3"
-        :title="t('browse.trendsTitle')"
-        @open="onDiscoveryOpen"
-      />
-    </section>
+    <!-- Discovery and Revisit share the row on `lg` (operator 2026-09-18). Discovery has been
+         half-width since it was titled, which left the right half of the column EMPTY on desktop —
+         this is the gap the rail was asked to fill, so the two sit side by side rather than the
+         rail pushing everything below it down a screen. Stacked on phones, where there is one
+         column and no gap to fill. -->
+    <div class="lg:flex lg:items-start lg:gap-8">
+      <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="home-discovery">
+        <!-- Five rows on desktop, three on a phone (operator 2026-09-18). Trends sits beside the
+             revisit rail, which is taller, so at three rows the column ended ~110px short and left
+             a hole under it. A prop cannot be set by a media query in CSS, hence `useIsDesktop`. -->
+        <DiscoveryExplorer
+          :collapsed="isDesktop ? 5 : 3"
+          :title="t('browse.trendsTitle')"
+          @open="onDiscoveryOpen"
+        />
+      </section>
+      <div class="lg:w-1/2">
+        <RevisitRail />
+      </div>
+    </div>
 
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
          the forward-looking digest ("what to play") comes first and this is the quieter follow-up.
@@ -572,11 +617,16 @@ async function loadContinue(): Promise<void> {
     <!-- Search (H.3): the "Ask across every episode" title + box moved DOWN here together from under
          the hero, so the top of Home leads with the resume hero + the trending rails. Topic chips are
          the tappable entry points. testids unchanged across the move. -->
-    <section class="mt-7" data-testid="home-search-section">
-      <span class="lp-kicker text-topic">{{ t("home.askKicker") }}</span>
-      <h2 class="mt-2 font-display text-2xl font-extrabold leading-none tracking-tight">
-        {{ t("home.askTitle") }}
-      </h2>
+    <!-- The ask box and the boards teaser share the row on `lg` (operator 2026-09-18). The ask box
+         is deliberately capped (a full-bleed input flung the Search button to the far right), so
+         the right of this row was empty on desktop — the same gap the revisit rail filled beside
+         Trends. Stacked on phones. -->
+    <div class="lg:flex lg:items-start lg:gap-8">
+    <section class="mt-7 lg:w-1/2" data-testid="home-search-section">
+      <!-- The same heading tier as every other section. It was `font-display text-2xl` — a third
+           title size on one page — and its kicker ("Ask across every episode") restated the title
+           beneath it. No kicker: the pattern is a count or a date, and this section has neither. -->
+      <SectionHeading :title="t('home.askTitle')" />
       <!-- Cap the ask box: full-bleed on a wide desktop flung the Search button to the far right
            with an oversized input between (mobile-first layout, unbounded wide). -->
       <form class="lp-search mt-3 flex gap-2" @submit.prevent="goSearch(query)">
@@ -616,6 +666,10 @@ async function loadContinue(): Promise<void> {
         </button>
       </div>
     </section>
+      <div class="lg:w-1/2">
+        <CollectionsTeaser />
+      </div>
+    </div>
 
     <!-- What's new and Trending shows SHARE a desktop row, half each (operator 2026-09-17). Both are
          narrow-by-nature lists — a ranked chart and a stack of show bands — that were each stretched
@@ -630,15 +684,19 @@ async function loadContinue(): Promise<void> {
            cold corpus. Only a successful-but-empty load hides — the system has nothing to show and
            there is no action the user can take. -->
       <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7 min-w-0 lg:w-1/2">
-      <div class="mb-3 flex items-baseline justify-between">
-        <h2 class="lp-section">{{ t("home.whatsNew") }}</h2>
-        <RouterLink
-          :to="{ name: 'browse', query: { tab: 'episodes' } }"
-          class="text-sm font-bold text-accent no-underline"
-        >
-          {{ t("home.browseAll") }} →
-        </RouterLink>
-      </div>
+      <SectionHeading
+        :title="t('home.whatsNew')"
+        :kicker="whatsNewSince ? t('home.whatsNewSince', { date: whatsNewSince }) : null"
+      >
+        <template #action>
+          <RouterLink
+            :to="{ name: 'browse', query: { tab: 'episodes' } }"
+            class="text-sm font-bold text-accent no-underline"
+          >
+            {{ t("home.browseAll") }} →
+          </RouterLink>
+        </template>
+      </SectionHeading>
 
       <SectionStatus :phase="whatsNew.phase.value" :rows="3" @retry="loadWhatsNew" />
 
@@ -756,9 +814,12 @@ async function loadContinue(): Promise<void> {
     </div>
 
     <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
-         + three chips deep-linking into the /trends "see all" page on the matching tab. Renamed from
-         the old "Browse topics/people" links, which pointed at the Browse hub; topics/storylines/
-         people live on /trends now, so the chips go straight there. -->
+         + three chips deep-linking into Browse's Trends section on the matching kind.
+
+         These pointed at a separate /trends page, which was a second, thinner copy of a section
+         Browse already renders — tapping a chip left the hub for a page with the same three tabs and
+         less around them. The operator called it "small pages that should not exist" (2026-09-18).
+         /trends is deleted; `?trends=<kind>` selects the kind and scrolls it into view. -->
     <nav
       class="mt-6 flex flex-wrap items-center gap-2 text-sm"
       :aria-label="t('home.browseNavLabel')"
@@ -766,21 +827,21 @@ async function loadContinue(): Promise<void> {
     >
       <span class="font-bold text-muted">{{ t("home.discoverLabel") }}</span>
       <RouterLink
-        :to="{ name: 'trends', query: { tab: 'topic' } }"
+        :to="{ name: 'browse', query: { trends: 'topic' } }"
         data-testid="home-discover-topics"
         class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       >
         {{ t("home.tabTopics") }}
       </RouterLink>
       <RouterLink
-        :to="{ name: 'trends', query: { tab: 'storyline' } }"
+        :to="{ name: 'browse', query: { trends: 'storyline' } }"
         data-testid="home-discover-storylines"
         class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       >
         {{ t("home.storylines") }}
       </RouterLink>
       <RouterLink
-        :to="{ name: 'trends', query: { tab: 'person' } }"
+        :to="{ name: 'browse', query: { trends: 'person' } }"
         data-testid="home-discover-people"
         class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       >
@@ -795,7 +856,7 @@ async function loadContinue(): Promise<void> {
 
     <!-- Recommended — no-scroll responsive grid -->
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
-      <h2 class="lp-section mb-3">{{ t("home.recommended") }}</h2>
+      <SectionHeading :title="t('home.recommended')" />
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
            This grid was hand-rolled here: square artwork, overlaid actions, show name and title —

@@ -6,7 +6,7 @@
  * two surfaces cannot drift.
  *
  * `collapsed` caps the rows (Home 5, Discover 10). `seeAll` swaps the list's inline "show more" for a
- * "See all →" link into the full /trends page on the active tab. Opening a row is the PARENT's call
+ * "See all →" link into Browse's Trends section on the active kind. Opening a row is the PARENT's call
  * (Home opens overlays, Discover navigates), so it is emitted.
  */
 import { computed, ref, watch } from "vue"
@@ -69,7 +69,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
       <h2 class="lp-section">{{ title }}</h2>
       <RouterLink
         v-if="seeAll"
-        :to="{ name: 'trends', query: { tab: discoveryTab } }"
+        :to="{ name: 'browse', query: { trends: discoveryTab } }"
         class="shrink-0 whitespace-nowrap text-sm font-bold text-accent no-underline"
         data-testid="discovery-see-all"
       >

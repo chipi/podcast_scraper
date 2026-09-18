@@ -175,7 +175,7 @@ def _resolve_item(item: dict, highlights_by_id: dict[str, dict]) -> CollectionIt
             kind=kind,
             ref=ref,
             title=(h.get("quote_text") or "Highlight"),
-            deep_link=f"/player/{slug}" if slug else None,
+            deep_link=f"/episode/{slug}" if slug else None,
         )
     if kind == "episode":
         return CollectionItem(kind=kind, ref=ref, deep_link=f"/episode/{ref}")

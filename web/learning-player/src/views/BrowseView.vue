@@ -56,7 +56,7 @@ type Tab = 'episodes' | 'shows'
 // Discover page = the shared DiscoveryExplorer under "Trends" (Topics/Storylines/People, the
 // "what/who"), then the CONTENT band below — just Episodes · Shows (operator 2026-09-14). Tapping a
 // row opens the entity as a full page here (Home opens overlays instead); the explorer's own
-// "See all →" link handles the deep /trends page per kind.
+// "See all →" on the explorer deep-links back into this same section per kind (`?trends=`).
 function onEntityOpen(p: { kind: Kind; id: string }): void {
   const name = p.kind === 'topic' ? 'topic' : p.kind === 'person' ? 'person' : 'storyline'
   void router.push({ name, params: { id: p.id } })
@@ -78,6 +78,28 @@ const trendsKind = computed(() => {
     ? (q as 'topic' | 'storyline' | 'person')
     : undefined
 })
+/**
+ * `?trends=<kind>` must also SCROLL the section into view.
+ *
+ * Selecting the tab alone is invisible: the Trends block sits below the trending-shows rail, so a
+ * chip tap from Home landed at the top of Browse with the change off-screen — indistinguishable
+ * from the link not working, which is how it was reported (operator 2026-09-18).
+ *
+ * Declared AFTER `trendsEl`/`trendsKind` deliberately: an `immediate` watch placed above the consts
+ * it reads throws a TDZ ReferenceError at setup that neither the build nor the unit suite catches.
+ */
+const trendsEl = ref<HTMLElement | null>(null)
+watch(
+  trendsKind,
+  (k) => {
+    if (!k) return
+    void nextTick(() =>
+      trendsEl.value?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }),
+    )
+  },
+  { immediate: true },
+)
+
 const initial = String(route.query.tab || '')
 const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initial) ? (initial as Tab) : 'episodes')
 
@@ -122,7 +144,7 @@ watch(
 
          The right half is deliberately EMPTY for now — reserved, not filled with something to
          justify the space. -->
-    <div class="mt-4 lg:w-1/2 lg:pr-4">
+    <div ref="trendsEl" class="mt-4 scroll-mt-4 lg:w-1/2 lg:pr-4">
       <DiscoveryExplorer
         id="trends"
         :collapsed="10"

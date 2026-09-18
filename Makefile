@@ -61,7 +61,8 @@ PYTEST_WORKERS ?= 2
 
 .PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
-.PHONY: ios-contact-sheet design-contact-sheets ios-device-install
+.PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
+.PHONY: test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
 .PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
@@ -1971,6 +1972,62 @@ test-app-ios-journey-ui:
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_JOURNEY_EXIT=$$rc"; exit $$rc
 
+# The Capacitor-only capabilities + the deep-stack/boards surfaces (operator 2026-09-18).
+#
+# WHY THIS TARGET EXISTS: these suites were written on 2026-09-16 and NOTHING RAN THEM. Six
+# XCTestCase classes sat in `ios/uitests/` with no `-only-testing:` reference anywhere in this file,
+# so they had never executed once.
+#
+# That is worse than having no test at all. An unreachable suite reads as coverage — it is what you
+# find when you grep before asking "is the share sheet tested?", and it answers yes. On 2026-09-18
+# four native features shipped broken (two exports delivered by `<a download>`, two by
+# `window.open`, none of which does anything in WKWebView) and the agent then told the operator
+# "nothing in the suite runs in a WKWebView". False: `NativeCapabilityTests.testN2NativeShareSheetOpens`
+# covers the exact mechanism those exports use. It had simply never been invoked.
+#
+# `tests/unit/podcast_scraper/test_ios_uitest_suites_are_wired.py` now fails if a suite has no
+# target, so this cannot silently recur. That guard is Python precisely so it runs on CI's Linux
+# boxes, where none of the Xcode targets below can.
+#
+# LOCAL ONLY — everything here needs a macOS host with Xcode and a booted simulator. CI is Linux and
+# must never try to run it. Nothing in `ci-fast` references these targets; only the wiring guard
+# does, and that one just reads files.
+#
+# PRECONDITION, same as `test-app-ios-journey-ui`: a signed-in session. Run `ios-origin-up` and
+# `ios-journey-signin` first, or use `test-app-ios-native-full` below, which chains them.
+test-app-ios-native:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/NativeCapabilityTests \
+			-only-testing:OfflineSpikeUITests/ConfigOfflineToggleTests \
+			-only-testing:OfflineSpikeUITests/StackDepthProbeTests \
+			-only-testing:OfflineSpikeUITests/HostShowLinkTests \
+			-only-testing:OfflineSpikeUITests/BoardsShotTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_NATIVE_EXIT=$$rc"; exit $$rc
+
+#: The same, but sets up its own preconditions end to end (build, install, origin, sign-in).
+test-app-ios-native-full:
+	@$(MAKE) test-app-ios-sim-download
+	@$(MAKE) ios-origin-up
+	@$(MAKE) ios-journey-signin
+	@$(MAKE) test-app-ios-native
+
+# The signed-out PRODUCTION tour. Separate because its preconditions are different in kind: it wants
+# the real prod backend and NO session, where every target above wants the fixture api and a seeded
+# one. Kept out of `test-app-ios-native` so a prod outage can never be mistaken for a native-shell
+# regression — and so nothing that talks to prod runs by accident.
+test-app-ios-prod-tour:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/ProdTourTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_PROD_TOUR_EXIT=$$rc"; exit $$rc
+
 # Mint a real session through the mock provider's NATIVE flow and seed it into the app's durable
 # store, so the journey suite starts signed in. Write through the preferences DAEMON (the app reads
 # that); the container plist lags behind and must not be written directly — see the note below.
@@ -2264,6 +2321,32 @@ ios-testflight-preflight:
 # Debug + automatic signing = a development profile, so the build is tied to your developer account
 # and expires like any dev build. Use `ios-testflight` for a copy that does not.
 #
+# The build is GATED: a failed xcodebuild aborts instead of installing whatever `.app` happens to
+# be lying in the derived-data dir. It did exactly that once (operator 2026-09-18) — printed
+# "** BUILD FAILED **" with four compile errors, installed a stale bundle, and exited 0, so the
+# device got the previous build with no indication anything was wrong. The recipe ended that line
+# with `;` rather than `&&`, and the `[ -d App.app ]` check passed on the leftover.
+#
+# Freshness is proven by CONTENT, not mtime. The first version of this gate compared `App.app`'s
+# Info.plist against a stamp taken before the build — and then refused every incremental build,
+# because `ProcessInfoPlistFile` only re-runs when its inputs change, so a build that only swapped
+# web assets left Info.plist untouched. A timestamp on an arbitrary file is a proxy for "did the
+# build run", and it was the wrong file. Vite content-hashes every chunk name, so asserting that
+# each `dist/assets/*.js` exists inside the bundle tests the thing actually at stake: does the app
+# about to be installed contain the code in this working tree.
+#
+# xcodebuild's output is NOT swallowed. It was piped to /dev/null, which is how a build failure
+# first reached the device — the only thing on screen was an unrelated warning.
+#
+# `$$dist` is ABSOLUTE, and its emptiness is a failure rather than a pass. The first attempt used a
+# repo-relative `cd $(APP_DIR)` inside a recipe that had already `cd`'d to `$(APP_DIR)/ios/App`, so
+# the glob matched nothing, the "missing chunks" list came back empty, and the gate reported the
+# bundle fresh — having compared zero files. A check that cannot fail is worse than no check: it
+# reads as verification in the log. Mutation-tested by deleting a chunk from the built bundle.
+#
+# It also retries ONCE after wiping the derived-data dir, because the common failure is a stale
+# precompiled-module cache in /tmp rather than anything wrong with the code.
+#
 #   make ios-device-install                         # current tree -> paired iPhone, prod backend
 #   make ios-device-install IOS_DEVICE_UDID=00008130-…   # pin the device when two are attached
 ios-device-install:
@@ -2279,13 +2362,36 @@ ios-device-install:
 	[ -n "$$udid" ] || { echo "FAIL: no paired iOS device found. Plug it in / join the same wifi,"; \
 		echo "      unlock it, trust this Mac, then re-run. \`xcrun devicectl list devices\` should"; \
 		echo "      show it as 'available (paired)'."; exit 1; }; \
-	echo "--> building for device $$udid"; \
-	env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
-		-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
-		-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
-		build >/dev/null; \
 	app="$(IOS_DEVICE_DD)/Build/Products/Debug-iphoneos/App.app"; \
+	echo "--> building for device $$udid"; \
+	build_once() { \
+		env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+			-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
+			-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
+			build; \
+	}; \
+	if ! build_once; then \
+		echo "--> build failed; clearing $(IOS_DEVICE_DD) and retrying once"; \
+		echo "    (an incremental dir in /tmp goes stale: xcodebuild references .pcm module files"; \
+		echo "     that no longer exist, and every Cordova source then fails to compile)"; \
+		rm -rf $(IOS_DEVICE_DD); \
+		build_once || { echo "FAIL: xcodebuild failed. Nothing was installed — the app on the"; \
+			echo "      device is whatever was there before."; exit 1; }; \
+	fi; \
 	[ -d "$$app" ] || { echo "FAIL: no App.app at $$app"; exit 1; }; \
+	dist="$(CURDIR)/$(APP_DIR)/dist/assets"; \
+	ls "$$dist"/*.js >/dev/null 2>&1 || { \
+		echo "FAIL: no web build at $$dist — the freshness check below would pass by checking"; \
+		echo "      nothing, which is how a vacuous gate reports success."; exit 1; }; \
+	stale=$$(for f in "$$dist"/*.js; do \
+		b=$$(basename "$$f"); \
+		[ -f "$$app/public/assets/$$b" ] || echo "$$b"; \
+	done | head -3); \
+	[ -z "$$stale" ] || { \
+		echo "FAIL: the built App.app does not carry this web build — missing chunk(s):"; \
+		echo "$$stale" | sed 's/^/        /'; \
+		echo "      Installing it would put OLD code on the device while reporting success."; \
+		exit 1; }; \
 	if ls "$$app"/public/assets/*.js >/dev/null 2>&1 && \
 	   grep -qhE 'https://[a-z.]+/api/app' "$$app"/public/assets/*.js; then \
 		echo "OK: PROD tier targets a hosted api"; \
@@ -2301,6 +2407,60 @@ ios-device-install:
 	fi; \
 	echo "--> installing on $$udid"; \
 	xcrun devicectl device install app --device "$$udid" "$$app"
+	@echo "OK: app.closelistening.player installed. It talks to the api in $(APP_DIR)/.env.mobile."
+
+# Android debug APK — the counterpart to `ios-device-install` (operator 2026-09-18).
+#
+# There was no Android target at all. `npx cap sync` copies the web build into `android/` as a side
+# effect of `mobile-build-internal`, so the platform LOOKED maintained — the generated
+# `capacitor.build.gradle` even shows up dirty in `git status` after any mobile build — while nothing
+# ever compiled it. A platform that is synced but never built is one that breaks silently and is
+# discovered at the worst moment.
+#
+# Gated the same way as the iOS target, for the same reason: gradle's exit code is checked, and the
+# APK is then proven to carry THIS web build rather than assumed to.
+#
+# Freshness is by content marker, not by chunk name. The iOS gate compares `dist/assets/*.js`
+# filenames against the bundle, which works there because nothing rebuilds `dist` between the sync
+# and the check. Here it does not: `make ci-fast` runs its own `build-app` with different env, so
+# `dist` ends up holding differently-hashed chunks than the ones `cap sync` copied — two legitimate
+# builds of the same source. Comparing them reports 36 "missing" chunks and means nothing. So this
+# re-syncs first and then asserts the APK's own asset count and that its JS mentions the app.
+#
+#   make android-build              # APK -> android/app/build/outputs/apk/debug/
+#   make android-device-install     # the above, then adb install -r on the attached device
+ANDROID_SDK_DIR ?= $(HOME)/Library/Android/sdk
+ADB ?= $(ANDROID_SDK_DIR)/platform-tools/adb
+ANDROID_APK = $(APP_DIR)/android/app/build/outputs/apk/debug/app-debug.apk
+
+android-build:
+	@$(MAKE) mobile-build-internal
+	@[ -d "$(ANDROID_SDK_DIR)" ] || { echo "FAIL: no Android SDK at $(ANDROID_SDK_DIR)."; \
+		echo "      Install it (Android Studio, or sdkmanager) or set ANDROID_SDK_DIR."; exit 1; }
+	@rm -f $(ANDROID_APK)
+	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) \
+		env -u NODE_OPTIONS ./gradlew assembleDebug --console=plain \
+		|| { echo "FAIL: gradle assembleDebug failed. No APK was produced."; exit 1; }
+	@[ -f $(ANDROID_APK) ] || { echo "FAIL: gradle reported success but there is no APK at"; \
+		echo "      $(ANDROID_APK)"; exit 1; }
+	@n=$$(unzip -l $(ANDROID_APK) 'assets/public/assets/*.js' 2>/dev/null | grep -c '\.js$$'); \
+	[ "$$n" -gt 0 ] || { echo "FAIL: the APK carries no web assets — cap sync did not run, or"; \
+		echo "      the build packaged an empty assets dir."; exit 1; }; \
+	echo "OK: $$n JS chunks packaged"
+	@unzip -p $(ANDROID_APK) 'assets/public/assets/*.js' 2>/dev/null \
+		| grep -qE 'https://[a-z.]+/api/app' \
+		|| { echo "FAIL: the APK has no https api base — the prod tier would open with no data."; \
+			echo "      Check VITE_API_BASE_URL in $(APP_DIR)/.env.mobile."; exit 1; }
+	@echo "OK: PROD tier targets a hosted api"
+	@echo "OK: $(ANDROID_APK) ($$(du -h $(ANDROID_APK) | cut -f1))"
+
+android-device-install: android-build
+	@[ -x "$(ADB)" ] || { echo "FAIL: no adb at $(ADB). Install platform-tools."; exit 1; }
+	@dev=$$($(ADB) devices | awk '$$2=="device"{print $$1; exit}'); \
+	[ -n "$$dev" ] || { echo "FAIL: no Android device in 'adb devices'. Plug it in, unlock it,"; \
+		echo "      enable USB debugging, and accept the RSA prompt."; exit 1; }; \
+	echo "--> installing on $$dev"; \
+	$(ADB) -s "$$dev" install -r $(ANDROID_APK)
 	@echo "OK: app.closelistening.player installed. It talks to the api in $(APP_DIR)/.env.mobile."
 
 #: Signing team for device builds — the cert's OU, not the Apple ID.

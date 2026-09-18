@@ -19,7 +19,64 @@ import { join, resolve } from 'node:path'
  * deterministic. Requires the ``[search]`` extras + the cached MiniLM model (offline); CI provides
  * both before invoking Playwright (see .github/workflows/python-app.yml app-e2e).
  */
-export default function globalSetup(): void {
+/**
+ * Refuse to run against an already-listening API that cannot embed a search query.
+ *
+ * `reuseExistingServer: !CI` means a server left over from an earlier session is adopted silently.
+ * If that one was started without `HF_HUB_CACHE`/`HF_HUB_OFFLINE` — trivially easy, since starting
+ * the API by hand does not set them — every `/api/search` returns `embed_failed`, and six specs
+ * fail with "element(s) not found" for a results heading. Nothing in that output names the cause,
+ * and the server is invisible: the run looks like a code regression in search (operator 2026-09-18,
+ * where it cost a full diagnosis to find a server started 30 minutes earlier).
+ *
+ * `/api/health` cannot catch this — a misconfigured server is perfectly healthy. So probe the thing
+ * the suite actually depends on, and only when something is ALREADY listening, which is the sole
+ * case where reuse can happen. If the port is free, Playwright starts a correctly-configured server
+ * and there is nothing to check.
+ *
+ * TWO NARROWINGS, both learned by breaking CI with the first version of this (2026-09-18):
+ *
+ * 1. It only runs when reuse is POSSIBLE. `reuseExistingServer: !process.env.CI`, so on CI the
+ *    server is always started fresh by the workflow and can never be an adopted stale one. The
+ *    first version ran everywhere and failed the whole job.
+ *
+ * 2. It rejects `embed_failed` ONLY — not any error. `no_index` means the LanceDB index has not
+ *    been built, which is not a misconfiguration: it is the normal pre-setup state, and building
+ *    it is what the rest of THIS function does a few lines below. The first version treated it as
+ *    fatal, so the guard rejected a perfectly healthy server for lacking something the guard's own
+ *    caller was about to create. `embed_failed` is specifically the model-cache problem, which is
+ *    independent of the index and which nothing downstream repairs.
+ */
+async function rejectMisconfiguredReusedApi(): Promise<void> {
+  if (process.env.CI) return // reuseExistingServer is off there; nothing to adopt
+
+  const base = 'http://127.0.0.1:8011'
+  let probe: Response
+  try {
+    probe = await fetch(`${base}/api/search?q=investing`, {
+      signal: AbortSignal.timeout(5000),
+    })
+  } catch {
+    return // nothing listening — Playwright will start its own, correctly configured
+  }
+
+  const body = (await probe.json().catch(() => ({}))) as { error?: string; detail?: string }
+  if (body.error !== 'embed_failed') return
+
+  throw new Error(
+    `An API is already listening on ${base} and cannot serve search: ${body.error}\n` +
+      `  ${(body.detail ?? '').split('\n')[0]}\n\n` +
+      `Playwright reuses it (reuseExistingServer), so the search specs would fail with a missing\n` +
+      `results heading and no hint as to why. It was almost certainly started by hand, or by an\n` +
+      `earlier run, without the HF cache env the config sets.\n\n` +
+      `Kill it and re-run:  lsof -ti :8011 | xargs kill\n` +
+      `If the model itself is missing:  make preload-ml-models`,
+  )
+}
+
+export default async function globalSetup(): Promise<void> {
+  await rejectMisconfiguredReusedApi()
+
   // Playwright runs the config from web/learning-player/, matching the webServer cwd that
   // resolves APP_DATA_DIR = 'e2e/.app-state'.
   rmSync(join(process.cwd(), 'e2e', '.app-state'), { recursive: true, force: true })

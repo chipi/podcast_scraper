@@ -3,9 +3,10 @@
 A signed-in user uploads their own avatar, which overrides the OAuth-captured one. The upload is
 validated hard — content-type allow-list, a magic-byte sniff (never trust the declared type), and a
 size cap — then stored in the user's own data dir and served back through a route (the data dir is
-not web-mounted). Only the signed-in user can write their own avatar, and both the write and the
-read are auth-gated (a signed-in surface); the id is validated and the filename fixed, so the path
-cannot traverse out of the user's own dir.
+not web-mounted). Only the signed-in user can write their own avatar; the WRITE is auth-gated, the
+READ deliberately is not (#2109 — an `<img src=…>` cannot send a bearer header; see `serve_avatar`
+for the full reasoning). The id is validated and the filename fixed, so the path cannot traverse out
+of the user's own dir.
 """
 
 from __future__ import annotations

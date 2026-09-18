@@ -19,6 +19,10 @@ services:
       APP_OAUTH_PROVIDER: ${APP_OAUTH_PROVIDER:-}
       APP_SESSION_SECRET: ${APP_SESSION_SECRET:-}
       APP_SESSION_COOKIE_SECURE: ${APP_SESSION_COOKIE_SECURE:-false}
+      # Origin the exports link back to. Absolute, or the links are dead where an export is read —
+      # Obsidian resolves a relative "/episode/x" against the vault, not a website. Points at THIS
+      # stack by default so a local export opens the local player instead of deep-linking to prod.
+      APP_PUBLIC_ORIGIN: ${APP_PUBLIC_ORIGIN:-http://localhost:${APP_PORT:-8081}}
 
   learning-app:
     build:

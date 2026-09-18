@@ -31,6 +31,17 @@ _ANON_ALLOW = {
     "/api/app/auth/logout",
     "/api/app/auth/dev-users",
     "/api/app/auth/status",
+    # Avatar serve is deliberately open (#2109, operator 2026-09-16): an `<img src=…>` cannot send
+    # an Authorization header, and the native shell carries its session in exactly that header — so
+    # a session-gated avatar 401'd on device and every user silently fell back to initials. The id
+    # is an opaque 24-hex token that is never displayed, and show/episode artwork is already served
+    # unauthenticated by this same API.
+    #
+    # #2109 opened the route and did not update this list, so the matrix has been red on main since.
+    # Listed here rather than skipped: the allow-list branch still asserts the route is not
+    # auth-BLOCKED, and any NEW unauthenticated route still fails until someone writes its reason
+    # down here.
+    "/api/app/profile/x/avatar",
     "/api/app/mcp/oauth/register",
     "/api/app/mcp/oauth/token",
     "/.well-known/oauth-authorization-server",

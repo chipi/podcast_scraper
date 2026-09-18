@@ -31,7 +31,7 @@ def _recording_walk(calls: list):
 _UID = "u_0123456789abcdef01234567"
 #: The real indexed catalog walk, grabbed before the autouse stub replaces it — the #42
 #: counter test needs the genuine implementation, not the fixture's stand-in.
-_REAL_TITLE_INDEX = ex._title_index
+_REAL_TITLE_INDEX = ex._episode_meta
 _ROOT = Path("/unused")
 
 _HL = {
@@ -49,24 +49,29 @@ _HL = {
 
 
 class _AnyTitle(dict):
-    """A slug -> title index that answers the same title for every slug.
+    """A slug -> episode-metadata index that answers the same row for every slug.
 
     The export used to call ``resolve_slug`` once per highlighted episode; since #42 it builds ONE
     indexed catalog walk instead, so the stub is now a mapping rather than a function. Answering
     any slug keeps each test asserting what it always asserted.
+
+    Carries a metadata dict rather than a bare title since 2026-09-18, when the episode note grew
+    date / duration / the three summary fields. The stub mirrors PRODUCTION's shape deliberately —
+    a stub more generous (or merely different) than the real thing manufactures failures as readily
+    as it hides them.
     """
 
-    def __init__(self, title: str) -> None:
+    def __init__(self, title: str, **meta) -> None:
         super().__init__()
-        self._title = title
+        self._row = {"title": title, **meta}
 
     def get(self, key, default=None):  # noqa: D102 - dict protocol
-        return self._title
+        return self._row
 
 
 @pytest.fixture(autouse=True)
 def _stub(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(ex, "_title_index", lambda root: _AnyTitle("NVIDIA"))
+    monkeypatch.setattr(ex, "_episode_meta", lambda root: _AnyTitle("NVIDIA"))
 
 
 def _vault(monkeypatch, highlights) -> dict[str, str]:
@@ -88,7 +93,7 @@ def test_yaml_scalar_escapes_quotes_and_newlines() -> None:
 
 
 def test_frontmatter_survives_quotes_in_title_and_quote(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(ex, "_title_index", lambda root: _AnyTitle('The "Real" Show'))
+    monkeypatch.setattr(ex, "_episode_meta", lambda root: _AnyTitle('The "Real" Show'))
     hl = {**_HL, "quote_text": 'a quote with "quotes" and\na newline', "graph_refs": []}
     note = _vault(monkeypatch, [hl])["closelistening/Highlights/h_1.md"]
     # The alias line must be valid single-line double-quoted YAML (escaped quotes, no newline).
@@ -107,7 +112,7 @@ def test_highlight_note_wikilinks_and_deep_link(monkeypatch: pytest.MonkeyPatch)
     assert "> the bottleneck was never compute" in note
     assert "[[closelistening/People/person_jensen-huang|Jensen Huang]]" in note
     assert "[[closelistening/Topics/topic_scaling|Scaling]]" in note
-    assert "/player/acquired-nvidia?t=3921" in note  # deep-link with jump
+    assert "/episode/acquired-nvidia?t=3921" in note  # deep-link with jump
     # Quoted since #43 — YAML-equivalent, and consistent with every other string field.
     assert 'source: "user"' in note
 
@@ -225,7 +230,7 @@ def test_a_label_containing_link_syntax_cannot_truncate_the_link(
 def test_an_episode_title_containing_link_syntax_cannot_truncate_the_link(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(ex, "_title_index", lambda root: _AnyTitle("Ep ]] two|three"))
+    monkeypatch.setattr(ex, "_episode_meta", lambda root: _AnyTitle("Ep ]] two|three"))
     note = _vault(monkeypatch, [{**_HL, "graph_refs": []}])["closelistening/Highlights/h_1.md"]
     line = next(ln for ln in note.splitlines() if ln.startswith("— [["))
     # Count over the WHOLE line. The first version sliced to the first "]]" and asserted the
@@ -235,7 +240,9 @@ def test_an_episode_title_containing_link_syntax_cannot_truncate_the_link(
     assert line.count("[[") == 1, line
     assert line.count("]]") == 1, line
     assert "closelistening/Episodes/acquired-nvidia|" in line
-    assert "[▶ jump](/player/acquired-nvidia" in line  # the rest of the line survived intact
+    # Absolute since 2026-09-18: inside Obsidian a "/episode/x" link resolves against the
+    # VAULT, not a website, so the relative form silently dead-ended.
+    assert "[▶ jump](https://" in line and "/episode/acquired-nvidia" in line
 
 
 def test_a_multi_line_quote_stays_inside_the_blockquote(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -262,7 +269,7 @@ def test_every_note_in_the_vault_has_parseable_frontmatter(monkeypatch: pytest.M
     """
     monkeypatch.setattr(
         ex,
-        "_title_index",
+        "_episode_meta",
         lambda root: _AnyTitle('- Title: with "colon"\tand \x07 bell'),
     )
     hl = {
@@ -382,7 +389,7 @@ def test_the_catalog_is_walked_once_per_export_not_once_per_episode(
         calls.append("walk")
         return [SimpleNamespace(slug=f"slug-{i}", episode_title=f"Ep {i}") for i in range(10)]
 
-    monkeypatch.setattr(ex, "_title_index", _REAL_TITLE_INDEX)  # the real one, not the stub
+    monkeypatch.setattr(ex, "_episode_meta", _REAL_TITLE_INDEX)  # the real one, not the stub
     monkeypatch.setattr(ex, "cached_catalog", counting_walk)
     monkeypatch.setattr(ex, "slug_for_row", lambda row: row.slug)
 
@@ -409,7 +416,7 @@ def test_no_highlights_costs_no_catalog_walk_at_all(
     empty vault pay for a full corpus scan — a regression for every user who has captured nothing.
     """
     calls: list[str] = []
-    monkeypatch.setattr(ex, "_title_index", _REAL_TITLE_INDEX)
+    monkeypatch.setattr(ex, "_episode_meta", _REAL_TITLE_INDEX)
     monkeypatch.setattr(ex, "cached_catalog", _recording_walk(calls))
     _hls(monkeypatch, [])
     ex.export_bundle(_ROOT, tmp_path, _UID, since=0)

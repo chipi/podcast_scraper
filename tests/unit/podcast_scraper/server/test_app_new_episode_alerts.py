@@ -27,8 +27,8 @@ def test_sweep_emits_one_alert_per_new_episode(tmp_path: Path, monkeypatch) -> N
     _stub_follows(
         monkeypatch,
         [
-            {"episode_slug": "ep-a", "episode_title": "A", "deep_link": "/player/ep-a"},
-            {"episode_slug": "ep-b", "episode_title": "B", "deep_link": "/player/ep-b"},
+            {"episode_slug": "ep-a", "episode_title": "A", "deep_link": "/episode/ep-a"},
+            {"episode_slug": "ep-b", "episode_title": "B", "deep_link": "/episode/ep-b"},
         ],
     )
     emitted = app_new_episode_alerts.sweep_for_user(_ROOT, tmp_path, _UID)
@@ -41,7 +41,7 @@ def test_sweep_emits_one_alert_per_new_episode(tmp_path: Path, monkeypatch) -> N
 
 def test_sweep_is_idempotent_across_runs(tmp_path: Path, monkeypatch) -> None:
     _stub_follows(
-        monkeypatch, [{"episode_slug": "ep-a", "episode_title": "A", "deep_link": "/player/ep-a"}]
+        monkeypatch, [{"episode_slug": "ep-a", "episode_title": "A", "deep_link": "/episode/ep-a"}]
     )
     first = app_new_episode_alerts.sweep_for_user(_ROOT, tmp_path, _UID)
     second = app_new_episode_alerts.sweep_for_user(_ROOT, tmp_path, _UID)
@@ -51,7 +51,7 @@ def test_sweep_is_idempotent_across_runs(tmp_path: Path, monkeypatch) -> None:
 
 def test_sweep_respects_in_app_consent(tmp_path: Path, monkeypatch) -> None:
     _stub_follows(
-        monkeypatch, [{"episode_slug": "ep-a", "episode_title": "A", "deep_link": "/player/ep-a"}]
+        monkeypatch, [{"episode_slug": "ep-a", "episode_title": "A", "deep_link": "/episode/ep-a"}]
     )
     # Turn the in-app channel off for new_episodes → the sweep emits nothing.
     app_comms_store.set_comms(tmp_path, _UID, types={"new_episodes": {"in_app": False}})

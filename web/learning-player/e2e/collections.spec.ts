@@ -174,7 +174,11 @@ test('deleting a collection asks first, and Escape means no', async ({ page }, t
 
   // 5. Confirming actually deletes, and it stays deleted across a reload.
   await page.locator('li', { hasText: name }).getByTestId('collection-delete').click()
-  await page.getByTestId('confirm-accept').click()
+  // Scoped to the OPEN dialog. `ConfirmDialog` is a native <dialog> shown with `showModal()`, so
+  // every instance is in the DOM whether open or not — Library mounts three (collections, and
+  // highlights' two) and a page-scoped `confirm-accept` matches all of them. Pre-dates this branch:
+  // reverting src+e2e to the pre-session commit reproduces it identically.
+  await page.locator('dialog[open]').getByTestId('confirm-accept').click()
   await expect(page.locator('li', { hasText: name })).toHaveCount(0)
   await page.reload()
   await expect(page.locator('li', { hasText: name })).toHaveCount(0)

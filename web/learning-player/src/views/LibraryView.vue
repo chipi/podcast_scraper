@@ -126,9 +126,14 @@ const savedColor = ref<string | null>(null)
 const savedSort = ref<string>('recent')
 // Type-to-filter search + per-section caps keep the hub scannable at 100+ items (#2042 follow-up).
 // A non-empty query lifts every cap so a match is never hidden behind "Show all".
+/** Muted filter (operator 2026-09-18) — highlights only; every other Saved section ignores it. */
+const savedMutedOnly = ref(false)
 const savedSearch = ref('')
 const savedSearchActive = computed(() => savedSearch.value.trim() !== '')
-const savedCaps = useCappedSections()
+// Saved's per-type sections page 10 at a time (operator 2026-09-18) rather than the default 6 with
+// an all-or-nothing expand: at a hundred saved episodes "Show all" produces a scroll with no
+// landmarks, so each press adds another ten.
+const savedCaps = useCappedSections(10, 10)
 
 /** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
  *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
@@ -243,11 +248,20 @@ const savedShowPodcasts = computed(() => {
   }))
 })
 
-/** Colour- + search-filtered highlight count, so the Highlights section hides when empty. */
+/**
+ * Colour-, muted- and search-filtered highlight count, so the Highlights section hides when empty.
+ *
+ * Must apply EVERY filter `HighlightsView` applies. Adding the muted filter to the list but not
+ * here put "Highlights 6" directly above a list of 2 — the same class of disagreement the count
+ * was made filter-aware to fix in the first place.
+ */
 const visibleHighlightCount = computed(
   () =>
     capture.highlights.filter(
-      (h) => (!savedColor.value || h.color === savedColor.value) && highlightMatches(h),
+      (h) =>
+        (!savedColor.value || h.color === savedColor.value) &&
+        (!savedMutedOnly.value || h.retired) &&
+        highlightMatches(h),
     ).length,
 )
 
@@ -458,10 +472,15 @@ onMounted(async () => {
         :search-placeholder="t('library.searchFollowing')"
       />
       <section v-if="followingTypeVisible('shows')" class="mb-6">
-        <h3 class="lp-kicker mb-2">
+        <!-- Same heading as every other Library section (operator 2026-09-18): `lp-section` with
+             the count as a muted kicker beside it. Following used a small uppercase kicker while
+             Saved used this, so two tabs of the same hub labelled their sections two ways. -->
+        <h2 class="lp-section mb-2">
           {{ t('library.followingShows') }}
-          <span v-if="filteredShows.length" class="font-normal">({{ filteredShows.length }})</span>
-        </h3>
+          <span v-if="filteredShows.length" class="lp-kicker ml-1 font-normal">{{
+            filteredShows.length
+          }}</span>
+        </h2>
         <SectionStatus :phase="showsSection.phase.value" :rows="2" @retry="loadFollowedShows" />
         <div
           v-if="showsSection.isReady.value && !followedShows.length"
@@ -541,7 +560,9 @@ onMounted(async () => {
           v-model:color="savedColor"
           v-model:sort="savedSort"
           v-model:search="savedSearch"
+          v-model:muted-only="savedMutedOnly"
           :available-types="availableTypes"
+          show-muted
         />
         <!-- #1261-8: Saved searches — power-listener persistent queries.
              Tap the query to re-run the search; ×  removes it. Searches carry no colour, so a
@@ -578,8 +599,6 @@ onMounted(async () => {
             </li>
           </ul>
         </section>
-        <!-- Downloaded (#1905) — device-local, native only, renders with no API calls. -->
-        <DownloadedList />
 
         <!-- SHOWS lead the saved content, before episodes (operator 2026-09-17), as a list row with
              44px artwork — the shape Discover's Shows LIST uses.
@@ -636,10 +655,11 @@ onMounted(async () => {
             </EpisodeCard>
           </div>
           <ShowAllToggle
-            v-if="savedCaps.overflows(filteredEpisodes.length, savedSearchActive)"
-            :expanded="savedCaps.expanded.has('episodes')"
+            v-if="savedCaps.overflows(filteredEpisodes.length, savedSearchActive, 'episodes')"
+            :expanded="savedCaps.remaining('episodes', filteredEpisodes.length) === 0"
             :count="filteredEpisodes.length"
-            @toggle="savedCaps.toggle('episodes')"
+            :remaining="savedCaps.remaining('episodes', filteredEpisodes.length)"
+            @toggle="savedCaps.toggle('episodes', filteredEpisodes.length)"
           />
         </section>
         <!-- Topics, then storylines, then people — each its own section (operator 2026-09-17).
@@ -683,8 +703,20 @@ onMounted(async () => {
             {{ t('library.highlights') }}
             <span class="lp-kicker ml-1 font-normal">{{ visibleHighlightCount }}</span>
           </h2>
-          <HighlightsView :filter-color="savedColor" :sort="savedSort" :search="savedSearch" />
+          <HighlightsView
+            :filter-color="savedColor"
+            :sort="savedSort"
+            :search="savedSearch"
+            :muted-only="savedMutedOnly"
+          />
         </section>
+
+        <!-- Downloaded (#1905) — device-local, native only, renders with no API calls.
+             LAST of the Saved sections (operator 2026-09-18). It sat second, above everything the
+             user actually saved, so a native build opened Saved on a device-storage list rather
+             than on their own captures. It is a utility view of what happens to be on this phone,
+             not a thing they curated — so it reads last. -->
+        <DownloadedList />
 
         <!-- Filters can empty every section while the account is NOT empty — say so, rather than
              show a blank tab that reads as a bug. -->

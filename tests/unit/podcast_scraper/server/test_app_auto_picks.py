@@ -44,7 +44,7 @@ def test_picks_from_heard_but_uncaptured(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert [i["episode_slug"] for i in items] == ["ep-a"]
     assert items[0]["source"] == "auto"
     assert items[0]["graph_refs"] == _REFS
-    assert items[0]["deep_link"] == "/player/ep-a?t=60"
+    assert items[0]["deep_link"] == "/episode/ep-a?t=60"
     assert items[0]["quote"] == "a key point"
 
 

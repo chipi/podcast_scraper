@@ -74,7 +74,7 @@ def new_in_follows_items(
                 "episode_slug": slug,
                 "episode_title": row.episode_title,
                 "graph_refs": refs,
-                "deep_link": f"/player/{slug}",
+                "deep_link": f"/episode/{slug}",
             }
         )
         if len(items) >= limit:
@@ -132,7 +132,7 @@ def new_in_interests_items(
                 "episode_slug": slug,
                 "episode_title": row.episode_title,
                 "graph_refs": refs,
-                "deep_link": f"/player/{slug}",
+                "deep_link": f"/episode/{slug}",
             }
         )
         if len(items) >= limit:

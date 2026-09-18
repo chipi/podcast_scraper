@@ -36,7 +36,7 @@ _INTERESTS = [
         "episode_slug": "ep-chips",
         "episode_title": "Chips",
         "graph_refs": [{"id": "topic:chips", "kind": "topic", "label": "Chips"}],
-        "deep_link": "/player/ep-chips",
+        "deep_link": "/episode/ep-chips",
     }
 ]
 

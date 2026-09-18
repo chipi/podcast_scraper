@@ -313,6 +313,25 @@ describe("ProfileView — Your listening panel", () => {
     expect(w.text()).toContain("Start listening to build your stats.")
     expect(w.text()).not.toContain("Day streak")
   })
+
+  it("keeps the listening panel when there IS listening, alongside the kept block", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    vi.spyOn(api, "getMyStats").mockResolvedValue(stats({ captures: 3 }))
+    const w = mountProfile()
+    await flushPromises()
+    expect(w.find('[data-testid="stats-listening"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stats-kept"]').exists()).toBe(true)
+  })
+
+  it("hides the kept block entirely when the server does not send those fields", async () => {
+    // A server predating them returns the listening half alone; a row of zeroes would look like a
+    // real answer rather than an absent one.
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    vi.spyOn(api, "getMyStats").mockResolvedValue(stats())
+    const w = mountProfile()
+    await flushPromises()
+    expect(w.find('[data-testid="stats-kept"]').exists()).toBe(false)
+  })
 })
 
 describe("ProfileView — notifications", () => {

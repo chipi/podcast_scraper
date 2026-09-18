@@ -79,7 +79,7 @@ def _digest_item(root: Path, highlight: dict[str, Any]) -> dict[str, Any] | None
     item: dict[str, Any] = {
         "episode_slug": slug,
         "graph_refs": refs,
-        "deep_link": f"/player/{slug}" + (f"?{'&'.join(params)}" if params else ""),
+        "deep_link": f"/episode/{slug}" + (f"?{'&'.join(params)}" if params else ""),
         "t_ms": t_ms,
         "source": "user",
     }
@@ -119,7 +119,13 @@ def assemble_digest_payload(
     # separate comms.digest_schedule.paused consent gate governs whether the EMAIL is sent at all;
     # this governs whether resurfacing CONTENT exists to send.
     paused = bool(app_user_state.get_resurfacing_settings(data_dir, user_id).get("paused"))
-    due = select_due(highlights, state, now, paused=paused)
+    due = select_due(
+        highlights,
+        state,
+        now,
+        paused=paused,
+        listened_at=app_user_state.listened_at_by_episode(data_dir, user_id),
+    )
     items: list[dict[str, Any]] = []
     for h in due:
         item = _digest_item(root, h)
@@ -282,7 +288,12 @@ def build_push_envelope(
 
 
 def _nudge_payload(revisit_items: list[dict[str, Any]]) -> dict[str, Any]:
-    """A resurface-nudge payload: a count + the single most-overdue lead item."""
+    """A resurface-nudge payload: a count + the lead item.
+
+    The lead is simply the first of ``revisit_items``, so it inherits ``select_due``'s order:
+    the most recently listened-or-captured episode, newest capture within it. It was the
+    most-overdue item until the ordering was replaced (operator 2026-09-18).
+    """
     return {"highlight_count": len(revisit_items), "lead": revisit_items[0]}
 
 

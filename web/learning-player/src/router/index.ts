@@ -6,6 +6,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { i18n } from '../i18n'
 import { useAuthStore } from '../stores/auth'
 // `getAuthToken` / `isNative` are no longer imported here: the native-token check moved into the
 // shared `auth.hasSession` getter, which the masthead reads too, so the guard and the header cannot
@@ -112,13 +113,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/BrowseView.vue'),
   },
   {
-    // The full 3-tab entity trends page (Topics/Storylines/People), reached from the Discover
-    // dashboard's "See all ›" (#discover-arc).
-    path: '/trends',
-    name: 'trends',
-    component: () => import('../views/TrendsView.vue'),
-  },
-  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),
@@ -195,4 +189,25 @@ router.beforeEach(async (to) => {
     return { name: 'landing', query: { redirect: to.fullPath } }
   }
   return true
+})
+
+/**
+ * The browser tab title, per route (operator 2026-09-18).
+ *
+ * Every route rendered the same string — and that string was "Learning Player", the internal
+ * project name, not the product. So every open tab looked identical, every bookmark was named
+ * after a repo directory, and history was unusable.
+ *
+ * `<page> · Close Listening`: the page first, because a tab strip truncates from the right and the
+ * distinguishing word has to survive. An unmapped route falls back to the brand alone rather than
+ * rendering "undefined · Close Listening".
+ *
+ * `afterEach`, not a guard: a title is a consequence of having navigated, and setting it in
+ * `beforeEach` would rename the tab for a navigation that a guard then redirects away from.
+ */
+router.afterEach((to) => {
+  const brand = i18n.global.t('app.title')
+  const key = typeof to.name === 'string' ? `pageTitles.${to.name}` : ''
+  const page = key && i18n.global.te(key) ? i18n.global.t(key) : ''
+  document.title = page ? `${page} · ${brand}` : brand
 })

@@ -5,7 +5,7 @@
  * Embedded in the Library "Boards" tab (CO.7 — the tab that holds collections + notes). Auth-gated
  * (empty when signed out).
  */
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, nextTick, onMounted, ref, watch } from "vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import ConfirmDialog from "../components/ConfirmDialog.vue"
@@ -15,8 +15,9 @@ import TypeFilterBar from "../components/TypeFilterBar.vue"
 import { useCappedSections } from "../composables/useCappedSections"
 import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
+import { scrollBehavior } from "../utils/motion"
 import { useCaptureStore } from "../stores/capture"
-import { RouterLink, useRouter } from "vue-router"
+import { RouterLink, useRoute, useRouter } from "vue-router"
 import {
   addToCollection,
   createCollection,
@@ -37,6 +38,7 @@ const store = useCollectionsStore()
 
 const { t, locale } = useI18n()
 const router = useRouter()
+const route = useRoute()
 
 /** "Last modified" date for a collection (CO.2), or null when unknown. */
 function modifiedLabel(c: Collection): string | null {
@@ -93,6 +95,14 @@ function rowElements(): HTMLElement[] {
 
 function onGrabStart(id: string, e: PointerEvent): void {
   if (!reorderable.value) return
+  // Suppress the iOS text-selection gesture, which starts at touch-down. The operator's screenshot
+  // showed selection handles over the row instead of a drag.
+  //
+  // This was NOT the reason reordering did not work — that was `visibleCollections` re-sorting the
+  // manual order away (see the note there), and the drag failed identically in Chromium where no
+  // such gesture exists. Kept because a drag handle should not be selectable regardless, but it is
+  // standard hygiene, not the fix, and it remains unverified on a device.
+  e.preventDefault()
   draggingId.value = id
   dragOverId.value = id
   // Capture, so the gesture keeps reporting to this handle even when the finger slides off it.
@@ -106,6 +116,10 @@ function onGrabStart(id: string, e: PointerEvent): void {
 function onGrabMove(e: PointerEvent): void {
   if (!draggingId.value) return
   e.preventDefault() // stop the page scrolling under the drag
+  // Belt and braces: if a selection slipped through before the suppression applied, drop it rather
+  // than leaving blue handles floating over the row being dragged.
+  const sel = window.getSelection?.()
+  if (sel && !sel.isCollapsed) sel.removeAllRanges()
   const y = e.clientY
   // The row whose mid-point the finger is nearest is the drop target.
   let nearest = dragOverId.value
@@ -156,7 +170,22 @@ const visibleCollections = computed(() => {
     : [...collections.value]
   if (sortBy.value === "name") return list.sort((a, b) => a.name.localeCompare(b.name))
   if (sortBy.value === "count") return list.sort((a, b) => b.count - a.count)
-  return list.sort((a, b) => (b.updated_at ?? b.created_at) - (a.updated_at ?? a.created_at))
+  // The server's order, UNSORTED — this is the manual one, and re-sorting it here is what made
+  // drag-reorder impossible (operator 2026-09-18: "dragging collections to set order never started
+  // working").
+  //
+  // This branch sorted by `updated_at` descending while `reorderable` simultaneously offered a drag
+  // handle under it. Those are mutually exclusive: `store.reorder()` wrote the new order, the server
+  // persisted it to `position`, the store updated — and then this line sorted it straight back on
+  // the very next render. The drag ran correctly end to end and was invisible.
+  //
+  // The comment above `reorderable` already described this exact failure ("a drag under those would
+  // persist an order the very next render discards, which reads as the drag having failed") and then
+  // the default mode did it anyway.
+  //
+  // `app_collections_store` sorts by `position`, falling back to `created_at` for a board never
+  // dragged, so the response IS the answer. The client's job is to render it, not to re-derive it.
+  return list
 })
 /**
  * Which entity kinds the notes filter offers — only kinds actually present (operator 2026-09-17).
@@ -348,6 +377,36 @@ async function openCollection(id: string): Promise<void> {
   void hydrate(detail)
 }
 
+/**
+ * Open the board a deep link names (`?board=<id>`), and scroll to it (operator 2026-09-18).
+ *
+ * Home's boards teaser links here. Landing on a collapsed list with no indication of which board
+ * was tapped makes the tile feel like it did nothing — the link has to finish the job it started.
+ *
+ * It also LIFTS THE CAP while a board is targeted: the list shows a capped window, so a deep link
+ * to the twelfth board would otherwise open a row that is not rendered, and nothing would happen
+ * at all.
+ */
+const focusBoardId = computed(() => {
+  const b = route.query.board
+  return typeof b === "string" && b ? b : null
+})
+
+watch(
+  () => [focusBoardId.value, collections.value.length] as const,
+  async ([id]) => {
+    if (!id || open.value?.collection.id === id) return
+    if (!collections.value.some((c: Collection) => c.id === id)) return
+    view.value = "list"
+    await openCollection(id)
+    await nextTick()
+    document
+      .querySelector(`[data-board-row="${CSS.escape(id)}"]`)
+      ?.scrollIntoView({ block: "center", behavior: scrollBehavior() })
+  },
+  { immediate: true },
+)
+
 /** Queue every episode in this collection, oldest-pinned first, and open the first (#1839 P4). */
 const playAll = gated(async () => {
   const eps = episodeItems.value
@@ -538,7 +597,7 @@ onMounted(() => {
       class="grid grid-cols-3 gap-3 sm:grid-cols-4"
       data-testid="boards-grid"
     >
-      <li v-for="c in caps.visible('boards', visibleCollections, searchActive)" :key="c.id">
+      <li v-for="c in caps.visible('boards', visibleCollections, searchActive || !!focusBoardId)" :key="c.id">
         <button
           type="button"
           class="block w-full text-left"
@@ -590,9 +649,13 @@ onMounted(() => {
       meant closing this one first. Now the row IS the board: tapping it expands beneath its own
       header, tapping it again collapses it, and tapping a different one moves the expansion there.
     -->
-    <ul v-if="view === 'list' && visibleCollections.length" class="flex flex-col gap-2">
+    <ul
+      v-if="view === 'list' && visibleCollections.length"
+      class="flex flex-col gap-2"
+      :class="draggingId ? 'select-none [-webkit-user-select:none]' : ''"
+    >
       <li
-        v-for="c in caps.visible('boards', visibleCollections, searchActive)"
+        v-for="c in caps.visible('boards', visibleCollections, searchActive || !!focusBoardId)"
         :key="c.id"
         class="rounded-xl border border-border"
         :class="[open?.collection.id === c.id ? 'bg-overlay/40' : '', dragOverId === c.id ? 'ring-2 ring-accent' : '']"
@@ -659,7 +722,7 @@ onMounted(() => {
                write an order the next render discards, which reads as the drag having failed. -->
           <span
             v-if="reorderable"
-            class="flex shrink-0 cursor-grab touch-none items-center px-2 py-2 text-muted active:cursor-grabbing"
+            class="flex shrink-0 cursor-grab touch-none select-none items-center px-2 py-2 text-muted active:cursor-grabbing [-webkit-touch-callout:none]"
             data-testid="collection-drag-handle"
             :aria-label="t('collections.reorderHandle', { name: c.name })"
             role="button"

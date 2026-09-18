@@ -356,6 +356,36 @@ def _record_listening_unlocked(
         logger.debug("listening accrual failed for %s/%s", user_id, slug, exc_info=True)
 
 
+def listened_at_by_episode(data_dir: Path, user_id: str) -> dict[str, int]:
+    """``episode_slug -> when the user last PLAYED it`` (unix seconds).
+
+    From ``playback.json``'s ``updated_at``, which the client writes continuously while audio
+    plays, so it is genuinely "last listened", not "last opened".
+
+    Orders the resurfacing queue (:func:`app_resurfacing.select_due`): an episode you went back to
+    should bring its captures with it, even when replaying produced no new capture. Deliberately
+    NOT the publish date — publishing is not listening, and keying on it buried an old episode
+    played today underneath everything newer.
+
+    Tolerates the file being absent or malformed: a bad playback record must not take down the
+    Revisit tab, it must only cost that episode its listened-at signal.
+    """
+    data = _read(data_dir, user_id, "playback", {})
+    if not isinstance(data, dict):
+        return {}
+    out: dict[str, int] = {}
+    for slug, rec in data.items():
+        if not isinstance(rec, dict):
+            continue
+        try:
+            ts = int(rec.get("updated_at") or 0)
+        except (TypeError, ValueError):
+            continue
+        if ts > 0:
+            out[str(slug)] = ts
+    return out
+
+
 def list_playback(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     """All saved playback positions, newest-updated first (for the Home 'Continue' rail)."""
     data = _read(data_dir, user_id, "playback", {})
@@ -1278,6 +1308,34 @@ def mark_surfaced(data_dir: Path, user_id: str, highlight_id: str, ts: int) -> d
         except (TypeError, ValueError):
             previous_count = 0
         rec = {"last_surfaced": int(ts), "count": max(previous_count, 0) + 1}
+        data[highlight_id] = rec
+        _write(data_dir, user_id, "resurfacing", data)
+        return rec
+
+
+def set_resurfacing_retired(
+    data_dir: Path, user_id: str, highlight_id: str, retired: bool
+) -> dict[str, Any]:
+    """Stop (or resume) resurfacing ONE highlight, without touching the capture itself.
+
+    "Keep it, but stop asking me" (operator 2026-09-18). A scheduling flag and nothing else: the
+    highlight stays in Saved with its notes and colour. Deleting is a separate action with a
+    separate meaning, and it is the one that gets a confirmation.
+
+    Merged into the existing per-highlight record rather than given a file of its own, so "is this
+    resurfacing?" sits beside "when did it last surface?" instead of splitting one concept across
+    two stores.
+    """
+    with _user_lock(data_dir, user_id, "resurfacing"):
+        data = _mapping_for_update(data_dir, user_id, "resurfacing")
+        prev = data.get(highlight_id)
+        rec: dict[str, Any] = dict(prev) if isinstance(prev, dict) else {}
+        if retired:
+            rec["retired"] = True
+        else:
+            # Removed rather than written as False: absent already means "resurfacing", and a False
+            # would be a second way to say the same thing that every reader would have to handle.
+            rec.pop("retired", None)
         data[highlight_id] = rec
         _write(data_dir, user_id, "resurfacing", data)
         return rec

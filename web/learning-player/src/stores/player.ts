@@ -313,7 +313,7 @@ export const usePlayerStore = defineStore('player', () => {
   // things that stopped being the same the moment the element outlived the view. Two ways they
   // diverged, both silent:
   //
-  //   * Auto-advance while sitting on the player page. Episode X ends on /player/X, `onEnded` loads
+  //   * Auto-advance while sitting on the player page. Episode X ends on /episode/X, `onEnded` loads
   //     and plays queue-next Y WITHOUT navigating (deliberately — see onEnded). The view stayed
   //     mounted with props.slug === X, so every position save for Y was written onto X's record,
   //     every 10s, for the whole of Y. Opening X later "resumed" at a point in a different episode.
@@ -517,6 +517,9 @@ export const usePlayerStore = defineStore('player', () => {
     onDurationChange,
     onError,
     resetForLoad,
+    // Exposed for the `?play=1` intent (Home's Resume). NOT `toggle`, which would PAUSE an episode
+    // that is already playing — the opposite of what a resume link promises.
+    play,
     toggle,
     seek,
     skip,

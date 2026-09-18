@@ -34,6 +34,7 @@ import Sparkline from "../components/Sparkline.vue"
 import ListeningRecap from "../components/ListeningRecap.vue"
 import ProfileAvatar from "../components/ProfileAvatar.vue"
 import AvatarCropModal from "../components/AvatarCropModal.vue"
+import { dedupeByLabel, interestKind, interestLabel } from "../utils/interests"
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -143,16 +144,28 @@ const interestsFailed = ref(false)
 // as a headline "Xh". ListeningRecap shows time actually accrued instead, with its coverage.
 const series = computed(() => stats.value?.daily.map((d) => d.count) ?? [])
 const hasStats = computed(() => !!stats.value && stats.value.episodes > 0)
+/**
+ * The capture half gates on CAPTURES, not on listening (operator 2026-09-18).
+ *
+ * `hasStats` asks whether the user has opened an episode, which is the right question for the
+ * listening tiles and the wrong one here: someone who captures from a handful of episodes but
+ * whose play history is thin would have had their own writing hidden behind a listening threshold.
+ * `captures` is also optional on the type — a server that predates these fields returns the
+ * listening half alone, and a row of zeroes looks like a real answer rather than an absent one.
+ */
+const kept = computed(() => (stats.value?.captures ?? 0) > 0 ? stats.value : null)
 
-// Map saved interest tokens → human labels. Clusters resolve via the top-cluster set; topics and
-// people (followed from entity cards) de-slug from their id (`topic:personal-growth` → "personal
-// growth"). `kind` drives the chip hue so people read distinct from topics.
+// Map saved interest tokens → human labels, through the SHARED helper (utils/interests).
+//
+// This stripped `^(tc|topic|person):` inline, which omits `thc:` — so a followed storyline rendered
+// as the literal "thc:managing on the edge of chaos" on the user's own profile. It also showed one
+// label twice when two prefixes pointed at the same thing (operator 2026-09-18).
 const interestLabels = computed(() => {
   const byId = new Map(clusters.value.map((c) => [c.id, c.label]))
-  return interests.value.map((id) => ({
+  return dedupeByLabel(interests.value, byId).map((id) => ({
     id,
-    kind: id.startsWith("person:") ? "person" : "topic",
-    label: byId.get(id) ?? id.replace(/^(tc|topic|person):/, "").replace(/-/g, " "),
+    kind: interestKind(id),
+    label: interestLabel(id, byId),
   }))
 })
 
@@ -376,7 +389,13 @@ onMounted(load)
     <!-- STATS tab: listening analytics + the recap. -->
     <div v-show="tab === 'stats'" v-bind="panelAttrs('profile', 'stats')">
       <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
-      <section class="rounded-2xl border border-border p-5">
+      <!-- Always rendered. A conditional was tried and reverted (operator 2026-09-18): "Start
+           listening to build your stats" appeared above a kept block reading 12 captures, which
+           looked wrong — but that account had genuinely never listened, so the prompt was correct
+           and the seed data was the artificial thing. Capturing requires opening an episode, and
+           opening one counts, so "captures but no listening" is not a state the app can produce.
+           A branch that cannot fire is a branch nobody will verify again. -->
+      <section class="rounded-2xl border border-border p-5" data-testid="stats-listening">
         <h2 class="lp-section mb-4">{{ t("stats.title") }}</h2>
         <template v-if="hasStats">
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -423,6 +442,68 @@ onMounted(load)
           {{ t("profile.unavailable") }}
         </p>
         <p v-else class="text-sm text-muted">{{ t("stats.empty") }}</p>
+      </section>
+
+      <!-- What the user has KEPT, and what they have done with it. Its own section because it
+           answers a different question from the tiles above: those measure consumption, this
+           measures the half of the product that is the user's own. -->
+      <section v-if="kept" class="mt-6 rounded-2xl border border-border p-5" data-testid="stats-kept">
+        <h2 class="lp-section mb-4">{{ t("stats.keptTitle") }}</h2>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-3xl font-extrabold leading-none">{{ kept.captures }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.captures") }}</div>
+            <div v-if="kept.captures_last_7_days" class="lp-kicker mt-1">
+              {{ t("stats.capturesThisWeek", { count: kept.captures_last_7_days }) }}
+            </div>
+          </div>
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-3xl font-extrabold leading-none">{{ kept.notes ?? 0 }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.notes") }}</div>
+          </div>
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-3xl font-extrabold leading-none">{{
+              kept.capture_episodes ?? 0
+            }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.captureEpisodes") }}</div>
+          </div>
+        </div>
+        <!-- The kinds as one line rather than three more tiles: it is a breakdown OF the number
+             above, not three independent facts. -->
+        <p class="lp-kicker mt-3" data-testid="stats-capture-breakdown">
+          {{
+            t("stats.captureBreakdown", {
+              quotes: kept.capture_quotes ?? 0,
+              moments: kept.capture_moments ?? 0,
+              insights: kept.capture_insights ?? 0,
+            })
+          }}
+        </p>
+
+        <!-- The review loop, which nothing measured before: the ladder records a count per
+             highlight, so "how many reviews have I done" was a sum nobody had added up. -->
+        <h3 class="lp-section mb-3 mt-6">{{ t("stats.reviewTitle") }}</h3>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-2xl font-extrabold leading-none">{{
+              kept.reviews_total ?? 0
+            }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.reviewsTotal") }}</div>
+          </div>
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-2xl font-extrabold leading-none">{{
+              kept.captures_reviewed ?? 0
+            }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.capturesReviewed") }}</div>
+          </div>
+          <div class="rounded-xl bg-overlay p-4">
+            <span class="font-display text-2xl font-extrabold leading-none">{{
+              kept.captures_muted ?? 0
+            }}</span>
+            <div class="mt-2 text-xs font-medium text-muted">{{ t("stats.capturesMuted") }}</div>
+          </div>
+        </div>
+        <p class="lp-kicker mt-3">{{ t("stats.reviewHint") }}</p>
       </section>
 
       <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and the

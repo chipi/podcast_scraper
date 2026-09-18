@@ -15,8 +15,13 @@ from podcast_scraper.server.app_resurfacing import (
 NOW = 1_000_000_000
 
 
-def _hl(hid: str, created_at: int) -> dict:
-    return {"id": hid, "created_at": created_at, "kind": "moment"}
+def _hl(hid: str, created_at: int, episode_slug: str = "ep") -> dict:
+    return {
+        "id": hid,
+        "created_at": created_at,
+        "kind": "moment",
+        "episode_slug": episode_slug,
+    }
 
 
 def test_due_after_first_interval_when_never_surfaced() -> None:
@@ -36,10 +41,59 @@ def test_surface_count_lengthens_the_interval() -> None:
     assert [h["id"] for h in select_due([h], state, NOW)] == ["h1"]
 
 
-def test_most_overdue_first() -> None:
-    a = _hl("a", NOW - 5 * DAY)
-    b = _hl("b", NOW - 30 * DAY)  # far more overdue
-    assert [h["id"] for h in select_due([a, b], {}, NOW)] == ["b", "a"]
+def test_most_recently_engaged_episode_first_not_most_overdue() -> None:
+    """The ordering that replaced most-overdue-first (operator 2026-09-18).
+
+    Overdue-ness sounded right and measured worst: an unreviewed capture never moves `last_seen`,
+    so it grows more overdue for ever AND sits on the 90-day rung, returning fast and re-occupying
+    the top. The surface recirculated its oldest items instead of draining. Simulated over a year,
+    coverage went 44% -> 71% and median age at review 118 days -> 4 days.
+    """
+    old = _hl("old", NOW - 30 * DAY, "ep-old")  # far MORE overdue
+    new_ = _hl("new", NOW - 5 * DAY, "ep-new")
+    assert [h["id"] for h in select_due([old, new_], {}, NOW)] == ["new", "old"]
+
+
+def test_replaying_an_episode_lifts_its_captures() -> None:
+    """`listened_at` is playback[slug].updated_at — replaying is renewed interest.
+
+    Without it, an old episode you deliberately went back to stays buried under everything newer.
+    """
+    old = _hl("old", NOW - 300 * DAY, "ep-old")
+    new_ = _hl("new", NOW - 5 * DAY, "ep-new")
+    plain = [h["id"] for h in select_due([old, new_], {}, NOW)]
+    assert plain == ["new", "old"]
+    lifted = [
+        h["id"] for h in select_due([old, new_], {}, NOW, listened_at={"ep-old": NOW - 1 * DAY})
+    ]
+    assert lifted == ["old", "new"], "a re-listened episode did not come back up"
+
+
+def test_an_episodes_captures_stay_together() -> None:
+    """Captures are made while listening, so an episode's captures are one session's thinking."""
+    rows = [
+        _hl("a1", NOW - 20 * DAY, "ep-a"),
+        _hl("b1", NOW - 10 * DAY, "ep-b"),
+        _hl("a2", NOW - 19 * DAY, "ep-a"),
+        _hl("b2", NOW - 9 * DAY, "ep-b"),
+    ]
+    got = [h["episode_slug"] for h in select_due(rows, {}, NOW)]
+    assert got == ["ep-b", "ep-b", "ep-a", "ep-a"], "an episode's captures were interleaved"
+
+
+def test_publish_date_is_not_what_orders_this() -> None:
+    """Publishing is not listening.
+
+    Keying on publish date collapsed coverage to 49% for a half-back-catalogue listener: an old
+    episode played today sank to the bottom of the queue. Nothing here reads a publish date, and
+    an episode carrying one changes nothing.
+    """
+    old_show = _hl("x", NOW - 2 * DAY, "ep-2019")
+    old_show["publish_date"] = "2019-01-01"
+    fresh = _hl("y", NOW - 3 * DAY, "ep-2026")
+    fresh["publish_date"] = "2026-09-01"
+    # Ordered by CAPTURE recency, so the 2019 show captured more recently leads.
+    assert [h["id"] for h in select_due([fresh, old_show], {}, NOW)] == ["x", "y"]
 
 
 def test_paused_returns_nothing() -> None:
@@ -113,3 +167,45 @@ def test_an_orphan_state_entry_changes_nothing() -> None:
     hl = _hl("h1", NOW - 3 * DAY)
     state = {"h1": {"count": 0, "last_surfaced": NOW - 3 * DAY}, "h_deleted": {"count": 0}}
     assert [h["id"] for h in select_due([hl], state, NOW)] == ["h1"]
+
+
+# --- retiring: kept, but never asked about again (operator 2026-09-18) --------------------------
+
+
+def test_a_retired_highlight_is_never_due() -> None:
+    """The ladder's only exit.
+
+    Reviewing tops out at the 90-day rung and repeats for ever; ignoring leaves `last_seen` at the
+    capture date, so the item is permanently overdue AND sorts first. Both loop. Retiring is how a
+    capture leaves this surface without being deleted.
+    """
+    hl = _hl("h1", NOW - 400 * DAY)  # wildly overdue by any rung
+    assert [h["id"] for h in select_due([hl], {"h1": {"retired": True}}, NOW)] == []
+
+
+def test_retiring_beats_every_other_signal() -> None:
+    """Checked before the date maths, so no amount of overdue-ness resurrects it."""
+    hl = _hl("h1", NOW - 10_000 * DAY)
+    state: dict[str, Any] = {
+        "h1": {"retired": True, "count": 0, "last_surfaced": NOW - 9_000 * DAY}
+    }
+    assert select_due([hl], state, NOW) == []
+
+
+def test_an_unretired_highlight_is_due_again() -> None:
+    """`retired` is removed rather than written False, so absence is the only resurfacing state."""
+    hl = _hl("h1", NOW - 3 * DAY)
+    assert [h["id"] for h in select_due([hl], {"h1": {"count": 0}}, NOW)] == ["h1"]
+
+
+def test_retiring_one_highlight_leaves_the_others_due() -> None:
+    a, b = _hl("a", NOW - 3 * DAY), _hl("b", NOW - 3 * DAY)
+    state: dict[str, Any] = {"a": {"retired": True}}
+    assert [h["id"] for h in select_due([a, b], state, NOW)] == ["b"]
+
+
+def test_a_non_boolean_retired_value_is_honoured_when_truthy() -> None:
+    """The file can be hand-edited; `retired: 1` means what a human meant by it."""
+    hl = _hl("h1", NOW - 3 * DAY)
+    assert select_due([hl], {"h1": {"retired": 1}}, NOW) == []
+    assert [h["id"] for h in select_due([hl], {"h1": {"retired": 0}}, NOW)] == ["h1"]

@@ -43,7 +43,7 @@ const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     { path: '/', name: 'home', component: { template: '<div/>' } },
-    { path: '/player/:slug', name: 'player', component: { template: '<div/>' } },
+    { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
     // Every route a NOTE can link to (composables/noteTarget). A missing name here does not fail
     // politely: RouterLink throws while resolving, which surfaces as unrelated tests in this file
     // breaking rather than as "the person route is absent".
@@ -147,7 +147,7 @@ describe('CollectionsView', () => {
     const detail: CollectionDetail = {
       collection: col(),
       items: [
-        { kind: 'highlight', ref: 'h1', title: 'a line', deep_link: '/player/ep' },
+        { kind: 'highlight', ref: 'h1', title: 'a line', deep_link: '/episode/ep' },
         { kind: 'episode', ref: 'ep-x', title: 'An episode', deep_link: '/episode/ep-x' },
         { kind: 'link', ref: 'https://ex.com/p', title: 'A post', deep_link: 'https://ex.com/p' },
       ],

@@ -14,12 +14,14 @@ from collections import OrderedDict
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
-from podcast_scraper.server import app_graph_refs, app_user_state
+from podcast_scraper.server import app_graph_refs, app_pkm_export, app_user_state
 from podcast_scraper.server.app_capture_export import (
     EpisodeHighlights,
+    format_note,
     HighlightLine,
+    render_highlights_html,
     render_highlights_markdown,
 )
 from podcast_scraper.server.app_corpus_access import (
@@ -143,11 +145,23 @@ async def list_highlights(
     """The user's highlights, optionally scoped to one episode (``?episode=<slug>``).
 
     Re-anchored against the current transcript on the way out (RFC-098 / PRD-040 FR3.1a).
+
+    ``retired`` is joined from the resurfacing state here rather than stored on the highlight, for
+    the same reason ``anchor_status`` is computed on read: it is a fact about the SCHEDULE, and
+    duplicating it onto the capture would give two places to disagree. Saved needs it because
+    retiring must be reversible somewhere, and Saved is the only surface that lists every capture
+    — a retired highlight is by definition absent from Revisit, so it cannot be undone there.
     """
-    rows = app_user_state.get_highlights(_data_dir(request), user.user_id, episode)
+    data_dir = _data_dir(request)
+    rows = app_user_state.get_highlights(data_dir, user.user_id, episode)
     root = _corpus_root_opt(request)
     if root is not None and rows:
         rows = _reanchored(root, rows)
+    state = app_user_state.get_resurfacing_state(data_dir, user.user_id)
+    for row in rows:
+        st = state.get(str(row.get("id") or ""))
+        # Mirrors select_due's tolerance: this file is hand-editable and may hold a non-mapping.
+        row["retired"] = bool(st.get("retired")) if isinstance(st, dict) else False
     return HighlightsResponse(items=[Highlight(**r) for r in rows])
 
 
@@ -291,9 +305,14 @@ async def delete_note(
 # --- Markdown export ----------------------------------------------------------
 
 
-def _episode_titles(request: Request, slugs: set[str]) -> dict[str, tuple[str | None, str | None]]:
-    """Best-effort (title, show) per slug; never breaks export when the corpus is unavailable."""
-    out: dict[str, tuple[str | None, str | None]] = {}
+def _episode_meta(request: Request, slugs: set[str]) -> dict[str, dict]:
+    """Best-effort episode metadata per slug; never breaks export when the corpus is unavailable.
+
+    Carries what places an episode — title, show, publish date, duration — and all THREE summary
+    fields, because the app treats them as three different things and so must the export: a
+    headline, the prose the Summary button renders, and the digest that opens the insights panel.
+    """
+    out: dict[str, dict] = {}
     try:
         root = corpus_root_or_503(request)
     except Exception:  # noqa: BLE001 — export must still render with bare slugs.
@@ -304,7 +323,15 @@ def _episode_titles(request: Request, slugs: set[str]) -> dict[str, tuple[str | 
         except Exception:  # noqa: BLE001
             row = None
         if row is not None:
-            out[slug] = (row.episode_title, row.feed_title)
+            out[slug] = {
+                "title": row.episode_title,
+                "show": row.feed_title,
+                "publish_date": getattr(row, "publish_date", None),
+                "duration_seconds": getattr(row, "duration_seconds", None),
+                "summary_title": getattr(row, "summary_title", None),
+                "summary_text": getattr(row, "summary_text", None),
+                "summary_bullets": list(getattr(row, "summary_bullets", ()) or ()),
+            }
     return out
 
 
@@ -336,6 +363,16 @@ async def export_highlights_markdown(
         "#2042) — so 'filter to amber, then Export' gives just the amber highlights. Episode / "
         "insight notes carry no colour, so a colour-filtered export omits them.",
     ),
+    muted_only: bool = Query(
+        default=False,
+        description="When true, export only captures the user stopped resurfacing — the Saved "
+        "tab's muted filter, so 'filter, then Export' agrees with the screen.",
+    ),
+    q: str | None = Query(
+        default=None,
+        description="When set, export only captures whose quote or speaker matches — the Saved "
+        "tab's search box.",
+    ),
 ) -> PlainTextResponse:
     """Export the user's highlights AND (unfiltered) their notes, as a Markdown document.
 
@@ -349,14 +386,81 @@ async def export_highlights_markdown(
     that colour, and only the notes attached to them (episode / insight notes have no colour and
     would otherwise leak past the filter).
     """
+    episodes, orphans = _export_document(request, user, color, muted_only, q)
+    markdown = render_highlights_markdown(episodes, orphans)
+    return PlainTextResponse(
+        markdown,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="my-highlights.md"'},
+    )
+
+
+def _export_document(
+    request: Request,
+    user: User,
+    color: str | None,
+    muted_only: bool,
+    q: str | None,
+) -> tuple[list[EpisodeHighlights], list[str]]:
+    """The export document, filtered and hydrated — shared by every output format.
+
+    Markdown and the printable HTML render the SAME structure. Splitting the build out is the only
+    thing keeping "what an export contains" from being defined twice and drifting, which is the bug
+    this whole arc kept finding in other places.
+    """
     data_dir = _data_dir(request)
+    root = _corpus_root_opt(request)
     highlights = app_user_state.get_highlights(data_dir, user.user_id)
     if color:
         highlights = [h for h in highlights if h.get("color") == color]
+    if muted_only:
+        # The Saved tab can narrow to muted captures, so Export had to be able to as well —
+        # otherwise "filter, then export" silently returned everything and the file disagreed with
+        # the screen that produced it.
+        state = app_user_state.get_resurfacing_state(data_dir, user.user_id)
+        highlights = [
+            h
+            for h in highlights
+            if isinstance(state.get(str(h.get("id") or "")), dict)
+            and state[str(h.get("id"))].get("retired")
+        ]
+    if q:
+        needle = q.strip().lower()
+        # Same fields the Saved search matches (quote / speaker) — episode titles are findable via
+        # the Episodes section there, and matching them here would return captures the screen did
+        # not show.
+        highlights = [
+            h
+            for h in highlights
+            if needle in str(h.get("quote_text") or "").lower()
+            or needle in str(h.get("speaker") or "").lower()
+        ]
+
+    def _ref_labels(h: dict) -> list[str]:
+        """People and topics this capture is about, as plain labels.
+
+        Through ``refs_for_highlight``, which is the same resolution the Obsidian export and the
+        revisit surfaces use: stored refs when the capture has them, else the episode's KG. Most
+        captures store none, so reading `graph_refs` directly would have produced an empty list
+        almost every time and looked like "this episode has no entities".
+
+        Best-effort: no corpus root (or an episode with no KG) means no labels, never an error —
+        an export must not fail because the graph is unavailable.
+        """
+        if root is None:
+            return []
+        return [
+            str(r.get("label") or "").strip()
+            for r in app_graph_refs.refs_for_highlight(root, h)
+            if str(r.get("label") or "").strip()
+        ]
+
     notes = app_user_state.get_notes(data_dir, user.user_id)
     notes_by_target: dict[str, list[str]] = {}
     for n in notes:
-        notes_by_target.setdefault(str(n.get("target_id")), []).append(str(n.get("text", "")))
+        notes_by_target.setdefault(str(n.get("target_id")), []).append(
+            format_note(str(n.get("text", "")), n.get("created_at"), n.get("updated_at"))
+        )
 
     highlight_ids = {str(h.get("id")) for h in highlights}
     # A colour filter is about highlights; episode- and insight-level notes have no colour, so a
@@ -371,7 +475,7 @@ async def export_highlights_markdown(
         }
     )
     # Every episode that needs a heading: one the user highlighted, or one they only made a note on.
-    titles = _episode_titles(
+    titles = _episode_meta(
         request, {str(h.get("episode_slug")) for h in highlights} | episode_note_slugs
     )
 
@@ -379,8 +483,18 @@ async def export_highlights_markdown(
 
     def _episode(slug: str) -> EpisodeHighlights:
         if slug not in grouped:
-            title, show = titles.get(slug, (None, None))
-            grouped[slug] = EpisodeHighlights(slug=slug, title=title, show=show)
+            m = titles.get(slug, {})
+            grouped[slug] = EpisodeHighlights(
+                slug=slug,
+                title=m.get("title"),
+                show=m.get("show"),
+                url=app_pkm_export.episode_url(slug),
+                publish_date=m.get("publish_date"),
+                duration_seconds=m.get("duration_seconds"),
+                summary_title=m.get("summary_title"),
+                summary_text=m.get("summary_text"),
+                summary_bullets=list(m.get("summary_bullets") or []),
+            )
         return grouped[slug]
 
     for h in highlights:
@@ -388,11 +502,14 @@ async def export_highlights_markdown(
             HighlightLine(
                 kind=str(h.get("kind", "span")),
                 start_ms=h.get("start_ms"),
-                end_ms=h.get("end_ms"),
                 quote_text=h.get("quote_text"),
                 speaker=h.get("speaker"),
                 color=h.get("color"),
-                anchor_status=h.get("anchor_status"),
+                created_at=h.get("created_at"),
+                entities=_ref_labels(h),
+                jump_url=app_pkm_export.episode_url(
+                    str(h.get("episode_slug") or ""), h.get("start_ms")
+                ),
                 notes=notes_by_target.get(str(h.get("id")), []),
             )
         )
@@ -407,12 +524,43 @@ async def export_highlights_markdown(
     orphans = (
         []
         if color
-        else [str(n.get("text", "")) for n in notes if str(n.get("target_id")) not in placed]
+        else [
+            format_note(str(n.get("text", "")), n.get("created_at"), n.get("updated_at"))
+            for n in notes
+            if str(n.get("target_id")) not in placed
+        ]
     )
 
-    markdown = render_highlights_markdown(list(grouped.values()), orphans)
-    return PlainTextResponse(
-        markdown,
-        media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": 'attachment; filename="my-highlights.md"'},
-    )
+    return list(grouped.values()), orphans
+
+
+class HtmlResponse(HTMLResponse):
+    """An HTML response that documents the media type it sends (see ``MarkdownResponse``)."""
+
+    media_type = "text/html; charset=utf-8"
+
+
+@router.get(
+    "/highlights/export.html",
+    response_class=HtmlResponse,
+    responses={200: {"description": "The same export, styled for printing to PDF."}},
+)
+async def export_highlights_html(
+    request: Request,
+    user: User = Depends(get_current_user),
+    color: str | None = Query(default=None, description="Same colour filter as export.md."),
+    muted_only: bool = Query(default=False, description="Same muted filter as export.md."),
+    q: str | None = Query(default=None, description="Same search filter as export.md."),
+) -> HTMLResponse:
+    """The export as a print-styled page — the PDF path, with no PDF library.
+
+    There is no server-side renderer here on purpose. Every option cost something the others did
+    not: WeasyPrint drags Cairo/Pango into the API image, ReportLab means hand-building a layout.
+    The browser already has a good one, and "Print -> Save as PDF" is native on every platform we
+    ship, including the iOS share sheet. So this route emits the same document with a print
+    stylesheet and lets the browser do the conversion.
+
+    Same filters as ``export.md``, because it is literally the same document (``_export_document``).
+    """
+    episodes, orphans = _export_document(request, user, color, muted_only, q)
+    return HTMLResponse(render_highlights_html(episodes, orphans))

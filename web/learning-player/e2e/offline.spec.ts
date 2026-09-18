@@ -56,7 +56,9 @@ test.describe('PWA offline behavior', () => {
     await page.reload()
     // The <title> comes from index.html; if the shell 404'd offline this
     // would fail. Also assert the app root mount is present.
-    await expect(page).toHaveTitle('Learning Player')
+    // `<page> · Close Listening`, set per route (operator 2026-09-18). It was the literal
+    // "Learning Player" — the internal project name — on every route.
+    await expect(page).toHaveTitle(/Close Listening/)
     await expect(page.locator('#app')).toBeVisible()
 
     // 5) Deep-link to a route while still offline. Vue Router's

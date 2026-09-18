@@ -915,6 +915,17 @@ function applyStartPosition(): void {
     el.currentTime = resumeSeconds
   }
   el.playbackRate = rate.value
+  // `?play=1` — the caller's intent was to LISTEN, not to look at a page (operator 2026-09-18).
+  // Home's "Resume · 20:38" reads as a play control and behaved as a link: it landed here paused,
+  // so resuming took a second tap, somewhere other than where the eye already was.
+  //
+  // Deliberately at the END of this function rather than earlier: starting before the seek plays a
+  // second or two from 0:00 before jumping, which is audible. It runs exactly once per episode —
+  // the caller guards on `startApplied` — so it cannot fight a listener who pauses straight after.
+  //
+  // `player.play()` swallows NotAllowedError, so a browser autoplay policy that refuses this leaves
+  // the page paused (the behaviour we already had) instead of surfacing a false error.
+  if (route.query.play) player.play()
 }
 
 // Duration lands asynchronously after `load()`. Apply the deep-link / resume position exactly once

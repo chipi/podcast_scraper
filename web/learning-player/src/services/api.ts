@@ -1008,9 +1008,42 @@ export async function deleteNote(id: string): Promise<Note[]> {
 
 /** The URL for the Markdown export of highlights (a download link / new tab). With `color`, the
  *  export obeys the Saved surface's colour filter — only highlights of that colour (#2042). */
-export function highlightsExportUrl(color?: string | null): string {
-  const base = `${BASE}/highlights/export.md`
-  return color ? `${base}?color=${encodeURIComponent(color)}` : base
+function exportQuery(color?: string | null, opts?: { mutedOnly?: boolean; q?: string }): string {
+  const p = new URLSearchParams()
+  if (color) p.set("color", color)
+  if (opts?.mutedOnly) p.set("muted_only", "true")
+  const q = opts?.q?.trim()
+  if (q) p.set("q", q)
+  return p.toString()
+}
+
+/**
+ * The whole episode as notes — summary, key points, topics, everything said, and the user's own
+ * captures on it. A different document from the highlights export, which is capture-scoped across
+ * every episode (operator 2026-09-18).
+ */
+export function episodeNotesUrl(slug: string, ext: "md" | "html"): string {
+  return `${BASE}/episodes/${encodeURIComponent(slug)}/notes.${ext}`
+}
+
+/** The same export, print-styled, for the browser's Save-as-PDF (operator 2026-09-18). */
+export function highlightsPrintUrl(
+  color?: string | null,
+  opts?: { mutedOnly?: boolean; q?: string },
+): string {
+  const qs = exportQuery(color, opts)
+  return qs ? `${BASE}/highlights/export.html?${qs}` : `${BASE}/highlights/export.html`
+}
+
+export function highlightsExportUrl(
+  color?: string | null,
+  opts?: { mutedOnly?: boolean; q?: string },
+): string {
+  // Export mirrors the Saved filters, all of them. Colour alone was passed, so narrowing by search
+  // or by muted and then pressing Export handed back a file that disagreed with the screen that
+  // produced it (operator 2026-09-18).
+  const qs = exportQuery(color, opts)
+  return qs ? `${BASE}/highlights/export.md?${qs}` : `${BASE}/highlights/export.md`
 }
 
 /**
@@ -1018,9 +1051,22 @@ export function highlightsExportUrl(color?: string | null): string {
  * can't save (WKWebView) so we write+share the bytes instead (#1310). Web keeps the link. Honours
  * the active colour filter when one is passed.
  */
-export async function fetchHighlightsExport(color?: string | null): Promise<string> {
-  const resp = await apiFetch(highlightsExportUrl(color), { credentials: "include" })
+export async function fetchHighlightsExport(
+  color?: string | null,
+  opts?: { mutedOnly?: boolean; q?: string },
+): Promise<string> {
+  const resp = await apiFetch(highlightsExportUrl(color, opts), { credentials: "include" })
   if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
+  return resp.text()
+}
+
+/**
+ * The episode-notes Markdown as TEXT — the native shell's path, where `<a download>` saves nothing.
+ * Web keeps the plain download link.
+ */
+export async function fetchEpisodeNotes(slug: string): Promise<string> {
+  const resp = await apiFetch(episodeNotesUrl(slug, "md"), { credentials: "include" })
+  if (!resp.ok) throw new Error(`episode notes export failed: ${resp.status}`)
   return resp.text()
 }
 
@@ -1032,6 +1078,8 @@ export interface ObsidianExportResult {
   epoch: string
   written: number
   removed: number
+  /** The vault archive. Hand it to `native.deliverFile` — this layer does not touch the DOM. */
+  zip: Blob
 }
 
 /**
@@ -1051,14 +1099,14 @@ export async function exportObsidian(since: number, epoch?: string): Promise<Obs
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `GET /export → ${resp.status}`)
-  const blob = await resp.blob()
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = "closelistening-obsidian.zip"
-  a.click()
-  URL.revokeObjectURL(url)
+  // The bytes are RETURNED, not delivered. This module used to hard-code `<a download>`, which
+  // does nothing in WKWebView — so the native build hid the Obsidian button rather than fix the
+  // delivery, and the export vanished on the phone (operator 2026-09-18). A transport module
+  // deciding how bytes reach a human is how that divergence happened. It cannot simply call
+  // `native.deliverFile` either: native.ts imports `setAuthToken` from here, so that would close an
+  // import cycle. Returning the blob breaks the knot rather than tying it tighter.
   return {
+    zip: await resp.blob(),
     mode: (resp.headers.get("X-Export-Mode") as "full" | "incremental") ?? "full",
     revision: Number(resp.headers.get("X-Export-Revision") ?? "0"),
     epoch: resp.headers.get("X-Export-Epoch") ?? "",
@@ -1076,6 +1124,34 @@ export async function getResurfacing(): Promise<ResurfacingResponse> {
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return { items: [], paused: false }
     throw err
+  }
+}
+
+/**
+ * Stop resurfacing one highlight — it stays in Saved (operator 2026-09-18).
+ *
+ * The ladder's only exit. Reviewing tops out at a 90-day rung and repeats for ever; ignoring leaves
+ * an item permanently overdue at the top of the list. Without this the only way to stop either was
+ * deleting the capture, which answers a different question.
+ */
+/** Resume resurfacing a retired highlight — the undo, reachable only from Saved. */
+export async function unretireHighlight(id: string): Promise<void> {
+  const resp = await apiFetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/retire`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  if (!resp.ok && resp.status !== 401) {
+    throw new ApiError(resp.status, `DELETE /resurfacing/retire → ${resp.status}`)
+  }
+}
+
+export async function retireHighlight(id: string): Promise<void> {
+  const resp = await apiFetch(`${BASE}/resurfacing/${encodeURIComponent(id)}/retire`, {
+    method: "POST",
+    credentials: "include",
+  })
+  if (!resp.ok && resp.status !== 401) {
+    throw new ApiError(resp.status, `POST /resurfacing/retire → ${resp.status}`)
   }
 }
 

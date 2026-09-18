@@ -5,10 +5,16 @@
  * (pause/resume) live here. Read-time: the server decides what's due; this just renders + dismisses.
  * Embedded in the Library "Revisit" tab. Auth-gated (empty signed out).
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
-import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
+import { RouterLink, useRoute } from 'vue-router'
+import EpisodeRow from '../components/EpisodeRow.vue'
+import CheckIcon from '../components/CheckIcon.vue'
+import BellOffIcon from '../components/BellOffIcon.vue'
+import BookmarkIcon from '../components/BookmarkIcon.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { useCaptureStore } from '../stores/capture'
+import { useSignInGate } from '../composables/useSignInGate'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCappedSections } from '../composables/useCappedSections'
 import { summaryFromDetail } from '../utils/episode'
@@ -18,13 +24,17 @@ import {
   getResurfacing,
   markSurfaced,
   putResurfacingSettings,
+  retireHighlight,
 } from '../services/api'
 import { useResurfacingStore } from '../stores/resurfacing'
 import type { EpisodeDetail, EpisodeSummary, ResurfacingItem } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
+import { borderClass } from '../utils/highlightColors'
+import { scrollBehavior } from '../utils/motion'
 
 const { t, locale } = useI18n()
+const route = useRoute()
 /**
  * The inbox writes THROUGH the store (#2004 item 14 follow-up).
  *
@@ -161,6 +171,18 @@ const groups = computed<RevisitGroup[]>(() => {
 // Same capped sections + "Show all (N)" as the notes list on Boards (operator 2026-09-17): the due
 // list is unbounded, so it gets the same paging rule rather than growing without limit.
 const caps = useCappedSections()
+
+/**
+ * Episode groups the user has folded away — the same idiom as Library → Saved (operator
+ * 2026-09-18). Per-view and collapsed-by-exception: the moments are the content, so hiding them is
+ * a choice rather than a default.
+ */
+const collapsed = ref<Set<string>>(new Set())
+function toggleGroup(slug: string): void {
+  const next = new Set(collapsed.value)
+  if (!next.delete(slug)) next.add(slug)
+  collapsed.value = next
+}
 const visibleGroups = computed(() => caps.visible('revisit-groups', groups.value))
 
 /** "Listened 14 Sep 2026" for an episode with playback history; null when never played. */
@@ -200,6 +222,73 @@ async function dismiss(item: ResurfacingItem): Promise<void> {
   await markSurfaced(item.highlight.id)
   // Keep the nav badge honest: reviewing an item is exactly when the count should drop.
   void resurfacing.load()
+}
+
+/**
+ * Keep it, stop asking (operator 2026-09-18).
+ *
+ * Dropped from the list exactly like a review, because from here the two look the same — the item
+ * leaves this surface. What differs is the server state: reviewing advances the ladder so it
+ * returns later, retiring takes it off the ladder for good. Neither touches the capture.
+ */
+/**
+ * Scroll to the capture Home sent us to (`?focus=<id>`), and ring it (operator 2026-09-18).
+ *
+ * Home's rail links HERE rather than to the player: from Home the user is choosing what to do
+ * with a capture, and the three outcomes live on this card. Landing at the top of a long list
+ * with no idea which item was tapped is the thing that would make the rail feel broken.
+ *
+ * The ring is presentation only and is dropped on the first interaction, so it marks "this is the
+ * one" without becoming a second kind of selected state the user has to dismiss.
+ */
+const focusId = ref<string | null>(null)
+const cardEls = new Map<string, HTMLElement>()
+
+function registerCard(id: string, el: unknown): void {
+  if (el instanceof HTMLElement) cardEls.set(id, el)
+  else cardEls.delete(id)
+}
+
+watch(
+  () => [route.query.focus, items.value.length] as const,
+  async ([focus]) => {
+    const id = typeof focus === 'string' ? focus : null
+    if (!id || !items.value.some((i) => i.highlight.id === id)) return
+    focusId.value = id
+    await nextTick()
+    // `center`, not `start`: a card scrolled to the very top sits under the sticky masthead.
+    cardEls.get(id)?.scrollIntoView({ block: 'center', behavior: scrollBehavior() })
+  },
+  { immediate: true },
+)
+
+async function retire(item: ResurfacingItem): Promise<void> {
+  items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
+  await retireHighlight(item.highlight.id)
+  void resurfacing.load()
+}
+
+/**
+ * Deleting the capture itself — the fourth outcome, and the only destructive one.
+ *
+ * Confirm-gated per #1594: it destroys something the user WROTE, along with any notes on it, and
+ * the create endpoint mints new ids so there is no undo to offer. The capture store owns the
+ * cascade, so this goes through it rather than calling the endpoint directly.
+ */
+const pendingDelete = ref<string | null>(null)
+const capture = useCaptureStore()
+const { gated } = useSignInGate()
+async function confirmDelete(): Promise<void> {
+  const id = pendingDelete.value
+  pendingDelete.value = null
+  if (!id) return
+  // Gated (#1590): signed out this write returns 401, the store swallows it, and the card would
+  // disappear from the list and then reappear — which reads as the user's own action failing.
+  await gated(async () => {
+    items.value = items.value.filter((i) => i.highlight.id !== id)
+    await capture.remove(id)
+    void resurfacing.load()
+  })()
 }
 
 async function togglePause(): Promise<void> {
@@ -254,35 +343,60 @@ onMounted(load)
     <p v-if="paused" class="text-muted">{{ t('revisit.paused') }}</p>
     <p v-else-if="loaded && !items.length" class="text-muted">{{ t('revisit.empty') }}</p>
 
-    <!-- Grouped by the episode each moment came from, using the SAME `EpisodeGroupCard` Search
-         renders (operator 2026-09-17): the real episode card with artwork as the header, moments
-         collapsible beneath it. The count sits under the artwork in `#aside`, exactly as Search's
-         match count does. -->
+    <!-- Revisit IS Saved, in a different context (operator 2026-09-18): the same captures, surfaced
+         because they are due rather than because you went looking. So it renders the same way —
+         episode heading, fold control, flat list of captures — and only the framing differs: a
+         reflection prompt on each, "Mark reviewed" instead of the Saved row's edit controls. -->
     <template v-else>
-      <ul class="flex flex-col gap-3">
-        <EpisodeGroupCard
-          v-for="g in visibleGroups"
-          :key="g.slug"
-          :episode="g.episode"
-          :noun="t('revisit.groupNoun')"
-          :item-count="g.items.length"
-          slim
-          testid="revisit-group"
-        >
-          <template #aside>{{ t('revisit.momentCount', g.items.length) }}</template>
-          <!-- WHEN this episode was listened to (operator 2026-09-17) — between the show name and
-               the title, where the card puts surface-specific facts. Absent for an episode with no
-               playback history rather than guessed at from the capture date. -->
-          <template v-if="listenedLabel(g.slug)" #meta>
-            <span class="lp-kicker block" data-testid="revisit-listened">
-              {{ listenedLabel(g.slug) }}
-            </span>
-          </template>
-          <ul class="flex flex-col gap-3 px-4 pb-4 pt-3">
+      <section v-for="g in visibleGroups" :key="g.slug" class="mb-6" data-testid="revisit-group">
+        <!-- Same shape as Library → Saved (operator 2026-09-18): the shared `EpisodeRow` as the
+             heading, with the fold control in its `#trailing` slot, and the moments as a flat list
+             beneath it.
+
+             This replaced a card-in-a-card-in-a-card: an outer bordered container per group, a
+             toggle row of its own, and then a bordered box per moment. Three nested frames to say
+             "these four moments are from this episode", when a heading and a list say it with one. -->
+        <div class="mb-2">
+          <EpisodeRow :episode="g.episode">
+            <template #trailing>
+              <button
+                type="button"
+                class="lp-tap shrink-0 self-center rounded-full px-2 py-1 text-xs font-bold text-accent"
+                :aria-expanded="!collapsed.has(g.slug)"
+                :aria-label="
+                  collapsed.has(g.slug)
+                    ? t('highlights.expandGroup', { title: g.episode.title })
+                    : t('highlights.collapseGroup', { title: g.episode.title })
+                "
+                data-testid="revisit-group-collapse"
+                @click="toggleGroup(g.slug)"
+              >{{ collapsed.has(g.slug) ? '▼' : '▲' }}</button>
+            </template>
+          </EpisodeRow>
+          <!-- WHEN this episode was listened to, and how many moments are due — one muted line
+               under the row rather than two slots inside a card. Absent when there is no playback
+               history rather than guessed at from the capture date. -->
+          <p class="lp-kicker mt-1">
+            <span v-if="listenedLabel(g.slug)" data-testid="revisit-listened">{{
+              listenedLabel(g.slug)
+            }}</span>
+            <template v-if="listenedLabel(g.slug)"> · </template>
+            <span>{{ t('revisit.momentCount', g.items.length) }}</span>
+          </p>
+        </div>
+        <ul v-show="!collapsed.has(g.slug)" class="flex flex-col gap-3">
+          <!-- The same card frame Saved uses, colour stripe included: it is the same capture, so
+               a moment you filed under amber stays amber when it comes back to you. Revisit was
+               dropping the colour entirely, which made the two surfaces look like two features. -->
           <li
             v-for="item in g.items"
             :key="item.highlight.id"
-            class="rounded-xl border border-border p-3"
+            :ref="(el) => registerCard(item.highlight.id, el)"
+            class="rounded-xl border border-l-4 border-border p-3 transition"
+            :class="[
+              borderClass(item.highlight.color),
+              focusId === item.highlight.id ? 'ring-2 ring-accent' : '',
+            ]"
             data-testid="revisit-item"
           >
             <!-- KIND · DATE, the same label the notes rows on Boards carry (operator). "Marked
@@ -312,16 +426,61 @@ onMounted(load)
                 class="font-mono text-xs font-bold text-accent no-underline"
                 data-testid="revisit-jump"
               >▶ {{ item.highlight.start_ms != null ? formatTime(item.highlight.start_ms / 1000) : t('revisit.open') }}</RouterLink>
-              <button
-                type="button"
-                class="text-xs text-muted transition hover:text-canvas-foreground"
-                @click="dismiss(item)"
-              >{{ t('revisit.dismiss') }}</button>
+              <!-- Three outcomes, all visible, in the app's 32px circle idiom (operator
+                   2026-09-18) — the same `lp-tap h-8 w-8 rounded-full border border-border` shape
+                   FavoriteButton and the Saved cards use, so these read as controls the user has
+                   already met. Icons are DRAWN, never characters: CloseIcon records why.
+
+                   All three are OUTLINES. The tick was a filled accent disc to mark it as the
+                   primary, but a filled tick is the universal "this is done" marker — a state, and
+                   the same mistake as labelling the button "✓ Reviewed" (operator 2026-09-18).
+                   There is no reviewed state to show here anyway: pressing it removes the card from
+                   the list, so a reviewed item is never on this screen. Emphasis comes from the
+                   tick's accent COLOUR instead, which says "press this" without claiming done. -->
+              <span class="ms-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent text-accent transition hover:bg-accent/10"
+                  data-testid="revisit-dismiss"
+                  :aria-label="t('revisit.dismiss')"
+                  :title="t('revisit.dismiss')"
+                  @click="dismiss(item)"
+                ><CheckIcon /></button>
+                <button
+                  type="button"
+                  class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
+                  data-testid="revisit-retire"
+                  :aria-label="t('revisit.retire')"
+                  :title="t('revisit.retire')"
+                  @click="retire(item)"
+                ><BellOffIcon /></button>
+                <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18). This action is an UNSAVE,
+                     and an unsave should show the glyph that did the saving, filled, so that tapping
+                     it reads as undoing the save rather than as a generic delete.
+
+                     Bookmark and not a heart because of which save it was: the heart
+                     (`FavoriteButton`) takes episodes, people, topics, shows and storylines, while
+                     everything on this screen is a CAPTURE, saved with the transcript's bookmark —
+                     `types.ts` puts it plainly, "an insight is a capture, saved via the highlights
+                     path, never a favorite" (RFC-121 / #1593).
+
+                     Accent by default, danger on hover: accent is the saved state it currently
+                     shows; danger is what pressing it does. Still destructive, so it still asks
+                     first — the #1594 rule, via the same ConfirmDialog the Saved list opens for this
+                     very object. -->
+                <button
+                  type="button"
+                  class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-accent transition hover:text-danger"
+                  data-testid="revisit-delete"
+                  :aria-label="t('revisit.remove')"
+                  :title="t('revisit.remove')"
+                  @click="pendingDelete = item.highlight.id"
+                ><BookmarkIcon filled /></button>
+              </span>
             </div>
           </li>
-          </ul>
-        </EpisodeGroupCard>
-      </ul>
+        </ul>
+      </section>
       <ShowAllToggle
         v-if="caps.overflows(groups.length)"
         :expanded="caps.expanded.has('revisit-groups')"
@@ -329,5 +488,15 @@ onMounted(load)
         @toggle="caps.toggle('revisit-groups')"
       />
     </template>
+
+    <ConfirmDialog
+      :open="pendingDelete !== null"
+      :title="t('highlights.confirmDeleteTitle')"
+      :body="t('highlights.confirmDeleteBody')"
+      :confirm-label="t('highlights.confirmDelete')"
+      data-testid="revisit-delete-confirm"
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = null"
+    />
   </div>
 </template>

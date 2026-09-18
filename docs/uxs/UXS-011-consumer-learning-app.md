@@ -406,6 +406,7 @@ the player surface** — see "Player-surface Queue & Recent" below):
   jump-to-moment (`?t=`), a drift badge when the timestamp re-anchored on re-scrape, inline notes
   (add/edit/remove), a per-highlight colour swatch picker, a header **colour filter**, and an
   **Export Markdown** link.
+
 - **Following** — the shows and interest tokens (`topic:`/`person:`/`thc:`) the user follows.
 - **Collections** ("Boards") — its own first-class tab (was nested under Saved); see "Collections"
   below. It also holds **Your notes**: every note the user has written, beside their boards. The
@@ -432,6 +433,48 @@ the player surface** — see "Player-surface Queue & Recent" below):
   - **An unknown count shows nothing.** A badge is a claim; a failed fetch must not render a stale
     or invented number.
 
+**Export mirrors the filters — what you narrowed to is what you get (operator 2026-09-18).** Colour
+already travelled; **search** and the **muted** toggle did not, so narrowing the list and pressing
+Export handed back a file that disagreed with the screen that produced it. All three are query
+parameters on `/highlights/export.md` now.
+
+**Episode notes (operator 2026-09-18).** The insights panel carries its own export — Markdown and
+PDF — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
+said with a jump link on every supporting quote, then the user's own captures and notes on it. It
+is deliberately a different artifact from the Library export: that one answers "what did I save,
+across everything", this one answers "what was this episode, and what did I take from it". Printed
+notes after listening.
+
+**Nothing is capped.** A long interview runs to many pages and that is the intent — complete, or it
+is a teaser. (Measured on the live corpus: an 80-minute interview yields 77 grounded insights and a
+20-minute news episode 40. The redundancy behind those counts is #2117, a pipeline question, not a
+rendering one — the export is a useful lens on it precisely because it prints everything.)
+
+A third chip, **PDF**, opens the same document print-styled (`export.html`) and lets the browser
+save it — no PDF library in the API image, and "Print → Save as PDF" is native on every platform we
+ship, including the iOS share sheet. It opens a visible tab rather than printing from a hidden
+frame: a print dialog fired from an invisible frame with no preview is indistinguishable from the
+app having hijacked the printer. The print stylesheet keeps an episode heading from being stranded
+at the foot of a page, stops a capture splitting across two, and spells out link URLs, which paper
+otherwise loses.
+
+The **Obsidian** export stays deliberately unfiltered. It is a *sync*, not a report: incremental,
+cursor-based, and a full export sets `replace_namespace: true`. A colour filter there would not
+narrow a document — it would tombstone every other note out of the user's vault. Markdown is the
+report; Obsidian is the mirror (RFC-113).
+
+Each exported capture carries its **kind**, timestamp, speaker, colour, **capture date**, the
+people/topics it is about, the user's notes (each with the date it was written, and `edited` only
+when that actually differs), and an **absolute** player link on the timecode, so one click from any
+tool opens the player at that second. Every episode heading carries **date · length · link** and all
+**three** summary fields — headline, the prose the Summary button shows, and the bullets that open
+the insights panel — because the app treats those as three distinct things, not three renderings of
+one. Entities are plain names here, not `[[wikilinks]]`:
+this is one flat document, and `[[…]]` renders as broken links for anyone not in Obsidian — who are
+exactly the audience the other export exists for. What does NOT travel: the resurfacing schedule,
+the muted flag itself, and drift. Drift exists because the app can *jump* to a timestamp; an export
+is a record of what was said.
+
 ### Recall scope lens (Search) + your-corpus lens (entity cards)
 
 A **stateful segmented toggle** (`role="tablist"`, the selected tab `aria-selected`) — a filter
@@ -450,6 +493,232 @@ Past highlights resurfaced on a spaced ladder (2d/1w/1mo/3mo, computed on read).
 deterministic **reflection prompt** (no LLM), the highlight, a one-tap **jump-to-moment**, and a
 **"Got it"** dismiss (advances the ladder). A header **Pause/Resume** control governs pacing;
 paused or nothing-due shows an honest empty state.
+
+**Every card offers four outcomes (2026-09-18).** The ladder previously had no exit: reviewing
+advances a rung and tops out at 90 days, so a capture answered five times still returns quarterly,
+while ignoring one leaves it permanently overdue at the *top* of the list (the surface sorts
+most-overdue-first). Both paths loop, and the only way out was deleting the capture — which
+conflates "stop asking me about this" with "I no longer want this". So the card carries:
+
+| action | control | effect |
+| --- | --- | --- |
+| Mark as reviewed | accent-outlined tick (**`CheckIcon`**) | advances the rung — returns in 7d, 30d, then quarterly |
+| Stop resurfacing this | outlined **`BellOffIcon`** | `retired` flag; never resurfaces again, and stays in Saved untouched |
+| Saved — tap to remove | **filled `BookmarkIcon`** | destroys the capture + its notes — confirm-gated (#1594) and sign-in gated (#1590) |
+| Jump to the moment | `▶ mm:ss` | opens the player at that point; arriving marks it reviewed (#35) |
+
+All three buttons are the app's 32px circle (`lp-tap h-8 w-8 rounded-full border border-border`),
+always visible rather than behind a `⋯` — these are the decisions the surface exists to collect, so
+none of them costs an extra tap. Icons are **drawn**, never characters — `CloseIcon` records that
+"✕" as a glyph rendered as a tofu box in the iOS UI font across every sheet at once, and
+`BellOffIcon` reuses the masthead bell's own path so the icon inherits a meaning already learned.
+
+**All three are outlines, and emphasis is carried by colour, not fill (operator 2026-09-18).** The
+tick was first a filled accent disc to mark it as the primary. But a filled tick is the universal
+"this is done" marker — a *state* — which is the same error as labelling the control "✓ Reviewed",
+already rejected above. There is no reviewed state to render here in any case: pressing it removes
+the card, so a reviewed item is never on this screen. Accent *colour* says "press this" without
+claiming the thing is done.
+
+**The third control is an unsave, so it shows the glyph that did the saving (operator 2026-09-18).**
+It was a `CloseIcon` ✕, which named a generic destroy and not what the tap undoes. It is now the
+**filled** `BookmarkIcon` — the same bookmark the transcript fills when you save a line — and its
+label is `capture.savedLine`'s established phrasing, "Saved — tap to remove". It is accent at rest
+(the saved state it is showing) and danger on hover (what pressing it does).
+
+A bookmark and **not a heart**, which is the near-miss worth recording: the heart (`FavoriteButton`)
+is the save affordance for episodes, people, topics, shows and storylines, whereas every Revisit item
+is a *capture*. `types.ts` draws the line outright — an insight "is a capture, saved via the
+highlights path, never a favorite" (RFC-121 / #1593) — so a heart here would offer to un-heart
+something that was never hearted. `BookmarkIcon` is shared with `TranscriptList` rather than
+redrawn, so the saved glyph cannot drift between the place you save and the place you unsave.
+
+**Home also carries a "Your boards" teaser (`CollectionsTeaser`, operator 2026-09-18).** Up to four
+boards as **cover + name + count**, filling the right half of the `lg` row beside the ask box —
+empty until now because that input is deliberately capped (full-bleed, it flung the Search button to
+the far right). Collections were reachable only through Library → Boards, which made the thing the
+user *assembled* the least visible thing they own.
+
+Ordered by **most recently changed**, not alphabetically and not by the manual board order: on Home
+the question is "what am I working on", and the board you added to yesterday answers it. The manual
+`position` arrangement is the Boards tab's own affordance and stays there.
+
+**A tile deep-links to its board OPEN** (`?tab=collections&board=<id>`): the Boards list is an
+accordion, and landing on a collapsed list with no sign of which board was tapped makes the tile
+feel like it did nothing. The link also **lifts the list's cap** while a board is targeted —
+otherwise a link to a board outside the visible window would open a row that is not rendered, and
+nothing would happen at all. A board with no members
+renders a flat tile rather than a broken image or a placeholder pretending to be artwork, since
+`cover_url` is derived from its first member.
+
+**Profile → Stats carries "What you've kept" and "Your review loop" (operator 2026-09-18).** Stats
+were listening-only — episodes opened, shows, a day streak — which measured consumption and said
+nothing about the half of the product that is the user's own. The kept block shows captures (with
+how many this week), notes, and distinct episodes captured from, plus a one-line breakdown by kind;
+the review block shows reviews answered, captures revisited, and muted.
+
+Those review numbers exist nowhere else: the ladder records a `count` per highlight, so "how many
+reviews have I done" was a sum nothing had ever added up. **Muted is reported separately from
+revisited** because they are different decisions and merging them would overstate the loop.
+
+The section gates on **having captures, not on listening**. `hasStats` asks whether an episode has
+been opened, which is right for the listening tiles and wrong here — someone who captures from a
+handful of episodes but whose play history is thin would have had their own writing hidden behind a
+listening threshold. (Observed: a seeded account shows "Start listening to build your stats" above
+a kept block reading 12 captures.) The fields are optional on the type, so a server predating them
+hides the section rather than rendering zeroes that look like a real answer.
+
+**The listening block is always rendered.** A conditional was tried and reverted the same day: it
+looked wrong that "Start listening to build your stats" sat above a kept block reading 12 captures,
+but that seeded account had genuinely never listened, so the prompt was correct and the DATA was
+the artificial thing. A capture cannot exist without having opened its episode, and an open counts
+— so "captures but no listening" is not a state the app can produce, and a branch that cannot fire
+is a branch nobody will verify again.
+
+**Every Home section uses one header: `SectionHeading` (operator 2026-09-18).**
+
+```text
+KICKER              small caps, muted, ONE line — a count or a date
+Title    [action]   lp-section, ONE line; the action sits at the far right of the same row
+```
+
+Home had grown three headers by hand: the kicker above the title on some sections and beside it on
+others, three different title fonts (`h1` display, `h2` display, `h2 lp-section`), and nothing
+stopping either line wrapping. It read as several designs sharing a page.
+
+**The kicker is a NUMBER or a DATE, never a restatement.** Two eyebrows said the title again in
+weaker words — "For you" above *Your Week*, and "Ask across every episode" above *Find any moment
+you've heard.* The first became a count, the second was removed. Sections with no honest number
+(Trends, Trending shows, Recommended) carry no kicker: an invented metric to fill a slot is worse
+than an empty one.
+
+**Both lines truncate rather than wrap**, so otherwise-identical sections keep identical heights and
+every title starts at the same x. The kicker sits ABOVE rather than beside, where it would compete
+with the action link for the same edge and collide in a narrow column.
+
+The **resume hero keeps its `h1`** as the page's single deliberate exception, and is **full width**
+on desktop — it had been `max-w-3xl` to match the "What's new" featured card, but that card became
+a half-width column later (it is now 166px), leaving the hero the only element matching neither the
+542px column nor the 1114px row.
+
+**Counts adapt to the viewport where a prop, not CSS, decides them** (`useMediaQuery`): Trends shows
+5 rows on desktop and 3 on a phone; the revisit rail shows 4 and 3. The store hands over every
+one-per-episode candidate and the VIEW slices — how many fit is a layout question, and a store that
+knew the viewport would have to be told about the next breakpoint.
+
+**Home carries a "Worth revisiting" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
+captures, **at most one per episode** so it shows the breadth of what is waiting rather than one
+session's thinking. Each card is the **quote, with the episode as a small square thumbnail on its right** and the
+capture's colour on the left edge — the same row idiom `EpisodeRow` and the downloads list use. Two
+overlay treatments were tried first (artwork dimmed behind the text, then a cropped strip fading
+into it) and both looked forced: the episode is a fact ABOUT the quote, not a backdrop for it, and
+inventing a treatment for one surface is how a design system stops being one.
+
+Tapping goes to the **Revisit tab, scrolled to that capture** (`?focus=<id>`, briefly ringed), not
+to the player: from Home the user is deciding what to do with a capture, and the three outcomes
+live on that card. Jumping to the player would also mark it reviewed on arrival (#35) — deciding
+for them the one thing they went there to decide.
+
+**Two actions inline, stacked and right-aligned: the tick and the bell.** Reviews-answered-per-week
+is the only number that moves this loop, so the common answer is worth a tap in place; mute earns
+the second slot because "stop asking me about this" is the other thing a glance produces, and it is
+NOT destructive — the capture stays in Saved, where the bell marker makes it reversible. Both drop
+the card optimistically and the next due capture fills the slot at once, because a spinner between
+answers is a reason to stop answering (both restore on failure — a card that vanished without
+counting would be a lie).
+
+**Unsave stays on the Revisit card.** It destroys authored content and is confirm-gated there, and
+a confirmation dialog raised from a homepage rail would be the app stopping you mid-scroll.
+
+The controls are the **same 32px circles the Revisit card uses, muted at rest and accent on hover**.
+A full-height accent-outlined rectangle was tried and failed twice over: strong colour on a tick
+reads as "this IS checked" rather than "check this" — the mistake already rejected as a filled
+accent disc on that card — and a tall rectangle is simply not the control that lives in the tab.
+
+**Strictly one card per episode, with no filling from episodes already shown.** Filling produced two
+cards carrying identical words: a line saved as both a moment and a quote is two captures with the
+same text, and the rail rendered both, which reads as a bug. Fewer, distinct cards is the honest
+answer — the rail is a sample of what is waiting, not a queue that must be four long.
+
+A "See all" goes to the tab; the rail deliberately shows no count, because the Library nav badge
+already carries the number and two places saying "7" is two places to disagree.
+
+It fills the **right half of the `lg` row beside Discovery**, which had been half-width with an
+empty neighbour since it was titled. Stacked on phones.
+
+**Why Home rather than more email.** Simulated over a year, the only thing that moves the
+resurfacing loop is the NUMBER of reviews answered per week, and it saturates: 7/week reaches 50%
+of captures, 14/week reaches 99%, and beyond that nothing improves. **Cadence alone is worth
+nothing** — the same weekly budget spread across seven days scores identically to one weekly
+session (0 points difference, at every budget tested). So the only intervention that helps is one
+that causes reviews which would not otherwise happen. The user is already on Home every day to
+listen, while Revisit sat two taps away behind a tab signalled only by a number on an icon. Asking
+for two answers a day from someone already standing there is the whole 14/week, at no notification
+cost — and therefore with no risk of provoking the pause switch that suppresses everything.
+
+**Ordering: episodes by `max(listened_at, newest capture)`, newest first (operator 2026-09-18).**
+This replaced most-overdue-first, which sounded right and measured worst.
+
+An unreviewed capture never moves `last_seen` off its capture date, so it grows more overdue for
+ever AND sits on the 90-day rung — it returns quickly and re-occupies the top. Sorting by
+overdue-ness therefore spent every session on the same ancient set while new captures queued
+behind: the surface *recirculated* its oldest items instead of draining. Reviewing a fresh capture
+advances it 2d → 7d → 30d → 90d, so it leaves for months.
+
+Simulated over a year (2 captures/day; opens the tab weekly, answers ten):
+
+| ordering | coverage | median age at review |
+| --- | --- | --- |
+| most-overdue-first (was) | 44% | 118 days |
+| episode by max(listened, captured) | 71% | 4 days |
+
+Coverage is the share of captures surfaced even once in the year — the old order never showed the
+user 406 of their 730 captures.
+
+`listened_at` is `playback[slug].updated_at`, i.e. when the episode was last PLAYED. Not the
+publish date: publishing is not listening, and keying on it collapsed coverage to 49% for a
+listener whose diet is half back-catalogue, because an old episode played today sank to the bottom.
+Re-listening without capturing counts too — replaying something is renewed interest. Grouping is by
+episode because captures are made while listening, so an episode's captures are one session's
+thinking and are worth meeting together.
+
+`retired` lives in the per-highlight resurfacing record beside `last_surfaced`/`count`, so "is this
+resurfacing?" sits next to "when did it last surface?" rather than splitting one concept over two
+stores. It is removed rather than written `false`, so absence is the only "still resurfacing" state.
+
+**Retiring is reversible, and the undo lives in Saved (operator 2026-09-18).** It shipped as a
+one-way door: the flag hid the capture from Revisit, which makes Revisit the one surface the undo
+CANNOT live on, and nothing else showed the state — so a mis-tap silently ended a capture's
+resurfacing for good and the user could not find out which ones they had done it to. Saved is the
+only surface listing every capture, so that is where it belongs.
+
+Saved stays **one straight list of every capture**; `retired` is one more FIELD on the highlight,
+joined from the resurfacing state on read exactly as `anchor_status` is, rather than a second list,
+a second store or a filter. A retired row shows the same bell-with-slash pressed on the Revisit
+card — pressing it again undoes precisely what that press did — and `DELETE` on the retire path
+unsets the flag. `count` and `last_surfaced` are untouched, so a resumed capture returns on the rung
+it was already on instead of restarting the ladder.
+
+The marker renders **only when retired**: by default a capture is not quiet, so the overwhelming
+majority of rows are unchanged and the badge means something when it does appear.
+
+**Saved unsaves with the same filled bookmark as Revisit (operator 2026-09-18).** Its control was a
+`CloseIcon` ✕, which named a generic destroy rather than what the tap undoes. These are the two
+surfaces listing the same objects, so an unsave that looked like ✕ on one and a bookmark on the
+other would be two controls for one action. Same glyph, same wording ("Saved — tap to remove"), same
+confirm gate. The ✕ survives on NOTES, which are a different object.
+
+**Row order is colour · state · unsave · share (operator 2026-09-18).** Colour is what the capture
+IS, so it leads; share sends it elsewhere, so it trails; the bell and bookmark sit between, in the
+Revisit card's order.
+
+**The Saved filter bar carries a muted toggle**, beside the colour swatches and reading the same
+way — off shows everything, on narrows to muted captures. It uses the same bell-with-slash the rows
+do, so the filter and the thing it filters share one glyph, and it renders only once something IS
+muted (the bar's existing rule: never offer a filter that can only empty the list). A two-state
+toggle rather than an any/muted/active triple: "everything except muted" is the default minus a
+handful. Every count that sits above the list applies this filter too — adding it to the list alone
+put "Highlights 6" directly over a list of 2.
 
 **Grouped by the episode the moment came from (2026-09-17).** The inbox was a flat list of prompts
 in which the words "Marked moment" stood in as the card's BODY text, so a card said neither what it

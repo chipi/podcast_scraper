@@ -4,7 +4,7 @@ import { signInIsolated } from './helpers'
 /**
  * Browse hub + standalone Topic/Person deep-links (#1261-6, #1261-9, #14). Real API +
  * committed corpus. Home surfaces a compact "Discover" strip (Topics · Storylines · People); each
- * chip deep-links into the /trends "see all" page on the matching tab (operator 2026-09-14, renamed
+ * chip deep-links into Browse's Trends section on the matching kind (operator 2026-09-14, renamed
  * from the old "Browse topics/people" links). Tapping a topic chip lands on the standalone Topic page.
  *
  * The hub replaces the mobile-hostile Cmd-K palette that was explicitly ruled out of the player.
@@ -12,7 +12,7 @@ import { signInIsolated } from './helpers'
  * RFC-120: all routes below are login-first; each test signs in.
  */
 
-test('Home surfaces the compact "Discover" strip and each chip deep-links into /trends', async ({
+test('Home surfaces the compact "Discover" strip and each chip deep-links into the Browse Trends section', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'browse-home-nav', testInfo)
@@ -21,19 +21,23 @@ test('Home surfaces the compact "Discover" strip and each chip deep-links into /
   await expect(nav).toBeVisible()
 
   // Renamed from "Browse topics/people" to a compact Discover strip (operator 2026-09-14): three
-  // chips — Topics · Storylines · People — that go straight to the /trends "see all" page.
+  // chips — Topics · Storylines · People. They used to open a standalone /trends page that was a
+  // thinner copy of Browse's own Trends section; that page is deleted and the chips deep-link into
+  // the section itself (operator 2026-09-18).
   await expect(nav.getByTestId('home-discover-topics')).toBeVisible()
   await expect(nav.getByTestId('home-discover-storylines')).toBeVisible()
   await expect(nav.getByTestId('home-discover-people')).toBeVisible()
 
   await nav.getByTestId('home-discover-topics').click()
-  await expect(page).toHaveURL(/\/trends\?tab=topic/)
-  await expect(page.getByTestId('trends-view')).toBeVisible()
+  await expect(page).toHaveURL(/\/browse\?trends=topic/)
+  await expect(page.getByTestId('browse-view')).toBeVisible()
+  // The KIND must be selected, not merely the page reached — the whole point of the deep link.
+  await expect(page.getByTestId('discovery-tab-topic')).toHaveAttribute('aria-selected', 'true')
 
   await page.goto('/')
   await page.getByTestId('home-browse-nav').getByTestId('home-discover-people').click()
-  await expect(page).toHaveURL(/\/trends\?tab=person/)
-  await expect(page.getByTestId('trends-view')).toBeVisible()
+  await expect(page).toHaveURL(/\/browse\?trends=person/)
+  await expect(page.getByTestId('discovery-tab-person')).toHaveAttribute('aria-selected', 'true')
 })
 
 test('the standalone /topic/:id page renders the topic card body (EntityCardBody inline mode)', async ({

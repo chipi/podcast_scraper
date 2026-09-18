@@ -14,6 +14,7 @@
 import { computed, ref, watch } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
+import SectionHeading from './SectionHeading.vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getYourWeek } from '../services/api'
@@ -36,6 +37,11 @@ const layout = ref<'compact' | 'full'>('compact')
 
 const sections = computed(() => data.value?.sections ?? [])
 const nonEmptySections = computed(() => sections.value.filter((s) => s.items.length > 0))
+
+/** Everything waiting across the digest's sections — what the kicker counts. */
+const itemCount = computed(() =>
+  nonEmptySections.value.reduce((n, s) => n + s.items.length, 0),
+)
 /**
  * Renders for ANY signed-in user (#1591), not only when something is due.
  *
@@ -108,10 +114,13 @@ watch(
 <template>
   <section v-if="show" data-testid="your-week" class="mt-7">
     <div class="mb-3 flex items-baseline justify-between gap-3">
-      <div>
-        <span class="lp-kicker text-muted">{{ t('home.yourWeekKicker') }}</span>
-        <h2 class="lp-section">{{ t('home.yourWeek') }}</h2>
-      </div>
+      <!-- Kicker carries the COUNT, not a restatement: it read "For you" above "Your Week", the
+           same claim twice. -->
+      <SectionHeading
+        class="mb-0 min-w-0 flex-1"
+        :title="t('home.yourWeek')"
+        :kicker="itemCount ? t('home.yourWeekCount', itemCount, { named: { count: itemCount } }) : null"
+      />
       <button
         v-if="hasContent"
         type="button"

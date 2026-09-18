@@ -30,11 +30,16 @@ enum AppSession {
   /// only this copy was stale. Two helpers knowing the same UI differently is the actual defect.
   static func isSignedIn(_ app: XCUIApplication) -> Bool {
     _ = Journey.openProfile(app)
-    guard app.buttons["Sign out"].firstMatch.waitForExistence(timeout: 12) else { return false }
+    // SCROLL to it. "Sign out" is deliberately the last control on Profile (#1962 — "quiet, last,
+    // least weight"), so on any account with content it is below the fold. Waiting for it to exist
+    // without scrolling asks whether it is on SCREEN, which is not the question: on 2026-09-18 a
+    // capture-stats block was added above it and every suite that calls this reported "sign-in did
+    // not complete" for a session that was perfectly valid and an app sitting on a signed-in Home.
+    guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else { return false }
     // The painted session is not the answer — the revalidation that follows it is. Six seconds is
     // the observed worst case for `refresh()` against the local fixture api plus a re-render.
     sleep(6)
-    return app.buttons["Sign out"].firstMatch.exists
+    return Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil
   }
 
   /// Open an episode by slug through the app's deep-link scheme (#1925).

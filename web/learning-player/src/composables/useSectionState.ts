@@ -126,7 +126,18 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
       ])
       // Fresh always beats stale: if the request got there first, the snapshot is already obsolete
       // and painting it would be a flicker backwards.
-      if (first.from === 'cache' && first.value !== null) accept(first.value, true)
+      //
+      // Painted, but NOT marked stale (operator 2026-09-18). A local cache read beats a network
+      // round-trip essentially always, so this branch is the NORMAL cold start, not an exception.
+      // Marking it stale here flipped `anyStale` and rendered the page-level "Showing what you had
+      // last time — we couldn't reach the server" notice for the whole duration of a perfectly
+      // healthy request, on every launch, clearing itself when the response landed. The retry
+      // appeared to fix a problem that never existed.
+      //
+      // `stale` now means ONE thing: a fetch FAILED and you are looking at older content. That is
+      // set in the failure branch below, which is what the notice exists for. Painting a snapshot
+      // while the request is still in flight is loading-with-content, and it says nothing.
+      if (first.from === 'cache' && first.value !== null) accept(first.value, false)
     }
     const result = await inflight
     if (result.ok) {

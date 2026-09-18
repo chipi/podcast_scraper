@@ -59,7 +59,9 @@ describe('ResurfacingInbox', () => {
     const link = w.find('[data-testid="revisit-jump"]')
     expect(link.attributes('href')).toContain('t=65')
     // dismiss removes it locally + advances the ladder server-side
-    await w.findAll('button').find((b) => b.text() === 'Mark reviewed')!.trigger('click')
+    // Addressed by testid, not by its text: the control is the card's right-hand action edge now
+    // (a ✓ glyph over a short "Reviewed" label), so matching the full sentence found nothing.
+    await w.find('[data-testid="revisit-dismiss"]').trigger('click')
     expect(api.markSurfaced).toHaveBeenCalledWith('h1')
     await flushPromises()
     expect(w.text()).not.toContain('What still resonates about this?')
@@ -126,8 +128,8 @@ describe('ResurfacingInbox', () => {
     await flushPromises()
     const groups = w.findAll('[data-testid="revisit-group"]')
     expect(groups).toHaveLength(2) // two episodes, not three cards
-    // The heading is now the shared EpisodeCard (artwork + title), not a line of text.
-    const headings = groups.map((g) => g.get('[data-testid="episode-card"]').text())
+    // The heading is the shared EpisodeRow (artwork + title + show), the same row Saved uses.
+    const headings = groups.map((g) => g.get('[data-testid="episode-row"]').text())
     expect(headings[0]).toContain('Risk as a system')
     expect(headings[1]).toContain('Pacing')
     expect(groups[0].findAll('[data-testid="revisit-item"]')).toHaveLength(2)
@@ -141,7 +143,7 @@ describe('ResurfacingInbox', () => {
     const w = mountInbox()
     await flushPromises()
     const group = w.get('[data-testid="revisit-group"]')
-    expect(group.get('[data-testid="episode-card"]').text()).toContain('show-ep01')
+    expect(group.get('[data-testid="episode-row"]').text()).toContain('show-ep01')
     expect(group.findAll('[data-testid="revisit-item"]')).toHaveLength(1)
   })
 
@@ -153,18 +155,17 @@ describe('ResurfacingInbox', () => {
     vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
     const w = mountInbox()
     await flushPromises()
-    const toggle = w.get('[data-testid="episode-group-toggle"]')
+    // Same fold control as Library -> Saved: it rides EpisodeRow's `#trailing` slot and hides the
+    // list with `v-show`, so the moments stay in the DOM and re-opening keeps their state.
+    const toggle = w.get('[data-testid="revisit-group-collapse"]')
     expect(toggle.attributes('aria-expanded')).toBe('true')
-    expect(toggle.text()).toContain('Hide moments')
+    const list = () => w.get('[data-testid="revisit-group"]').find('ul')
+    expect(list().attributes('style') ?? '').not.toContain('display: none')
     await toggle.trigger('click')
     expect(toggle.attributes('aria-expanded')).toBe('false')
-    expect(toggle.text()).toContain('Show moments')
-    // `v-show`, so the rows stay in the DOM but hidden — re-opening keeps their state.
-    expect(w.get('[data-testid="episode-group-body"]').attributes('style')).toContain('display: none')
+    expect(list().attributes('style')).toContain('display: none')
     await toggle.trigger('click')
-    expect(w.get('[data-testid="episode-group-body"]').attributes('style') ?? '').not.toContain(
-      'display: none',
-    )
+    expect(list().attributes('style') ?? '').not.toContain('display: none')
   })
 
   it('labels a moment KIND · DATE and shows the captured words as the body', async () => {

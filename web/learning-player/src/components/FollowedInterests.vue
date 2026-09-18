@@ -101,7 +101,10 @@ function openStoryline(id: string): void {
     <p v-else-if="noSearchMatch" class="text-sm text-muted" data-testid="following-no-match">{{ t('library.followingEmptyFiltered') }}</p>
 
     <section v-if="typeVisible('topics') && topics.length" class="mb-5">
-      <h3 class="lp-kicker mb-2">{{ t('library.followingTopics') }} <span class="font-normal">({{ topics.length }})</span></h3>
+      <h2 class="lp-section mb-2">
+        {{ t('library.followingTopics') }}
+        <span class="lp-kicker ml-1 font-normal">{{ topics.length }}</span>
+      </h2>
       <ul class="flex flex-wrap gap-1.5">
         <li v-for="id in caps.visible('topics', topics, searchActive)" :key="id" class="inline-flex items-center rounded-full bg-overlay">
           <button
@@ -131,7 +134,10 @@ function openStoryline(id: string): void {
     </section>
 
     <section v-if="typeVisible('people') && persons.length" class="mb-5">
-      <h3 class="lp-kicker mb-2">{{ t('library.followingPeople') }} <span class="font-normal">({{ persons.length }})</span></h3>
+      <h2 class="lp-section mb-2">
+        {{ t('library.followingPeople') }}
+        <span class="lp-kicker ml-1 font-normal">{{ persons.length }}</span>
+      </h2>
       <ul class="flex flex-wrap gap-1.5">
         <li
           v-for="id in caps.visible('people', persons, searchActive)"
@@ -165,7 +171,10 @@ function openStoryline(id: string): void {
     </section>
 
     <section v-if="typeVisible('storylines') && storylineTokens.length">
-      <h3 class="lp-kicker mb-2">{{ t('library.followingStorylines') }} <span class="font-normal">({{ storylineTokens.length }})</span></h3>
+      <h2 class="lp-section mb-2">
+        {{ t('library.followingStorylines') }}
+        <span class="lp-kicker ml-1 font-normal">{{ storylineTokens.length }}</span>
+      </h2>
       <ul class="flex flex-wrap gap-1.5">
         <li
           v-for="id in caps.visible('storylines', storylineTokens, searchActive)"

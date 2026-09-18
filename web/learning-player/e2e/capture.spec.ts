@@ -55,6 +55,27 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   // The episode group renders with its captured items (the marked moment is always present).
   await expect(page.getByText('Marked moment').first()).toBeVisible()
 
+  // The moment must carry WHAT was marked, not merely that something was (operator 2026-09-18).
+  //
+  // This spec asserted only the "Marked moment" kicker, so the mark → store → render path for the
+  // captured LINE was uncovered end to end: a moment that stored a timestamp and nothing else
+  // passed here and produced a Library card with no content — exactly what was reported.
+  const momentCard = page.locator('li', { has: page.getByText('Marked moment') }).first()
+  await expect(
+    momentCard.getByTestId('highlight-quote'),
+    'the marked moment rendered no captured text',
+  ).toBeVisible()
+  await expect(momentCard.getByTestId('highlight-quote')).not.toBeEmpty()
+
+  // The per-card icon actions ride the kicker line now rather than a wrapped row of their own.
+  await expect(momentCard.getByTestId('highlight-delete')).toBeVisible()
+
+  // Each episode group is headed by its episode — artwork in front of the title.
+  await expect(
+    page.getByTestId('highlight-group-heading').first(),
+    'the episode group lost its heading',
+  ).toBeVisible()
+
   // a11y: the Highlights review surface (swatch pickers, colour filter, notes, export) is clean.
   const highlightsAxe = await new AxeBuilder({ page }).analyze()
   expect(serious(highlightsAxe.violations)).toEqual([])
@@ -62,6 +83,34 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   // The Markdown export link points at the real export route.
   const exportLink = page.getByRole('link', { name: 'Export Markdown' })
   await expect(exportLink).toHaveAttribute('href', /\/api\/app\/highlights\/export\.md/)
+
+  // ...and FETCHING it returns a document that matches the screen (operator 2026-09-18).
+  //
+  // Asserting the href shape alone passed while the export was missing the things that make it
+  // worth having: an unreachable link, no capture date, no kind. The only assertion that can tell
+  // is one that reads the bytes the user would download.
+  const exportHref = await exportLink.getAttribute('href')
+  const exported = await page.request.get(new URL(exportHref!, page.url()).toString())
+  expect(exported.ok(), 'the export route the UI links to did not respond').toBeTruthy()
+  const md = await exported.text()
+  // The jump link must be ABSOLUTE. Relative, it is dead everywhere the export is actually read —
+  // Obsidian resolves "/episode/x" against the vault, and a file on disk has no origin at all.
+  expect(md, 'the export has no absolute player link').toMatch(
+    /\[\d+:\d{2}\]\(https?:\/\/[^)]+\/episode\/[^)]+\?t=\d+\)/,
+  )
+  expect(md, 'the export lost the capture kind').toMatch(/- \*\*(Quote|Marked moment|Insight)\*\*/)
+  expect(md, 'the export lost the capture date').toMatch(/· captured \d{4}-\d{2}-\d{2}/)
+
+  // Filters travel with the export: what you filtered is what you get. Colour was passed already;
+  // search and muted were silently dropped, so "filter, then Export" handed back everything.
+  const filtered = await page.request.get(
+    new URL(`${exportHref}${exportHref!.includes('?') ? '&' : '?'}q=__no_such_text__`, page.url())
+      .toString(),
+  )
+  expect(
+    await filtered.text(),
+    'a filtered export ignored the filter and returned captures anyway',
+  ).not.toMatch(/- \*\*(Quote|Marked moment|Insight)\*\*/)
 
   // Attach a note to the first highlight and confirm it persists in the view.
   const noteText = `e2e note ${Date.now()}`

@@ -386,6 +386,10 @@ export interface Highlight {
   created_at: number
   /** 'anchored' | 'drifted' after a re-anchor on re-scrape; null until then. */
   anchor_status: string | null
+  /** True when the user stopped this capture resurfacing. Joined from the resurfacing schedule
+   *  server-side on read, like `anchor_status` — Saved stays one straight list of every capture,
+   *  and this is a field on it rather than a second list (operator 2026-09-18). */
+  retired?: boolean
   /** Canonical person/topic refs (#1419) — the highlight as a graph node. Optional: absent on
    *  pre-#1419 highlights and when the episode has no KG, so callers must guard (`?? []`). */
   graph_refs?: EntityRef[]
@@ -973,6 +977,19 @@ export interface UserStats {
   active_days: number
   day_streak: number
   daily: StatPoint[]
+  /** What the user has KEPT, and the review loop over it. Optional: a server that predates these
+   *  returns the listening half alone, and the panel hides the section rather than showing zeroes
+   *  that look like a real answer. */
+  captures?: number
+  capture_moments?: number
+  capture_quotes?: number
+  capture_insights?: number
+  captures_last_7_days?: number
+  capture_episodes?: number
+  notes?: number
+  captures_reviewed?: number
+  reviews_total?: number
+  captures_muted?: number
 }
 
 /** Cross-user reach for one episode (GET /api/app/episodes/{slug}/stats). */

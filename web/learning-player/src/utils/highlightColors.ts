@@ -25,9 +25,16 @@ export const HIGHLIGHT_COLORS: readonly HighlightColor[] = [
 
 const BY_TOKEN = new Map(HIGHLIGHT_COLORS.map((c) => [c.token, c]))
 
-/** The left-border accent class for a highlight's colour (transparent when unset/unknown). */
+/**
+ * The left-border accent class for a highlight's colour.
+ *
+ * An uncoloured highlight falls back to the CARD's own border colour, not transparent. Every card
+ * using this is `border border-border border-l-4`, so `border-l-transparent` did not merely drop
+ * the accent — it punched a 4px hole down the left side, drawing three edges and leaving the fourth
+ * missing. On a device it reads as a rendering fault (operator 2026-09-18).
+ */
 export function borderClass(token: string | null | undefined): string {
-  return (token && BY_TOKEN.get(token)?.border) || 'border-l-transparent'
+  return (token && BY_TOKEN.get(token)?.border) || 'border-l-border'
 }
 
 /** The filled-swatch class for a colour token, or '' when unset/unknown (caller renders an empty

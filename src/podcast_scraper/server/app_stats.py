@@ -13,6 +13,8 @@ injected (``now``) so the functions are deterministic and testable without a clo
 
 from __future__ import annotations
 
+import time
+from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -90,6 +92,69 @@ def compute_user_stats(data_dir: Path, user_id: str, *, now: int | None = None) 
         "active_days": len(set(event_dates)),
         "day_streak": _day_streak(set(event_dates), today),
         "daily": _daily_series(event_dates, today),
+        **_capture_stats(data_dir, user_id, now=now),
+    }
+
+
+def _capture_stats(data_dir: Path, user_id: str, *, now: int | None = None) -> dict[str, Any]:
+    """What the user has KEPT, and what they have done with it (operator 2026-09-18).
+
+    Stats were listening-only — episodes opened, shows, a streak — which measured consumption and
+    said nothing about the half of the product that is the user's own. Captures, and the review
+    loop over them, had no numbers anywhere.
+
+    The review counts come from ``resurfacing.json``, which is the only place they exist: the
+    ladder records ``count`` per highlight, so "how many reviews have I done" is a sum nothing had
+    ever added up.
+
+    Every field tolerates the files being absent or malformed — a stats panel must degrade to
+    zeroes, never to a 500.
+    """
+    at = int(now if now is not None else time.time())
+    week_ago = at - 7 * 86_400
+
+    highlights = app_user_state.get_highlights(data_dir, user_id)
+    notes = app_user_state.get_notes(data_dir, user_id)
+    state = app_user_state.get_resurfacing_state(data_dir, user_id)
+
+    def _made(row: dict[str, Any]) -> int:
+        try:
+            return int(row.get("created_at") or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    reviews_total = 0
+    reviewed_ids = 0
+    retired = 0
+    for rec in state.values():
+        if not isinstance(rec, dict):
+            continue
+        if rec.get("retired"):
+            retired += 1
+        try:
+            c = max(0, int(rec.get("count") or 0))
+        except (TypeError, ValueError):
+            c = 0
+        if c:
+            reviews_total += c
+            reviewed_ids += 1
+
+    kinds = Counter(str(h.get("kind") or "span") for h in highlights)
+    return {
+        "captures": len(highlights),
+        "capture_moments": kinds.get("moment", 0),
+        "capture_quotes": kinds.get("span", 0),
+        "capture_insights": kinds.get("insight", 0),
+        "captures_last_7_days": sum(1 for h in highlights if _made(h) >= week_ago),
+        "capture_episodes": len(
+            {str(h.get("episode_slug") or "") for h in highlights if h.get("episode_slug")}
+        ),
+        "notes": len(notes),
+        # The review loop, which nothing measured: how many captures have come back at least once,
+        # how many reviews that is in total, and how many the user has asked to stop hearing about.
+        "captures_reviewed": reviewed_ids,
+        "reviews_total": reviews_total,
+        "captures_muted": retired,
     }
 
 

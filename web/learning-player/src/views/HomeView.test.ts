@@ -51,7 +51,6 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/browse', name: 'browse', component: { template: '<div/>' } },
-    { path: '/trends', name: 'trends', component: { template: '<div/>' } },
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
@@ -313,16 +312,17 @@ describe('HomeView interests card (3.5)', () => {
   })
 
   // Compact "Discover" strip (renamed from Browse topics/people, operator 2026-09-14): three chips
-  // deep-linking into the /trends see-all page on the matching tab.
-  it('renders the compact "Discover" strip into the /trends tabs', async () => {
+  // deep-linking into Browse's Trends section on the matching kind. The standalone /trends page
+  // they used to open was a thinner copy of that section and is deleted (operator 2026-09-18).
+  it('renders the compact "Discover" strip as Browse trends deep links', async () => {
     const w = mountKeptAlive()
     await flushPromises()
     const nav = w.get('[data-testid="home-browse-nav"]')
     const links = nav.findAll('a')
     const hrefs = links.map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/trends?tab=topic')
-    expect(hrefs).toContain('/trends?tab=storyline')
-    expect(hrefs).toContain('/trends?tab=person')
+    expect(hrefs).toContain('/browse?trends=topic')
+    expect(hrefs).toContain('/browse?trends=storyline')
+    expect(hrefs).toContain('/browse?trends=person')
     expect(nav.text()).toContain('Discover')
   })
 
@@ -458,10 +458,17 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     // slots, a progress bar) and legitimately builds its own artwork block.
     // Anchored to the HEADING, not to the bare key — `cacheKey: "home.recommended"` sits up in the
     // script block, so starting there swept in every rail between it and the template.
-    const recommendedSection = homeViewSource.slice(
+    // Either quote style: the heading moved into `<SectionHeading :title="t('home.recommended')" />`,
+    // where the attribute's own double quotes force single quotes inside (operator 2026-09-18).
+    const recommendedAnchor = Math.max(
       homeViewSource.indexOf('t("home.recommended")'),
+      homeViewSource.indexOf("t('home.recommended')"),
+    )
+    const recommendedSection = homeViewSource.slice(
+      recommendedAnchor,
       homeViewSource.indexOf('<InterestsPicker'),
     )
+    expect(recommendedAnchor, 'the Recommended heading anchor vanished').toBeGreaterThan(-1)
     expect(recommendedSection.length, 'could not isolate the Recommended section').toBeGreaterThan(0)
     expect(recommendedSection, 'the grid rebuilt its own tile again').not.toMatch(/aspect-square/)
   })

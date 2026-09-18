@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
 import * as shareCard from '../composables/useShareCard'
+import * as native from '../services/native'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Highlight, Note } from '../services/types'
 import HighlightsView from './HighlightsView.vue'
@@ -113,7 +114,17 @@ describe('HighlightsView', () => {
     })
     const exp = vi
       .spyOn(api, 'exportObsidian')
-      .mockResolvedValue({ mode: 'full', revision: 5, written: 7, removed: 0 })
+      .mockResolvedValue({
+        mode: 'full',
+        revision: 5,
+        epoch: 'e1',
+        written: 7,
+        removed: 0,
+        zip: new Blob(['PK'], { type: 'application/zip' }),
+      })
+    // The bytes now come back from the transport and the VIEW delivers them — the split that keeps
+    // `api.ts` from hard-coding `<a download>`, which is what made this export dead on iOS.
+    const deliver = vi.spyOn(native, 'deliverFile').mockResolvedValue(undefined)
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const w = mountView()
@@ -123,6 +134,9 @@ describe('HighlightsView', () => {
     await flushPromises()
 
     expect(exp).toHaveBeenCalledWith(0) // never the stored cursor
+    // Fetching the zip is not the feature; the user RECEIVING it is. Asserting only the request is
+    // what let the export ship broken on the phone — the call was made, the bytes went nowhere.
+    expect(deliver).toHaveBeenCalledWith('closelistening-obsidian.zip', expect.any(Blob))
     expect(store.obsidian_export_cursor).toBe('5') // still recorded, for a future applier
     expect(w.text()).toContain('7')
     // And the user is told what to do with the zip — the export used to end at "here is a file".
@@ -168,16 +182,31 @@ describe('HighlightsView', () => {
     expect(w.text()).toContain('Marked moment')
   })
 
+  it('names a saved transcript line a QUOTE, not a "Transcript"', async () => {
+    // Operator 2026-09-18: "Transcript" named the SOURCE, not the thing — and what the card shows
+    // is a quotation. The kind stays `span` on the wire; only the word changed, and it is one i18n
+    // key (`highlights.span`) so Saved and Revisit cannot drift apart.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      hl({ kind: 'span', quote_text: 'Index funds are not a strategy.' }),
+    ])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    const w = mountView()
+    await flushPromises()
+    expect(w.text()).toContain('Quote')
+    expect(w.text(), 'the old source-named label survived').not.toContain('Transcript')
+  })
+
   it('removes a highlight, once confirmed', async () => {
-    // The ✕ now opens a confirmation instead of deleting (#1594) — a highlight is authored content
-    // and there is no undo, because the create endpoint mints a new id.
+    // The unsave control opens a confirmation instead of deleting (#1594) — a highlight is
+    // authored content and there is no undo, because the create endpoint mints a new id.
+    // Found by testid: its LABEL is wording ("Saved — tap to remove") and has already moved once.
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
-    await w.find('[aria-label="Remove highlight"]').trigger('click')
-    expect(del, 'the ✕ deleted immediately — the confirm is not wired').not.toHaveBeenCalled()
+    await w.find('[data-testid="highlight-delete"]').trigger('click')
+    expect(del, 'the unsave deleted immediately — the confirm is not wired').not.toHaveBeenCalled()
     await w.get('[data-testid="highlight-delete-confirm"] [data-testid="confirm-accept"]').trigger('click')
     await flushPromises()
     expect(del).toHaveBeenCalledWith('h1')
@@ -189,7 +218,7 @@ describe('HighlightsView', () => {
     const del = vi.spyOn(api, 'deleteHighlight').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
-    await w.find('[aria-label="Remove highlight"]').trigger('click')
+    await w.find('[data-testid="highlight-delete"]').trigger('click')
     await w.get('[data-testid="highlight-delete-confirm"] [data-testid="confirm-cancel"]').trigger('click')
     await flushPromises()
     expect(del).not.toHaveBeenCalled()

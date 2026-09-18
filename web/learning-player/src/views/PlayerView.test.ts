@@ -846,6 +846,59 @@ describe('a downloaded episode paints from disk, not from the network', () => {
   })
 
   /**
+   * `?play=1` — "Resume" on Home means resume, not "open the page about this episode".
+   *
+   * The intent rides the URL rather than Home reaching into the player store: the hero does not
+   * hold the audio url, and a play() fired at click time would land before this view has applied
+   * the saved position.
+   */
+  describe('the play intent', () => {
+    async function mountWithQuery(query: Record<string, string>) {
+      setActivePinia(createPinia())
+      markDownloaded()
+      localPosition.mockReturnValue({ seconds: 42, finished: false, updatedAt: Date.now() })
+      await router.push({ name: 'player', params: { slug: SLUG }, query })
+      await router.isReady()
+      const w = mount(PlayerView, {
+        props: { slug: SLUG },
+        global: { plugins: [i18n, router], stubs: { teleport: true } },
+      })
+      mountedPlayers.push(w)
+      await flushPromises()
+      const player = usePlayerStore()
+      const play = vi.spyOn(player, 'play').mockImplementation(() => {})
+      player.duration = 100
+      await flushPromises()
+      return { player, play }
+    }
+
+    beforeEach(() => {
+      vi.spyOn(api, 'getEpisode').mockImplementation(hangs)
+      vi.spyOn(api, 'getAudioSource').mockImplementation(hangs)
+      vi.spyOn(api, 'getPlayback').mockImplementation(hangs)
+    })
+
+    it('starts playing when the caller asked to resume', async () => {
+      const { play } = await mountWithQuery({ play: '1' })
+      expect(play, 'arriving with ?play=1 left the episode paused').toHaveBeenCalled()
+    })
+
+    it('does NOT play without it — a notification opens an episode, it does not start audio', async () => {
+      // The operator's rule for notifications (2026-09-18): tapping "new episode in a show you
+      // follow" lands on the episode so you can look at it. Audio nobody asked for is a bug.
+      const { play } = await mountWithQuery({})
+      expect(play, 'opening an episode started audio unprompted').not.toHaveBeenCalled()
+    })
+
+    it('plays from the resumed position, not from zero', async () => {
+      // Playing before the seek is audible — a second or two of 0:00 before it jumps.
+      const { player, play } = await mountWithQuery({ play: '1' })
+      expect(play).toHaveBeenCalled()
+      expect(Math.round(player.el?.currentTime ?? 0), 'play started before the seek').toBe(42)
+    })
+  })
+
+  /**
    * `mountPlayer` activates its own pinia, so the registry has to be seeded between that and the
    * mount — a store written before it is replaced is a store the component never sees.
    */
