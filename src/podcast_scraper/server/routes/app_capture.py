@@ -14,13 +14,14 @@ from collections import OrderedDict
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from podcast_scraper.server import app_graph_refs, app_pkm_export, app_user_state
 from podcast_scraper.server.app_capture_export import (
     EpisodeHighlights,
     format_note,
     HighlightLine,
+    render_highlights_html,
     render_highlights_markdown,
 )
 from podcast_scraper.server.app_corpus_access import (
@@ -385,6 +386,28 @@ async def export_highlights_markdown(
     that colour, and only the notes attached to them (episode / insight notes have no colour and
     would otherwise leak past the filter).
     """
+    episodes, orphans = _export_document(request, user, color, muted_only, q)
+    markdown = render_highlights_markdown(episodes, orphans)
+    return PlainTextResponse(
+        markdown,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="my-highlights.md"'},
+    )
+
+
+def _export_document(
+    request: Request,
+    user: User,
+    color: str | None,
+    muted_only: bool,
+    q: str | None,
+) -> tuple[list[EpisodeHighlights], list[str]]:
+    """The export document, filtered and hydrated — shared by every output format.
+
+    Markdown and the printable HTML render the SAME structure. Splitting the build out is the only
+    thing keeping "what an export contains" from being defined twice and drifting, which is the bug
+    this whole arc kept finding in other places.
+    """
     data_dir = _data_dir(request)
     root = _corpus_root_opt(request)
     highlights = app_user_state.get_highlights(data_dir, user.user_id)
@@ -508,9 +531,36 @@ async def export_highlights_markdown(
         ]
     )
 
-    markdown = render_highlights_markdown(list(grouped.values()), orphans)
-    return PlainTextResponse(
-        markdown,
-        media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": 'attachment; filename="my-highlights.md"'},
-    )
+    return list(grouped.values()), orphans
+
+
+class HtmlResponse(HTMLResponse):
+    """An HTML response that documents the media type it sends (see ``MarkdownResponse``)."""
+
+    media_type = "text/html; charset=utf-8"
+
+
+@router.get(
+    "/highlights/export.html",
+    response_class=HtmlResponse,
+    responses={200: {"description": "The same export, styled for printing to PDF."}},
+)
+async def export_highlights_html(
+    request: Request,
+    user: User = Depends(get_current_user),
+    color: str | None = Query(default=None, description="Same colour filter as export.md."),
+    muted_only: bool = Query(default=False, description="Same muted filter as export.md."),
+    q: str | None = Query(default=None, description="Same search filter as export.md."),
+) -> HTMLResponse:
+    """The export as a print-styled page — the PDF path, with no PDF library.
+
+    There is no server-side renderer here on purpose. Every option cost something the others did
+    not: WeasyPrint drags Cairo/Pango into the API image, ReportLab means hand-building a layout.
+    The browser already has a good one, and "Print -> Save as PDF" is native on every platform we
+    ship, including the iOS share sheet. So this route emits the same document with a print
+    stylesheet and lets the browser do the conversion.
+
+    Same filters as ``export.md``, because it is literally the same document (``_export_document``).
+    """
+    episodes, orphans = _export_document(request, user, color, muted_only, q)
+    return HTMLResponse(render_highlights_html(episodes, orphans))

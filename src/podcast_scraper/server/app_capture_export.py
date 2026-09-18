@@ -12,6 +12,7 @@ nags you, which means nothing in a vault you may read years from now in another 
 
 from __future__ import annotations
 
+import html
 import time
 from dataclasses import dataclass, field
 
@@ -227,3 +228,139 @@ def render_highlights_markdown(
         lines.extend(f"- {n}" for n in kept)
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+# --- printable HTML (the PDF path, operator 2026-09-18) ------------------------------------------
+#
+# No PDF library. WeasyPrint drags Cairo/Pango into the API image and ReportLab means hand-building
+# a layout; the browser already has a good renderer, and "Print -> Save as PDF" is native on every
+# platform we ship, including the iOS share sheet. So this emits the same document with a print
+# stylesheet and lets the browser convert.
+
+_PRINT_CSS = """
+  :root { color-scheme: light; }
+  body {
+    font: 11pt/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Georgia, serif;
+    color: #1a1a1a; background: #fff;
+    max-width: 44rem; margin: 2rem auto; padding: 0 1.25rem;
+  }
+  h1 { font-size: 1.9rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
+  .sub { color: #666; font-size: .85rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; margin: 2.25rem 0 .2rem; letter-spacing: -.01em; }
+  .meta { color: #666; font-size: .8rem; margin: 0 0 .75rem; }
+  .meta a { color: #666; }
+  .stitle { font-weight: 700; margin: .75rem 0 .35rem; }
+  .stext { margin: 0 0 .6rem; }
+  ul.bullets { margin: 0 0 1rem; padding-left: 1.1rem; color: #333; }
+  ul.bullets li { margin: .2rem 0; }
+  .cap { margin: .9rem 0; padding-left: .7rem; border-left: 3px solid #d8d8d8; }
+  .cap.amber { border-color: #d99a0b; } .cap.rose { border-color: #d4506e; }
+  .cap.sky { border-color: #3d8fd1; }   .cap.emerald { border-color: #2f9e6e; }
+  .cap.violet { border-color: #8b5cf6; } .cap.slate { border-color: #64748b; }
+  .kind { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: #888; }
+  .quote { margin: .15rem 0; }
+  .who { color: #555; font-size: .85rem; }
+  .about, .note { font-size: .82rem; color: #555; margin: .2rem 0 0 .2rem; }
+  .note { color: #333; }
+  a { color: #1a1a1a; text-decoration: none; border-bottom: 1px solid #ccc; }
+
+  @media print {
+    /* Margins belong to the page box, not the body, or every printed page loses its top margin. */
+    @page { margin: 18mm 16mm; }
+    body { margin: 0; max-width: none; font-size: 10.5pt; }
+    /* An episode's heading must not be the last thing on a page, orphaned from its captures. */
+    h2 { break-after: avoid; page-break-after: avoid; }
+    .cap { break-inside: avoid; page-break-inside: avoid; }
+    /* Print drops the href, so a bare "Open in player" becomes a dead phrase on paper. The URL is
+       the whole point of exporting a timestamp, so it is spelled out. */
+    .meta a::after { content: " (" attr(href) ")"; font-size: .75em; word-break: break-all; }
+    a { border-bottom: none; }
+  }
+"""
+
+
+def _e(text: object) -> str:
+    """Escape for HTML. Every value here is user- or feed-supplied, so nothing is trusted."""
+    return html.escape(str(text or ""), quote=True)
+
+
+def render_highlights_html(
+    episodes: list[EpisodeHighlights], orphan_notes: list[str] | None = None
+) -> str:
+    """The same export as ``render_highlights_markdown``, styled for printing.
+
+    Built from the identical ``EpisodeHighlights`` structure so the two formats cannot disagree
+    about what an export contains.
+    """
+    out: list[str] = [
+        "<!doctype html>",
+        '<html lang="en"><head><meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        "<title>My Highlights</title>",
+        f"<style>{_PRINT_CSS}</style></head><body>",
+        "<h1>My Highlights</h1>",
+    ]
+    if not episodes and not orphan_notes:
+        out.append("<p class='sub'>No highlights captured yet.</p></body></html>")
+        return "\n".join(out)
+
+    total = sum(len(ep.highlights) for ep in episodes)
+    out.append(
+        f"<p class='sub'>{total} capture{'' if total == 1 else 's'} "
+        f"from {len(episodes)} episode{'' if len(episodes) == 1 else 's'}</p>"
+    )
+
+    for ep in episodes:
+        heading = ep.title or ep.slug
+        if ep.show:
+            heading = f"{heading} — {ep.show}"
+        out.append(f"<h2>{_e(heading)}</h2>")
+        meta = [_e(x) for x in (ep.publish_date, format_duration(ep.duration_seconds)) if x]
+        if ep.url:
+            meta.append(f'<a href="{_e(ep.url)}">Open in player</a>')
+        if meta:
+            out.append(f"<p class='meta'>{' · '.join(meta)}</p>")
+        for note in ep.episode_notes:
+            if note.strip():
+                out.append(f"<p class='note'>Note on this episode: {_e(note)}</p>")
+        if ep.summary_title:
+            out.append(f"<p class='stitle'>{_e(ep.summary_title)}</p>")
+        if ep.summary_text:
+            out.append(f"<p class='stext'>{_e(ep.summary_text)}</p>")
+        bullets = [b.strip() for b in ep.summary_bullets if b and b.strip()]
+        if bullets:
+            out.append("<ul class='bullets'>")
+            out += [f"<li>{_e(b)}</li>" for b in bullets]
+            out.append("</ul>")
+
+        for h in ep.highlights:
+            colour = (h.color or "").strip().lower()
+            out.append(f"<div class='cap {_e(colour)}'>")
+            label = KIND_LABELS.get(h.kind, h.kind)
+            tc = _timecode(h.start_ms)
+            head = [f"<span class='kind'>{_e(label)}</span>"]
+            if tc:
+                head.append(f'<a href="{_e(h.jump_url)}">{_e(tc)}</a>' if h.jump_url else _e(tc))
+            captured = captured_on(h.created_at)
+            if captured:
+                head.append(f"<span class='who'>captured {_e(captured)}</span>")
+            out.append(" · ".join(head))
+            quote = (h.quote_text or "").strip()
+            if quote:
+                body = _e(quote) if h.kind == "insight" else f"&ldquo;{_e(quote)}&rdquo;"
+                out.append(f"<p class='quote'>{body}</p>")
+            if h.speaker:
+                out.append(f"<p class='who'>— {_e(h.speaker)}</p>")
+            if h.entities:
+                out.append(f"<p class='about'>{_e(' · '.join(h.entities))}</p>")
+            for note in h.notes:
+                if note.strip():
+                    out.append(f"<p class='note'>{_e(note)}</p>")
+            out.append("</div>")
+
+    kept = [n.strip() for n in (orphan_notes or []) if n.strip()]
+    if kept:
+        out.append("<h2>Other notes</h2>")
+        out += [f"<p class='note'>{_e(n)}</p>" for n in kept]
+    out.append("</body></html>")
+    return "\n".join(out)

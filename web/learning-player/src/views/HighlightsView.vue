@@ -18,6 +18,7 @@ import {
   getCollections,
   getEpisode,
   highlightsExportUrl,
+  highlightsPrintUrl,
 } from '../services/api'
 import type { Collection } from '../services/types'
 import { isNative, saveAndShareText } from '../services/native'
@@ -254,6 +255,15 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
 
 // Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
 /** Undo a retire. Only reachable from a row that IS retired, so there is no toggle to reason about. */
+/**
+ * Open the print-styled export so the browser can save it as PDF.
+ *
+ * Carries the SAME filters as the other formats — it is the same document, one route along.
+ */
+function openPrintable(): void {
+  window.open(highlightsPrintUrl(props.filterColor, { mutedOnly: props.mutedOnly, q: props.search }), '_blank')
+}
+
 async function resume(id: string): Promise<void> {
   await capture.unretire(id)
 }
@@ -349,6 +359,21 @@ onMounted(async () => {
           :aria-label="t('highlights.export')"
           class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
         >{{ t('highlights.exportMarkdownShort') }}</a>
+        <!-- PDF, via the browser's own print-to-PDF (operator 2026-09-18). No PDF library: the
+             renderer is already in the browser, and "Print -> Save as PDF" is native everywhere we
+             ship, including the iOS share sheet. The server returns the SAME export document with a
+             print stylesheet (`export.html`) and the browser converts it.
+
+             Opened in a new tab rather than printed from a hidden iframe: the user needs to SEE
+             what they are about to print, and a print dialog fired from an invisible frame with no
+             preview is indistinguishable from the app having hijacked the printer. -->
+        <button
+          type="button"
+          :aria-label="t('highlights.exportPdf')"
+          data-testid="export-pdf"
+          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay"
+          @click="openPrintable"
+        >{{ t('highlights.exportPdfShort') }}</button>
         <!-- Graph-aware Obsidian export (#1472) — web only (native zip handling is a follow). -->
         <button
           v-if="!isNative()"

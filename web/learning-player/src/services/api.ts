@@ -1008,6 +1008,24 @@ export async function deleteNote(id: string): Promise<Note[]> {
 
 /** The URL for the Markdown export of highlights (a download link / new tab). With `color`, the
  *  export obeys the Saved surface's colour filter — only highlights of that colour (#2042). */
+function exportQuery(color?: string | null, opts?: { mutedOnly?: boolean; q?: string }): string {
+  const p = new URLSearchParams()
+  if (color) p.set("color", color)
+  if (opts?.mutedOnly) p.set("muted_only", "true")
+  const q = opts?.q?.trim()
+  if (q) p.set("q", q)
+  return p.toString()
+}
+
+/** The same export, print-styled, for the browser's Save-as-PDF (operator 2026-09-18). */
+export function highlightsPrintUrl(
+  color?: string | null,
+  opts?: { mutedOnly?: boolean; q?: string },
+): string {
+  const qs = exportQuery(color, opts)
+  return qs ? `${BASE}/highlights/export.html?${qs}` : `${BASE}/highlights/export.html`
+}
+
 export function highlightsExportUrl(
   color?: string | null,
   opts?: { mutedOnly?: boolean; q?: string },
@@ -1015,12 +1033,7 @@ export function highlightsExportUrl(
   // Export mirrors the Saved filters, all of them. Colour alone was passed, so narrowing by search
   // or by muted and then pressing Export handed back a file that disagreed with the screen that
   // produced it (operator 2026-09-18).
-  const p = new URLSearchParams()
-  if (color) p.set("color", color)
-  if (opts?.mutedOnly) p.set("muted_only", "true")
-  const q = opts?.q?.trim()
-  if (q) p.set("q", q)
-  const qs = p.toString()
+  const qs = exportQuery(color, opts)
   return qs ? `${BASE}/highlights/export.md?${qs}` : `${BASE}/highlights/export.md`
 }
 

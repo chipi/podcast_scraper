@@ -438,6 +438,14 @@ already travelled; **search** and the **muted** toggle did not, so narrowing the
 Export handed back a file that disagreed with the screen that produced it. All three are query
 parameters on `/highlights/export.md` now.
 
+A third chip, **PDF**, opens the same document print-styled (`export.html`) and lets the browser
+save it — no PDF library in the API image, and "Print → Save as PDF" is native on every platform we
+ship, including the iOS share sheet. It opens a visible tab rather than printing from a hidden
+frame: a print dialog fired from an invisible frame with no preview is indistinguishable from the
+app having hijacked the printer. The print stylesheet keeps an episode heading from being stranded
+at the foot of a page, stops a capture splitting across two, and spells out link URLs, which paper
+otherwise loses.
+
 The **Obsidian** export stays deliberately unfiltered. It is a *sync*, not a report: incremental,
 cursor-based, and a full export sets `replace_namespace: true`. A colour filter there would not
 narrow a document — it would tombstone every other note out of the user's vault. Markdown is the
