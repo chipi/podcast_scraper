@@ -2306,6 +2306,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
         jobs_processed_failed = [0]  # Use list for nonlocal access
         stop_requested = [False]  # Issue #429: set when fail_fast or max_failures reached
         abandoned_futures = [0]  # bounded-loop exit left these in flight
+        wedge_report = [0.0]  # last time the loop explained why it cannot finish (rate-limited)
 
         # Supervision (2026-08-12 incident): this loop previously had no termination
         # guarantee. `_should_continue_processing` defaults to True, so if the main thread
@@ -2442,8 +2443,44 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     return False
                 if transcription_complete_event and transcription_complete_event.is_set():
                     all_submitted = _check_queue_empty()
+                    if not (all_submitted and len(futures) == 0):
+                        _report_if_wedged(futures)
                     return not (all_submitted and len(futures) == 0)
                 return True
+
+            def _report_if_wedged(futures: Any) -> None:
+                """Say WHY the loop cannot finish, once a minute, instead of polling in silence.
+
+                Transcription is finished, so the only reasons to continue are jobs not yet
+                submitted or futures not yet done. When neither moves, this loop spins forever at
+                0.1% CPU with both workers parked — twice during the #2075 harness it cost 74 and 20
+                minutes, and the only way to learn anything was a SIGABRT thread dump, which shows
+                the FRAME but never the COUNTS that decide the exit. Those counts are the diagnosis.
+                """
+                now = time.time()
+                if now - wedge_report[0] < 60.0:
+                    return
+                wedge_report[0] = now
+                with processed_job_indices_lock:
+                    done_keys = set(processed_job_indices)
+                if processing_resources.processing_jobs_lock:
+                    with processing_resources.processing_jobs_lock:
+                        all_jobs = list(processing_resources.processing_jobs)
+                else:
+                    all_jobs = list(processing_resources.processing_jobs)
+                missing = [
+                    _processing_job_key(j)
+                    for j in all_jobs
+                    if _processing_job_key(j) not in done_keys
+                ]
+                logger.warning(
+                    "Processing loop cannot finish: %d job(s) enqueued, %d marked processed, "
+                    "%d future(s) in flight. Unaccounted: %s",
+                    len(all_jobs),
+                    len(done_keys),
+                    len(futures),
+                    missing[:5] if missing else "none — a future has not completed",
+                )
 
             while True:
                 _submit_new_jobs()
