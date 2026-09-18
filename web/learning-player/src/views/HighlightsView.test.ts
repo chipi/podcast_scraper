@@ -122,7 +122,9 @@ describe('HighlightsView', () => {
     await w.findAll('button').find((b) => b.text() === 'Obsidian')!.trigger('click')
     await flushPromises()
 
-    expect(exp).toHaveBeenCalledWith(0) // never the stored cursor
+    // `undefined` delivery = the web download path; native passes a share-sheet deliverer. The
+    // assertion that matters is the FIRST arg: never the stored cursor.
+    expect(exp).toHaveBeenCalledWith(0, undefined, undefined)
     expect(store.obsidian_export_cursor).toBe('5') // still recorded, for a future applier
     expect(w.text()).toContain('7')
     // And the user is told what to do with the zip — the export used to end at "here is a file".

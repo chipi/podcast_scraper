@@ -21,7 +21,7 @@ import {
   highlightsPrintUrl,
 } from '../services/api'
 import type { Collection } from '../services/types'
-import { isNative, saveAndShareText } from '../services/native'
+import { isNative, openExternal, saveAndShareBinary, saveAndShareText } from '../services/native'
 import type { EpisodeDetail, EpisodeSummary, Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
@@ -260,8 +260,10 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
  *
  * Carries the SAME filters as the other formats — it is the same document, one route along.
  */
-function openPrintable(): void {
-  window.open(highlightsPrintUrl(props.filterColor, { mutedOnly: props.mutedOnly, q: props.search }), '_blank')
+async function openPrintable(): Promise<void> {
+  await openExternal(
+    highlightsPrintUrl(props.filterColor, { mutedOnly: props.mutedOnly, q: props.search }),
+  )
 }
 
 async function resume(id: string): Promise<void> {
@@ -295,7 +297,9 @@ async function doObsidianExport(): Promise<void> {
     //
     // Restore the cursor here only alongside a programmatic applier (an Obsidian plugin, or the
     // native shell writing files itself). Until then `since=0` is the only safe request.
-    const r = await exportObsidian(0)
+    const r = await exportObsidian(0, undefined, isNative()
+      ? (blob) => saveAndShareBinary('closelistening-obsidian.zip', blob)
+      : undefined)
     localStorage.setItem(OBSIDIAN_CURSOR_KEY, String(r.revision))
     // Stored beside the cursor, not instead of it. A revision only identifies a snapshot within
     // one server epoch (#41); persisting the number alone would leave whatever applier arrives
@@ -374,9 +378,11 @@ onMounted(async () => {
           class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay"
           @click="openPrintable"
         >{{ t('highlights.exportPdfShort') }}</button>
-        <!-- Graph-aware Obsidian export (#1472) — web only (native zip handling is a follow). -->
+        <!-- Graph-aware Obsidian export (#1472). Was `v-if="!isNative()"` — the zip reached the
+             device through `<a download>`, which WKWebView ignores, so rather than fix the delivery
+             the button was hidden and the feature just disappeared on the phone (operator
+             2026-09-18). Native now takes the same bytes through the share sheet. -->
         <button
-          v-if="!isNative()"
           type="button"
           :disabled="exportingObsidian"
           :aria-label="t('highlights.exportObsidian')"
@@ -391,7 +397,9 @@ onMounted(async () => {
       way in is to put the folder there. Without saying so, the export ends at "here is a zip" and
       the user has to go and find out what to do with it, which is exactly what happened in review.
     -->
-    <p v-if="obsidianDone" class="mb-3 text-xs text-muted">{{ t('highlights.obsidianNext') }}</p>
+    <p v-if="obsidianDone" class="mb-3 text-xs text-muted">
+      {{ isNative() ? t('highlights.obsidianNextNative') : t('highlights.obsidianNext') }}
+    </p>
 
     <!-- The colour filter used to live here as an always-on swatch strip; it is lifted to the Saved
          tab's filter bar (RFC-121 ph. 3) and arrives as `filterColor`, so one bar governs every

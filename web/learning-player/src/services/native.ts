@@ -252,3 +252,43 @@ export async function saveAndShareText(
   // reap from Cache (deleting immediately can race the receiving app reading the URI).
   void mimeType
 }
+
+/**
+ * The same, for BINARY payloads (the Obsidian vault zip).
+ *
+ * `saveAndShareText` writes UTF-8, which corrupts a zip. Filesystem.writeFile treats `data` as
+ * base64 when no encoding is given, so the blob is base64'd first.
+ *
+ * Chunked rather than `String.fromCharCode(...bytes)`: spreading a multi-MB array blows the
+ * argument limit and throws RangeError, and a vault export is exactly the size that reaches it.
+ */
+export async function saveAndShareBinary(filename: string, blob: Blob): Promise<void> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let binary = ''
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  }
+  const { uri } = await Filesystem.writeFile({
+    path: filename,
+    data: btoa(binary),
+    directory: Directory.Cache,
+  })
+  await Share.share({ title: filename, url: uri, dialogTitle: filename })
+}
+
+/**
+ * Open a URL somewhere the OS can act on it.
+ *
+ * `window.open(url, '_blank')` is a silent no-op in WKWebView — nothing opens, no error fires, and
+ * the button reads as broken. That is what "Export PDF" did in the iOS build (operator 2026-09-18).
+ * Capacitor's Browser hands it to SFSafariViewController / Custom Tabs instead, where the share
+ * sheet's Print → "Save to Files" is the actual print-to-PDF path on a phone.
+ */
+export async function openExternal(url: string): Promise<void> {
+  if (isNative()) {
+    await Browser.open({ url })
+    return
+  }
+  window.open(url, '_blank')
+}

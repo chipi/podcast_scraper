@@ -39,6 +39,7 @@ import CheckIcon from './CheckIcon.vue'
 import SectionHeading from './SectionHeading.vue'
 import { useIsDesktop } from '../composables/useMediaQuery'
 import { useResurfacingStore } from '../stores/resurfacing'
+import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
 
 const { t } = useI18n()
@@ -114,6 +115,13 @@ watch(
   { immediate: true },
 )
 
+/** Kind → the label the Saved list uses, so a textless capture reads the same on both surfaces. */
+const KIND_KEY: Record<string, string> = {
+  moment: 'highlights.moment',
+  span: 'highlights.span',
+  insight: 'highlights.insight',
+}
+
 /** The captured words; empty for a moment saved before quote text was stored. */
 function quoteOf(h: { quote_text?: string | null }): string {
   return (h.quote_text ?? '').trim()
@@ -162,12 +170,19 @@ const titleOf = (slug: string): string => details.value[slug]?.title ?? ''
           data-testid="home-revisit-card"
         >
           <div class="min-w-0 flex-1">
-            <p class="line-clamp-2 text-sm font-semibold italic leading-snug text-canvas-foreground">
-              {{ quoteOf(item.highlight) }}
+            <!-- A capture with no quote text is common on real data — a moment marked before the
+                 line was stored, or an insight — and the card rendered an EMPTY paragraph for it,
+                 collapsing to a single kicker row (operator 2026-09-18, on device). It now falls
+                 back to what the capture IS, so every card has a body and the same height. -->
+            <p class="line-clamp-2 text-sm font-semibold leading-snug text-canvas-foreground"
+               :class="quoteOf(item.highlight) ? 'italic' : 'text-muted'">
+              {{ quoteOf(item.highlight) || t(KIND_KEY[item.highlight.kind] ?? 'highlights.moment') }}
             </p>
             <p class="lp-kicker mt-1 truncate">
               <span v-if="item.highlight.speaker">{{ item.highlight.speaker }} · </span>
               <span>{{ titleOf(item.highlight.episode_slug) }}</span>
+              <span v-if="item.highlight.start_ms != null">
+                · {{ formatTime(item.highlight.start_ms / 1000) }}</span>
             </p>
           </div>
           <!-- A plain square thumbnail, the same one `EpisodeRow` and the downloads rows use.

@@ -20,7 +20,6 @@ function makeRouter(query: Record<string, string> = {}) {
     history: createMemoryHistory(),
     routes: [
       { path: '/browse', name: 'browse', component: BrowseView },
-      { path: '/trends', name: 'trends', component: { template: '<div/>' } },
     ],
   })
   void router.push({ name: 'browse', query })

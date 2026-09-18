@@ -1075,7 +1075,11 @@ export interface ObsidianExportResult {
  * `X-Export-*` header metadata so the caller can persist the cursor (for the next incremental
  * pull) and show a summary. `since` = the last revision the client applied (0 = full).
  */
-export async function exportObsidian(since: number, epoch?: string): Promise<ObsidianExportResult> {
+export async function exportObsidian(
+  since: number,
+  epoch?: string,
+  deliver?: (blob: Blob) => Promise<void>,
+): Promise<ObsidianExportResult> {
   // `epoch` identifies the server's vault state. A revision number only means something WITHIN one
   // epoch: the server's counter restarts at 0 whenever its export state is lost or unreadable, and
   // then climbs back through values this client may still hold (#41). Echo both back and a
@@ -1088,12 +1092,20 @@ export async function exportObsidian(since: number, epoch?: string): Promise<Obs
   })
   if (!resp.ok) throw new ApiError(resp.status, `GET /export → ${resp.status}`)
   const blob = await resp.blob()
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = "closelistening-obsidian.zip"
-  a.click()
-  URL.revokeObjectURL(url)
+  // Delivery is the CALLER's business. This used to hard-code `<a download>`, which does nothing in
+  // WKWebView — so the native build hid the Obsidian button entirely rather than fix the delivery,
+  // and the export simply vanished on the phone (operator 2026-09-18). `deliver` lets the native
+  // shell route the same bytes through the share sheet.
+  if (deliver) {
+    await deliver(blob)
+  } else {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "closelistening-obsidian.zip"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
   return {
     mode: (resp.headers.get("X-Export-Mode") as "full" | "incremental") ?? "full",
     revision: Number(resp.headers.get("X-Export-Revision") ?? "0"),

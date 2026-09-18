@@ -137,10 +137,6 @@ const savedCaps = useCappedSections(10, 10)
 
 /** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
  *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
-/** Whether any capture is muted. The muted toggle renders only then, matching the bar's existing
- *  presence rule: never offer a filter that can only produce an empty list. */
-const hasMutedHighlights = computed(() => capture.highlights.some((h) => h.retired))
-
 function highlightMatches(h: { quote_text?: string | null; speaker?: string | null }): boolean {
   return matchesQuery(h.quote_text, savedSearch.value) || matchesQuery(h.speaker, savedSearch.value)
 }
@@ -566,7 +562,7 @@ onMounted(async () => {
           v-model:search="savedSearch"
           v-model:muted-only="savedMutedOnly"
           :available-types="availableTypes"
-          :show-muted="hasMutedHighlights"
+          show-muted
         />
         <!-- #1261-8: Saved searches — power-listener persistent queries.
              Tap the query to re-run the search; ×  removes it. Searches carry no colour, so a

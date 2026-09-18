@@ -69,7 +69,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
       <h2 class="lp-section">{{ title }}</h2>
       <RouterLink
         v-if="seeAll"
-        :to="{ name: 'trends', query: { tab: discoveryTab } }"
+        :to="{ name: 'browse', query: { trends: discoveryTab } }"
         class="shrink-0 whitespace-nowrap text-sm font-bold text-accent no-underline"
         data-testid="discovery-see-all"
       >

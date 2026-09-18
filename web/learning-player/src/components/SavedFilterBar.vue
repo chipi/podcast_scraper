@@ -38,10 +38,13 @@ const props = withDefaults(
      */
     showColors?: boolean
     /**
-     * Whether the muted toggle renders.
+     * Whether the muted toggle renders. Opt-IN because only highlights can be muted — Following has
+     * none, so the control would be inert there.
      *
-     * Opt-IN, unlike `showColors`: only highlights can be muted, so on any surface without them the
-     * control would filter nothing. Same reason Following opts out of the colour strip.
+     * On Saved it is ALWAYS on. It was additionally gated on the user already having muted
+     * something, which I added unasked and then described as "by design" when the operator could
+     * not find it (2026-09-18). A filter nobody can see is a feature nobody can use, and one that
+     * appears only after you have used it elsewhere is worse than one that is simply there.
      */
     showMuted?: boolean
     /** Sort options for the select; defaults to the shared Recent / A–Z set used by both tabs. */

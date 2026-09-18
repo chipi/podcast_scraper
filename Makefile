@@ -2264,6 +2264,15 @@ ios-testflight-preflight:
 # Debug + automatic signing = a development profile, so the build is tied to your developer account
 # and expires like any dev build. Use `ios-testflight` for a copy that does not.
 #
+# The build is GATED: a failed xcodebuild aborts instead of installing whatever `.app` happens to
+# be lying in the derived-data dir. It did exactly that once (operator 2026-09-18) — printed
+# "** BUILD FAILED **" with four compile errors, installed a stale bundle, and exited 0, so the
+# device got the previous build with no indication anything was wrong. The recipe ended that line
+# with `;` rather than `&&`, and the `[ -d App.app ]` check passed on the leftover.
+#
+# It also retries ONCE after wiping the derived-data dir, because the common failure is a stale
+# precompiled-module cache in /tmp rather than anything wrong with the code.
+#
 #   make ios-device-install                         # current tree -> paired iPhone, prod backend
 #   make ios-device-install IOS_DEVICE_UDID=00008130-…   # pin the device when two are attached
 ios-device-install:
@@ -2279,13 +2288,29 @@ ios-device-install:
 	[ -n "$$udid" ] || { echo "FAIL: no paired iOS device found. Plug it in / join the same wifi,"; \
 		echo "      unlock it, trust this Mac, then re-run. \`xcrun devicectl list devices\` should"; \
 		echo "      show it as 'available (paired)'."; exit 1; }; \
-	echo "--> building for device $$udid"; \
-	env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
-		-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
-		-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
-		build >/dev/null; \
 	app="$(IOS_DEVICE_DD)/Build/Products/Debug-iphoneos/App.app"; \
-	[ -d "$$app" ] || { echo "FAIL: no App.app at $$app"; exit 1; }; \
+	echo "--> building for device $$udid"; \
+	stamp=$$(mktemp); \
+	build_once() { \
+		env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+			-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
+			-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
+			build >/dev/null; \
+	}; \
+	if ! build_once; then \
+		echo "--> build failed; clearing $(IOS_DEVICE_DD) and retrying once"; \
+		echo "    (an incremental dir in /tmp goes stale: xcodebuild references .pcm module files"; \
+		echo "     that no longer exist, and every Cordova source then fails to compile)"; \
+		rm -rf $(IOS_DEVICE_DD); \
+		build_once || { echo "FAIL: xcodebuild failed. Nothing was installed — the app on the"; \
+			echo "      device is whatever was there before."; rm -f "$$stamp"; exit 1; }; \
+	fi; \
+	[ -d "$$app" ] || { echo "FAIL: no App.app at $$app"; rm -f "$$stamp"; exit 1; }; \
+	[ "$$app/Info.plist" -nt "$$stamp" ] || { \
+		echo "FAIL: $$app predates this build — it is a leftover from an earlier run, and"; \
+		echo "      installing it would put OLD code on the device while reporting success."; \
+		rm -f "$$stamp"; exit 1; }; \
+	rm -f "$$stamp"; \
 	if ls "$$app"/public/assets/*.js >/dev/null 2>&1 && \
 	   grep -qhE 'https://[a-z.]+/api/app' "$$app"/public/assets/*.js; then \
 		echo "OK: PROD tier targets a hosted api"; \

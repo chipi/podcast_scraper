@@ -814,9 +814,12 @@ async function loadContinue(): Promise<void> {
     </div>
 
     <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
-         + three chips deep-linking into the /trends "see all" page on the matching tab. Renamed from
-         the old "Browse topics/people" links, which pointed at the Browse hub; topics/storylines/
-         people live on /trends now, so the chips go straight there. -->
+         + three chips deep-linking into Browse's Trends section on the matching kind.
+
+         These pointed at a separate /trends page, which was a second, thinner copy of a section
+         Browse already renders — tapping a chip left the hub for a page with the same three tabs and
+         less around them. The operator called it "small pages that should not exist" (2026-09-18).
+         /trends is deleted; `?trends=<kind>` selects the kind and scrolls it into view. -->
     <nav
       class="mt-6 flex flex-wrap items-center gap-2 text-sm"
       :aria-label="t('home.browseNavLabel')"
@@ -824,21 +827,21 @@ async function loadContinue(): Promise<void> {
     >
       <span class="font-bold text-muted">{{ t("home.discoverLabel") }}</span>
       <RouterLink
-        :to="{ name: 'trends', query: { tab: 'topic' } }"
+        :to="{ name: 'browse', query: { trends: 'topic' } }"
         data-testid="home-discover-topics"
         class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       >
         {{ t("home.tabTopics") }}
       </RouterLink>
       <RouterLink
-        :to="{ name: 'trends', query: { tab: 'storyline' } }"
+        :to="{ name: 'browse', query: { trends: 'storyline' } }"
         data-testid="home-discover-storylines"
         class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       >
         {{ t("home.storylines") }}
       </RouterLink>
       <RouterLink
-        :to="{ name: 'trends', query: { tab: 'person' } }"
+        :to="{ name: 'browse', query: { trends: 'person' } }"
         data-testid="home-discover-people"
         class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
       >

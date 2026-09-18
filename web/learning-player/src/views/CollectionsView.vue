@@ -95,6 +95,9 @@ function rowElements(): HTMLElement[] {
 
 function onGrabStart(id: string, e: PointerEvent): void {
   if (!reorderable.value) return
+  // iOS decides a touch is a SELECTION gesture at touch-start, so cancelling it on the first move
+  // is already too late — the handles are up and the drag never begins.
+  e.preventDefault()
   draggingId.value = id
   dragOverId.value = id
   // Capture, so the gesture keeps reporting to this handle even when the finger slides off it.
@@ -108,6 +111,10 @@ function onGrabStart(id: string, e: PointerEvent): void {
 function onGrabMove(e: PointerEvent): void {
   if (!draggingId.value) return
   e.preventDefault() // stop the page scrolling under the drag
+  // Belt and braces: if a selection slipped through before the suppression applied, drop it rather
+  // than leaving blue handles floating over the row being dragged.
+  const sel = window.getSelection?.()
+  if (sel && !sel.isCollapsed) sel.removeAllRanges()
   const y = e.clientY
   // The row whose mid-point the finger is nearest is the drop target.
   let nearest = dragOverId.value
@@ -622,7 +629,11 @@ onMounted(() => {
       meant closing this one first. Now the row IS the board: tapping it expands beneath its own
       header, tapping it again collapses it, and tapping a different one moves the expansion there.
     -->
-    <ul v-if="view === 'list' && visibleCollections.length" class="flex flex-col gap-2">
+    <ul
+      v-if="view === 'list' && visibleCollections.length"
+      class="flex flex-col gap-2"
+      :class="draggingId ? 'select-none [-webkit-user-select:none]' : ''"
+    >
       <li
         v-for="c in caps.visible('boards', visibleCollections, searchActive || !!focusBoardId)"
         :key="c.id"
@@ -691,7 +702,7 @@ onMounted(() => {
                write an order the next render discards, which reads as the drag having failed. -->
           <span
             v-if="reorderable"
-            class="flex shrink-0 cursor-grab touch-none items-center px-2 py-2 text-muted active:cursor-grabbing"
+            class="flex shrink-0 cursor-grab touch-none select-none items-center px-2 py-2 text-muted active:cursor-grabbing [-webkit-touch-callout:none]"
             data-testid="collection-drag-handle"
             :aria-label="t('collections.reorderHandle', { name: c.name })"
             role="button"
