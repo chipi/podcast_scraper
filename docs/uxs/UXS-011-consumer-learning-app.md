@@ -533,6 +533,18 @@ highlights path, never a favorite" (RFC-121 / #1593) — so a heart here would o
 something that was never hearted. `BookmarkIcon` is shared with `TranscriptList` rather than
 redrawn, so the saved glyph cannot drift between the place you save and the place you unsave.
 
+**Home also carries a "Your boards" teaser (`CollectionsTeaser`, operator 2026-09-18).** Up to four
+boards as **cover + name + count**, filling the right half of the `lg` row beside the ask box —
+empty until now because that input is deliberately capped (full-bleed, it flung the Search button to
+the far right). Collections were reachable only through Library → Boards, which made the thing the
+user *assembled* the least visible thing they own.
+
+Ordered by **most recently changed**, not alphabetically and not by the manual board order: on Home
+the question is "what am I working on", and the board you added to yesterday answers it. The manual
+`position` arrangement is the Boards tab's own affordance and stays there. A board with no members
+renders a flat tile rather than a broken image or a placeholder pretending to be artwork, since
+`cover_url` is derived from its first member.
+
 **Home carries a "Worth revisiting" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
 captures, **at most one per episode** so it shows the breadth of what is waiting rather than one
 session's thinking. Each card is the **quote, with the episode as a small square thumbnail on its right** and the

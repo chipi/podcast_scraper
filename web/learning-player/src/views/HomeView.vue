@@ -38,6 +38,7 @@ import EntityCard from "../components/EntityCard.vue"
 import InterestsPicker from "../components/InterestsPicker.vue"
 import KeyVoicesRail from "../components/KeyVoicesRail.vue"
 import DiscoveryExplorer from "../components/DiscoveryExplorer.vue"
+import CollectionsTeaser from "../components/CollectionsTeaser.vue"
 import RevisitRail from "../components/RevisitRail.vue"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
@@ -586,7 +587,12 @@ async function loadContinue(): Promise<void> {
     <!-- Search (H.3): the "Ask across every episode" title + box moved DOWN here together from under
          the hero, so the top of Home leads with the resume hero + the trending rails. Topic chips are
          the tappable entry points. testids unchanged across the move. -->
-    <section class="mt-7" data-testid="home-search-section">
+    <!-- The ask box and the boards teaser share the row on `lg` (operator 2026-09-18). The ask box
+         is deliberately capped (a full-bleed input flung the Search button to the far right), so
+         the right of this row was empty on desktop — the same gap the revisit rail filled beside
+         Trends. Stacked on phones. -->
+    <div class="lg:flex lg:items-start lg:gap-8">
+    <section class="mt-7 lg:w-1/2" data-testid="home-search-section">
       <span class="lp-kicker text-topic">{{ t("home.askKicker") }}</span>
       <h2 class="mt-2 font-display text-2xl font-extrabold leading-none tracking-tight">
         {{ t("home.askTitle") }}
@@ -630,6 +636,10 @@ async function loadContinue(): Promise<void> {
         </button>
       </div>
     </section>
+      <div class="lg:w-1/2">
+        <CollectionsTeaser />
+      </div>
+    </div>
 
     <!-- What's new and Trending shows SHARE a desktop row, half each (operator 2026-09-17). Both are
          narrow-by-nature lists — a ranked chart and a stack of show bands — that were each stretched
