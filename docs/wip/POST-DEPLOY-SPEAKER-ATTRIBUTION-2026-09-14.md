@@ -292,6 +292,19 @@ is only needed if that is 0.
 - **The full `make upgrade-corpus` chain was never run end to end during development** — migration
   0002 rebuilds the Lance index and needs `sentence_transformers`, unavailable on the dev Intel
   Mac. m0009's `apply` was driven directly with a real `MigrationContext` and `dry_run=False`.
+- **Three feeds will light up the `empty_host_anchor` rework queue at once, and that is the fix
+  working.** The feed-host work may now only REMOVE a host, so 63 episodes across The Rest Is
+  History (`Norman Conquest`, 84 voices), Latin America in Focus (`Americas Online`, 32) and
+  Colombia Calling (`Emily Hart`, 8 — a wrong name on Richard McColl's voice) move from a junk host
+  name to no host at all. 126 files, 63 episodes; 20 other episodes GAIN a named host in the same
+  change. Nothing regressed: every name lost there was junk, an organisation, or the wrong person.
+  Whoever watches that queue after deploy should not read the spike as new damage.
+- **A relabelled episode's record used to keep the OLD names.** Until `51a202bb` no reprocess stage
+  rewrote `content.speakers` — verified by diffing before/after on two DGX episodes, byte-identical.
+  Every episode repaired by a relabel BEFORE that fix therefore has a transcript with new labels and
+  a record with old names, and every number read from such a record describes the pre-repair state.
+  The same defect wrote a SECOND record into the reprocess's own fresh run directory, which then
+  made `rederive_only` refuse the episode. Both are fixed; the corpus cleanup is tracked on #2097.
 
 ## Rollback
 
