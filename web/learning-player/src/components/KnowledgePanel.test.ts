@@ -181,9 +181,11 @@ describe("KnowledgePanel", () => {
       },
     ]
     const w = mountPanel({ topics, persons: [] })
-    // Dominant SEMANTIC cluster surfaces as "Similar ·"; co-occurrence clusters are "Storyline ·"
-    // (#1603 — one consumer word, matching Home's "Storylines" rail).
-    expect(w.text()).toContain("Similar · machine learning")
+    // The dominant SEMANTIC cluster is no longer surfaced here at all (operator 2026-09-19): it had
+    // no card and no route, so the line impersonated a link and went nowhere. The entity card still
+    // carries the concept as "N similar topics", beside a count rather than where a link belongs.
+    expect(w.text()).not.toContain("Similar ·")
+    expect(w.text()).not.toContain("machine learning")
     // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
     const chips = w.findAll("button").filter((b) => ["ai", "ml", "zulu"].includes(b.text()))
     expect(chips.map((c) => c.text())).toEqual(["ai", "ml", "zulu"])
@@ -217,8 +219,13 @@ describe("KnowledgePanel", () => {
       { id: "topic:z", label: "zulu", cluster_id: null, cluster_label: null, cluster_size: 0 },
     ]
     const w = mountPanel({ topics, persons: [] })
-    // Dominant theme (co-occurrence) surfaces as the "Theme ·" lead-in — distinct from "Similar ·".
-    expect(w.text()).toContain("Storyline · sanctions")
+    // The storyline is a PILL now, with its kind named separately from its label, so the text is
+    // "Storyline" + "sanctions" rather than the old "Storyline · sanctions" lead-in. Asserted via
+    // the testid plus its content, which survives a restyle — the previous string assertion would
+    // have broken on any punctuation change.
+    const pill = w.get('[data-testid="kp-storyline-link"]')
+    expect(pill.text()).toContain("Storyline")
+    expect(pill.text()).toContain("sanctions")
     // Theme-member chips carry the teal fill (lp-theme-chip); the non-member does not.
     const oil = w.findAll("button").find((b) => b.text() === "oil")!
     const zulu = w.findAll("button").find((b) => b.text() === "zulu")!

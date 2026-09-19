@@ -163,11 +163,17 @@ function rowLabel(r: Row): string {
       >
         <button
           type="button"
-          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
+          class="flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
           :aria-label="rowLabel(r)"
           @click="emit('open', { kind, id: r.openId })"
         >
-          <!-- People carry their photo (falls back to initials); topics/storylines don't. -->
+          <!-- People carry their photo (falls back to initials); topics/storylines don't — which is
+               why the row above pins `min-h-10`.
+               The avatar is 28px and the tallest thing in a topic/storyline row is the 20px
+               sparkline, so People rows were 40px and the other two 32px. Switching tabs then moved
+               everything below the section by 8px per row, and the page jumped under the reader
+               (operator 2026-09-19). The height is now the SAME whatever the tab renders, so the
+               kind can change without the layout moving. -->
           <ProfileAvatar
             v-if="kind === 'person'"
             :name="r.label"
