@@ -504,13 +504,18 @@ async function loadContinue(): Promise<void> {
                it is where the way in belongs.
 
                Same list glyph `QueueButton` draws, deliberately: that button ADDS to the queue and
-               this one OPENS it, and they are the same object. Quiet outline against the filled
-               accent Resume, because resuming is the primary action here and this is the alternative
-               to it. -->
+               this one OPENS it, and they are the same object.
+
+               Plated the way `ShowRow` plates its over-artwork controls, not left as a quiet muted
+               outline: this hero sits ON the episode artwork, so a `border-border text-muted`
+               circle disappeared into whatever the cover happened to be. Resuming is still the
+               primary action — that is the filled accent pill — and this reads as secondary
+               without depending on the image behind it being calm. -->
+
           <RouterLink
             :to="{ name: 'queue' }"
             data-testid="home-open-queue"
-            class="lp-tap inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-muted no-underline transition hover:text-canvas-foreground"
+            class="lp-tap inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white no-underline shadow-lg backdrop-blur-sm transition hover:text-white"
             :aria-label="t('queue.title')"
             :title="t('queue.title')"
           >

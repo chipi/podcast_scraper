@@ -150,14 +150,16 @@ const topShows = computed(() => {
     if (cur) {
       cur.count++
       // Episodes vary in whether they carry the feed image; take the first one that does.
-      cur.art ??= resolveMediaUrl(e.feed_image_url)
+      cur.art ??= resolveMediaUrl(e.feed_artwork_url || e.feed_image_url)
     } else {
       byFeed.set(e.feed_id, {
         feed_id: e.feed_id,
         title: e.podcast_title ?? e.feed_id,
         count: 1,
         // The FEED image, never the episode's own — this row is the show, not an episode of it.
-        art: resolveMediaUrl(e.feed_image_url),
+        // `feed_artwork_url` is our stored copy; `feed_image_url` is the feed-hosted original and
+        // only a fallback, since it points off-origin and is frequently unreachable.
+        art: resolveMediaUrl(e.feed_artwork_url || e.feed_image_url),
       })
     }
   }

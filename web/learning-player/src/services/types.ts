@@ -67,6 +67,12 @@ export interface EpisodeSummary {
   feed_image_url: string | null
   /** Preferred artwork (our locally-stored copy, thumb size) when present; else use image urls. */
   artwork_url: string | null
+  /**
+   * The SHOW's own locally-stored artwork — distinct from `artwork_url`, which prefers the
+   * EPISODE's image when it has one. A surface grouping episodes by show needs this; `artwork_url`
+   * would give it whichever episode came first, which is that episode's art, not the show's.
+   */
+  feed_artwork_url?: string | null
   status: EpisodeStatus
   /** Short, clean one-line lede for the card (NOT the bullets joined). */
   summary_preview: string | null

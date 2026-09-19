@@ -128,6 +128,15 @@ class AppEpisodeSummary(BaseModel):
         description="Preferred artwork: our locally-stored copy (thumb size) when present. "
         "Clients use this, falling back to the remote image URLs.",
     )
+    feed_artwork_url: str | None = Field(
+        default=None,
+        description=(
+            "The SHOW's locally-stored artwork (thumb size) — distinct from ``artwork_url``, which "
+            "prefers the EPISODE's own image when it has one. A surface that groups episodes by "
+            "show and wants a cover per show needs this: ``artwork_url`` would hand it whichever "
+            "episode happened to come first, which is that episode's art, not the show's."
+        ),
+    )
     status: Literal["ready", "pending"] = Field(
         default="ready",
         description="Playability: 'ready' when a transcript exists, else 'pending'. "
