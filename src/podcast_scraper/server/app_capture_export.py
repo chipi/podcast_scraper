@@ -13,6 +13,7 @@ nags you, which means nothing in a vault you may read years from now in another 
 from __future__ import annotations
 
 import html
+import os
 import time
 from dataclasses import dataclass, field
 
@@ -237,6 +238,54 @@ def render_highlights_markdown(
 # platform we ship, including the iOS share sheet. So this emits the same document with a print
 # stylesheet and lets the browser convert.
 
+BRAND_NAME = "Close Listening"
+BRAND_ACCENT = "#efa843"  # --lp-brand-default; the app's one accent
+BRAND_INK = "#080d1b"  # --lp-canvas
+
+
+def public_origin() -> str:
+    """The origin export links point at, e.g. ``https://closelistening.app``.
+
+    Shared by every exporter: the vault writer, the printable capture sheet and the episode
+    notes sheet all stamp the same origin, so a reader can tell where a loose PDF came from.
+
+    Configured, NOT derived from the request Host, for a reason specific to this exporter: vault
+    note content is HASHED to drive the incremental-export cursor. A host-derived URL would change
+    every note's hash the moment the user exported from a different origin (native shell, a tunnel,
+    localhost), turning a no-op export into a full rewrite of their vault.
+
+    Links must be ABSOLUTE or they do not work at all: a vault note is read inside Obsidian, where
+    ``/episode/x`` resolves against the VAULT, not against any website, and silently dead-ends.
+    """
+    raw = (os.environ.get("APP_PUBLIC_ORIGIN") or "https://closelistening.app").strip()
+    return raw.rstrip("/").splitlines()[0] if raw else "https://closelistening.app"
+
+
+def brand_header(subtitle: str | None = None) -> str:
+    """The masthead band every printed export carries.
+
+    A PDF leaves the app and outlives it — on a desktop, in a vault, attached to an email. Without a
+    wordmark it is an anonymous page of quotes and nobody can tell where it came from or go back to
+    the source (operator 2026-09-19).
+    """
+    sub = f'<span class="brandsub">{_e(subtitle)}</span>' if subtitle else ""
+    return (
+        '<header class="brandbar">'
+        f'<span class="brandmark">{_e(BRAND_NAME)}</span>{sub}'
+        "</header>"
+    )
+
+
+def brand_footer(origin: str) -> str:
+    """Where it came from and how to get back — the thing a shared PDF needs most."""
+    return (
+        '<footer class="brandfoot">'
+        f"Exported from {_e(BRAND_NAME)} · "
+        f'<a href="{_e(origin)}">{_e(origin.replace("https://", "").replace("http://", ""))}</a>'
+        "</footer>"
+    )
+
+
 _PRINT_CSS = """
   :root { color-scheme: light; }
   body {
@@ -263,6 +312,24 @@ _PRINT_CSS = """
   .about, .note { font-size: .82rem; color: #555; margin: .2rem 0 0 .2rem; }
   .note { color: #333; }
   a { color: #1a1a1a; text-decoration: none; border-bottom: 1px solid #ccc; }
+
+  /* Brand chrome. Deliberately a BAND rather than a dark page: the body stays light because this
+     is a document people print, and a navy A4 page is a ruined cartridge. The accent rule and the
+     wordmark carry the identity instead. */
+  .brandbar {
+    display: flex; align-items: baseline; gap: .6rem;
+    border-bottom: 2px solid #efa843; padding-bottom: .5rem; margin-bottom: 1.5rem;
+  }
+  .brandmark {
+    font: 600 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .18em; text-transform: uppercase; color: #080d1b;
+  }
+  .brandsub { font-size: .72rem; color: #888; letter-spacing: .04em; }
+  .brandfoot {
+    margin-top: 2.5rem; padding-top: .6rem; border-top: 1px solid #e3e3e3;
+    font-size: .72rem; color: #888;
+  }
+  .brandfoot a { color: #888; border-bottom: none; }
 
   @media print {
     /* Margins belong to the page box, not the body, or every printed page loses its top margin. */
@@ -298,10 +365,13 @@ def render_highlights_html(
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         "<title>My Highlights</title>",
         f"<style>{_PRINT_CSS}</style></head><body>",
+        brand_header(),
         "<h1>My Highlights</h1>",
     ]
     if not episodes and not orphan_notes:
-        out.append("<p class='sub'>No highlights captured yet.</p></body></html>")
+        out.append("<p class='sub'>No highlights captured yet.</p>")
+        out.append(brand_footer(public_origin()))
+        out.append("</body></html>")
         return "\n".join(out)
 
     total = sum(len(ep.highlights) for ep in episodes)
@@ -362,5 +432,6 @@ def render_highlights_html(
     if kept:
         out.append("<h2>Other notes</h2>")
         out += [f"<p class='note'>{_e(n)}</p>" for n in kept]
+    out.append(brand_footer(public_origin()))
     out.append("</body></html>")
     return "\n".join(out)
