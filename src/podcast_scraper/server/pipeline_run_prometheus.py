@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -140,7 +141,7 @@ def _ensure_prom_hist() -> None:
     _PROM_STATE["jobs_finished"] = Counter(
         "podcast_pipeline_jobs_finished_total",
         "Pipeline subprocess jobs that reached a terminal status.",
-        ["status"],
+        ["status", "command_type"],
     )
     _PROM_STATE["run_json_hits"] = Counter(
         "podcast_pipeline_run_json_observed_total",
@@ -218,8 +219,34 @@ def _observe_metrics_mapping(metrics: Mapping[str, Any]) -> None:
             _PROM_STATE[prom_key].inc(val)
 
 
+#: ``command_type`` values allowed onto the metric as themselves. Anything else collapses to
+#: ``other``. The set mirrors ``jobs.COMMAND_*``; it is duplicated rather than imported because
+#: importing ``server.jobs`` here would pull the whole job-runner in at metrics-init time.
+#: ``test_command_type_label_allows_every_declared_command`` asserts the two stay in step.
+_KNOWN_COMMAND_TYPES = frozenset(
+    {"full_incremental_pipeline", "corpus_enrichment", "corpus_reindex"}
+)
+
+
+def _command_type_label(job: Mapping[str, Any]) -> str:
+    """Bound the ``command_type`` label to a known set.
+
+    A label fed straight from a record field is where cardinality explodes: the values are
+    fixed constants today, but nothing stops a future caller passing a per-run string, and a
+    counter with unbounded labels degrades the whole TSDB rather than just this metric.
+    """
+    value = str(job.get("command_type") or "").strip()
+    return value if value in _KNOWN_COMMAND_TYPES else "other"
+
+
 def observe_pipeline_terminal_metrics(corpus_root: Path, job: Mapping[str, Any]) -> None:
-    """Record Prometheus samples after ``jobs._finalize_job`` updates *job*."""
+    """Record Prometheus samples after ``jobs._finalize_job`` updates *job*.
+
+    The ``command_type`` label on ``podcast_pipeline_jobs_finished_total`` is what lets an
+    alert say "the NIGHTLY has not completed" rather than "no job of any kind has completed".
+    Without it, an operator-triggered enrichment succeeding would mask a dead nightly — and
+    the stalled-ingestion alert has to distinguish those two (#2119 follow-up).
+    """
     if not _env_metrics_enabled():
         return
     _ensure_prom_hist()
@@ -231,7 +258,7 @@ def observe_pipeline_terminal_metrics(corpus_root: Path, job: Mapping[str, Any])
     if status not in {"succeeded", "failed", "cancelled", "stale"}:
         return
 
-    jobs_ctr.labels(status=status).inc()
+    jobs_ctr.labels(status=status, command_type=_command_type_label(job)).inc()
 
     if status != "succeeded":
         return
@@ -272,8 +299,88 @@ def observe_pipeline_terminal_metrics(corpus_root: Path, job: Mapping[str, Any])
         _observe_metrics_mapping(metrics_any)
 
 
+def last_success_age_seconds(corpus_root: Path, now: float | None = None) -> dict[str, float]:
+    """Seconds since the most recent SUCCESSFUL job of each ``command_type``.
+
+    Read from the job registry rather than accumulated in memory, which is the property that
+    matters: the registry is durable, so this survives an API restart or a deploy. A counter
+    cannot do that — ``increase(...[36h])`` over a series that was reset minutes ago reports
+    nothing-has-succeeded, which is indistinguishable from a genuine stall.
+
+    Command types with no successful job are ABSENT from the result, never zero. Zero would
+    read as "succeeded just now" and invert any alert built on it.
+    """
+    from podcast_scraper.server.pipeline_job_registry import read_jobs
+
+    now = time.time() if now is None else now
+    newest: dict[str, float] = {}
+    for job in read_jobs(corpus_root):
+        if str(job.get("status") or "").strip().lower() != "succeeded":
+            continue
+        raw_ended = job.get("ended_at")
+        ended = parse_iso_utc_z(raw_ended if isinstance(raw_ended, str) else None)
+        if ended is None:
+            continue
+        label = _command_type_label(job)
+        ts = ended.timestamp()
+        if ts > newest.get(label, float("-inf")):
+            newest[label] = ts
+    # Clamp at 0: a job record timestamped slightly in the future (clock skew between the
+    # pipeline container and the API) must not produce a negative age that reads as healthy.
+    return {label: max(0.0, now - ts) for label, ts in newest.items()}
+
+
+def install_job_age_metrics(corpus_root: Path) -> bool:
+    """Publish ``podcast_pipeline_last_success_age_seconds`` for the job registry.
+
+    THE SIGNAL THIS REPLACES
+    ------------------------
+    The ``podcast-ingest-stalled`` alert used to query the VictoriaLogs tail of the job
+    registry file. That could never work: the registry is a MUTABLE document rewritten whole
+    on every status change (``pipeline_job_registry.write_jobs_atomic`` does a temp-file
+    rename), while Alloy tails it with ``loki.source.file``, which assumes append-only. The
+    tailer resumes at a stale byte offset inside a rewritten file and ships JSON fragments.
+
+    Measured over 30 days, the alert's exact query matched on exactly ONE day — the day the
+    whole file happened to be re-read from offset zero. Every other day: nothing. The alert
+    was not broken recently; it never worked, and a bulk re-read was the only thing that ever
+    made it look green.
+
+    Collected at scrape time so the value reflects the registry as of the scrape.
+    Never raises: telemetry must not break the app (ADR-120).
+    """
+    try:
+        from prometheus_client import REGISTRY
+        from prometheus_client.core import GaugeMetricFamily
+    except Exception:  # noqa: BLE001 — metrics extras absent; run without this gauge
+        return False
+
+    class _JobAgeCollector:
+        def collect(self):  # noqa: ANN202 — prometheus_client's duck-typed collector protocol
+            age = GaugeMetricFamily(
+                "podcast_pipeline_last_success_age_seconds",
+                "Seconds since the last successful job of this command_type (absent = never).",
+                labels=["command_type"],
+            )
+            try:
+                ages = last_success_age_seconds(corpus_root)
+            except Exception:  # noqa: BLE001 — an unreadable registry exports nothing
+                ages = {}
+            for label, seconds in ages.items():
+                age.add_metric([label], seconds)
+            yield age
+
+    try:
+        REGISTRY.register(_JobAgeCollector())  # type: ignore[arg-type]
+    except Exception:  # noqa: BLE001 — duplicate registration on app re-create is harmless
+        return False
+    return True
+
+
 __all__ = [
     "discover_run_json_paths_in_mtime_window",
+    "install_job_age_metrics",
+    "last_success_age_seconds",
     "observe_pipeline_terminal_metrics",
     "parse_iso_utc_z",
 ]

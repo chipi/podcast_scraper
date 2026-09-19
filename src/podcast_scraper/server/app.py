@@ -580,6 +580,27 @@ def _install_digest_health_metrics(app: FastAPI) -> None:
         logger.exception("digest health gauges failed to install — continuing without")
 
 
+def _install_job_age_metrics(app: FastAPI) -> None:
+    """Register ``podcast_pipeline_last_success_age_seconds`` from the job registry (#2119).
+
+    Reads ``app.state.output_dir`` (the corpus anchor), so it must be called AFTER that is
+    set — the same ordering trap that made the digest gauges export nothing on their first
+    deploy. ``tests/integration/server/test_job_age_metrics_wiring.py`` builds a real app and
+    pins it.
+    """
+    if not _env_truthy("PODCAST_METRICS_ENABLED"):
+        return
+    corpus_root = getattr(app.state, "output_dir", None)
+    if corpus_root is None:
+        return
+    try:
+        from podcast_scraper.server import pipeline_run_prometheus
+
+        pipeline_run_prometheus.install_job_age_metrics(Path(corpus_root))
+    except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
+        logger.exception("job age gauge failed to install — continuing without")
+
+
 def _install_exception_handlers(app: FastAPI) -> None:
     """App-wide error handlers: corpus-path failures, and a 422 body that can be serialised.
 
@@ -771,6 +792,7 @@ def create_app(
 
     # MUST stay below _configure_platform_auth — see the function's docstring for why.
     _install_digest_health_metrics(app)
+    _install_job_age_metrics(app)
 
     app.state.feeds_api_enabled = bool(enable_feeds_api)
     app.state.operator_config_api_enabled = bool(enable_operator_config_api)

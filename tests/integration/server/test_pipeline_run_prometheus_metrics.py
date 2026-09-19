@@ -37,3 +37,46 @@ def test_observe_increments_cost_and_volume_counters() -> None:
     assert _val("run_episodes") == before["run_episodes"] + 3
     assert _val("run_gi_artifacts") == before["run_gi_artifacts"] + 3
     assert _val("run_kg_artifacts") == before["run_kg_artifacts"] + 2
+
+
+def _jobs_counter_value(status: str, command_type: str) -> float:
+    prm._ensure_prom_hist()
+    ctr = prm._PROM_STATE.get("jobs_finished")
+    if ctr is None:
+        return 0.0
+    return float(ctr.labels(status=status, command_type=command_type)._value.get())
+
+
+def test_terminal_metrics_label_the_counter_by_command_type(monkeypatch, tmp_path) -> None:
+    """The nightly and an operator-triggered enrichment must land on SEPARATE series.
+
+    Sharing one series is what left the stalled-ingestion alert unable to tell "the nightly is
+    dead" from "something, anything, succeeded recently" (#2119 follow-up).
+    """
+    monkeypatch.setenv("PODCAST_METRICS_ENABLED", "1")
+    # No run.json in the corpus, so the call returns right after the counter increment — this
+    # isolates the labelling from the run.json discovery path.
+    monkeypatch.setattr(prm, "discover_run_json_paths_in_mtime_window", lambda *a, **k: [])
+
+    before_nightly = _jobs_counter_value("succeeded", "full_incremental_pipeline")
+    before_enrich = _jobs_counter_value("succeeded", "corpus_enrichment")
+
+    prm.observe_pipeline_terminal_metrics(
+        tmp_path, {"status": "succeeded", "command_type": "full_incremental_pipeline"}
+    )
+
+    assert _jobs_counter_value("succeeded", "full_incremental_pipeline") == before_nightly + 1
+    # The enrichment series must NOT have moved — that separation is the entire point.
+    assert _jobs_counter_value("succeeded", "corpus_enrichment") == before_enrich
+
+
+def test_unknown_command_type_lands_on_other_not_its_own_series(monkeypatch, tmp_path) -> None:
+    """Cardinality guard: an unrecognised value must not mint a new series."""
+    monkeypatch.setenv("PODCAST_METRICS_ENABLED", "1")
+    monkeypatch.setattr(prm, "discover_run_json_paths_in_mtime_window", lambda *a, **k: [])
+
+    before = _jobs_counter_value("failed", "other")
+    prm.observe_pipeline_terminal_metrics(
+        tmp_path, {"status": "failed", "command_type": "adhoc-run-9e2f"}
+    )
+    assert _jobs_counter_value("failed", "other") == before + 1
