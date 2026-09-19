@@ -299,3 +299,47 @@ def test_get_content_source_honors_override(tmp_path: Path) -> None:
     sentinel = object()
     state = SimpleNamespace(content_source=sentinel)
     assert get_content_source(state, tmp_path) is sentinel
+
+
+class TestTheShowsOwnArtworkIsSeparableFromTheEpisodesOwn:
+    """``feed_artwork_url`` vs ``artwork_url`` (operator 2026-09-19).
+
+    The topic card's "strongest shows" rows group episodes by feed and want a cover PER SHOW.
+    ``artwork_url`` cannot answer that: it prefers the EPISODE's own image when it has one, so the
+    row would wear whichever episode happened to sort first and call that the show's cover. The
+    only show-level value previously on the payload was ``feed_image_url`` — the feed-hosted
+    original, which points off-origin and is routinely unreachable, and which duly rendered as
+    broken images the first time these rows shipped.
+    """
+
+    def _summary(self, tmp_path, *, episode_art: str | None, feed_art: str | None):
+        from dataclasses import replace
+
+        from podcast_scraper.server.app_content_source import row_to_summary
+
+        row = replace(
+            _row(),
+            episode_image_local_relpath=episode_art,
+            feed_image_local_relpath=feed_art,
+        )
+        return row_to_summary(tmp_path, row)
+
+    def test_the_feed_art_is_reported_even_when_the_episode_has_its_own(self, tmp_path) -> None:
+        s = self._summary(tmp_path, episode_art="art/ep.webp", feed_art="art/feed.webp")
+        # The two answer different questions and must not collapse into one.
+        assert "ep.webp" in (s.artwork_url or "")
+        assert "feed.webp" in (s.feed_artwork_url or "")
+        assert s.artwork_url != s.feed_artwork_url
+
+    def test_an_episode_without_its_own_image_falls_back_to_the_feed_for_BOTH(self, tmp_path):
+        # The common case. `artwork_url` already fell back here; the point is that
+        # `feed_artwork_url` agrees rather than going empty.
+        s = self._summary(tmp_path, episode_art=None, feed_art="art/feed.webp")
+        assert "feed.webp" in (s.artwork_url or "")
+        assert "feed.webp" in (s.feed_artwork_url or "")
+
+    def test_no_feed_art_is_None_rather_than_a_malformed_url(self, tmp_path) -> None:
+        # The client does `feed_artwork_url || feed_image_url`, so a truthy-but-broken value would
+        # suppress the fallback and render a broken image instead of the remote original.
+        s = self._summary(tmp_path, episode_art=None, feed_art=None)
+        assert s.feed_artwork_url is None

@@ -151,10 +151,17 @@ describe("EntityCard", () => {
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
 
-    const chips = w.findAll('[data-testid="ec-similar-topic"]').map((n) => n.text())
-    expect(chips).toEqual(["Machine Learning"])
-    // The title still renders "AI" — this asserts it is not ALSO a chip in that section.
-    expect(chips).not.toContain("AI")
+    // Scoped to the SECTION, not to the chip testid. The old shape rendered the current topic as a
+    // ringed `<span>` WITHOUT that testid, so asserting over `ec-similar-topic` alone would pass
+    // with the bug restored — it would simply not see the element it is supposed to catch.
+    const section = w.find('[data-testid="ec-similar-topics"]')
+    expect(section.exists()).toBe(true)
+    expect(section.text()).toContain("Machine Learning")
+    expect(section.text()).not.toContain("AI")
+
+    // And the count agrees with what is listed — the half that made the heading a lie.
+    expect(section.text()).toContain("1 similar topic")
+    expect(section.findAll('[data-testid="ec-similar-topic"]')).toHaveLength(1)
   })
 
   it("the library search lives inside the card (button → search route, then closes)", async () => {

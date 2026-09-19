@@ -61,6 +61,10 @@ const expandedAll = ref(false)
 const total = ref(0)
 watch(discoveryTab, () => {
   expandedAll.value = false
+  // Also clear the COUNT. It is the previous tab's until the new fetch emits, so a tab with more
+  // than `collapsed` rows briefly lent its control to a tab that fits — a button appearing and
+  // then vanishing on its own.
+  total.value = 0
 })
 
 const discoverySort = ref<"rising" | "trending">("rising")
@@ -92,6 +96,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         type="button"
         class="lp-tap shrink-0 whitespace-nowrap text-sm font-bold text-accent"
         :aria-expanded="expandedAll"
+        :aria-controls="panelAttrs('discovery', discoveryTab).id"
         data-testid="discovery-see-all"
         @click="expandedAll = !expandedAll"
       >{{ expandedAll ? t("home.showLess") : t("home.seeAll") }} {{ expandedAll ? "‹" : "›" }}</button>
@@ -137,6 +142,9 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
       </div>
     </div>
 
+    <!-- `panelAttrs` already mints this panel's id; the header's expand control points
+         `aria-controls` at THAT one. A second hardcoded id here would be dropped by Vue (duplicate
+         attribute) and the control would reference an element that does not exist. -->
     <div v-bind="panelAttrs('discovery', discoveryTab)">
       <DiscoveryList
         :kind="discoveryTab"

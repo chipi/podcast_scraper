@@ -20,8 +20,9 @@ Within the Insights panel's compact, expandable **Topics & People** row:
 - **Order:** the **dominant cluster** (most of this episode's topics, ≥2) leads; its chips get a
   1px **`ring-topic`** outline to stand out. Other clustered topics follow (larger intra-episode
   groups first); singleton topics trail; **people** chips (`text-person`) come after topics.
-- **Theme lead-in:** a small `text-topic` line beside the section header — **"Theme · {cluster}"**
-  — names the dominant cluster (hidden when there is none).
+- **Storyline lead-in:** a small line beside the section header — **"Storyline · {cluster}"** —
+  names the dominant co-occurrence cluster (hidden when there is none). This said "Theme ·" until
+  2026-09-19; see **Vocabulary** below for which word now names which object.
 - **Affordance:** tapping a chip opens its **entity card** (3.2/3.3 — shipped; the Epic-2
   chip→search default now lives as an explicit action inside the card). The dominant ring is a
   *visual* cue, not a new control. Collapsed at 6 chips; **+N …** expands.
@@ -42,9 +43,10 @@ person↔topic↔organization walk in a single panel:
 - **Person card:** a "Person" kicker + name, an "In {n} episodes" list (artwork + title), related
   people/topics chips, and a "Search the library for {name}" action. No avatar/role/bio — the
   consumer scope is lean. Data: KG co-occurrence via `GET /api/app/persons/{id}`.
-- **Topic card:** a "Topic" kicker + label, the cluster **"Theme · {cluster}"** line, sibling-theme
-  chips ("More in this theme"), a "Discussed in {n} episodes" list, and related people. Data:
-  `GET /api/app/topics/{id}`.
+- **Topic card:** a "Topic" kicker + label, a **"Part of a storyline"** row linking the
+  co-occurrence cluster, **"{n} similar topics"** chips (the semantic siblings — and NOT the topic
+  you are reading, which is not similar to itself), a "Discussed in {n} episodes" list capped at 10,
+  and related people. Data: `GET /api/app/topics/{id}`.
 - **Organization card (#2031):** an "Organization" kicker + name, a "Mentioned in {n} episodes"
   list, and co-occurring people / **other organizations** / topics chips. Leaner still than the
   person card — no follow-adjacent save/collection — but it DOES carry a lean web block
@@ -56,6 +58,23 @@ person↔topic↔organization walk in a single panel:
 - **Open/close:** tap to open; mobile = bottom sheet with backdrop; desktop = centred panel. Modal
   a11y: `role="dialog"`/`aria-modal`, focus trap, initial focus + restore-on-close; dismiss via
   ESC, backdrop, or the ✕ control.
+
+## Vocabulary — which word names which object (settled 2026-09-19)
+
+The two cluster kinds are built differently and the wire names INVERT against the reader-facing
+ones. Getting this backwards is the recurring failure (#1603), so it is stated once here:
+
+| Wire prefix | Backend name | Built from | Reader-facing name |
+| --- | --- | --- | --- |
+| `thc:` | theme cluster | **co-occurrence** — topics that keep coming up together | **Storyline** |
+| `tc:` | topic cluster | **vector similarity** — topics that mean similar things | **Theme** |
+
+The wire prefixes are stored per user and cannot be renamed. `interestKind()` in
+`web/learning-player/src/utils/interests.ts` is the boundary where they stop mattering — every
+surface should take its word from there rather than from the prefix.
+
+This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in and the remaining
+`"theme"`/`"similar"` i18n pair are tracked on #1603.
 
 ## Entities in search (3.4 — shipped)
 

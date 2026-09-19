@@ -21,9 +21,24 @@ logger = logging.getLogger(__name__)
 
 THEME_CLUSTERS_REL = os.path.join("enrichments", "topic_theme_clusters.json")
 
+#: ``abs path -> (mtime_ns, size, payload)``. See :func:`_load_theme_clusters_payload`.
+_PAYLOAD_CACHE: Dict[str, tuple[int, int, Optional[Dict[str, Any]]]] = {}
+
 
 def _load_theme_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
-    """Path-safe load of ``enrichments/topic_theme_clusters.json`` (None if missing/invalid)."""
+    """Path-safe load of ``enrichments/topic_theme_clusters.json`` (None if missing/invalid).
+
+    Cached on ``(mtime_ns, size)``, because this is read on a REQUEST path and was re-parsing the
+    whole artifact every time. ``GET /trending?kind=storyline`` alone paid for it twice: once
+    through the momentum layer and again through :func:`theme_cluster_anchors`. The server has a
+    corpus-mtime cache for exactly this class of artifact (``cached_json_artifact``) which the
+    momentum layer already uses — but ``search`` does not import ``server`` and must not start, so
+    the equivalent lives here.
+
+    Keyed on the FILE's own mtime and size rather than the corpus root's, so a re-enrichment that
+    rewrites this artifact alone still invalidates. The returned dict is SHARED: callers derive new
+    structures from it and none mutate it, the same convention `cached_json_artifact` documents.
+    """
     root_p = safe_resolve_directory(corpus_root)
     if root_p is None:
         return None
@@ -35,6 +50,18 @@ def _load_theme_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
     # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
     if not os.path.isfile(joined):
         return None
+    # codeql[py/path-injection] -- joined sanitized above.
+    st = os.stat(joined)
+    hit = _PAYLOAD_CACHE.get(joined)
+    if hit is not None and hit[0] == st.st_mtime_ns and hit[1] == st.st_size:
+        return hit[2]
+    payload = _read_theme_clusters_payload(joined)
+    _PAYLOAD_CACHE[joined] = (st.st_mtime_ns, st.st_size, payload)
+    return payload
+
+
+def _read_theme_clusters_payload(joined: str) -> Optional[Dict[str, Any]]:
+    """Parse the already-path-validated artifact at ``joined``."""
     try:
         # codeql[py/path-injection] -- joined sanitized above.
         with open(joined, encoding="utf-8") as fh:

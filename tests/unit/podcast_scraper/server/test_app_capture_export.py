@@ -320,10 +320,25 @@ class TestEveryPrintableDocumentIsBranded:
         for name, doc in self._docs().items():
             assert f'<a href="{origin}"' in doc, f"{name}'s footer has no link home"
 
-    def test_the_printed_page_body_stays_light(self) -> None:
-        # Deliberate: the app is dark, an A4 page is not. Printing the app's navy canvas would
-        # empty a cartridge rendering a background nobody asked for.
+    def test_the_printed_page_never_paints_a_dark_background(self) -> None:
+        """Deliberate: the app is dark, an A4 page is not.
+
+        This used to slice from the first ``body`` to the first ``}`` and check that window alone.
+        That window is not the whole story — ``@media print`` further down declares ``body`` AGAIN,
+        so a dark rule added there would have shipped with this test green. The question is not
+        "is the first body block light", it is "does anything paint a dark BACKGROUND".
+        """
+        import re
+
         from podcast_scraper.server.app_capture_export import _PRINT_CSS
 
-        body = _PRINT_CSS[_PRINT_CSS.index("body") :].split("}")[0]
-        assert "#080d1b" not in body, "the print body took on the app's dark canvas"
+        # The ink colour legitimately appears as TEXT (the wordmark) — only a background may not be
+        # dark. Match any background declaration carrying the canvas navy, anywhere in the sheet.
+        dark_bg = re.findall(r"background[^;{}]*:[^;{}]*#080d1b", _PRINT_CSS, re.I)
+        assert not dark_bg, f"the printed page paints the app's dark canvas: {dark_bg}"
+
+        # And the premise: the sheet does use that colour somewhere, so a future refactor that
+        # renames the token does not leave this passing over a string that no longer appears.
+        assert (
+            "#080d1b" in _PRINT_CSS
+        ), "the canvas colour is gone — is this guard still meaningful?"

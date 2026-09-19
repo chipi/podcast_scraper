@@ -363,3 +363,24 @@ def get_items(data_dir: Path, user_id: str, collection_id: str) -> list[dict[str
     if not _is_safe_user_id(user_id):
         return []
     return list(_read(data_dir, user_id)["items"].get(collection_id, []))
+
+
+def collections_containing(data_dir: Path, user_id: str, kind: str, ref: str) -> set[str]:
+    """Ids of the collections holding ``(kind, ref)`` — ONE read of the user's file.
+
+    The add-to-collection picker needs this for every row at once. Asking per row via
+    :func:`get_items` is a full read and JSON parse of the SAME file each time: with the
+    ``_MAX_COLLECTIONS`` cap of 200 that is 200 reads to answer one question, all of them
+    synchronous and all of them on the request path of a menu the user opens constantly.
+
+    Membership lives in one document, so the answer is one pass over it.
+    """
+    if not _is_safe_user_id(user_id):
+        return set()
+    want = (str(kind), str(ref))
+    items = _read(data_dir, user_id)["items"]
+    return {
+        str(cid)
+        for cid, members in items.items()
+        if any(_item_key(m) == want for m in members or [])
+    }

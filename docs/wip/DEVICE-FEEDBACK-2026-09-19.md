@@ -14,7 +14,7 @@ trend row needs an **anchor topic id**. The client derived one by joining the tr
 `GET /theme-clusters` on `thc:` id. Those two lists never covered the same set and could not:
 
 | | ranked by | member floor |
-|---|---|---|
+| --- | --- | --- |
 | `/theme-clusters` | size, top-N | ≥ 4 (`DEFAULT_MIN_THEME_MEMBERS`) |
 | `/trending?kind=storyline` | momentum | none |
 
@@ -42,7 +42,7 @@ a false claim the moment each profile pill named itself. They are different obje
 names invert against the reader-facing ones:
 
 | Wire prefix | Backend name | Built from | Reader-facing name |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `thc:` | theme cluster | co-occurrence — topics that keep coming up together | **Storyline** |
 | `tc:` | topic cluster | vector similarity — topics that mean similar things | **Theme** |
 
@@ -53,8 +53,8 @@ storyline pill uses, and the token now renders the thing it is named after.
 ## Layout and behaviour
 
 | # | Ask | What changed |
-|---|---|---|
-| 4 | Transcript: time first, subtle separator, speaker, flush left | The only thing between speaker and time was the green **grounded** marker — present on a paragraph that grounds an insight, absent otherwise — so the line appeared to gain and lose punctuation depending on content. Order is now fixed and the marker is gone from that row; grounded-ness stays signalled on the paragraph (underline + `aria-label`), so removing it does not reduce the state to colour. |
+| --- | --- | --- |
+| 4 | Transcript: time first, subtle separator, speaker, flush left | The only thing between speaker and time was the green **grounded** marker — present on a paragraph that grounds an insight, absent otherwise — so the line appeared to gain and lose punctuation depending on content. Order is now fixed and the marker is gone from that row; grounded-ness stays signalled in three places — the timestamp keeps `text-grounded`, and every grounded segment in the paragraph carries an underline plus a `groundedSegment` aria-label — so removing the dot does not reduce the state to colour. |
 | 5 | Similar topics should not list the current topic | It led the list as a ringed chip and was counted, so the heading disagreed with what was under it. Both fixed. |
 | 6 | Conversation-over-time chart up beside the sparkline | Was at the foot of the page below the episode list — two time-series about one topic at opposite ends of a long scroll. |
 | 7 | Perspectives up under Top voices | Same people, named. |

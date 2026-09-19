@@ -548,8 +548,10 @@ onMounted(load)
              kicker is the load-bearing part: these three colours sit close in value by design (the
              knowledge layer is meant to be quiet), so hue alone was never going to carry the
              distinction, and it carries nothing at all for a colour-blind reader. Storyline reuses
-             the accent treatment the topic card's storyline pill already uses, so the same object
-             looks the same wherever it appears. -->
+             the accent treatment the Knowledge Panel's storyline pill uses, so the same object looks
+             the same in both places a PILL renders it. The topic card renders a storyline as a
+             full-width bordered row instead — a different component for a different job, not a
+             third style for the same one. -->
         <div v-if="interestLabels.length" class="flex flex-wrap gap-1.5">
           <span
             v-for="i in interestLabels"

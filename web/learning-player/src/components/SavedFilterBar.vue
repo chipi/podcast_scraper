@@ -4,7 +4,7 @@
  * every section at once, instead of a colour filter buried inside the Highlights list.
  *
  * Three controls: **type** chips (which saved kinds to show — multi-select, none selected = all),
- * a collapsed **colour** filter (the always-on swatch strip is now behind one "Colour" toggle), and
+ * an always-on **colour** swatch strip (the whole palette, not only the colours in use), and
  * a **sort** select. Type chips render only for kinds present and colour swatches only for colours
  * in use, so the bar never offers a filter that would empty the list — same presence rule as the
  * sections themselves (#1962 single-empty-state).
@@ -136,7 +136,7 @@ function clearAll(): void {
     <div class="flex items-center gap-2">
       <div
         v-if="showColors"
-        class="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        class="flex min-w-0 items-center gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="group"
         :aria-label="t('library.savedFilterColor')"
       >

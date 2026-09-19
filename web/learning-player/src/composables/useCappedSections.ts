@@ -10,9 +10,9 @@ import { reactive } from 'vue'
  * - **expand-all** (default, `step` unset): one toggle swaps between the first `cap` and the whole
  *   list. Right for a section of six-ish where the full set is still one screen.
  * - **incremental** (`step` set): each press reveals another `step` items, so a long list is walked
- *   a page at a time rather than dumped. Downloads uses 5 + 5; the Saved episode sections and the
- *   highlights inside an episode use 10. "Show all" on a hundred captures is not a page, it is a
- *   scroll with no landmarks.
+ *   a page at a time rather than dumped. Downloads and the Saved sections (shows + episodes) use
+ *   5 + 5; the highlights inside an episode use 10. "Show all" on a hundred captures is not a page,
+ *   it is a scroll with no landmarks.
  *
  * Both share one state map, so a caller reads the same `visible` / `overflows` pair either way and
  * the section markup does not care which mode it is in.

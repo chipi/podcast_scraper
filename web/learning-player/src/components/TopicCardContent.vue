@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * Topic card BODY — the topic-specific sections of the entity card, in operator-reviewed order:
- * the rising-momentum badge LEADS, then similar topics, the storyline link (opens the storyline
- * overlay on top), strongest shows, TOP VOICES, search, episodes, conversation arc, perspectives,
+ * the rising-momentum badge and the activity sparkline LEAD, then the conversation arc (the two
+ * charts read as a pair), similar topics, the storyline link (opens the storyline overlay on top),
+ * strongest shows, TOP VOICES, perspectives (the same people the voices name), search, episodes,
  * notes. The shell ({@link EntityCardBody}) owns the back-stack, header and load; this renders the
  * loaded `TopicCard`. Graph navigation emits `open`; `close` dismisses the whole card.
  *
@@ -208,7 +209,7 @@ function searchLibrary(): void {
        marked. On the page that reasoning does not survive: the heading says "N similar topics" and
        the first thing under it is the topic whose page you are reading, which is not similar to
        itself. The count now counts what is actually listed. -->
-  <section v-if="siblings.length" class="mb-4">
+  <section v-if="siblings.length" class="mb-4" data-testid="ec-similar-topics">
     <h3 class="lp-section mb-2">
       {{ t("ec.clusterMembers", siblings.length, { named: { count: siblings.length } }) }}
     </h3>

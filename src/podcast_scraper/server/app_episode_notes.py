@@ -31,8 +31,8 @@ from podcast_scraper.server.app_capture_export import (
     captured_on,
     format_duration,
     KIND_LABELS,
+    public_origin,
 )
-from podcast_scraper.server.app_pkm_export import public_origin
 
 
 @dataclass
