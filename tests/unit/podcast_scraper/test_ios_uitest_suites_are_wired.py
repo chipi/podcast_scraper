@@ -29,7 +29,7 @@ UITESTS_DIR = REPO_ROOT / "web/learning-player/ios/uitests/Sources/UITests"
 MAKEFILE = REPO_ROOT / "Makefile"
 
 #: Swift files that are shared scaffolding, not suites — no `XCTestCase` of their own to run.
-_SUPPORT_FILES = {"Journey.swift", "AppSession.swift"}
+_SUPPORT_FILES = {"Journey.swift", "AppSession.swift", "UITestCase.swift"}
 
 #: Suites that are deliberately not wired to a target, each with the reason.
 #:
@@ -48,7 +48,12 @@ def _suite_names() -> list[str]:
         text = path.read_text(encoding="utf-8")
         if not re.search(r"\bfunc\s+test\w*\s*\(", text):
             continue
-        for match in re.finditer(r"\bclass\s+(\w+)\s*:\s*XCTestCase\b", text):
+        # Matches the BASE too: #2091 moved every suite onto `UITestCase` (which itself subclasses
+        # XCTestCase for the per-suite account + known-state setUp), and a regex pinned to
+        # `XCTestCase` then found zero suites. It failed loudly rather than passing vacuously —
+        # `test_uitests_dir_is_found` exists for exactly that — but it is a reminder that a guard
+        # naming one superclass goes stale the moment a base class appears.
+        for match in re.finditer(r"\bclass\s+(\w+)\s*:\s*(?:XCTestCase|UITestCase)\b", text):
             names.append(match.group(1))
     return names
 
