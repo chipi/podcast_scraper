@@ -668,28 +668,26 @@ COVERAGE_THRESHOLD_INTEGRATION := 42   # Raised 2026-04: integration-only line c
 # Keep in lockstep with --cov-fail-under in python-app.yml and nightly.yml; asserted by
 # tests/unit/test_viewer_e2e_jobs_stay_in_lockstep.py. This copy sat at 39 while CI moved
 # to 38.5, so `make coverage-check-e2e` was gating on a number CI had already abandoned.
-# Recalibrated 38.0 -> 37.5 (2026-09-13, #2049): the player/recap/digest/org arc added app-layer
-# subsystems the e2e (pipeline) tier structurally never executes, so the full-package denominator
-# grew while absolute pipeline coverage held — the tier landed at 37.86%.
+# FIXED THE METRIC, not the number (2026-09-19). The e2e run now measures coverage with
+# `.coveragerc-e2e`, which omits the consumer app (`server/app_*.py`, `server/routes/app_*.py`).
 #
-# Recalibrated 37.5 -> 37.0 (2026-09-18, #2118). THE THIRD TIME, and the same cause each time, so
-# the number is not the problem — the metric is. This gate divides PIPELINE coverage by the WHOLE
-# package, and `server/` is now 16,970 of 79,594 statements (21.3%) with 11,239 of them missed,
-# because the e2e tier is pipeline tests and never executes the consumer app. Every app-layer
-# feature therefore lowers this percentage while changing nothing about pipeline test quality.
-# #2118 added ~1,300 app-layer statements and the tier landed at 37.36%.
+# It fell three times for one reason and was "fixed" three times by lowering the floor
+# (38.0 -> 37.5 #2049 -> 37.0 #2118). The cause was never test quality. `tests/e2e/` is 66 files of
+# PIPELINE tests and exactly ONE touches the consumer app; the app is covered by 50 files across
+# tests/unit and tests/integration, which are measured by DIFFERENT gates. So shipping a player
+# feature grew this denominator while its tests landed in another job — the numerator could not
+# move. The gate was measuring the ratio of pipeline code to total code.
 #
-# Headroom matches the #2049 precedent (~0.4 points below the observed figure).
+# It now asks what it always meant to ask: how much of the PIPELINE do the pipeline tests cover.
+# The app is not unmeasured — integration gates it at 42% and combined at 70%, where its tests are.
 #
-# The real fix is to scope this denominator to what the e2e tier actually runs, so the gate
-# measures the thing it claims and stops drifting on unrelated growth. `server/` is not going
-# ungated by that: integration gates it at 42% and the combined gate at 70%, both over the full
-# package. That is a semantic change to a shared gate, so it is the operator's call, not a
-# unilateral one — see the PR discussion for #2118.
+# THE FLOOR IS DELIBERATELY UNCHANGED at 37.0. A single-file probe moved 10.70% -> 11.78% (+1.08),
+# so the full tier should land near 38.5% — but "should" is a guess, and guessing a floor is how
+# main goes red after a merge, which is the failure this whole change exists to stop. Raise it once
+# CI reports the real figure on a full run.
 #
-# NOTE the trap that makes this bite AFTER merge: PRs run `test-e2e-fast` with no coverage gate;
-# only main and nightly run the full tier. An app-layer arc therefore goes green on the PR and red
-# on main. That is a property of the pipeline, not of the change that trips it.
+# Keep in lockstep with --cov-fail-under in python-app.yml and nightly.yml; asserted by
+# tests/unit/test_viewer_e2e_jobs_stay_in_lockstep.py.
 COVERAGE_THRESHOLD_E2E := 37.0
 COVERAGE_THRESHOLD_COMBINED := 70      # Combined line coverage (make ci + coverage-enforce); align with CI workflow
 
@@ -3431,7 +3429,7 @@ coverage-check-e2e:
 	# Check E2E test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_E2E)%)
 	@echo "Checking E2E test coverage (minimum $(COVERAGE_THRESHOLD_E2E)%)..."
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-config=.coveragerc-e2e --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-combined:
 	# Check combined coverage meets threshold ($(COVERAGE_THRESHOLD_COMBINED)%)
