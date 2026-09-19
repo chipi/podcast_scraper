@@ -215,25 +215,18 @@ class TestFixtureMapping:
                         continue
                     if transcript_elem is not None:
                         transcript_url = transcript_elem.get("url", "")
-                        # Transcript URL should point to /transcripts/{guid}.{ext} or the
-                        # relative transcripts/{guid}.{ext}.
-                        #
-                        # ``.vtt`` is allowed alongside ``.txt`` and is the preferred form: a
-                        # WebVTT transcript carries ``<v Speaker>`` voice spans, so it names its
-                        # own turns and the pipeline gets a roster without running a diarizer —
-                        # which is the only way the transcript-download fast path can produce
-                        # ``placed`` speakers at all. The feed still has to name THIS episode's
-                        # transcript, which is what this assertion protects.
-                        candidates = [
-                            f"{prefix}transcripts/{guid}{ext}"
-                            for ext in (".txt", ".vtt")
-                            for prefix in ("/", "")
-                        ]
-                        assert any(
-                            transcript_url == c or transcript_url.endswith(c) for c in candidates
+                        # Transcript URL should point to /transcripts/{guid}.txt
+                        # or transcripts/{guid}.txt (relative)
+                        expected_url_absolute = f"/transcripts/{guid}.txt"
+                        expected_url_relative = f"transcripts/{guid}.txt"
+                        assert (
+                            transcript_url == expected_url_absolute
+                            or transcript_url == expected_url_relative
+                            or transcript_url.endswith(expected_url_absolute)
+                            or transcript_url.endswith(expected_url_relative)
                         ), (
-                            f"Transcript URL {transcript_url} should point to one of "
-                            f"{candidates} for GUID {guid}"
+                            f"Transcript URL {transcript_url} should point to "
+                            f"{expected_url_absolute} or {expected_url_relative} for GUID {guid}"
                         )
 
                         # Verify transcript file exists (extract filename from URL)

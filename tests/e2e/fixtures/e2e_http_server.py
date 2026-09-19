@@ -53,23 +53,13 @@ def _read_fixture_version() -> str:
 _FIXTURE_VERSION = _read_fixture_version()
 _VERSIONED_SUBDIRS: frozenset[str] = frozenset({"audio", "transcripts", "images"})
 
-# Extensions each versioned subdir is allowed to serve (defense in depth: a request for
+# Extension each versioned subdir is allowed to serve (defense in depth: a request for
 # /audio/x.svg or /images/x.mp3 is rejected before any path is built).
-#
-# ``transcripts`` serves BOTH ``.txt`` and ``.vtt``. The fixture feeds advertise WebVTT because a
-# transcript that names its turns (``<v Speaker>``) is a diarization the pipeline does not have to
-# compute — the whole point of the speaker-labelled corpus. Serving only ``.txt`` would 403 every
-# one of those before the pipeline ever saw it.
-_SUBDIR_EXTENSIONS: dict[str, tuple[str, ...]] = {
-    "audio": (".mp3",),
-    "transcripts": (".txt", ".vtt"),
-    "images": (".svg",),
+_SUBDIR_EXTENSIONS: dict[str, str] = {
+    "audio": ".mp3",
+    "transcripts": ".txt",
+    "images": ".svg",
 }
-
-#: Content-Type per transcript extension. WebVTT must NOT be served as ``text/plain``: the
-#: pipeline's ``derive_transcript_extension`` consults the declared type, and a cue file announced
-#: as plain text is a fixture lying about itself.
-_TRANSCRIPT_CONTENT_TYPES: dict[str, str] = {".txt": "text/plain", ".vtt": "text/vtt"}
 
 
 def _anthropic_system_text(system: Any) -> str:
@@ -1001,11 +991,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 # File doesn't exist (validation passed but file not found)
                 self.send_error(404, "File not found")
                 return
-            self._serve_file(
-                file_path,
-                content_type=_TRANSCRIPT_CONTENT_TYPES.get(file_path.suffix, "text/plain"),
-                head_only=head_only,
-            )
+            self._serve_file(file_path, content_type="text/plain", head_only=head_only)
             return
 
         # Route 4: Ollama API endpoints (for health checks and model validation)
@@ -2272,11 +2258,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # Optional: Validate extension matches subdir (defense in depth)
         # This helps ensure we're serving the right type of file
-        expected_extensions = _SUBDIR_EXTENSIONS.get(subdir)
-        if not expected_extensions:
+        expected_extension = _SUBDIR_EXTENSIONS.get(subdir)
+        if expected_extension is None:
             # This should never happen due to validation above, but defensive check
             return None
-        if not filename.endswith(expected_extensions):
+        if not filename.endswith(expected_extension):
             return None
 
         # Return sanitized values (these have passed all validation checks)
