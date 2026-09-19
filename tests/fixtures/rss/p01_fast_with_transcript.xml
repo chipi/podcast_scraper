@@ -18,7 +18,7 @@
       <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
       <description>Maya talks with trail builder Liam Verbeek about drainage, line choice, and keeping trails rideable through winter. Fast test version with transcript URL.</description>
       <enclosure url="/audio/p01_e01_fast.mp3" length="500000" type="audio/mpeg"/>
-      <podcast:transcript url="/transcripts/p01_e01_fast.vtt" type="text/vtt" />
+      <podcast:transcript url="/transcripts/p01_e01_fast.txt" type="text/plain" />
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:01:00</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
