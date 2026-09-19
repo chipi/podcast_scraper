@@ -246,6 +246,14 @@ const PERSON_ROLE_ORDER: Record<string, number> = { host: 0, guest: 1 }
 const personRank = (p: { role?: string | null }): number =>
   PERSON_ROLE_ORDER[(p.role ?? "").toLowerCase()] ?? 2
 
+/** The people in the room, for the dossier line — host and guest only, in that order. */
+const dossierPeople = computed(() =>
+  props.persons
+    .filter((p) => personRank(p) < 2)
+    .slice()
+    .sort((a, b) => personRank(a) - personRank(b))
+)
+
 const allTags = computed<Tag[]>(() => {
   const counts = topicClusterCounts.value
   const dom = dominantClusterId.value
@@ -492,6 +500,34 @@ watch(() => auth.isAuthenticated, loadCaptures)
       </header>
 
       <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <!-- WHICH EPISODE THIS IS (operator 2026-09-19).
+
+             The panel carries the summary, the topics, the people and every insight — it is the
+             episode's dossier — but it opened with a generic "Insights" header and an Ask box, so
+             the document never said what it was about. The title leads; the show is a kicker above
+             it (smaller, the same subordinate relationship the episode rows use); the people in the
+             room follow, host first.
+
+             In the body rather than the sticky header: the header is a fixed-height strip shared
+             with the ✕, and a two-line episode title in it would either clip or push the close
+             control around. -->
+        <section class="mb-5" data-testid="kp-episode-dossier">
+          <p v-if="episode.podcast_title" class="lp-kicker mb-0.5 text-muted">
+            {{ episode.podcast_title }}
+          </p>
+          <h2 class="font-display text-xl font-bold leading-tight text-canvas-foreground">
+            {{ episode.title }}
+          </h2>
+          <!-- Host + guest only. "Mentioned" people are already in the Topics & People chips and
+               would turn a two-name line into a crowd. -->
+          <p v-if="dossierPeople.length" class="mt-1 text-sm text-muted">
+            <span v-for="(p, i) in dossierPeople" :key="p.id">
+              <span v-if="i > 0"> · </span>{{ p.name }}
+              <span class="lp-kicker">{{ roleLabel(p.role ?? undefined) }}</span>
+            </span>
+          </p>
+        </section>
+
         <!-- Ask -->
         <form class="mb-5" @submit.prevent="runSearch">
           <label class="sr-only" for="kp-ask">{{ t("kp.ask") }}</label>
