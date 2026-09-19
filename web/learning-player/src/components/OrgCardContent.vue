@@ -11,7 +11,7 @@ import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, OrgCard, Topic } from "../services/types"
-import EpisodeRow from "./EpisodeRow.vue"
+import EntityEpisodeList from "./EntityEpisodeList.vue"
 
 const props = defineProps<{ org: OrgCard }>()
 const emit = defineEmits<{
@@ -117,11 +117,7 @@ function searchLibrary(): void {
       <span>{{ t("ec.orgEpisodes", episodes.length, { named: { count: episodes.length } }) }}</span>
       <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
     </h3>
-    <ul class="flex flex-col">
-      <li v-for="e in episodes" :key="e.slug">
-        <EpisodeRow :episode="e" />
-      </li>
-    </ul>
+    <EntityEpisodeList :episodes="episodes" />
   </section>
 
   <section v-if="relatedPeople.length" class="mb-4">

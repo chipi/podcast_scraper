@@ -16,7 +16,7 @@ import { getTopicCard } from "../services/api"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
-import EpisodeRow from "../components/EpisodeRow.vue"
+import EntityEpisodeList from "../components/EntityEpisodeList.vue"
 import NoteComposer from "../components/NoteComposer.vue"
 // ASYNC: EntityCard → EntityCardBody → TopicCardContent → StorylineCard → this file is a cycle, so
 // the resolve is deferred to first open. Same reason TopicCardContent defers EntityCard.
@@ -250,14 +250,14 @@ function goBack(): void {
 
       <!-- Top episodes for the storyline (SL.2). Standalone page only — see the note above. -->
       <section v-if="episodes.length" class="mt-6">
-        <h2 class="lp-section mb-2">
-          {{ t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } }) }}
+        <!-- Says "newest first" like the topic, person and org lists do (operator 2026-09-19).
+             This was the one of the four that never did, which is the drift the shared
+             `EntityEpisodeList` exists to stop repeating. -->
+        <h2 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
+          <span>{{ t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } }) }}</span>
+          <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
         </h2>
-        <ul class="flex flex-col">
-          <li v-for="e in episodes" :key="e.slug">
-            <EpisodeRow :episode="e" />
-          </li>
-        </ul>
+        <EntityEpisodeList :episodes="episodes" />
       </section>
 
       <!-- People involved (SL.2). Standalone page only (redundant with the topic card in overlay). -->

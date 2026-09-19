@@ -205,6 +205,21 @@ Two components, and the choice is not stylistic:
   player, top-aligned, with a `#trailing` slot for a row action. It is the one idiom for the dense
   episode lists inside a card or sheet (the entity card, the storyline sheet, the Knowledge Panel's
   "More like this"), where the full `EpisodeCard`'s summary column would be noise.
+- **`EntityEpisodeList`** is the "discussed in N episodes" LIST that every entity surface renders —
+  topic, storyline, person, org. It owns two things: the `EpisodeRow` stack, and the cap. Ten rows,
+  then a full-width control that adds ten more, re-collapsing when the entity changes because these
+  surfaces drill in place.
+
+  **The cap is the point.** The four surfaces each rendered their own uncapped list, so a topic with
+  sixty episodes emitted sixty rows and pushed the conversation arc, the perspectives and the notes
+  somewhere no reader reaches (operator 2026-09-19). The four had also drifted: three stated "newest
+  first" under the heading and the storyline did not. A shared component is how that stops
+  recurring — the next entity surface inherits the behaviour instead of re-deciding it.
+
+  The HEADING stays with the caller, because each words its own ("Discussed in N episodes", "In N
+  episodes", and the person card switches between two depending on whether it is showing host
+  episodes). The list owns the rows, the cap, and the paging.
+
 - **`ShowRow`** is `EpisodeCard`'s shape with a show's content — 128px artwork with the episode count
   and the surface's controls beneath it, the name and description filling the right. It is the one
   show row: Discover → Shows (list view) and Library → Saved both render it, differing only through

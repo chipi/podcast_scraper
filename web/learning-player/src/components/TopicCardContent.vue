@@ -18,7 +18,7 @@ import type { Entity, EpisodeSummary, TopicCard } from "../services/types"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import NoteComposer from "./NoteComposer.vue"
-import EpisodeRow from "./EpisodeRow.vue"
+import EntityEpisodeList from "./EntityEpisodeList.vue"
 import StorylineCard from "./StorylineCard.vue"
 import TrendMomentum from "./TrendMomentum.vue"
 import Sparkline from "./Sparkline.vue"
@@ -181,18 +181,25 @@ function searchLibrary(): void {
     </figure>
   </div>
 
-  <!-- Semantically SIMILAR topics: the one you're on (ringed) + siblings. Distinct from the
-       storyline below, which is co-occurrence (#1603). Chips drill in place via the back stack. -->
+  <!-- The conversation arc sits directly under the activity sparkline (operator 2026-09-19). It was
+       at the foot of the page, below the episode list, which put the two time-series charts about
+       this topic at opposite ends of a long scroll. They answer the same question at different
+       resolutions — how much, and how it changed — so they read as a pair or not at all. -->
+  <TopicConversationArc :id="topic.id" />
+
+  <!-- Semantically SIMILAR topics. Distinct from the storyline below, which is co-occurrence
+       (#1603). Chips drill in place via the back stack.
+
+       The topic you are ON is not in this list (operator 2026-09-19). It used to lead it as a
+       ringed chip, on the reasoning that a cluster is best shown whole, with your position in it
+       marked. On the page that reasoning does not survive: the heading says "N similar topics" and
+       the first thing under it is the topic whose page you are reading, which is not similar to
+       itself. The count now counts what is actually listed. -->
   <section v-if="siblings.length" class="mb-4">
     <h3 class="lp-section mb-2">
-      {{ t("ec.clusterMembers", siblings.length + 1, { named: { count: siblings.length + 1 } }) }}
+      {{ t("ec.clusterMembers", siblings.length, { named: { count: siblings.length } }) }}
     </h3>
     <div class="flex flex-wrap gap-1.5">
-      <span
-        class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-topic ring-1 ring-topic"
-      >
-        {{ label }}
-      </span>
       <button
         v-for="s in siblings"
         :key="s.id"
@@ -290,6 +297,14 @@ function searchLibrary(): void {
     </div>
   </section>
 
+  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
+       Directly under Top voices (operator 2026-09-19) — it names the same people and says what they
+       actually argued, so it belongs beside the faces rather than at the foot of the page. -->
+  <TopicPerspectives
+    :id="topic.id"
+    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
+  />
+
   <!-- Search transcripts — between the strongest shows and the episode list (operator review). -->
   <button
     type="button"
@@ -306,19 +321,8 @@ function searchLibrary(): void {
       <span>{{ t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } }) }}</span>
       <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
     </h3>
-    <ul class="flex flex-col">
-      <li v-for="e in episodes" :key="e.slug">
-        <EpisodeRow :episode="e" />
-      </li>
-    </ul>
+    <EntityEpisodeList :episodes="episodes" />
   </section>
-
-  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none. -->
-  <TopicConversationArc :id="topic.id" />
-  <TopicPerspectives
-    :id="topic.id"
-    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
-  />
 
   <!-- Notes on this topic (TD.7). -->
   <NoteComposer target="topic" :target-id="topic.id" />

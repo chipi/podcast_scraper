@@ -136,9 +136,25 @@ describe("EntityCard", () => {
     vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    expect(w.text()).toContain("similar topics") // all-members heading
+    // ONE sibling, so the count is 1 and the copy is singular. It used to say 2, because the
+    // section counted the topic you are on as a member of its own similar-topics list and led with
+    // it as a ringed chip (operator 2026-09-19).
+    expect(w.text()).toContain("1 similar topic")
     expect(w.text()).toContain("Machine Learning") // sibling chip
     expect(w.text()).toContain("Discussed in 3 episodes")
+  })
+
+  it("the similar-topics list excludes the topic you are already reading", async () => {
+    // The heading says "N similar topics"; a topic is not similar to itself, and listing it first
+    // made the count disagree with what a reader could see (operator 2026-09-19).
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    const w = mountCard({ kind: "topic", id: "topic:ai" })
+    await flushPromises()
+
+    const chips = w.findAll('[data-testid="ec-similar-topic"]').map((n) => n.text())
+    expect(chips).toEqual(["Machine Learning"])
+    // The title still renders "AI" — this asserts it is not ALSO a chip in that section.
+    expect(chips).not.toContain("AI")
   })
 
   it("the library search lives inside the card (button → search route, then closes)", async () => {
@@ -190,7 +206,7 @@ describe("EntityCard", () => {
       .trigger("click")
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith("topic:ai")
-    expect(w.text()).toContain("similar topics") // topic view now shown
+    expect(w.text()).toContain("1 similar topic") // topic view now shown
     // Back → returns to the person.
     await w.find('button[aria-label="Back"]').trigger("click")
     await flushPromises()

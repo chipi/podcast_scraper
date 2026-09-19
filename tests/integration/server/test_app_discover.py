@@ -220,6 +220,90 @@ def test_theme_clusters_endpoint_empty_without_artifact(tmp_path: Path) -> None:
     assert body["items"] == []
 
 
+class TestTrendingStorylinesCarryTheirClickTarget:
+    """Every trending storyline row says what it opens (operator 2026-09-19).
+
+    A storyline has no endpoint of its own — it is read as its most-central member topic's card —
+    so a row without `anchor_topic_id` cannot be opened at all. The client used to derive it by
+    joining these rows against `/theme-clusters` on `thc:` id, which fails by construction: that
+    endpoint applies the ≥4-member navigation floor and a top-N by SIZE, while trending ranks every
+    cluster with a series by MOMENTUM and floors nothing. The client's `?? entity_id` fallback then
+    handed a `thc:` id to a TOPIC lookup, which resolves nothing, so the row was dead on tap:
+    "storylines do open directly from the topic, but not from the trends".
+
+    `thc:tiny` in the fixture is the case that proves it — 2 members, deliberately withheld by
+    `/theme-clusters` above, and still perfectly openable.
+
+    The momentum engine is STUBBED here on purpose. This fixture corpus carries no content series,
+    so the real ranker returns nothing and every assertion below would pass vacuously against an
+    empty list. What is under test is the route's hydration step — given rows, does each one leave
+    with a usable click target — and stubbing the ranker is what makes that question askable at
+    all. The ranker has its own tests.
+    """
+
+    def _rows(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str) -> dict[str, dict]:
+        from podcast_scraper.server.app_momentum import TrendingEntity
+        from podcast_scraper.server.routes import app_discover
+
+        ranked = {
+            # Both clusters the fixture defines, INCLUDING the 2-member one `/theme-clusters`
+            # withholds — that is precisely the row the old client-side join could not resolve.
+            "storyline": [("thc:ai-safety", "AI safety"), ("thc:tiny", "Tiny pair")],
+            "topic": [("topic:ai", "AI")],
+        }[kind]
+        monkeypatch.setattr(
+            app_discover,
+            "trending",
+            lambda *a, **k: [
+                TrendingEntity(
+                    entity_id=eid,
+                    kind=kind,
+                    label=label,
+                    velocity=2.0,
+                    volume=5.0,
+                    heating_up=True,
+                    total=5,
+                    series=[1, 2, 2],
+                )
+                for eid, label in ranked
+            ],
+        )
+        _corpus(tmp_path)
+        _write_theme_clusters(tmp_path)
+        body = (
+            _client(tmp_path, personalized=False)
+            .get("/api/app/trending", params={"kind": kind, "limit": 50})
+            .json()
+        )
+        return {it["entity_id"]: it for it in body["items"]}
+
+    def test_a_storyline_below_the_navigation_floor_still_carries_its_anchor(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        rows = self._rows(tmp_path, monkeypatch, "storyline")
+        assert set(rows) == {"thc:ai-safety", "thc:tiny"}
+        assert rows["thc:ai-safety"]["anchor_topic_id"] == "topic:ai"
+        # The one that matters: withheld by `/theme-clusters`, and still openable.
+        assert rows["thc:tiny"]["anchor_topic_id"] == "topic:a"
+
+    def test_no_storyline_row_points_at_itself(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Never the `thc:` id. That value looks like an answer and is not one — it is the exact
+        # shape that produced a tap doing nothing.
+        for eid, row in self._rows(tmp_path, monkeypatch, "storyline").items():
+            anchor = row["anchor_topic_id"]
+            assert anchor != eid, f"{eid} points at itself instead of a topic"
+            assert anchor is None or anchor.startswith("topic:"), f"{eid} -> {anchor!r}"
+
+    def test_other_kinds_do_not_carry_an_anchor(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        rows = self._rows(tmp_path, monkeypatch, "topic")
+        assert rows, "no topic rows — the assertion below would be vacuous"
+        assert all(it["anchor_topic_id"] is None for it in rows.values())
+
+
 def test_discover_personalizes_by_followed_storyline(tmp_path: Path) -> None:
     # Following a storyline (thc: token) re-ranks like any other interest: epOld's topic:ai is in
     # the theme cluster, so epOld leads despite being older.

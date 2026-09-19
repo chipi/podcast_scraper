@@ -193,6 +193,35 @@ def top_theme_clusters_by_member_count(
     return out[: max(top_n, 0)]
 
 
+def theme_cluster_anchors(corpus_root: Path) -> Dict[str, str]:
+    """``thc:`` id → anchor topic id, for EVERY theme cluster. No member floor, no top-N.
+
+    A storyline has no endpoint of its own: it is read as its most-central member topic's card, so
+    whoever wants to OPEN a storyline needs this mapping. The surfacing function above is the wrong
+    source for that — it exists to decide which storylines are worth showing (≥4 members, top-N by
+    size), and anything it filtered out still has a perfectly good anchor. Callers that rank
+    storylines some other way (``/trending`` ranks by momentum, over every cluster with a series)
+    would otherwise silently fail to resolve exactly the rows their own ranking chose.
+
+    Empty when the artifact is missing or invalid, and a cluster with no resolvable anchor is
+    simply absent — callers treat a missing key as "not openable", never as "use the thc: id".
+    """
+    payload = _load_theme_clusters_payload(corpus_root)
+    if payload is None:
+        return {}
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return {}
+    out: Dict[str, str] = {}
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        summary = _theme_cluster_summary(cl)
+        if summary and summary.get("anchor_topic_id"):
+            out[str(summary["id"])] = str(summary["anchor_topic_id"])
+    return out
+
+
 def consumer_theme_cluster_siblings(corpus_root: Path, topic_id: str) -> list[Dict[str, str]]:
     """Sibling topics sharing ``topic_id``'s THEME cluster, excluding itself.
 

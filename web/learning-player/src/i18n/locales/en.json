@@ -531,6 +531,7 @@
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
     "newestFirst": "newest first",
+    "moreEpisodes": "Show {count} more",
     "perspectivesTitle": "Perspectives",
     "conversationArc": "Conversation over time",
     "convArcInsights": "{count} insight | {count} insights",

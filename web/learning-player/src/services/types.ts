@@ -696,6 +696,14 @@ export interface TrendingEntity {
   window?: string
   /** Served hosted-photo route for a person entity with a hosted photo; null otherwise. */
   image_url?: string | null
+  /**
+   * For a storyline (`thc:`) entity: its most-central member topic — the CLICK TARGET, since a
+   * storyline is read as that topic's card and has no endpoint of its own. Null for every other
+   * kind, and for a storyline whose anchor could not be resolved, which means the row is not
+   * openable. Never fall back to `entity_id` here: that is a `thc:` id, and handing it to a topic
+   * lookup is what made storyline rows dead on tap.
+   */
+  anchor_topic_id?: string | null
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */

@@ -5,13 +5,13 @@
  * (Rising = velocity, Trending = volume) and scope (Corpus ⇄ Mine). Extracted from HomeView so the
  * two surfaces cannot drift.
  *
- * `collapsed` caps the rows (Home 5, Discover 10). `seeAll` swaps the list's inline "show more" for a
- * "See all →" link into Browse's Trends section on the active kind. Opening a row is the PARENT's call
- * (Home opens overlays, Discover navigates), so it is emitted.
+ * `collapsed` caps the rows (Home 5, Discover 10). `seeAll` swaps the list's inline "show more" —
+ * which links OUT to Discover's trends section — for an in-place expand control in the section
+ * header, because on Discover that link would point at the page you are already on. Opening a row is
+ * the PARENT's call (Home opens overlays, Discover navigates), so it is emitted.
  */
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
-import { RouterLink } from "vue-router"
 import Tabs from "./Tabs.vue"
 import { panelAttrs, type TabSpec } from "./tabs"
 import DiscoveryList from "./DiscoveryList.vue"
@@ -54,6 +54,15 @@ watch(
     if (k) discoveryTab.value = k
   }
 )
+// Collapse on every tab change. Expanding People and landing on a 30-row Topics list you never
+// asked to open would be its own surprise, and the control's label would be describing a state you
+// did not choose.
+const expandedAll = ref(false)
+const total = ref(0)
+watch(discoveryTab, () => {
+  expandedAll.value = false
+})
+
 const discoverySort = ref<"rising" | "trending">("rising")
 const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
   DISCOVERY_TABS.map((tb) => ({ key: tb.key, label: t(tb.labelKey), testid: `discovery-tab-${tb.key}` }))
@@ -62,19 +71,30 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
 
 <template>
   <div data-testid="discovery-explorer">
-    <!-- Optional section header (Discover): a "Trends" title with the "See all →" on the same row,
-         mirroring the trending-shows header (operator 2026-09-14). It targets whichever kind tab is
-         active. Home passes no title, so this row is absent. -->
+    <!-- Optional section header (Discover): a "Trends" title with the expand control on the same
+         row, mirroring the trending-shows header (operator 2026-09-14). Home passes no title, so
+         this row is absent.
+
+         It used to be a RouterLink to `{ name: 'browse', query: { trends: discoveryTab } }`. The
+         only surface that renders this header IS Browse — "Discover" in the tab bar is the `browse`
+         route — so the link pointed at the page you were already on, carrying the kind you were
+         already reading. Vue Router navigated, the query changed, and nothing moved. "I click all,
+         and nothing really happens" (operator 2026-09-19) was exactly right.
+
+         The list beneath is capped at `collapsed` (10 here) with the remainder unreachable, so
+         uncapping it is what this control should always have done. A button, not a link, because it
+         does not go anywhere. It renders only when rows are genuinely hidden: this replaces a
+         control that did nothing, so one that sometimes does nothing would miss the point. -->
     <div v-if="title" class="mb-3 flex items-center justify-between gap-2">
       <h2 class="lp-section">{{ title }}</h2>
-      <RouterLink
-        v-if="seeAll"
-        :to="{ name: 'browse', query: { trends: discoveryTab } }"
-        class="shrink-0 whitespace-nowrap text-sm font-bold text-accent no-underline"
+      <button
+        v-if="seeAll && total > collapsed"
+        type="button"
+        class="lp-tap shrink-0 whitespace-nowrap text-sm font-bold text-accent"
+        :aria-expanded="expandedAll"
         data-testid="discovery-see-all"
-      >
-        {{ t("home.seeAll") }} ›
-      </RouterLink>
+        @click="expandedAll = !expandedAll"
+      >{{ expandedAll ? t("home.showLess") : t("home.seeAll") }} {{ expandedAll ? "‹" : "›" }}</button>
     </div>
 
     <!-- Kind pills + the sort/scope icon cluster on ONE row (operator). -->
@@ -124,7 +144,9 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         :scope="trendingScope"
         :collapsed="collapsed"
         :hide-more="seeAll"
+        :expanded="expandedAll"
         @open="emit('open', $event)"
+        @count="total = $event"
       />
     </div>
   </div>

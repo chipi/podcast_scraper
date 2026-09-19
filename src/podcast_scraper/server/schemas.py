@@ -722,6 +722,16 @@ class AppTrendingEntity(BaseModel):
         description="Served hosted-photo route for a person entity when the web enricher hosts a "
         "photo; null for non-person kinds and people without a hosted photo.",
     )
+    anchor_topic_id: str | None = Field(
+        default=None,
+        description=(
+            "For a storyline (thc:) entity: its most-central member topic. That is the CLICK "
+            "TARGET — a storyline is read as its anchor topic's card, there being no dedicated "
+            "storyline endpoint. Null for every other kind, and for a storyline whose anchor "
+            "cannot be resolved, which means the row is not openable and the client must say so "
+            "rather than navigate somewhere empty."
+        ),
+    )
 
 
 class AppTrendingResponse(BaseModel):
