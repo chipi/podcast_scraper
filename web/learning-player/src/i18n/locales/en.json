@@ -655,6 +655,7 @@
     "avatarUploadFailed": "Couldn’t upload that image. Use a PNG, JPEG, or WebP under 2 MB.",
     "avatarCropTitle": "Position your photo",
     "avatarCropZoom": "Zoom",
+    "avatarCropPan": "Position the photo — arrow keys to move, hold shift to move faster",
     "avatarCropConfirm": "Save photo",
     "tabAccount": "Account",
     "tabTopics": "Topics",

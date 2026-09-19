@@ -8,10 +8,25 @@
  * raw file. Pure canvas + pointer events — no new dependency.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { useModalSheet } from "../composables/useModalSheet"
 import { useI18n } from "vue-i18n"
 
 const props = defineProps<{ file: File }>()
 const emit = defineEmits<{ (e: "confirm", blob: Blob): void; (e: "cancel"): void }>()
+
+/**
+ * The shared sheet plumbing — focus trap, Escape, focus restored to the opener (a11y review
+ * 2026-09-19).
+ *
+ * This was the one sheet in the app that hand-rolled its own modal and got none of it: a plain
+ * `role="dialog"` div whose only close path was `@click.self` on the backdrop. A keyboard user who
+ * opened it could not leave it without a pointer, and focus never came back to the control that
+ * opened it. Every other sheet (EntityCard, StorylineCard, QueuePanel, InterestsPicker) already
+ * goes through this composable; this one just never did.
+ */
+const sheetEl = ref<HTMLElement | null>(null)
+useModalSheet(sheetEl, () => emit("cancel"))
+
 
 const { t } = useI18n()
 
@@ -37,6 +52,20 @@ const drawn = computed(() => {
 function clampOffset(): void {
   offset.value.x = Math.min(0, Math.max(VIEWPORT - drawn.value.w, offset.value.x))
   offset.value.y = Math.min(0, Math.max(VIEWPORT - drawn.value.h, offset.value.y))
+}
+
+/**
+ * Keyboard panning — the crop was pointer-only.
+ *
+ * Zoom was reachable (it is an `<input type="range">`) but the 2D pan had no keyboard path at all,
+ * so a keyboard or VoiceOver user could open the cropper, change the zoom, and never move the
+ * image. Arrow keys nudge; shift jumps. `clampOffset()` keeps it inside the frame exactly as
+ * dragging does, so the two paths cannot disagree.
+ */
+function nudge(dx: number, dy: number, e: KeyboardEvent): void {
+  const step = e.shiftKey ? 24 : 6
+  offset.value = { x: offset.value.x + dx * step, y: offset.value.y + dy * step }
+  clampOffset()
 }
 
 function centre(): void {
@@ -105,6 +134,7 @@ function confirm(): void {
 
 <template>
   <div
+    ref="sheetEl"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
     role="dialog"
     aria-modal="true"
@@ -122,12 +152,20 @@ function confirm(): void {
       <template v-else>
         <!-- Square frame with a circular mask overlay so the user sees the final circle. -->
         <div
-          class="relative mx-auto touch-none overflow-hidden rounded-lg bg-elevated"
+          class="relative mx-auto touch-none overflow-hidden rounded-lg bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
           :style="{ width: `${VIEWPORT}px`, height: `${VIEWPORT}px` }"
+          role="application"
+          tabindex="0"
+          :aria-label="t('profile.avatarCropPan')"
+          data-testid="avatar-crop-surface"
           @pointerdown="onPointerDown"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
           @pointercancel="onPointerUp"
+          @keydown.left.prevent="nudge(1, 0, $event)"
+          @keydown.right.prevent="nudge(-1, 0, $event)"
+          @keydown.up.prevent="nudge(0, 1, $event)"
+          @keydown.down.prevent="nudge(0, -1, $event)"
         >
           <img
             v-if="ready"
