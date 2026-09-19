@@ -33,7 +33,10 @@ type Kind = "topic" | "storyline" | "person"
 type Sort = "rising" | "trending"
 interface Row {
   id: string // entity id (topic:/thc:/person:) — the follow token
-  openId: string // what `open` targets: topic/person id, or a storyline's anchor topic
+  // What `open` targets: a topic/person id, or a storyline's anchor topic. NULL when the row is not
+  // openable — only reachable for a storyline whose anchor the server could not resolve. The row
+  // still renders (the momentum is real and followable); it just does not claim to go anywhere.
+  openId: string | null
   label: string
   count?: number // storylines: how many topics the cluster holds (shown as a "(N)" after the label)
   image?: string | null // people: avatar photo (falls back to initials)
@@ -53,10 +56,18 @@ const props = withDefaults(
     // Suppress the inline "show more" entirely — Discover surfaces a "See all →" in the section
     // header instead (in DiscoveryExplorer), so a bottom affordance would be redundant.
     hideMore?: boolean
+    // Show every row rather than the first `collapsed`. Owned by the PARENT because on Discover the
+    // control that flips it lives in the section header, a component up (operator 2026-09-19).
+    expanded?: boolean
   }>(),
-  { scope: "corpus", limit: 20, collapsed: 5, hideMore: false }
+  { scope: "corpus", limit: 20, collapsed: 5, hideMore: false, expanded: false }
 )
-const emit = defineEmits<{ (e: "open", payload: { kind: Kind; id: string }): void }>()
+const emit = defineEmits<{
+  (e: "open", payload: { kind: Kind; id: string }): void
+  // How many rows this kind actually has. The header's expand control needs it: a control that
+  // toggles when there is nothing hidden is the bug this whole change is fixing.
+  (e: "count", total: number): void
+}>()
 
 const { t } = useI18n()
 // The trend window lives here (not the parent) so it can share the row with the metric hint. #2030.
@@ -86,21 +97,29 @@ async function fetchRows(): Promise<Row[]> {
       series: e.series,
     }))
   }
-  // Storyline: join the trending momentum with the storyline list for size + anchor topic.
+  // Storyline: the anchor topic — what the row OPENS — now arrives on the trending row itself.
+  //
+  // It used to be joined here against GET /storylines on `thc:` id, with `?? e.entity_id` when the
+  // join missed. The two lists never covered the same set (/storylines floors at 4 members and
+  // returns the top-N by size; trending ranks every cluster by momentum), so misses were routine,
+  // and the fallback handed a `thc:` id to a consumer that resolves a TOPIC. Nothing resolved and
+  // the tap did nothing — "storylines do open directly from the topic, but not from the trends"
+  // (operator 2026-09-19).
+  //
+  // No fallback now: a row whose anchor the server could not resolve is genuinely not openable, and
+  // pretending otherwise is what produced a dead tap instead of a visibly inert row. `size` still
+  // comes from /storylines, which is fine — it is decoration, and a missing count renders nothing.
   const stories = await getStorylines(props.limit).catch(() => [] as Storyline[])
-  const byId = new Map(stories.map((s) => [s.id, s]))
-  return trending.map((e) => {
-    const s = byId.get(e.entity_id)
-    return {
-      id: e.entity_id,
-      openId: s?.anchor_topic_id ?? e.entity_id,
-      label: e.label,
-      count: s?.size,
-      velocity: e.velocity,
-      volume: e.volume,
-      series: e.series,
-    }
-  })
+  const sizeById = new Map(stories.map((s) => [s.id, s.size]))
+  return trending.map((e) => ({
+    id: e.entity_id,
+    openId: e.anchor_topic_id ?? null,
+    label: e.label,
+    count: sizeById.get(e.entity_id),
+    velocity: e.velocity,
+    volume: e.volume,
+    series: e.series,
+  }))
 }
 function load(): Promise<void> {
   return section.load(fetchRows)
@@ -116,10 +135,10 @@ const rows = computed<Row[]>(() =>
 )
 const hasAny = computed(() => rows.value.length > 0)
 
-const expanded = ref(false)
 const visible = computed(() =>
-  expanded.value ? rows.value : rows.value.slice(0, props.collapsed)
+  props.expanded ? rows.value : rows.value.slice(0, props.collapsed)
 )
+watch(() => rows.value.length, (n) => emit("count", n), { immediate: true })
 
 const vFmt = (v: number): number => Math.round(v * 10) / 10
 function rowLabel(r: Row): string {
@@ -161,11 +180,14 @@ function rowLabel(r: Row): string {
         class="flex items-center gap-1 rounded-lg transition hover:bg-overlay"
         data-testid="discovery-row"
       >
+        <!-- `disabled` rather than a click that goes nowhere: a storyline with no resolvable anchor
+             has nothing to open, and the dead tap is exactly the bug this replaced. -->
         <button
           type="button"
-          class="flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
+          class="flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left disabled:cursor-default"
+          :disabled="!r.openId"
           :aria-label="rowLabel(r)"
-          @click="emit('open', { kind, id: r.openId })"
+          @click="r.openId && emit('open', { kind, id: r.openId })"
         >
           <!-- People carry their photo (falls back to initials); topics/storylines don't — which is
                why the row above pins `min-h-10`.
