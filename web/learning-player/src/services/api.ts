@@ -324,20 +324,64 @@ export function getRelated(slug: string, topK = 6): Promise<EpisodesPage> {
   return p
 }
 
+/**
+ * Absolutise the entity image URLs a card carries — person photo, org logo, and the `image_url`
+ * on every person in a related/top-voices list.
+ *
+ * EXACTLY what `withAbsoluteAvatar` does for `/me`, and for the same reason: the server returns
+ * these as RELATIVE paths (`/api/app/persons/<id>/photo`). On the web that is correct; inside the
+ * Capacitor WebView the document origin is `capacitor://localhost`, so a relative path resolves
+ * THERE, 404s, and `ProfileAvatar` quietly falls back to initials — the photo simply never
+ * appears. Same defect class as the artwork and audio URLs behind the device test tier.
+ *
+ * Done here at the API boundary, in one place, rather than at each render site — the person photo
+ * had been left raw at one `:src` in PersonCardContent while every other image in the app went
+ * through `resolveMediaUrl`, which is how it stayed broken.
+ */
+function withAbsoluteEntityImages<T>(card: T): T {
+  const c = card as Record<string, unknown>
+  const abs = (u: unknown) => (typeof u === "string" ? resolveMediaUrl(u) ?? u : u)
+
+  const web = c.web as Record<string, unknown> | null | undefined
+  if (web && typeof web === "object") {
+    const next: Record<string, unknown> = { ...web }
+    if (next.image_url) next.image_url = abs(next.image_url)
+    if (next.logo_url) next.logo_url = abs(next.logo_url)
+    c.web = next
+  }
+  for (const key of ["related_people", "people", "top_voices", "key_voices"]) {
+    const list = c[key]
+    if (Array.isArray(list)) {
+      c[key] = list.map((p) =>
+        p && typeof p === "object" && (p as Record<string, unknown>).image_url
+          ? { ...p, image_url: abs((p as Record<string, unknown>).image_url) }
+          : p
+      )
+    }
+  }
+  return c as T
+}
+
 /** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
-export function getPersonCard(id: string, scope?: "all" | "mine"): Promise<PersonCard> {
+export async function getPersonCard(id: string, scope?: "all" | "mine"): Promise<PersonCard> {
   // scope='mine' = the guest across the episodes the signed-in user has heard (P3 #1122).
-  return getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope })
+  return withAbsoluteEntityImages(
+    await getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope })
+  )
 }
 
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
-export function getTopicCard(id: string, scope?: "all" | "mine"): Promise<TopicCard> {
-  return getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+export async function getTopicCard(id: string, scope?: "all" | "mine"): Promise<TopicCard> {
+  return withAbsoluteEntityImages(
+    await getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+  )
 }
 
 /** Organization card (#2031) — mentioned-in episodes + co-occurring people/orgs/topics. */
-export function getOrgCard(id: string): Promise<OrgCard> {
-  return getJSON<OrgCard>(`/organizations/${encodeURIComponent(id)}`)
+export async function getOrgCard(id: string): Promise<OrgCard> {
+  return withAbsoluteEntityImages(
+    await getJSON<OrgCard>(`/organizations/${encodeURIComponent(id)}`)
+  )
 }
 
 /** Topic perspectives — each speaker's grounded insights on the topic (#1146). */

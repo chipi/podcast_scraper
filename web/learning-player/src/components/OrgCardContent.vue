@@ -7,7 +7,7 @@
  * the back-stack, header and load; this renders the loaded `OrgCard`. Graph navigation (tapping a
  * chip) emits `open`; `close` dismisses the whole card.
  */
-import { computed } from "vue"
+import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, OrgCard, Topic } from "../services/types"
@@ -30,6 +30,17 @@ const facts = computed(() =>
     web.value?.industry ? { k: t("ec.orgIndustry"), v: web.value.industry } : null,
   ].filter((f): f is { k: string; v: string } => f !== null)
 )
+// A logo that fails to load is HIDDEN, never left as the browser's broken-image glyph — the same
+// contract ProfileAvatar gives the person photo (it falls back to initials). Not ProfileAvatar
+// itself: that uses object-cover, and cropping a wordmark logo square is wrong, which is why this
+// one is object-contain. Same behaviour, different fit.
+// Reset on src change so a re-fetch or a different org gets a fresh attempt.
+const logoFailed = ref(false)
+watch(
+  () => web.value?.logo_url,
+  () => (logoFailed.value = false)
+)
+
 const episodes = computed<EpisodeSummary[]>(() => props.org.episodes ?? [])
 const relatedPeople = computed<Entity[]>(() => props.org.related_people ?? [])
 const relatedOrgs = computed<Entity[]>(() => props.org.related_orgs ?? [])
@@ -51,11 +62,12 @@ function searchLibrary(): void {
     data-testid="ec-org-web"
   >
     <img
-      v-if="web.logo_url"
+      v-if="web.logo_url && !logoFailed"
       :src="web.logo_url"
       :alt="label"
       class="h-16 w-16 shrink-0 rounded-lg object-contain"
       data-testid="ec-org-logo"
+      @error="logoFailed = true"
     />
     <div class="min-w-0 sm:flex-1">
       <p v-if="web.summary || web.description" class="text-sm leading-relaxed text-canvas-foreground">

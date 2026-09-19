@@ -42,6 +42,22 @@ _ANON_ALLOW = {
     # auth-BLOCKED, and any NEW unauthenticated route still fails until someone writes its reason
     # down here.
     "/api/app/profile/x/avatar",
+    # Person photo + org logo, opened 2026-09-19 for the SAME reason as the avatar directly above
+    # — and this is the same defect, found a second time: the enricher had downloaded 652 person
+    # photos, every one of them 401'd behind an `<img>`, and the card fell back to initials, so
+    # the operator's read was "the images are broken". Fixed by applying the avatar's pattern
+    # rather than inventing a second mechanism (operator: "don't invent a third solution for the
+    # same thing").
+    #
+    # Less sensitive than the avatar, which is a USER's own upload: these are Wikipedia/Wikimedia
+    # images already public at their source URL, stored with their CC credit, plus org logos.
+    # Show/episode artwork from the same corpus is already anonymous here.
+    #
+    # What IS newly inferable: whether a given person/org id has a hosted image, i.e. corpus
+    # membership by id-guessing. Judged acceptable on the artwork precedent — `/api/app/artwork`
+    # above leaks show membership the same way.
+    "/api/app/persons/x/photo",
+    "/api/app/organizations/x/logo",
     "/api/app/mcp/oauth/register",
     "/api/app/mcp/oauth/token",
     "/.well-known/oauth-authorization-server",

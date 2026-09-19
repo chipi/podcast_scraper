@@ -118,15 +118,17 @@ async def org_card(
 
 
 @router.get("/organizations/{org_id}/logo")
-async def org_logo(
-    request: Request, org_id: str, _user: User = Depends(get_current_user)
-) -> FileResponse:
+async def org_logo(request: Request, org_id: str) -> FileResponse:
     """Serve the org's self-hosted logo (org_web enricher, #2035).
 
-    Auth-gated. The logo lives in the corpus under ``enrichments/org_logos/`` (downloaded +
-    license-validated at enrichment time); the stem is sanitized and the filename is a fixed glob,
-    so the path cannot traverse out. 404 when no logo is hosted (the common case — logos are often
-    non-free)."""
+    Deliberately UNAUTHENTICATED, same reason as ``person_photo`` above and ``serve_avatar``
+    (#2109): an ``<img src=…>`` cannot send an ``Authorization`` header. Opened together with the
+    person photo rather than left behind — the two are rendered by the same card surfaces, and
+    fixing one while the other keeps 401'ing is how a defect class survives its own fix.
+
+    The logo lives under ``enrichments/org_logos/`` (downloaded + license-validated at enrichment
+    time); the stem is sanitized and the filename is a fixed glob, so the path cannot traverse out.
+    404 when no logo is hosted (the common case — logos are often non-free)."""
     from podcast_scraper.enrichment.enrichers.org_web import org_logo_path
 
     root = corpus_root_or_503(request)
@@ -142,15 +144,22 @@ async def org_logo(
 
 
 @router.get("/persons/{person_id}/photo")
-async def person_photo(
-    request: Request, person_id: str, _user: User = Depends(get_current_user)
-) -> FileResponse:
+async def person_photo(request: Request, person_id: str) -> FileResponse:
     """Serve the person's self-hosted photo (wave-G, person_web enricher).
 
-    Auth-gated (a signed-in surface). The photo lives in the corpus under
-    ``enrichments/person_images/`` (downloaded + validated at enrichment time, like the avatar);
-    the stem is sanitized and the filename is a fixed glob, so the path cannot traverse out. 404
-    when no photo is hosted for this person."""
+    Deliberately UNAUTHENTICATED, for exactly the reason ``serve_avatar`` is (#2109, operator
+    2026-09-16): an ``<img src=…>`` cannot send an ``Authorization`` header, and the native shell
+    carries its session in precisely that header rather than a cookie. Session-gated, every photo
+    401'd on device and ``ProfileAvatar`` silently fell back to initials — so 652 hosted photos
+    existed on disk and not one of them ever appeared.
+
+    What is exposed is already public: these are Wikipedia/Wikimedia images, fetched from public
+    URLs and stored with their CC credit. Show and episode ARTWORK is already served
+    unauthenticated by this same API, and the avatar — a USER's own upload — was opened on the
+    same reasoning; a corpus person's public encyclopedia portrait is strictly less sensitive.
+
+    The photo lives under ``enrichments/person_images/``; the stem is sanitized and matched
+    against a directory enumeration, so the path cannot traverse out. 404 when none is hosted."""
     from podcast_scraper.enrichment.enrichers.person_web import person_image_path
 
     root = corpus_root_or_503(request)
