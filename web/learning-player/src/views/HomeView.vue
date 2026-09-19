@@ -933,7 +933,13 @@ async function loadContinue(): Promise<void> {
         data-testid="home-recommended-more"
         @click="recommendedShown += RECOMMENDED_PAGE"
       >
-        {{ t("ec.moreEpisodes", { count: recommended.length - visibleRecommended.length }) }}
+        <!-- What the tap will ACTUALLY reveal, not what remains. It said "Show 8 more" and then
+             revealed four, which is a control describing someone else's behaviour. -->
+        {{
+          t("ec.moreEpisodes", {
+            count: Math.min(recommended.length - visibleRecommended.length, RECOMMENDED_PAGE),
+          })
+        }}
       </button>
     </section>
 
