@@ -1462,6 +1462,15 @@ export async function reorderCollections(order: string[]): Promise<Collection[]>
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ order }),
+    // The ONE write the user starts and then immediately walks away from: a drag ends with a drop,
+    // and the next thing they do is leave the screen. Nothing awaits this call (the drop handler
+    // fires it with `void`), so without `keepalive` a navigation or a backgrounded tab ABORTS the
+    // request mid-flight and the arrangement they just made is gone. The outbox catches that case
+    // now, but only on the NEXT boot — the order flashes back to the old one in between.
+    // `keepalive` lets the request finish on its own after the page goes away, which is what makes
+    // the drop durable rather than merely recoverable. The body is a list of ids, far under the
+    // 64 KB keepalive cap.
+    keepalive: true,
   })
   if (!resp.ok) throw new ApiError(resp.status, `PATCH /collections/order → ${resp.status}`)
   return withAbsoluteCovers(((await resp.json()) as { items: Collection[] }).items)
