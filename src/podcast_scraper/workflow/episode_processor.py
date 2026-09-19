@@ -3995,6 +3995,31 @@ def process_transcript_download(
         else:
             plain, segments = parse_srt(body)
         if plain.strip() and segments:
+            # A PUBLISHER TRANSCRIPT THAT NAMES ITS TURNS IS A DIARIZATION WE DID NOT HAVE TO
+            # COMPUTE. `parse_webvtt` lifts `<v Speaker>` voice spans into `seg["speaker"]`, but
+            # nothing downstream turned them into a roster, so the names went nowhere: the episode
+            # arrived as one undifferentiated voice, `content.speakers` was derived from segments
+            # that carried no `speaker_label`, and nothing was ever `placed`. Measured on the
+            # production corpus, EVERY episode that used a publisher transcript ended with a single
+            # voice — 128 of 128 (see `transcript_formats.cues`).
+            #
+            # Route them through the SAME role authority as every other source, exactly as the
+            # transcription path does for a natively-diarized provider: `precomputed_diarization`
+            # (no audio, no diarizer, no API call — the mechanism `pipeline_stage=relabel_only`
+            # already uses on frozen diarization). Names AND host/guest roles then come from the
+            # roster's evidence rather than from the order the cues happen to appear in.
+            #
+            # `episode` is passed where the transcription path passes its `TranscriptionJob`: the
+            # helper reads only `idx`, `detected_speaker_names`, `metadata_named`, `feed_hosts` and
+            # `speaker_detection_ran`, and `Episode` carries all five.
+            #
+            # No-op unless the cues actually name someone, so a transcript without voice spans
+            # keeps its existing behaviour byte for byte.
+            rostered = _apply_native_speaker_roster(
+                {"text": plain, "segments": segments}, cfg, episode
+            )
+            segments = rostered.get("segments") or segments
+
             txt_path = os.path.splitext(out_path)[0] + ".txt"
             rel_path_result = _write_transcript_file(
                 plain.encode("utf-8"), txt_path, cfg, episode, effective_output_dir
@@ -4002,6 +4027,12 @@ def process_transcript_download(
             if rel_path_result is None:
                 return False, None, None, bytes_downloaded
             _save_transcript_segments_file(segments, rel_path_result, effective_output_dir)
+            # `content.speakers` is derived from the SAVED segments' `speaker_label`
+            # (metadata_generation, #876), so the diagnostics must land beside them or an operator
+            # cannot explain a voice the roster declined to name.
+            _save_speaker_diagnostics_file(
+                rostered.get("speaker_diagnostics"), rel_path_result, effective_output_dir
+            )
             _maybe_produce_adfree(cfg, plain, segments, rel_path_result, effective_output_dir)
             logger.info(
                 "[%s] normalized %s to .txt with %d segment(s) for GI timing",

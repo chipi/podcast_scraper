@@ -1,0 +1,40 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:08.940
+<v Ethan>Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on.</v>
+
+00:00:08.940 --> 00:00:10.440
+<v Priya Nair>Glad to be here, Ethan.</v>
+
+00:00:10.440 --> 00:00:19.320
+<v Ethan>This episode is brought to you by Datadog. Datadog gives unified observability across logs, metrics, and traces. Get started at datadog.com/podcast.</v>
+
+00:00:19.320 --> 00:00:23.040
+<v Ethan>You keep saying reliability isn't a feature. What do you mean?</v>
+
+00:00:23.040 --> 00:00:36.840
+<v Priya Nair>Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in parts, you'll miss it every time.</v>
+
+00:00:36.840 --> 00:00:49.800
+<v Priya Nair>So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own — the data was pretty blunt about that.</v>
+
+00:00:49.800 --> 00:00:54.180
+<v Ethan>You once told me production risk is the same as portfolio risk. Say more.</v>
+
+00:00:54.180 --> 00:01:09.480
+<v Priya Nair>It really is the same discipline. Risk management in production is mostly about naming the risk before it names you. The outage you can describe in advance is the one you can design around; the one that takes you down is the one nobody would say out loud.</v>
+
+00:01:09.480 --> 00:01:13.680
+<v Ethan>That sounds a lot like what the investing folks say about a portfolio.</v>
+
+00:01:13.680 --> 00:01:24.060
+<v Priya Nair>Exactly — a service mesh and a portfolio are both systems of correlated bets. The reliability question and the risk question are the same question wearing different clothes.</v>
+
+00:01:24.060 --> 00:01:30.900
+<v Ethan>Thanks again to PagerDuty for supporting the show. PagerDuty turns noisy alerts into structured incident response.</v>
+
+00:01:30.900 --> 00:01:32.400
+<v Priya Nair>Thanks, Ethan.</v>
+
+00:01:32.400 --> 00:01:35.940
+<v Ethan>That's it for this episode of Practical Systems. Take care.</v>
