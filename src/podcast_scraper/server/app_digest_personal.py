@@ -141,8 +141,6 @@ def assemble_digest_payload(
             root, data_dir, user_id, exclude_slugs=captured, limit=MAX_REVISIT_ITEMS - len(items)
         )
     sections: list[dict[str, Any]] = []
-    if items:
-        sections.append({"kind": "revisit", "items": items})
     new_in_follows = app_digest_sections.new_in_follows_items(
         root, data_dir, user_id, limit=MAX_REVISIT_ITEMS, catalog=catalog
     )
@@ -158,6 +156,17 @@ def assemble_digest_payload(
     trending = app_digest_sections.trending_items(root, data_dir, user_id, limit=MAX_REVISIT_ITEMS)
     if trending:
         sections.append({"kind": "trending_in_your_corpus", "items": trending})
+    # Revisit goes LAST (operator 2026-09-19). Home's collapsed digest shows the best few items
+    # "kept in section order", so whatever is first IS the preview — and leading with what you have
+    # already heard buries what is new. New-in-follows is the answer to "what should I play now";
+    # revisit is the answer to "what did I want to remember", which is a different visit.
+    #
+    # Order also decides DEDUPE: `_dedupe_sections_by_slug` keeps an episode in the FIRST section it
+    # appears in. So an auto-pick that is also new in a followed show now reads as "New in your
+    # follows" rather than "Worth revisiting", which is the more useful of the two framings for an
+    # episode the user has not heard.
+    if items:
+        sections.append({"kind": "revisit", "items": items})
     # Never surface one episode in two sections (2026-09-15) — see _dedupe_sections_by_slug.
     sections = _dedupe_sections_by_slug(sections)
     if not sections:
