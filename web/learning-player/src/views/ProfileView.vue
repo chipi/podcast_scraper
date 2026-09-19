@@ -539,14 +539,35 @@ onMounted(load)
           </button>
         </div>
         <p class="mb-3 text-sm text-muted">{{ t("profile.interestsHelp") }}</p>
+        <!-- Three KINDS share this strip — topics, storylines and people — and they used to be two
+             styles between them: `text-person` for people, `text-topic` for everything else. So a
+             storyline was indistinguishable from a topic, and the only way to tell them apart was
+             to already know (operator 2026-09-19).
+
+             Each pill now NAMES its kind in a mono kicker as well as carrying its own hue. The
+             kicker is the load-bearing part: these three colours sit close in value by design (the
+             knowledge layer is meant to be quiet), so hue alone was never going to carry the
+             distinction, and it carries nothing at all for a colour-blind reader. Storyline reuses
+             the accent treatment the topic card's storyline pill already uses, so the same object
+             looks the same wherever it appears. -->
         <div v-if="interestLabels.length" class="flex flex-wrap gap-1.5">
           <span
             v-for="i in interestLabels"
             :key="i.id"
-            class="rounded-full bg-overlay px-2.5 py-1 text-xs"
-            :class="i.kind === 'person' ? 'text-person' : 'text-topic'"
-            >{{ i.label }}</span
+            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
+            :class="{
+              'bg-accent/15 font-semibold text-accent': i.kind === 'storyline',
+              'bg-overlay text-person ring-1 ring-inset ring-person/30': i.kind === 'person',
+              'bg-overlay text-theme ring-1 ring-inset ring-theme/30': i.kind === 'theme',
+              'bg-overlay text-topic': i.kind === 'topic',
+            }"
+            :data-testid="`profile-interest-${i.kind}`"
           >
+            <span class="font-mono text-[10px] uppercase tracking-wide opacity-70">{{
+              t(`notes.kind_${i.kind}`)
+            }}</span>
+            {{ i.label }}
+          </span>
         </div>
         <p
           v-else-if="interestsFailed"

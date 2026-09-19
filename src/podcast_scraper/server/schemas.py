@@ -1473,6 +1473,15 @@ class Collection(BaseModel):
             "position 0 and a created_at epoch cannot share one sort key."
         ),
     )
+    contains: bool | None = Field(
+        default=None,
+        description=(
+            "Whether this collection already holds the item named by the ``contains_kind`` + "
+            "``contains_ref`` query pair. NULL — not false — when the caller did not ask, so a "
+            "client can tell 'not in it' from 'never checked' and never renders a confident "
+            "'not added' it has no evidence for."
+        ),
+    )
 
 
 class CollectionCreate(BaseModel):

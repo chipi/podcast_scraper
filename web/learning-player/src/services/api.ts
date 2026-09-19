@@ -1394,7 +1394,7 @@ export async function getHealth(): Promise<HealthInfo | null> {
 
 // --- Collections / boards (PRD-046 FR4 / #1417) ---
 
-export async function getCollections(): Promise<Collection[]> {
+export async function getCollections(contains?: CollectionItemRef): Promise<Collection[]> {
   /**
    * A 401 used to be swallowed into an empty list (#2004 item 13).
    *
@@ -1411,7 +1411,13 @@ export async function getCollections(): Promise<Collection[]> {
    * end state (the app has `gated()` for exactly that) and is not built yet. Recorded on #2004 so
    * the gap is visible rather than implied by this comment.
    */
-  return withAbsoluteCovers((await getJSON<{ items: Collection[] }>("/collections")).items)
+  // With `contains`, every row comes back flagged for whether it already holds that item — what
+  // the add-to-collection picker needs to show you where a thing already is. Without it the server
+  // leaves `contains` null, which is the honest value for a question that was not asked.
+  const q = contains
+    ? `?contains_kind=${encodeURIComponent(contains.kind)}&contains_ref=${encodeURIComponent(contains.ref)}`
+    : ""
+  return withAbsoluteCovers((await getJSON<{ items: Collection[] }>(`/collections${q}`)).items)
 }
 
 /**

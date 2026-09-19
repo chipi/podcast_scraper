@@ -16,6 +16,7 @@ import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, TopicCard } from "../services/types"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
+import { resolveMediaUrl } from "../services/tier"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityEpisodeList from "./EntityEpisodeList.vue"
@@ -142,13 +143,23 @@ const activitySeries = computed<number[]>(() => {
 // Strongest shows (TD.6): which shows cover this topic most, from the discussed episodes grouped by
 // feed. Only worth showing when the topic spans MORE THAN ONE show.
 const topShows = computed(() => {
-  const byFeed = new Map<string, { feed_id: string; title: string; count: number }>()
+  const byFeed = new Map<string, { feed_id: string; title: string; count: number; art: string | null }>()
   for (const e of episodes.value) {
     if (!e.feed_id) continue
     const cur = byFeed.get(e.feed_id)
-    if (cur) cur.count++
-    else
-      byFeed.set(e.feed_id, { feed_id: e.feed_id, title: e.podcast_title ?? e.feed_id, count: 1 })
+    if (cur) {
+      cur.count++
+      // Episodes vary in whether they carry the feed image; take the first one that does.
+      cur.art ??= resolveMediaUrl(e.feed_image_url)
+    } else {
+      byFeed.set(e.feed_id, {
+        feed_id: e.feed_id,
+        title: e.podcast_title ?? e.feed_id,
+        count: 1,
+        // The FEED image, never the episode's own — this row is the show, not an episode of it.
+        art: resolveMediaUrl(e.feed_image_url),
+      })
+    }
   }
   return [...byFeed.values()].sort((a, b) => b.count - a.count).slice(0, 5)
 })
@@ -224,7 +235,7 @@ function searchLibrary(): void {
       @click="openStoryline"
     >
       <span class="min-w-0 flex-1">
-        <span class="block text-sm font-bold text-theme">{{ themeClusterLabel }}</span>
+        <span class="block text-sm font-bold text-accent">{{ themeClusterLabel }}</span>
         <span v-if="themeClusterSize" class="lp-kicker">{{
           t("ec.clusterSize", themeClusterSize, { named: { count: themeClusterSize } })
         }}</span>
@@ -258,13 +269,27 @@ function searchLibrary(): void {
   <!-- Strongest shows on this topic — only when it spans more than one show. -->
   <section v-if="topShows.length > 1" class="mb-4" data-testid="ec-top-shows">
     <h3 class="lp-section mb-2">{{ t("ec.topShows") }}</h3>
+    <!-- Artwork, then the name, then the tally — the compact row `EpisodeRow` uses, at its 40px
+         thumbnail (operator 2026-09-19). It was a bare line of text with a number on the right,
+         which is the one way a show does NOT get recognised: cover art is how you know a podcast at
+         a glance, and every other list of shows in the app shows it. Deliberately NOT the full
+         `ShowRow` (128px artwork + description) — this sits inside a card as a short aside, not as
+         the page's subject. -->
     <ul class="flex flex-col">
       <li v-for="s in topShows" :key="s.feed_id">
         <RouterLink
           :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
-          class="flex items-center justify-between gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+          class="flex items-center gap-2.5 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
         >
-          <span class="min-w-0 truncate text-sm font-semibold">{{ s.title }}</span>
+          <img
+            v-if="s.art"
+            :src="s.art"
+            alt=""
+            loading="lazy"
+            class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+          />
+          <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" aria-hidden="true" />
+          <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
           <span class="shrink-0 text-xs text-muted">{{
             t("ec.topShowCount", s.count, { named: { count: s.count } })
           }}</span>

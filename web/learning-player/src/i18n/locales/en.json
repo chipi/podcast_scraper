@@ -604,6 +604,7 @@
     },
     "remove": "Delete collection",
     "moment": "Moment",
+    "alreadyIn": "Added",
     "addTo": "Add to collection",
     "pill": "Collection",
     "confirmDeleteTitle": "Delete this collection?",
@@ -931,7 +932,8 @@
     "kind_show": "Show",
     "kind_topic": "Topic",
     "kind_person": "Person",
-    "kind_storyline": "Storyline"
+    "kind_storyline": "Storyline",
+    "kind_theme": "Theme"
   },
   "common": {
     "cancel": "Cancel",

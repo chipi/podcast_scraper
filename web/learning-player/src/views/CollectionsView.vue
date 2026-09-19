@@ -211,11 +211,17 @@ function noteKindLabel(target: string): string {
   return out === key ? target : out
 }
 const availableNoteTypes = computed(() => {
-  const present = new Set(capture.notes.map((n) => n.target))
-  return NOTE_KIND_ORDER.filter((k) => present.has(k)).map((k) => ({
+  // Each chip carries how many notes it would leave (operator 2026-09-19) — the same idiom the
+  // Saved section headings and the Knowledge Panel's insight chips already use. Counted over ALL
+  // notes, not the search-filtered set: a chip that changed its number as you typed would be
+  // answering a different question from the one it asks.
+  const byKind = new Map<string, number>()
+  for (const n of capture.notes) byKind.set(n.target, (byKind.get(n.target) ?? 0) + 1)
+  return NOTE_KIND_ORDER.filter((k) => byKind.has(k)).map((k) => ({
     key: k,
     // Same words as the row's own kicker, so a chip and the rows it governs name the same thing.
     label: t(`notes.kind_${k}`),
+    count: byKind.get(k),
   }))
 })
 // A chip for a kind whose last note was just removed would stay selected and hide everything.
@@ -561,6 +567,9 @@ onMounted(() => {
       :class="collections.length || capture.notes.length ? 'border-t border-border pt-6' : ''"
     >
       {{ t("collections.sectionTitle") }}
+      <!-- The tally, in the same `lp-kicker` slot every Saved and Following heading uses (operator
+           2026-09-19). Boards was the one tab whose sections did not say how much was in them. -->
+      <span v-if="collections.length" class="lp-kicker ml-1 font-normal">{{ collections.length }}</span>
     </h2>
 
     <!-- create -->
@@ -866,7 +875,10 @@ onMounted(() => {
       class="mt-8 border-t border-border pt-6"
       data-testid="collections-notes"
     >
-      <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
+      <h2 class="lp-section mb-2">
+        {{ t("notes.title") }}
+        <span class="lp-kicker ml-1 font-normal">{{ capture.notes.length }}</span>
+      </h2>
       <!-- Kind chips at the TOP of the section (operator 2026-09-17), filtering by the entity a note
            is ON. The section is gated on `capture.notes.length`, not on the filtered list: gating on
            the result would delete the filter bar the moment a chip matched nothing, stranding the

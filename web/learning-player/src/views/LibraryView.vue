@@ -133,7 +133,10 @@ const savedSearchActive = computed(() => savedSearch.value.trim() !== '')
 // Saved's per-type sections page 10 at a time (operator 2026-09-18) rather than the default 6 with
 // an all-or-nothing expand: at a hundred saved episodes "Show all" produces a scroll with no
 // landmarks, so each press adds another ten.
-const savedCaps = useCappedSections(10, 10)
+// Five, then five more per press (operator 2026-09-19). It was ten-and-ten: on a phone that is
+// most of a screen per section before you reach the next one, and Saved is a hub you scan rather
+// than a list you read. Shows joins Episodes on the same cap — it had none at all.
+const savedCaps = useCappedSections(5, 5)
 
 /** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
  *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
@@ -200,6 +203,9 @@ const filteredSearches = computed(() =>
 // Cap each section to the top N (lifted while searching), with a "Show all" expand in place.
 const visibleEpisodes = computed(() =>
   savedCaps.visible('episodes', filteredEpisodes.value, savedSearchActive.value),
+)
+const visibleSavedShows = computed(() =>
+  savedCaps.visible('shows', savedShowPodcasts.value, savedSearchActive.value),
 )
 /**
  * Saved entities, split ONE SECTION PER KIND (operator 2026-09-17).
@@ -634,7 +640,7 @@ onMounted(async () => {
           </h2>
           <ul class="flex flex-col" data-testid="saved-shows-list">
             <li
-              v-for="{ entity, show } in savedShowPodcasts"
+              v-for="{ entity, show } in visibleSavedShows"
               :key="show.feed_id"
               data-testid="saved-entity"
             >
@@ -650,6 +656,13 @@ onMounted(async () => {
               </ShowRow>
             </li>
           </ul>
+          <ShowAllToggle
+            v-if="savedCaps.overflows(savedShowPodcasts.length, savedSearchActive, 'shows')"
+            :expanded="savedCaps.remaining('shows', savedShowPodcasts.length) === 0"
+            :count="savedShowPodcasts.length"
+            :remaining="savedCaps.remaining('shows', savedShowPodcasts.length)"
+            @toggle="savedCaps.toggle('shows', savedShowPodcasts.length)"
+          />
         </section>
 
         <!-- Episodes — each carries the shared colour control (phase B) in the card's action row.

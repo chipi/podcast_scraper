@@ -159,7 +159,7 @@ function goBack(): void {
          their OWN row after the title (operator: the kicker+actions row was too cramped). -->
     <div :class="embedded ? '' : 'mt-3'">
       <div class="flex items-start justify-between gap-3">
-        <span class="lp-kicker min-w-0 text-theme">{{ t("home.storylines") }}</span>
+        <span class="lp-kicker min-w-0 text-accent">{{ t("home.storylines") }}</span>
         <!-- Close ✕ — embedded only; standalone uses the Back row above. -->
         <button
           v-if="embedded"

@@ -154,10 +154,11 @@ const visibleGroups = computed<Group[]>(() =>
   groupCaps.visible('groups', groups.value, searchActive.value),
 )
 
-// The count beside the header reflects what the active colour/search filter actually shows, not the
-// raw total — else "12 highlights" sat above a list of 2 under a filter (Fable-5 review nit).
-const shownCount = computed(() => groups.value.reduce((n, g) => n + g.highlights.length, 0))
-
+// The count that used to sit on the export row lived here. It is gone (operator 2026-09-19): this
+// view has exactly one host — Library's Saved tab — and that heading already renders the tally, one
+// line above, from its own filter-aware `visibleHighlightCount`. Two counts of the same thing, two
+// lines apart, in two different wordings.
+//
 function jumpQuery(h: Highlight): Record<string, string> {
   return h.start_ms != null ? { t: String(Math.floor(h.start_ms / 1000)) } : {}
 }
@@ -338,8 +339,13 @@ onMounted(async () => {
 
 <template>
   <div>
-    <div v-if="capture.count" class="mb-4 flex items-center justify-between gap-3">
-      <p class="text-sm text-muted">{{ t('highlights.count', shownCount, { named: { count: shownCount } }) }}</p>
+    <!-- Export formats only — the count is NOT repeated here (operator 2026-09-19).
+         Library's Highlights heading carries the tally as a kicker directly above this row, so the
+         page read "Highlights 12" and then "12 highlights" on the very next line. One had to go,
+         and it is this one: the heading is where every other Saved section puts its count, so
+         keeping it there is what makes the sections read alike. Everything left on this row is an
+         export format, which is what the row is for. -->
+    <div v-if="capture.count" class="mb-4 flex items-center justify-end gap-3">
       <!-- Compact export cluster: a muted "Export" kicker + short format chips on ONE line. The
            full "Export Markdown" / "Export to Obsidian" survives as the aria-label (accessible name
            + e2e selector); the visible chips are `whitespace-nowrap text-xs` so they never wrap to
