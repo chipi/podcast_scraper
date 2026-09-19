@@ -26,7 +26,7 @@ const panelEl = ref<HTMLElement | null>(null)
 // Shared popover shell — teleported, viewport-clamped placement, outside-pointer/Escape dismissal.
 // This is why the menu no longer runs off the left edge when the trigger sits near it (a storyline
 // share opened from Home): `anchorPanel` clamps it on screen (operator 2026-09-13).
-const { open, toggle, close } = useAnchoredMenu(triggerEl, panelEl, { align: "end" })
+const { open, toggle, close, teleportTarget } = useAnchoredMenu(triggerEl, panelEl, { align: "end" })
 
 async function onCard(): Promise<void> {
   close()
@@ -101,7 +101,7 @@ function flash(msg: string): void {
     </button>
     <!-- Teleported + viewport-clamped via the shared shell (was `absolute right-0`, which ran off the
          left edge when the trigger sat near it). -->
-    <Teleport to="body">
+    <Teleport :to="teleportTarget">
       <div
         v-if="open"
         ref="panelEl"

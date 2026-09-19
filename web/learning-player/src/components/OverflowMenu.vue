@@ -34,7 +34,7 @@ function items(): HTMLElement[] {
 
 // Shared popover shell (teleport + fixed + viewport-clamped placement + dismissal). This component
 // adds only the menu-specific keyboard roaming; focus lands on the first item once placed.
-const { open, toggle, close } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' }, {
+const { open, toggle, close, teleportTarget } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' }, {
   onOpened: () => items()[0]?.focus(),
 })
 
@@ -81,7 +81,7 @@ defineExpose({ close: () => close(false) })
     </svg>
   </button>
 
-  <Teleport to="body">
+  <Teleport :to="teleportTarget">
     <div
       v-if="open"
       ref="panelEl"

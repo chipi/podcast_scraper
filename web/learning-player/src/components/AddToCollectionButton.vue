@@ -56,7 +56,7 @@ const error = ref<string | null>(null)
  */
 const triggerEl = ref<HTMLElement | null>(null)
 const panelEl = ref<HTMLElement | null>(null)
-const { open, toggle, close } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' })
+const { open, toggle, close, teleportTarget } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' })
 
 // Load collections on first open; clear the transient "added" receipt whenever it closes.
 watch(open, async (isOpen) => {
@@ -183,7 +183,7 @@ async function createAndAdd(): Promise<void> {
       <span v-if="variant === 'menuitem'">{{ t('collections.addTo') }}</span>
     </button>
 
-    <Teleport to="body">
+    <Teleport :to="teleportTarget">
       <div
         v-if="open"
         ref="panelEl"
