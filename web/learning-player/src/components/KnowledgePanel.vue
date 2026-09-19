@@ -184,7 +184,7 @@ const dominantClusterId = computed<string | null>(() => {
 })
 
 // Theme clusters (co-occurrence "discussed together") — parallel to the semantic dominant above.
-// Marked on the pills (theme ring) + a "Theme ·" lead-in. No-op when topics carry no theme_cluster_id.
+// Marked on the pills (theme ring) + a "Storyline ·" lead-in. No-op when topics carry no theme_cluster_id.
 const themeClusterCounts = computed<Record<string, number>>(() => {
   const c: Record<string, number> = {}
   for (const t of props.topics)

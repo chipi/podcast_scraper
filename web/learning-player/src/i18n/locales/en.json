@@ -128,7 +128,8 @@
     "staleNetwork": "You're offline — showing what you saved.",
     "staleServer": "We can't reach your account right now — showing what you saved.",
     "staleForcedAction": "Offline mode is on",
-    "seeAllTrends": "See all"
+    "seeAllTrends": "See all",
+    "rowNotOpenable": "{label} — nothing to open"
   },
   "rail": {
     "prev": "Scroll left",
@@ -794,7 +795,6 @@
   },
   "highlights": {
     "empty": "No highlights yet. Mark a moment, save a transcript line, or keep an insight while you listen.",
-    "count": "No highlights | 1 highlight | {count} highlights",
     "export": "Export Markdown",
     "exportObsidian": "Export to Obsidian",
     "exportKicker": "Export",

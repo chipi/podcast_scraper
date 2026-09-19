@@ -402,3 +402,100 @@ def test_the_export_carries_every_note_the_user_wrote(tmp_path: Path) -> None:
     assert "note on the highlight" in md
     assert "note on the episode" in md
     assert "note on an insight" in md
+
+
+class TestWhichBoardsAlreadyHoldThisItem:
+    """``GET /collections?contains_kind=&contains_ref=`` (operator 2026-09-19).
+
+    The add-to-collection picker listed every board identically, so the only way to learn an item
+    was already on one was to add it again and watch nothing happen — the add is idempotent, so
+    that tap is silent. The picker now asks the server which boards hold the item.
+    """
+
+    def test_flags_only_the_boards_that_hold_it(self, tmp_path: Path) -> None:
+        client, data_dir, uid = _authed(tmp_path)
+        app_user_state.add_highlight(
+            data_dir, uid, {"id": "h1", "episode_slug": "ep", "kind": "span", "created_at": 1}
+        )
+        holding = client.post("/api/app/collections", json={"name": "Holding"}).json()["id"]
+        empty = client.post("/api/app/collections", json={"name": "Empty"}).json()["id"]
+        client.post(
+            f"/api/app/collections/{holding}/items", json={"kind": "highlight", "ref": "h1"}
+        )
+
+        rows = client.get(
+            "/api/app/collections",
+            params={"contains_kind": "highlight", "contains_ref": "h1"},
+        ).json()["items"]
+        by_id = {r["id"]: r["contains"] for r in rows}
+        assert by_id[holding] is True
+        assert by_id[empty] is False
+
+    def test_the_same_ref_under_a_DIFFERENT_kind_is_not_a_match(self, tmp_path: Path) -> None:
+        # Membership is keyed on (kind, ref), and ids collide across kinds — an episode slug and a
+        # person id can be the same string. Matching on ref alone would mark the wrong board.
+        client, data_dir, uid = _authed(tmp_path)
+        cid = client.post("/api/app/collections", json={"name": "Board"}).json()["id"]
+        client.post(f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": "ep1"})
+
+        rows = client.get(
+            "/api/app/collections", params={"contains_kind": "person", "contains_ref": "ep1"}
+        ).json()["items"]
+        assert rows[0]["contains"] is False
+
+    def test_unasked_is_NULL_rather_than_false(self, tmp_path: Path) -> None:
+        """The distinction the client leans on.
+
+        ``false`` means "we checked, it is not in this one"; ``null`` means "nobody asked". Rendering
+        the second as the first is how a picker shows a confident "not added" it has no evidence
+        for — so a plain list must not claim to have checked.
+        """
+        client, _data_dir, _uid = _authed(tmp_path)
+        client.post("/api/app/collections", json={"name": "Board"})
+
+        rows = client.get("/api/app/collections").json()["items"]
+        assert rows[0]["contains"] is None
+
+        # Half a pair is not a question either.
+        half = client.get("/api/app/collections", params={"contains_kind": "episode"}).json()
+        assert half["items"][0]["contains"] is None
+
+    def test_a_mutation_response_never_claims_to_have_checked(self, tmp_path: Path) -> None:
+        # create / add-item / delete-item all return Collection rows. None of them was asked the
+        # membership question, so none may answer it.
+        client, _data_dir, _uid = _authed(tmp_path)
+        created = client.post("/api/app/collections", json={"name": "Board"}).json()
+        assert created["contains"] is None
+
+        added = client.post(
+            f"/api/app/collections/{created['id']}/items",
+            json={"kind": "episode", "ref": "ep1"},
+        ).json()
+        assert added["contains"] is None
+
+    def test_one_read_regardless_of_how_many_boards(self, tmp_path: Path, monkeypatch) -> None:
+        """The cap is 200 boards; asking per board re-read the same file once per board.
+
+        Pinned as a COUNT rather than a timing, so it cannot regress quietly into an N-read loop
+        again — which is what it was when it first shipped.
+        """
+        from podcast_scraper.server import app_collections_store as store
+
+        client, data_dir, uid = _authed(tmp_path)
+        for i in range(8):
+            client.post("/api/app/collections", json={"name": f"Board {i}"})
+
+        reads = {"n": 0}
+        real_read = store._read
+
+        def counting_read(*a: object, **k: object) -> dict:
+            reads["n"] += 1
+            return real_read(*a, **k)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(store, "_read", counting_read)
+        client.get(
+            "/api/app/collections",
+            params={"contains_kind": "episode", "contains_ref": "ep1"},
+        )
+        # One for the listing, one for the membership sweep. NOT one per board.
+        assert reads["n"] <= 2, f"{reads['n']} reads for 8 boards — the per-row loop is back"

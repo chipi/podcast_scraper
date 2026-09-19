@@ -1488,7 +1488,9 @@ class Collection(BaseModel):
             "Whether this collection already holds the item named by the ``contains_kind`` + "
             "``contains_ref`` query pair. NULL — not false — when the caller did not ask, so a "
             "client can tell 'not in it' from 'never checked' and never renders a confident "
-            "'not added' it has no evidence for."
+            "'not added' it has no evidence for. Populated ONLY by ``GET /collections`` with that "
+            "query pair: every mutation response (create, add-item, remove-item, reorder) carries "
+            "NULL because none of them was asked the question."
         ),
     )
 

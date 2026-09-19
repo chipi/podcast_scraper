@@ -448,6 +448,29 @@ describe('the primary controls share one height (#2004 item 2)', () => {
       /data-testid="home-resume"[\s\S]{0,400}?play:\s*'1'|play:\s*'1'[\s\S]{0,400}?data-testid="home-resume"/,
     )
   })
+
+  it('the queue is reachable from the resume hero', () => {
+    // Its only other entrances are the full player and the mini-player, and the mini-player only
+    // exists while something is loaded — so with nothing playing the queue could not be opened at
+    // all (operator 2026-09-19). Source-level for the same reason as the two above.
+    expect(homeViewSource).toContain('data-testid="home-open-queue"')
+    expect(homeViewSource).toMatch(
+      /data-testid="home-open-queue"[\s\S]{0,300}?name:\s*'queue'|name:\s*'queue'[\s\S]{0,300}?data-testid="home-open-queue"/,
+    )
+  })
+
+  it('the queue control is legible over the hero artwork, and named', () => {
+    // It sits ON the episode cover. A `border-border text-muted` circle — the app's default quiet
+    // control — disappeared into whatever the artwork happened to be, so it carries the same
+    // plating `ShowRow` gives its over-artwork controls.
+    const block = homeViewSource.slice(
+      homeViewSource.indexOf('data-testid="home-open-queue"') - 600,
+      homeViewSource.indexOf('data-testid="home-open-queue"') + 300,
+    )
+    expect(block, 'the queue control lost its scrim over the artwork').toMatch(/bg-black\/\d+/)
+    expect(block, 'an icon-only control needs an accessible name').toContain('aria-label')
+    expect(block, 'touch target').toMatch(/\bh-11\b/)
+  })
 })
 
 describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () => {

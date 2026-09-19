@@ -407,7 +407,9 @@ the player surface** — see "Player-surface Queue & Recent" below):
   (add/edit/remove), a per-highlight colour swatch picker, a header **colour filter**, and an
   **Export Markdown** link.
 
-- **Following** — the shows and interest tokens (`topic:`/`person:`/`thc:`) the user follows.
+- **Following** — the shows and interest tokens (`topic:`/`tc:`/`thc:`/`person:`) the user
+  follows. All four are followable; `tc:` is a Theme and `thc:` a Storyline — see UXS-013
+  §Vocabulary, because the wire names invert against the reader-facing ones.
 - **Collections** ("Boards") — its own first-class tab (was nested under Saved); see "Collections"
   below. It also holds **Your notes**: every note the user has written, beside their boards. The
   section is topped by the shared kind-filter strip (UXS-014) whose chips are the **entity each note

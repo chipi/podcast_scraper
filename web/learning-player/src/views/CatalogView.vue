@@ -267,6 +267,7 @@ onMounted(async () => {
           v-if="hasMore && !controlsActive"
           type="button"
           :disabled="loading"
+          :aria-busy="loading"
           class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
           data-testid="catalog-load-more"
           @click="loadMore"

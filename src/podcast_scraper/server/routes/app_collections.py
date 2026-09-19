@@ -199,9 +199,12 @@ async def list_collections(
     request: Request,
     contains_kind: str | None = Query(
         default=None,
+        max_length=64,
         description="With contains_ref: flag which collections already hold this item.",
     ),
-    contains_ref: str | None = Query(default=None, description="See contains_kind."),
+    contains_ref: str | None = Query(
+        default=None, max_length=512, description="See contains_kind."
+    ),
     user: User = Depends(get_current_user),
 ) -> CollectionsResponse:
     """The user's collections, newest-first, each with its item count.
@@ -232,10 +235,14 @@ async def list_collections(
             continue
         row["cover_url"] = _recompute_cover(request, data_dir, user.user_id, str(row["id"]))
     if contains_kind and contains_ref:
-        want = (contains_kind, contains_ref)
+        # ONE read for every row. Asking per row via ``get_items`` re-reads and re-parses the same
+        # user file each time — 200 synchronous reads at the collection cap, on the request path of
+        # a menu the user opens constantly.
+        holding = app_collections_store.collections_containing(
+            data_dir, user.user_id, contains_kind, contains_ref
+        )
         for row in rows:
-            items = app_collections_store.get_items(data_dir, user.user_id, str(row["id"]))
-            row["contains"] = any((str(i.get("kind")), str(i.get("ref"))) == want for i in items)
+            row["contains"] = str(row["id"]) in holding
     return CollectionsResponse(items=[Collection(**c) for c in rows])
 
 

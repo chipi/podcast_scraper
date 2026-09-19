@@ -48,7 +48,10 @@ const remaining = computed(() => Math.max(0, props.episodes.length - visible.val
 </script>
 
 <template>
-  <ul class="flex flex-col">
+  <!-- `aria-live`: pressing "show more" appends rows silently otherwise — a screen-reader user
+       activates the control and hears nothing at all, which is indistinguishable from a dead
+       button. `atomic=false` so only the added rows are announced, not the whole list again. -->
+  <ul class="flex flex-col" aria-live="polite" aria-atomic="false">
     <li v-for="e in visible" :key="e.slug">
       <EpisodeRow :episode="e" />
     </li>
@@ -58,7 +61,7 @@ const remaining = computed(() => Math.max(0, props.episodes.length - visible.val
   <button
     v-if="remaining > 0"
     type="button"
-    class="mt-3 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
+    class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
     data-testid="entity-episodes-more"
     @click="shown += PAGE"
   >

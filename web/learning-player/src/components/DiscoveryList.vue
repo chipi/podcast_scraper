@@ -138,7 +138,12 @@ const hasAny = computed(() => rows.value.length > 0)
 const visible = computed(() =>
   props.expanded ? rows.value : rows.value.slice(0, props.collapsed)
 )
-watch(() => rows.value.length, (n) => emit("count", n), { immediate: true })
+// Watches `rows` itself, NOT `rows.value.length`. The parent clears its copy of the count on a
+// kind change (so a stale count cannot lend its control to the new tab), and a length watcher does
+// not re-fire when the new kind happens to have the SAME number of rows — leaving the parent at
+// zero permanently and the expand control gone for good. `rows` is a fresh array per evaluation,
+// so this fires on every load; emitting the same number twice costs nothing.
+watch(rows, (r) => emit("count", r.length), { immediate: true })
 
 const vFmt = (v: number): number => Math.round(v * 10) / 10
 function rowLabel(r: Row): string {
@@ -180,13 +185,20 @@ function rowLabel(r: Row): string {
         class="flex items-center gap-1 rounded-lg transition hover:bg-overlay"
         data-testid="discovery-row"
       >
-        <!-- `disabled` rather than a click that goes nowhere: a storyline with no resolvable anchor
-             has nothing to open, and the dead tap is exactly the bug this replaced. -->
+        <!-- Not openable rather than a click that goes nowhere: a storyline with no resolvable
+             anchor has nothing to open, and the dead tap is exactly the bug this replaced.
+
+             `aria-disabled`, NOT the `disabled` attribute. `disabled` drops the button out of the
+             tab order entirely, so a keyboard or switch user skips the row without ever learning it
+             is there — which is the same silence, moved to a different user. It stays focusable,
+             says why in its accessible name, and dims so the state is visible rather than only
+             felt on tap. -->
         <button
           type="button"
-          class="flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left disabled:cursor-default"
-          :disabled="!r.openId"
-          :aria-label="rowLabel(r)"
+          class="flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
+          :class="r.openId ? '' : 'cursor-default opacity-60'"
+          :aria-disabled="!r.openId"
+          :aria-label="r.openId ? rowLabel(r) : t('home.rowNotOpenable', { label: rowLabel(r) })"
           @click="r.openId && emit('open', { kind, id: r.openId })"
         >
           <!-- People carry their photo (falls back to initials); topics/storylines don't — which is

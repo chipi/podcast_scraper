@@ -338,7 +338,7 @@ on **roles / accessible names / RouterLinks**; reusable widgets carry `data-test
 | ------- | ---- |
 | Kind section | `data-testid="discovery-list-{kind}"` where `{kind}` ∈ `topic`, `storyline`, `person` — e.g. `data-testid="discovery-list-topic"`, `data-testid="discovery-list-storyline"`, `data-testid="discovery-list-person"` |
 | Kind tab | `discovery-tab-{key}` where `{key}` ∈ `topic`, `storyline`, `person` — rendered by the Tabs component from the `testid` prop |
-| Rows | `data-testid="discovery-row"` + `data-testid="discovery-follow"` (collapsed to top 5 + `data-testid="discovery-expand"` "Show N more") |
+| Rows | `data-testid="discovery-row"` + `data-testid="discovery-follow"` (collapsed to top 5 + `data-testid="discovery-expand"` "See all →", which links OUT to Discover's trends section — it is NOT an inline expand; Discover's own header control `discovery-see-all` is the one that expands in place) |
 | Sort switch | `data-testid="discovery-sort"` — Rising (velocity) ⇄ Trending (volume) |
 | Metric hint | `data-testid="discovery-hint"` — explains the trailing ×/count on screen (#1595) |
 
