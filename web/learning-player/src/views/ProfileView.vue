@@ -137,6 +137,15 @@ async function onSignOut(): Promise<void> {
 const stats = ref<UserStats | null>(null)
 /** A failed load is not an empty one — see the note in `hydrate()`. */
 const statsFailed = ref(false)
+/**
+ * Same flag as `statsFailed`, for the Account tab (operator 2026-09-19).
+ *
+ * Every section on this tab is gated on `comms`, so offline the whole tab collapsed to a lone
+ * "Sign out" button — no heading, no explanation, nothing to say the settings exist and simply
+ * could not be fetched. Stats already answers this ("Couldn't load this — it needs a connection");
+ * Account was the one tab that said nothing and so read as empty by design.
+ */
+const commsFailed = ref(false)
 const interestsFailed = ref(false)
 // NO hours tile here any more (#1914). `/me/stats` reports `listening_seconds` as
 // `sum(position_seconds)` — a lifetime snapshot of furthest position reached, which rises when
@@ -178,6 +187,7 @@ async function load(): Promise<void> {
   // "No interests chosen yet" to a user with both. That is #1591's defect — "a cold corpus and a
   // total API outage rendered the same page" — recurring here, where nothing was watching for it.
   statsFailed.value = false
+  commsFailed.value = false
   interestsFailed.value = false
   const [ints, tops, st, cm] = await Promise.all([
     getUserInterests().catch(() => {
@@ -189,7 +199,10 @@ async function load(): Promise<void> {
       statsFailed.value = true
       return null
     }),
-    getComms().catch(() => null),
+    getComms().catch(() => {
+      commsFailed.value = true
+      return null
+    }),
   ])
   interests.value = ints
   clusters.value = tops
@@ -661,6 +674,16 @@ onMounted(load)
           </p>
         </template>
       </section>
+
+      <!-- Offline, every section above is absent. Say so, in the same words the Stats tab uses,
+           rather than leaving a tab that is bare for a reason the user cannot see. -->
+      <p
+        v-if="!comms && commsFailed"
+        class="text-sm text-muted"
+        data-testid="account-unavailable"
+      >
+        {{ t("profile.unavailable") }}
+      </p>
 
       <!-- Sign out (#1962): quiet, last, least weight — the last thing you'd do here. -->
       <button
