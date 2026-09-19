@@ -895,10 +895,26 @@ class TestFullPipelineE2E:
     @pytest.mark.slow
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     def test_pipeline_kg_person_roles_correct(self):
-        """Test KG Person entities have correct host/guest roles (#598).
+        """A NEVER-DIARIZED episode casts nobody into the KG (#598, #2075).
 
-        Uses podcast1_with_transcript (Maya Koster host, Liam guest).
-        Validates KG Person nodes carry role=host for the RSS author.
+        Uses podcast1_with_transcript (host Maya, guest Liam) with ``transcribe_missing=False``:
+        the transcript is DOWNLOADED, so there is no ASR and no diarization, and no speaker is
+        ever bound to a voice.
+
+        This test used to assert the RSS author reached the KG as a host Person. That was the
+        behaviour until the operator decision of 2026-09-17, recorded at
+        ``test_speaker_lists_for_graph.py::test_no_roster_casts_nobody``: *"an episode never
+        diarized, or diarized with nobody named, casts nobody"*. The graph is cast from the
+        speaker record ONLY, and a record with nothing placed states that no voice was matched —
+        so promoting the show-notes guess to a Person node would assert something no audio
+        supports (#876).
+
+        What the episode knows is not lost, it just is not in the GRAPH: the assertions below
+        check that the record still names Maya as the host, carried as ``placed: false``.
+
+        Host/guest role correctness for episodes that WERE diarized is covered by
+        ``tests/unit/podcast_scraper/workflow/test_speaker_lists_for_graph.py`` and
+        ``test_speaker_record.py``, which exercise the same function on placed rosters.
         """
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
@@ -943,14 +959,30 @@ class TestFullPipelineE2E:
         # guest is expected, not an error. (The prior ``len(guest_persons) == 0``
         # assertion was wrong and only ever "passed" while the v2-stale filter above
         # matched nothing — un-vacuuming it surfaced the contradiction.)
-        host_persons = [n for n in person_entities if n.get("properties", {}).get("role") == "host"]
         roster = [
             (n["properties"].get("name"), n["properties"].get("role")) for n in person_entities
         ]
-        assert host_persons, f"expected a host Person for RSS author Maya, got: {roster}"
+        # Nothing was diarized, so nothing may be cast. Anything here is a show-notes guess that
+        # has been promoted to a speaker, which is the #876 failure this boundary exists to stop.
+        assert person_entities == [], (
+            "a never-diarized episode must cast no Person into the KG "
+            f"(operator decision 2026-09-17), got: {roster}"
+        )
+
+        # ...and the attribution itself is still recorded, just as unplaced. Without this the
+        # test would also pass if the pipeline had simply stopped detecting speakers at all.
+        meta_files = list(Path(self.output_dir).rglob("*.metadata.json"))
+        assert meta_files, "Should create a metadata artifact"
+        with open(meta_files[0], "r", encoding="utf-8") as f:
+            meta = json.load(f)
+        speakers = (meta.get("content") or {}).get("speakers") or []
+        names = [str(sp.get("name", "")) for sp in speakers if isinstance(sp, dict)]
         assert any(
-            "maya" in (n["properties"].get("name") or "").lower() for n in host_persons
-        ), f"RSS author Maya should be the host, got roster: {roster}"
+            "maya" in n.lower() for n in names
+        ), f"the record must still name the RSS author Maya, got: {names}"
+        assert all(
+            sp.get("placed") is not True for sp in speakers if isinstance(sp, dict)
+        ), f"nothing can be placed without diarization, got: {speakers}"
 
     @pytest.mark.critical_path
     def test_pipeline_handles_rss_feed_404(self):
