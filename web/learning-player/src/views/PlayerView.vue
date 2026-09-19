@@ -736,6 +736,9 @@ async function load(slug: string): Promise<void> {
         url: diskSrc,
         title: diskDetail.title,
         artwork: episodeArtwork(diskDetail) ?? null,
+        // The offline path is exactly the one where the element reports no duration, and the
+        // registry kept this when the episode was downloaded.
+        durationSeconds: diskDetail.duration_seconds ?? null,
       })
       // The registry can only rebuild title, show and duration. Everything the page is actually
       // FOR — the summary, the insights, the topics and people — was written beside the audio at
@@ -863,6 +866,7 @@ async function load(slug: string): Promise<void> {
         url: audio?.url ?? localSrc ?? '',
         title: episode.value?.title ?? null,
         artwork: artwork.value ?? null,
+        durationSeconds: episode.value?.duration_seconds ?? null,
       })
     }
     // Offline, GET /playback fails and `playback` is null — fall back to the position this device
