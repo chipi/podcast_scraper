@@ -56,7 +56,14 @@ const title = computed(() => props.item.episode_title || props.item.graph_refs?.
       <p v-if="item.quote" class="line-clamp-4 font-display text-sm font-semibold leading-snug">
         “{{ item.quote }}”
       </p>
-      <div :class="item.quote ? 'mt-auto pt-3' : ''">
+      <!-- Title + chips sit at the BOTTOM of the artwork, always (operator 2026-09-19).
+
+           `mt-auto` used to be conditional on there being a quote, so a card without one — the
+           common case on this rail — pinned its title to the TOP, over the brightest part of the
+           image and furthest from the scrim that makes it legible. Two cards side by side then
+           disagreed about where their text lived. The scrim is already darkest at the bottom; this
+           puts the words where it was built to carry them. -->
+      <div class="mt-auto pt-3">
         <!-- Not clamped (#2004 item 3b): same rule as the other cards — the tile keeps rows even, the
            title is allowed to be as long as it is. -->
       <div class="text-sm font-bold leading-tight">{{ title }}</div>
