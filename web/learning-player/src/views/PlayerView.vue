@@ -502,31 +502,15 @@ const insightSpeaker = computed(
   () => visibleInsight.value?.quotes?.find((q) => q.speaker)?.speaker || speakingNow.value || '',
 )
 
-/**
- * Has this episode actually been played yet? A LATCH, not the live `playing` flag.
- *
- * Gating Zone D on `playing` directly would blank the insight every time the listener pauses —
- * which is precisely when they want to read it. What must be suppressed is the state BEFORE the
- * episode has ever run: opening a page and being shown a claim over the artwork with nothing
- * spoken. Once playback has begun, pausing keeps whatever is on screen.
- */
-const playbackStarted = ref(false)
-watch(playing, (isPlaying) => {
-  if (isPlaying) playbackStarted.value = true
-})
-// A different episode has never been played, whatever the outgoing one did.
-watch(
-  () => props.slug,
-  () => {
-    playbackStarted.value = false
-  },
-)
-
 const activeInsight = computed(() => {
-  // Two gates before an insight may cover the artwork (operator 2026-09-19): the episode has been
-  // played at least once, and the playhead has cleared INSIGHT_MIN_CONTENT_SECONDS. See that
-  // constant for why the existing degenerate-quote guard does not cover this.
-  if (!playbackStarted.value) return null
+  // Nothing may cover the artwork until the playhead has cleared the floor (operator 2026-09-19).
+  // See INSIGHT_MIN_CONTENT_SECONDS for why the degenerate-quote guard does not cover this.
+  //
+  // The floor alone, deliberately — an earlier version also latched "has this episode ever been
+  // played". It was redundant for the reported bug (at 0:00 the floor already suppresses it) and
+  // wrong everywhere else: it blanked Zone D for a listener who scrubs to a moment while paused,
+  // which is a legitimate way to use the scrubber, and it is what the playhead reads that decides
+  // what is being said — not whether a play button has been pressed.
   if (contentTime.value < INSIGHT_MIN_CONTENT_SECONDS) return null
   const i = activeInsightIndex(insights.value, contentTime.value, INSIGHT_LINGER_MS)
   return i >= 0 ? insights.value[i] : null
