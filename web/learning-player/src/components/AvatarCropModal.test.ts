@@ -32,4 +32,37 @@ describe("AvatarCropModal", () => {
     const w = mountModal()
     expect(w.get('[data-testid="avatar-crop-confirm"]').attributes("disabled")).toBeDefined()
   })
+
+  /**
+   * a11y review 2026-09-19 — two HIGH findings, both in this component.
+   *
+   * It was the only sheet in the app that hand-rolled its own modal: a plain `role="dialog"` div
+   * whose sole close path was a backdrop click. A keyboard user could not leave it without a
+   * pointer, and focus never returned to the control that opened it. Every other sheet already
+   * went through `useModalSheet`.
+   */
+  it("Escape closes it — a keyboard user is not trapped", async () => {
+    const w = mountModal()
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))
+    await w.vm.$nextTick()
+    expect(
+      w.emitted("cancel"),
+      "Escape did not close the cropper, so a keyboard user has no way out",
+    ).toBeTruthy()
+  })
+
+  /**
+   * Zoom was reachable (an `<input type="range">`) but the 2D pan was pointer-only, so a keyboard
+   * user could open the cropper, change the zoom, and never move the image.
+   */
+  it("the crop surface is focusable and named", () => {
+    const w = mountModal()
+    const surface = w.get('[data-testid="avatar-crop-surface"]')
+    expect(surface.attributes("tabindex"), "the pan surface cannot be reached by keyboard").toBe("0")
+    expect(
+      surface.attributes("aria-label"),
+      "the pan surface has no accessible name, so VoiceOver cannot say what it is",
+    ).toBeTruthy()
+  })
 })
