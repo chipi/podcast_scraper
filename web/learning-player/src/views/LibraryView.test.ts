@@ -411,6 +411,39 @@ describe('LibraryView', () => {
       expect(w.find('[data-testid="stale-notice"]').exists(), 'the notice stayed up').toBe(false)
     })
   })
+
+  /**
+   * A deep link must switch the TAB, not just the content beneath it.
+   *
+   * This view is kept-alive, so setup runs once and `route.query.tab` was read there and never
+   * again. Every later link from Home landed on whatever tab the user had left Library on — the
+   * boards teaser's "See all" sends `?tab=collections` and arrived on Saved (operator 2026-09-19).
+   * The `?board=` half always worked, so the right board opened inside a tab nobody could see.
+   */
+  it('a later ?tab= deep link switches tabs even though the view is kept alive', async () => {
+    await router.replace('/library')
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.get('[data-testid="library-tab-saved"]').attributes('aria-selected')).toBe('true')
+
+    // Navigate again WITHOUT remounting — the kept-alive case.
+    await router.replace('/library?tab=collections')
+    await flushPromises()
+
+    expect(w.get('[data-testid="library-tab-collections"]').attributes('aria-selected')).toBe('true')
+    expect(w.get('[data-testid="library-tab-saved"]').attributes('aria-selected')).toBe('false')
+  })
+
+  it('ignores a ?tab= value that is not a real tab', async () => {
+    await router.replace('/library')
+    const w = mountKeptAlive()
+    await flushPromises()
+    await router.replace('/library?tab=not-a-tab')
+    await flushPromises()
+    // Unchanged — a bad query must not blank the view or select nothing.
+    expect(w.get('[data-testid="library-tab-saved"]').attributes('aria-selected')).toBe('true')
+  })
+
 })
 
 /**
