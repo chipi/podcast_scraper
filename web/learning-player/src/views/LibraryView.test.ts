@@ -171,31 +171,32 @@ describe('LibraryView', () => {
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
   })
 
-  it('pages a long Saved episodes list TEN at a time (#2042, operator 2026-09-18)', async () => {
-    // Was "show 6, then show all". A hundred saved episodes revealed in one press is not a page —
-    // it is a scroll with no landmarks — so each press adds another ten instead.
-    const episodes = Array.from({ length: 25 }, (_, i) =>
+  it('pages a long Saved episodes list FIVE at a time (operator 2026-09-19)', async () => {
+    // Was "show 6, then show all", then ten-and-ten, now five-and-five. A hundred saved episodes
+    // revealed in one press is not a page — it is a scroll with no landmarks — and ten rows is
+    // most of a phone screen per section before you reach the next one. Saved is a hub you scan.
+    const episodes = Array.from({ length: 13 }, (_, i) =>
       summary({ slug: `e${i}`, title: `Saved Episode ${i}` }),
     )
     vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes })
     const w = mountKeptAlive()
     await flushPromises()
 
-    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(10)
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(5)
     const toggle = w.find('[data-testid="show-all-toggle"]')
     expect(toggle.exists()).toBe(true)
     // The label counts what is still HIDDEN — the question the control actually answers.
-    expect(toggle.text()).toContain('15')
+    expect(toggle.text()).toContain('8')
 
     await toggle.trigger('click')
-    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(20)
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(10)
     await toggle.trigger('click')
-    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(25)
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(13)
 
     // Everything is out: the same control folds it back to the first page.
     expect(toggle.text()).toContain('Show less')
     await toggle.trigger('click')
-    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(10)
+    expect(w.findAll('[data-testid="episode-card"]')).toHaveLength(5)
   })
 
   it('the Saved search narrows every section and lifts the caps (#2042)', async () => {

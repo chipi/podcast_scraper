@@ -15,12 +15,27 @@
 /** Anything followable carries one of these. */
 export const INTEREST_PREFIX = /^(topic|tc|thc|person):/
 
-export type InterestKind = 'topic' | 'storyline' | 'person'
+export type InterestKind = 'topic' | 'theme' | 'storyline' | 'person'
 
-/** What kind of thing an interest token names — drives chip hue and grouping. */
+/**
+ * What kind of thing an interest token names — drives chip hue, labelling and grouping.
+ *
+ * `tc:` and `thc:` are SEPARATE kinds (operator 2026-09-19). They were both reported as
+ * `'storyline'`, which was harmless only while the kind picked a hue and nothing said it out loud:
+ * the profile now names each pill's kind, and calling a semantic cluster a storyline would be
+ * false. They are genuinely different objects — `thc:` is co-occurrence ("these topics keep coming
+ * up together", #1603), `tc:` is vector similarity ("these topics mean similar things") — and
+ * conflating them is the same confusion the operator hit on the topic card.
+ *
+ * NOTE THE INVERSION between the wire names and the product ones, because it WILL mislead: the
+ * backend's `thc:` is a "theme cluster" and is what a reader calls a STORYLINE, while `tc:` is a
+ * "topic cluster" and is what a reader calls a THEME (operator 2026-09-19). The wire prefixes are
+ * stored per user and cannot be renamed; this function is the boundary where they stop mattering.
+ */
 export function interestKind(id: string): InterestKind {
   if (id.startsWith('person:')) return 'person'
-  if (id.startsWith('thc:') || id.startsWith('tc:')) return 'storyline'
+  if (id.startsWith('thc:')) return 'storyline'
+  if (id.startsWith('tc:')) return 'theme'
   return 'topic'
 }
 

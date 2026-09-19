@@ -13,7 +13,7 @@ import logging
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from podcast_scraper.server import app_collections_store, app_user_state
 from podcast_scraper.server.app_artwork import artwork_url
@@ -196,9 +196,25 @@ def _resolve_item(item: dict, highlights_by_id: dict[str, dict]) -> CollectionIt
 
 @router.get("/collections", response_model=CollectionsResponse)
 async def list_collections(
-    request: Request, user: User = Depends(get_current_user)
+    request: Request,
+    contains_kind: str | None = Query(
+        default=None,
+        description="With contains_ref: flag which collections already hold this item.",
+    ),
+    contains_ref: str | None = Query(default=None, description="See contains_kind."),
+    user: User = Depends(get_current_user),
 ) -> CollectionsResponse:
     """The user's collections, newest-first, each with its item count.
+
+    Pass ``contains_kind`` + ``contains_ref`` and every row comes back with ``contains`` set — the
+    add-to-collection picker needs it to show where the item already is (operator 2026-09-19).
+    Before, that picker listed every board identically, so the only way to learn an item was
+    already on one was to add it again and watch nothing change. Answered here rather than by the
+    client because membership lives in one file the client would otherwise have to walk board by
+    board.
+
+    Omit the pair and ``contains`` stays NULL on every row, which is the honest value for a
+    question nobody asked.
 
     Backfills a MISSING cover lazily (operator 2026-09-16: boards with items were still showing the
     empty placeholder). ``cover_url`` is only ever written by ``_recompute_cover`` on a membership
@@ -215,6 +231,11 @@ async def list_collections(
         if row.get("cover_url") or not row.get("count"):
             continue
         row["cover_url"] = _recompute_cover(request, data_dir, user.user_id, str(row["id"]))
+    if contains_kind and contains_ref:
+        want = (contains_kind, contains_ref)
+        for row in rows:
+            items = app_collections_store.get_items(data_dir, user.user_id, str(row["id"]))
+            row["contains"] = any((str(i.get("kind")), str(i.get("ref"))) == want for i in items)
     return CollectionsResponse(items=[Collection(**c) for c in rows])
 
 

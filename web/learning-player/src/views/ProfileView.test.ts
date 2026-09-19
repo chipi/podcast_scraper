@@ -268,14 +268,56 @@ describe("ProfileView — interest chips", () => {
     const personChip = chips.find((c) => c.classes().includes("text-person"))!
     const topicChips = chips.filter((c) => c.classes().includes("text-topic"))
 
-    // person:brian-chesky → person hue, de-slugged label
+    // Each pill now NAMES its kind in a mono kicker as well as carrying its hue, so `.text()` is
+    // "Person brian chesky" rather than the bare label (operator 2026-09-19). Hue alone could not
+    // carry the distinction — these three colours sit close in value by design, and it carried
+    // nothing at all for a colour-blind reader.
     expect(personChip.classes()).toContain("text-person")
-    expect(personChip.text()).toBe("brian chesky")
+    expect(personChip.text()).toBe("Person brian chesky")
 
-    // topic:personal-growth → topic hue, de-slugged
-    expect(topicChips.some((c) => c.text() === "personal growth")).toBe(true)
-    // tc:ai resolves to its cluster label via the clusters map (not de-slugged "ai")
-    expect(topicChips.some((c) => c.text() === "AI")).toBe(true)
+    // topic:personal-growth → topic hue, de-slugged, kind named
+    expect(topicChips.some((c) => c.text() === "Topic personal growth")).toBe(true)
+  })
+
+  it("a THEME is its own kind, not a storyline", async () => {
+    // `tc:` was classed as `storyline`, which was invisible while the kind only picked a hue and
+    // became a false claim the moment each pill named itself. They are different objects and have
+    // different product names: `thc:` is a STORYLINE (topics that keep coming up together), `tc:`
+    // is a THEME (topics that mean similar things) — note the wire prefixes are inverted against
+    // the reader-facing words, which is exactly why this is pinned.
+    vi.spyOn(api, "getUserInterests").mockResolvedValue(["tc:ai", "thc:ai-safety"])
+    const w = mountProfile()
+    await flushPromises()
+
+    const theme = w.find('[data-testid="profile-interest-theme"]')
+    expect(theme.exists()).toBe(true)
+    // Resolves to its cluster label via the clusters map, not the de-slugged "ai".
+    expect(theme.text()).toBe("Theme AI")
+    expect(theme.classes()).toContain("text-theme")
+
+    // And it is not wearing the storyline treatment.
+    expect(theme.classes()).not.toContain("text-accent")
+    expect(w.find('[data-testid="profile-interest-storyline"]').classes()).toContain("text-accent")
+  })
+
+  it("a followed STORYLINE is visibly not a topic", async () => {
+    // The whole point of the kicker: "it's hard to see what's a storyline and what's a topic"
+    // (operator 2026-09-19). A `thc:` token takes the accent treatment the topic card's storyline
+    // pill uses, so the same object looks the same wherever it appears.
+    vi.spyOn(api, "getUserInterests").mockResolvedValue(["thc:ai-safety", "topic:sleep"])
+    const w = mountProfile()
+    await flushPromises()
+
+    const storyline = w.find('[data-testid="profile-interest-storyline"]')
+    const topic = w.find('[data-testid="profile-interest-topic"]')
+    expect(storyline.exists()).toBe(true)
+    expect(topic.exists()).toBe(true)
+
+    expect(storyline.text()).toContain("Storyline")
+    expect(storyline.classes()).toContain("text-accent")
+    // Not merely a different word — a different treatment, so they do not read as one family.
+    expect(topic.classes()).not.toContain("text-accent")
+    expect(topic.text()).toContain("Topic")
   })
 
   it("shows the no-interests message when the list is empty", async () => {

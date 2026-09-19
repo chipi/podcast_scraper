@@ -72,7 +72,8 @@ watch(open, async (isOpen) => {
   // the next open.
   error.value = null
   try {
-    collections.value = await getCollections()
+    // Ask which boards ALREADY hold this item, so the list can say so (operator 2026-09-19).
+    collections.value = await getCollections(props.item)
     loaded.value = true
   } catch {
     // Only surface empty + error when we have NOTHING to show; never blank a list we already have.
@@ -194,16 +195,30 @@ async function createAndAdd(): Promise<void> {
       <p class="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-muted">
         {{ t('collections.addTo') }}
       </p>
+      <!-- A board that ALREADY holds this item says so (operator 2026-09-19). Every row used to
+           look identical, so the only way to find out where something already lived was to add it
+           again and watch nothing happen — the add is idempotent, so that tap is silent.
+
+           `contains` is nullable on purpose and this reads it strictly: `=== true`. Null means the
+           server was not asked, and an un-asked question must not render as a confident "not in
+           this one". The word "Added" carries it, not the tick alone — a bare ✓ beside a name reads
+           as "selected", which is the opposite of what it means here. -->
       <ul class="max-h-48 overflow-y-auto">
         <li v-for="c in collections" :key="c.id">
           <button
             type="button"
             class="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-overlay"
+            :class="c.contains === true ? 'text-grounded' : ''"
             data-testid="add-to-collection-pick"
+            :data-contains="c.contains === true ? 'true' : undefined"
             @click="pick(c.id)"
           >
             <span class="min-w-0 truncate">{{ c.name }}</span>
-            <span v-if="addedTo === c.id" class="shrink-0 text-xs text-grounded">✓</span>
+            <span
+              v-if="addedTo === c.id || c.contains === true"
+              class="shrink-0 whitespace-nowrap text-xs text-grounded"
+              >✓ {{ t('collections.alreadyIn') }}</span
+            >
           </button>
         </li>
       </ul>

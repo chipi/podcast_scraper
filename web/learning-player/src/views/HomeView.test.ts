@@ -55,6 +55,9 @@ const router = createRouter({
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    // Home's resume hero links here now (operator 2026-09-19): the queue's only other entrances
+    // are the full player and the mini-player, so with nothing playing it was unreachable.
+    { path: '/queue', name: 'queue', component: { template: '<div/>' } },
     { path: '/browse/topics', name: 'browse-topics', component: { template: '<div/>' } },
     { path: '/browse/people', name: 'browse-people', component: { template: '<div/>' } },
   ],
