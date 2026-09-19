@@ -1735,6 +1735,13 @@ def prepare_episode_download_args(
                 transcription_resources.transcription_jobs_lock,
                 list(detected.guests) if detected else None,
                 list(detected.stated) if detected else None,
+                # The feed's hosts, resolved ONCE per feed above. The download path needs them
+                # because a publisher transcript that names its own turns is routed through the
+                # roster there (no audio, no diarizer), and without this anchor the roster leaves
+                # every voice as a bare `SPEAKER_NN` cluster id. `stages/transcription.py` puts
+                # the same value on the TranscriptionJob for the ASR path; this is the download
+                # path's copy of it, and the only point before transcription where it exists.
+                sorted(host_detection_result.cached_hosts or []),
             )
         )
 

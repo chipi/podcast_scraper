@@ -1,0 +1,145 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:10.380
+<v Maya>Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here.</v>
+
+00:00:10.380 --> 00:00:12.240
+<v Sophie Lorenz>Thanks, Maya. Great to be back.</v>
+
+00:00:12.240 --> 00:00:19.620
+<v Maya>Today's episode is sponsored by Linear. Linear is the issue tracker built for speed — keyboard-first. Try linear.com today.</v>
+
+00:00:19.620 --> 00:00:27.120
+<v Maya>Before we get into it — Liam Verbeck was on the show talking about how drainage is the single highest-leverage design choice.</v>
+
+00:00:27.120 --> 00:00:30.600
+<v Sophie Lorenz>Yeah, exactly. And it ties into what we're covering today.</v>
+
+00:00:30.600 --> 00:00:36.060
+<v Maya>I want to flag something — Liam Verbeck mentioned this same dynamic a couple episodes back.</v>
+
+00:03:30.000 --> 00:03:35.160
+<v Maya>Walk me through a concrete example. Where do soil erosion and enduro racing intersect?</v>
+
+00:03:35.160 --> 00:03:46.980
+<v Sophie Lorenz>Honestly, Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.</v>
+
+00:03:46.980 --> 00:03:51.480
+<v Maya>I want to dig into that. Where do soil erosion and enduro racing intersect?</v>
+
+00:03:51.480 --> 00:04:01.020
+<v Sophie Lorenz>Sure. Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're making.</v>
+
+00:04:01.020 --> 00:04:05.160
+<v Maya>Let's start there. Where do soil erosion and enduro racing intersect?</v>
+
+00:04:05.160 --> 00:04:18.660
+<v Sophie Lorenz>Honestly, Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using Shimano. If you ignore that, you end up rebuilding it from scratch a year later.</v>
+
+00:04:18.660 --> 00:04:20.280
+<v Maya>Where does that break down?</v>
+
+00:04:20.280 --> 00:04:27.960
+<v Sophie Lorenz>Cascadia Alliance is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss.</v>
+
+00:04:27.960 --> 00:04:33.720
+<v Maya>What's the one heuristic you keep coming back to? How does Spoke &amp; Wrench fit into this picture?</v>
+
+00:04:33.720 --> 00:04:43.980
+<v Sophie Lorenz>Here's how I think about it. Erosion patterns on race-tracks change line choice from practice to race day. Once you internalize that, the rest of the decisions get easier.</v>
+
+00:04:43.980 --> 00:04:51.360
+<v Maya>Before we keep going — head over to our sponsor's website if you want to support the show. Strava is the home for athletes.</v>
+
+00:12:00.000 --> 00:12:03.420
+<v Maya>We'll be right back after a quick word from our sponsors.</v>
+
+00:12:03.420 --> 00:12:11.760
+Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Visit notion.com/podcast for a free trial.
+
+00:12:11.760 --> 00:12:13.260
+<v Maya>Welcome back to the show.</v>
+
+00:14:00.000 --> 00:14:04.920
+<v Maya>I want to dig into that. What's the version of the question that actually matters?</v>
+
+00:14:04.920 --> 00:14:18.840
+<v Sophie Lorenz>Let me give you the version I actually believe. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. And the second-order effect is the part most people miss.</v>
+
+00:14:18.840 --> 00:14:25.020
+<v Maya>What does the failure mode look like? What's the operational angle most listeners don't have access to?</v>
+
+00:14:25.020 --> 00:14:34.860
+<v Sophie Lorenz>Yeah, so — Tire pressure and casing choice often matter more than a minor suspension tweak. The framing matters because it tells you which trade-offs you're making.</v>
+
+00:14:34.860 --> 00:14:40.440
+<v Maya>Walk me through a concrete example. What's the version of the question that actually matters?</v>
+
+00:14:40.440 --> 00:14:53.400
+<v Sophie Lorenz>Yeah, so — Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.</v>
+
+00:14:53.400 --> 00:14:54.900
+<v Maya>Say more about that.</v>
+
+00:14:54.900 --> 00:15:03.000
+<v Sophie Lorenz>Cascadia Alliance is one of the platforms where this shows up cleanly. Once you internalize that, the rest of the decisions get easier.</v>
+
+00:15:03.000 --> 00:15:07.140
+<v Maya>Let's start there. What's the most underrated piece of enduro racing?</v>
+
+00:15:07.140 --> 00:15:16.800
+<v Sophie Lorenz>It comes down to this: Erosion patterns on race-tracks change line choice from practice to race day. I've watched this pattern hold across three different teams.</v>
+
+00:22:00.000 --> 00:22:04.320
+<v Maya>Let's pivot — risk management is where I want to spend the last stretch.</v>
+
+00:22:04.320 --> 00:22:12.060
+<v Sophie Lorenz>That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered.</v>
+
+00:22:12.060 --> 00:22:18.180
+<v Maya>What does the failure mode look like? What's the contrarian angle most listeners don't have access to?</v>
+
+00:22:18.180 --> 00:22:29.760
+<v Sophie Lorenz>Sure. Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.</v>
+
+00:22:29.760 --> 00:22:34.920
+<v Maya>Walk me through a concrete example. What's the most underrated piece of enduro racing?</v>
+
+00:22:34.920 --> 00:22:44.040
+<v Sophie Lorenz>Yeah, so — Tire pressure and casing choice often matter more than a minor suspension tweak. I've watched this pattern hold across three different teams.</v>
+
+00:22:44.040 --> 00:22:49.620
+<v Maya>Walk me through a concrete example. What's the version of the question that actually matters?</v>
+
+00:22:49.620 --> 00:23:05.160
+<v Sophie Lorenz>Let me give you the version I actually believe. Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable. We've seen this play out at teams using Spoke &amp; Wrench. I've watched this pattern hold across three different teams.</v>
+
+00:23:05.160 --> 00:23:06.660
+<v Maya>That tracks.</v>
+
+00:23:06.660 --> 00:23:15.180
+<v Sophie Lorenz>And when teams adopt Spoke &amp; Wrench in that flow, the trade-off becomes visible — I've watched this pattern hold across three different teams.</v>
+
+00:23:15.180 --> 00:23:21.600
+<v Maya>What's the one heuristic you keep coming back to? What's the version of the question that actually matters?</v>
+
+00:23:21.600 --> 00:23:31.620
+<v Sophie Lorenz>Here's how I think about it. Erosion patterns on race-tracks change line choice from practice to race day. I've watched this pattern hold across three different teams.</v>
+
+00:28:00.000 --> 00:28:03.660
+<v Maya>Before we wrap, what's one thing listeners can try this week?</v>
+
+00:28:03.660 --> 00:28:08.520
+<v Sophie Lorenz>Pick one of the ideas we covered and run it for two weeks. The rest is iteration.</v>
+
+00:28:08.520 --> 00:28:15.540
+<v Maya>And finally, a big thank you to our partners at Vanta. Vanta automates SOC 2 and ISO compliance. Check out vanta.com.</v>
+
+00:28:15.540 --> 00:28:18.120
+<v Maya>Sophie Lorenz, thanks for the conversation.</v>
+
+00:28:18.120 --> 00:28:19.620
+<v Sophie Lorenz>Thanks, Maya.</v>
+
+00:28:19.620 --> 00:28:24.000
+<v Maya>That's it for today's episode of Singletrack Sessions. See you next time.</v>

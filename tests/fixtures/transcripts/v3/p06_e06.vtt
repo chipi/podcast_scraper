@@ -1,0 +1,16 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.560
+<v Maya>This is an edge-case fixture used for parser and processor robustness tests.</v>
+
+00:00:04.560 --> 00:00:06.060
+<v Maya>Welcome.</v>
+
+00:00:06.060 --> 00:00:07.560
+<v Liam>Hola, ¿cómo estás?</v>
+
+00:00:07.560 --> 00:00:10.980
+<v Maya>A bit of code-switching to test transcription robustness.</v>
+
+00:00:10.980 --> 00:00:12.720
+<v Maya>End of edge-case episode e06.</v>
