@@ -116,8 +116,28 @@ fix is broken. (It happened. See the pitfall below.)
 ### Tier 3 — targeted pipeline (one or two episodes)
 
 Some things are invisible to tiers 1–2 by construction: anything the LLM decides,
-anything about the written artifacts, anything about stage routing. Run the real CLI on
-one or two episodes. Choose the episode that exhibits the defect, not a convenient one.
+anything about the written artifacts, anything about stage routing, and anything upstream
+of the artifacts the replay reads. Run the real CLI on one or two episodes. Choose the
+episode that exhibits the defect, not a convenient one.
+
+This tier is cheaper than it looks and is routinely skipped for no reason. A single-episode
+`relabel_only` against the real detector, on a COPY of a corpus that already has the
+transcript, is minutes:
+
+```bash
+cp -R <baseline>/corpus <work>/corpus          # never relabel your baseline in place
+printf '<episode-guid>\n' > <work>/ids.txt
+.venv/bin/python -m podcast_scraper.cli <feed-url> \
+  --profile dev_dgx_full --pipeline-stage relabel_only \
+  --output-dir <work>/corpus --single-feed-uses-corpus-layout \
+  --reprocess-existing-only --reprocess-episode-ids <work>/ids.txt --no-kg
+```
+
+Then point tier 1 at the result — `--snapshot <work>/corpus` — so the same pinned cases
+grade the real run. Two practical notes: `--no-generate-metadata` is rejected while
+summaries are on, and you need the metadata written anyway to inspect the record; and the
+record is written before the known evidence-backend stall, so a wedged run still yields the
+artifact (kill it and read the files).
 
 ### Tier 4 — the harness (hours)
 
@@ -166,9 +186,32 @@ lists derive from that one capped value, so the guest reaches neither `detected_
 nor `metadata_named` — and the record builder reads only those. The person vanishes from
 `content.speakers` entirely, not even as `placed: false`.
 
-`Mackenzie Price` appears in **no record file in the whole control corpus**, on an
-episode whose transcript says *"So let's bring in Alpha School cofounder, Mackenzie
-Price"* followed by *"Thanks for having me"*.
+On the canonical episode, two feed-stated hosts fill the cap and the diagnostics record the
+consequence exactly:
+
+```text
+tried.known_hosts     : ['Casey Newton', 'Kevin Roose']
+tried.detected_guests : []
+tried.metadata_named  : []
+SPEAKER_05: 1071.6s (17.9 min)  UNNAMED
+```
+
+and the run log says what was lost:
+
+```text
+speaker resolution proposed 1 name(s) the metadata never stated (MacKenzie Price) — DISCARDED.
+```
+
+The model identified her **from her own voice** and the closed-list guard (#876) threw the
+answer away, because the list it checks against had been emptied by a screenplay seat count.
+An 18-minute speaker goes unnamed as a direct result.
+
+> **Lesson — cite the field, not the vibe.** The first write-up of this said she "appears in
+> no record file in the whole control corpus". That sentence is false: she is in
+> `content.speakers`, which on those records is an old by-role projection removed in schema
+> 1.2.0. Same defect, wrong evidence — and wrong evidence is how a real finding gets thrown
+> out when somebody checks it. The defensible statement names the field
+> (`tried.metadata_named == []`) and the observable consequence (a 17.9-minute unnamed voice).
 
 **Why a targeted population beat the corpus.** A previous attempt removed the cap
 outright and was reverted: uncapping pushed wrong names through the arithmetic
@@ -194,14 +237,23 @@ gate the reverted attempt had bypassed, and the forced-path effect is left expli
 unmeasured, because no tier available offline can see it. Record the gap; do not let a table
 of measured policies imply that the measured one is the one in the tree.
 
-**And know when the cheap tiers simply cannot answer.** This fix is upstream of everything
-the stored artifacts record: detection runs at ingest, so `detected_guests` is frozen in the
-diagnostics as the capped list it was. Tiers 1 and 2 replay those artifacts, so neither can
-see the change at all — the golden case for it fails identically before and after, and that
-is the harness being honest rather than the fix being wrong. A fix upstream of the recorded
-inputs is verified by a unit test at the decision itself plus a tier-3 run, and nowhere else.
-Say so out loud; a tier that structurally cannot see your change must never be reported as
-having cleared it.
+**A tier that cannot see your change must never be reported as having cleared it.** This fix
+is upstream of everything the stored artifacts record: detection runs at ingest, so
+`detected_guests` is frozen in the diagnostics as the capped list it was. Replay those
+artifacts and the golden case fails identically before and after — not because the fix is
+broken but because the input predates it.
+
+**But "the cheap tiers cannot answer" is not the same as "I cannot answer today", and
+conflating them cost hours here.** The conclusion reached was that this needed a machine with
+the ML stack, which this one is not. That was wrong twice over: production's detector is not
+the spaCy one at all, it is an OpenAI-compatible client pointed at a GPU host over plain HTTP,
+so the "ML stack" was never required — and a run from three days earlier had already exercised
+that exact path on this machine. The tier-3 run took minutes.
+
+> **Lesson.** Before concluding you cannot run something, check WHICH implementation the
+> profile selects and what it actually needs — a provider name in a YAML file and one `curl`
+> would have answered it. "I need a different machine" is a claim about the machine; verify it
+> like any other.
 
 ---
 

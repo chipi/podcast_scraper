@@ -15,9 +15,20 @@ code, so every expectation is something a person can check by reading the episod
     ... --only dwarkesh          # one case
     ... --src /other/checkout/src  # compare two trees
 
-``--snapshot`` defaults to ``$PODCAST_CORPUS_SNAPSHOT``. Point it at a corpus directory
-containing ``run_*/transcripts/*.speakers.diagnostics.json`` — a restored production
-snapshot, never a corpus the pipeline is writing to.
+``--snapshot`` defaults to ``$PODCAST_CORPUS_SNAPSHOT`` and accepts SEVERAL roots separated
+by ``,``. Each must contain ``run_*/transcripts/*.speakers.diagnostics.json``. Use a restored
+snapshot or a finished relabel output — never a corpus the pipeline is currently writing to.
+
+Two verdicts that are not failures and must not be read as one:
+
+``n/a``   the episode is not in the corpora you gave. It proves nothing. The count is printed
+          separately, and the run refuses outright once half the cases are in that state —
+          this suite once reported "0 failing" with all eleven `n/a` after a snapshot was
+          pruned, which is the rot it is meant to warn about.
+``FAIL`` on a ``record`` case
+          may mean the SNAPSHOT predates the fix rather than that the code regressed, because
+          those cases depend on ingest-time detection frozen in the diagnostics. Grade them
+          against a corpus produced by a post-fix relabel.
 
 See docs/guides/VALIDATING_CORPUS_FIXES_FAST.md for how this fits the wider loop and how
 to add cases.
@@ -31,6 +42,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Sequence
 
 # --- the cases --------------------------------------------------------------------
 # kind:
@@ -62,27 +74,27 @@ CASES = [
     ),
     # --- a stated guest must reach the record on a two-host show (#2078) -------------
     #
-    # READ THIS BEFORE "FIXING" THE NEXT CASE. It fails, and this harness CANNOT make it pass.
-    # Detection runs at INGEST: every stored diagnostics file already holds the CAPPED
-    # `detected_guests`, and this harness replays those stored artifacts. So the case reads
-    # identically before and after the fix. It is verified instead by
-    #   tests/unit/podcast_scraper/speaker_detectors/test_stated_guest_survives_the_seat_cap.py
-    #   tests/unit/podcast_scraper/providers/openai/test_stated_guest_survives_the_seat_cap.py
-    #   tests/unit/podcast_scraper/workflow/stages/test_stated_and_arithmetic_lists_are_separate.py
-    # and by a real `relabel_only` run, which re-runs detection.
+    # WHICH CORPUS YOU POINT THIS AT DECIDES THE ANSWER, and that is the point of the case.
     #
-    # The two provider files are not duplication: the cap existed on BOTH the spaCy detector and
-    # the OpenAI-compatible one, and production runs the latter (`prod_dgx_full` -> `vllm`).
-    # Fixing only the first was reported as a complete fix by every offline check here.
+    # Detection runs at INGEST, so a diagnostics file written before the fix holds the CAPPED
+    # `detected_guests` forever. Replay it and the case fails no matter what the code says — not
+    # because the fix is broken but because the input predates it. Against a corpus produced by a
+    # post-fix `relabel_only`, it passes.
     #
-    # The case is kept because it states something true about the corpus, and because a harness
-    # that silently drops what it cannot check is worse than one that fails honestly.
+    # Measured on the canonical episode, same profile (`dev_dgx_full`, detector `vllm`) both
+    # times — before, `tried.metadata_named` was `[]` and the run log says
+    # "proposed 1 name(s) the metadata never stated (MacKenzie Price) - DISCARDED"; after, it is
+    # `['MacKenzie Price', 'D. Graham Burnett']` and she reaches the record as `placed: false`,
+    # with the five named voices unchanged.
+    #
+    # So: a FAIL here means "this snapshot predates the fix" OR "the fix regressed", and the two
+    # are told apart by which corpus you passed to --snapshot. Never read it as the latter alone.
     dict(
         id="hardfork-guest-in-record",
         ep="A.I. School Is in Session",
         kind="record",
-        name="Mackenzie Price",
-        why='"let\'s bring in Alpha School cofounder, Mackenzie Price" -> "Thanks for having me"',
+        name="Mackenzie Price",  # description spells it "MacKenzie"; matching is case-insensitive
+        why='"Alpha School cofounder, MacKenzie Price" -> "Thanks for having me"',
     ),
     dict(
         id="trip-stubb-in-record",
@@ -161,9 +173,21 @@ CASES = [
 ]
 
 
-def load_episode(snapshot: Path, fragment: str):
-    """Everything the roster needs for one episode, from the read-only snapshot."""
-    for dp in snapshot.rglob("run_*/transcripts/*.speakers.diagnostics.json"):
+def _diagnostics_under(roots: Sequence[Path]):
+    """Every episode's diagnostics across all snapshot roots, in the order given."""
+    for root in roots:
+        yield from root.rglob("run_*/transcripts/*.speakers.diagnostics.json")
+
+
+def load_episode(roots: Sequence[Path], fragment: str):
+    """Everything the roster needs for one episode, from the read-only snapshot(s).
+
+    Several roots are accepted because no single corpus on disk holds every pinned episode —
+    they were ingested in different batches. Earlier this was one root, and when that root was
+    pruned the suite reported eleven `n/a` and "0 failing", which is the exact rot this file is
+    meant to illustrate rather than commit.
+    """
+    for dp in _diagnostics_under(roots):
         if fragment not in dp.name or ".adfree." in dp.name:
             continue
         stem = dp.name[: -len(".speakers.diagnostics.json")]
@@ -221,10 +245,11 @@ def load_episode(snapshot: Path, fragment: str):
     return None
 
 
-def run_case(case, mods, snapshot: Path):
-    ep = load_episode(snapshot, case["ep"])
+def run_case(case, mods, roots: Sequence[Path]):
+    ep = load_episode(roots, case["ep"])
     if ep is None:
-        return "NO DATA", f"no episode matching {case['ep']!r} under {snapshot}"
+        where = ", ".join(str(r) for r in roots)
+        return "NO DATA", f"no episode matching {case['ep']!r} under {where}"
     roster_mod, hosts_mod, base = mods
     # RECOMPUTE the hosts; do NOT read `tried.known_hosts`. This looks like the "verify the
     # instrument" trap and is the opposite of it, so it is written down.
@@ -350,7 +375,11 @@ def main() -> int:
     ap.add_argument(
         "--snapshot",
         default=os.environ.get("PODCAST_CORPUS_SNAPSHOT", ""),
-        help="read-only corpus snapshot root (env: PODCAST_CORPUS_SNAPSHOT)",
+        help=(
+            "read-only corpus root, or several separated by ',' — the pinned episodes were "
+            "ingested in different batches and no single corpus holds them all "
+            "(env: PODCAST_CORPUS_SNAPSHOT)"
+        ),
     )
     ap.add_argument(
         "--src",
@@ -367,9 +396,23 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
-    snapshot = Path(args.snapshot)
-    if not snapshot.is_dir():
-        print(f"snapshot is not a directory: {snapshot}", file=sys.stderr)
+    roots = [Path(p.strip()) for p in args.snapshot.split(",") if p.strip()]
+    for r in roots:
+        if not r.is_dir():
+            print(f"snapshot is not a directory: {r}", file=sys.stderr)
+            return 2
+    # A DIRECTORY IS NOT A CORPUS. Refuse before running rather than reporting eleven `n/a`
+    # results and a cheerful "0 failing" — which is precisely what this printed when a snapshot
+    # was pruned out from under it, and it is the suite-rot failure this file is supposed to
+    # demonstrate rather than commit.
+    if not any(_diagnostics_under(roots)):
+        print(
+            f"no episodes under {', '.join(str(r) for r in roots)}: no "
+            "run_*/transcripts/*.speakers.diagnostics.json found. Point --snapshot at a corpus "
+            "that has been through the pipeline (a restored production snapshot, or the output "
+            "directory of a relabel run); separate several with ','.",
+            file=sys.stderr,
+        )
         return 2
 
     sys.path.insert(0, args.src)
@@ -391,14 +434,29 @@ def main() -> int:
     width = max(len(c["id"]) for c in cases)
     marks = {"PASS": "ok  ", "FAIL": "FAIL", "NO DATA": "n/a ", "SKIP": "skip"}
     failed = 0
+    absent = 0
     for case in cases:
-        verdict, detail = run_case(case, mods, snapshot)
+        verdict, detail = run_case(case, mods, roots)
         if verdict == "FAIL":
             failed += 1
+        elif verdict == "NO DATA":
+            absent += 1
         print(f"  {marks[verdict]} {case['id']:{width}s}  {case['name']:20s} {detail}")
         if verdict == "FAIL":
             print(f"       why it matters: {case['why']}")
-    print(f"\n{failed} failing of {len(cases)} cases")
+    ran = len(cases) - absent
+    print(f"\n{failed} failing of {ran} case(s) that ran; {absent} could not run")
+    # A case that cannot run proves nothing, and counting it as "not failing" is how a suite
+    # quietly stops testing. Reported separately above, and fatal when it is the majority —
+    # the usual cause is a --snapshot that is missing the episodes, not a code change.
+    if absent and absent * 2 >= len(cases):
+        print(
+            f"REFUSING TO REPORT A RESULT: {absent} of {len(cases)} cases have no episode in "
+            f"{', '.join(str(r) for r in roots)}. Fix the snapshot(s), or the case "
+            "fragments if the corpus moved on.",
+            file=sys.stderr,
+        )
+        return 2
     return 1 if failed else 0
 
 
