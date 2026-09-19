@@ -69,6 +69,12 @@ export type OutboxOp =
    */
   | { op: 'collection.create'; name: string; clientId: string }
   | { op: 'collection.addItem'; collectionId: string; item: CollectionItemRef }
+  /**
+   * The manual board order, whole. Carries the FULL id list rather than a move, because the server
+   * takes the full order and a replayed "move A above B" would be meaningless against a list that
+   * has since changed.
+   */
+  | { op: 'collection.reorder'; order: string[] }
 
 export interface OutboxEntry {
   id: string
@@ -191,6 +197,10 @@ function targetOf(action: OutboxOp): string {
   if (action.op === 'collection.create') return `col:${action.clientId}`
   if (action.op === 'collection.addItem')
     return `colitem:${action.collectionId}:${action.item.kind}:${action.item.ref}`
+  // ONE slot for the board order, with no id in the key: the order is last-wins state, not an
+  // increment, so three drags while offline must replay as the final arrangement and not as three
+  // POSTs racing to different orders.
+  if (action.op === 'collection.reorder') return 'colorder'
   if (action.op === 'note.create') return `note:${action.body.client_id}`
   // edit + remove share the note's key: the latest of them for a given note wins the queue slot
   // (edit-then-edit coalesces to the last text; remove-after-edit replaces the edit).

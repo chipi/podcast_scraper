@@ -24,6 +24,7 @@ import { getCollections,
   reorderCollections } from '../services/api'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
+import { enqueue, isPermanent } from '../services/outbox'
 import type { Collection } from '../services/types'
 
 interface CollectionsState {
@@ -74,8 +75,26 @@ export const useCollectionsStore = defineStore('collections', {
         if (identityChangedSince(generation)) return
         this.items = items
         void writeCached('collections', { items })
-      } catch {
-        if (!identityChangedSince(generation)) this.items = previous
+      } catch (err) {
+        if (identityChangedSince(generation)) return
+        /**
+         * Queue a TRANSIENT failure instead of losing it — the same rule `addItem` already follows.
+         *
+         * The drag is fire-and-forget (`void store.reorder(ids)` in CollectionsView): nothing awaits
+         * this POST, so a reload or a route change a moment after the drop ABORTS it. That is not a
+         * refusal, and reverting on it silently threw the user's arrangement away — they dragged,
+         * saw the new order, came back, and found the old one. Only a REFUSAL discards; a dead
+         * socket or a 502 is not an answer.
+         *
+         * The optimistic local order STAYS on the transient path (no revert): the queued op will
+         * make it true, and snapping back while the write is still pending would show the user a
+         * failure that has not happened.
+         */
+        if (isPermanent(err)) {
+          this.items = previous
+          return
+        }
+        enqueue({ op: 'collection.reorder', order })
       }
     },
 

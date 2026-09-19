@@ -71,6 +71,24 @@ test('a board can be dragged into a new position, and the order persists', async
   const sourceBox = (await source.boundingBox())!
   const targetBox = (await rows.nth(1).boundingBox())!
 
+  /**
+   * Arm the write watcher BEFORE the drop, and await it before reloading.
+   *
+   * The drop fires `store.reorder()` without awaiting it (a pointerup handler cannot be async in
+   * any useful sense), so the PATCH is still in flight when the next line runs. Reloading there
+   * does not test "did the order persist" — it races the reload's `GET /collections` against the
+   * PATCH *on the server*, and whichever lands first decides the result. That is what made this
+   * spec fail on mobile-chrome every time and flake on desktop under parallel load: slower
+   * viewport, same race, different odds.
+   *
+   * Waiting for the response keeps the assertion honest rather than weakening it. A reorder that
+   * never reaches the server still fails — the wait times out instead of the compare.
+   */
+  const orderWritten = page.waitForResponse(
+    (r) => r.url().includes('/collections/order') && r.request().method() === 'PATCH',
+    { timeout: 15_000 },
+  )
+
   await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2)
   await page.mouse.down()
   const startY = sourceBox.y + sourceBox.height / 2
@@ -82,6 +100,10 @@ test('a board can be dragged into a new position, and the order persists', async
     )
   }
   await page.mouse.up()
+
+  // The server has acknowledged the new order; only now is a reload a fair test of persistence.
+  const written = await orderWritten
+  expect(written.status(), 'the reorder PATCH was refused by the server').toBeLessThan(400)
 
   const after = await orderOf()
   expect(

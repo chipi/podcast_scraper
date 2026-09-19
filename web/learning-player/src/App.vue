@@ -43,6 +43,7 @@ import {
   removeInterest,
   unfollowShow,
   addToCollection,
+  reorderCollections,
   createCollection,
   detectTimezone,
   getComms,
@@ -303,6 +304,7 @@ async function pushPendingWrites({ revalidate = true }: { revalidate?: boolean }
       await createCollection(action.name, action.clientId)
     else if (action.op === 'collection.addItem')
       await addToCollection(action.collectionId, action.item)
+    else if (action.op === 'collection.reorder') await reorderCollections(action.order)
     else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
     else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
     else if (action.op === 'completed.add') await markCompleted(action.slug)
