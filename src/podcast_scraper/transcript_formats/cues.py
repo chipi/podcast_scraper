@@ -25,7 +25,10 @@ _SRT_CUE_LINE = re.compile(r"^(\d+:\d{2}:\d{2},\d{3})\s*-->\s*(\d+:\d{2}:\d{2},\
 _HTML_TAG = re.compile(r"<[^>]+>")
 # WebVTT voice span: `<v Speaker 3>`, `<v.loud Mark>`, `<v Joe Wiesenthal>`. The name runs to the
 # closing angle bracket; optional `.class` suffixes on the tag itself are not part of it.
-_VOICE_SPAN = re.compile(r"<v(?:\.[^\s>]+)*\s+([^>]+)>")
+# The class must EXCLUDE `.`, or `(?:\.[^\s>]+)*` is ambiguous with itself — `.a.b` can be read
+# as one repetition or two, and the engine tries every split. CodeQL: exponential backtracking on
+# `<v.` followed by many `.x`. Excluding the dot makes each `.segment` match exactly one way.
+_VOICE_SPAN = re.compile(r"<v(?:\.[^\s>.]+)*\s+([^>]+)>")
 # SubRip has no voice tag; publishers write the speaker as a line prefix instead: `Speaker 3: …`
 # (Odd Lots, whose feed lists the SRT FIRST, so a fixed WebVTT parser never saw its speakers).
 # Deliberately only the generic `Speaker N` form: a free `<Name>:` prefix is indistinguishable
