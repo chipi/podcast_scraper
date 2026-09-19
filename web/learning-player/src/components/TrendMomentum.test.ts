@@ -5,8 +5,12 @@ import en from '../i18n/locales/en.json'
 import TrendMomentum from './TrendMomentum.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-const mountIt = (props: Record<string, unknown>) =>
-  mount(TrendMomentum, { props, global: { plugins: [i18n] } })
+const mountIt = (props: {
+  velocity: number
+  series?: number[]
+  variant?: 'rail' | 'badge'
+  hideSpark?: boolean
+}) => mount(TrendMomentum, { props, global: { plugins: [i18n] } })
 
 describe('TrendMomentum', () => {
   it('badge variant renders the rising pill + sparkline with ≥2 series points', () => {

@@ -47,7 +47,7 @@ function tile(over: Partial<EpisodeSummary> = {}) {
 describe('EpisodeTile', () => {
   it('stacks: the overlaid action row, then artwork, then the text', () => {
     const w = tile()
-    const kids = Array.from(w.element.children).map((c) => c.tagName.toLowerCase())
+    const kids = Array.from<Element>(w.element.children).map((c) => c.tagName.toLowerCase())
     // The action row is absolutely positioned, so it leads in source order but paints over the
     // artwork; the two links (artwork, text) are the flow.
     expect(kids).toHaveLength(3)

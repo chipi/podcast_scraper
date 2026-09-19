@@ -80,7 +80,7 @@ describe('reads gate on the forced switch only, never the auto signal (RCA of #2
 
 describe('listEpisodes', () => {
   it('returns the page and requests /api/app/episodes with params', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ items: [], page: 2, page_size: 10, total: 0, has_more: false }),
@@ -100,7 +100,7 @@ describe('listEpisodes', () => {
 
 describe('listPodcastEpisodes', () => {
   it('targets the feed-scoped path', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ items: [], page: 1, page_size: 20, total: 0, has_more: false }),
@@ -121,7 +121,7 @@ describe('getEpisode', () => {
 
 describe('logListen', () => {
   it('POSTs to the per-episode listen endpoint (best-effort)', async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, status: 200, json: async () => ({}) }))
     vi.stubGlobal('fetch', fetchMock)
     await logListen('show a/b')
     const [url, init] = fetchMock.mock.calls[0]
@@ -176,7 +176,7 @@ describe('logListen', () => {
 
 describe('getMyStats', () => {
   it('GETs the user-stats endpoint and returns the stats', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({
@@ -197,7 +197,7 @@ describe('getMyStats', () => {
 
 describe('getEpisodeStats', () => {
   it('GETs the per-episode stats endpoint', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ slug: 'ep', listeners: 10, opens: 25, insights: 3, daily: [] }),
@@ -211,7 +211,7 @@ describe('getEpisodeStats', () => {
 
 describe('addInterest / removeInterest', () => {
   it('addInterest POSTs to the token path and returns the items', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ items: ['topic:ai'] }),
@@ -225,7 +225,7 @@ describe('addInterest / removeInterest', () => {
   })
 
   it('removeInterest DELETEs the token path and returns the remaining items', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ items: [] }),
@@ -241,7 +241,7 @@ describe('addInterest / removeInterest', () => {
 
 describe('capture: highlights + notes', () => {
   it('getHighlights scopes by episode and returns items', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ items: [{ id: 'h1' }] }),
@@ -261,7 +261,7 @@ describe('capture: highlights + notes', () => {
   })
 
   it('createHighlight POSTs the body and returns the created record', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 201,
       json: async () => ({ id: 'h9', kind: 'moment' }),
@@ -280,14 +280,14 @@ describe('capture: highlights + notes', () => {
   })
 
   it('deleteHighlight DELETEs and returns the remaining items', async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ items: [] }) }))
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, status: 200, json: async () => ({ items: [] }) }))
     vi.stubGlobal('fetch', fetchMock)
     expect(await deleteHighlight('h1')).toEqual([])
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'DELETE' })
   })
 
   it('createNote POSTs a note', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({
       ok: true,
       status: 201,
       json: async () => ({ id: 'n1', text: 'hi' }),

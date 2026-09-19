@@ -696,6 +696,186 @@ def test_highlights_export_obeys_colour_filter(tmp_path: Path) -> None:
     assert "episode memo" not in amber
 
 
+def test_highlights_html_export_is_a_real_document(tmp_path: Path) -> None:
+    """The PDF export's source route — `export.md` is tested exhaustively, this had nothing.
+
+    The renderer is unit-tested in isolation, which cannot answer the question that matters: does
+    the ROUTE assemble a document from live user state. That assembly — resolving the episode from
+    the corpus, joining notes, applying filters — is where the export bugs of 2026-09-18 lived
+    (operator review: hit the same behaviour from more than one angle).
+    """
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 1000,
+            "quote_text": "deep sleep consolidates memory",
+        },
+    )
+
+    resp = client.get("/api/app/highlights/export.html")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/html")
+    body = resp.text
+    # A document the browser can actually print, not a fragment.
+    assert "<html" in body.lower()
+    assert "@media print" in body or "@page" in body
+    assert "deep sleep consolidates memory" in body
+    assert "Episode ep1" in body
+
+
+def test_highlights_html_export_escapes_user_text(tmp_path: Path) -> None:
+    """User text is rendered into HTML here; the quote must not become markup."""
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 1000,
+            "quote_text": "<script>alert('x')</script>",
+        },
+    )
+
+    body = client.get("/api/app/highlights/export.html").text
+    assert "<script>alert(" not in body
+    assert "&lt;script&gt;" in body
+
+
+def test_highlights_html_export_obeys_the_muted_filter(tmp_path: Path) -> None:
+    """`muted_only` appeared in ZERO Python tests despite being a shipped filter."""
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    keep = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 1000, "quote_text": "still asking"},
+    ).json()
+    client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 2000,
+            "quote_text": "stopped asking",
+        },
+    )
+    # Retire the SECOND one, then ask for muted-only.
+    hs = client.get("/api/app/highlights").json()["items"]
+    retired_id = next(h["id"] for h in hs if h["id"] != keep["id"])
+    assert client.post(f"/api/app/resurfacing/{retired_id}/retire").status_code == 204
+
+    body = client.get("/api/app/highlights/export.html", params={"muted_only": "true"}).text
+    assert "stopped asking" in body
+    assert "still asking" not in body
+
+
+def test_episode_notes_routes_assemble_from_live_state(tmp_path: Path) -> None:
+    """`/episodes/{slug}/notes.md` and `.html` — the whole-episode dump, previously untested.
+
+    Unit tests cover `render_episode_notes_markdown`. Nothing exercised the route, which resolves
+    the episode, gathers that episode's highlights and notes out of per-user state, and builds the
+    document. Both formats were also dead on iOS at ship time.
+    """
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    h = client.post(
+        "/api/app/highlights",
+        json={
+            "episode_slug": slug,
+            "kind": "span",
+            "start_ms": 1000,
+            "quote_text": "deep sleep consolidates memory",
+        },
+    ).json()
+    client.post(
+        "/api/app/notes",
+        json={"target": "highlight", "target_id": h["id"], "text": "the mechanism, not the claim"},
+    )
+
+    md = client.get(f"/api/app/episodes/{slug}/notes.md")
+    assert md.status_code == 200
+    assert md.headers["content-type"].startswith("text/markdown")
+    assert "attachment" in md.headers.get("content-disposition", "")
+    assert "Episode ep1" in md.text
+    assert "deep sleep consolidates memory" in md.text
+    # The note has to travel with it — a "full episode dump" that drops the notes is not one.
+    assert "the mechanism, not the claim" in md.text
+
+    html = client.get(f"/api/app/episodes/{slug}/notes.html")
+    assert html.status_code == 200
+    assert html.headers["content-type"].startswith("text/html")
+    assert "<html" in html.text.lower()
+    assert "deep sleep consolidates memory" in html.text
+
+
+def test_export_drops_a_capture_that_lost_its_episode_rather_than_inventing_one(
+    tmp_path: Path,
+) -> None:
+    """A row with no `episode_slug` must not reach the document at all.
+
+    A review flagged `str(h.get("episode_slug"))` in the grouping as producing a section headed
+    `## None` — `str(None)` being the string "None". Tracing it: the export reads through
+    `get_highlights`, which requires `episode_slug` and drops rows without it, so that heading is
+    UNREACHABLE. The finding was wrong about impact.
+
+    The guard it depends on was itself untested, which is why the claim was credible. This pins it:
+    a corrupted row is dropped, and no fabricated episode appears. (The grouping now also uses
+    `or ""` as defence in depth, so the two layers are independent.)
+    """
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 1000, "quote_text": "real one"},
+    )
+
+    hl_files = [p for p in (tmp_path / "appdata").rglob("*.json") if p.name == "highlights.json"]
+    assert hl_files, "expected a highlights.json to doctor"
+    import json as _json
+
+    rows = _json.loads(hl_files[0].read_text())
+    assert isinstance(rows, list) and rows, "unexpected highlights shape"
+    orphan = dict(rows[0])
+    orphan.update({"id": "orphaned-capture", "episode_slug": None, "quote_text": "orphaned words"})
+    rows.append(orphan)
+    hl_files[0].write_text(_json.dumps(rows))
+
+    for route in ("/api/app/highlights/export.md", "/api/app/highlights/export.html"):
+        body = client.get(route).text
+        assert "real one" in body, f"{route} lost the healthy capture"
+        assert "orphaned words" not in body, f"{route} rendered a capture with no episode"
+        assert "## None" not in body and ">None<" not in body, f"{route} invented an episode"
+
+
+def test_episode_notes_unknown_slug_is_404_not_500(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    assert client.get("/api/app/episodes/no-such-episode/notes.md").status_code == 404
+    assert client.get("/api/app/episodes/no-such-episode/notes.html").status_code == 404
+
+
+def test_episode_notes_and_html_export_require_a_session(tmp_path: Path) -> None:
+    """Anonymous must be 401 on all three — they return a user's own captures and notes."""
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    app = create_app(tmp_path, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = tmp_path / "_appdata"
+    anon = TestClient(app)
+    assert anon.get("/api/app/highlights/export.html").status_code == 401
+    assert anon.get(f"/api/app/episodes/{slug}/notes.md").status_code == 401
+    assert anon.get(f"/api/app/episodes/{slug}/notes.html").status_code == 401
+
+
 # --------------------------------------------------------------------------- #
 # consumer enrichment read surface (#1121, RFC-088 envelopes)
 # --------------------------------------------------------------------------- #

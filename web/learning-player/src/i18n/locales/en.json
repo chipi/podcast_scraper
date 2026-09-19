@@ -14,7 +14,6 @@
     "person": "Person",
     "storyline": "Storyline",
     "browse": "Discover",
-    "trends": "Trends",
     "settings": "Settings",
     "about-page": "About"
   },
@@ -70,7 +69,6 @@
     "jumpBackIn": "Jump back in",
     "yourWeek": "Your Week",
     "yourWeekCount": "1 new | {count} new",
-    "yourWeekKicker": "For you",
     "yourWeekShowMore": "Show more",
     "yourWeekShowLess": "Show less",
     "yourWeekSection": {
@@ -380,6 +378,7 @@
     "insightLabel": "Insight",
     "insightBy": "by {speaker}",
     "sourcedMoments": "Sourced to {count} moment in the transcript | Sourced to {count} moments in the transcript",
+    "dismissInsight": "Hide this insight and show the artwork",
     "next": "Next",
     "nextIn": "in {time}",
     "grounded": "From the audio",
@@ -436,6 +435,7 @@
     "summary": "Summary",
     "tags": "Topics & People",
     "theme": "Storyline · {cluster}",
+    "openStoryline": "Open the {label} storyline",
     "similar": "Similar · {cluster}",
     "insights": "Insights",
     "related": "More like this",
@@ -582,7 +582,7 @@
     "sortUpdated": "Yours",
     "sortName": "A–Z",
     "sortCount": "Items",
-    "loadFailed": "Couldn't load your collections.",
+    "loadFailed": "Boards unavailable",
     "addFailed": "Couldn't add that — try again.",
     "createFailed": "Couldn't create that collection — try again.",
     "empty": "No collections yet. Group things worth listening to into named boards.",
@@ -612,7 +612,8 @@
     "episodeCount": "no episodes | {count} episode | {count} episodes",
     "reorderHandle": "Reorder {name}",
     "moveUp": "Move {name} up",
-    "moveDown": "Move {name} down"
+    "moveDown": "Move {name} down",
+    "loadFailedHint": "Your boards couldn't be loaded, so adding is off for now. They are not gone."
   },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule. Reviewing one — open it, or mark it reviewed — takes it off this list and drops the Library count by one.",
@@ -626,7 +627,8 @@
     "open": "Open",
     "momentCount": "1 moment | {count} moments",
     "groupNoun": "moments",
-    "listenedOn": "Listened {date}"
+    "listenedOn": "Listened {date}",
+    "loadError": "Couldn't load what's due right now."
   },
   "episodeGroup": {
     "hide": "Hide {noun}",
@@ -931,6 +933,7 @@
   },
   "common": {
     "cancel": "Cancel",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "retry": "Try again"
   }
 }

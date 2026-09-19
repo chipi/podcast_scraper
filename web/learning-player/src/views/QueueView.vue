@@ -6,6 +6,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getEpisode } from '../services/api'
+import { readCached, writeCached } from '../services/contentCache'
 import type { EpisodeDetail } from '../services/types'
 import { useQueueStore } from '../stores/queue'
 import { summaryFromDetail } from '../utils/episode'
@@ -19,10 +20,32 @@ const queue = useQueueStore()
 const details = ref<Record<string, EpisodeDetail>>({})
 const loading = ref(true)
 
+/**
+ * The queue's episode titles, cached (operator 2026-09-19).
+ *
+ * The STORE already keeps the ordered slugs readable offline (#1909), but a slug is not something
+ * a person recognises: offline the panel rendered four rows of "…" — the queue was intact and
+ * completely unreadable, which is worse than an empty one because it shows there is something
+ * there and refuses to say what. Titles are what makes a queue a queue, so they are cached
+ * alongside it and read back whenever the network cannot answer.
+ *
+ * One blob rather than a key per episode: it is written and read as a set, it is bounded by the
+ * queue itself, and it stays in step with the `queue` key the store writes beside it.
+ */
+const DETAILS_KEY = 'queue.details'
+const isDetailMap = (v: unknown): boolean =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+
 async function hydrate(): Promise<void> {
   // ensureLoaded no longer throws, but it can report failure — offline this left `loading` true
   // forever and the Queue tab was a permanent spinner (#1906).
   await queue.ensureLoaded()
+
+  // Paint from cache FIRST, so the titles are on screen whether or not the network answers. A
+  // successful fetch below overwrites each entry with the fresh copy.
+  const cached = await readCached<Record<string, EpisodeDetail>>(DETAILS_KEY, isDetailMap)
+  if (cached) details.value = { ...cached, ...details.value }
+
   const missing = queue.items.filter((s) => !details.value[s])
   const fetched = await Promise.all(
     missing.map((s) =>
@@ -33,6 +56,11 @@ async function hydrate(): Promise<void> {
   )
   for (const f of fetched) if (f) details.value[f[0]] = f[1]
   loading.value = false
+
+  // Keep only what is still queued, so a removed episode does not linger in the cache for ever.
+  const keep: Record<string, EpisodeDetail> = {}
+  for (const slug of queue.items) if (details.value[slug]) keep[slug] = details.value[slug]
+  if (Object.keys(keep).length) void writeCached(DETAILS_KEY, keep)
 }
 
 // Belt and braces: any unexpected rejection must still clear the spinner.

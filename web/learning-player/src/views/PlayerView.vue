@@ -43,6 +43,7 @@ import {
   groundedMomentCount,
   insightStartSeconds,
   INSIGHT_LINGER_MS,
+  INSIGHT_MIN_CONTENT_SECONDS,
   nextInsightIndex,
 } from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
@@ -498,13 +499,44 @@ const favItem = computed<FavoriteAdd>(() => ({
  * The quote is the thing being attributed, so the quote's speaker is the correct source.
  */
 const insightSpeaker = computed(
-  () => activeInsight.value?.quotes?.find((q) => q.speaker)?.speaker || speakingNow.value || '',
+  () => visibleInsight.value?.quotes?.find((q) => q.speaker)?.speaker || speakingNow.value || '',
 )
 
 const activeInsight = computed(() => {
+  // Nothing may cover the artwork until the playhead has cleared the floor (operator 2026-09-19).
+  // See INSIGHT_MIN_CONTENT_SECONDS for why the degenerate-quote guard does not cover this.
+  //
+  // The floor alone, deliberately — an earlier version also latched "has this episode ever been
+  // played". It was redundant for the reported bug (at 0:00 the floor already suppresses it) and
+  // wrong everywhere else: it blanked Zone D for a listener who scrubs to a moment while paused,
+  // which is a legitimate way to use the scrubber, and it is what the playhead reads that decides
+  // what is being said — not whether a play button has been pressed.
+  if (contentTime.value < INSIGHT_MIN_CONTENT_SECONDS) return null
   const i = activeInsightIndex(insights.value, contentTime.value, INSIGHT_LINGER_MS)
   return i >= 0 ? insights.value[i] : null
 })
+/**
+ * The insight the listener tapped away (operator 2026-09-19) — "I want to look at the artwork".
+ *
+ * Keyed by INSIGHT ID, not a boolean, so the dismissal is scoped to the one claim on screen: the
+ * next insight to become active has a different id and surfaces normally. A boolean would have
+ * meant "mute Zone D", which is a different feature nobody asked for.
+ */
+const dismissedInsightId = ref<string | null>(null)
+/** What Zone D actually renders — the active insight unless it is the one just tapped away. */
+const visibleInsight = computed(() =>
+  activeInsight.value && activeInsight.value.id === dismissedInsightId.value
+    ? null
+    : activeInsight.value,
+)
+// Nothing is dismissed on a different episode.
+watch(
+  () => props.slug,
+  () => {
+    dismissedInsightId.value = null
+  },
+)
+
 const nextInsight = computed(() => {
   const i = nextInsightIndex(insights.value, contentTime.value)
   return i >= 0 ? insights.value[i] : null
@@ -530,7 +562,7 @@ function seekToNextInsight(): void {
 // highlighting is per-segment; the receipt is per-moment because that is what "sourced to" claims.
 // They are allowed to differ, and forcing them to agree is what made the number dishonest.
 const insightGroundingCount = computed(() =>
-  activeInsight.value ? groundedMomentCount(segments.value, activeInsight.value) : 0,
+  visibleInsight.value ? groundedMomentCount(segments.value, visibleInsight.value) : 0,
 )
 const metaLine = computed(() => {
   const parts: string[] = []
@@ -704,6 +736,9 @@ async function load(slug: string): Promise<void> {
         url: diskSrc,
         title: diskDetail.title,
         artwork: episodeArtwork(diskDetail) ?? null,
+        // The offline path is exactly the one where the element reports no duration, and the
+        // registry kept this when the episode was downloaded.
+        durationSeconds: diskDetail.duration_seconds ?? null,
       })
       // The registry can only rebuild title, show and duration. Everything the page is actually
       // FOR — the summary, the insights, the topics and people — was written beside the audio at
@@ -831,6 +866,7 @@ async function load(slug: string): Promise<void> {
         url: audio?.url ?? localSrc ?? '',
         title: episode.value?.title ?? null,
         artwork: artwork.value ?? null,
+        durationSeconds: episode.value?.duration_seconds ?? null,
       })
     }
     // Offline, GET /playback fails and `playback` is null — fall back to the position this device
@@ -1331,6 +1367,24 @@ onBeforeUnmount(() => {
           />
           <div class="absolute inset-0">
             <!--
+              "Let me see the picture" (operator 2026-09-19). Tapping the bare artwork drops the
+              claim currently covering it; the next insight surfaces normally.
+
+              It only EXISTS while something is on screen to dismiss, so it never swallows a tap
+              on the artwork otherwise. Stacking does the scoping: the toolbar above is `z-10` and
+              Zone D is later in DOM order, so both sit over this layer — a tap on a control or on
+              the panel itself does its own job, and only bare artwork reaches here. That is the
+              point: the panel must stay readable under the finger that is reading it.
+            -->
+            <button
+              v-if="visibleInsight"
+              type="button"
+              data-testid="player-zone-d-dismiss"
+              class="absolute inset-0 cursor-default"
+              :aria-label="t('player.dismissInsight')"
+              @click="dismissedInsightId = visibleInsight.id"
+            />
+            <!--
               Top toolbar: Ask/Insights actions + reach, pinned top-right. `relative z-10` because
               the live-intelligence band below is bottom-anchored and grows UPWARD with its text
               (#Zone-D rewrite) — for a long insight it can reach as far up as this row, and
@@ -1445,10 +1499,13 @@ onBeforeUnmount(() => {
               FIRST insight — that shipped once, put an insight on screen before a word had been
               spoken, and was rejected. `activeInsight` is -1/null until something is actually
               playing; this only ever renders `rest` before playback starts.
+
+              `visibleInsight`, not `activeInsight`: tapping the artwork drops the CURRENT claim so
+              the picture can be seen (operator 2026-09-19), and the next one surfaces as usual.
             -->
             <Transition name="zone-d-fade">
               <div
-                v-if="activeInsight"
+                v-if="visibleInsight"
                 key="live"
                 data-testid="player-zone-d-live"
                 class="absolute inset-x-0 bottom-0"
@@ -1506,7 +1563,7 @@ onBeforeUnmount(() => {
                        reads at display size. `line-clamp-[12]` is a ceiling well above the real
                        9-line max (a future outlier guard), not a target. -->
                   <p class="mt-1.5 font-display text-base leading-snug text-canvas-foreground line-clamp-[12]">
-                    {{ activeInsight.text }}
+                    {{ visibleInsight.text }}
                   </p>
                   <p v-if="insightGroundingCount > 0" class="mt-2 text-xs font-semibold text-muted">
                     {{ t('player.sourcedMoments', { count: insightGroundingCount }, insightGroundingCount) }}

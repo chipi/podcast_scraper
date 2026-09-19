@@ -489,15 +489,16 @@ state, not a new view:
 
 ### Resurfacing inbox (Revisit tab)
 
-Past highlights resurfaced on a spaced ladder (2d/1w/1mo/3mo, computed on read). Each card shows a
+Past highlights resurfaced on a spaced ladder (2d/7d/30d/90d, computed on read — `LADDER_SECONDS` in `app_resurfacing.py`; "1mo/3mo" here previously implied calendar months, which it is not). Each card shows a
 deterministic **reflection prompt** (no LLM), the highlight, a one-tap **jump-to-moment**, and a
 **"Got it"** dismiss (advances the ladder). A header **Pause/Resume** control governs pacing;
 paused or nothing-due shows an honest empty state.
 
 **Every card offers four outcomes (2026-09-18).** The ladder previously had no exit: reviewing
 advances a rung and tops out at 90 days, so a capture answered five times still returns quarterly,
-while ignoring one leaves it permanently overdue at the *top* of the list (the surface sorts
-most-overdue-first). Both paths loop, and the only way out was deleting the capture — which
+while ignoring one left it permanently overdue at the *top* of the list (the surface sorted
+most-overdue-first at the time; it now orders by episode recency — see Ordering below). Both paths
+loop, and the only way out was deleting the capture — which
 conflates "stop asking me about this" with "I no longer want this". So the card carries:
 
 | action | control | effect |
@@ -620,7 +621,7 @@ live on that card. Jumping to the player would also mark it reviewed on arrival 
 for them the one thing they went there to decide.
 
 **Two actions inline, stacked and right-aligned: the tick and the bell.** Reviews-answered-per-week
-is the only number that moves this loop, so the common answer is worth a tap in place; mute earns
+is the only number that moves this loop, so the common answer is worth a tap in place; retire earns
 the second slot because "stop asking me about this" is the other thing a glance produces, and it is
 NOT destructive — the capture stays in Saved, where the bell marker makes it reversible. Both drop
 the card optimistically and the next due capture fills the slot at once, because a spinner between

@@ -196,4 +196,145 @@ describe('ResurfacingInbox', () => {
     await flushPromises()
     expect(w.find('[data-testid="revisit-quote"]').exists()).toBe(false)
   })
+
+  /**
+   * The three outcomes had NO tests — the entire proposition of the Revisit tab (operator review
+   * 2026-09-18). Dismiss was covered; retire and delete were not, and all three removed the card
+   * BEFORE awaiting the write with no way back, so a failed call told the user they had acted when
+   * nothing had been stored.
+   *
+   * These assert the ROLLBACK, not just the happy path. A test that only checks "the card goes
+   * away" passes on the broken version too.
+   */
+  it('retire drops the card and tells the server', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const retire = vi.spyOn(api, 'retireHighlight').mockResolvedValue(undefined as never)
+    const w = mountInbox()
+    await flushPromises()
+
+    await w.get('[data-testid="revisit-retire"]').trigger('click')
+    await flushPromises()
+
+    expect(retire).toHaveBeenCalledWith('h1')
+    expect(w.find('[data-testid="revisit-item"]').exists()).toBe(false)
+  })
+
+  it('a FAILED retire puts the card back rather than pretending it worked', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    vi.spyOn(api, 'retireHighlight').mockRejectedValue(new Error('offline'))
+    const w = mountInbox()
+    await flushPromises()
+
+    await w.get('[data-testid="revisit-retire"]').trigger('click')
+    await flushPromises()
+
+    // The capture was never retired, so the card has to still be here. Without the rollback it
+    // vanishes and returns on the next load with no explanation.
+    expect(w.find('[data-testid="revisit-item"]').exists()).toBe(true)
+  })
+
+  it('a FAILED review puts the card back', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    vi.spyOn(api, 'markSurfaced').mockRejectedValue(new Error('offline'))
+    const w = mountInbox()
+    await flushPromises()
+
+    await w.get('[data-testid="revisit-dismiss"]').trigger('click')
+    await flushPromises()
+
+    expect(w.find('[data-testid="revisit-item"]').exists()).toBe(true)
+  })
+
+  /**
+   * The RECEIVING side of the Home rail's deep link.
+   *
+   * `RevisitRail.test.ts` asserts the card's href carries `focus=<id>`. Nothing asserted that this
+   * view consumes it — so the link could point at a surface that ignores it and both sides would
+   * look green. The user taps a rail card and lands at the top of a long list with no sign of the
+   * capture they asked about (operator review 2026-09-18: cover both sides of a contract).
+   */
+  it('?focus=<id> rings the requested card and scrolls it into view', async () => {
+    const scrollIntoView = vi.fn()
+    // jsdom does not implement it; without the stub the watch throws instead of scrolling.
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      value: scrollIntoView,
+      writable: true,
+      configurable: true,
+    })
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [item({ highlight: hl({ id: 'h1' }) }), item({ highlight: hl({ id: 'h2' }) })],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+
+    await router.replace({ path: '/library', query: { focus: 'h2' } })
+    const w = mountInbox()
+    await flushPromises()
+    await flushPromises()
+
+    expect(scrollIntoView).toHaveBeenCalled()
+    // The RIGHT card is ringed — a test that only checks "something scrolled" passes while the
+    // wrong capture is highlighted.
+    const ringed = w.findAll('[data-testid="revisit-item"]').filter((c) =>
+      c.classes().some((k) => k.includes('ring-accent')),
+    )
+    expect(ringed).toHaveLength(1)
+  })
+
+  it('an unknown ?focus id rings nothing rather than guessing', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [item({ highlight: hl({ id: 'h1' }) })],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+
+    await router.replace({ path: '/library', query: { focus: 'not-here' } })
+    const w = mountInbox()
+    await flushPromises()
+
+    const ringed = w.findAll('[data-testid="revisit-item"]').filter((c) =>
+      c.classes().some((k) => k.includes('ring-accent')),
+    )
+    expect(ringed).toHaveLength(0)
+  })
+
+  /**
+   * A failed load is NOT an empty state.
+   *
+   * `load()` had no try/catch, so a throw left `loaded` false forever: neither the items branch nor
+   * the empty-state branch rendered, and the tab showed its intro line over nothing. The route 503s
+   * whenever the corpus is briefly unavailable, so a restart blanked Revisit for everyone — looking
+   * exactly like "you have no captures" (review 2026-09-18).
+   */
+  it('a failed load says so and offers a retry, instead of claiming nothing is due', async () => {
+    vi.spyOn(api, 'getResurfacing').mockRejectedValue(new Error('503'))
+    const w = mountInbox()
+    await flushPromises()
+
+    expect(w.find('[data-testid="revisit-load-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="revisit-retry"]').exists()).toBe(true)
+    // The empty state must NOT be shown — it would assert something false about their captures.
+    expect(w.text()).not.toContain('Nothing due')
+  })
+
+  it('retry re-requests, and a recovered server renders the items', async () => {
+    const get = vi
+      .spyOn(api, 'getResurfacing')
+      .mockRejectedValueOnce(new Error('503'))
+      .mockResolvedValue({ items: [item()], paused: false })
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
+    const w = mountInbox()
+    await flushPromises()
+    expect(w.find('[data-testid="revisit-load-error"]').exists()).toBe(true)
+
+    await w.get('[data-testid="revisit-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(get).toHaveBeenCalledTimes(2)
+    expect(w.find('[data-testid="revisit-load-error"]').exists()).toBe(false)
+    expect(w.find('[data-testid="revisit-item"]').exists()).toBe(true)
+  })
 })

@@ -166,17 +166,25 @@ watch(
       {{ activeIndex >= 0 ? segments[activeIndex]?.text : '' }}
     </p>
     <div v-for="(para, pi) in paragraphs" :key="para.key" class="group relative py-2">
-      <span v-if="para.showSpeaker" class="lp-speaker mb-0.5 block">{{ speakerLabel(para.speaker) }}</span>
-      <div class="flex items-start gap-3" :class="canCapture ? 'pr-8' : ''">
+      <!-- Speaker + timestamp ABOVE the paragraph, centred (operator 2026-09-19).
+
+           The timestamp used to be a left rail: a fixed column plus a `gap-3`, which every line of
+           every paragraph then had to flow around. On a phone that is a meaningful slice of the
+           measure spent on a number that is read once per paragraph, if at all. Moving it into a
+           header line with the speaker gives the prose the full width and puts the two facts about
+           the paragraph — who, and when — in one place instead of two. -->
+      <div class="mb-1 flex items-center justify-center gap-2">
+        <span v-if="para.showSpeaker" class="lp-speaker">{{ speakerLabel(para.speaker) }}</span>
         <!-- One timestamp per paragraph (seeks to its start). -->
         <button
           type="button"
-          class="shrink-0 pt-0.5 font-mono text-xs tabular-nums"
+          class="shrink-0 font-mono text-xs tabular-nums"
           :class="para.hasGrounded ? 'text-grounded' : 'text-muted'"
           :aria-label="t('player.jumpToTime', { time: formatTime(para.start) })"
           @click="emit('seek', para.start)"
         ><span v-if="para.hasGrounded" aria-hidden="true" class="mr-0.5">●</span>{{ formatTime(para.start) }}</button>
-
+      </div>
+      <div class="flex items-start" :class="canCapture ? 'pr-8' : ''">
         <!-- Flowing paragraph: segments are inline, the active one highlighted, each tap-to-seek. -->
         <p
           :ref="(el) => { if (el) paraEls[pi] = el as HTMLElement }"

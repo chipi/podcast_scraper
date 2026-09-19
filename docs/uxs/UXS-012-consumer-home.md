@@ -97,8 +97,11 @@ Region order, top to bottom:
 6. **New in topics & people you follow (#1836)** — recent UNHEARD episodes about a followed topic or
    featuring a followed person (deterministic; no ranking score). Also a **Your-Week** digest section.
 7. **Discover strip** — a compact `home-browse-nav` "Discover" strip (**Topics** / **Storylines** /
-   **People** chips) that deep-links into the `/trends` see-all page (`?tab=topic`/`storyline`/`person`).
-   *(Renamed from the old "Browse topics/people" links, which pointed at the Browse hub — operator 2026-09-14.)*
+   **People** chips) that deep-link into Discover's own Trends section
+   (`/browse?trends=topic`/`storyline`/`person`), selecting that kind and scrolling it into view.
+   *(Renamed from the old "Browse topics/people" links — operator 2026-09-14. They then pointed at a
+   standalone `/trends` page, which was a thinner second copy of a section `/browse` already renders;
+   that page is deleted — operator 2026-09-18.)*
 8. **Recommended for you** — *shipped as a no-scroll responsive **grid***; hidden when no signal.
 9. **Featured / spotlight** — *folded into What's-new as the #01 hero (no separate block).*
 
@@ -302,14 +305,15 @@ piece to its design home:
   `DiscoveryList` (topics/storylines/people) with the Rising⇄Trending sort (`discovery-sort`) and
   Corpus⇄Mine scope (`home-trending-scope`) switches. Used by BOTH Home (capped at **5** rows, with
   the inline `discovery-expand` "Show N more") and the Discover page (`/browse`, capped at **10**,
-  with a per-kind `discovery-see-all` "See all →" link to `/trends?tab={kind}`). Extracted from
+  with a per-kind `discovery-see-all` "See all →" link to `/browse?trends={kind}`, which selects that
+  kind in this same explorer and scrolls it into view). Extracted from
   HomeView so Home and Discover cannot drift (operator 2026-09-14, replaced the top-3
   `DiscoveryDashboard`).
-- **`TrendsView`** — the full entity-trends page at `/trends` (route `trends`), reached from the
-  Discover explorer's per-kind "See all →" link. Three tabs (`trends-tab-topic`,
-  `trends-tab-storyline`, `trends-tab-person`) each rendering `DiscoveryList` with a Rising⇄Trending
-  sort (`trends-sort`) and Corpus⇄Mine scope (`trends-scope`). The explorer is the glance; this is
-  the depth.
+- **`TrendsView`** — **DELETED (operator 2026-09-18).** It was a standalone `/trends` page carrying
+  the same three kind tabs as the explorer above, reached from that explorer's "See all →". Tapping
+  it left the hub for a thinner copy of a section the hub already rendered, which the operator
+  reported as "small pages that should not exist". `/browse?trends={kind}` replaces it: same section,
+  kind selected, scrolled into view.
 
 ## Revision history
 

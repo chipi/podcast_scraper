@@ -46,7 +46,7 @@ describe('collapseFoldableHits', () => {
     expect(cluster.foldedKind).toBe('transcript')
     expect(cluster.members.map((m) => m.doc_id)).toEqual(['t1', 't2', 't3'])
     expect(cluster.topScore).toBe(0.9)
-    expect(rows[1].doc_id).toBe('i1')
+    expect((rows[1] as SearchHit).doc_id).toBe('i1')
   })
 
   it('keeps title / description / summary as separate clusters (not one merged bucket)', () => {

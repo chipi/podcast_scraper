@@ -303,4 +303,81 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(baselineCallCount)
     vi.useRealTimers()
   })
+
+  /**
+   * The viewer half of a contract the BACKEND already guards.
+   *
+   * `tests/integration/server/test_app_auth.py` asserts the server emits `auth_ready: false` +
+   * `status: "degraded"` when the signing secret is lost — written after an incident where
+   * `/api/health` kept answering 200 while nothing authed worked, so a client health check was
+   * actively reassured by a broken server.
+   *
+   * The viewer then dropped the field on the floor: its health type did not declare it, nothing
+   * read it, and "degraded" rendered as the same yellow badge as a missing corpus path. The
+   * contract was verified on one side of the wire and ignored on the other, which is precisely
+   * where the gap lived (cross-surface review 2026-09-18).
+   */
+  it('reads auth_ready and reports auth failure DISTINCTLY from other degradation', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ status: 'degraded', auth_ready: false, auth_epoch: null }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.authReady).toBe(false)
+    expect(shell.authDegraded).toBe(true)
+  })
+
+  it('a server degraded for a NON-auth reason is not reported as an auth failure', async () => {
+    // The discrimination is the point. Without it both render the same badge and the operator
+    // cannot tell "set the corpus path" from "every session is dead".
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ status: 'degraded', auth_ready: true }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.healthStatus).toBe('degraded')
+    expect(shell.authDegraded).toBe(false)
+  })
+
+  it('an older server that omits auth_ready is unknown, not broken', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ status: 'ok' }) })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.authReady).toBeNull()
+    expect(shell.authDegraded).toBe(false)
+  })
+
+  it('a server that goes AWAY resets auth to unknown, not to its last healthy answer', async () => {
+    // The throw path was untested. Every other flag was reset in the catch; these two were not, so
+    // after a healthy poll the client kept asserting "auth is fine" while the server was gone.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ status: 'ok', auth_ready: true, auth_epoch: 'e1' }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.authReady).toBe(true)
+
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('ECONNREFUSED') }) as unknown as typeof fetch)
+    await shell.fetchHealth()
+
+    expect(shell.authReady).toBeNull()
+    expect(shell.authEpoch).toBeNull()
+    // Unknown is not "broken" — an unreachable server is a different problem from a dead secret.
+    expect(shell.authDegraded).toBe(false)
+  })
 })

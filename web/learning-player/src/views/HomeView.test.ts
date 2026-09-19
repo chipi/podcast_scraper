@@ -66,6 +66,9 @@ function ep(slug: string, title: string): EpisodeSummary {
     duration_seconds: 1800, episode_image_url: null, feed_image_url: null, artwork_url: null,
     status: 'ready', summary_preview: 'r', topics: [], has_transcript: true, has_summary: true,
     has_gi: false, has_kg: false, has_bridge: false,
+    // Required by EpisodeSummary. Absent here for a long time — test files are excluded
+    // from tsconfig.app.json, so nothing type-checks fixtures against the real shape.
+    summary_text: null, summary_bullets: [],
   }
 }
 
@@ -432,6 +435,15 @@ describe('the primary controls share one height (#2004 item 2)', () => {
     // Source-level: the resume hero needs auth + playback history to render, and the value under
     // test is a static class. Pinned so the three cannot drift apart again.
     expect(homeViewSource).toMatch(/data-testid="home-resume"[\s\S]{0,200}?\bh-11\b/)
+  })
+
+  it('Resume RESUMES — it carries play=1, not just the right height', () => {
+    // The only assertion on this control was its height class, so the fix that made it start
+    // playing instead of opening paused could be reverted silently (review 2026-09-18). Source-level
+    // for the same reason as above: the hero needs auth + playback history to render.
+    expect(homeViewSource).toMatch(
+      /data-testid="home-resume"[\s\S]{0,400}?play:\s*'1'|play:\s*'1'[\s\S]{0,400}?data-testid="home-resume"/,
+    )
   })
 })
 

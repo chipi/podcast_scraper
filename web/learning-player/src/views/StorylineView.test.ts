@@ -51,6 +51,7 @@ describe('StorylineView', () => {
       cluster_id: null,
       cluster_label: null,
       cluster_size: 0,
+      sibling_topics: [],
       theme_cluster_id: 'thc:energy',
       theme_cluster_label: 'Energy transition',
       theme_cluster_size: 2,
@@ -81,7 +82,7 @@ describe('StorylineView', () => {
           has_bridge: false,
         },
       ],
-      related_people: [{ id: 'person:jane', name: 'Jane', role: 'host' }],
+      related_people: [{ id: 'person:jane', name: 'Jane', kind: 'person' as const, role: 'host' }],
     })
     const w = await mountView()
     expect(w.get('[data-testid="storyline-view"]').text()).toContain('Energy transition')
@@ -115,6 +116,7 @@ describe('StorylineView', () => {
       cluster_id: null,
       cluster_label: null,
       cluster_size: 0,
+      sibling_topics: [],
       theme_cluster_id: themeClusterId,
       theme_cluster_label: 'Energy transition',
       theme_cluster_size: 2,

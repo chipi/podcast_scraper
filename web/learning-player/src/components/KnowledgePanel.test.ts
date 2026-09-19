@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from "pinia"
 import { createI18n } from "vue-i18n"
 import { createMemoryHistory, createRouter } from "vue-router"
 import * as api from "../services/api"
+import * as native from "../services/native"
 import en from "../i18n/locales/en.json"
 import type { EpisodeDetail, Entity, Highlight, Insight, Topic } from "../services/types"
 import { useAuthStore } from "../stores/auth"
@@ -75,7 +76,14 @@ function insight(over: Partial<Insight> = {}): Insight {
   }
 }
 
-function mountPanel(props: Partial<Parameters<typeof KnowledgePanel>[0]> = {}) {
+function mountPanel(props: {
+  episode?: EpisodeDetail
+  insights?: Insight[]
+  topics?: Topic[]
+  persons?: Entity[]
+  slug?: string
+  activeInsightId?: string | null
+} = {}) {
   return mount(KnowledgePanel, {
     props: {
       episode: episode(),
@@ -259,6 +267,8 @@ describe("KnowledgePanel", () => {
           artwork_url: null,
           status: "ready",
           summary_preview: null,
+          summary_text: null,
+          summary_bullets: [],
           topics: [],
           has_transcript: true,
           has_summary: false,
@@ -660,5 +670,62 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     const chip = w.find('[data-testid="kp-person-chip"]')
     expect(chip.element.tagName).toBe("BUTTON")
     expect(chip.attributes("data-episode-scoped")).toBeUndefined()
+  })
+
+  /**
+   * The episode-notes export — the whole-episode document — had NO test at any layer.
+   *
+   * Both formats were also dead on iOS at ship time, for two different reasons: the Markdown chip
+   * was `<a :download>` (ignored by WKWebView) and PDF was `window.open` (a silent no-op there).
+   * `native-delivery.test.ts` greps the SOURCE for the right pattern, so it passes on a dead call
+   * site or a wrong URL. These exercise the calls (operator review 2026-09-18).
+   */
+  it("offers both export formats on the episode", async () => {
+    const w = mountPanel()
+    await flushPromises()
+    expect(w.find('[data-testid="episode-notes-export"]').exists()).toBe(true)
+    expect(w.find('[data-testid="episode-notes-pdf"]').exists()).toBe(true)
+  })
+
+  it("PDF opens the print route EXTERNALLY, for this episode", async () => {
+    const open = vi.spyOn(native, "openExternal").mockResolvedValue(undefined)
+    const w = mountPanel()
+    await flushPromises()
+
+    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await flushPromises()
+
+    expect(open).toHaveBeenCalledTimes(1)
+    const url = open.mock.calls[0][0]
+    expect(url).toContain("/notes.html")
+    // The URL must name THIS episode — a route that always exports the same one is worse than none.
+    expect(url).toContain(episode().slug)
+  })
+
+  it("on the web the Markdown chip is a download link, not a share", async () => {
+    vi.spyOn(native, "isNative").mockReturnValue(false)
+    const w = mountPanel()
+    await flushPromises()
+    const a = w.find('[data-testid="episode-notes-export"] a[download]')
+    expect(a.exists()).toBe(true)
+    expect(a.attributes("href")).toContain("/notes.md")
+  })
+
+  it("on NATIVE the Markdown chip shares a file instead — <a download> saves nothing in WKWebView", async () => {
+    vi.spyOn(native, "isNative").mockReturnValue(true)
+    const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
+    vi.spyOn(api, "fetchEpisodeNotes").mockResolvedValue("# Notes\n\nbody")
+    const w = mountPanel()
+    await flushPromises()
+
+    // No download link on native; a button that fetches and hands the bytes to the OS.
+    expect(w.find('[data-testid="episode-notes-export"] a[download]').exists()).toBe(false)
+    await w.get('[data-testid="episode-notes-export"] button').trigger("click")
+    await flushPromises()
+
+    expect(share).toHaveBeenCalledTimes(1)
+    const [filename, body] = share.mock.calls[0]
+    expect(filename).toContain("-notes.md")
+    expect(body).toContain("# Notes")
   })
 })

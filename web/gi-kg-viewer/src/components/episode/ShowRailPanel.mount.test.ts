@@ -64,7 +64,12 @@ const SIGNALS = {
   ],
   key_people: [{ person_id: 'person:jane', name: 'Jane Doe', episode_count: 2 }],
   recurring_guests: [{ person_id: 'person:jane', name: 'Jane Doe', episode_count: 2 }],
-  dominant_themes: [{ theme_id: 'thc:ai-stuff', label: 'AI stuff', topic_count: 3 }],
+  // `anchor_topic_id` is the routable click target (#2115). The `thc:` id is label-derived and is
+  // NOT a node in the loaded graph, so a fixture without the anchor encodes the pre-#2115 shape —
+  // which is how the viewer went on routing with `theme_id` unnoticed.
+  dominant_themes: [
+    { theme_id: 'thc:ai-stuff', label: 'AI stuff', topic_count: 3, anchor_topic_id: 'topic:ai' },
+  ],
   trending_topics: [{ topic_id: 'topic:ai', label: 'AI', velocity: 2.5, episode_count: 2 }],
   grounding: { grounded_insights: 8, total_insights: 10, rate: 0.8, episode_count: 3 },
   // #1932 — the Latent Space shape in miniature: a show that keeps returning to the same pair.
@@ -255,15 +260,11 @@ describe('ShowRailPanel — show signals', () => {
     expect(spy).toHaveBeenCalledWith('topic:ai')
   })
 
-  it('opens a theme chip (the thc: cluster node) via subject.focusTopic', async () => {
-    stubApi()
-    const subject = useSubjectStore()
-    const spy = vi.spyOn(subject, 'focusTopic')
-    const w = mount(ShowRailPanel)
-    await flushPromises()
-    await w.get('[data-testid="show-rail-theme"]').trigger('click')
-    expect(spy).toHaveBeenCalledWith('thc:ai-stuff')
-  })
+  // The theme-chip navigation test that lived here asserted `focusTopic('thc:ai-stuff')` — it
+  // pinned the BUG. The `thc:` id is label-derived and is not a routable node, so it opened an
+  // empty or misidentified panel. #2115 added `anchor_topic_id` for this and the player adopted it;
+  // the viewer did not, and this test defended the old behaviour rather than catching it
+  // (cross-surface review 2026-09-18). Replaced by the two anchor tests at the end of this file.
 
   it('hides the signals block when the feed has no topics or people', async () => {
     stubApi(null, { path: '/corpus', feed_id: 'alpha', episode_count: 0, top_topics: [], key_people: [] })
@@ -322,5 +323,38 @@ describe('ShowRailPanel — episode rows, sort, graph', () => {
     await w.get('[data-testid="show-rail-open-graph"]').trigger('click')
     expect(w.emitted('switch-main-tab')![0]).toEqual(['graph'])
     expect(spy).toHaveBeenCalledWith(['metadata/a1.kg.json'])
+  })
+
+  /**
+   * The theme chip had no test at all, which is how it kept routing on the unstable `thc:` id for
+   * three commits after the backend added the anchor (cross-surface review 2026-09-18).
+   */
+  it('a theme chip opens its ANCHOR topic, never the thc: theme id', async () => {
+    stubApi()
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+
+    const subject = useSubjectStore()
+    const focus = vi.spyOn(subject, 'focusTopic')
+    await w.find('[data-testid="show-rail-theme"]').trigger('click')
+
+    expect(focus).toHaveBeenCalledWith('topic:ai')
+    // The thc: id is not a routable node — focusing it opens an empty or misidentified panel.
+    expect(focus).not.toHaveBeenCalledWith('thc:ai-stuff')
+  })
+
+  it('a theme with no anchor is disabled rather than opening nothing', async () => {
+    stubApi(null, {
+      ...SIGNALS,
+      dominant_themes: [{ theme_id: 'thc:orphan', label: 'Orphan', topic_count: 1 }],
+    })
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+
+    const chip = w.find('[data-testid="show-rail-theme"]')
+    expect(chip.exists()).toBe(true)
+    // Matches the player, which disables the chip on a missing anchor rather than offering a tap
+    // that silently does nothing.
+    expect(chip.attributes('disabled')).toBeDefined()
   })
 })

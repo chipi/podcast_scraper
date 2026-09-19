@@ -668,10 +668,27 @@ COVERAGE_THRESHOLD_INTEGRATION := 42   # Raised 2026-04: integration-only line c
 # Keep in lockstep with --cov-fail-under in python-app.yml and nightly.yml; asserted by
 # tests/unit/test_viewer_e2e_jobs_stay_in_lockstep.py. This copy sat at 39 while CI moved
 # to 38.5, so `make coverage-check-e2e` was gating on a number CI had already abandoned.
-# Recalibrated 38.0 -> 37.5 (2026-09-13, #2049): the player/recap/digest/org arc added app-layer
-# subsystems the e2e (pipeline) tier structurally never executes, so the full-package denominator
-# grew while absolute pipeline coverage held — the tier landed at 37.86%.
-COVERAGE_THRESHOLD_E2E := 37.5
+# FIXED THE METRIC, not the number (2026-09-19). The e2e run now measures coverage with
+# `.coveragerc-e2e`, which omits the consumer app (`server/app_*.py`, `server/routes/app_*.py`).
+#
+# It fell three times for one reason and was "fixed" three times by lowering the floor
+# (38.0 -> 37.5 #2049 -> 37.0 #2118). The cause was never test quality. `tests/e2e/` is 66 files of
+# PIPELINE tests and exactly ONE touches the consumer app; the app is covered by 50 files across
+# tests/unit and tests/integration, which are measured by DIFFERENT gates. So shipping a player
+# feature grew this denominator while its tests landed in another job — the numerator could not
+# move. The gate was measuring the ratio of pipeline code to total code.
+#
+# It now asks what it always meant to ask: how much of the PIPELINE do the pipeline tests cover.
+# The app is not unmeasured — integration gates it at 42% and combined at 70%, where its tests are.
+#
+# THE FLOOR IS DELIBERATELY UNCHANGED at 37.0. A single-file probe moved 10.70% -> 11.78% (+1.08),
+# so the full tier should land near 38.5% — but "should" is a guess, and guessing a floor is how
+# main goes red after a merge, which is the failure this whole change exists to stop. Raise it once
+# CI reports the real figure on a full run.
+#
+# Keep in lockstep with --cov-fail-under in python-app.yml and nightly.yml; asserted by
+# tests/unit/test_viewer_e2e_jobs_stay_in_lockstep.py.
+COVERAGE_THRESHOLD_E2E := 37.0
 COVERAGE_THRESHOLD_COMBINED := 70      # Combined line coverage (make ci + coverage-enforce); align with CI workflow
 
 check-unit-imports:
@@ -1691,6 +1708,26 @@ build-viewer:
 test-app:
 	@echo "Vitest unit tests + coverage gate (Learning Player)..."
 	@cd $(APP_DIR) && npm install && npm run test:coverage
+	@# Type-check the TESTS. `tsconfig.app.json` excludes `src/**/*.test.ts` and nothing else
+	@# covered them, so no fixture was ever checked against the types it claims — three
+	@# `EpisodeSummary` factories had drifted from the API contract and were exercising a shape the
+	@# app never receives. vitest transpiles without type-checking, so it cannot catch this.
+	@# Deliberately a separate invocation rather than a project reference in `tsconfig.json`:
+	@# `composite: true` requires the project to list every file it imports, which is the whole
+	@# `src` tree and collides with the app project (176 TS6307s when tried).
+	@#
+	@# `tsconfig.test.json` carries no comments because no tsconfig in this repo does — the
+	@# pre-commit JSON validator parses them as strict JSON, not JSONC. Two things in it are
+	@# load-bearing and non-obvious, so they are recorded here instead:
+	@#   "exclude": []  — `extends` INHERITS `exclude: ["src/**/*.test.ts"]` from the app config,
+	@#     i.e. exactly the files this project exists to check. Without clearing it the program
+	@#     resolves to a single `env.d.ts` and reports zero errors having checked nothing. That is
+	@#     how the first version of this config passed while a known defect was still present.
+	@#   "types": [... "node", "vitest/globals"] — tests use `node:fs`, `__dirname` and `process`,
+	@#     which the browser build's types do not carry. 51 of the original 111 errors were this
+	@#     alone, and none of them were real defects.
+	@echo "Type-checking the Learning Player test files..."
+	@cd $(APP_DIR) && npm run type-check:test
 
 # Consumer Learning Player — Playwright E2E (mobile + desktop projects).
 # Install browsers once: cd $(APP_DIR) && npx playwright install chromium
@@ -3392,7 +3429,7 @@ coverage-check-e2e:
 	# Check E2E test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_E2E)%)
 	@echo "Checking E2E test coverage (minimum $(COVERAGE_THRESHOLD_E2E)%)..."
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-config=.coveragerc-e2e --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-combined:
 	# Check combined coverage meets threshold ($(COVERAGE_THRESHOLD_COMBINED)%)

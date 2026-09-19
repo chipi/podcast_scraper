@@ -21,7 +21,11 @@ import XCTest
  * itself is unit-tested (`src/App.offlineAdvance.test.ts`) and this file covers the journey the
  * device can prove. Re-attempting the two-episode seed is worth a follow-up, not a blocker.
  */
-final class OfflineAutoAdvanceTests: XCTestCase {
+final class OfflineAutoAdvanceTests: UITestCase {
+
+  /// SHARED account, deliberately: this suite reads the downloaded QUEUE `test-app-ios-sim-download` leaves behind.
+  /// Per-suite isolation (#2091) would give it an empty account and the seed would be invisible.
+  override var accountIdentity: String { Self.sharedSeededIdentity }
   func testBootsAndPlaysADownloadedEpisodeWithNoNetwork() throws {
     let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
     // A COLD start is the point: launch() on an already-running app only activates it, so what is
@@ -35,7 +39,7 @@ final class OfflineAutoAdvanceTests: XCTestCase {
     // painted session: with the api DOWN the refresh cannot answer, and NOT signing out on a
     // transport failure is precisely what this line exists to prove.
     XCTAssertTrue(
-      AppSession.isSignedIn(app),
+      AppSession.isSignedIn(app, as: accountIdentity),
       "offline boot did not keep the session — the app fell back to signed-out"
     )
 

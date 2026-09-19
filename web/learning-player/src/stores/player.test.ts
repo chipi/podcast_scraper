@@ -152,6 +152,40 @@ describe('player store', () => {
     expect(p.duration).toBe(100)
   })
 
+  /**
+   * Offline, a downloaded file often makes the element report NO duration at all — so the transport
+   * showed `0:00` as the total and the scrub bar sat at zero for a whole episode while the elapsed
+   * time climbed (operator 2026-09-19, listening offline at 1:02:57 of an episode reading 0:00).
+   */
+  describe('duration falls back to the episode metadata', () => {
+    it('uses the hint while the element reports nothing', () => {
+      const p = usePlayerStore()
+      const el = stubAudio({ duration: 0 })
+      p.load({ slug: 'ep-1', url: 'file:///a.mp3', title: 'An Episode', durationSeconds: 3600 })
+      p.onDurationChange()
+      expect(el.duration).toBe(0)
+      expect(p.duration).toBe(3600)
+    })
+
+    it('the element WINS once it knows — the file is the truth about the file', () => {
+      const p = usePlayerStore()
+      const el = stubAudio({ duration: 3550 })
+      p.load({ slug: 'ep-1', url: 'file:///a.mp3', title: 'An Episode', durationSeconds: 3600 })
+      p.onDurationChange()
+      expect(el.duration).toBe(3550)
+      expect(p.duration).toBe(3550)
+    })
+
+    it('a later load() without a hint does not keep the previous episode length', () => {
+      const p = usePlayerStore()
+      stubAudio({ duration: 0 })
+      p.load({ slug: 'ep-1', url: 'file:///a.mp3', title: 'One', durationSeconds: 3600 })
+      expect(p.duration).toBe(3600)
+      p.load({ slug: 'ep-2', url: 'file:///b.mp3', title: 'Two' })
+      expect(p.duration).toBe(0)
+    })
+  })
+
   it('toggle() plays when paused and pauses when playing', () => {
     const p = usePlayerStore()
     const el = stubAudio({ paused: true })
@@ -225,7 +259,8 @@ describe('player store — MediaSession (#1308)', () => {
     ms = { metadata: null, playbackState: 'none', setActionHandler: vi.fn(), setPositionState: vi.fn() }
     ;(navigator as unknown as { mediaSession: unknown }).mediaSession = ms
     ;(globalThis as unknown as { MediaMetadata: unknown }).MediaMetadata = class {
-      constructor(public init: Record<string, unknown>) {}
+      init: Record<string, unknown>
+      constructor(init: Record<string, unknown>) { this.init = init }
     }
   })
   afterEach(() => {

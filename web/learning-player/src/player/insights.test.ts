@@ -193,9 +193,9 @@ describe('groundedMomentCount reports moments, not transcript chunks (#1978 foll
   // Six seconds of audio, sliced into three transcript segments. How finely a transcript happens
   // to be chunked is an artefact of the transcriber, and must not change what the reader is told.
   const segs: Segment[] = [
-    { start: 0, end: 2, text: 'one', speaker: null },
-    { start: 2, end: 4, text: 'two', speaker: null },
-    { start: 4, end: 6, text: 'three', speaker: null },
+    { id: 's0', start: 0, end: 2, text: 'one', speaker: null },
+    { id: 's1', start: 2, end: 4, text: 'two', speaker: null },
+    { id: 's2', start: 4, end: 6, text: 'three', speaker: null },
   ]
 
   function withQuotes(...windows: Array<[number | null, number | null]>): Insight {
