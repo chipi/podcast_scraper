@@ -91,6 +91,28 @@ extracts its dominant colour and writes `--lp-accent` on the root element. In th
 direction `--lp-topic` / `--lp-person` / `--lp-theme` / `--lp-grounded` are all aliased to it, which
 is why the whole knowledge layer follows. Operator elected to keep it and live with it a while.
 
+## Screenshots
+
+`docs/wip/feedback-2026-09-19/` — one per item, cropped to the element that changed, captured by
+`e2e/design/feedback-2026-09-19.design.spec.ts` against the fixture corpus at 375px.
+
+Two things the screenshots caught that no test did:
+
+- **The strongest-shows rows rendered broken images.** `topShows` is built from an episode list, so
+  the only show-level image available was `feed_image_url` — the feed-hosted original, which points
+  off-origin and is routinely unreachable. Our stored copy existed but was not exposed per-episode:
+  `artwork_url` prefers the EPISODE's own image when it has one, so reusing it would hand a show row
+  whichever episode came first and call that the show's cover. `AppEpisodeSummary` now carries
+  `feed_artwork_url`.
+- **"Show 8 more" revealed four.** The label counted what remained while the handler adds one page.
+  The arithmetic was correct under both readings, so nothing was red.
+
+And one process note worth keeping: the first three capture runs were wrong because
+`playwright.design.config.ts` sets `reuseExistingServer: true` and I had overlapping runs, so an API
+server started BEFORE the `feed_artwork_url` fix stayed alive on :8011 and kept serving the old
+payload. I spent four tool calls theorising about URL resolution before checking what was actually
+listening on the port. One run at a time; check the server's start time before doubting the code.
+
 ## NOT done / NOT verified
 
 - **Multi-collection add is still UI-blocked.** Deliberate — clarification was requested, not a fix.
