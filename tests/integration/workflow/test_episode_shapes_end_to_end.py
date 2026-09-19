@@ -144,10 +144,15 @@ SHAPES = [
         with_roster=False,
         hint_hosts=["Kevin Roose"],
         hint_guests=["Casey Newton"],
-        # With no roster the hint is all there is, and it is used wholesale — that is the
-        # documented fallback, not a defect.
-        expect_hosts=["Kevin Roose"],
-        expect_guests=["Casey Newton"],
+        # REVERSED by operator decision 2026-09-17 (#2075). This shape used to pin "with no roster
+        # the hint is used wholesale". But the hint is a guess made before any audio was heard, and
+        # an episode with no diarization has no voice to match anyone to — so nobody is cast. The
+        # names are kept in the speaker record as placed: false; they must not hold a speaking
+        # role in the graph. Measured on the production snapshot: 124 such episodes carried 114
+        # host/guest graph nodes nobody had matched to a voice.
+        expect_hosts=[],
+        expect_guests=[],
+        forbid_speakers=["Kevin Roose", "Casey Newton"],
     ),
     Shape(
         name="monologue — one voice, no invented guest",

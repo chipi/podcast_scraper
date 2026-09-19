@@ -466,7 +466,31 @@ def existing_transcript_path_in_corpus(episode: Any, corpus_root: str) -> Option
     meta_rel = episode_metadata_rel_in_corpus(episode, corpus_root)
     if meta_rel is None:
         return None
-    meta_abs = Path(corpus_root) / meta_rel
+    found = _transcript_beside(Path(corpus_root) / meta_rel)
+    if found is not None:
+        return found
+    # THE NEWEST RECORD IS NOT ALWAYS THE ONE WITH THE TRANSCRIPT. A reprocess stage writes a fresh
+    # metadata artifact into its new run directory while the transcript it relabelled stays where it
+    # was, so the newest copy of the episode sits alone in a run with an empty `transcripts/`.
+    # Resolving to that copy and stopping made `rederive_only` refuse an episode whose transcript is
+    # on disk two directories away: "found metadata but no transcript file" (#2075, measured on
+    # Ground Truths after a relabel). Every other run holding this episode is searched before giving
+    # up, newest first.
+    guid = _episode_guid(episode)
+    if guid:
+        for entry in _all_corpus_entries_for_guid(corpus_root, guid):
+            if entry.metadata_rel == meta_rel:
+                continue
+            found = _transcript_beside(Path(corpus_root) / entry.metadata_rel)
+            if found is not None:
+                return found
+    # Metadata present but no transcript file located → the metadata itself marks the episode as
+    # processed (skip-existing only needs presence; the path is used for logging).
+    return str(Path(corpus_root) / meta_rel)
+
+
+def _transcript_beside(meta_abs: Path) -> Optional[str]:
+    """The transcript stored alongside one metadata artifact, or ``None``."""
     stem = meta_abs.name
     base = stem
     for suffix in (".metadata.json", ".metadata.yaml", ".metadata.yml"):
@@ -474,16 +498,43 @@ def existing_transcript_path_in_corpus(episode: Any, corpus_root: str) -> Option
             base = stem[: -len(suffix)]
             break
     transcripts_dir = meta_abs.parent.parent / "transcripts"
-    if transcripts_dir.is_dir():
-        preferred = transcripts_dir / f"{base}.txt"
-        if preferred.is_file():
-            return str(preferred)
-        for candidate in sorted(transcripts_dir.glob(f"{base}.*")):
-            if candidate.is_file():
-                return str(candidate)
-    # Metadata present but no transcript file located → the metadata itself marks the episode as
-    # processed (skip-existing only needs presence; the path is used for logging).
-    return str(meta_abs)
+    if not transcripts_dir.is_dir():
+        return None
+    preferred = transcripts_dir / f"{base}.txt"
+    if preferred.is_file():
+        return str(preferred)
+    for candidate in sorted(transcripts_dir.glob(f"{base}.*")):
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _all_corpus_entries_for_guid(corpus_root: str, guid: str) -> List[CorpusMetadataEntry]:
+    """Every run's copy of one episode's metadata, newest run first.
+
+    ``corpus_metadata_index`` deliberately reduces to ONE winner per episode; this re-reads the
+    directory listing rather than changing that rule, because the winner is right for every other
+    caller and only the transcript lookup needs the runners-up.
+    """
+    out: List[Tuple[str, CorpusMetadataEntry]] = []
+    feeds_dir = Path(corpus_root) / "feeds"
+    if not feeds_dir.is_dir():
+        return []
+    for meta_path in feeds_dir.glob("*/run_*/metadata/*.metadata.json"):
+        try:
+            payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if str(((payload.get("episode") or {}).get("guid") or "")) != guid:
+            continue
+        rel = str(meta_path.relative_to(corpus_root))
+        out.append(
+            (
+                meta_path.parent.parent.name,
+                CorpusMetadataEntry(metadata_rel=rel, idx=0, guid=guid, episode_id=None),
+            )
+        )
+    return [entry for _run, entry in sorted(out, key=lambda x: x[0], reverse=True)]
 
 
 def find_episode_metadata_relative_path(

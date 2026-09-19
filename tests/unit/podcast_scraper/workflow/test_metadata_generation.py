@@ -677,9 +677,14 @@ class TestBuildContentMetadata(unittest.TestCase):
         ]
         media_id = metadata.generate_content_id(TEST_MEDIA_URL)
 
-        speakers = metadata._build_speakers_from_detected_names(
-            detected_hosts=["Host"], detected_guests=["Guest"]
-        )
+        # REAL NAMES, not "Host"/"Guest". This fixture used the literal placeholder strings as
+        # stand-in sample data, and `DEFAULT_SPEAKER_NAMES` is a provider's FAILURE value: "Host"
+        # now means "detection found nobody" and is filtered before it can reach a voice (#2075).
+        # The assembly this test is about is unchanged; only the sample names are.
+        speakers = [
+            metadata.SpeakerInfo(id="host", name="Russ Roberts", role="host", placed=True),
+            metadata.SpeakerInfo(id="guest", name="Ada Lovelace", role="guest", placed=True),
+        ]
         result = metadata._build_content_metadata(
             episode=episode,
             transcript_infos=transcript_infos,
@@ -699,17 +704,15 @@ class TestBuildContentMetadata(unittest.TestCase):
         self.assertEqual(len(result.speakers), 2)
         host_names = [s.name for s in result.speakers if s.role == "host"]
         guest_names = [s.name for s in result.speakers if s.role == "guest"]
-        self.assertEqual(host_names, ["Host"])
-        self.assertEqual(guest_names, ["Guest"])
+        self.assertEqual(host_names, ["Russ Roberts"])
+        self.assertEqual(guest_names, ["Ada Lovelace"])
 
     def test_build_content_metadata_with_none_values(self):
         """Test building content metadata with None values."""
         episode = create_test_episode(idx=1, title="Test Episode")
         transcript_infos = []
 
-        speakers = metadata._build_speakers_from_detected_names(
-            detected_hosts=None, detected_guests=None
-        )
+        speakers: list = []
         result = metadata._build_content_metadata(
             episode=episode,
             transcript_infos=transcript_infos,
@@ -814,7 +817,7 @@ class TestSerializeMetadata(unittest.TestCase):
         episode_metadata = metadata._build_episode_metadata(
             episode, episode_id, None, None, None, None, None, None, None
         )
-        speakers = metadata._build_speakers_from_detected_names(None, None)
+        speakers: list = []
         content_metadata = metadata._build_content_metadata(
             episode, [], None, None, None, None, speakers
         )
@@ -853,7 +856,7 @@ class TestSerializeMetadata(unittest.TestCase):
         episode_metadata = metadata._build_episode_metadata(
             episode, episode_id, None, None, None, None, None, None, None
         )
-        speakers = metadata._build_speakers_from_detected_names(None, None)
+        speakers: list = []
         content_metadata = metadata._build_content_metadata(
             episode, [], None, None, None, None, speakers
         )
@@ -892,7 +895,7 @@ class TestSerializeMetadata(unittest.TestCase):
         episode_metadata = metadata._build_episode_metadata(
             episode, episode_id, None, None, None, None, None, None, None
         )
-        speakers = metadata._build_speakers_from_detected_names(None, None)
+        speakers: list = []
         content_metadata = metadata._build_content_metadata(
             episode, [], None, None, None, None, speakers
         )
@@ -1845,7 +1848,11 @@ class TestEntityNormalization(unittest.TestCase):
 
     def test_normalize_entity_in_content_metadata(self):
         """Test that normalized entities are stored in ContentMetadata."""
-        speakers = []
+        # #2075: "transcript" entities are the people PLACED on voices, not the detection guess.
+        speakers = [
+            metadata.SpeakerInfo(id="host", name="John Doe", role="host", placed=True),
+            metadata.SpeakerInfo(id="guest", name="Jane Smith", role="guest", placed=True),
+        ]
         detected_hosts = ["John Doe"]
         detected_guests = ["Jane Smith"]
 
@@ -1872,12 +1879,39 @@ class TestEntityNormalization(unittest.TestCase):
             self.assertEqual(entity.canonical, entity.aliases[0])
 
 
+class TestTranscriptEntitiesAreThePlacedPeople(unittest.TestCase):
+    """#2075: a name the show notes gave but no voice was matched to was never heard."""
+
+    def test_a_guess_is_not_a_transcript_entity(self):
+        content = metadata._build_content_metadata(
+            episode=create_test_episode(),
+            transcript_infos=[],
+            media_id=None,
+            transcript_file_path=None,
+            transcript_source=None,
+            whisper_model=None,
+            speakers=[
+                metadata.SpeakerInfo(id="host", name="John Doe", role="host", placed=True),
+                metadata.SpeakerInfo(
+                    id="unplaced_1", name="Jane Smith", role="guest", placed=False
+                ),
+            ],
+            detected_hosts=["John Doe"],
+            detected_guests=["Jane Smith"],
+        )
+        self.assertEqual([e.original for e in content.normalized_entities], ["John Doe"])
+
+
 class TestEntityExtractionFromSummary(unittest.TestCase):
     """Tests for entity extraction from summary (Issue #387)."""
 
     def test_extract_entities_from_summary(self):
         """Test that entities are extracted from summary text."""
-        speakers = []
+        # #2075: "transcript" entities are the people PLACED on voices, not the detection guess.
+        speakers = [
+            metadata.SpeakerInfo(id="host", name="John Doe", role="host", placed=True),
+            metadata.SpeakerInfo(id="guest", name="Jane Smith", role="guest", placed=True),
+        ]
         detected_hosts = ["John Doe"]
         detected_guests = ["Jane Smith"]
         summary_text = "This episode features Alice Johnson and Bob Williams."
@@ -1927,7 +1961,11 @@ class TestEntityExtractionFromSummary(unittest.TestCase):
 
     def test_entity_provenance_tracking(self):
         """Test that entity provenance is tracked correctly."""
-        speakers = []
+        # #2075: "transcript" entities are the people PLACED on voices, not the detection guess.
+        speakers = [
+            metadata.SpeakerInfo(id="host", name="John Doe", role="host", placed=True),
+            metadata.SpeakerInfo(id="guest", name="Jane Smith", role="guest", placed=True),
+        ]
         detected_hosts = ["John Doe"]
         detected_guests = ["Jane Smith"]
         summary_text = "This episode features Jane Smith and Alice Johnson."
@@ -1972,7 +2010,11 @@ class TestEntityExtractionFromSummary(unittest.TestCase):
 
     def test_entity_extraction_no_summary(self):
         """Test that entity extraction works without summary."""
-        speakers = []
+        # #2075: "transcript" entities are the people PLACED on voices, not the detection guess.
+        speakers = [
+            metadata.SpeakerInfo(id="host", name="John Doe", role="host", placed=True),
+            metadata.SpeakerInfo(id="guest", name="Jane Smith", role="guest", placed=True),
+        ]
         detected_hosts = ["John Doe"]
         detected_guests = ["Jane Smith"]
 
@@ -2079,7 +2121,11 @@ class TestQABackfillAndMismatchSeverity(unittest.TestCase):
         """Test that QA backfill detects entities missing from summary."""
         # "John Doe" in transcript, but not in summary
         # Should be included with "transcript" provenance (backfilled)
-        speakers = []
+        # #2075: "transcript" entities are the people PLACED on voices, not the detection guess.
+        speakers = [
+            metadata.SpeakerInfo(id="host", name="John Doe", role="host", placed=True),
+            metadata.SpeakerInfo(id="guest", name="Jane Smith", role="guest", placed=True),
+        ]
         detected_hosts = ["John Doe"]
         detected_guests = ["Jane Smith"]
         summary_text = "This episode features Alice Johnson."  # Missing John Doe and Jane Smith
@@ -2225,9 +2271,7 @@ class TestSummaryFaithfulnessCheck(unittest.TestCase):
 
     def test_faithfulness_check_in_qa_flags(self):
         """Test that faithfulness check is integrated into QA flags."""
-        speakers = []
-        detected_hosts = ["John Doe"]
-        detected_guests = []
+        speakers = [metadata.SpeakerInfo(id="host", name="John Doe", role="host", placed=True)]
         summary_text = "Alice Johnson discusses the topic."  # Hallucination
         transcript_text = "John Doe discusses the topic."
         episode_description = "Episode with John Doe"
@@ -2255,8 +2299,6 @@ class TestSummaryFaithfulnessCheck(unittest.TestCase):
 
             qa_flags = metadata._build_qa_flags(
                 speakers=speakers,
-                detected_hosts=detected_hosts,
-                detected_guests=detected_guests,
                 summary_text=summary_text,
                 nlp=mock_nlp,
                 transcript_text=transcript_text,
@@ -2379,58 +2421,6 @@ class TestFuzzyMatchingConstraints(unittest.TestCase):
 
         # "Warsh" should not be paired (no first name)
         self.assertFalse(metadata._has_paired_first_name("warsh", extracted_entities2, aliases2))
-
-
-@pytest.mark.unit
-class TestBuildSpeakersFromDetectedNames(unittest.TestCase):
-    """Tests for _build_speakers_from_detected_names helper function."""
-
-    def test_build_speakers_from_detected_names_with_hosts_and_guests(self):
-        """Test building speakers with both hosts and guests."""
-        detected_hosts = ["Host 1", "Host 2"]
-        detected_guests = ["Guest 1"]
-
-        result = metadata._build_speakers_from_detected_names(detected_hosts, detected_guests)
-
-        self.assertEqual(len(result), 3)
-        self.assertEqual(result[0].name, "Host 1")
-        self.assertEqual(result[0].role, "host")
-        self.assertEqual(result[0].id, "host_1")
-        self.assertEqual(result[1].name, "Host 2")
-        self.assertEqual(result[1].role, "host")
-        self.assertEqual(result[1].id, "host_2")
-        self.assertEqual(result[2].name, "Guest 1")
-        self.assertEqual(result[2].role, "guest")
-        self.assertEqual(result[2].id, "guest")
-
-    def test_build_speakers_from_detected_names_single_host(self):
-        """Test building speakers with single host."""
-        detected_hosts = ["Host 1"]
-        detected_guests = None
-
-        result = metadata._build_speakers_from_detected_names(detected_hosts, detected_guests)
-
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0].name, "Host 1")
-        self.assertEqual(result[0].role, "host")
-        self.assertEqual(result[0].id, "host")
-
-    def test_build_speakers_from_detected_names_no_speakers(self):
-        """Test building speakers with no hosts or guests."""
-        result = metadata._build_speakers_from_detected_names(None, None)
-
-        self.assertEqual(len(result), 0)
-
-    def test_build_speakers_from_detected_names_multiple_guests(self):
-        """Test building speakers with multiple guests."""
-        detected_hosts = None
-        detected_guests = ["Guest 1", "Guest 2"]
-
-        result = metadata._build_speakers_from_detected_names(detected_hosts, detected_guests)
-
-        self.assertEqual(len(result), 2)
-        self.assertEqual(result[0].id, "guest_1")
-        self.assertEqual(result[1].id, "guest_2")
 
 
 @pytest.mark.unit
@@ -2938,20 +2928,20 @@ class TestBuildQaFlags(unittest.TestCase):
 
     def test_build_qa_flags_ok(self):
         """Test QA flags with both hosts and guests."""
-        result = metadata._build_qa_flags(self.speakers, ["Host 1"], ["Guest 1"], None, None, None)
+        result = metadata._build_qa_flags(self.speakers, None, None, None)
 
         self.assertEqual(result.speaker_detection, "ok")
         self.assertFalse(result.defaults_injected)
 
     def test_build_qa_flags_partial(self):
         """Test QA flags with only hosts."""
-        result = metadata._build_qa_flags(self.speakers, ["Host 1"], None, None, None, None)
+        result = metadata._build_qa_flags(self.speakers[:1], None, None, None)
 
         self.assertEqual(result.speaker_detection, "partial")
 
     def test_build_qa_flags_none(self):
         """Test QA flags with no speakers."""
-        result = metadata._build_qa_flags([], None, None, None, None, None)
+        result = metadata._build_qa_flags([], None, None, None)
 
         self.assertEqual(result.speaker_detection, "none")
 
@@ -2962,10 +2952,24 @@ class TestBuildQaFlags(unittest.TestCase):
             metadata.SpeakerInfo(id="speaker2", name="Speaker 2", role="host"),
         ]
 
-        metadata._build_qa_flags(speakers_with_defaults, None, None, None, None, None)
+        metadata._build_qa_flags(speakers_with_defaults, None, None, None)
 
         # Should detect defaults if any speaker name matches DEFAULT_SPEAKER_NAMES
         # (actual check depends on DEFAULT_SPEAKER_NAMES values)
+
+    def test_the_guess_is_not_detection(self):
+        """#2075: only placed voices count. A guest the show notes named but no voice was matched to
+        is `placed: false` in the record, and does not make detection `ok`."""
+        speakers = [
+            metadata.SpeakerInfo(id="host", name="Host 1", role="host", placed=True),
+            metadata.SpeakerInfo(id="unplaced_1", name="Guest 1", role="guest", placed=False),
+        ]
+        result = metadata._build_qa_flags(speakers, None, None, None)
+        self.assertEqual(result.speaker_detection, "partial")
+        nobody = [metadata.SpeakerInfo(id="unplaced_1", name="Host 1", role="host", placed=False)]
+        self.assertEqual(
+            metadata._build_qa_flags(nobody, None, None, None).speaker_detection, "none"
+        )
 
 
 @pytest.mark.unit
@@ -3190,3 +3194,36 @@ class TestGenerateAndValidateSummaryRecoverable(unittest.TestCase):
         self.assertIsNone(summary_meta)
         self.assertGreaterEqual(elapsed, 0.0)
         mock_generate_summary.assert_called_once()
+
+
+class TestGraphSpeakersWhenTheRosterAbstains(unittest.TestCase):
+    """A two-host episode the roster could not assign (#2075/#2078)."""
+
+    @staticmethod
+    def _sp(name, role):
+        return SimpleNamespace(name=name, role=role)
+
+    def test_a_raw_diarization_label_never_becomes_a_person(self):
+        # Taken literally, an abstained host seat publishes "SPEAKER_00" as a host Person node.
+        hosts, guests = metadata._speaker_lists_for_graph(
+            [self._sp("SPEAKER_00", "host"), self._sp("SPEAKER_01", "host")],
+            "A Show",
+        )
+        self.assertEqual(hosts, [])
+        self.assertEqual(guests, [])
+
+    def test_abstained_hosts_are_not_cast(self):
+        # SUPERSEDED 2026-09-17 (#2075). The 2026-09-16 decision injected the feed's hosts into the
+        # graph as `host` when the roster abstained on which voice was which. Under the one-record
+        # rule a person is cast only if a voice was matched to them; the abstained hosts are kept in
+        # the speaker record as `placed: false`, where no surface reads them as speakers.
+        hosts, guests = metadata._speaker_lists_for_graph(
+            [
+                self._sp("SPEAKER_00", "host"),
+                self._sp("SPEAKER_01", "host"),
+                self._sp("Grace Green", "guest"),
+            ],
+            "A Show",
+        )
+        self.assertEqual(hosts, [])
+        self.assertEqual(guests, ["Grace Green"])

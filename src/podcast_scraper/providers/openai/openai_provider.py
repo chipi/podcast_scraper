@@ -1685,7 +1685,14 @@ class OpenAICompatibleProvider:
             # Detection succeeded if we have real names (not just defaults)
             detection_succeeded = bool(detected_hosts or guests_list or (len(all_speakers) > 0))
 
-            return speaker_names[:min_speakers], detected_hosts, detection_succeeded
+            # NOT truncated to `min_speakers` — see `_build_speaker_names_list` (#2095/#2078).
+            # That value is the SCREENPLAY's seat count, and applying it here deleted people the
+            # episode states: on a two-host show the guest fell off the end and reached neither
+            # `detected_guests` nor `metadata_named`, so the record builder never saw them at all.
+            # This provider is the one production runs (`prod_dgx_full` -> `vllm`, which inherits
+            # this method), so capping here is exactly where the bug bit hardest. The seat cap now
+            # lives at the screenplay formatter, which is the only consumer with seats.
+            return speaker_names, detected_hosts, detection_succeeded
 
         except (json.JSONDecodeError, KeyError, AttributeError) as exc:
             logger.warning(
@@ -1751,7 +1758,9 @@ class OpenAICompatibleProvider:
 
         detection_succeeded = bool(detected_hosts or guests)
 
-        return speaker_names[:min_speakers], detected_hosts, detection_succeeded
+        # Not truncated — same reason as the JSON path above (#2095/#2078): `min_speakers` is the
+        # screenplay's seat count and must not delete people the episode states.
+        return speaker_names, detected_hosts, detection_succeeded
 
     # ============================================================================
     # SummarizationProvider Protocol Implementation

@@ -302,9 +302,15 @@ class TestThePipelineRunsTheScopingPassBeforeTypedMentions:
         assert "rewrite_ids" in src
 
     def test_it_runs_before_typed_mentions(self) -> None:
+        """CALL SITES, not mentions. `str.index` on the raw source finds the first occurrence
+        anywhere — including inside a comment. A comment that merely NAMED
+        `apply_typed_mentions_and_rewrite_gi` while explaining the ordering was enough to fail
+        this assertion, which is the test measuring prose rather than code. Matching on the
+        opening paren pins the invocation, which is the thing that actually has to be ordered.
+        """
         src = self._source()
-        scoping = src.index("plan_bare_name_ids")
-        mentions = src.index("apply_typed_mentions_and_rewrite_gi")
+        scoping = src.index("plan_bare_name_ids(")
+        mentions = src.index("apply_typed_mentions_and_rewrite_gi(")
         assert scoping < mentions, (
             "scoping must run BEFORE typed mentions, or mentions bind to ids that are "
             "rewritten underneath them"
@@ -443,3 +449,78 @@ class TestTheWorkListLabelsAreHonest:
         row = unresolved_persons_in_episode(scoped, {"nodes": []})[0]
         assert row["reason"] == "ambiguous"
         assert len(row["candidates"]) == 2
+
+
+class TestMergingMustNotLoseASpeakingRole:
+    """A `mentioned` node absorbing a `host` node must come out a host (#2065 fresh-ingest find).
+
+    `rewrite_ids` merges duplicates by "keep the first, fold in properties the survivor LACKS".
+    The survivor already has `role='mentioned'`, so a duplicate's `role='host'` was discarded —
+    silently demoting a real host at the moment two ids for one human were reconciled.
+
+    CAUGHT BY A REAL INGEST, not by a unit test. The Journal, "The MAHA Shake-Up at Steak 'n
+    Shake": the roster said `Ryan Knutson` was a host and the extractor emitted the ASR variant
+    `Ryan Knudsen`. `_upgrade_person_role` matches by ID, so the host role never landed on the
+    variant node; the intra-episode merge then correctly united the two ids — and threw the host
+    role away in the process. Jessica Mendoza and Heather Haddon, whose names the extractor got
+    right, were unaffected. That is #2065's exact symptom surviving in freshly ingested data.
+
+    The precedence rule already exists one file over (`kg/pipeline.py`, #2060): a stated speaking
+    role beats `mentioned`, and never the reverse. This makes the merge obey it too, rather than
+    having two merge paths with two opinions.
+    """
+
+    def _two_nodes(self, first_role: str, second_role: str):
+        return {
+            "nodes": [
+                {
+                    "id": "person:ryan-knudsen",
+                    "type": "Person",
+                    "properties": {"name": "Ryan Knudsen", "role": first_role},
+                },
+                {
+                    "id": "person:ryan-knutson",
+                    "type": "Person",
+                    "properties": {"name": "Ryan Knutson", "role": second_role},
+                },
+            ],
+            "edges": [],
+        }
+
+    def test_the_speaking_role_survives_the_merge(self) -> None:
+        payload, _n = rewrite_ids(
+            self._two_nodes("mentioned", "host"),
+            {"person:ryan-knudsen": "person:ryan-knutson"},
+        )
+        roles = [(n["id"], n["properties"]["role"]) for n in payload["nodes"]]
+        assert roles == [("person:ryan-knutson", "host")], roles
+
+    def test_it_works_in_either_node_order(self) -> None:
+        payload, _n = rewrite_ids(
+            self._two_nodes("host", "mentioned"),
+            {"person:ryan-knudsen": "person:ryan-knutson"},
+        )
+        assert payload["nodes"][0]["properties"]["role"] == "host"
+
+    def test_guest_also_beats_mentioned(self) -> None:
+        payload, _n = rewrite_ids(
+            self._two_nodes("mentioned", "guest"),
+            {"person:ryan-knudsen": "person:ryan-knutson"},
+        )
+        assert payload["nodes"][0]["properties"]["role"] == "guest"
+
+    def test_a_stated_role_is_never_overwritten_by_another(self) -> None:
+        # host vs guest: two sources that both claim a speaking role. The first wins, matching
+        # `_dedupe_nodes_by_id` — this pass must not arbitrate between two stated roles.
+        payload, _n = rewrite_ids(
+            self._two_nodes("host", "guest"),
+            {"person:ryan-knudsen": "person:ryan-knutson"},
+        )
+        assert payload["nodes"][0]["properties"]["role"] == "host"
+
+    def test_mentioned_stays_mentioned_when_nothing_states_otherwise(self) -> None:
+        payload, _n = rewrite_ids(
+            self._two_nodes("mentioned", "mentioned"),
+            {"person:ryan-knudsen": "person:ryan-knutson"},
+        )
+        assert payload["nodes"][0]["properties"]["role"] == "mentioned"

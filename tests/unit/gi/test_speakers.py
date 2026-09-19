@@ -8,82 +8,81 @@ from podcast_scraper.gi.speakers import (
     add_spoken_by_edges,
     attribute_quote_speakers,
     build_named_turns,
-    build_speaker_turns,
-    map_clusters_to_people,
     speaker_for_char,
 )
 
 pytestmark = pytest.mark.unit
 
-# Opening speaker (host) intros; the dominant other speaker is the guest.
+# A diarized transcript whose markers name NOBODY — only anonymous voices.
 _TRANSCRIPT = (
-    "Speaker 1: Welcome to the show, today we talk markets. "  # host, opens
-    "Speaker 2: Thanks for having me, inflation is the key story. "  # guest
-    "Speaker 1: So what happens next? "  # host
-    "Speaker 2: Rates stay higher for longer, and supply chains stay tight."  # guest (dominant)
+    "Speaker 1: Welcome to the show, today we talk markets. "
+    "Speaker 2: Thanks for having me, inflation is the key story. "
+    "Speaker 1: So what happens next? "
+    "Speaker 2: Rates stay higher for longer, and supply chains stay tight."
 )
 
 
-def test_build_speaker_turns_parses_markers():
-    turns = build_speaker_turns(_TRANSCRIPT)
-    assert [label for _, label in turns] == ["Speaker 1", "Speaker 2", "Speaker 1", "Speaker 2"]
-    assert turns == sorted(turns)  # offsets ascending
-
-
 def test_speaker_for_char_picks_containing_turn():
-    turns = build_speaker_turns(_TRANSCRIPT)
-    # a char inside the first guest turn resolves to Speaker 2
-    guest_turn_off = turns[1][0]
-    assert speaker_for_char(guest_turn_off + 5, turns) == "Speaker 2"
+    turns = [(0, "Speaker 1"), (55, "Speaker 2"), (116, "Speaker 1")]
+    assert speaker_for_char(60, turns) == "Speaker 2"
     assert speaker_for_char(0, turns) == "Speaker 1"
+    assert speaker_for_char(120, turns) == "Speaker 1"
 
 
-def test_role_heuristic_maps_guest_and_person_host():
-    turns = build_speaker_turns(_TRANSCRIPT)
-    cmap = map_clusters_to_people(turns, hosts=["Jane Host"], guests=["John Guest"])
-    assert cmap["Speaker 2"] == "John Guest"  # dominant non-opening → guest
-    assert cmap["Speaker 1"] == "Jane Host"  # opening, person-like → host
+class TestAnAnonymousTranscriptCreditsNobody:
+    """#2075: no heuristic may put a name on a voice (#876).
 
+    `attribute_quote_speakers` used to fall back to a role heuristic over `Speaker N` markers: the
+    first voice to speak got `hosts[0]`, the most talkative other voice `guests[0]`. It credited
+    81 quotes on 10 Odd Lots episodes in production and `Tracy Alloway` on the #2075 validation run,
+    with no voice ever matched to her. With nothing naming a voice, nobody is credited.
+    """
 
-def test_publisher_host_label_is_not_attributed():
-    # "Bloomberg" is a publisher, not a person → host stays None (guest still maps).
-    turns = build_speaker_turns(_TRANSCRIPT)
-    cmap = map_clusters_to_people(turns, hosts=["Bloomberg"], guests=["John Guest"])
-    assert cmap["Speaker 1"] is None
-    assert cmap["Speaker 2"] == "John Guest"
+    def test_the_guest_is_not_guessed_from_talk_time(self):
+        guest_char = _TRANSCRIPT.index("Thanks for having me")
+        attribution = attribute_quote_speakers(
+            _TRANSCRIPT, {"quote:1": guest_char}, hosts=["Jane Host"], guests=["John Guest"]
+        )
+        assert attribution == {}
 
+    def test_the_host_is_not_guessed_from_who_spoke_first(self):
+        attribution = attribute_quote_speakers(
+            _TRANSCRIPT, {"quote:1": 3}, hosts=["Jane Host"], guests=["John Guest"]
+        )
+        assert attribution == {}
 
-def test_attribute_quote_speakers_returns_canonical_person_ids():
-    turns = build_speaker_turns(_TRANSCRIPT)
-    guest_char = turns[1][0] + 3
-    attribution = attribute_quote_speakers(
-        _TRANSCRIPT, {"quote:1": guest_char}, hosts=["Bloomberg"], guests=["John Guest"]
-    )
-    assert attribution == {"quote:1": "person:john-guest"}
+    def test_no_spoken_by_edge_is_written(self):
+        artifact = {
+            "nodes": [
+                {"id": "quote:1", "type": "Quote", "properties": {"char_start": 60}},
+                {"id": "insight:1", "type": "Insight", "properties": {}},
+            ],
+            "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
+        }
+        assert (
+            add_spoken_by_edges(artifact, _TRANSCRIPT, hosts=["Jane Host"], guests=["John Guest"])
+            == 0
+        )
+        assert not any(e["type"] == "SPOKEN_BY" for e in artifact["edges"])
+        assert not any(n["type"] == "Person" for n in artifact["nodes"])
 
 
 def test_attribute_skips_when_no_diarization():
     assert attribute_quote_speakers("plain text no labels", {"q": 0}, hosts=[], guests=["G"]) == {}
 
 
-def test_add_spoken_by_edges_emits_person_and_edge_idempotently():
-    turns = build_speaker_turns(_TRANSCRIPT)
-    guest_char = turns[1][0] + 3
+def test_add_spoken_by_edges_is_idempotent_on_a_named_transcript():
+    transcript = "John Guest: Thanks for having me, inflation is the key story."
     artifact = {
         "nodes": [
-            {"id": "quote:1", "type": "Quote", "properties": {"char_start": guest_char}},
+            {"id": "quote:1", "type": "Quote", "properties": {"char_start": 12}},
             {"id": "insight:1", "type": "Insight", "properties": {}},
         ],
         "edges": [{"type": "SUPPORTED_BY", "from": "insight:1", "to": "quote:1"}],
     }
-    added = add_spoken_by_edges(artifact, _TRANSCRIPT, hosts=["Bloomberg"], guests=["John Guest"])
-    assert added == 1
+    assert add_spoken_by_edges(artifact, transcript, hosts=[], guests=["John Guest"]) == 1
     assert {"type": "SPOKEN_BY", "from": "quote:1", "to": "person:john-guest"} in artifact["edges"]
-    assert any(n["id"] == "person:john-guest" and n["type"] == "Person" for n in artifact["nodes"])
-    # idempotent: a second pass adds nothing
-    assert (
-        add_spoken_by_edges(artifact, _TRANSCRIPT, hosts=["Bloomberg"], guests=["John Guest"]) == 0
-    )
+    assert add_spoken_by_edges(artifact, transcript, hosts=[], guests=["John Guest"]) == 0
 
 
 # === #875: named diarized markers (panels / multi-guest) ===

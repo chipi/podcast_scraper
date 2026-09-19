@@ -224,9 +224,7 @@ class TestCLISubprocessE2E:
                 assert "content" in metadata, "Metadata should have content section"
                 # Should have speaker detection results (NER)
                 assert (
-                    "detected_hosts" in metadata["content"]
-                    or "detected_guests" in metadata["content"]
-                    or "speakers" in metadata["content"]
+                    "speakers" in metadata["content"]
                 ), "Metadata should contain speaker detection results (NER)"
                 # Should have summary (summarization) - summary is top-level
                 assert "summary" in metadata, "Metadata should contain summary"

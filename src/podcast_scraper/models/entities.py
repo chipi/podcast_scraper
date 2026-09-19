@@ -9,7 +9,7 @@ from __future__ import annotations
 # Bandit: ElementTree usage limited to typing references
 import xml.etree.ElementTree as ET  # nosec B405
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -84,6 +84,24 @@ class Episode:
     # role determination; without it, that prompt only ever saw the title. Populated by
     # create_episode_from_item; None when the feed item carries no description.
     description: Optional[str] = None
+    # THIS episode's transcript on disk, absolute — set ONLY on a reprocess, where the episode was
+    # reconstructed from a metadata file that names it exactly.
+    #
+    # `relabel_only` and `rediarize_only` used to re-find it by globbing "{idx} - *.txt" across the
+    # whole feed root and taking newest-mtime. The on-disk idx is unique within a RUN, not within a
+    # feed: on a16z's 48 staged episodes across 14 run dirs, every episode resolved to one of just
+    # 15 transcripts, and 33 were relabelled onto another episode's file — silently, behind a
+    # WARNING and a zero exit. Production carries 397 run dirs. Knowing the path beats inferring it.
+    on_disk_transcript: Optional[str] = None
+    # The episode's number in the run directory it is STORED under ("0007 - Title.txt" -> 7). Not
+    # unique across a feed: every run dir numbers from 0001, so a feed with fourteen run dirs has
+    # fourteen "episode 1"s. `idx` must therefore be unique within THIS run and cannot be this
+    # value; kept only so the legacy index-prefix transcript search has something true to use.
+    on_disk_idx: Optional[int] = None
+    # The transcript URLs this episode's stored metadata recorded, if any. Set only on a reprocess,
+    # where the RSS item may be synthesized from disk and carry none of its own. `retranscript_only`
+    # re-fetches from here.
+    on_disk_transcript_urls: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass

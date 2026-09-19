@@ -404,8 +404,10 @@ def _save_anthropic_responses(  # noqa: C901
 
     # 1. Speaker detection result
     content = metadata_content.get("content", {})
-    detected_hosts = content.get("detected_hosts", [])
-    detected_guests = content.get("detected_guests", [])
+    # Schema 1.2.0 (#2075): read the speaker record; the computed host/guest fields are gone.
+    _speakers = [sp for sp in content.get("speakers", []) if isinstance(sp, dict)]
+    detected_hosts = [sp["name"] for sp in _speakers if sp.get("role") == "host"]
+    detected_guests = [sp["name"] for sp in _speakers if sp.get("role") == "guest"]
     if detected_hosts or detected_guests:
         response_lines.append("\n👥 SPEAKER DETECTION RESULT:")
         response_lines.append("-" * 80)

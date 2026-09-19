@@ -46,6 +46,23 @@ def _ns(namespace: str) -> Dict[Hashable, Tuple[float, Any]]:
     return store
 
 
+def cache_peek(namespace: str, key: Hashable, token: float) -> Any:
+    """The cached value for ``(namespace, key)`` if its token matches, else ``None``.
+
+    A lock-free read for callers that guard an EXPENSIVE ``compute()`` behind their own
+    single-flight lock: peek first, and only contend for that lock on a genuine miss. Without it a
+    warm caller would queue behind whoever is currently building.
+
+    Counts as neither a hit nor a miss — the caller's own :func:`get_or_compute` records the
+    outcome, and double-counting would make the hit rate meaningless. ``None`` is indistinguishable
+    from a cached ``None``; no caller stores one, and the cost of getting that wrong is one extra
+    compute, not a wrong answer.
+    """
+    with _LOCK:
+        hit = _ns(namespace).get(key)
+    return hit[1] if hit is not None and hit[0] == token else None
+
+
 def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callable[[], Any]) -> Any:
     """Return the cached value for ``(namespace, key)`` when its stored token
     matches *token*; otherwise call *compute*, store, and return it.
@@ -123,14 +140,34 @@ def corpus_mtime(root: Path | str) -> float:
     """Ingest signal: the corpus run-summary mtime (rewritten each run), falling
     back to the manifest, then the corpus dir mtime."""
     root = Path(root)
-    for name in ("corpus_run_summary.json", "corpus_manifest.json"):
+    stamps = []
+    for name in (
+        "corpus_run_summary.json",
+        "corpus_manifest.json",
+        "upgrade_ledger.json",
+        "corpus_edges_stamp.json",
+    ):
         try:
             # callers pass a validated corpus root (platform anchor or _resolve_corpus output);
             # name is a constant; getmtime only stats it for the cache token.
             # codeql[py/path-injection] -- validated corpus root + constant filename (Type 1).
-            return os.path.getmtime(root / name)
+            stamps.append(os.path.getmtime(root / name))
         except OSError:
             continue
+    if stamps:
+        # MAX, not first-found. A corpus MIGRATION rewrites `*.kg.json` and the upgrade ledger and
+        # touches neither run-summary nor manifest (#2065 advisor S6), so tokening on the first
+        # file present left every projection serving pre-migration roles until the next ingest or
+        # a process restart — the KG entity index, the catalog, momentum person-roles (the exact
+        # field m0009 changes), top-persons and the per-artifact loader. An operator who migrated
+        # and then looked at the app would see nothing change and conclude it had done nothing.
+        #
+        # `corpus_edges_stamp.json` is the same hole one path over: `search enrich-edges` rewrites
+        # gi.json — SPOKEN_BY, the edges insight attribution reads — and is neither an ingest nor
+        # a migration, so it moved none of the three names above. Every out-of-band writer of
+        # corpus artifacts needs a name in THIS tuple; adding one is the price of not silently
+        # serving stale projections.
+        return max(stamps)
     try:
         # codeql[py/path-injection] -- same validated corpus root; getmtime stats only (Type 1).
         return os.path.getmtime(root)

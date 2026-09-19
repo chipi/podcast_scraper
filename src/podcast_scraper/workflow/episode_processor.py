@@ -7,10 +7,11 @@ import json
 import logging
 import os
 import queue
+import re
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -449,7 +450,10 @@ def download_media_for_transcription(
     # pipeline_stage=relabel_only reuses the on-disk transcript + diarization and re-runs
     # only the speaker-name resolution — no audio is needed. Return a no-download job so
     # transcribe_media_to_text reaches the relabel branch (which loads from disk).
-    if cfg.pipeline_stage == "relabel_only":
+    # retranscript_only takes the same exit for the same reason: its input is the publisher's
+    # transcript URL over the network, and downloading the audio it will never open would make
+    # the cheap repair as expensive as the one it exists to avoid.
+    if cfg.pipeline_stage in ("relabel_only", "retranscript_only"):
         speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
         return TranscriptionJob(  # type: ignore[no-any-return]
             idx=episode.idx,
@@ -683,8 +687,13 @@ def _format_transcript_if_needed(
     """
     text = (result.get("text") or "").strip()
     if cfg.screenplay and isinstance(result, dict) and isinstance(result.get("segments"), list):
-        # Use detected speaker names (manual names are already used as fallback in workflow)
-        speaker_names = detected_speaker_names or []
+        # Use detected speaker names (manual names are already used as fallback in workflow).
+        # THE SEAT CAP LIVES HERE NOW (#2095). `detect_speaker_names` used to apply
+        # `screenplay_num_speakers` to the list of people the episode STATES, which silently
+        # deleted the guest on any two-host show and removed them from the record entirely. The
+        # screenplay is the one consumer that genuinely has a fixed number of seats, so it is the
+        # one that truncates — everything upstream keeps the full stated list.
+        speaker_names = (detected_speaker_names or [])[: cfg.screenplay_num_speakers]
         try:
             segments = result["segments"]
             has_diarized_labels = any(
@@ -1081,7 +1090,10 @@ def _write_processing_manifest(
                 # cameo/commercial cleanup, split named vs Voice (unresolved). Lets the sidecar
                 # answer the clean named-vs-Voice rate without opening the graph.
                 "exposed": summary.get("exposed"),
-                "unbound_names": summary.get("unbound_names"),
+                # A COUNT, not the names: the names live in the episode's speaker record
+                # (`placed: false`) and the diagnostics explain them. A second copy here drifted
+                # from both on every relabel (#2075).
+                "unbound_count": len(summary.get("unbound_names") or []),
                 "host_named": host_named,
             },
         )
@@ -2360,6 +2372,175 @@ def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
     )
 
 
+def _rewrite_speaker_record_in_place(
+    txt_path: Path,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    rel_path: str,
+    stage: str,
+    feed_hosts: Sequence[str],
+) -> bool:
+    """Rewrite ``content.speakers`` from the labels this reprocess stage just wrote (#2075).
+
+    THE RECORD IS THE POINT OF THIS ARC, and until now no reprocess stage touched it. `relabel_only`
+    (and through it `rediarize_only` / `retranscript_only`) rewrote the transcript, the segments,
+    the diagnostics, the ad-free and cleaned copies and the manifest — and left `metadata.json`
+    exactly as it was. Measured on two DGX episodes: `metadata.json` byte-identical before and
+    after, still the pre-1.2.0 ``{id, name, role}`` shape with no ``placed``/``voices``. A relabel
+    that CHANGED a name would therefore leave the record naming the old person, which is precisely
+    the divergence the record exists to prevent.
+
+    Rebuilt through the SAME path a full run uses, reading the segments and diagnostics this stage
+    has just written to disk, so the two cannot drift. Only the three roster keys are touched: a
+    frozen stage has no new information about anything else in the artifact, and a wider write
+    would re-open summaries and derived fields it deliberately skipped.
+
+    Returns True when the record was rewritten. Never raises: a failure here must not lose the
+    relabel that already succeeded — it is logged, and the audit reports the stale record.
+    """
+    import json as _json
+
+    from ..identity.roster_provenance import roster_source
+    from .metadata_generation import _build_speaker_record
+
+    stem = txt_path.name[: -len(".txt")] if txt_path.name.endswith(".txt") else txt_path.stem
+    md_path = txt_path.parent.parent / filesystem.METADATA_SUBDIR / f"{stem}.metadata.json"
+    if not md_path.is_file():
+        logger.warning(
+            "[%s] %s: no sibling metadata at %s — the speaker record was NOT updated",
+            job.idx,
+            stage,
+            md_path,
+        )
+        return False
+    try:
+        payload = _json.loads(md_path.read_text(encoding="utf-8"))
+        feed_block = payload.get("feed") if isinstance(payload.get("feed"), dict) else {}
+        content = payload.get("content")
+        if not isinstance(content, dict):
+            raise ValueError("artifact has no content block")
+        speakers, num_speakers = _build_speaker_record(
+            effective_output_dir,
+            rel_path,
+            # THE SAME host anchor the relabel itself resolved with, not the live one. The stage
+            # prefers the frozen sibling metadata over live feed detection so a relabel of a stored
+            # corpus is reproducible; rebuilding the record from `job.feed_hosts` would describe a
+            # different resolution from the one that produced the labels on disk.
+            list(feed_hosts or []),
+            list(job.detected_speaker_names or []),
+            (feed_block or {}).get("title"),
+        )
+        before = content.get("speakers")
+        content["speakers"] = [sp.model_dump(exclude_none=False) for sp in speakers]
+        source = roster_source(speakers, diarized=any(sp.placed for sp in speakers))
+        if source is not None:
+            content["speakers_source"] = source
+        if num_speakers is not None:
+            content["diarization_num_speakers"] = num_speakers
+        md_path.write_text(_json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        logger.warning(
+            "[%s] %s: could not rewrite the speaker record at %s (%s) — the transcript was "
+            "relabelled but the record still describes the OLD naming",
+            job.idx,
+            stage,
+            md_path,
+            exc,
+        )
+        return False
+    logger.info(
+        "[%s] %s: speaker record rewritten — %d entries (%d placed), was %d",
+        job.idx,
+        stage,
+        len(speakers),
+        sum(1 for sp in speakers if sp.placed),
+        len(before or []) if isinstance(before, list) else 0,
+    )
+    return True
+
+
+def _existing_transcript_for(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    effective_output_dir: str,
+    stage: str,
+) -> Optional[Path]:
+    """The on-disk transcript this reprocess job is about, or ``None``.
+
+    THE EPISODE KNOWS ITS OWN FILE. A reprocess reconstructs each episode from a specific metadata
+    file, and ``_transcript_beside_metadata`` resolves the transcript that record names; it rides
+    along on the Episode. Use it.
+
+    The fallback below is the old behaviour, and it is a SEARCH, not a lookup: glob
+    ``"{idx} - *.txt"`` across the whole feed root, take newest-mtime. The on-disk idx is unique
+    inside a ``run_*`` directory and nowhere else, so on a feed with several runs it collapses
+    distinct episodes onto one file — measured on a16z, 48 staged episodes across 14 runs resolved
+    to 15 transcripts and 33 were rewritten onto another episode's transcript, behind a WARNING and
+    a zero exit. It survives only for callers that build a job without an Episode (older tests, and
+    any path that reaches these stages outside ``reprocess_existing_only``), and it now says so in
+    the log rather than looking like the normal case.
+    """
+    known = getattr(getattr(job, "episode", None), "on_disk_transcript", None)
+    if known:
+        path = Path(str(known))
+        if path.is_file():
+            return path
+        logger.warning(
+            "[%s] %s: the episode's own transcript %s is not on disk; falling back to the "
+            "index-prefix search, which cannot tell two runs' episode %d apart",
+            job.idx,
+            stage,
+            path,
+            job.idx,
+        )
+    else:
+        # A SILENT FALLBACK IS HOW THIS HID. With no transcript of its own the search below runs
+        # with no warning at all, and its answer is indistinguishable in the logs from a correct
+        # resolution — which is the state a run reached while every component tested correct in
+        # isolation afterwards. Say it out loud.
+        logger.warning(
+            "[%s] %s: this job carries NO transcript path of its own; falling through to the "
+            "index-prefix search, whose answer may be a DIFFERENT episode",
+            job.idx,
+            stage,
+        )
+
+    run_dir = Path(effective_output_dir)
+    search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
+    # The ON-DISK number, not `job.idx`: `idx` is now unique within the run and bears no relation
+    # to the filenames this searches. Falls back to `job.idx` for callers that set neither.
+    search_idx = getattr(getattr(job, "episode", None), "on_disk_idx", None) or job.idx
+    idx_prefix = f"{search_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
+    matches = [
+        p
+        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
+        if ".adfree." not in p.name
+        and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
+    ]
+    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    if not matches:
+        logger.warning(
+            "[%s] %s: no on-disk transcript to work on under %s (idx prefix %r)",
+            job.idx,
+            stage,
+            search_root,
+            idx_prefix,
+        )
+        return None
+    if len(matches) > 1:
+        logger.warning(
+            "[%s] %s: this job carries no episode transcript path, and %d transcripts match idx "
+            "%r across the feed's runs — guessing newest-mtime %s (skipped %d). An episode idx is "
+            "not unique across runs, so this may be a DIFFERENT episode.",
+            job.idx,
+            stage,
+            len(matches),
+            idx_prefix,
+            matches[0],
+            len(matches) - 1,
+        )
+    return matches[0]
+
+
 def _relabel_existing_transcript(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -2378,41 +2559,12 @@ def _relabel_existing_transcript(
     from ..providers.ml.diarization.pipeline import apply_diarization_to_result
 
     # effective_output_dir is the *new* run dir this invocation created; the existing corpus
-    # transcript lives in a sibling run_<old-tag>/transcripts/ with a truncated title + run-tag
-    # suffix. Search the whole feed root by the unique episode-index prefix ("0001 - "),
-    # requiring a .segments.json sibling, and overwrite that file in place.
-    run_dir = Path(effective_output_dir)
-    search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
-    idx_prefix = f"{job.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
-    matches = [
-        p
-        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
-        if ".adfree." not in p.name
-        and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
-    ]
-    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    if not matches:
-        logger.warning(
-            "[%s] relabel_only: no on-disk transcript to relabel under %s (idx prefix %r)",
-            job.idx,
-            search_root,
-            idx_prefix,
-        )
+    # transcript lives in a sibling run_<old-tag>/transcripts/, and this stage OVERWRITES it in
+    # place. Which file that is comes from the episode's own metadata record — see
+    # `_existing_transcript_for` for why searching for it by index prefix was wrong.
+    txt_path = _existing_transcript_for(job, effective_output_dir, "relabel_only")
+    if txt_path is None:
         return False, None, 0
-    txt_path = matches[0]
-    if len(matches) > 1:
-        # The feed root can hold several run_* dirs for the same episode (pilots, prior reprocesses,
-        # rederive_only passes). We pick the newest by mtime — surface that choice and the skipped
-        # alternates so a relabel that targeted the wrong run is diagnosable (B1).
-        logger.warning(
-            "[%s] relabel_only: %d on-disk transcripts match idx %r; using newest-mtime %s "
-            "(skipped %d older)",
-            job.idx,
-            len(matches),
-            idx_prefix,
-            txt_path,
-            len(matches) - 1,
-        )
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
     if not seg_path.exists():
         logger.warning(
@@ -2516,12 +2668,95 @@ def _relabel_existing_transcript(
             effective_output_dir,
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+        _relabel_cleaned_transcript(txt_path, segs, new_segs, job.idx)
+        # The record follows the labels, or the two describe different episodes (#2075).
+        _rewrite_speaker_record_in_place(
+            txt_path, job, effective_output_dir, rel_path, "relabel_only", feed_hosts
+        )
     # advisor #2: relabel rewrites naming on disk — the manifest MUST record the new naming
     # method_version, or "reprocess episodes below naming-3" never converges. result has no ASR/
     # diarization fields (frozen), so only the naming block is written + a pipeline_stage emitted.
     _write_processing_manifest(result, cfg, job, rel_path, effective_output_dir)
     logger.info("[%s] relabel_only: re-resolved speaker names in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
+
+
+# A line prefix that is a SPEAKER label, not prose: `SPEAKER_07`, or a short run of capitalised
+# name tokens (`Joel Salinas`, `Cobus van Staden`). Measured on 2,071 real cleaned transcripts: LLM
+# cleaners write prose with colons ("So, to recap: …", "One food scientist stuck with me: …"), and
+# reading those as labels would have removed 569 files that name nobody.
+# "First: …", "Second: …" — an LLM cleaner's enumeration, not a speaker (7 of the 2,071 files).
+_ENUMERATION_WORDS = frozenset(
+    "one two three four five first second third fourth fifth sixth last finally next".split()
+)
+_NAME_TOKEN = r"[A-Z][\w'’.\-]*"
+_SPEAKER_LABEL_SHAPE = re.compile(
+    rf"SPEAKER_\d+|{_NAME_TOKEN}(?:\s+(?:{_NAME_TOKEN}|van|von|de|da|del|al|bin)){{0,4}}"
+)
+
+
+def _relabel_cleaned_transcript(
+    txt_path: Path, old_segs: Any, new_segs: List[Dict[str, Any]], idx: Any
+) -> None:
+    """Bring ``<stem>.cleaned.txt`` onto the new speaker labels, or remove it (#2075).
+
+    The cleaned transcript is written only when a SUMMARY is generated, so a relabel — which
+    re-resolves names without re-summarising — left it naming the old people. Measured before
+    this: 52 of 129 control episodes and 82 of 163 broken-set episodes carried stale labels, and
+    the server serves it whenever the raw ``.txt`` is missing.
+
+    Its lines are ``<label>: <text>`` in the same order as the transcript's, but the cleaner may
+    drop or merge lines, so it cannot be re-rendered from segments. Labels are rewritten only when
+    that is exact: every label in the file is one the transcript carried before this relabel, and
+    each such label maps to ONE new label. Otherwise (it was written from an even older labelling,
+    or one old label split into two people) it is REMOVED — a derivative with wrong names is worse
+    than none; the server falls back to the raw transcript and the next summary run rewrites it.
+    """
+    cleaned = txt_path.with_name(txt_path.name[: -len(".txt")] + ".cleaned.txt")
+    if not cleaned.is_file() or not isinstance(old_segs, list):
+        return
+    mapping: Dict[str, set] = {}
+    for old, new in zip(old_segs, new_segs):
+        if not (isinstance(old, dict) and isinstance(new, dict)):
+            continue
+        o, n = old.get("speaker_label"), new.get("speaker_label")
+        if o is not None and n is not None:
+            mapping.setdefault(str(o), set()).add(str(n))
+    try:
+        lines = cleaned.read_text(encoding="utf-8").split("\n")
+    except OSError:
+        return
+    exact = len(old_segs) == len(new_segs) and all(len(v) == 1 for v in mapping.values())
+    out: List[str] = []
+    labelled = False
+    for line in lines:
+        label, sep, rest = line.partition(": ")
+        if sep and label in mapping:
+            labelled = True
+            out.append(f"{next(iter(mapping[label]))}: {rest}")
+        elif (
+            sep
+            and _SPEAKER_LABEL_SHAPE.fullmatch(label)
+            and label.lower() not in _ENUMERATION_WORDS
+        ):
+            exact = False  # a speaker label this transcript never carried: written from another run
+            break
+        else:
+            out.append(line)  # prose, including an LLM cleaner's own "So, to recap: …"
+    if not labelled and exact:
+        return  # no speaker labels at all — nothing names anyone
+    try:
+        if exact:
+            cleaned.write_text("\n".join(out), encoding="utf-8")
+        else:
+            cleaned.unlink()
+            logger.info(
+                "[%s] relabel: removed %s — its speaker labels no longer map onto the transcript",
+                idx,
+                cleaned.name,
+            )
+    except OSError as exc:
+        logger.warning("[%s] relabel: could not update %s: %s", idx, cleaned.name, exc)
 
 
 def _segments_carry_native_speakers(result: Any) -> bool:
@@ -2628,38 +2863,10 @@ def _rediarize_existing_transcript(
         logger.warning("[%s] rediarize_only: no downloaded audio; cannot re-diarize", job.idx)
         return False, None, 0
 
-    # Locate the existing transcript (same discovery as relabel): unique idx prefix, feed root.
-    run_dir = Path(effective_output_dir)
-    search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
-    idx_prefix = f"{job.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
-    matches = [
-        p
-        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
-        if ".adfree." not in p.name
-        and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
-    ]
-    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    if not matches:
-        logger.warning(
-            "[%s] rediarize_only: no on-disk transcript to align under %s (idx prefix %r)",
-            job.idx,
-            search_root,
-            idx_prefix,
-        )
+    # Locate the existing transcript — same discovery as relabel, from the episode's own record.
+    txt_path = _existing_transcript_for(job, effective_output_dir, "rediarize_only")
+    if txt_path is None:
         return False, None, 0
-    txt_path = matches[0]
-    if len(matches) > 1:
-        # Several run_* dirs can match the same episode; we pick the newest by mtime. Surface it and
-        # the skipped alternates so a rediarize that targeted the wrong run is diagnosable (B1).
-        logger.warning(
-            "[%s] rediarize_only: %d on-disk transcripts match idx %r; using newest-mtime %s "
-            "(skipped %d older)",
-            job.idx,
-            len(matches),
-            idx_prefix,
-            txt_path,
-            len(matches) - 1,
-        )
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
 
     text = txt_path.read_text(encoding="utf-8")
@@ -2703,6 +2910,10 @@ def _rediarize_existing_transcript(
             effective_output_dir,
         )
         _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+        # Fresh voices AND fresh names: the record must describe the diarization that now exists.
+        _rewrite_speaker_record_in_place(
+            txt_path, job, effective_output_dir, rel_path, "rediarize_only", feed_hosts
+        )
     # advisor #2: rediarize regenerates diarization + naming on disk — record both into run metrics
     # and the manifest (fresh diarization + naming blocks + pipeline_stage), else the rerun is
     # invisible in diarization_* metrics and the manifest keeps the old versions.
@@ -2712,6 +2923,121 @@ def _rediarize_existing_transcript(
     )
     logger.info("[%s] rediarize_only: re-diarized + re-resolved in place -> %s", job.idx, rel_path)
     return True, rel_path, 0
+
+
+def _refetch_and_reparse_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> tuple[bool, Optional[str], int]:
+    """pipeline_stage=retranscript_only: re-fetch the publisher transcript, re-parse, relabel.
+
+    THE SPEAKER DATA WAS ALWAYS THERE; WE DELETED IT ON THE WAY IN. A WebVTT cue can carry
+    ``<v Speaker 3>`` naming who is talking, and the cue parser stripped it as an HTML tag — so a
+    transcript that named every turn landed as ONE undifferentiated voice and the episode could
+    never be attributed. Measured on the production corpus: every episode that used a
+    publisher-supplied transcript ended with a single voice, 128 of 128.
+
+    `29e117a1` fixed the parser for new ingests. This stage repairs what is already stored, and it
+    is deliberately the CHEAPEST repair that works: the transcript TEXT was never wrong, only its
+    speaker structure, and the source still has it. So re-download, re-parse, overwrite the
+    transcript and its sidecar, and hand off to ``relabel_only`` — which now sees segments that
+    carry speakers. No audio, no ASR, no diarization, no GPU.
+
+    ``rediarize_only`` would also work and needs no new code, but it downloads the audio and spends
+    GPU rediscovering speaker boundaries the publisher already handed us — and on a feed that ships
+    real names rather than ``Speaker N``, it throws those away.
+
+    THE FORMAT IS CHOSEN BY RESULT, NOT BY MIME TYPE. A feed often offers several (Odd Lots: srt,
+    text/plain, vtt; In Moscow's Shadows: json, srt, html, vtt) and only some carry speakers — in
+    In Moscow's Shadows' SRT the ``MG:`` prefix appears on the first cue and nowhere else. Guessing
+    from the type would pick wrong; parsing each candidate and keeping the first that yields two or
+    more distinct speakers cannot.
+    """
+    import json as _json
+
+    from ..transcript_formats import parse_srt, parse_webvtt
+
+    txt_path = _existing_transcript_for(job, effective_output_dir, "retranscript_only")
+    if txt_path is None:
+        return False, None, 0
+
+    urls = list(getattr(getattr(job, "episode", None), "on_disk_transcript_urls", None) or [])
+    if not urls:
+        logger.warning(
+            "[%s] retranscript_only: the stored metadata records no transcript URL, so there is "
+            "nothing to re-fetch. This episode needs rediarize_only or a re-ingest.",
+            job.idx,
+        )
+        return False, None, 0
+
+    best: Optional[tuple[int, str, list]] = None
+    for entry in urls:
+        url = str(entry.get("url") or "").strip()
+        if not url:
+            continue
+        fetched = _fetch_transcript_content(url, cfg)
+        if fetched is None:
+            logger.warning("[%s] retranscript_only: fetch failed for %s", job.idx, url)
+            continue
+        data, _ctype = fetched
+        try:
+            body = data.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            body = data.decode("utf-8", errors="replace")
+        lowered = url.lower()
+        if ".srt" in lowered or "subrip" in str(entry.get("type") or "").lower():
+            plain, segments = parse_srt(body)
+        else:
+            plain, segments = parse_webvtt(body)
+        if not (plain.strip() and segments):
+            continue
+        voices = len({str(sg.get("speaker")) for sg in segments if sg.get("speaker")})
+        logger.info(
+            "[%s] retranscript_only: %s -> %d segments, %d distinct speaker(s)",
+            job.idx,
+            str(entry.get("type") or url)[:48],
+            len(segments),
+            voices,
+        )
+        if best is None or voices > best[0]:
+            best = (voices, plain, segments)
+        if voices >= 2:
+            break
+
+    if best is None:
+        logger.warning("[%s] retranscript_only: no candidate transcript parsed", job.idx)
+        return False, None, 0
+    voices, plain, segments = best
+    if voices < 2:
+        # Refuse rather than overwrite a good file with an equally speakerless one. An episode that
+        # arrives here with one voice is not repairable from its published transcript at all, and
+        # saying so is more useful than a silent no-op that looks like success.
+        logger.warning(
+            "[%s] retranscript_only: the best candidate still carries %d speaker(s); this "
+            "episode cannot be repaired from its published transcript — use rediarize_only",
+            job.idx,
+            voices,
+        )
+        return False, None, 0
+
+    seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
+    txt_path.write_text(plain, encoding="utf-8")
+    seg_path.write_text(_json.dumps(segments, ensure_ascii=False), encoding="utf-8")
+    logger.info(
+        "[%s] retranscript_only: rewrote %s with %d speaker(s); relabelling",
+        job.idx,
+        txt_path.name,
+        voices,
+    )
+
+    # ...and now the ordinary naming path, which finally has voices to name.
+    return _relabel_existing_transcript(
+        job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    )
 
 
 def _maybe_dispatch_reprocess_stage(
@@ -2734,6 +3060,10 @@ def _maybe_dispatch_reprocess_stage(
         )
     if cfg.pipeline_stage == "rediarize_only":
         return _rediarize_existing_transcript(
+            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        )
+    if cfg.pipeline_stage == "retranscript_only":
+        return _refetch_and_reparse_transcript(
             job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
         )
     return None
@@ -3741,7 +4071,22 @@ def process_episode_download(
         transcript_source: Optional[str], bytes_downloaded: int)
         transcript_source is "direct_download" or "whisper_transcription" or None
     """
-    chosen = choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
+    # A REPROCESS STAGE NEVER RE-DOWNLOADS THE PUBLISHER TRANSCRIPT HERE (#2075). This branch ran
+    # first for every stage, so on a feed that publishes its own transcript `relabel_only`,
+    # `rediarize_only` and `retranscript_only` downloaded it afresh into a NEW run directory and
+    # never reached `_maybe_dispatch_reprocess_stage` — the repair was a silent re-ingest that
+    # exited 0. Found running `retranscript_only` on one Odd Lots episode: a second copy of the
+    # episode appeared as `0001` in a new run, and the stored transcript was untouched.
+    # `rederive_only` works from the on-disk transcript by definition, so it is skipped too.
+    reprocess_from_disk = (
+        cfg.pipeline_stage in config.STAGES_THAT_NEVER_TRANSCRIBE
+        or cfg.pipeline_stage == "rederive_only"
+    )
+    chosen = (
+        None
+        if reprocess_from_disk
+        else choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
+    )
 
     if chosen:
         t_url, t_type = chosen

@@ -85,7 +85,7 @@ def _strip_layer_prefixes_for_cil(raw: str) -> str:
 # so e.g. /node-episodes for the canonical id under-counted (missed the variant
 # episodes). These helpers apply the SAME map so both paths agree. Cached per
 # corpus root (the corpus is static during serving), mirroring get_corpus_graph.
-_cil_id_maps: dict[str, dict[str, str]] = {}
+_cil_id_maps: dict[tuple[str, float], dict[str, str]] = {}
 _cil_id_maps_lock = threading.Lock()
 
 
@@ -94,17 +94,28 @@ def _cil_entity_id_map(root_path: str) -> dict[str, str]:
     # Normalise the tainted root_path with os.path.normpath (the path-injection-safe
     # shape this module uses everywhere; see module docstring) rather than
     # Path(...).resolve(), which CodeQL's py/path-injection query does not recognise.
-    key = os.path.normpath(root_path)
+    # KEYED ON (path, corpus token), not path alone. With no token this map was built once per
+    # process and never rebuilt — not after a corpus migration, not after a re-enrich, not after an
+    # ingest (#2065 advisor S6). `clear_corpus_graph_cache`, its sibling, has no callers under
+    # `src/`, so nothing was going to clear it either. Same token as every other corpus-derived
+    # cache, so they invalidate together rather than drifting apart.
+    from podcast_scraper import perf_cache
+
+    path_key = os.path.normpath(root_path)
+    key = (path_key, perf_cache.corpus_mtime(path_key))
     with _cil_id_maps_lock:
         cached = _cil_id_maps.get(key)
         if cached is None:
             try:
-                from ..kg.entity_clusters import build_entity_id_map
+                from ..kg.entity_clusters import cached_entity_id_map
 
-                cached = build_entity_id_map(key)
+                cached = cached_entity_id_map(path_key)
             except Exception as exc:  # pragma: no cover - defensive; fall back to no-op
-                logger.debug("cil_queries: entity id map unavailable for %s: %s", key, exc)
+                logger.debug("cil_queries: entity id map unavailable for %s: %s", path_key, exc)
                 cached = {}
+            # Drop stale generations so a long-lived process does not grow one map per ingest.
+            for stale in [k for k in _cil_id_maps if k[0] == path_key]:
+                _cil_id_maps.pop(stale, None)
             _cil_id_maps[key] = cached
         return cached
 

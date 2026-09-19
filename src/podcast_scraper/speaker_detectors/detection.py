@@ -145,13 +145,33 @@ def _build_speaker_names_list(
     guests: List[str],
     max_names: int,
 ) -> Tuple[List[str], bool, bool]:
-    """Build final speaker names list from hosts and guests."""
+    """Build the final speaker names list from hosts and guests.
+
+    ``max_names`` IS NOT APPLIED HERE ANY MORE, and that is the fix for #2095/#2078.
+
+    It is the screenplay's seat count (``cfg.screenplay_num_speakers``, default 2) and it was
+    truncating the list of people the episode STATES, which is a different thing entirely. On a
+    show with two feed-stated hosts the arithmetic was ``hosts[:2] + guests[:2 - 2]`` — an empty
+    guest slice — so the guest reached neither ``detected_guests`` nor ``metadata_named``. Because
+    the record builder reads only those, the person vanished from ``content.speakers`` altogether,
+    not even carried as ``placed: false``.
+
+    Verified before the change: ``Mackenzie Price`` appears in NO record file in the whole control
+    corpus, on a Hard Fork episode whose own transcript says *"So let's bring in Alpha School
+    cofounder, Mackenzie Price"* followed by *"Thanks for having me"*. Same shape for
+    ``Alexander Stubb``, ``Robert Malley`` / ``Mark Williams`` and ``Glenn Fogel``.
+
+    The seat cap still exists — it is applied where seats actually exist, at the screenplay
+    formatter — and the roster's arithmetic ("one spare name, one spare voice") keeps its own
+    cap. What must NOT be capped is the list that answers "who does this episode say is here?",
+    because a stated name may enter the record unplaced and may be bound by introduction,
+    self-intro or sign-off evidence. It is only the arithmetic that needs a bounded list (#876).
+    """
     detection_succeeded = bool(hosts or guests)
     used_defaults = False
 
     if not guests and hosts:
-        host_list = sorted(list(hosts))[:max_names]
-        speaker_names = host_list
+        speaker_names = sorted(hosts)
         logger.debug("  → Using detected host names: %s (no guests detected)", speaker_names)
     elif not hosts and not guests:
         logger.info("  → No hosts or guests detected (using defaults)")
@@ -159,7 +179,7 @@ def _build_speaker_names_list(
         detection_succeeded = False
         used_defaults = True
     else:
-        speaker_names = list(hosts)[:max_names] + guests[: max_names - len(hosts)]
+        speaker_names = list(hosts) + guests
         if len(speaker_names) < MIN_SPEAKERS_REQUIRED:
             if hosts or guests:
                 used_defaults = True
@@ -176,4 +196,5 @@ def _build_speaker_names_list(
                 speaker_names = DEFAULT_SPEAKER_NAMES.copy()
                 used_defaults = True
 
-    return speaker_names[:max_names], detection_succeeded, used_defaults
+    _ = max_names  # kept in the signature: the seat cap now belongs to the screenplay formatter
+    return speaker_names, detection_succeeded, used_defaults

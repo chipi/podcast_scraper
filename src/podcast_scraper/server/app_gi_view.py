@@ -48,6 +48,22 @@ def _speaker_name(artifact: Any, person_id: Any) -> str | None:
     same lie tidier: this file already refuses to publish an unattributed stance as somebody's
     insight (see the ``surfaceable`` gate below), and attributing a quote to "speaker-01" is
     that same failure.
+
+    WHY THIS RENDERS "Host" WHILE THE AGGREGATE SURFACES HIDE IT. ``person:unresolved-host-<ep>``
+    DOES carry a Person node named ``Host`` (61 such nodes on the production snapshot, all with
+    ``SPOKEN_BY``), so it resolves here — while ``routes/corpus_persons`` and ``cil_queries`` drop
+    it through ``is_unresolved_speaker_placeholder``. That looked like one decision made twice with
+    two answers. It is not; the rule is:
+
+        **An episode-scoped label is meaningful IN its episode and meaningless aggregated.**
+
+    Inside one episode, "the Host said this" is true and useful. Ranked corpus-wide it is a
+    category error — every show's Host is a different human, so the aggregate would invent a
+    person who spans 54 episodes. Hence: renderable here, never rankable there.
+
+    Stated because it was previously implicit on both sides, which is how two surfaces drift.
+    ``tests/guardrails/test_guard_capability.py`` pins the pair together so neither half can
+    change alone.
     """
     if not isinstance(person_id, str) or not person_id.strip():
         return None

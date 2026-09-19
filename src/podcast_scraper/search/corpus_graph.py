@@ -439,14 +439,24 @@ class CorpusGraph:
         """
         from ..gi.corpus import load_gi_artifacts
         from ..gi.explore import scan_artifact_paths as scan_gi_paths
-        from ..kg.corpus import load_kg_artifacts, scan_kg_artifact_paths
+        from ..kg.corpus import (
+            load_kg_artifacts,
+            newest_run_artifact_paths,
+            scan_kg_artifact_paths,
+        )
 
         corpus_dir = Path(corpus_dir)
         graph = cls(identity_map=identity_map)
         # KG first, then GI: GI payloads win on overlap (see _upsert_node).
-        for _path, data in load_kg_artifacts(scan_kg_artifact_paths(corpus_dir), validate=validate):
+        # Newest run per episode, matching the catalog's membership rule — a superseded run
+        # must not shape the graph the API serves (see `newest_run_artifact_paths`).
+        _kg_paths = newest_run_artifact_paths(
+            corpus_dir, scan_kg_artifact_paths(corpus_dir), ".kg.json"
+        )
+        for _path, data in load_kg_artifacts(_kg_paths, validate=validate):
             graph._ingest(data, "kg")
-        for _path, data in load_gi_artifacts(scan_gi_paths(corpus_dir), validate=validate):
+        _gi_paths = newest_run_artifact_paths(corpus_dir, scan_gi_paths(corpus_dir), ".gi.json")
+        for _path, data in load_gi_artifacts(_gi_paths, validate=validate):
             graph._ingest(data, "gi")
         if derive_speaker_links:
             graph._derive_speaker_links()
@@ -519,7 +529,7 @@ class CorpusGraph:
 
 # Process-level cache (mirrors providers/ml/embedding_loader.py): graphs are
 # expensive to build and reused across searches. Keyed by resolved corpus path.
-_corpus_graphs: Dict[tuple[str, bool, bool, bool], CorpusGraph] = {}
+_corpus_graphs: Dict[tuple[str, bool, bool, bool, float], CorpusGraph] = {}
 _corpus_graphs_lock = threading.Lock()
 
 
@@ -542,19 +552,33 @@ def get_corpus_graph(
     ``reconcile_hosts`` (#1056) names recurring network-feed hosts across a show's
     episodes; the exploration/relational surfaces opt in.
     """
+    # The corpus token is PART OF THE KEY. Without it this graph was built once per process and
+    # never rebuilt — not after a corpus migration, not after a re-enrich, not after an ingest
+    # (#2065 advisor S6) — and `clear_corpus_graph_cache` has no callers under `src/`, so nothing
+    # was going to clear it either. Same token as every other corpus-derived cache so they
+    # invalidate together; `reconcile_hosts` demotes hosts at SERVE time, so a stale graph here
+    # disagrees with kg.json about who hosted with nothing to indicate why.
+    from podcast_scraper import perf_cache
+
+    _root = str(Path(corpus_dir).resolve())
     key = (
-        str(Path(corpus_dir).resolve()),
+        _root,
         derive_speaker_links,
         reconcile_hosts,
         canonicalize_entities,
+        perf_cache.corpus_mtime(_root),
     )
     with _corpus_graphs_lock:
         if key not in _corpus_graphs:
+            # Drop stale generations so a long-lived process does not accumulate one graph per
+            # ingest — these are large.
+            for stale in [k for k in _corpus_graphs if k[0] == _root and k[4] != key[4]]:
+                _corpus_graphs.pop(stale, None)
             identity_map: Optional[Dict[str, str]] = None
             if canonicalize_entities:
-                from ..kg.entity_clusters import build_entity_id_map
+                from ..kg.entity_clusters import cached_entity_id_map
 
-                identity_map = build_entity_id_map(corpus_dir)
+                identity_map = cached_entity_id_map(corpus_dir)
             _corpus_graphs[key] = CorpusGraph.build(
                 corpus_dir,
                 validate=validate,

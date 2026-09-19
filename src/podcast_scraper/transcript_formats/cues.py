@@ -3,6 +3,10 @@
 Each segment is ``{"start": float, "end": float, "text": str}`` (seconds), matching
 Whisper-style sidecars used by ``_char_range_to_ms``. Plain text is the concatenation
 of segment ``text`` values with no separator (exact length alignment for issue #545).
+
+A WebVTT cue may also carry a VOICE SPAN — ``<v Speaker 3>`` — naming who is talking. Where it
+does, the segment gains a ``"speaker"`` key, which is the same shape diarization produces, so a
+publisher-supplied transcript reaches the roster exactly as an audio-derived one does.
 """
 
 from __future__ import annotations
@@ -19,6 +23,33 @@ _WEBVTT_CUE_LINE = re.compile(
 # SRT typical line (hours optional in some files; require full h:m:s)
 _SRT_CUE_LINE = re.compile(r"^(\d+:\d{2}:\d{2},\d{3})\s*-->\s*(\d+:\d{2}:\d{2},\d{3})")
 _HTML_TAG = re.compile(r"<[^>]+>")
+# WebVTT voice span: `<v Speaker 3>`, `<v.loud Mark>`, `<v Joe Wiesenthal>`. The name runs to the
+# closing angle bracket; optional `.class` suffixes on the tag itself are not part of it.
+# The class must EXCLUDE `.`, or `(?:\.[^\s>]+)*` is ambiguous with itself — `.a.b` can be read
+# as one repetition or two, and the engine tries every split. CodeQL: exponential backtracking on
+# `<v.` followed by many `.x`. Excluding the dot makes each `.segment` match exactly one way.
+_VOICE_SPAN = re.compile(r"<v(?:\.[^\s>.]+)*\s+([^>]+)>")
+# SubRip has no voice tag; publishers write the speaker as a line prefix instead: `Speaker 3: …`
+# (Odd Lots, whose feed lists the SRT FIRST, so a fixed WebVTT parser never saw its speakers).
+# Deliberately only the generic `Speaker N` form: a free `<Name>:` prefix is indistinguishable
+# from prose ("Note: …"), and In Moscow's Shadows writes its `MG:` on the first cue only.
+_SRT_SPEAKER_PREFIX = re.compile(r"^\s*(Speaker\s+\d+)\s*:\s*", re.IGNORECASE)
+
+
+def _separate_cues(segments: List[Dict[str, Any]]) -> None:
+    """End a cue with a space when neither it nor the next cue carries one at the boundary.
+
+    Plain text is the concatenation of cue texts (exact alignment, #545), and publishers cut cues
+    between words without a trailing space — so "...Kansas City Fed President" + "Jeff Schmidt"
+    became "PresidentJeff Schmidt" in the stored transcript. Measured on the production snapshot:
+    94,927 of 233,953 cue boundaries (41%) across 249 publisher-transcript episodes were glued, and
+    every sampled one sat between two words. The space goes INTO the preceding segment's text, so
+    plain text is still exactly the segments joined and character offsets stay aligned.
+    """
+    for a, b in zip(segments, segments[1:]):
+        ta, tb = a["text"], b["text"]
+        if ta and tb and not ta[-1].isspace() and not tb[0].isspace():
+            a["text"] = ta + " "
 
 
 def _timestamp_to_seconds(ts: str) -> float:
@@ -104,10 +135,24 @@ def parse_webvtt(data: str) -> Tuple[str, List[Dict[str, Any]]]:
             text_lines.append(lines[i])
             i += 1
         raw_text = "\n".join(text_lines)
+        # WHO IS TALKING, WHEN THE FILE SAYS SO. `_normalize_cue_text` strips `<v Speaker 3>` as an
+        # HTML-like tag, so the speaker was being deleted before anything could read it: a
+        # publisher transcript that names every turn arrived as one undifferentiated voice, and the
+        # episode could never carry host/guest attribution however good naming became. Measured on
+        # the production corpus, EVERY episode that used a publisher transcript ended with a single
+        # voice — 128 of 128. Odd Lots' own WebVTT carries 781 voice spans and names both hosts in
+        # the first minute.
+        voice = _VOICE_SPAN.search(raw_text)
         norm = _normalize_cue_text(raw_text)
         if norm.strip():
-            segments.append({"start": start_s, "end": end_s, "text": norm})
+            seg: Dict[str, Any] = {"start": start_s, "end": end_s, "text": norm}
+            if voice:
+                speaker = voice.group(1).strip()
+                if speaker:
+                    seg["speaker"] = speaker
+            segments.append(seg)
 
+    _separate_cues(segments)
     plain = "".join(s["text"] for s in segments)
     return plain, segments
 
@@ -136,10 +181,17 @@ def parse_srt(data: str) -> Tuple[str, List[Dict[str, Any]]]:
         start_s = _timestamp_to_seconds(m.group(1))
         end_s = _timestamp_to_seconds(m.group(2))
         raw_body = "\n".join(block_lines[li + 1 :])
+        prefix = _SRT_SPEAKER_PREFIX.match(raw_body)
+        if prefix:
+            raw_body = raw_body[prefix.end() :]
         norm = _normalize_cue_text(raw_body)
         if not norm.strip():
             continue
-        segments.append({"start": start_s, "end": end_s, "text": norm})
+        seg: Dict[str, Any] = {"start": start_s, "end": end_s, "text": norm}
+        if prefix:
+            seg["speaker"] = " ".join(prefix.group(1).split())
+        segments.append(seg)
 
+    _separate_cues(segments)
     plain = "".join(s["text"] for s in segments)
     return plain, segments

@@ -1557,7 +1557,16 @@ def _speaker_infos(raw: Any) -> List[SimpleNamespace]:
     out: List[SimpleNamespace] = []
     for s in raw or []:
         if isinstance(s, dict):
-            out.append(SimpleNamespace(name=s.get("name") or "", role=s.get("role") or ""))
+            # `placed` MUST survive the conversion (#2075). Stripping it made every person the
+            # record lists as only named look like a placed voice to the merge rule — which would
+            # then credit quotes to someone no voice was matched to.
+            out.append(
+                SimpleNamespace(
+                    name=s.get("name") or "",
+                    role=s.get("role") or "",
+                    placed=s.get("placed"),
+                )
+            )
     return out
 
 
@@ -1631,6 +1640,10 @@ def _apply_bare_name_scope(gi_payload: dict, kg_payload: Any, episode_id: str) -
     ``candidate_ids`` stays narrow (node-backed only) for the same reason #1868 gives: healing
     writes a REAL person's id onto content and has no cheap undo, so an id with no node behind it
     is a dangling reference, not evidence.
+
+    Mutates BOTH payloads. The plan is computed from the union of the two rosters, so applying it
+    to only one of them guarantees they disagree about an id the pass itself chose — see the
+    comment at the rewrite below.
     """
     if not episode_id:
         return 0
@@ -1655,7 +1668,83 @@ def _apply_bare_name_scope(gi_payload: dict, kg_payload: Any, episode_id: str) -
     if changes:
         gi_payload.clear()
         gi_payload.update(rewritten)
+
+    # THE PLAN IS BUILT FROM BOTH LAYERS, SO IT HAS TO BE APPLIED TO BOTH. Scoping GI alone
+    # against a roster that INCLUDES kg.json's ids leaves KG holding the bare id this pass just
+    # decided was unsafe — one human under two ids across the two artifacts, which is #1862's
+    # desync arriving through the CLI instead of the pipeline. Harmless only when m0007 happened
+    # to run first; that is a schedule, not a guarantee.
+    #
+    # The caller writes gi.json unconditionally, so the KG copy is returned separately for it to
+    # persist — see `_scoped_kg_payload` in the caller. A KG change the caller cannot write is
+    # reported rather than silently dropped.
+    if isinstance(kg_payload, dict):
+        kg_rewritten, kg_changes = rewrite_ids(kg_payload, id_map)
+        if kg_changes:
+            kg_payload.clear()
+            kg_payload.update(kg_rewritten)
+            changes += kg_changes
     return int(changes)
+
+
+def _stable_json(payload: Any) -> str:
+    """A comparable snapshot of a payload, or ``""`` when there is none."""
+    if not isinstance(payload, dict):
+        return ""
+    try:
+        return json.dumps(payload, sort_keys=True)
+    except (TypeError, ValueError):
+        return ""
+
+
+def _persist_scoped_kg(
+    kg_path: Path,
+    kg_payload: Any,
+    before: str,
+    episode_id: str,
+    totals: Dict[str, int],
+    logger: logging.Logger,
+) -> None:
+    """Write kg.json when the scoping pass changed it. BOTH LAYERS OR NEITHER (#1862).
+
+    ``_apply_bare_name_scope`` plans from the UNION of the GI and KG rosters, so applying that
+    plan to gi.json alone leaves kg.json holding the bare id the pass just decided was unsafe —
+    one human under two ids across the two artifacts, arriving through the CLI instead of the
+    pipeline. It was harmless only when m0007 happened to have run first, which is a schedule
+    rather than a guarantee.
+
+    A failure is COUNTED and logged at error level rather than swallowed: gi.json has already been
+    written by the caller, so a silent failure here is the desync itself, not a missed enrichment.
+    """
+    if not isinstance(kg_payload, dict) or not kg_path.is_file():
+        return
+    if _stable_json(kg_payload) == before:
+        return
+    # `kg.io`, NOT `gi.io`. They are different validators for different schemas, and the wrong one
+    # here does not fail loudly — it fails on EVERY episode, in the direction that recreates the
+    # bug this function exists to prevent. `gi/schema` requires `model_version` / `prompt_version`
+    # and `schema_version in ("3.0","3.1")`; measured on the production snapshot, all 2,256 kg.json
+    # are `schema_version 2.1` and carry NEITHER key, so every write raised, was caught, counted
+    # as a failure and logged — after gi.json had already been written. That is the #1862 desync
+    # with a log line attached.
+    #
+    # It stayed invisible because the scope plan touches KG ids on 0 episodes of that snapshot
+    # (m0007 already ran there), so the path is latent until the first episode that needs it, and
+    # then fails 100%.
+    from podcast_scraper.kg.io import write_artifact
+
+    try:
+        write_artifact(kg_path, kg_payload, validate=True)
+        totals["kg_scoped"] += 1
+    except (OSError, ValueError) as exc:
+        totals["kg_write_failed"] += 1
+        logger.error(
+            "enrich-edges: gi.json was scoped but kg.json could not be written (%s) — "
+            "the layers now disagree for %s: %s",
+            kg_path.name,
+            episode_id,
+            exc,
+        )
 
 
 def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
@@ -1713,8 +1802,11 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     retro_rows: list = []
     retro_applied_at: str | None = None
     if retro_audit:
-        from datetime import datetime, timezone
-
+        # No local `from datetime import ...` here. The module already imports both at the top,
+        # and a function-scoped import binds the name LOCALLY for the whole function — so every
+        # other use of `datetime` in this function raised UnboundLocalError whenever this branch
+        # did not run. Harmless while this was the only use; it broke 10 tests the moment a
+        # second one was added below.
         retro_applied_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         logger.info(
             "enrich-edges: --retro-audit on (marker=%s applied_at=%s)",
@@ -1730,7 +1822,15 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             "enrich-edges: --replace-speakers on — SPOKEN_BY will be REBUILT, not "
             "merely topped up; wrong speakers from earlier runs are removed"
         )
-    totals = {"episodes": 0, "has_episode": 0, "mentions": 0, "spoken_by": 0, "scoped": 0}
+    totals = {
+        "episodes": 0,
+        "has_episode": 0,
+        "mentions": 0,
+        "spoken_by": 0,
+        "scoped": 0,
+        "kg_scoped": 0,
+        "kg_write_failed": 0,
+    }
     for meta_path in discover_metadata_files(corpus):
         doc = _load_metadata_file(meta_path)
         if not doc:
@@ -1769,13 +1869,19 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
             if transcript_path and transcript_path.is_file():
                 content = doc.get("content") or {}
                 # #2062: `content.speakers` is the DIARIZATION ROSTER (present on 97.2% of a
-                # 330-episode production sample); `detected_*` is the pre-diarization hint, present
-                # on 61-83% and wrong about the guest whenever the roster disagrees. Prefer the
-                # roster and fall back to the hint, exactly as the pipeline now does.
+                # 330-episode production sample).
+                # feed_title is REQUIRED for the show-name refusal (#2064): `names_the_show`
+                # returns False on an empty title by design ("no title, no opinion"), so omitting
+                # it silently disabled the guard on this path — measured: `Africa Tech Summit`,
+                # `Machine Learning Street` and `Latent.Space` were all KEPT as hosts here while
+                # the pipeline path refused them. Two paths, two answers, which is the drift this
+                # arc keeps paying for.
+                # #2075: the speaker record only. No `detected_*` fallback — that field was the
+                # pre-listening guess (and, on pre-1.2.0 artifacts, a projection of `speakers`), so
+                # reading it here would credit quotes to people no voice was matched to.
                 roster_hosts, roster_guests = _speaker_lists_for_graph(
                     _speaker_infos(content.get("speakers")),
-                    content.get("detected_hosts") or [],
-                    content.get("detected_guests") or [],
+                    feed_title=str((doc.get("feed") or {}).get("title") or ""),
                 )
                 per_episode_spoken_by = add_spoken_by_edges(
                     artifact,
@@ -1815,19 +1921,44 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         # The rule is deliberately NOT applied inside any mint function: it needs the episode's
         # whole roster, and three mint families would drift if one of them freelanced. So run the
         # SAME pass the pipeline and the m0007 migration run, over the finished payloads.
+        _kg_before = _stable_json(kg_artifact_for_scope)
         _scoped = _apply_bare_name_scope(artifact, kg_artifact_for_scope, str(episode_id_for_scope))
         if _scoped:
             totals["scoped"] += _scoped
         write_artifact(gi_path, artifact, validate=True)
+        _persist_scoped_kg(
+            kg_path,
+            kg_artifact_for_scope,
+            _kg_before,
+            str(episode_id_for_scope),
+            totals,
+            logger,
+        )
         totals["episodes"] += 1
 
     msg = (
         f"enrich-edges: episodes={totals['episodes']} HAS_EPISODE={totals['has_episode']} "
         f"MENTIONS={totals['mentions']} SPOKEN_BY={totals['spoken_by']} "
-        f"scoped_bare_names={totals['scoped']}"
+        f"scoped_bare_names={totals['scoped']} kg_rewritten={totals['kg_scoped']} "
+        f"kg_write_failed={totals['kg_write_failed']}"
     )
     logger.info(msg)
     print(msg)
+
+    # BUMP THE CACHE TOKEN. This command rewrote gi.json — including SPOKEN_BY, which is what
+    # insight attribution and `get_corpus_graph(derive_speaker_links=True)` read — but it is
+    # neither an ingest nor a migration, so it touched none of the files `perf_cache.corpus_mtime`
+    # watches. Without this stamp the API keeps serving the OLD edges until the next ingest or a
+    # process restart, and the operator sees a command report thousands of new edges while the app
+    # shows none of them. Written last, so the stamp cannot claim work that did not finish.
+    if totals["episodes"]:
+        try:
+            (corpus / "corpus_edges_stamp.json").write_text(
+                json.dumps({"applied_at": datetime.now(timezone.utc).isoformat(), **totals}) + "\n",
+                encoding="utf-8",
+            )
+        except OSError as exc:  # a stamp we cannot write must not fail the enrichment itself
+            logger.warning("enrich-edges: could not write the cache-invalidation stamp: %s", exc)
 
     if retro_audit and retro_rows:
         if retro_summary_path_arg:

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import AbstractSet, Any, Dict, List, Optional, Sequence, Tuple
 
 from .... import config
+from ....speaker_detectors.normalization import filter_default_speaker_names
 from .alignment import align_segments_to_speakers
 from .base import DiarizationResult
 from .cache import (
@@ -567,7 +568,14 @@ def apply_diarization_to_result(
     # The HOSTS are candidates too. `detect_speakers` hands hosts back on a separate channel, so a
     # naive candidate list is guests-only — and then the voice holding 75% of a interview show has
     # no name it is allowed to be matched to.
-    candidates = list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
+    # ...and never a PLACEHOLDER. `DEFAULT_SPEAKER_NAMES` is what a provider returns when
+    # detection FAILED; upstream now drops them, and this is the second line of defence on the one
+    # list that decides what a voice is allowed to be called. A placeholder in here is not a
+    # harmless no-op — the resolver matched `Host` onto 59 production episodes' voices from exactly
+    # this list, because a name in the closed list is by construction a name it may bind.
+    candidates = filter_default_speaker_names(
+        list(dict.fromkeys([*(metadata_named or ()), *guests, *known_hosts]))
+    )
     ad_intervals = _ad_intervals(segments)
     recurring_text = _feed_recurring_text(cfg)
     dz_provider = getattr(cfg, "diarization_provider", None)
@@ -637,6 +645,10 @@ def apply_diarization_to_result(
             recurring_text=recurring_text,
             diarization_provider=dz_provider,
             profile=_labeling_profile,
+            episode_text=" ".join(
+                x for x in (episode_title or "", episode_description or "") if x
+            ).strip()
+            or None,
         )
 
     roster = _run_roster(llm_voice_names, llm_voice_roles)

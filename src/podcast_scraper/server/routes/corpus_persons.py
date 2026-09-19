@@ -102,6 +102,20 @@ def _rank_all_persons(root: Path) -> dict[str, Any]:
     it is applied by the caller after this cached result — the scan itself is limit-independent.
     """
     root_prefix = os.path.normpath(str(root)) + os.sep
+    # APPLY THE CORPUS-WIDE IDENTITY MAP. `canonical_cil_entity_id` only strips viewer layer
+    # prefixes (`g:` / `k:`) — it is not an identity resolver, and this surface treated it as one.
+    # So `person:bernard-leong` and `person:bernard-leung` ranked as two different people here
+    # while `cil_queries` and the KG index (which DO apply the map) showed one. #2056 is visible
+    # on this endpoint precisely because the map was never consulted.
+    #
+    # Shared, single-flighted and cache-warmed, so this costs a dict lookup per node rather than
+    # the 84-second corpus scan the map itself takes to build.
+    try:
+        from podcast_scraper.kg.entity_clusters import cached_entity_id_map
+
+        canonical_by_id = cached_entity_id_map(root)
+    except Exception:  # noqa: BLE001 — an unresolved duplicate is the status quo, not an outage
+        canonical_by_id = {}
     rows = cached_catalog_last_run(root)
     all_person_ids: set[str] = set()
     episode_by_person: DefaultDict[str, set[str]] = defaultdict(set)
@@ -138,6 +152,8 @@ def _rank_all_persons(root: Path) -> dict[str, Any]:
             pid = canonical_cil_entity_id(str(raw_id))
             if not pid:
                 continue
+            # Variant -> canonical, so two spellings of one human rank as one person.
+            pid = canonical_by_id.get(pid, pid)
             persons_here.add(pid)
             all_person_ids.add(pid)
             if pid not in display_name_by_person:

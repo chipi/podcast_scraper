@@ -13,6 +13,7 @@ from podcast_scraper.speaker_detectors.hosts import (
     extract_self_introduced_host,
     guests_introduced_by_the_host,
     has_org_markers,
+    hosts_from_episode_description,
     is_known_network,
     is_network_or_org_author,
     is_plausible_mononym,
@@ -349,3 +350,300 @@ def test_transcript_intro_does_not_capture_a_lowercase_run_as_a_host(monkeypatch
     assert "Noah Kravitz" in hosts.detect_hosts_from_transcript_intro(
         "Welcome to the show. I'm Noah Kravitz and today we go deep.", nlp
     )
+
+
+class TestTheEpisodeDescriptionNamesItsOwnHost:
+    """ "X is joined by Y" names BOTH roles — the guest cue read only the second half.
+
+    WHERE THIS IS THE ONLY SOURCE. On a show whose RSS author tag is an organisation, the feed
+    cannot state a host: a16z's author is "Andreessen Horowitz", correctly discarded by the org
+    filter, and the show ROTATES its host per episode so no feed-level answer would be right
+    anyway. The episode's own description is the only place a host is named.
+
+    MEASURED on the 136 production episodes that end with no named speaker: 25 yield a host here,
+    22 of them a16z's 48. Extractions verified by hand — Elena Burger, Ben Horowitz, Theo Jaffee,
+    Tim Scarfe, and the Alastair Campbell / Rory Stewart pair.
+    """
+
+    def test_the_name_before_the_cue_is_the_host(self) -> None:
+        got = hosts_from_episode_description(
+            "", "Elena Burger is joined by a16z's Andy McCall and Joe Schmidt.", "The a16z Show"
+        )
+        assert got == {"Elena Burger"}
+
+    def test_two_hosts_share_the_slot(self) -> None:
+        got = hosts_from_episode_description(
+            "", "Yoko Li and Justine Moore speak with Ideogram's founder.", "The a16z Show"
+        )
+        assert got == {"Yoko Li", "Justine Moore"}
+
+    def test_the_show_itself_is_never_a_host(self) -> None:
+        """ "Planet Money is joined by..." must not mint a person — the #2064 failure."""
+        assert (
+            hosts_from_episode_description(
+                "", "Planet Money is joined by an economist.", "Planet Money"
+            )
+            == set()
+        )
+
+    def test_a_publisher_is_never_a_host(self) -> None:
+        assert (
+            hosts_from_episode_description(
+                "", "Andreessen Horowitz is joined by a founder.", "The a16z Show"
+            )
+            == set()
+        )
+
+    def test_a_single_token_is_refused(self) -> None:
+        """A bare first name cannot be bound from here — it needs evidence this function lacks."""
+        assert (
+            hosts_from_episode_description(
+                "", "Tyler is joined by Alison Gopnik.", "Conversations with Tyler"
+            )
+            == set()
+        )
+
+    def test_no_cue_means_no_host(self) -> None:
+        assert (
+            hosts_from_episode_description(
+                "", "Alison Gopnik is a psychologist at Berkeley.", "Conversations with Tyler"
+            )
+            == set()
+        )
+
+
+class TestTheHostSaysTheirRoleBeforeTheirName:
+    """ "I'm your host, Noah Kravitz" — the commonest opening in the corpus, and unmatchable.
+
+    THE PATTERN REQUIRED THE NAME TO FOLLOW THE CUE IMMEDIATELY. `your` is lowercase, so the
+    capitalised run never started and the scanner returned nothing at all. Measured over the 136
+    production episodes that end with no named speaker: the old pattern matched **0**, the widened
+    one matches **36** — 25 of NVIDIA's 31, 10 of The Rest Is Politics' 12, and Ottoman History.
+
+    "The host never self-introduces on these shows" was a property of the REGEX, and was reported
+    as a property of the data.
+
+    REGRESSION CHECK, on the 1,986 episodes whose roster already names a host:
+
+        agrees with the roster host   721 -> 862   (+141)
+        disagrees                     186 -> 214   (+28)
+        finds nothing               1,079 -> 910
+
+    5:1, and the disagreements are not all errors — several are the extractor being RIGHT where
+    the roster is wrong ("Kevin Rothrock" against a roster saying "Boris Goryachev" on The Naked
+    Pravda; "Gustavo Ribeiro" against a roster saying "The Brazilian Report").
+    """
+
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("Welcome to the NVIDIA AI podcast. I'm your host, Noah Kravitz.", "Noah Kravitz"),
+            ("I'm the co-host, Casey Newton, and today we talk shop.", "Casey Newton"),
+            ("I'm your co-host Sarah Guo and this week we cover agents.", "Sarah Guo"),
+            # The idiom that names ONESELF in British broadcasting.
+            ("The Rest Is Politics: Leading, with me, Alastair Campbell.", "Alastair Campbell"),
+            ("...and me, Rory Stewart, back for another season.", "Rory Stewart"),
+            # Still works, unchanged.
+            ("Hello and welcome, I'm Patrick O'Shaughnessy.", "Patrick O'Shaughnessy"),
+        ],
+    )
+    def test_the_role_phrase_does_not_hide_the_name(self, text: str, expected: str) -> None:
+        assert extract_self_introduced_host(text, intro_chars=4000) == expected
+
+    def test_joining_me_introduces_somebody_else(self) -> None:
+        """THE GUARD ON THE NEW FORM. "joining me, X" is a GUEST — binding it to the host's voice
+        would paint a guest's name on the host, the exact direction of error this module prevents.
+        Only "with me," and "and me," are self-reference, and the comma is required."""
+        assert (
+            extract_self_introduced_host(
+                "Joining me, Alison Gopnik, a professor at Berkeley.", intro_chars=4000
+            )
+            is None
+        )
+
+    def test_the_network_bumper_is_still_skipped(self) -> None:
+        """#876 — the widened pattern must not re-open the "I'm Pushkin" leak."""
+        assert (
+            extract_self_introduced_host(
+                "This is Unhedged. I'm Pushkin. I'm Katie Martin.", intro_chars=4000
+            )
+            == "Katie Martin"
+        )
+
+    def test_an_ordinary_phrase_is_still_not_a_name(self) -> None:
+        assert extract_self_introduced_host("I'm Coming Out was a great song.") is None
+
+
+class TestDistinctSelfIntroductionsReadsBothForms:
+    """The "and with me, <Name>" form was invisible here while its sibling saw it (#2075)."""
+
+    def test_the_with_me_form_is_read(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import distinct_self_introductions
+
+        text = "Welcome back to the show. I'm Kevin Roose, and with me, Casey Newton."
+        assert distinct_self_introductions(text, intro_chars=2000) == [
+            "Kevin Roose",
+            "Casey Newton",
+        ]
+
+    def test_joining_me_still_introduces_somebody_else(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import distinct_self_introductions
+
+        # "joining me, X" is a GUEST introduction; admitting it here would make every week's
+        # guest look like a recurring co-host.
+        text = "I'm Kevin Roose. Joining me, Sam Altman."
+        assert distinct_self_introductions(text, intro_chars=2000) == ["Kevin Roose"]
+
+
+class TestRecurrentHostsAcrossEpisodes:
+    """A guest appears once; a host appears every week (#2075)."""
+
+    @staticmethod
+    def _run(episodes, **kw):
+        from podcast_scraper.speaker_detectors.hosts import recurrent_hosts_across_episodes
+
+        return recurrent_hosts_across_episodes(episodes, **kw)
+
+    def test_a_weekly_self_introducer_is_the_host(self) -> None:
+        episodes = [["Russ Roberts"], ["Russ Roberts"], ["Russ Roberts"], ["Russ Roberts"]]
+        assert self._run(episodes) == {"Russ Roberts"}
+
+    def test_a_one_off_guest_is_not(self) -> None:
+        episodes = [
+            ["Russ Roberts", "Ada Lovelace"],
+            ["Russ Roberts"],
+            ["Russ Roberts"],
+            ["Russ Roberts"],
+        ]
+        assert self._run(episodes) == {"Russ Roberts"}
+
+    def test_three_episodes_is_not_enough_on_a_long_feed(self) -> None:
+        # Clears min_episodes, fails min_share: a recurring guest on a twenty-episode show.
+        episodes = [["Ada Lovelace"]] * 3 + [["Russ Roberts"]] * 17
+        assert self._run(episodes) == {"Russ Roberts"}
+
+    def test_asr_spelling_variants_are_one_host_not_three(self) -> None:
+        # Counted separately none of these clears 25%; merged, Casey is plainly the co-host.
+        episodes = (
+            [["Kevin Roose", "Casey Newn"]] * 4
+            + [["Kevin Roose", "Casey Noon"]] * 4
+            + [["Kevin Roose", "Casey Newton"]] * 4
+        )
+        out = self._run(episodes)
+        assert "Kevin Roose" in out
+        assert len([n for n in out if n.lower().startswith("casey")]) == 1
+
+    def test_the_show_saying_its_own_name_is_not_a_presenter(self) -> None:
+        episodes = [["Trivium China"]] * 10
+        assert self._run(episodes, feed_title="The Trivium China Podcast") == set()
+
+    def test_a_recurring_mononym_is_refused(self) -> None:
+        # "Brandon" cleared the thresholds on Latent Space and is not one of its hosts.
+        assert self._run([["Brandon"]] * 10) == set()
+
+    def test_a_network_bumper_is_refused(self) -> None:
+        assert self._run([["Pushkin Industries"]] * 10) == set()
+
+
+class TestHostsFromEpisodeDescriptionRefusesNonHosts:
+    """The name before the cue is the host — except when it isn't (#2075).
+
+    Every case here was found by running the extractor over the production corpus, not invented.
+    """
+
+    @staticmethod
+    def _run(title, desc, feed):
+        from podcast_scraper.speaker_detectors.hosts import hosts_from_episode_description
+
+        return hosts_from_episode_description(title, desc, feed)
+
+    def test_the_plain_case_still_works(self) -> None:
+        out = self._run(
+            "Whatnot's global marketplace",
+            "David George is joined by Grant LaFontaine, co-founder of Whatnot.",
+            "The a16z Show",
+        )
+        assert out == {"David George"}
+
+    def test_two_hosts_share_the_slot(self) -> None:
+        out = self._run(
+            "",
+            "Jack Farley and Max Wiethe speak with Ara Kharazian, Lead Economist at Ramp.",
+            "The a16z Show",
+        )
+        assert out == {"Jack Farley", "Max Wiethe"}
+
+    def test_the_title_does_not_run_into_the_description(self) -> None:
+        # Joined with a bare space this produced a host called "Forecasting Theo Jaffee".
+        out = self._run(
+            "Robin Hanson on Prediction Markets and the Future of Forecasting",
+            "Theo Jaffee speaks with economist Robin Hanson about prediction markets.",
+            "The a16z Show",
+        )
+        assert out == {"Theo Jaffee"}
+
+    def test_a_job_title_is_not_part_of_the_name(self) -> None:
+        # "a16z General Partner David George is joined by..." — the run has no left anchor.
+        out = self._run(
+            "",
+            "a16z General Partner David George is joined by Grant LaFontaine.",
+            "The a16z Show",
+        )
+        assert out == {"David George"}
+
+    def test_the_guest_first_phrasing_is_refused(self) -> None:
+        # "Listen as journalist Stephen Witt speaks with EconTalk's Russ Roberts..." — the show
+        # naming itself after the cue is what marks the sentence as running the other way.
+        out = self._run(
+            "The Man Who Built NVIDIA (with Stephen Witt)",
+            "Listen as journalist Stephen Witt speaks with EconTalk's Russ Roberts about Jensen.",
+            "EconTalk",
+        )
+        assert out == set()
+
+    def test_the_show_can_never_be_its_own_host(self) -> None:
+        out = self._run("", "Planet Money is joined by an economist.", "Planet Money")
+        assert out == set()
+
+
+class TestTheIAmAndBrandedIntroForms:
+    """Two openings the scanner could not see, and the trap in one of them (#2075)."""
+
+    @staticmethod
+    def _ex(text, feed=None):
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        return extract_self_introduced_host(text, intro_chars=2000, feed_title=feed)
+
+    def test_i_am_is_the_same_statement_as_im(self) -> None:
+        # Macro Musings opens this way on 36 episodes and none of them were readable.
+        assert self._ex("Welcome to Macro Musings. I am your host, David Beckworth.") == (
+            "David Beckworth"
+        )
+
+    def test_i_am_without_the_role_phrase(self) -> None:
+        assert self._ex("I am David Beckworth and this is Macro Musings.") == "David Beckworth"
+
+    def test_the_branded_open_names_the_host(self) -> None:
+        assert self._ex("Hello, it's Eric Topol with Ground Truths.", "Ground Truths") == (
+            "Eric Topol"
+        )
+
+    def test_a_sponsor_read_in_the_same_shape_is_refused(self) -> None:
+        # "it's <Name> from <Company>" is how an AD opens. An ad narrator says their own name by
+        # design, which is what makes the most-trusted signal the easiest to poison. The show
+        # condition is the only thing separating this from the line above.
+        assert (
+            self._ex(
+                "Hi, it's Michael Sullivan from Wirecutter, the product recommendation service.",
+                "Hard Fork",
+            )
+            is None
+        )
+
+    def test_with_no_feed_title_the_branded_form_does_not_fire(self) -> None:
+        # No title means no way to tell the show from a sponsor, so it abstains rather than guess.
+        assert self._ex("Hello, it's Eric Topol with Ground Truths.", None) is None
+
+    def test_a_bare_it_is_phrase_is_not_a_self_introduction(self) -> None:
+        assert self._ex("It's Monday and we have a lot to get through.", "Ground Truths") is None

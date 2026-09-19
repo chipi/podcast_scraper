@@ -40,6 +40,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: Shown for a voice diarization heard but could not name — today, a label that turned out to
+#: be the show's own name. Mirrors `roster.friendly_voice_label` for typed voices: the reader
+#: is told there was a distinct speaker without being told a falsehood about who.
+UNNAMED_SPEAKER_LABEL = "Unidentified speaker"
+
 # Max |len(transcript) - sum(segment text)| before skipping segment-based timestamps (FR2.2).
 # Avoids mapping quote char offsets to wrong audio after reformatting or edited transcripts.
 SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
@@ -929,12 +934,35 @@ def _voice_type_for_char_range(
     return None
 
 
+def _label_names_the_show(label: str, feed_title: Optional[str]) -> bool:
+    """Is this diarization label the SHOW's own name rather than a person's? (#2064, #2065)
+
+    THE SAME REFUSAL THE GRAPH ALREADY MAKES, on the layer that was missing it.
+    ``_speaker_lists_for_graph._is_the_show`` stops a show name becoming a Person with
+    ``role="host"`` in kg.json — but GI mints its speakers from the segments sidecar directly,
+    never passing through that function, so the show kept a Person node AND its ``SPOKEN_BY``
+    edges in gi.json. Measured on the production snapshot: **53 `SPOKEN_BY` edges target a Person
+    named ``Machine Learning Street``** (feed *Machine Learning Street Talk (MLST)*) and the
+    insight surface reads GI, so the show "said" things after m0009 demoted its KG twin.
+
+    Empty title, no opinion — ``names_the_show`` returns False, which is what makes a caller that
+    forgets to pass a title silently disable the guard. That trap is why this takes the title as a
+    required positional rather than an optional keyword.
+    """
+    if not feed_title or not label:
+        return False
+    from ..speaker_detectors.hosts import names_the_show
+
+    return names_the_show(label, feed_title)
+
+
 def _resolve_quote_speaker(
     gq: Any,
     speaker_label: Optional[str],
     episode_id: str,
     transcript_text: Optional[str],
     transcript_segments: Optional[List[Dict[str, Any]]],
+    feed_title: Optional[str] = None,
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """``(person_id, friendly_name, voice_type)`` for a quote's speaker.
 
@@ -958,6 +986,48 @@ def _resolve_quote_speaker(
     if voice_type:
         return None, friendly_voice_label(voice_type), voice_type
     if speaker_label:
+        if _label_names_the_show(speaker_label, feed_title):
+            # THE SHOW DID NOT SPEAK — but a VOICE did, and the two facts are separable.
+            #
+            # Dropping the attribution entirely was the first version of this, and it threw away
+            # the half that was true: diarization heard a distinct speaker, and only the LABEL is
+            # wrong. Measured on the production snapshot, that discarded **2,348 SPOKEN_BY edges**
+            # across 5 show names — every quote on *Machine Learning Street Talk* and
+            # *Conversations with Tyler* would have become unattributed.
+            #
+            # Episode-scoping keeps the true half and refuses the false one: the quote still has a
+            # speaker WITHIN its episode, and the id can never aggregate into a corpus-wide person
+            # called "Machine Learning Street". That is exactly the rule `app_gi_view._speaker_name`
+            # states — an episode-scoped label is meaningful in its episode and meaningless
+            # aggregated — so the placeholder filters already hide it from every ranking surface.
+            #
+            # It also bounds the damage from `names_the_show`'s known false positive (a host whose
+            # name LEADS their own show — `Lex Fridman Podcast`). Zero such feeds exist in the 55
+            # production feeds today, every one of the 5 matches being a genuine show name; but if
+            # one appears, the cost is that their quotes stay episode-local rather than being
+            # deleted outright. Logged so it is visible rather than silent.
+            logger.info(
+                "speaker label %r names the show %r — episode-scoping it rather than "
+                "publishing the show as a person (#2064)",
+                speaker_label,
+                feed_title,
+            )
+            # `scoped_person_id`, NOT `person_node_id`: the latter episode-scopes only a BARE
+            # label (`SPEAKER_00`) and hands a NAMED one the global id — so calling it here would
+            # have quietly restored `person:machine-learning-street` as a corpus-wide person and
+            # made this whole branch a no-op. `person:unresolved-<slug>-<ep>` is the family the
+            # placeholder filters and `is_scoped_person_id` actually recognise.
+            from ..identity.bare_name_scope import scoped_person_id
+
+            # A NEUTRAL DISPLAY NAME, not the show's. Scoping the ID keeps the show out of every
+            # corpus-wide surface, but the Person node still carried `name = "Machine Learning
+            # Street"` and `app_gi_view` renders that — so the reader saw the show speaking, which
+            # is the whole complaint. The voice is real and unnamed; say exactly that.
+            return (
+                scoped_person_id(person_node_id(speaker_label), episode_id or "unknown"),
+                UNNAMED_SPEAKER_LABEL,
+                None,
+            )
         # Episode-scope the id for an unnamed voice (SPEAKER_00) so it can't merge across
         # episodes; a real, resolved name stays a global person id (#1b).
         return person_node_id(speaker_label, episode_id), None, None
@@ -1317,8 +1387,15 @@ def _attach_person_for_quote(
     speaker_label: Optional[str],
     person_id_value: Optional[str],
     persons_added: Set[str],
+    display_name: Optional[str] = None,
 ) -> None:
-    """Add Person node and SPOKEN_BY (Quote -> Person) when diarization label exists."""
+    """Add Person node and SPOKEN_BY (Quote -> Person) when diarization label exists.
+
+    ``display_name`` overrides the raw label as the node's ``name``. It exists because the id and
+    the label can disagree about who this is: when the label turns out to be the SHOW's own name
+    the id is episode-scoped, and naming the node with the raw label would still render the show
+    as the speaker on the insight surface.
+    """
     if (
         not speaker_label
         or not str(speaker_label).strip()
@@ -1326,7 +1403,7 @@ def _attach_person_for_quote(
         or not str(person_id_value).strip()
     ):
         return
-    raw = str(speaker_label).strip()
+    raw = str(display_name or speaker_label).strip()
     pid = str(person_id_value).strip()
     if pid not in persons_added:
         nodes.append(
@@ -1734,6 +1811,7 @@ def build_artifact(
     episode_duration_ms: Optional[int] = None,
     prefilled_insights: Optional[List[Dict[str, Any]]] = None,
     feed_id: Optional[str] = None,
+    feed_title: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a GIL artifact for one episode.
 
@@ -1942,6 +2020,7 @@ def build_artifact(
                 episode_duration_ms=episode_duration_ms,
                 feed_id=feed_id,
                 insight_tiers=insight_tiers,
+                feed_title=feed_title,
             )
         except GILGroundingUnsatisfiedError:
             raise
@@ -1984,6 +2063,7 @@ def build_artifact(
             topic_labels=topic_labels,
             episode_duration_ms=episode_duration_ms,
             feed_id=feed_id,
+            feed_title=feed_title,
         )
     except Exception:
         # The insights exist but the artifact could not be assembled. Emitting an EMPTY artifact
@@ -2082,6 +2162,7 @@ def _artifact_from_multi_insight(
     about_edge_encoder: Optional[Any] = None,
     feed_id: Optional[str] = None,
     insight_tiers: Optional[List[int]] = None,
+    feed_title: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -2325,6 +2406,7 @@ def _artifact_from_multi_insight(
                 episode_id,
                 transcript_text,
                 transcript_segments if use_segments else None,
+                feed_title,
             )
             if quote_voice_type:
                 speaker_label = None  # not a person — nothing to mint
@@ -2352,6 +2434,7 @@ def _artifact_from_multi_insight(
                 speaker_label,
                 person_id_for_quote,
                 persons_added,
+                quote_speaker_name,
             )
 
     # #1191: stamp a within-episode rank (0 = most salient) by descending salience. The pipeline

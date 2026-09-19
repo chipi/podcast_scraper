@@ -32,7 +32,14 @@ const { t } = useI18n()
  * request out, and the card then quietly asserts that no guest had a perspective.
  */
 const section = useSectionState<TopicPerspective[]>([])
-const perspectives = computed(() => section.data.value)
+/**
+ * ``?? []`` because a reply without the key is an ABSENCE of perspectives, not a broken component.
+ * The fetcher below returns ``r.perspectives`` straight from the response, so a payload that omits
+ * it puts ``undefined`` into a slot typed as an array and the template's ``perspectives.length``
+ * throws during render — an unhandled rejection that surfaced in an unrelated test file, which is
+ * how a render crash presents when it happens between tests rather than inside one.
+ */
+const perspectives = computed(() => section.data.value ?? [])
 /** Guards against a slow reply for a topic the reader has already navigated away from. */
 const requestSeq = ref(0)
 
@@ -47,7 +54,9 @@ async function load(): Promise<void> {
       try {
         const r = await getTopicPerspectives(props.id, props.scope)
         if (mine !== requestSeq.value) throw new Error("superseded")
-        return r.perspectives
+        // Normalised HERE too, at the boundary: the section's contract is an array, and handing it
+        // `undefined` makes every later reader defend itself.
+        return r.perspectives ?? []
       } catch (err) {
         if (mine !== requestSeq.value) throw err
         /**

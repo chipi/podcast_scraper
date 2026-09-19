@@ -205,3 +205,322 @@ def test_id_map_from_payload_roundtrip():
     }
     payload, id_map = build_entity_canonical_map(cands)
     assert id_map_from_clusters_payload(payload) == id_map
+
+
+class TestDiacriticsAreFoldedBeforeComparing:
+    """``Björk`` and ``Bjork`` are one person (#2056).
+
+    Transcripts and feed metadata disagree about diacritics constantly — ASR emits unaccented
+    ASCII, the show notes carry the real spelling. Multi-token names already survived this by
+    accident, because one differing character barely moves the similarity ratio:
+
+        'Jürgen Schmidhuber' == 'Jurgen Schmidhuber'   -> already True (fuzzy)
+
+    A SINGLE-token name does not, because `_is_acronymish` refuses to fuzzy-match short single
+    tokens at all — the UPS/USPS guard. So the mononym case fell through the one gap where the
+    ratio test cannot rescue it.
+
+    Folding also makes the multi-token cases match EXACTLY rather than by ratio, which is a
+    precision gain, not just a recall one: an exact hit short-circuits before any threshold is
+    consulted.
+    """
+
+    def test_a_mononym_with_a_diacritic_matches_its_ascii_spelling(self) -> None:
+        assert _are_xep_variants("Björk", "Bjork", "person") is True
+
+    @pytest.mark.parametrize(
+        "accented,plain",
+        [
+            ("Łukasz Kaiser", "Lukasz Kaiser"),
+            ("Zoë Kravitz", "Zoe Kravitz"),
+            ("Jürgen Schmidhuber", "Jurgen Schmidhuber"),
+            ("François Chollet", "Francois Chollet"),
+            ("Søren Kierkegaard", "Soren Kierkegaard"),
+            ("Renée DiResta", "Renee DiResta"),
+        ],
+    )
+    def test_accented_and_plain_spellings_are_one_entity(self, accented, plain) -> None:
+        assert _are_xep_variants(accented, plain, "person") is True
+
+    def test_folding_is_exact_not_fuzzy(self) -> None:
+        from podcast_scraper.kg.filters import _clean_entity_name
+
+        assert _clean_entity_name("François Chollet") == _clean_entity_name("Francois Chollet")
+
+    def test_folding_does_not_collapse_distinct_people(self) -> None:
+        # Stripping accents must not make two different humans equal.
+        assert _are_xep_variants("Renée DiResta", "Renata DiResta", "person") is False
+        assert _are_xep_variants("Kaiser Guo", "Kaiser Wilhelm II", "person") is False
+
+
+class TestSameShowRequiredIsLoadBearing:
+    """``same_show_required=True`` is the main thing preventing FALSE merges (#2056).
+
+    #2056 lists "two spellings that never co-occur in one show are never compared" as a candidate
+    explanation for duplicates surviving, which invites relaxing the gate. Measuring first says
+    do NOT. Over 287 production artifacts the cross-episode matcher produced 68 variant pairs, 32
+    of which are only held apart by this gate — and they include:
+
+        'Albert Einstein'  == 'Robert Jensen'
+        'Alex Bregman'     == 'Lex Friedman'
+        'Charles I'        == 'Charles II'
+        'Dana Schutz'      == 'Dean Schwartz'
+        'Kevin Kelly'      == 'Melvin Key'
+
+    Dropping the gate merges every one of those. A false split is clutter; a false merge
+    reassigns one person's statements to another. This test exists so the gate cannot be quietly
+    relaxed to "fix duplicates" without confronting that list.
+
+    It also pins that the gate is NOT sufficient — ``Albert Einstein``/``Bert Vogelstein`` share
+    a show in the sample and merge today. Fixing that needs matcher PRECISION (an authority list
+    or an adjudicator), not a looser gate.
+    """
+
+    @staticmethod
+    def _candidates(rows):
+        from podcast_scraper.kg.entity_clusters import EntityCandidate
+
+        out = {}
+        for pid, name, shows in rows:
+            out[pid] = EntityCandidate(
+                id=pid, kind="person", name=name, episodes={f"ep-{pid}"}, shows=set(shows)
+            )
+        return out
+
+    def test_different_people_on_different_shows_are_not_merged(self) -> None:
+        from podcast_scraper.kg.entity_clusters import build_entity_canonical_map
+
+        cands = self._candidates(
+            [
+                ("person:albert-einstein", "Albert Einstein", ["Show A"]),
+                ("person:robert-jensen", "Robert Jensen", ["Show B"]),
+            ]
+        )
+        _payload, id_map = build_entity_canonical_map(cands, same_show_required=True)
+        assert id_map == {}, "the gate is the only thing holding these apart"
+
+    def test_relaxing_the_gate_merges_people_who_never_shared_a_show(self) -> None:
+        # Documents the COST of relaxing it. Note the one-token rule (see
+        # `TestAPersonMayDifferInOnlyONEToken`) now stops the WORST of these on its own —
+        # `Albert Einstein`/`Bert Vogelstein` no longer merges at all. What the gate still buys
+        # is everything that drifts in a single token but belongs to two different humans on two
+        # different shows, which no name comparison can tell apart.
+        from podcast_scraper.kg.entity_clusters import build_entity_canonical_map
+
+        cands = self._candidates(
+            [
+                ("person:richard-mccoll", "Richard McColl", ["Show A"]),
+                ("person:richard-mccollough", "Richard McCollough", ["Show B"]),
+            ]
+        )
+        _payload, id_map = build_entity_canonical_map(cands, same_show_required=False)
+        assert id_map, "without the gate, two one-token-apart strangers merge across shows"
+
+    def test_a_real_variant_pair_on_one_show_still_merges(self) -> None:
+        # The gate must not be so strict that genuine variants stop collapsing.
+        from podcast_scraper.kg.entity_clusters import build_entity_canonical_map
+
+        cands = self._candidates(
+            [
+                ("person:bernard-leong", "Bernard Leong", ["Analyse Asia"]),
+                ("person:bernard-leung", "Bernard Leung", ["Analyse Asia"]),
+            ]
+        )
+        _payload, id_map = build_entity_canonical_map(cands, same_show_required=True)
+        assert id_map, "a real spelling variant within one show must still collapse"
+
+
+class TestAPersonMayDifferInOnlyONEToken:
+    """Two tokens both drifting means two different humans (#2056 precision).
+
+    Measured over 287 production artifacts. Every clearly-wrong same-show merge the matcher makes
+    differs in BOTH name tokens; almost every correct one differs in exactly one:
+
+        FALSE   'Albert Einstein' == 'Bert Vogelstein'    2 tokens differ
+        FALSE   'Jensen Huang'    == 'Jesse Zhang'        2 tokens differ
+        FALSE   'Li Lun'          == 'Lily Liu'           2 tokens differ
+
+        TRUE    'Bernard Leong'   == 'Bernard Leung'      1
+        TRUE    'Stewart Brand'   == 'Stuart Brand'       1
+        TRUE    'Joe Weisenthal'  == 'Joe Wiesenthal'     1
+        TRUE    'Nikolai Kononov' == 'Nikolay Kononov'    1
+
+    A transcription or typo error lands on ONE token. Two independent drifts in a two-token name
+    is not one person spelled badly, it is two people who rhyme.
+
+    THE COST, stated rather than hidden: ``'Alexander Carpi' == 'Alexandra Karppi'`` is a real
+    person whose name drifted in both tokens, and this rule stops merging them. That is the trade
+    taken deliberately — a false split is visible clutter, a false merge reassigns one person's
+    statements to another. 3 false merges prevented for 1 real merge lost.
+
+    Applies to PEOPLE with equal token counts. Orgs legitimately differ in more than one token
+    ("Bank of England" / "Bank of Britain" is a different question) and are untouched.
+    """
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Albert Einstein", "Bert Vogelstein"),
+            ("Jensen Huang", "Jesse Zhang"),
+            ("Li Lun", "Lily Liu"),
+        ],
+    )
+    def test_two_drifting_tokens_are_two_people(self, a: str, b: str) -> None:
+        assert _are_xep_variants(a, b, "person") is False
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Bernard Leong", "Bernard Leung"),
+            ("Stewart Brand", "Stuart Brand"),
+            ("Corey Combs", "Cory Combs"),
+            ("Joe Weisenthal", "Joe Wiesenthal"),
+            ("Adam Reichardt", "Adam Reichert"),
+            ("Nikolai Kononov", "Nikolay Kononov"),
+            ("Mark Galeotti", "Mark Galliotti"),
+            ("Kevin Warsh", "Kevin Worsch"),
+            ("Francois Chollet", "Francois Jollet"),
+        ],
+    )
+    def test_one_drifting_token_is_still_one_person(self, a: str, b: str) -> None:
+        assert _are_xep_variants(a, b, "person") is True
+
+    def test_the_cost_is_recorded_not_hidden(self) -> None:
+        # A real person this rule now refuses to merge. Pinned so the trade stays visible: if a
+        # later change makes this True again, it must also keep the three tests above False.
+        assert _are_xep_variants("Alexander Carpi", "Alexandra Karppi", "person") is False
+
+    def test_orgs_are_not_subject_to_the_rule(self) -> None:
+        # The one-token rule is about human names; org names are compositional.
+        assert _are_xep_variants("Data Bricks", "Databricks", "org") is True
+
+
+class TestRegnalNumeralsDistinguishPeople:
+    """`Charles I` and `Charles II` are two monarchs (#2065 guardrail matrix).
+
+    `_VERSION_TOKEN_RE` is `re.compile(r"\\d")` — ARABIC digits only. Roman numerals are the
+    standard way regnal names are distinguished, and they passed straight through to the ratio
+    test, which merged them. Found by the guardrail matrix on its first run; *The Rest Is History*
+    is in the production corpus.
+
+    THE RULE IS DELIBERATELY NARROW: both differing tokens must be well-formed roman numerals AND
+    in the LAST position. A bare roman-numeral test is unsafe here — `li` is a valid numeral and a
+    very common Chinese surname, and the corpus carries Round Table China, China Plus and
+    ChinaTalk. `Li` sits in first position in those names, so the last-token scope keeps it out of
+    reach.
+    """
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Charles I", "Charles II"),
+            ("Elizabeth I", "Elizabeth II"),
+            ("Henry VII", "Henry VIII"),
+            ("Louis XIV", "Louis XVI"),
+            ("Kaiser Wilhelm I", "Kaiser Wilhelm II"),
+        ],
+    )
+    def test_different_regnal_numbers_are_different_people(self, a: str, b: str) -> None:
+        assert _are_xep_variants(a, b, "person") is False
+
+    def test_the_same_monarch_still_matches(self) -> None:
+        assert _are_xep_variants("Charles II", "Charles II", "person") is True
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Li Luan", "Li Lun"),
+            ("Bernard Leong", "Bernard Leung"),
+            ("Stewart Brand", "Stuart Brand"),
+        ],
+    )
+    def test_ordinary_names_are_unaffected(self, a: str, b: str) -> None:
+        # `li` is a valid roman numeral; the last-token scope is what keeps these safe.
+        assert _are_xep_variants(a, b, "person") is True
+
+
+class TestTheSharedIdMapIsBuiltOnce:
+    """The corpus-wide id map is the most expensive thing the read path can reach.
+
+    Measured on the production snapshot: **84 seconds** for one build. Three surfaces need it —
+    the app KG index, `cil_queries` and `corpus_graph` — and each used to call the builder behind
+    its own cache on the same token, so every ingest / migration / enrich-edges paid for the scan
+    three times. Worse, `perf_cache.get_or_compute` runs `compute()` OUTSIDE its lock by design,
+    so on a miss every arriving request thread started its own scan.
+
+    Both properties are asserted here against a fake builder, so the test is instant and still
+    fails if either the sharing or the single-flight is removed.
+    """
+
+    @staticmethod
+    def _patched(monkeypatch, calls, delay=0.0):
+        import time
+
+        from podcast_scraper.kg import entity_clusters
+
+        def fake(root, *, same_show_required=True):
+            calls.append(str(root))
+            if delay:
+                time.sleep(delay)
+            return {"person:variant": "person:canonical"}
+
+        monkeypatch.setattr(entity_clusters, "build_entity_id_map", fake)
+        return entity_clusters
+
+    def test_three_callers_on_one_corpus_build_it_once(self, tmp_path, monkeypatch) -> None:
+        from podcast_scraper import perf_cache
+
+        perf_cache.clear()
+        calls: list = []
+        ec = self._patched(monkeypatch, calls)
+        for _ in range(3):
+            assert ec.cached_entity_id_map(tmp_path) == {"person:variant": "person:canonical"}
+        assert len(calls) == 1, "each caller rebuilt the corpus map"
+
+    def test_a_token_change_rebuilds_it(self, tmp_path, monkeypatch) -> None:
+        """Single-flight must not become 'never refresh' — the token still has to invalidate."""
+        import os
+
+        from podcast_scraper import perf_cache
+
+        perf_cache.clear()
+        calls: list = []
+        ec = self._patched(monkeypatch, calls)
+        ec.cached_entity_id_map(tmp_path)
+        stamp = tmp_path / "corpus_run_summary.json"
+        stamp.write_text("{}", encoding="utf-8")
+        base = perf_cache.corpus_mtime(tmp_path)
+        os.utime(stamp, (base + 5000, base + 5000))
+        ec.cached_entity_id_map(tmp_path)
+        assert len(calls) == 2, "a corpus change must still rebuild the map"
+
+    def test_concurrent_cold_callers_do_not_stampede(self, tmp_path, monkeypatch) -> None:
+        import threading
+
+        from podcast_scraper import perf_cache
+
+        perf_cache.clear()
+        calls: list = []
+        ec = self._patched(monkeypatch, calls, delay=0.15)
+        threads = [
+            threading.Thread(target=lambda: ec.cached_entity_id_map(tmp_path)) for _ in range(5)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert len(calls) == 1, (
+            "five threads hitting a cold cache ran five corpus scans — this is the stampede "
+            "`perf_cache` explicitly permits and this wrapper exists to prevent"
+        )
+
+    def test_the_caller_cannot_mutate_the_shared_map(self, tmp_path, monkeypatch) -> None:
+        """It is shared across surfaces now, so handing out the live dict would be a foot-gun."""
+        from podcast_scraper import perf_cache
+
+        perf_cache.clear()
+        calls: list = []
+        ec = self._patched(monkeypatch, calls)
+        first = ec.cached_entity_id_map(tmp_path)
+        first["person:injected"] = "person:oops"
+        assert "person:injected" not in ec.cached_entity_id_map(tmp_path)

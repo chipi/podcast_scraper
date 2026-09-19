@@ -7,6 +7,7 @@ import re
 
 from .constants import (
     INTERVIEW_INDICATOR_PATTERNS,
+    INTERVIEW_TRAILING_GAPPED_PATTERNS,
     INTERVIEW_TRAILING_PATTERNS,
     MENTIONED_ONLY_PATTERNS,
 )
@@ -56,6 +57,15 @@ def _has_interview_indicator(name: str, text: str) -> bool:
     for pattern in INTERVIEW_TRAILING_PATTERNS:
         if re.search(name_lower + pattern, text_lower):
             return True
+    # NAME <role clause> CUE — the same bounded gap, in the other direction. Descriptions put the
+    # guest's job title between the name and the verb ("Sarah Laszlo, senior director of Visa's
+    # machine learning platform, joins the AI Podcast"), which the glued patterns above cannot
+    # reach. Bounded for the reason the leading gap is bounded: unbounded, one cue introduces every
+    # name in the paragraph.
+    trailing_gap = r"[\s,'\-\w\.]{0," + str(_TRAILING_CUE_MAX_GAP) + r"}?"
+    for pattern in INTERVIEW_TRAILING_GAPPED_PATTERNS:
+        if re.search(name_lower + trailing_gap + pattern, text_lower):
+            return True
     return False
 
 
@@ -66,6 +76,14 @@ def _has_interview_indicator(name: str, text: str) -> bool:
 # the paragraph — which is how a lawsuit defendant became a podcast guest.
 _CUE_MAX_GAP = 40
 _INTRO_CUE_MAX_GAP = _CUE_MAX_GAP
+
+# The TRAILING gap is larger than the leading one, deliberately. A leading cue is loose — it can
+# reach forward and adopt any later name ("...returns to discuss..." adopting Elon Musk, #876). A
+# trailing match is anchored by the NAME, and what sits between a name and its verb is that
+# person's own job title: "Sarah Laszlo, senior director of Visa's machine learning platform,
+# joins..." is 55 characters, "Mike Pritchard, Director of Climate Simulation Research at NVIDIA,"
+# is 52. At 40 both were unreachable, which is most of the a16z and NVIDIA descriptions.
+_TRAILING_CUE_MAX_GAP = 90
 
 
 def is_introduced_guest(name: str, intro_text: str) -> bool:

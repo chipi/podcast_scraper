@@ -10,6 +10,7 @@ behaves, so the contract survives a future move off the filesystem.
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
@@ -79,6 +80,7 @@ class UpgradeRunner:
         *,
         to_version: Optional[str] = None,
         now: str = "",
+        hold_lock: bool = True,
     ) -> List[MigrationResult]:
         """Apply pending migrations in order (optionally only up to *to_version*).
 
@@ -86,16 +88,45 @@ class UpgradeRunner:
         the first migration that raises, after collecting results for the steps that
         did run. ``now`` is the timestamp stamped into ledger records (passed in so
         the runner stays deterministic / clock-free).
+
+        ``hold_lock=False`` says the CALLER already holds the corpus lock. The CLI does, because
+        its pre-upgrade snapshot — a full copytree, minutes on a real corpus — has to be inside the
+        same lock as the migrations: an ingest writing during the copy yields an inconsistent
+        snapshot, and the operator has already been told that directory is the rollback. Re-taking
+        it here would not merely be redundant: the lock is ``timeout=0``, so the second acquire in
+        the same process reads its own live PID from the holder file and refuses.
         """
         results: List[MigrationResult] = []
         ceiling = self._as_version(to_version) if to_version is not None else None
-        for migration in self.pending():
-            if ceiling is not None and self._as_version(migration.to_version) > ceiling:
-                continue
-            result = migration.apply(ctx)
-            results.append(result)
-            if result.applied and not ctx.dry_run:
-                self.state.record_applied(migration.id, to_version=migration.to_version, at=now)
+
+        # HOLD THE CORPUS LOCK FOR THE WHOLE RUN. A migration is a read-modify-write over every
+        # artifact in the corpus; an ingest running concurrently rewrites some of them underneath
+        # it, and the two writers interleave silently. m0009 additionally records a `file_sha_after`
+        # per episode for the undo to check — a sha for a file the pipeline rewrites moments later
+        # makes that episode permanently unrollbackable, which is a worse outcome than refusing.
+        #
+        # The rollback already refuses on contention (`role_ledger.undo_from_ledger`). Locking the
+        # forward direction too is what makes that symmetric: before this, the runbook's "confirm
+        # no ingest job is running" was the ONLY thing standing between a migration and a race.
+        #
+        # Contention raises RuntimeError and is NOT swallowed — the operator stops the ingest and
+        # re-runs. Only "there is no lock to take" degrades to unlocked. A dry run reads and writes
+        # nothing, so it does not need the lock and must not be blocked by an ingest.
+        with contextlib.ExitStack() as stack:
+            if not ctx.dry_run and hold_lock:
+                try:
+                    from ..utils.corpus_lock import corpus_parent_lock
+
+                    stack.enter_context(corpus_parent_lock(ctx.corpus_root))
+                except (ImportError, OSError):
+                    pass
+            for migration in self.pending():
+                if ceiling is not None and self._as_version(migration.to_version) > ceiling:
+                    continue
+                result = migration.apply(ctx)
+                results.append(result)
+                if result.applied and not ctx.dry_run:
+                    self.state.record_applied(migration.id, to_version=migration.to_version, at=now)
         return results
 
     def verify(self, ctx: MigrationContext) -> List[Tuple[str, bool, str]]:

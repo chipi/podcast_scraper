@@ -49,6 +49,45 @@ def scan_kg_artifact_paths(output_dir: Path) -> List[Path]:
     return sorted(set(paths))
 
 
+def newest_run_artifact_paths(output_dir: Path, paths: List[Path], suffix: str) -> List[Path]:
+    """Filter *paths* to the newest run per episode, using the CATALOG's membership rule.
+
+    THE CATALOG AND THE GRAPH DISAGREED ABOUT WHAT THE CORPUS IS. ``dedupe_metadata_paths_newest_
+    run_per_episode`` picks one winner per ``(feed_id, episode_id)`` across runs, and every
+    catalog-facing surface uses it — but the graph builders walked ``rglob`` and read every run.
+    Measured on the production snapshot: of 2,257 ``*.kg.json``, **310 (13.7%) belong to a
+    superseded run**, so a reprocessed episode's OLD roster and OLD roles still shaped the
+    corpus-wide entity id map and the relational graph the API serves.
+
+    That matters most right after a repair: ``relabel_only`` writes a NEW run, and the stale run it
+    supersedes kept voting on who a person is.
+
+    MIGRATIONS DELIBERATELY DO NOT USE THIS. A migration repairs artifacts on disk; repairing a
+    superseded one is wasted work, not a wrong answer, and skipping it would leave an artifact
+    unrepaired if a later change ever promoted it back into the served set. Read-time projections
+    are the opposite: reading a superseded artifact is itself the defect.
+
+    Falls back to the unfiltered list if the rule cannot be applied, because serving a duplicate is
+    better than serving nothing.
+    """
+    try:
+        from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+    except ImportError:  # pragma: no cover - defensive
+        return paths
+    by_metadata = {Path(str(p)[: -len(suffix)] + ".metadata.json"): p for p in paths}
+    present = [m for m in by_metadata if m.is_file()]
+    if not present:
+        return paths
+    try:
+        kept = set(dedupe_metadata_paths_newest_run_per_episode(Path(output_dir), present))
+    except Exception:  # noqa: BLE001 - a membership rule that fails must not empty the graph
+        return paths
+    # An artifact with no metadata sibling has no cross-run identity to reconcile: keep it.
+    return [
+        p for m, p in by_metadata.items() if m not in by_metadata or m not in present or m in kept
+    ]
+
+
 def collect_kg_paths_from_inputs(paths: List[Path]) -> List[Path]:
     """Expand files and directories to a list of .kg.json paths."""
     result: List[Path] = []

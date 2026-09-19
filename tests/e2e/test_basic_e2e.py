@@ -100,9 +100,7 @@ class TestBasicCLIE2E:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (NER)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (NER)"
                     # Should have summary (summarization) - summary is top-level
                     assert "summary" in metadata, "Metadata should contain summary"
@@ -223,9 +221,7 @@ class TestBasicCLIE2E:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (NER)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (NER)"
                     # Should have summary (summarization) - summary is top-level
                     assert "summary" in metadata, "Metadata should contain summary"
@@ -305,9 +301,7 @@ class TestBasicLibraryAPIE2E:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (NER)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (NER)"
                     # Should have summary (summarization) - summary is top-level
                     assert "summary" in metadata, "Metadata should contain summary"
@@ -377,9 +371,7 @@ class TestBasicLibraryAPIE2E:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (NER)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (NER)"
                     # Should have summary (summarization) - summary is top-level
                     assert "summary" in metadata, "Metadata should contain summary"
@@ -458,9 +450,7 @@ class TestBasicServiceAPIE2E:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (NER)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (NER)"
                     # Should have summary (summarization) - summary is top-level
                     assert "summary" in metadata, "Metadata should contain summary"
@@ -536,9 +526,7 @@ class TestBasicServiceAPIE2E:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (NER)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (NER)"
                     # Should have summary (summarization) - summary is top-level
                     assert "summary" in metadata, "Metadata should contain summary"
@@ -617,9 +605,7 @@ class TestBasicCLIE2E_OpenAI:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (OpenAI)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (OpenAI)"
                     # Should have summary (OpenAI summarization) - summary is top-level
                     assert (
@@ -691,9 +677,7 @@ class TestBasicCLIE2E_OpenAI:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (OpenAI)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (OpenAI)"
                     # Should have summary (OpenAI summarization) - summary is top-level
                     assert (
@@ -760,9 +744,7 @@ class TestBasicLibraryAPIE2E_OpenAI:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (OpenAI)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (OpenAI)"
                     # Should have summary (OpenAI summarization) - summary is top-level
                     assert (
@@ -824,9 +806,7 @@ class TestBasicLibraryAPIE2E_OpenAI:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (OpenAI)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (OpenAI)"
                     # Should have summary (OpenAI summarization) - summary is top-level
                     assert (
@@ -896,9 +876,7 @@ class TestBasicServiceAPIE2E_OpenAI:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (OpenAI)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (OpenAI)"
                     # Should have summary (OpenAI summarization) - summary is top-level
                     assert (
@@ -961,9 +939,7 @@ class TestBasicServiceAPIE2E_OpenAI:
                     assert "content" in metadata, "Metadata should have content section"
                     # Should have speaker detection results (OpenAI)
                     assert (
-                        "detected_hosts" in metadata["content"]
-                        or "detected_guests" in metadata["content"]
-                        or "speakers" in metadata["content"]
+                        "speakers" in metadata["content"]
                     ), "Metadata should contain speaker detection results (OpenAI)"
                     # Should have summary (OpenAI summarization) - summary is top-level
                     assert (

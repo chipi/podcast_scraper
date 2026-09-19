@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import re
-from collections import Counter, OrderedDict
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..graph_id_utils import entity_node_id
@@ -35,7 +34,6 @@ logger = logging.getLogger(__name__)
 _OFFSET_PROBE_LEN = 24
 _OFFSET_PROBE_SLACK = 64
 
-_SPEAKER_RE = re.compile(r"Speaker\s*(\d+)\s*:")
 # Line-start ``<Label>: `` turn markers (named screenplay). Constrained to line start
 # + whitespace after the colon so it captures diarized turns, not mid-prose "Word:".
 _NAMED_TURN_RE = re.compile(r"(?m)^[ \t]*([^\n:]{1,60}?)[ \t]*:[ \t]")
@@ -55,11 +53,6 @@ _NON_PERSON_TOKENS = frozenset(
         "llc",
     }
 )
-
-
-def build_speaker_turns(transcript: str) -> List[Tuple[int, str]]:
-    """Sorted ``[(char_offset, "Speaker N")]`` turn starts parsed from *transcript*."""
-    return [(m.start(), f"Speaker {m.group(1)}") for m in _SPEAKER_RE.finditer(transcript)]
 
 
 def speaker_for_char(char_start: int, turns: Sequence[Tuple[int, Optional[str]]]) -> Optional[str]:
@@ -152,37 +145,6 @@ def build_unverified_named_turns(transcript: str) -> List[Tuple[int, Optional[st
     return turns
 
 
-def map_clusters_to_people(
-    turns: Sequence[Tuple[int, str]],
-    *,
-    hosts: Sequence[str],
-    guests: Sequence[str],
-) -> Dict[str, Optional[str]]:
-    """Map each speaker cluster → person name (or ``None``) via the role heuristic.
-
-    - **Guest** = the dominant cluster that is not the opening speaker → first detected
-      guest. This is the reliable mapping (the opening speaker is the host doing the
-      intro; the most-speaking non-host is the interviewed guest).
-    - **Host** = opening cluster → first detected host, *only* if that host string looks
-      like a person (not a publisher label).
-    - Everything else → ``None`` (under-attributed rather than wrongly attributed).
-    """
-    if not turns:
-        return {}
-    counts = Counter(label for _, label in turns)
-    order = list(OrderedDict.fromkeys(label for _, label in turns))
-    opening = order[0]
-    others = [(label, c) for label, c in counts.items() if label != opening]
-    guest_cluster = max(others, key=lambda lc: lc[1])[0] if others else None
-
-    out: Dict[str, Optional[str]] = {label: None for label in counts}
-    if guest_cluster and guests:
-        out[guest_cluster] = guests[0]
-    if hosts and _looks_like_person(hosts[0]):
-        out[opening] = hosts[0]
-    return out
-
-
 def _person_node_id(name: str, episode_id: Optional[str]) -> str:
     """Person id for a GI speaker attribution, episode-scoping placeholders (#2059 / advisor H1).
 
@@ -227,7 +189,14 @@ def attribute_quote_speakers(
 
     #875: when the transcript carries *named* diarized markers (``Maya:`` …) matching
     detected people, attribute directly to each named speaker — N-speaker capable, so
-    panels work. Otherwise fall back to the generic ``Speaker N`` role heuristic.
+    panels work.
+
+    Otherwise NOBODY is attributed (#2075). This used to fall back to a role heuristic over
+    ``Speaker N`` markers: the first voice to speak was given ``hosts[0]`` and the most talkative
+    other voice ``guests[0]``. That is a heuristic putting a name on a voice, which #876 forbids,
+    and it ran at every finalize. Measured: 81 quotes on 10 Odd Lots episodes in production, and
+    ``Tracy Alloway`` credited on the #2075 validation run, with no voice ever matched to her. A
+    transcript with no named markers has no evidence of who said what; the quote stays unattributed.
     """
     out: Dict[str, str] = {}
 
@@ -246,17 +215,6 @@ def attribute_quote_speakers(
                 out[quote_id] = _person_node_id(name, episode_id)
         return out
 
-    turns = build_speaker_turns(transcript)
-    if not turns:
-        return {}
-    cluster_to_name = map_clusters_to_people(turns, hosts=hosts, guests=guests)
-    for quote_id, char_start in quote_char_starts.items():
-        if char_start is None:
-            continue
-        cluster = speaker_for_char(int(char_start), turns)
-        name = cluster_to_name.get(cluster) if cluster is not None else None
-        if name:
-            out[quote_id] = _person_node_id(name, episode_id)
     return out
 
 
@@ -394,17 +352,42 @@ def add_spoken_by_edges(
     attribution = attribute_quote_speakers(
         transcript, quote_char_starts, hosts=hosts, guests=guests, episode_id=episode_id
     )
+    # `{person_id: roster spelling}` — the names this attribution was derived from, so a node
+    # minted here can carry the real spelling instead of a slug round-trip.
+    _roster_name_by_id: Dict[str, str] = {}
+    for _name in list(hosts or []) + list(guests or []):
+        _clean = str(_name or "").strip()
+        if not _clean:
+            continue
+        try:
+            # `episode_id=None`: a roster name is a RESOLVED name, so it keys on the global
+            # id — the same id the attribution below produces for it.
+            _roster_name_by_id.setdefault(_person_node_id(_clean, None), _clean)
+        except Exception:  # noqa: BLE001 — an unsluggable name simply has no id to key on
+            continue
     existing_persons = {n["id"] for n in nodes if n.get("type") == "Person"}
     existing_spoken = {(e.get("from"), e.get("to")) for e in edges if e.get("type") == "SPOKEN_BY"}
     added = 0
     for quote_id, person in attribution.items():
         if person not in existing_persons:
-            # Prefer what this artifact already knew (#2062). The slug-derived name stays the last
-            # resort it always was for a genuinely NEW node; it is not a downgrade applied to a
-            # node that was correct a moment ago.
-            props = stripped_person_props.get(person) or {
-                "name": person.split(":", 1)[-1].replace("-", " ").title()
-            }
+            # NAME ORDER: what the artifact already knew, then THE ROSTER, then the slug.
+            #
+            # The roster is right there in `hosts` / `guests` — the names this attribution was
+            # computed FROM — and the slug round-trip destroys exactly the characters a slug
+            # cannot carry: `Patrick O'Shaughnessy` came back as `Patrick Oshaughnessy`. Measured
+            # on the production snapshot: 17 person ids whose KG name and GI name differ solely
+            # because of this. With `--replace-speakers` that name is then stamped onto
+            # `quote.speaker_name`, which `app_gi_view` reads FIRST, so the mangled spelling wins
+            # on the insight surface and no later rename can reach it (`apply_display_names`
+            # rewrites Person nodes, not quote properties).
+            #
+            # The slug fallback is kept for an attribution whose id matches no roster entry, which
+            # is the only case it was ever meant to cover.
+            props = (
+                stripped_person_props.get(person)
+                or ({"name": _roster_name_by_id[person]} if person in _roster_name_by_id else None)
+                or {"name": person.split(":", 1)[-1].replace("-", " ").title()}
+            )
             nodes.append({"id": person, "type": "Person", "properties": props})
             existing_persons.add(person)
         if (quote_id, person) not in existing_spoken:

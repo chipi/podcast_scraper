@@ -11,6 +11,7 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, Future, ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Callable, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
@@ -20,7 +21,9 @@ if TYPE_CHECKING:
 else:
     Episode = models.Episode  # type: ignore[assignment]
     RssFeed = models.RssFeed  # type: ignore[assignment]
+from ...kg.speaker_coherence import same_person
 from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
+from ...utils import filesystem
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...utils.optional_deps import caused_by_missing_import
 from .. import metrics
@@ -97,8 +100,28 @@ def _processing_job_key(job: Any) -> str:
     hold (29 != 16). The transcript path is unique by construction — it is the
     artifact identity the stage actually operates on. idx remains for display
     and for the on-disk ``{idx} - *`` glob contract, never for dedup.
+
+    2026-09-18: "unique by construction" holds only while there IS a path. An
+    episode a reprocess cannot resolve a transcript for ("relabel_only: no
+    on-disk transcript to work on") reaches this function with an empty path,
+    and every such episode then shares the key ``"None"`` — the SAME wedge
+    through a different door. Measured on The Flip: 16 jobs, 3 of them
+    transcript-less, so 14 distinct keys, ``16 == 14`` never holds, and the
+    processing loop polled forever with both workers idle and all the work
+    finished. Four other feeds in the same run had no transcript-less episode
+    and every one exited cleanly. Falling back to the episode's stable identity
+    keeps such jobs distinct; they still fail, but they fail countably.
     """
-    return str(job.transcript_path)
+    path = str(job.transcript_path or "").strip()
+    if path:
+        return path
+    episode = getattr(job, "episode", None)
+    guid = str(getattr(episode, "guid", "") or "").strip()
+    if guid:
+        return f"no-transcript:guid:{guid}"
+    # No path and no guid: id() is unique for the lifetime of this list, which is exactly the
+    # lifetime of the bookkeeping that uses it.
+    return f"no-transcript:obj:{id(job)}"
 
 
 def _mark_processed(processed_job_keys: Set[str], job: Any) -> None:
@@ -145,10 +168,15 @@ from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import (
     detect_hosts_from_feed,
+    distinct_self_introductions,
+    drop_non_person_names,
+    hosts_from_episode_description,
     hosts_from_feed_statement,
     is_network_or_org_author,
     normalize_host_names,
+    recurrent_hosts_across_episodes,
 )
+from ...speaker_detectors.normalization import filter_default_speaker_names
 from ..cost_monitoring import CostCapExceeded
 from ..helpers import update_metric_safely
 from ..types import (
@@ -716,6 +744,93 @@ def _infer_host_source(
     return "feed metadata (NER)"
 
 
+def _feed_title(feed: Any) -> Optional[str]:
+    """The feed's title, or None. Carried on `HostDetectionResult` so per-episode host parsing can
+    refuse a "host" that is really the show — the guard is inert without it, by design."""
+    return getattr(feed, "title", None)
+
+
+# How much of each transcript the recurrence scan reads. Wider than the 2,000 the per-episode
+# roster path uses: this scan pays the cost once per feed rather than once per episode, and a show
+# that opens with a sponsor read or a cold-open clip puts its host introduction well past 2,000.
+# The corpus measurement behind the thresholds was taken at this window.
+_INTRO_SCAN_CHARS = 4000
+
+
+def _newest_run_transcripts(root: Path) -> List[Path]:
+    """One transcript per episode under *root*, from the run that SUPERSEDES the others.
+
+    ``root`` is a single feed's workspace (``<corpus>/feeds/<slug>/`` for a corpus run,
+    ``output/rss_*`` for a standalone one), so this never crosses feeds. It is deliberately
+    ``glob("run_*/...")`` and not ``rglob``: pointed at a corpus ROOT by mistake it finds nothing
+    rather than pooling every show's transcripts into one host vote.
+
+    Two things would otherwise double-count. An episode carries up to three ``.txt`` bodies
+    (``.adfree``, ``.cleaned``, plain) — ad-free first, because an unstripped pre-roll can push the
+    host's self-introduction past the window we read. And a reprocessed episode exists in several
+    ``run_*`` dirs at once; the corpus membership rule picks the newest, the same winner every
+    catalog-facing surface uses.
+    """
+    metas = sorted(root.glob(f"run_*/{filesystem.METADATA_SUBDIR}/*.metadata.json"))
+    if not metas:
+        return []
+    try:
+        from ...search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+
+        metas = list(dedupe_metadata_paths_newest_run_per_episode(root, metas))
+    except Exception as exc:  # noqa: BLE001 - a duplicate vote beats no vote at all
+        logger.debug("recurrent-host scan could not dedupe runs: %s", exc)
+    out: List[Path] = []
+    for meta in metas:
+        stem = meta.name[: -len(".metadata.json")]
+        transcripts = meta.parent.parent / filesystem.TRANSCRIPTS_SUBDIR
+        for suffix in (".adfree.txt", ".cleaned.txt", ".txt"):
+            candidate = transcripts / f"{stem}{suffix}"
+            if candidate.is_file():
+                out.append(candidate)
+                break
+    return out
+
+
+def _recurrent_hosts_from_disk(output_dir: Optional[str], feed: Any) -> Set[str]:
+    """Hosts that self-introduce across MANY of this feed's already-transcribed episodes.
+
+    A GUEST APPEARS ONCE; A HOST APPEARS EVERY WEEK. No per-episode rule can see that, and on the
+    shows whose RSS author tag is an organisation it is the only host signal that exists at all.
+    Measured across the production snapshot, at the thresholds
+    :func:`~podcast_scraper.speaker_detectors.hosts.recurrent_hosts_across_episodes` enforces,
+    a name emerges for 30 of 55 feeds and every one of them is that show's presenter.
+
+    Reads transcripts already on disk, so it contributes on a re-process or an incremental ingest
+    and contributes NOTHING on a feed's first-ever run — correct in both cases, and never a
+    network call.
+
+    The result joins ``known_hosts`` and goes no further. It is a CANDIDATE: it binds to a voice
+    only through that episode's own self-introduction or the LLM resolver's existing guards, never
+    by talk share and never by elimination, both of which measured far below the safety bar.
+    """
+    raw = str(output_dir or "")
+    root = Path(raw)
+    if not raw or not root.is_dir():
+        return set()
+    per_episode: List[List[str]] = []
+    for path in _newest_run_transcripts(root):
+        try:
+            head = path.read_text(encoding="utf-8", errors="replace")[:_INTRO_SCAN_CHARS]
+        except OSError:
+            continue
+        # EVERY intro in the head, not the first. A two-host show introduces its second host
+        # second, and reading one name per episode left every co-host below the threshold.
+        per_episode.append(
+            distinct_self_introductions(
+                head, intro_chars=_INTRO_SCAN_CHARS, feed_title=_feed_title(feed)
+            )
+        )
+    if not per_episode:
+        return set()
+    return recurrent_hosts_across_episodes(per_episode, feed_title=_feed_title(feed))
+
+
 def detect_feed_hosts_and_patterns(
     cfg: config.Config,
     feed: RssFeed,  # type: ignore[valid-type]
@@ -741,7 +856,7 @@ def detect_feed_hosts_and_patterns(
 
     # If auto_speakers is disabled, skip speaker detection entirely
     if not cfg.auto_speakers:
-        return HostDetectionResult(cached_hosts, heuristics, None)
+        return HostDetectionResult(cached_hosts, heuristics, None, _feed_title(feed))
 
     # In dry-run mode, still detect hosts from RSS author tags (no ML needed)
     if cfg.dry_run:
@@ -750,7 +865,7 @@ def detect_feed_hosts_and_patterns(
     # Use provided speaker detector, or create one if not provided (backward compatibility)
     speaker_detector = _create_speaker_detector_if_needed(cfg, speaker_detector)
     if speaker_detector is None:
-        return HostDetectionResult(cached_hosts, heuristics, None)
+        return HostDetectionResult(cached_hosts, heuristics, None, _feed_title(feed))
 
     # Detect hosts: prefer RSS author tags, fall back to NER
     feed_hosts = _detect_hosts_from_feed(feed, speaker_detector)
@@ -779,7 +894,9 @@ def detect_feed_hosts_and_patterns(
                 ", ".join(sorted(cached_hosts)),
             )
             # Skip validation since known_hosts are trusted
-            return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
+            return HostDetectionResult(
+                cached_hosts, heuristics, speaker_detector, _feed_title(feed)
+            )
 
     # Validate hosts with first episode: hosts should appear in first episode too
     cached_hosts = _validate_hosts_with_first_episode(
@@ -815,6 +932,48 @@ def detect_feed_hosts_and_patterns(
             "DETECTED HOSTS (from config known_hosts fallback): %s",
             ", ".join(sorted(cached_hosts)),
         )
+
+    # RECURRENCE, from this feed's own transcripts. A guest appears once; a host appears every
+    # week — the one property separating them that no per-episode rule can see, and the only host
+    # signal at all on a show whose author tag is an organisation. Contributes nothing on a first
+    # run (no transcripts yet), which is correct.
+    #
+    # UNION, never replace: a feed statement, an author tag or config `known_hosts` all outrank it.
+    # This only ever ADDS a candidate that must still bind through an episode's own evidence.
+    try:
+        recurrent = _recurrent_hosts_from_disk(cfg.output_dir, feed)
+    except Exception as exc:  # noqa: BLE001 - a host hint must never end a run
+        logger.debug("recurrent-host scan skipped: %s", exc)
+        recurrent = set()
+    # FUZZY dedupe, not exact. The transcript spells the name the way the ASR heard it, and on the
+    # production snapshot four of the 27 names this finds are variants of a host we already hold:
+    # "Peter Atiyah" for Peter Attia, "Anita Arnon" for Anita Anand, "Adam Reichert" for Adam
+    # Reichardt, "Chris Grayton" for Chris Gratien. An exact-lowercase check keeps all four, and
+    # then the feed carries TWO host candidates for one human — the duplicate-person defect this
+    # branch exists to remove, minted by the very fix meant to help.
+    added = {n for n in recurrent if not any(same_person(n, h) for h in cached_hosts)}
+    if added:
+        cached_hosts = set(cached_hosts) | added
+        if not host_source:
+            host_source = "recurrent self-introduction across the feed"
+        logger.info("RECURRENT HOSTS (self-introduced across episodes): %s", sorted(added))
+
+    # ONE LAST FILTER OVER EVERY PATH THAT FED THIS SET. `cached_hosts` is assembled from the feed
+    # statement, the author tag, config `known_hosts`, episode authors and the recurrence scan, and
+    # each of those has its own idea of what an organisation looks like. Whatever got in, it leaves
+    # here as PEOPLE: a name in `known_hosts` is a name the roster may paint on a voice, and 128 of
+    # the 150 organisation names published as speakers on the snapshot arrived by exactly that
+    # route — "Andreessen Horowitz" on 60 voices, "Conversations with Tyler" on 23.
+    #
+    # This is the only layer that knows the feed's own title, so it is the only one that can refuse
+    # the SHOW; the publish gate catches publishers later but can never catch that.
+    _people = set(drop_non_person_names(sorted(cached_hosts), _feed_title(feed)))
+    if _people != cached_hosts:
+        logger.info(
+            "  → dropped non-person host candidate(s): %s",
+            sorted(cached_hosts - _people),
+        )
+        cached_hosts = _people
 
     # Log detected hosts with their source
     _log_detected_hosts(cached_hosts, feed, episode_authors, cfg, source=host_source)
@@ -859,7 +1018,7 @@ def detect_feed_hosts_and_patterns(
                 )
 
     # Return result with provider instance
-    return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
+    return HostDetectionResult(cached_hosts, heuristics, speaker_detector, _feed_title(feed))
 
 
 def setup_processing_resources(cfg: config.Config) -> ProcessingResources:
@@ -1395,6 +1554,53 @@ def _detect_speakers_for_episode(
         for entry in detected_speakers or []:
             flat_speakers.extend(_flatten_speaker_name_entries(entry))
         host_strings = _speaker_names_to_str_set(detected_hosts_set)
+
+        # A PLACEHOLDER IS THE ABSENCE OF A NAME, AND IT WAS BEING PUBLISHED AS ONE.
+        #
+        # Every provider returns `DEFAULT_SPEAKER_NAMES` (`["Host", "unknown_guest_1"]`) as its
+        # failure value, and from here they flowed on as if detection had succeeded: into
+        # `detected_hosts`/`detected_guests`, into `metadata_named`, and so into the closed
+        # candidate list the resolver may match a voice against. The resolver then did exactly what
+        # it is built to do — matched a voice to a name the metadata stated. Measured on the
+        # production snapshot: the literal string `Host` is published as a speaker on 59 episodes
+        # and `unknown_guest_1` on 17, every one of them `source=llm_resolution`; on 29 episodes a
+        # placeholder is the ONLY roster name, so the episode reads as attributed when nobody was
+        # identified at all.
+        #
+        # Dropped here rather than at the publish gate because a placeholder must never become a
+        # CANDIDATE: a name in the closed list is a name the roster is permitted to bind, and the
+        # whole guard (#876) is that the list only contains people someone actually named.
+        # Filtering leaves detection reporting honestly that it found nobody — which is what
+        # happened.
+        flat_speakers = filter_default_speaker_names(flat_speakers)
+        host_strings = set(filter_default_speaker_names(sorted(host_strings)))
+
+        # ...and no organisations either. An LLM detector asked who is on the episode answers with
+        # the network and the show as readily as with a person, and every name surviving here
+        # reaches the closed candidate list the resolver may bind a voice to — which is how
+        # "Machine Learning Street" came to be published as a speaker 26 times by that resolver.
+        _feed_t = host_detection_result.feed_title
+        flat_speakers = drop_non_person_names(flat_speakers, _feed_t)
+        host_strings = set(drop_non_person_names(sorted(host_strings), _feed_t))
+
+        # THE EPISODE'S OWN DESCRIPTION NAMES ITS HOST, on the shows where nothing else can.
+        # "Elena Burger is joined by a16z's Andy McCall" — the guest cue reads what FOLLOWS the
+        # verb; the name in front of it is the host, and that half was discarded. It matters most
+        # where the feed cannot state a host at all: a16z rotates its host per episode and its
+        # author tag is the firm, which the org filter correctly throws away, so this is the only
+        # place a host name exists. Measured on the 136 production episodes that end with no named
+        # speaker: 25 yield a host here, 22 of them a16z's.
+        #
+        # Union, never replace: a feed-stated or config host still outranks a parsed one, and this
+        # only ever ADDS a candidate the roster may bind. The show's own name and any publisher are
+        # refused inside the helper.
+        _ep_hosts = hosts_from_episode_description(
+            episode.title, episode_description, host_detection_result.feed_title
+        )
+        if _ep_hosts:
+            host_strings = set(host_strings) | _ep_hosts
+            logger.info("  → Host from the episode description: %s", sorted(_ep_hosts))
+
         proposed = [name for name in flat_speakers if name not in host_strings]
 
         # An LLM detector's name list is a PROPOSAL, not a result — it returns success=True whatever
@@ -1423,6 +1629,28 @@ def _detect_speakers_for_episode(
                 "known_host_count": len(host_strings | combined_hosts),
             },
         )
+        # NO SEAT CAP HERE, AND THAT IS DELIBERATE — it was tried and it was wrong (#2095/#2078).
+        #
+        # The worry is real: `guests` becomes `detected_guests`, then the roster's `guest_names`,
+        # then `spare`, and finally the FORCED "one spare name, one spare voice" binding, which
+        # publishes a name on nothing but a count. Uncapping detection therefore lets a guest
+        # reach that path on exactly the two-host shows this fix targets, and a previous attempt
+        # at uncapping was reverted for producing wrong forced names (7d083c4b).
+        #
+        # Re-imposing `screenplay_num_speakers - len(hosts)` here fails
+        # `test_the_pipeline_still_returns_the_real_guest`, and that test is right: on a two-host
+        # show the bound is ZERO, so `Dr. Adam Rodman` — corroborated, genuinely in the room —
+        # is deleted from `guests` altogether. And `guests` is not only the arithmetic pool; it
+        # also feeds `corroborated_persons`, which gates the EVIDENCE-based report-verb binding in
+        # the roster. Capping it starves the very path that is supposed to name her.
+        #
+        # What actually bounds the risk is `corroborate_guests` above: a name reaches `guests`
+        # only with textual evidence that the person SPOKE, which is the gate the reverted attempt
+        # bypassed by drawing on `metadata_named` (topic-people) instead.
+        #
+        # NOT VERIFIED: the forced-path effect of the wider `guests` list is not measured. The
+        # offline replay feeds stored `detected_guests`, which are pre-fix and capped, so no tier
+        # available here can observe it. It needs a real run.
         return DetectedSpeakers(guests=corroborated, stated=proposed)
     return None
 
@@ -1523,7 +1751,7 @@ def prepare_episode_download_args(
     # Only fires when the run EXPLICITLY asked for reprocessing. A normal incremental run where
     # everything is already ingested reaches here legitimately, and warning on that would make
     # the counter noise — non-zero on healthy nightly runs, which is how a signal gets ignored.
-    reprocess_stages = {"rederive_only", "relabel_only", "rediarize_only"}
+    reprocess_stages = {"rederive_only", "relabel_only", "rediarize_only", "retranscript_only"}
     asked_for_reprocess = (
         bool(getattr(cfg, "reprocess_existing_only", False))
         or str(getattr(cfg, "pipeline_stage", "full") or "full") in reprocess_stages
@@ -2100,6 +2328,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
         jobs_processed_failed = [0]  # Use list for nonlocal access
         stop_requested = [False]  # Issue #429: set when fail_fast or max_failures reached
         abandoned_futures = [0]  # bounded-loop exit left these in flight
+        wedge_report = [0.0]  # last time the loop explained why it cannot finish (rate-limited)
 
         # Supervision (2026-08-12 incident): this loop previously had no termination
         # guarantee. `_should_continue_processing` defaults to True, so if the main thread
@@ -2236,8 +2465,59 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     return False
                 if transcription_complete_event and transcription_complete_event.is_set():
                     all_submitted = _check_queue_empty()
+                    if not (all_submitted and len(futures) == 0):
+                        _report_if_wedged(futures)
                     return not (all_submitted and len(futures) == 0)
                 return True
+
+            def _report_if_wedged(futures: Any) -> None:
+                """Say WHY the loop cannot finish, once a minute, instead of polling in silence.
+
+                Transcription is finished, so the only reasons to continue are jobs not yet
+                submitted or futures not yet done. When neither moves, this loop spins forever at
+                0.1% CPU with both workers parked — twice during the #2075 harness it cost 74 and 20
+                minutes, and the only way to learn anything was a SIGABRT thread dump, which shows
+                the FRAME but never the COUNTS that decide the exit. Those counts are the diagnosis.
+                """
+                now = time.time()
+                if now - wedge_report[0] < 60.0:
+                    return
+                wedge_report[0] = now
+                with processed_job_indices_lock:
+                    done_keys = set(processed_job_indices)
+                if processing_resources.processing_jobs_lock:
+                    with processing_resources.processing_jobs_lock:
+                        all_jobs = list(processing_resources.processing_jobs)
+                else:
+                    all_jobs = list(processing_resources.processing_jobs)
+                missing = [
+                    _processing_job_key(j)
+                    for j in all_jobs
+                    if _processing_job_key(j) not in done_keys
+                ]
+                # The STATE of each tracked future identifies the defect: `done` and still tracked
+                # means the drain is not removing it; `running` means real work is in progress and
+                # the loop is right to wait; `pending` means the executor never picked it up.
+                states: Dict[str, int] = {}
+                for fut in list(futures.keys()):
+                    if fut.cancelled():
+                        key = "cancelled"
+                    elif fut.done():
+                        key = "done"
+                    elif fut.running():
+                        key = "running"
+                    else:
+                        key = "pending"
+                    states[key] = states.get(key, 0) + 1
+                logger.warning(
+                    "Processing loop cannot finish: %d job(s) enqueued, %d marked processed, "
+                    "%d future(s) tracked %s. Unaccounted: %s",
+                    len(all_jobs),
+                    len(done_keys),
+                    len(futures),
+                    states,
+                    missing[:5] if missing else "none — a tracked future was never drained",
+                )
 
             while True:
                 _submit_new_jobs()

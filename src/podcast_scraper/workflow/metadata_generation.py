@@ -25,6 +25,7 @@ from typing import (
     Dict,
     List,
     Literal,
+    Mapping,
     Optional,
     Protocol,
     Sequence,
@@ -35,10 +36,19 @@ from typing import (
 from urllib.parse import urlparse
 
 import yaml
-from pydantic import BaseModel, computed_field, Field, field_serializer, ValidationError
+from packaging.version import InvalidVersion, Version
+from pydantic import (
+    BaseModel,
+    computed_field,
+    Field,
+    field_serializer,
+    model_validator,
+    ValidationError,
+)
 
 from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
+from ..identity.roster_provenance import roster_source, RosterSource
 from ..speaker_detectors.hosts import looks_like_publisher
 
 if TYPE_CHECKING:
@@ -339,7 +349,30 @@ def _bullet_to_topic_phrase(bullet: str, max_tokens: int = 4) -> str:
 # Import is deferred until actually needed to avoid PyTorch initialization in dry-run mode
 summarizer = None  # type: ignore
 
-SCHEMA_VERSION = "1.0.0"
+#: Metadata artifact schema. 1.1.0 (#2070) adds ``content.speakers_source`` — whether the roster
+#: was resolved from AUDIO or fell back to the pre-diarization HINT.
+#:
+#: 1.2.0 (#2075) makes ``content.speakers`` THE speaker record for the episode. Each entry says
+#: whether a voice was matched to that person (``placed``), which voices are theirs, and where the
+#: name came from. A person a source named but no voice was matched to is kept, as
+#: ``placed: false``. The computed ``content.detected_hosts`` / ``detected_guests`` are removed:
+#: they were a projection of ``speakers`` by role, and would have published every unplaced name
+#: as a host or guest.
+#:
+#: A reader MUST treat ``placed`` as three-valued. ``true`` and ``false`` are answers; a MISSING
+#: flag means the artifact predates 1.2.0 and nobody recorded whether the voice was matched —
+#: unknown, not "placed".
+SCHEMA_VERSION = "1.2.0"
+
+#: The version at which ``speakers_source`` became REQUIRED alongside a non-empty roster.
+#:
+#: The grandfather clause is pinned to a version rather than written in a comment, because #2070
+#: exists precisely because nobody could tell a measurement from a fallback by reading an artifact,
+#: and a comment saying "always set this" is the kind of thing that stops being true. Below this
+#: version the field is legal to omit — every artifact currently on disk — and
+#: :func:`identity.roster_provenance.roster_provenance` reports those as ``unknown``, which is its
+#: own answer and never silently upgraded to ``diarized``.
+PROVENANCE_SCHEMA_VERSION = "1.1.0"
 
 
 def generate_feed_id(feed_url: str) -> str:
@@ -495,11 +528,42 @@ class TranscriptInfo(BaseModel):
 
 
 class SpeakerInfo(BaseModel):
-    """Speaker information with structured role and identity."""
+    """One person in the episode's speaker record (#2075).
 
-    id: str  # Stable identifier: "host", "guest", "host_1", "guest_1", etc.
+    ``content.speakers`` is the single source every surface that shows people is written from: the
+    transcript's speaker names, quote attribution in ``gi.json``, the people and their roles in
+    ``kg.json``, and the operator graph. ``speakers.diagnostics.json`` explains how the names were
+    chosen; it is not a second source.
+
+    ``placed`` is the distinction everything downstream turns on. ``True``: a diarized voice was
+    matched to this person, so they SPOKE and may carry a speaking role anywhere. ``False``: a
+    source named them — the feed, the show notes, the pre-listening guess — but no voice was
+    matched, so no surface may present them as someone who spoke. ``None``: the artifact predates
+    the field and nobody recorded which, so it is unknown.
+    """
+
+    id: str  # Stable identifier: "host", "guest", "host_1", "guest_1", "unplaced_1", etc.
     name: str  # Speaker name (e.g., "Alice Johnson", "Bob Smith")
-    role: str  # Role: "host" or "guest"
+    role: str  # Role: "host" or "guest" — for an unplaced person, the role the SOURCE gave them
+    placed: Optional[bool] = Field(
+        default=None,
+        description=(
+            "True: a voice was matched to this person. False: a source named them but no voice "
+            "was matched — never a speaker on any surface. Absent: pre-1.2.0 artifact, unknown."
+        ),
+    )
+    voices: List[str] = Field(
+        default_factory=list,
+        description="Diarization voice ids that are this person. Empty when not placed.",
+    )
+    source: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where the name came from: the roster's method for a placed voice (e.g. self_intro, "
+            "known_hosts, llm_resolution), or feed_statement / episode_metadata / hint for a name "
+            "no voice was matched to."
+        ),
+    )
 
 
 class ExpectationsMetadata(BaseModel):
@@ -616,10 +680,22 @@ class ContentMetadata(BaseModel):
         default=None,
         description="Distinct speaker voices the diarizer resolved for this episode (#876).",
     )
+    speakers_source: Optional[Literal["diarized", "hint"]] = Field(
+        default=None,
+        description=(
+            "Where `speakers` came from: 'diarized' (resolved from the audio) or 'hint' (the "
+            "pre-diarization guess from the feed and show notes). #2065's root cause was that "
+            "these two landed in the same field and were indistinguishable on disk, so the graph "
+            "could be fed the hint for months with nobody able to tell by reading an artifact. "
+            "Absent on any artifact written before #2070 — and absent means UNKNOWN, not "
+            "'diarized'."
+        ),
+    )
     normalized_entities: List[EntityAlias] = Field(
         default_factory=list,
         description="Normalized entity forms with aliases for fuzzy matching (Issue #387)",
     )
+
     expectations: Optional[ExpectationsMetadata] = Field(
         default=None,
         description="Expectations about output quality (not facts about the episode)",
@@ -629,15 +705,12 @@ class ContentMetadata(BaseModel):
         description="Quality assurance flags for detecting silent failures (Issue #380)",
     )
 
-    @computed_field
-    def detected_hosts(self) -> List[str]:
-        """Backward compatibility: Extract host names from speakers list."""
-        return [speaker.name for speaker in self.speakers if speaker.role == "host"]
-
-    @computed_field
-    def detected_guests(self) -> List[str]:
-        """Backward compatibility: Extract guest names from speakers list."""
-        return [speaker.name for speaker in self.speakers if speaker.role == "guest"]
+    # `detected_hosts` / `detected_guests` WERE computed fields here: a projection of `speakers` by
+    # role, written into every artifact. Removed in schema 1.2.0 (#2075). Once `speakers` carries
+    # people no voice was matched to, that projection would publish every one of them as a host or
+    # guest — the exact thing the record exists to stop. The pipeline's real inputs live in the
+    # speakers diagnostics sidecar (`tried.*`); readers that want hosts read `speakers` and filter
+    # on `placed`.
 
 
 @dataclass
@@ -806,6 +879,47 @@ class EpisodeMetadataDocument(BaseModel):
     episode: EpisodeMetadata
     content: ContentMetadata
     processing: ProcessingMetadata
+
+    @model_validator(mode="after")
+    def _roster_must_declare_its_source(self) -> "EpisodeMetadataDocument":
+        """A versioned artifact cannot carry a roster without saying where it came from (#2070).
+
+        THE MECHANISM, not a convention. ``speakers = diarized_speakers or hint`` put a measurement
+        and a guess in the same field, indistinguishable on disk — that is #2065's root cause, and
+        it survived for months precisely because nothing could detect it. Making the WRITER unable
+        to emit an unlabelled roster is what stops it recurring; a comment saying "always set this"
+        is the kind of thing that stops being true.
+
+        The grandfather clause is pinned to the SCHEMA VERSION rather than to a date or a habit.
+        Below ``PROVENANCE_SCHEMA_VERSION`` the field is legal to omit — that is every artifact
+        currently on disk — and ``identity.roster_provenance.roster_provenance`` reports those as
+        ``unknown``, its own answer, never silently upgraded to ``diarized``.
+
+        An EMPTY roster needs no label at any version: there is no origin to claim, and demanding
+        one would mean inventing provenance for a value that does not exist.
+
+        THE COMPARISON IS PARSED, NOT LEXICOGRAPHIC. ``"1.9.0" >= "1.10.0"`` is True as strings —
+        ``9`` sorts above ``1`` — so a string compare silently stops gating the moment the minor
+        version reaches double digits. It happens to be correct at today's pin (``.`` sorts below
+        every digit, so ``"1.10.0" >= "1.1.0"`` is True), which is exactly the kind of accident
+        that survives review and fails two years later with no error message. An unparsable or
+        missing version is treated as OLD: an artifact that cannot state its schema is
+        grandfathered, not rejected.
+        """
+        version = str(getattr(self.processing, "schema_version", "") or "")
+        try:
+            gated = Version(version) >= Version(PROVENANCE_SCHEMA_VERSION)
+        except InvalidVersion:
+            gated = False
+        if gated and self.content.speakers:
+            if not self.content.speakers_source:
+                raise ValueError(
+                    f"content.speakers_source is required at schema {version}: a roster must say "
+                    "whether it was 'diarized' (resolved from audio) or a 'hint' (the "
+                    "pre-diarization guess). See #2070."
+                )
+        return self
+
     summary: Optional[SummaryMetadata] = None
     grounded_insights: Optional[GroundedInsightsMetadata] = None
     knowledge_graph: Optional[KnowledgeGraphMetadata] = None
@@ -904,33 +1018,160 @@ def _filter_guest_placeholder_from_entity_lists(
     return (hosts if hosts else None, guests if guests else None)
 
 
-def _build_speakers_from_detected_names(
-    detected_hosts: Optional[List[str]], detected_guests: Optional[List[str]]
-) -> List[SpeakerInfo]:
-    """Build structured speakers array from detected_hosts and detected_guests.
+def _read_speaker_diagnostics(
+    output_dir: Optional[str], transcript_file_path: Optional[str]
+) -> Dict[str, Any]:
+    """The roster's ``speakers.diagnostics.json`` beside the transcript, or ``{}``.
 
-    Args:
-        detected_hosts: List of detected host names
-        detected_guests: List of detected guest names
-
-    Returns:
-        List of SpeakerInfo objects
+    It is the explanation of how names were chosen — what was tried, which method named each
+    voice. The record reads two things from it: each placed voice's method, and the names the
+    roster was given but could not place. Nothing else here depends on it.
     """
-    speakers: List[SpeakerInfo] = []
+    if not (output_dir and transcript_file_path):
+        return {}
+    base = os.path.splitext(os.path.join(output_dir, transcript_file_path))[0]
+    path = f"{base}.speakers.diagnostics.json"
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
-    # Add hosts
-    if detected_hosts:
-        for idx, host_name in enumerate(detected_hosts):
-            speaker_id = "host" if len(detected_hosts) == 1 else f"host_{idx + 1}"
-            speakers.append(SpeakerInfo(id=speaker_id, name=host_name, role="host"))
 
-    # Add guests
-    if detected_guests:
-        for idx, guest_name in enumerate(detected_guests):
-            speaker_id = "guest" if len(detected_guests) == 1 else f"guest_{idx + 1}"
-            speakers.append(SpeakerInfo(id=speaker_id, name=guest_name, role="guest"))
+def _clean_record_name(name: Any) -> str:
+    """A name as the record stores it: stripped, internal whitespace collapsed."""
+    return " ".join(str(name or "").split())
 
-    return speakers
+
+def _unplaced_speakers(
+    placed: Sequence[SpeakerInfo],
+    *,
+    diagnostics: Mapping[str, Any],
+    detected_hosts: Optional[List[str]],
+    detected_guests: Optional[List[str]],
+    feed_title: Optional[str],
+) -> List[SpeakerInfo]:
+    """People a source named for this episode whom no voice was matched to (#2075).
+
+    Three sources, in order of authority, each tagged in ``source``:
+
+    * ``feed_statement`` — the hosts the feed states (diagnostics ``tried.known_hosts``). This is
+      how a host the roster refused to guess a voice for is kept: The Daily states three hosts, the
+      roster could not tell which voice was Natalie Kitroeff, and until now she vanished from every
+      field on the episode.
+    * ``episode_metadata`` — names the show notes gave the roster that it could not bind
+      (diagnostics ``summary.unbound_names``), e.g. a guest corroboration refused.
+    * ``hint`` — the pre-listening guess passed to metadata generation. On an episode the roster
+      named nobody on, or that was never diarized, this is the only thing anyone stated.
+
+    None of them is a claim that the person spoke. That is the whole point of ``placed: false``.
+
+    Refused here, with the same predicates the placed roster uses, so a name kept out of the
+    speaking roster cannot come back through this list: role-word placeholders and bare speaker
+    labels, publishers and networks, and the show's own name. A spelling variant of a placed person
+    (``Dr. Rafael Prieto-Curiel`` beside ``Rafael Prieto-Curiel``) is the same human and is not
+    listed twice.
+    """
+    from ..providers.ml.diarization.roster import _same_person
+    from ..speaker_detectors.hosts import names_the_show
+    from ..speaker_detectors.normalization import is_default_speaker_name
+
+    tried_raw = diagnostics.get("tried")
+    tried: Mapping[str, Any] = tried_raw if isinstance(tried_raw, dict) else {}
+    summary_raw = diagnostics.get("summary")
+    summary: Mapping[str, Any] = summary_raw if isinstance(summary_raw, dict) else {}
+
+    candidates: List[Tuple[str, str, str]] = []  # (name, role, source)
+    for n in tried.get("known_hosts") or []:
+        candidates.append((n, "host", "feed_statement"))
+    for n in detected_hosts or []:
+        candidates.append((n, "host", "hint"))
+    for n in summary.get("unbound_names") or []:
+        candidates.append((n, "guest", "episode_metadata"))
+    for n in detected_guests or []:
+        candidates.append((n, "guest", "hint"))
+
+    kept: List[SpeakerInfo] = []
+    for raw_name, role, source in candidates:
+        name = _clean_record_name(raw_name)
+        # Two placeholder predicates, because they cover different shapes: `is_bare_speaker_label`
+        # knows `SPEAKER_01` and the role words, `is_default_speaker_name` knows the providers'
+        # failure tuple (`unknown_guest_1`). Either alone lets the other through.
+        if (
+            not name
+            or is_bare_speaker_label(name)
+            or is_default_speaker_name(name)
+            or looks_like_publisher(name)
+        ):
+            continue
+        if feed_title and names_the_show(name, feed_title):
+            continue
+        if any(name.lower() == p.name.lower() or _same_person(name, p.name) for p in placed):
+            continue
+        if any(name.lower() == k.name.lower() or _same_person(name, k.name) for k in kept):
+            continue
+        kept.append(
+            SpeakerInfo(
+                id=f"unplaced_{len(kept) + 1}",
+                name=name,
+                role=role,
+                placed=False,
+                voices=[],
+                source=source,
+            )
+        )
+    return kept
+
+
+def _build_speaker_record(
+    output_dir: Optional[str],
+    transcript_file_path: Optional[str],
+    detected_hosts: Optional[List[str]],
+    detected_guests: Optional[List[str]],
+    feed_title: Optional[str],
+) -> Tuple[List[SpeakerInfo], Optional[int]]:
+    """The episode's speaker record: everyone placed on a voice, then everyone only named (#2075).
+
+    Operator decision 2026-09-17: ONE record per episode, and every surface that shows people is
+    written from it. Before this, `speakers` held EITHER the diarized roster OR — when the roster
+    named nobody, or the episode was never diarized — the pre-listening guess, indistinguishable in
+    the artifact. That second case is how an a16z episode whose transcript names no voice published
+    eight hosts in its graph. Now both live in one list and each entry says which it is.
+
+    Returns ``(speakers, num_speakers)``; ``num_speakers`` is the diarizer's voice count, or
+    ``None`` when there was no diarization.
+    """
+    diarized, num_speakers = (
+        _build_speakers_from_diarized_segments(output_dir, transcript_file_path, detected_guests)
+        if output_dir
+        else (None, None)
+    )
+    placed: List[SpeakerInfo] = list(diarized or [])
+    if feed_title:
+        # The SHOW is not a person on it (#2064). The graph already refuses it, so a record that
+        # placed it would list a speaker no surface casts. A transcript still labelled with the
+        # show's name is then reported by the sync check (LABEL_NOT_PLACED) — a roster to re-run.
+        from ..speaker_detectors.hosts import names_the_show
+
+        placed = [sp for sp in placed if not names_the_show(sp.name, feed_title)]
+    diagnostics = _read_speaker_diagnostics(output_dir, transcript_file_path)
+    method_by_voice: Dict[str, str] = {}
+    for v in diagnostics.get("voices") or []:
+        if isinstance(v, dict) and v.get("voice") and v.get("source"):
+            method_by_voice[str(v["voice"])] = str(v["source"])
+    for sp in placed:
+        sp.source = next((method_by_voice[v] for v in sp.voices if v in method_by_voice), "roster")
+    unplaced = _unplaced_speakers(
+        placed,
+        diagnostics=diagnostics,
+        detected_hosts=detected_hosts,
+        detected_guests=detected_guests,
+        feed_title=feed_title,
+    )
+    return placed + unplaced, num_speakers
 
 
 def _build_speakers_from_diarized_segments(
@@ -949,7 +1190,7 @@ def _build_speakers_from_diarized_segments(
     voice and ``num_speakers`` reflects the diarizer's voice count.
 
     Returns ``(speakers, num_speakers)``, or ``(None, None)`` when no diarized segments exist
-    (caller falls back to ``_build_speakers_from_detected_names``).
+    (the caller, :func:`_build_speaker_record`, then records only the named-but-unplaced).
     """
     if not transcript_file_path:
         return None, None
@@ -971,6 +1212,8 @@ def _build_speakers_from_diarized_segments(
     raw_ids: set[str] = set()
     # Preserve first-appearance order of named voices for stable host/guest ids.
     named_order: List[str] = []
+    # Which diarization voices carry each name — the record's `voices` (#2075).
+    voices_by_label: dict[str, List[str]] = {}
     # The roster's authoritative per-voice role, persisted on each named segment (first wins). The
     # roster decides host vs guest; the pre-diarization detected_guests hint is only a fallback.
     role_by_label: dict[str, str] = {}
@@ -1000,6 +1243,8 @@ def _build_speakers_from_diarized_segments(
         ):
             if label not in named_order:
                 named_order.append(label)
+            if raw and raw not in voices_by_label.setdefault(label, []):
+                voices_by_label[label].append(raw)
             seg_role = s.get("speaker_role")
             if label not in role_by_label and seg_role in ("host", "guest"):
                 role_by_label[label] = seg_role
@@ -1017,12 +1262,21 @@ def _build_speakers_from_diarized_segments(
         # carries no role (legacy sidecars written before the role was persisted).
         role = role_by_label.get(name) or ("guest" if name.lower() in guest_set else "host")
         (guests if role == "guest" else hosts).append(name)
+    # Every name here was read off a segment the diarizer attributed to a voice: PLACED (#2075).
     for idx, name in enumerate(hosts):
         sid = "host" if len(hosts) == 1 else f"host_{idx + 1}"
-        speakers.append(SpeakerInfo(id=sid, name=name, role="host"))
+        speakers.append(
+            SpeakerInfo(
+                id=sid, name=name, role="host", placed=True, voices=voices_by_label.get(name, [])
+            )
+        )
     for idx, name in enumerate(guests):
         sid = "guest" if len(guests) == 1 else f"guest_{idx + 1}"
-        speakers.append(SpeakerInfo(id=sid, name=name, role="guest"))
+        speakers.append(
+            SpeakerInfo(
+                id=sid, name=name, role="guest", placed=True, voices=voices_by_label.get(name, [])
+            )
+        )
     return speakers, num_speakers
 
 
@@ -1040,47 +1294,36 @@ class _HasNameAndRole(Protocol):
 
 def _speaker_lists_for_graph(
     speakers: Optional[Sequence[_HasNameAndRole]],
-    detected_hosts: Optional[List[str]],
-    detected_guests: Optional[List[str]],
     feed_title: Optional[str] = None,
 ) -> Tuple[List[str], List[str]]:
-    """``(hosts, guests)`` for the graph, preferring the diarization ROSTER over the hint (#2062).
+    """``(hosts, guests)`` for the graph: the people a VOICE was matched to, and nobody else.
 
-    ``detected_hosts`` / ``detected_guests`` are computed BEFORE diarization, from the feed and the
-    show notes. For a network feed they are routinely empty: the host is named by the transcript
-    self-intro, not the RSS author. Diarization then resolves the real roster into *speakers*, which
-    carries each voice's authoritative ``role``.
+    THE RULE (operator decision 2026-09-17, #2075): one speaker record per episode, and a person
+    becomes a host or guest in the graph only if a diarized voice was matched to them. The record is
+    ``content.speakers``; each entry says whether it was ``placed``.
 
-    Passing the pre-diarization hint to the graph builder is what shipped a corpus where 0.6% of
-    Person nodes are ``guest`` and 89.5% are ``mentioned`` — measured over a 330-episode
-    feed-stratified production sample on 2026-09-13, where the roster had named a guest in 66.9% of
-    episodes and 93.2% of those guests never reached ``kg.json``. Every human on an episode then
-    renders as a contributor, and the guest — the reason most listeners open the episode — is never
-    shown as the guest.
+    What this function no longer does, each removed on purpose:
 
-    HOST AND GUEST ARE SPEAKING ROLES. When the roster heard the episode it is the ONLY source
-    used, because it is the only source that knows who opened their mouth. The hint is a fallback
-    for episodes with no roster at all, not a supplement to one.
+    * **It takes no pre-listening hint.** ``detected_hosts`` / ``detected_guests`` were a guess
+      made from the feed and show notes before any audio was heard. Passed to the graph, that guess
+      shipped a corpus where 0.6% of Person nodes were ``guest`` and 89.5% ``mentioned`` (#2062),
+      and later cast eight a16z hosts on episodes whose transcripts named none of them. People the
+      guess names now live in the record as ``placed: false``.
+    * **It no longer falls back to the hint when the roster is empty.** An episode that was never
+      diarized, or was diarized and named nobody, casts nobody (decision 2026-09-17, which reverses
+      the documented fallback). Measured on the production snapshot: 124 no-voice episodes carried
+      114 host/guest nodes no voice was matched to.
+    * **It no longer injects feed hosts the roster abstained on.** The 2026-09-16 decision kept
+      them as "feed-level participants" with role ``host``; it is superseded. They are kept in the
+      record as ``placed: false`` instead, where no surface can read them as speakers.
 
-    An earlier version of this merged the two additively, on the reasoning that a guest named in
-    the show notes whose voice the roster could not place should not be dropped. Production says
-    otherwise: on the episodes where diarization named every voice it heard, 19.4% of host nodes
-    and 14.3% of guest nodes belong to someone who did not speak. (Counting ALL episodes gives
-    36.5%/40%, but that conflates "was not there" with "spoke but was never named" — a partial
-    roster is silent about its anonymous voices, so the larger figure is an upper bound.) The
-    failures are not exotic — a show's regular co-host
-    injected into an episode they sat out ("Sarah Guo" on an episode where Elad Gil interviews
-    Glenn Fogel), the SHOW itself as a person ("The China-Global South Project"), and ASR/name
-    variants of someone who did speak ("Alexandra Karppi" where "Alexander Carpi" spoke, creating
-    two people out of one).
-
-    So a name the roster never heard does not become a host or a guest here. It is not erased —
-    if the transcript mentions them, extraction still puts them in the graph as ``mentioned``,
-    which is what they are.
+    Pre-1.2.0 artifacts carry no ``placed``. For them every named entry of the roster is taken, as
+    before — that roster was the diarization's own output — but neither the fallback nor the
+    injection above applies any more, so re-deriving an old artifact can only REMOVE a cast member
+    the audio never supported, never add one.
 
     Order is preserved and duplicates removed case-insensitively; the first spelling wins.
     """
-    roster_role: Dict[str, str] = {}
     hosts: List[str] = []
     guests: List[str] = []
     seen: set[str] = set()
@@ -1119,25 +1362,23 @@ def _speaker_lists_for_graph(
         seen.add(key)
         (guests if role == "guest" else hosts).append(clean)
 
-    for sp in speakers or []:
+    # A RAW DIARIZATION LABEL IS NOT A PERSON. An abstained seat arrives as `SPEAKER_00` with
+    # `role="host"`; taken literally that publishes the label itself as a host Person node. Same
+    # guard as `graph_id_utils.is_bare_speaker_label`, which also covers the role words.
+    from ..graph_id_utils import is_bare_speaker_label
+
+    entries = list(speakers or [])
+    is_record = any(getattr(sp, "placed", None) is not None for sp in entries)
+    for sp in entries:
+        if is_record and getattr(sp, "placed", None) is not True:
+            continue
         nm = (getattr(sp, "name", "") or "").strip()
+        if not nm or is_bare_speaker_label(nm):
+            continue
         rl = (getattr(sp, "role", "") or "").strip().lower()
-        if nm and rl in ("host", "guest"):
-            roster_role.setdefault(nm.lower(), rl)
-    for sp in speakers or []:
-        nm = (getattr(sp, "name", "") or "").strip()
-        if nm:
-            _take(nm, roster_role.get(nm.lower(), "host"))
-    if roster_role:
-        # The roster heard this episode. It is authoritative about who spoke, and a name it never
-        # heard did not speak — publishing it as a host or guest is the error measured above.
-        return hosts, guests
-    # No roster: the episode was never diarized, or diarization named nobody. The hint is then the
-    # only evidence there is, so fall back to it wholesale rather than returning nothing.
-    for nm in detected_hosts or []:
-        _take(nm, "host")
-    for nm in detected_guests or []:
-        _take(nm, "guest")
+        # A voice with no usable role is treated as a host — matching
+        # `_build_speakers_from_diarized_segments`, so the two cannot disagree.
+        _take(nm, rl if rl in ("host", "guest") else "host")
     return hosts, guests
 
 
@@ -2021,8 +2262,6 @@ def _auto_repair_summary(summary_text: str, out_of_source_entities: List[str], n
 
 def _build_qa_flags(
     speakers: List[SpeakerInfo],
-    detected_hosts: Optional[List[str]],
-    detected_guests: Optional[List[str]],
     summary_text: Optional[str] = None,
     nlp: Optional[Any] = None,
     corrected_entities: Optional[List[EntityCorrection]] = None,
@@ -2031,10 +2270,14 @@ def _build_qa_flags(
 ) -> QAFlags:
     """Build QA flags from speaker detection and summary information (Issue #380).
 
+    Read from the speaker RECORD (#2075), not from the pre-listening detection:
+    ``speaker_detection`` says whether a host and a guest were PLACED on voices, and the
+    summary-consistency check compares the summary against every person the record names (placed
+    or not). It used to read ``detected_hosts``/``detected_guests`` — the guess — so an episode
+    whose audio named nobody could report ``ok``.
+
     Args:
-        speakers: List of detected speakers
-        detected_hosts: List of detected host names (may be None)
-        detected_guests: List of detected guest names (may be None)
+        speakers: The episode's speaker record
         summary_text: Optional summary text for entity consistency checking
         nlp: Optional spaCy NLP model for entity extraction
         corrected_entities: Optional list of entity corrections applied
@@ -2051,9 +2294,11 @@ def _build_qa_flags(
         speaker_names = {s.name for s in speakers}
         defaults_injected = any(name in DEFAULT_SPEAKER_NAMES for name in speaker_names)
 
-    # Determine speaker detection status
-    has_hosts = bool(detected_hosts)
-    has_guests = bool(detected_guests)
+    # Determine speaker detection status — from the voices that were actually placed. A pre-1.2.0
+    # entry carries no flag and was the diarization's own output, so it counts as placed.
+    placed = [s for s in speakers or [] if s.placed is not False]
+    has_hosts = any(s.role == "host" for s in placed)
+    has_guests = any(s.role == "guest" for s in placed)
 
     if has_hosts and has_guests:
         speaker_detection = "ok"
@@ -2068,11 +2313,7 @@ def _build_qa_flags(
 
     if summary_text:
         # Combine all extracted entities for consistency check
-        extracted_entities = []
-        if detected_hosts:
-            extracted_entities.extend(detected_hosts)
-        if detected_guests:
-            extracted_entities.extend(detected_guests)
+        extracted_entities = [s.name for s in speakers or [] if s.name]
 
         summary_entity_mismatch, summary_has_named_entities = _check_entity_consistency(
             extracted_entities, summary_text, nlp
@@ -2126,6 +2367,7 @@ def _build_content_metadata(
     episode_description: Optional[str] = None,
     output_dir: Optional[str] = None,
     diarization_num_speakers: Optional[int] = None,
+    speakers_source: Optional[RosterSource] = None,
 ) -> ContentMetadata:
     """Build ContentMetadata object.
 
@@ -2167,8 +2409,6 @@ def _build_content_metadata(
     # Build QA flags
     qa_flags = _build_qa_flags(
         speakers=speakers,
-        detected_hosts=detected_hosts,
-        detected_guests=detected_guests,
         summary_text=summary_text,
         nlp=nlp,
         corrected_entities=corrected_entities,
@@ -2180,12 +2420,12 @@ def _build_content_metadata(
     # Extract entities from transcript (hosts/guests) and summary
     normalized_entities: List[EntityAlias] = []
 
-    # Entities from transcript (hosts and guests)
-    transcript_entities: List[str] = []
-    if detected_hosts:
-        transcript_entities.extend(detected_hosts)
-    if detected_guests:
-        transcript_entities.extend(detected_guests)
+    # Entities from transcript: the people PLACED on its voices (#2075). Provenance "transcript"
+    # claims the name was heard; the pre-listening guess (`detected_hosts`/`detected_guests`) was
+    # never heard, and a person only named stays in the record as `placed: false`, not here.
+    transcript_entities: List[str] = [
+        s.name for s in speakers or [] if s.placed is not False and s.name
+    ]
 
     # Normalize transcript entities
     transcript_entity_map: Dict[str, EntityAlias] = {}
@@ -2245,6 +2485,7 @@ def _build_content_metadata(
         whisper_model=whisper_model,
         speakers=speakers,
         diarization_num_speakers=diarization_num_speakers,
+        speakers_source=speakers_source,
         normalized_entities=normalized_entities,
         expectations=expectations,
         qa_flags=qa_flags,
@@ -3446,6 +3687,32 @@ def _generate_episode_summary(  # noqa: C901
         raise ValueError(redact_for_log(error_msg))
 
 
+def _existing_metadata_path_for_reprocess(
+    episode: Episode,  # type: ignore[valid-type]
+    output_dir: str,
+    cfg: config.Config,
+) -> Optional[str]:
+    """This episode's EXISTING metadata path, when a reprocess stage is running (#2075).
+
+    ``None`` for a normal run, for an episode the corpus does not already hold, or when the corpus
+    layout is not in use — in each of those the fresh run directory is the right place.
+    """
+    stage = str(getattr(cfg, "pipeline_stage", "") or "")
+    if stage not in config.STAGES_THAT_NEVER_TRANSCRIBE and stage != "rederive_only":
+        return None
+    from . import run_index
+
+    corpus_root = run_index.corpus_root_from_cfg(cfg) or output_dir
+    try:
+        rel = run_index.episode_metadata_rel_in_corpus(episode, corpus_root)
+    except (OSError, ValueError):
+        return None
+    if not rel:
+        return None
+    existing = os.path.join(corpus_root, rel)
+    return existing if os.path.isfile(existing) else None
+
+
 def _determine_metadata_path(
     episode: Episode,  # type: ignore[valid-type]
     output_dir: str,
@@ -3466,6 +3733,15 @@ def _determine_metadata_path(
     Returns:
         Full path to metadata file
     """
+    # A REPROCESS STAGE WRITES WHERE THE EPISODE ALREADY LIVES. Writing to this run's fresh output
+    # directory produced a SECOND record for one episode — a full metadata artifact alone in a run
+    # whose `transcripts/` is empty, while the transcript it describes stayed in the original run.
+    # One episode then had two records, which is the exact thing #2075 exists to prevent, and it
+    # broke the next stage: `rederive_only` resolves the NEWEST record, found no transcript beside
+    # it, and refused an episode whose transcript was on disk two directories away.
+    existing = _existing_metadata_path_for_reprocess(episode, output_dir, cfg)
+    if existing is not None:
+        return existing
     base_name = filesystem.build_whisper_output_name(
         episode.idx, episode.title_safe, run_suffix
     ).replace(".txt", "")
@@ -3647,7 +3923,7 @@ def _prepare_base_metadata_objects(
     detected_guests: Optional[List[str]],
     pipeline_metrics=None,
     transcript_file_path: Optional[str] = None,
-) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], Optional[int]]:
+) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], Optional[int], Optional[RosterSource]]:
     """Prepare base metadata objects (feed, episode, speakers).
 
     ProcessingMetadata (including stage_timings) is built after summarization so
@@ -3699,16 +3975,19 @@ def _prepare_base_metadata_objects(
         episode_number,
         episode_image_url,
     )
-    # #876: prefer the diarized roster (host + guests + voice count) recorded in the saved
-    # segments — it names the host on network feeds where detected_hosts is empty. Fall back
-    # to the pre-diarization detected names when there are no diarized segments.
-    diarized_speakers, num_speakers = _build_speakers_from_diarized_segments(
-        output_dir, transcript_file_path, detected_guests
+    # #2075: ONE speaker record. Placed voices from the diarized segments, then every person a
+    # source named but no voice was matched to, each marked. See `_build_speaker_record`.
+    speakers, num_speakers = _build_speaker_record(
+        output_dir,
+        transcript_file_path,
+        detected_hosts,
+        detected_guests,
+        getattr(feed, "title", None),
     )
-    speakers = diarized_speakers or _build_speakers_from_detected_names(
-        detected_hosts, detected_guests
-    )
-    return feed_metadata, episode_metadata, speakers, num_speakers
+    # #2070: `speakers_source` stays, now DERIVED from the record rather than decided separately:
+    # `diarized` when at least one voice was placed, `hint` when every entry is only named.
+    speakers_source = roster_source(speakers, diarized=any(sp.placed for sp in speakers))
+    return feed_metadata, episode_metadata, speakers, num_speakers, speakers_source
 
 
 def _get_nlp_model_for_reconciliation(
@@ -4434,7 +4713,7 @@ def generate_episode_metadata(  # noqa: C901
     except Exception:  # never block metadata generation on correlation
         pass
 
-    feed_metadata, episode_metadata, speakers, diarization_num_speakers = (
+    feed_metadata, episode_metadata, speakers, diarization_num_speakers, speakers_source = (
         _prepare_base_metadata_objects(
             feed,
             episode,
@@ -4544,6 +4823,7 @@ def generate_episode_metadata(  # noqa: C901
         episode_description=episode_description,
         output_dir=output_dir,
         diarization_num_speakers=diarization_num_speakers,
+        speakers_source=speakers_source,
     )
 
     # Determine output path (needed for skip_existing check and for GIL path)
@@ -4744,6 +5024,13 @@ def generate_episode_metadata(  # noqa: C901
                     episode_duration_ms=gi_episode_duration_ms,
                     prefilled_insights=prefilled_insights_arg,
                     feed_id=feed_id,
+                    # #2065: GI mints its speakers from the segments sidecar, NOT through
+                    # `_speaker_lists_for_graph`, so the show-name refusal that protects kg.json
+                    # never saw this path. Without the title that guard is inert by design
+                    # (`names_the_show` has no opinion on an empty title), which is exactly how
+                    # 53 SPOKEN_BY edges came to point at a Person named `Machine Learning
+                    # Street`. Pass it or the guard does nothing.
+                    feed_title=getattr(feed, "title", None),
                 )
                 if _gi_probe is not None:
                     gi_cost = _gi_probe.gi_cost_usd
@@ -4888,9 +5175,7 @@ def generate_episode_metadata(  # noqa: C901
         # #2062: the graph must be told who the DIARIZATION ROSTER heard, not who the feed's
         # show notes guessed before a single second of audio was read. Passing the raw parameters
         # here is what left 93.2% of roster-named guests out of kg.json on production.
-        graph_hosts, graph_guests = _speaker_lists_for_graph(
-            speakers, detected_hosts, detected_guests, getattr(feed, "title", None)
-        )
+        graph_hosts, graph_guests = _speaker_lists_for_graph(speakers, getattr(feed, "title", None))
         kg_source = getattr(cfg, "kg_extraction_source", "provider")
         kg_provider_arg: Optional[Any] = None
         kg_provider_extra: Optional[Any] = None
@@ -5067,12 +5352,31 @@ def generate_episode_metadata(  # noqa: C901
     # all three. It is also the SAME function the backfill migration runs, so the pipeline and
     # the migration cannot drift into disagreeing about who "Sam" is.
     if bridge_gi_payload is not None and bridge_kg_payload is not None:
+        # SNAPSHOT BEFORE THE PASS, so a failure can put the payloads BACK. Everything below
+        # reassigns `bridge_gi_payload` / `bridge_kg_payload` in place, and the `except` used to
+        # only log — leaving the in-memory GI rewritten while KG was not. That is not inert:
+        # `apply_typed_mentions_and_rewrite_gi` and the topic-alignment step further down write
+        # GI again on essentially every fresh episode, so a KG-side failure here shipped a
+        # half-scoped GI to disk and the stage ledger recorded the episode as left unscoped —
+        # which was false for one of the two layers.
+        #
+        # This is the shape of the 2026-08-31 incident (10 episodes, see
+        # `_write_scoped_artifacts_both_or_neither`). That incident's trigger was fixed; this
+        # path was not, because the on-disk both-or-neither restore happens INSIDE the try and
+        # the later writers are outside it.
+        _pre_scope_gi, _pre_scope_kg = bridge_gi_payload, bridge_kg_payload
         try:
             from ..identity.bare_name_scope import (
                 person_ids_in,
                 person_node_ids_in,
                 plan_bare_name_ids,
                 rewrite_ids,
+            )
+            from ..identity.intra_episode_merge import (
+                apply_display_names,
+                plan_display_names,
+                plan_heal_display_names,
+                plan_intra_episode_merges,
             )
 
             # ROSTER is wide (everything `rewrite_ids` can write, incl. quote `speaker_id` and
@@ -5089,9 +5393,82 @@ def generate_episode_metadata(  # noqa: C901
                 heal=bool(getattr(cfg, "bare_name_heal", True)),
                 candidate_ids=_candidates,
             )
+            _gi_changes = _kg_changes = 0
             if _id_map:
                 bridge_gi_payload, _gi_changes = rewrite_ids(bridge_gi_payload, _id_map)
                 bridge_kg_payload, _kg_changes = rewrite_ids(bridge_kg_payload, _id_map)
+                # THE HEAL HAS TO UNITE THE LABEL TOO, not just the id. `rewrite_ids` gives the GI
+                # node the resolved id and keeps its own name — the bare label that needed
+                # resolving — so `person:kashmir-hill` read "Kashmir" in gi.json and "Kashmir
+                # Hill" in kg.json. Measured: 42 ids disagree across the two artifacts,
+                # 13 with the GI name a strict prefix of KG's, which is this exact signature.
+                # Unlike a merge, this is not two plausible spellings — it is a bare label that was
+                # just resolved TO the fuller name, so KG's resolved name wins outright.
+                _heal_renames = plan_heal_display_names(
+                    bridge_gi_payload, bridge_kg_payload, _id_map
+                )
+                if _heal_renames:
+                    bridge_gi_payload, _gi_heal_renames = apply_display_names(
+                        bridge_gi_payload, _heal_renames
+                    )
+                    bridge_kg_payload, _kg_heal_renames = apply_display_names(
+                        bridge_kg_payload, _heal_renames
+                    )
+                    _gi_changes += _gi_heal_renames
+                    _kg_changes += _kg_heal_renames
+
+            # #2056: one human, two ids, ONE episode — the speaker path minted `person:aaron-levy`
+            # from ASR of the spoken name while the entity extractor minted `person:aaron-levie`
+            # from the text. `entity_clusters._are_xep_variants` is the CROSS-episode test and is
+            # never asked about two ids inside one episode, so the resolver that "already matches
+            # the pair" never runs on this shape.
+            #
+            # Runs AFTER the bare-name pass, deliberately: that pass creates the scoped
+            # `person:unresolved-<name>-<episode>` ids, and this one skips them so the two rules
+            # cannot both rewrite the same id and drift about who a person is.
+            _merge_map = plan_intra_episode_merges(bridge_gi_payload, bridge_kg_payload)
+            if _merge_map:
+                # WHICH SPELLING SURVIVES is decided by the feed's own prose, not by which layer
+                # minted the id. The title/description are human-written — not transcribed, not
+                # generated — so they are authoritative where neither ASR nor the LLM is. Measured
+                # over 287 artifacts, provenance alone gets this wrong more often than right.
+                _ep_prose = " ".join(
+                    str(part or "")
+                    for part in (
+                        getattr(episode, "title", ""),
+                        locals().get("episode_description") or "",
+                    )
+                )
+                _renames = plan_display_names(
+                    bridge_gi_payload,
+                    bridge_kg_payload,
+                    _merge_map,
+                    episode_text=_ep_prose,
+                )
+                bridge_gi_payload, _gi_merge_changes = rewrite_ids(bridge_gi_payload, _merge_map)
+                bridge_kg_payload, _kg_merge_changes = rewrite_ids(bridge_kg_payload, _merge_map)
+                # The id follows who SPOKE; the display name follows the FEED's spelling. Both
+                # payloads get the same `_renames` map, and that is the point: `rewrite_ids` keeps
+                # whichever node is FIRST in each payload's own node list, and GI and KG order
+                # theirs differently — so without this the two artifacts show different names for
+                # the id they just agreed on. Measured on the sample: 8 of 11 merges did exactly
+                # that. Applying it to both is what makes the merge single-valued.
+                bridge_gi_payload, _gi_rename_changes = apply_display_names(
+                    bridge_gi_payload, _renames
+                )
+                bridge_kg_payload, _kg_rename_changes = apply_display_names(
+                    bridge_kg_payload, _renames
+                )
+                # A RENAME IS A CHANGE. The write gate below decides per layer from these counts,
+                # and counting only ID rewrites meant a layer that was renamed but not re-ID'd
+                # looked unchanged and was never written. That is the normal shape here: the
+                # merged-away id usually lives only in KG, so GI gets 0 id changes — and on the
+                # production snapshot the decided name was dropped from gi.json on 14 of the 117
+                # episodes this pass touches, leaving one id with two names across the layers.
+                _gi_changes += _gi_merge_changes + _gi_rename_changes
+                _kg_changes += _kg_merge_changes + _kg_rename_changes
+
+            if _id_map or _merge_map:
                 # #1862 defect 1: write each layer only if it changed, and refuse a planned KG
                 # change with no bound target (``generate_kg`` off) rather than desync the layers.
                 _kg_write_path = kg_path if "kg_path" in locals() and kg_path else None
@@ -5104,13 +5481,26 @@ def generate_episode_metadata(  # noqa: C901
                     _kgp,
                     bridge_kg_payload,
                 )
+            if _id_map:
                 logger.info(
                     "[%s] Scoped %d bare person id(s): %s",
                     episode.idx if hasattr(episode, "idx") else episode_id,
                     len(_id_map),
                     ", ".join(f"{k}->{v}" for k, v in sorted(_id_map.items())[:5]),
                 )
+            if _merge_map:
+                logger.info(
+                    "[%s] Merged %d duplicate person id(s) within the episode: %s",
+                    episode.idx if hasattr(episode, "idx") else episode_id,
+                    len(_merge_map),
+                    ", ".join(f"{k}->{v}" for k, v in sorted(_merge_map.items())[:5]),
+                )
         except Exception as bare_name_exc:  # noqa: BLE001 - never lose the episode over this
+            # BOTH LAYERS GO BACK. Partial in-memory state is worse than no state: the later GI
+            # writers cannot tell a half-applied plan from a completed one, and the result is one
+            # human under two ids across kg.json and gi.json — the defect this whole pass exists
+            # to remove, caused by the pass failing rather than by it not running.
+            bridge_gi_payload, bridge_kg_payload = _pre_scope_gi, _pre_scope_kg
             logger.warning(
                 "[%s] Bare-name scoping failed (non-fatal, ids left as minted): %s",
                 episode.idx if hasattr(episode, "idx") else episode_id,

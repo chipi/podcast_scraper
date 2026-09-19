@@ -28,6 +28,13 @@ logger = logging.getLogger(__name__)
 _DEFAULT_INTERVAL_S = 30.0
 
 
+def _warm_entity_id_map(root: Path) -> None:
+    """Build the corpus-wide entity id map into its shared cache (import kept local/optional)."""
+    from ..kg.entity_clusters import cached_entity_id_map
+
+    cached_entity_id_map(root)
+
+
 def warm_caches(root: Path) -> None:
     """Populate the consumer read caches for ``root`` (catalog, slug index, KG index).
 
@@ -43,6 +50,10 @@ def warm_caches(root: Path) -> None:
         ("catalog", lambda: cached_catalog(root)),
         # resolve_slug builds + caches the slug index on any non-empty query (then misses harmless).
         ("slug_index", lambda: resolve_slug(root, "\x00warm")),
+        # BEFORE kg_index, which consumes it. The entity id map is the most expensive thing the
+        # read path can touch — a full corpus scan, ~90s on the production snapshot — and three
+        # surfaces need it. Warming it here is what keeps that cost off a reader's request.
+        ("entity_id_map", lambda: _warm_entity_id_map(root)),
         ("kg_index", lambda: get_kg_index(root)),
     )
     for label, fn in steps:

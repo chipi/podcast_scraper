@@ -29,11 +29,13 @@ from __future__ import annotations
 import difflib
 import logging
 import re
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
 from ..builders.bridge_builder import strip_layer_prefixes
+from ..perf_cache import cache_peek, corpus_mtime, get_or_compute
 from .filters import _clean_entity_name, _is_acronymish
 
 logger = logging.getLogger(__name__)
@@ -55,6 +57,28 @@ ENTITY_CLUSTERS_SCHEMA_VERSION = "1.0"
 _TOKEN_RATIO = 0.65  # per-aligned-token spelling-variant floor
 _OVERALL_RATIO = 0.70  # whole-string floor
 _VERSION_TOKEN_RE = re.compile(r"\d")  # a differing token containing a digit blocks merge
+
+#: A well-formed roman numeral. Regnal numbers are how monarchs are told apart, and
+#: ``_VERSION_TOKEN_RE`` only sees ARABIC digits — so ``Charles I`` and ``Charles II`` reached the
+#: ratio test and merged (found by the guardrail matrix; *The Rest Is History* is in the corpus).
+#:
+#: Applied ONLY when BOTH differing tokens are roman-shaped AND sit in the LAST position. A bare
+#: numeral test would be unsafe: ``li`` is a valid roman numeral and a common Chinese surname, and
+#: ``md`` is one too (1500).
+#:
+#: An earlier version of this comment claimed the last-token scope was what kept ``Li`` out of
+#: reach, "because Li occupies first position". That is false, and the corpus says so: of 13,642
+#: person nodes, 127 end in a roman-shaped token, including ``Fei-Fei Li`` (x17), ``Jennifer Li``,
+#: ``Ang Li``, ``Jia Li`` and ``Peter Attia, MD`` — Western order, surname LAST.
+#:
+#: What actually makes it safe is the conjunction: the guard fires only when the two names differ
+#: in that position AND both spellings are roman-shaped. For real names that means ``Jia Li`` vs
+#: ``Jia Mi`` — two different people, correctly refused. And the guard can only ever REFUSE, so
+#: its failure mode is a false split (clutter), never a false merge (reassigned statements). One
+#: human whose surname drifted between two roman-shaped spellings would be split; none observed.
+_ROMAN_NUMERAL_RE = re.compile(
+    r"^(?=[ivxlcdm])m{0,4}(c[md]|d?c{0,3})(x[cl]|l?x{0,3})(i[xv]|v?i{0,3})$"
+)
 
 # Nicknames where the canonical pair differs by too much for the ratio test
 # (Michael→Mike, Robert→Rob/Bob) but the people are the same. Lowercase →
@@ -299,13 +323,35 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
             if diff_pairs and _nickname_token_equiv(*diff_pairs[0]):
                 return True
         return False
+    # A PERSON'S NAME MAY DRIFT IN ONLY ONE TOKEN (#2056). Measured over 287 production
+    # artifacts: every clearly-wrong same-show merge differs in BOTH tokens —
+    # 'Albert Einstein'=='Bert Vogelstein', 'Jensen Huang'=='Jesse Zhang', 'Li Lun'=='Lily Liu' —
+    # while almost every correct one differs in exactly one ('Bernard Leong'=='Bernard Leung',
+    # 'Stewart Brand'=='Stuart Brand', 'Joe Weisenthal'=='Joe Wiesenthal'). A transcription slip
+    # or typo lands on ONE token; two independent drifts is not one person spelled badly, it is
+    # two people who rhyme.
+    #
+    # This costs one real merge in the sample — 'Alexander Carpi'/'Alexandra Karppi', a genuine
+    # person whose name drifted twice — and prevents three false ones. Deliberate: a false split
+    # is visible clutter, a false merge reassigns one person's statements to another.
+    #
+    # People only. Org names are compositional and legitimately differ in more than one token.
+    if kind == "person" and sum(1 for x, y in zip(ta, tb) if x != y) > 1:
+        return False
     # Token-aligned: every differing token pair must be a spelling variant, not a
     # distinct content word (audio vs media) or a version token (3, v2).
-    for x, y in zip(ta, tb):
+    for pos, (x, y) in enumerate(zip(ta, tb)):
         if x == y:
             continue
         if _VERSION_TOKEN_RE.search(x) or _VERSION_TOKEN_RE.search(y):
             return False  # numeric/version distinction
+        if (
+            kind == "person"
+            and pos == len(ta) - 1
+            and _ROMAN_NUMERAL_RE.match(x)
+            and _ROMAN_NUMERAL_RE.match(y)
+        ):
+            return False  # regnal numbers: Charles I is not Charles II
         if _ratio(x, y) < _TOKEN_RATIO and not _nickname_token_equiv(x, y):
             return False  # distinct words, not a spelling variant
     return True
@@ -313,10 +359,15 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
 
 def collect_entity_candidates(corpus_dir: Path | str) -> Dict[str, EntityCandidate]:
     """Aggregate person/org entities corpus-wide with episode frequency + shows."""
-    from .corpus import load_kg_artifacts, scan_kg_artifact_paths
+    from .corpus import load_kg_artifacts, newest_run_artifact_paths, scan_kg_artifact_paths
 
     out: Dict[str, EntityCandidate] = {}
-    for _path, data in load_kg_artifacts(scan_kg_artifact_paths(Path(corpus_dir))):
+    # NEWEST RUN PER EPISODE — the same membership rule the catalog uses. A reprocessed
+    # episode's superseded run was still voting on who a person is (310 of 2,257 kg files on
+    # the production snapshot), which is exactly backwards after a `relabel_only` repair.
+    _root = Path(corpus_dir)
+    _paths = newest_run_artifact_paths(_root, scan_kg_artifact_paths(_root), ".kg.json")
+    for _path, data in load_kg_artifacts(_paths):
         episode_id = str(data.get("episode_id") or "")
         show = ""
         for node in data.get("nodes") or []:
@@ -421,6 +472,48 @@ def build_entity_id_map(
     return id_map
 
 
+#: One shared cache for the corpus-wide id map, and one lock in front of it.
+_ID_MAP_NS = "kg.entity_id_map"
+_ID_MAP_LOCK = threading.Lock()
+
+
+def cached_entity_id_map(
+    corpus_dir: Path | str, *, same_show_required: bool = True
+) -> Dict[str, str]:
+    """:func:`build_entity_id_map`, computed at most once per corpus change.
+
+    WHY THIS EXISTS RATHER THAN THREE CALLERS EACH CALLING THE BUILDER. The map is a full corpus
+    scan — **90 seconds** over the 2,257-episode production snapshot — and three surfaces need it:
+    the app KG index, ``server/cil_queries`` and ``search/corpus_graph``. Each kept its own cache
+    on the same token, so every ingest, migration or ``enrich-edges`` invalidated all three and
+    paid for the same scan three times.
+
+    ``perf_cache.get_or_compute`` deliberately runs ``compute()`` OUTSIDE its lock, which is right
+    for the cheap projections it was built for and wrong here: on a miss, every arriving request
+    thread starts its own 90-second scan. The lock below makes it single-flight — the first caller
+    builds, the rest wait and take the cached value — and the double-check inside means a caller
+    that waited does no work at all.
+
+    Warmed by ``server/app_cache_warm``, so a reader normally never sees the miss.
+    """
+    root = Path(corpus_dir)
+    key = (str(root.resolve()), bool(same_show_required))
+    token = corpus_mtime(root)
+    hit = cache_peek(_ID_MAP_NS, key, token)
+    if hit is not None:
+        return dict(hit)
+    with _ID_MAP_LOCK:
+        # Re-check: another thread may have built it while we waited for the lock.
+        return dict(
+            get_or_compute(
+                _ID_MAP_NS,
+                key,
+                token,
+                lambda: build_entity_id_map(root, same_show_required=same_show_required),
+            )
+        )
+
+
 def id_map_from_clusters_payload(payload: Dict[str, Any]) -> Dict[str, str]:
     """Reconstruct the ``variant_id → canonical_id`` map from a saved payload."""
     out: Dict[str, str] = {}
@@ -439,6 +532,7 @@ __all__ = [
     "EntityCandidate",
     "build_entity_canonical_map",
     "build_entity_id_map",
+    "cached_entity_id_map",
     "collect_entity_candidates",
     "id_map_from_clusters_payload",
 ]

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import difflib
 import re
+import unicodedata
 from typing import Dict, List, Optional, Sequence, Tuple
 
 # ---------------------------------------------------------------------------
@@ -212,9 +213,39 @@ _ORG_RATIO = 0.92  # orgs: strict; only very-high similarity merges
 _ACRONYM_MAX_LEN = 5  # single token ≤ this length is treated as an acronym
 
 
+def _fold_diacritics(text: str) -> str:
+    """``Łukasz`` -> ``Lukasz``. Decompose to NFKD and drop the combining marks.
+
+    NFKD splits a precomposed letter into base + combining accent, which ``Mn`` (Mark, nonspacing)
+    then identifies exactly — so this removes accents without a per-character table. Letters that
+    are not decomposable that way need the explicit map below.
+    """
+    decomposed = unicodedata.normalize("NFKD", text)
+    stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return stripped.translate(_UNDECOMPOSABLE_LETTERS)
+
+
+#: Letters NFKD leaves alone because the stroke/bar is part of the glyph, not a combining mark.
+#: `ł` is the one that matters here — `Łukasz Kaiser` is a real corpus name (#2056).
+_UNDECOMPOSABLE_LETTERS = str.maketrans(
+    {"ł": "l", "Ł": "L", "ø": "o", "Ø": "O", "đ": "d", "Đ": "D", "ð": "d", "þ": "th", "ı": "i"}
+)
+
+
 def _clean_entity_name(name: str) -> str:
-    """Lowercase, strip punctuation (keep ``&``/``-``), collapse whitespace."""
+    """Lowercase, FOLD DIACRITICS, strip punctuation (keep ``&``/``-``), collapse whitespace.
+
+    Folding is what makes ``Björk``/``Bjork`` one entity (#2056). ASR emits unaccented ASCII while
+    feed metadata carries the real spelling, so the same human routinely arrives spelled both
+    ways. Multi-token names survived that by accident — one changed character barely moves the
+    similarity ratio — but a single-token name did not, because `_is_acronymish` refuses to
+    fuzzy-match short single tokens at all (the UPS/USPS guard).
+
+    It also converts several near-matches into EXACT ones, which is a precision gain rather than
+    only a recall gain: an exact hit short-circuits before any similarity threshold is consulted.
+    """
     text = _APOSTROPHE_RE.sub("", str(name or "").lower())
+    text = _fold_diacritics(text)
     text = _PUNCTUATION_RE.sub(" ", text)
     return _MULTI_WHITESPACE_RE.sub(" ", text).strip()
 

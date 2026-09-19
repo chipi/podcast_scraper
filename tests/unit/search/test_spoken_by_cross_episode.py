@@ -65,8 +65,12 @@ def _write_episode(
                 "episode": {"episode_id": episode_id},
                 "content": {
                     "transcript_file_path": f"{stem}.txt",
-                    "detected_hosts": [host],
-                    "detected_guests": [GUEST],
+                    # Schema 1.2.0 (#2075): enrich-edges reads the speaker record only. A named
+                    # marker in the transcript is a voice the diarizer named: placed.
+                    "speakers": [
+                        {"id": "host", "name": host, "role": "host", "placed": True},
+                        {"id": "guest", "name": GUEST, "role": "guest", "placed": True},
+                    ],
                 },
                 "grounded_insights": {"artifact_path": f"{stem}.gi.json"},
             }
@@ -182,13 +186,11 @@ def test_no_detected_people_means_no_attribution(tmp_path):
         quote_text="Reliability is the real challenge in production.",
         insight_text="Reliability is the core production challenge.",
     )
-    # Drop BOTH detected host and guest: no known names -> no named turns -> the
-    # named markers ("Maya:", "Priya Sharma:") match no detected person, and the
-    # generic "Speaker N" fallback finds no "Speaker N" markers either.
+    # Empty the speaker record: no known names -> no named turns -> the named markers
+    # ("Maya:", "Priya Sharma:") match nobody, and nothing else may name a voice (#2075).
     meta_path = corpus / "metadata" / "ep1.metadata.json"
     meta = json.loads(meta_path.read_text())
-    meta["content"]["detected_hosts"] = []
-    meta["content"]["detected_guests"] = []
+    meta["content"]["speakers"] = []
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
 
     rc = run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(corpus)]), _LOG)

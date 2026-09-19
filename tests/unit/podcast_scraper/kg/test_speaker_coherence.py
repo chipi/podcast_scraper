@@ -284,3 +284,34 @@ class TestAShowIsNotAPersonWhoHostsIt:
         meta = self._meta("Africa Tech Summit Podcast", ("Africa Tech Summit", "host"))
         v = check_episode(meta, kg(("Africa Tech Summit", "host")), {"nodes": [], "edges": []})
         assert any("names the show" in x for x in v), v
+
+
+class TestFoldingMustNotEraseANonLatinName:
+    """A CJK or Cyrillic name must at minimum match ITSELF (advisor S2).
+
+    ``_fold`` ran ``re.sub(r"[^a-z0-9]+", " ", ...)`` after accent-stripping, which deletes every
+    character of an entirely non-Latin name. The fold returned ``""``, the empty guard returned
+    False, and so::
+
+        same_person('张川红', '张川红')             -> False
+        same_person('Владимир Путин', ...same...)  -> False
+
+    A speaker who cannot match themselves is "never spoke" on every coherence check and can never
+    be fuzzy-matched by the m0009 migration. Production carries Round Table China, China Plus,
+    ChinaTalk and The Naked Pravda.
+    """
+
+    @pytest.mark.parametrize(
+        "name",
+        ["张川红", "Владимир Путин", "محمد صلاح", "김정은", "Ἀριστοτέλης"],
+    )
+    def test_a_name_matches_itself(self, name: str) -> None:
+        assert same_person(name, name) is True
+
+    def test_latin_behaviour_is_unchanged(self) -> None:
+        assert same_person("Dr. Adam Rodman", "Adam Rodman") is True
+        assert same_person("Bernard Leong", "Bernard Leung") is True
+        assert same_person("Sarah Guo", "Elad Gil") is False
+
+    def test_two_different_cjk_names_are_not_the_same_person(self) -> None:
+        assert same_person("张川红", "李明") is False

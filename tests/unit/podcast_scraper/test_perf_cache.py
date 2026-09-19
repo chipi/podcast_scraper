@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from podcast_scraper import perf_cache
@@ -110,3 +112,91 @@ def test_lance_mtime_and_corpus_mtime(tmp_path):
     assert perf_cache.corpus_mtime(tmp_path) == pytest.approx(
         os.path.getmtime(tmp_path / "corpus_run_summary.json")
     )
+
+
+class TestTheTokenSeesAMigration:
+    """A corpus migration must invalidate the caches (advisor S6).
+
+    ``corpus_mtime`` tokened on ``corpus_run_summary.json`` / ``corpus_manifest.json`` — both
+    written by an INGEST. The m0009 migration rewrites ``*.kg.json`` and the upgrade ledger and
+    touches neither, so every mtime-tokened projection kept serving pre-migration roles until a
+    later ingest or a process restart: the KG entity index, the catalog, momentum person-roles
+    (the exact field the migration changes), top-persons, and the per-artifact loader.
+
+    An operator who runs the migration and then looks at the app sees no change and concludes it
+    did nothing.
+    """
+
+    def test_the_ledger_moves_the_token(self, tmp_path: Path) -> None:
+        import os
+
+        summary = tmp_path / "corpus_run_summary.json"
+        summary.write_text("{}", encoding="utf-8")
+        os.utime(summary, (1000.0, 1000.0))
+        before = perf_cache.corpus_mtime(tmp_path)
+
+        ledger = tmp_path / "upgrade_ledger.json"
+        ledger.write_text("{}", encoding="utf-8")
+        os.utime(ledger, (2000.0, 2000.0))
+
+        assert (
+            perf_cache.corpus_mtime(tmp_path) != before
+        ), "a migration that writes only the ledger must still invalidate the caches"
+
+    def test_an_ingest_still_moves_the_token(self, tmp_path: Path) -> None:
+        import os
+
+        summary = tmp_path / "corpus_run_summary.json"
+        summary.write_text("{}", encoding="utf-8")
+        os.utime(summary, (1000.0, 1000.0))
+        first = perf_cache.corpus_mtime(tmp_path)
+        os.utime(summary, (3000.0, 3000.0))
+        assert perf_cache.corpus_mtime(tmp_path) != first
+
+    def test_no_corpus_files_is_still_safe(self, tmp_path: Path) -> None:
+        assert isinstance(perf_cache.corpus_mtime(tmp_path), float)
+
+
+class TestEveryOutOfBandWriterMovesTheToken:
+    """A writer that changes corpus artifacts but not the token serves stale projections forever.
+
+    Two of these have already shipped as defects: a MIGRATION rewrites `*.kg.json` (#2065 advisor
+    S6) and `search enrich-edges` rewrites gi.json — including SPOKEN_BY, which insight
+    attribution reads. Neither is an ingest, so neither moved the run-summary or the manifest, and
+    the API kept answering from the pre-change graph until the next ingest or a restart.
+
+    The token is `max()` over a fixed tuple of filenames, so coverage is exactly that tuple. These
+    tests assert each name is load-bearing rather than decorative.
+    """
+
+    @pytest.mark.parametrize(
+        "name,writer",
+        [
+            ("corpus_run_summary.json", "an ingest run"),
+            ("corpus_manifest.json", "a manifest rebuild"),
+            ("upgrade_ledger.json", "a corpus migration"),
+            ("corpus_edges_stamp.json", "search enrich-edges"),
+        ],
+    )
+    def test_each_watched_file_moves_the_token(self, tmp_path: Path, name: str, writer: str):
+        import os
+
+        before = perf_cache.corpus_mtime(tmp_path)
+        stamp = tmp_path / name
+        stamp.write_text("{}", encoding="utf-8")
+        # Force a clearly-later mtime: the filesystem's resolution is coarser than this test.
+        os.utime(stamp, (before + 1000, before + 1000))
+        after = perf_cache.corpus_mtime(tmp_path)
+        assert after > before, f"{name} is written by {writer}; without it the caches go stale"
+
+    def test_the_token_is_the_max_so_one_stale_file_cannot_mask_a_fresh_one(self, tmp_path: Path):
+        import os
+
+        old, new = tmp_path / "corpus_run_summary.json", tmp_path / "corpus_edges_stamp.json"
+        old.write_text("{}", encoding="utf-8")
+        new.write_text("{}", encoding="utf-8")
+        base = perf_cache.corpus_mtime(tmp_path)
+        os.utime(old, (base + 10, base + 10))
+        os.utime(new, (base + 5000, base + 5000))
+        # First-found ordering would return the run-summary's older stamp and lose the edge write.
+        assert perf_cache.corpus_mtime(tmp_path) == pytest.approx(base + 5000)

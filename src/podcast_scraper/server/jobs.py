@@ -64,7 +64,9 @@ TERMINAL = frozenset(
 # Imported lazily-safe at module scope: config has no server imports, so no cycle.
 from podcast_scraper.config import DEPRECATED_PIPELINE_STAGE_ALIASES as _CONFIG_STAGE_ALIASES
 
-PIPELINE_STAGES_REPROCESS = frozenset({"rederive_only", "relabel_only", "rediarize_only"})
+PIPELINE_STAGES_REPROCESS = frozenset(
+    {"rederive_only", "relabel_only", "rediarize_only", "retranscript_only"}
+)
 PIPELINE_STAGES_PARTIAL = frozenset({"audio_only", "download_only"})
 PIPELINE_STAGES_ALLOWED = PIPELINE_STAGES_REPROCESS | PIPELINE_STAGES_PARTIAL
 
@@ -513,6 +515,7 @@ def build_pipeline_argv(
        defaults — same as today's pre-RFC-081 behavior).
 
     *pipeline_stage* selects a REPROCESS mode (``rederive_only``, ``relabel_only``,
+    ``retranscript_only``,
     ``rediarize_only``) or a partial run (``audio_only``, ``download_only``). Validated against
     :data:`PIPELINE_STAGES_ALLOWED` and dropped with a warning if unknown — this argv is handed
     to a subprocess, so an unvalidated caller string must never reach it.

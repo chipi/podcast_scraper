@@ -16,6 +16,7 @@ Subcommands give both on-demand and automated operation:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import logging
 import os
@@ -25,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Sequence
 
-from .migration import MigrationContext
+from .migration import MigrationContext, MigrationResult
 from .runner import UpgradeRunner, UpgradeStatus
 from .state import FilesystemStateStore
 
@@ -187,6 +188,51 @@ def _snapshot_corpus(
         return None
 
 
+def _snapshot_then_run(
+    runner: UpgradeRunner, ctx: MigrationContext, args: argparse.Namespace, log: logging.Logger
+) -> Optional[List[MigrationResult]]:
+    """Snapshot the corpus and apply the migrations UNDER ONE LOCK. ``None`` if the snapshot failed.
+
+    Both steps belong inside the same lock. The snapshot is a full ``copytree`` — minutes on a real
+    corpus — and the caller tells the operator that directory IS the rollback. Taken outside the
+    lock, an ingest writing during the copy yields an inconsistent rollback point, and the conflict
+    only surfaces when the migrations refuse a moment later.
+
+    ``runner.run(hold_lock=False)`` because we hold it: the lock is ``timeout=0``, so a second
+    acquire in this process reads its own live PID from the holder file and refuses.
+
+    Contention raises ``RuntimeError`` from the acquire; the caller turns that into an operator
+    message. A dry run copies nothing and writes nothing, so it takes no lock.
+    """
+    with contextlib.ExitStack() as stack:
+        if not args.dry_run:
+            try:
+                from ..utils.corpus_lock import corpus_parent_lock
+
+                stack.enter_context(corpus_parent_lock(ctx.corpus_root))
+            except (ImportError, OSError):
+                pass
+
+        if not args.dry_run and not getattr(args, "no_snapshot", False):
+            snap = _snapshot_corpus(
+                ctx.corpus_root,
+                runner.state.current_version() or "unstamped",
+                getattr(args, "snapshot_dir", None),
+                log,
+            )
+            if snap is None:
+                return None
+            # To stderr, so ``--json`` stdout stays clean/parseable.
+            print(f"Pre-upgrade snapshot: {snap}", file=sys.stderr)
+            print(
+                "  rollback = replace the corpus with this dir if the upgrade fails.",
+                file=sys.stderr,
+            )
+
+        now = datetime.now(timezone.utc).isoformat()
+        return runner.run(ctx, to_version=args.to_version, now=now, hold_lock=False)
+
+
 def _cmd_run(
     runner: UpgradeRunner, ctx: MigrationContext, args: argparse.Namespace, log: logging.Logger
 ) -> int:
@@ -202,30 +248,22 @@ def _cmd_run(
     # the runner STOPS at the first failure, so a bad migration can leave a partially
     # migrated corpus. Snapshot the corpus first (outside the corpus root, so the
     # migrations never walk it) for an instant local rollback. Skippable via
-    # --no-snapshot (fresh external backup + tight disk).
-    if not args.dry_run and not getattr(args, "no_snapshot", False):
-        snap = _snapshot_corpus(
-            ctx.corpus_root,
-            runner.state.current_version() or "unstamped",
-            getattr(args, "snapshot_dir", None),
-            log,
+    # --no-snapshot (fresh external backup + tight disk). Snapshot and migrations share
+    # one corpus lock — see `_snapshot_then_run`.
+    try:
+        results = _snapshot_then_run(runner, ctx, args, log)
+    except RuntimeError as exc:
+        # An ingest or another migration holds the corpus lock. Nothing has been copied or
+        # written; stop that job and re-run rather than racing it.
+        log.error("Upgrade refused — the corpus is in use: %s", exc)
+        return 1
+    if results is None:
+        log.error(
+            "Pre-upgrade snapshot failed — aborting before any migration runs. "
+            "Fix --snapshot-dir (must be writable + outside the corpus), or pass "
+            "--no-snapshot if you have a fresh external backup."
         )
-        if snap is None:
-            log.error(
-                "Pre-upgrade snapshot failed — aborting before any migration runs. "
-                "Fix --snapshot-dir (must be writable + outside the corpus), or pass "
-                "--no-snapshot if you have a fresh external backup."
-            )
-            return 1
-        # To stderr, so ``--json`` stdout stays clean/parseable.
-        print(f"Pre-upgrade snapshot: {snap}", file=sys.stderr)
-        print(
-            "  rollback = replace the corpus with this dir if the upgrade fails.",
-            file=sys.stderr,
-        )
-
-    now = datetime.now(timezone.utc).isoformat()
-    results = runner.run(ctx, to_version=args.to_version, now=now)
+        return 1
     payload: List[dict] = [
         {
             "id": r.migration_id,

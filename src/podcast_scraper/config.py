@@ -384,8 +384,9 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
 # ``_maybe_dispatch_reprocess_stage`` to intercept and load from disk:
 #   relabel_only   - re-resolves speaker names on the frozen diarization; no audio, no ASR.
 #   rediarize_only - downloads audio and re-diarizes, aligning to the EXISTING ASR text.
-# Neither can consume an ASR credential, so requiring one is a barrier, not a safeguard.
-STAGES_THAT_NEVER_TRANSCRIBE = frozenset({"relabel_only", "rediarize_only"})
+#   retranscript_only - re-fetches the PUBLISHER transcript and re-parses it; no audio at all.
+# None can consume an ASR credential, so requiring one is a barrier, not a safeguard.
+STAGES_THAT_NEVER_TRANSCRIBE = frozenset({"relabel_only", "rediarize_only", "retranscript_only"})
 
 # Old stage names still accepted on profiles and command lines, mapped to the canonical
 # one in ``_coerce_pipeline_stage_before``. ``enrich_only`` was renamed 2026-09-01: it
@@ -4205,6 +4206,7 @@ class Config(BaseModel):
         "download_only",
         "relabel_only",
         "rediarize_only",
+        "retranscript_only",
     ] = Field(
         default="full",
         alias="pipeline_stage",
@@ -4221,6 +4223,10 @@ class Config(BaseModel):
             "no audio, no re-ASR, no re-diarize. Rewrites the screenplay + cascades GI/KG.\n"
             "  rediarize_only  — download audio and RE-DIARIZE, aligning fresh voices to the "
             "existing ASR text (no re-ASR); re-resolves names + cascades GI/KG.\n"
+            "  retranscript_only — RE-FETCH the publisher's own transcript and re-parse it, "
+            "then relabel. For episodes whose stored transcript lost its speaker structure on "
+            "the way in (the WebVTT `<v Speaker N>` spans the cue parser used to strip); the "
+            "text was never wrong, only its speakers. No audio, no ASR, no GPU.\n"
             "  audio_only      — transcribe + media only, no metadata/summary/GI/KG.\n"
             "  download_only   — download + cache raw audio, then stop.\n"
             "  enrich_only     — DEPRECATED alias for rederive_only. Renamed because it "
@@ -4831,6 +4837,7 @@ class Config(BaseModel):
             "download_only",
             "relabel_only",
             "rediarize_only",
+            "retranscript_only",
         ):
             return merged
         message: Optional[str] = None
@@ -4885,6 +4892,17 @@ class Config(BaseModel):
             message = (
                 "pipeline_stage=rediarize_only: downloading audio and re-diarizing, aligned to the "
                 "existing transcript (no re-ASR); re-resolving names + cascading GI/KG."
+            )
+        elif stage == "retranscript_only":
+            # Re-fetch the publisher transcript over the network, re-parse it with the fixed cue
+            # parser, then fall through to the relabel path. Same routing trick as relabel_only:
+            # transcribe_missing=true only so the episode reaches the transcription stage where
+            # the reprocess dispatch intercepts it. diarize is NOT forced — the publisher's own
+            # speaker spans are the diarization, which is the entire point of this stage.
+            merged["transcribe_missing"] = True
+            message = (
+                "pipeline_stage=retranscript_only: re-fetching and re-parsing the publisher "
+                "transcript, then re-resolving names (no audio, no re-ASR, no re-diarize)."
             )
         if message is not None:
             # Compute the once-per-process gate inside the lock, but log outside it

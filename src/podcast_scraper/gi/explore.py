@@ -63,6 +63,13 @@ class ExploreValidationError(Exception):
         super().__init__(message)
 
 
+def newest_run_artifact_paths(output_dir, paths, suffix):
+    """Delegate to the shared membership rule (imported lazily to avoid a cycle)."""
+    from ..kg.corpus import newest_run_artifact_paths as _impl
+
+    return _impl(output_dir, paths, suffix)
+
+
 def scan_artifact_paths(output_dir: Path) -> List[Path]:
     """List all .gi.json paths under output_dir (metadata/*.gi.json and rglob)."""
     out = Path(output_dir)
@@ -750,7 +757,13 @@ def run_uc5_insight_explorer(
     strict: bool = False,
 ) -> ExploreOutput:
     """UC5: cross-episode insights with quotes (canonical gi explore behavior)."""
-    paths = scan_artifact_paths(output_dir)
+    # NEWEST RUN PER EPISODE — this entry point is reached by `server/routes/explore` and the MCP
+    # `gi` tool, so a superseded run reaches a reader. After a `relabel_only` repair the OLD run is
+    # still on disk holding the pre-repair answer (measured on a real repair: 82 SPOKEN_BY edges
+    # still pointing at the show, the guest still `mentioned`), and reading both surfaces the
+    # replaced answer alongside the replacement. Same membership rule as the catalog and the served
+    # graph, so all three agree on which artifacts ARE the corpus.
+    paths = newest_run_artifact_paths(output_dir, scan_artifact_paths(output_dir), ".gi.json")
     if not paths:
         return build_explore_output([], 0, topic=topic, speaker_filter=speaker, topics=[])
     insights, _semantic_ranked, loaded, ep_count = explore_resolve_insights_and_loaded(
@@ -903,7 +916,13 @@ def run_uc4_topic_leaderboard(
     strict: bool = False,
 ) -> Dict[str, Any]:
     """UC4: rank topic labels by linked insight count."""
-    paths = scan_artifact_paths(output_dir)
+    # NEWEST RUN PER EPISODE — this entry point is reached by `server/routes/explore` and the MCP
+    # `gi` tool, so a superseded run reaches a reader. After a `relabel_only` repair the OLD run is
+    # still on disk holding the pre-repair answer (measured on a real repair: 82 SPOKEN_BY edges
+    # still pointing at the show, the guest still `mentioned`), and reading both surfaces the
+    # replaced answer alongside the replacement. Same membership rule as the catalog and the served
+    # graph, so all three agree on which artifacts ARE the corpus.
+    paths = newest_run_artifact_paths(output_dir, scan_artifact_paths(output_dir), ".gi.json")
     if not paths:
         return {
             "question": question,

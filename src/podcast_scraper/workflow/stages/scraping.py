@@ -9,7 +9,7 @@ import json
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, config_constants, models
 
@@ -31,6 +31,7 @@ from ...rss import (
 # inline under a comment claiming a cycle through ``workflow.metadata_generation``; that claim
 # was wrong and is recorded here so nobody re-inlines it on the strength of it.
 from ...search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+from ...utils import filesystem
 from ..types import FeedMetadata
 
 logger = logging.getLogger(__name__)
@@ -331,18 +332,26 @@ def _drop_unprocessably_long(items: List[Any], cfg: config.Config) -> List[Any]:
     return kept
 
 
-def _on_disk_guid_index(output_dir: str) -> Dict[str, Tuple[int, Dict[str, Any]]]:
-    """``{guid: (on_disk_idx, episode_metadata)}`` for the corpus under ``output_dir``.
+def _on_disk_guid_index(output_dir: str) -> Dict[str, Tuple[int, Dict[str, Any], Path]]:
+    """``{guid: (on_disk_idx, episode_metadata, metadata_path)}`` for the corpus under
+    ``output_dir``.
 
     The ``idx`` is read from the ``NNNN - Title.metadata.json`` filename prefix — the same number
     the transcript files carry — so a reprocess assigns each episode the idx its on-disk transcript
     is stored under. Assigning idx by feed-enumerate position (as the normal ingest path does) only
     aligned by luck when the newest feed items happened to be files 0001..N; aged-out episodes need
-    their true on-disk idx or ``relabel_only``/``rediarize_only`` (which glob ``{idx} - *.txt``)
-    cannot find them.
+    their true on-disk idx or ``relabel_only``/``rediarize_only`` cannot find them.
+
+    THE PATH IS RETURNED BECAUSE THE IDX IS NOT AN IDENTIFIER. It is unique within a ``run_*``
+    directory and nowhere else, and a feed accumulates run dirs — 397 of them across production.
+    The reprocess stages used to re-find the transcript by globbing ``{idx} - *.txt`` across the
+    whole feed root and taking newest-mtime; on a16z's 48 episodes spread over 14 runs that mapped
+    every episode onto one of 15 transcripts and relabelled 33 of them onto another episode's file.
+    The caller now carries this path onto the Episode so the stage opens the file this metadata
+    describes rather than searching for one that looks like it.
     """
     root = Path(output_dir)
-    out: Dict[str, Tuple[int, Dict[str, Any]]] = {}
+    out: Dict[str, Tuple[int, Dict[str, Any], Path]] = {}
     # The feed-nested patterns are NOT optional extras — ``feeds/<slug>/run_*/metadata/`` is the
     # layout production actually writes (every one of prod's 397 run dirs lives under it). With
     # only the flat patterns, ``reprocess_existing_only`` raised "no on-disk episode GUIDs were
@@ -392,7 +401,7 @@ def _on_disk_guid_index(output_dir: str) -> Dict[str, Tuple[int, Dict[str, Any]]
                 break
         if not digits:
             continue
-        out[str(guid)] = (int(digits), episode)
+        out[str(guid)] = (int(digits), episode, meta_path)
     return out
 
 
@@ -434,6 +443,37 @@ def _synthesize_feed_item(guid: str, episode_meta: Dict[str, Any]) -> ET.Element
         except (TypeError, ValueError):
             pass
     return item
+
+
+def _transcript_beside_metadata(meta_path: Path) -> Optional[str]:
+    """The transcript belonging to THIS metadata file, or ``None`` if it is not on disk.
+
+    Two ways to name it and they must agree. The stored ``content.transcript_file_path`` is
+    authoritative when present (it is what the run actually wrote, relative to the run dir); the
+    ``<run>/transcripts/<stem>.txt`` sibling covers a metadata file written before that field
+    existed. Either way the answer comes from THIS episode's own record.
+
+    A ``.segments.json`` sibling is required, because a transcript with no per-segment diarization
+    is nothing the relabel stage can work on — returning it would only move the failure later, and
+    make it look like a naming failure rather than a missing input.
+    """
+    run_dir = meta_path.parent.parent
+    stem = meta_path.name[: -len(".metadata.json")]
+    candidates = [run_dir / filesystem.TRANSCRIPTS_SUBDIR / f"{stem}.txt"]
+    try:
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+        rel = str(((data or {}).get("content") or {}).get("transcript_file_path") or "").strip()
+    except (OSError, json.JSONDecodeError):
+        rel = ""
+    if rel:
+        candidates.insert(0, run_dir / rel)
+    for path in candidates:
+        if (
+            path.is_file()
+            and path.with_name(path.name[: -len(".txt")] + ".segments.json").is_file()
+        ):
+            return str(path)
+    return None
 
 
 def _reprocess_existing_episodes(
@@ -533,12 +573,53 @@ def _reprocess_existing_episodes(
 
     episodes: List[Episode] = []  # type: ignore[valid-type]
     reconstructed = 0
-    for guid, (idx, episode_meta) in sorted(guid_index.items(), key=lambda kv: kv[1][0]):
+    # THE ON-DISK IDX IS NOT UNIQUE AND `idx` MUST BE. It is read from the filename prefix, and
+    # every run directory numbers its episodes from 0001 — so a16z's fourteen run dirs give
+    # fourteen "episode 1"s, and a 48-episode selection there carries only ~15 distinct values with
+    # up to five episodes sharing one. The pipeline keys per-episode state and output filenames on
+    # `idx`, so those five collided: metadata was written for one episode carrying another's
+    # transcript path, and 41 of 48 artifacts never landed at all.
+    #
+    # It was the on-disk idx only so the `{idx} - *.txt` transcript search could find the file.
+    # That reason is gone — each episode now carries `on_disk_transcript` resolved from its own
+    # metadata record — so the number is free to be what it has to be: unique within this run. The
+    # original is preserved on the Episode for the legacy search, which is now a warned-about
+    # fallback rather than the mechanism.
+    for seq, (guid, (idx, episode_meta, meta_path)) in enumerate(
+        sorted(guid_index.items(), key=lambda kv: kv[1][0]), start=1
+    ):
         item = feed_by_guid.get(guid)
         if item is None:
             item = _synthesize_feed_item(guid, episode_meta)
             reconstructed += 1
-        episodes.append(create_episode_from_item(item, idx, feed.base_url))
+        episode = create_episode_from_item(item, seq, feed.base_url)
+        episode.on_disk_idx = idx
+        # The stored transcript URLs, so `retranscript_only` can re-fetch. A synthesized feed item
+        # carries none of its own, and for an aged-out episode the live feed may no longer offer it.
+        try:
+            _stored = json.loads(meta_path.read_text(encoding="utf-8"))
+            _urls = ((_stored or {}).get("content") or {}).get("transcript_urls") or []
+            episode.on_disk_transcript_urls = [u for u in _urls if isinstance(u, dict)] or None
+        except (OSError, json.JSONDecodeError):
+            episode.on_disk_transcript_urls = None
+        episode.on_disk_transcript = _transcript_beside_metadata(meta_path)
+        # SAY WHICH FILE THIS EPISODE IS ABOUT, at the moment it is decided. A reprocess OVERWRITES
+        # the transcript it picks, and when a run came back with six of seven episodes relabelled
+        # onto another episode's transcript there was no way to tell from the logs whether the
+        # resolution was wrong or the fallback had silently fired — the components all behaved
+        # correctly when tested in isolation afterwards. One line per episode settles it.
+        logger.info(
+            "reprocess: [%s] (on-disk %s) %r -> %s",
+            seq,
+            idx,
+            str(episode_meta.get("title") or "")[:60],
+            (
+                Path(episode.on_disk_transcript).name
+                if episode.on_disk_transcript
+                else "NO OWN TRANSCRIPT — will fall back to the idx search"
+            ),
+        )
+        episodes.append(episode)
 
     logger.info(
         "reprocess existing-only: %d on-disk episodes reached (%d served live by the %d-item feed, "

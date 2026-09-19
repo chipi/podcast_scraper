@@ -144,8 +144,22 @@ def test_host_selfintro_no_guests_leftover_is_unknown() -> None:
     assert other.role == "unknown", f"leftover voice should be unknown, got {other.role!r}"
 
 
-def test_co_hosted_via_known_hosts() -> None:
-    # Two intro-dominant voices + two known host names → both named as hosts.
+def test_two_hosts_and_two_voices_names_NEITHER_without_evidence() -> None:
+    """TWO NAMES AND TWO SEATS IS NOT ARITHMETIC, IT IS A COIN FLIP (#2075).
+
+    This used to assert that both hosts were named. The names were handed out by POSITION —
+    ``host_pool[i]`` to the i-th seated voice — with no per-voice evidence that Anna rather than
+    Ben holds H1. Checked on the production snapshot against which host the OTHER one addresses,
+    that assignment is 6 right, 3 swapped, 26 undecidable.
+
+    So the roster now keeps the SEAT and drops the NAME: both voices stay ``role="host"``, unnamed,
+    and the two names are left unclaimed so ``stated_unbound`` reports them as a naming failure
+    instead of a silent success. Operator decision 2026-09-16: on the real two-host shows this
+    affects, the names remain on the episode as feed-level participants in the KG with no voice
+    edge — the show still lists its hosts, and no voice claims to be one.
+
+    The GUEST is unaffected: one spare name, one unassigned voice, still forced.
+    """
     diar = _diar([("H1", 0, 50), ("H2", 50, 90), ("GUEST", 90, 400), ("H1", 400, 420)], 3)
     r = resolve_speaker_roster(
         diar,
@@ -153,9 +167,26 @@ def test_co_hosted_via_known_hosts() -> None:
         known_hosts=["Anna Adams", "Ben Baker"],
         detected_guests=["Grace Green"],
     )
-    host_names = {v.name for v in r.by_voice.values() if v.role == "host"}
-    assert host_names == {"Anna Adams", "Ben Baker"}
+    hosts = [v for v in r.by_voice.values() if v.role == "host"]
+    assert len(hosts) == 2
+    assert not any(v.named for v in hosts), "a host name was assigned by position"
+    assert {v.name for v in hosts} == {"H1", "H2"}
     assert r.by_voice["GUEST"].name == "Grace Green"
+
+
+def test_one_host_and_one_seat_is_still_forced() -> None:
+    """...and the arithmetic case still works. One unclaimed name, one unnamed seat, no guest
+    speech act on it: there is nobody else it can be, so abstaining here would lose a correct
+    name for nothing."""
+    diar = _diar([("H1", 0, 60), ("GUEST", 60, 400), ("H1", 400, 420)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back everyone.",
+        known_hosts=["Anna Adams"],
+        detected_guests=["Grace Green"],
+    )
+    assert r.by_voice["H1"].name == "Anna Adams"
+    assert r.by_voice["H1"].role == "host"
 
 
 def test_host_not_self_introduced_falls_back_to_feed() -> None:

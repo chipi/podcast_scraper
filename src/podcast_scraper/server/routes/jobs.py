@@ -301,7 +301,9 @@ async def submit_pipeline_job(
             "stages — cleaning + GI + KG — from the existing transcript; use after a prompt or "
             "model change), 'relabel_only' (re-resolve speaker names on the frozen "
             "diarization), 'rediarize_only' (re-diarize the audio, aligned to the existing ASR "
-            "text). PARTIAL modes: 'audio_only', 'download_only'. Reprocess modes are scoped to "
+            "text), 'retranscript_only' (re-fetch and re-parse the publisher's own transcript, "
+            "then relabel — no audio). PARTIAL modes: 'audio_only', 'download_only'. "
+            "Reprocess modes are scoped to "
             "episodes already in the corpus automatically. Omit (or send 'full') for a normal "
             "ingest. 'enrich_only' is accepted as a deprecated alias of 'rederive_only'."
         ),

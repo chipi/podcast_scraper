@@ -41,6 +41,11 @@ INTERVIEW_INDICATOR_PATTERNS = [
     r"sits?\s+down\s+with\s+",
     r"chats?\s+with\s+",
     r"joining\s+us\s+",
+    # Third-person passive — "Elena Burger is joined by a16z's Andy McCall". The list only had
+    # the first-person form ("we're joined by"), so every show that writes its blurb in the
+    # third person was invisible. 48 fires, 77.1% a real speaker on the ground-truth set.
+    r"(?:is|are|was|were)\s+joined\s+by\s+",
+    r"deep\s+dive\s+with\s+",
     # A panel: "speaks with Chris Miller, author of Chip War, AND WITH analyst Stacy Rasgon".
     # The leading cue only reaches the first name; the second guest is coordinated onto it.
     r"(?:and|along)\s+with\s+",
@@ -56,6 +61,31 @@ INTERVIEW_TRAILING_PATTERNS = [
     r"\s*,?\s*returns?\s+to\s+(?:discuss|talk|explain|join)",
     r"\s*,?\s*(?:is\s+back|rejoins?|comes?\s+back)\b",
     r"\s*,?\s*joins?\s+(?:us|the\s+show|me)\b",
+]
+
+#: Trailing cues matched with a BOUNDED GAP after the name — ``NAME <role clause> CUE``.
+#:
+#: WHY A SECOND LIST. Every pattern above is glued to the name (``name + pattern``), which only
+#: works when the cue is immediately adjacent. Real episode descriptions put the guest's job title
+#: in between: "Sarah Laszlo, senior director of Visa's machine learning platform, joins the AI
+#: Podcast", "Mike Pritchard, Director of Climate Simulation Research at NVIDIA, discusses". These
+#: are matched as ``name + gap + cue`` instead.
+#:
+#: DIRECTION IS WHAT MAKES ``discusses`` SAFE HERE. The same verb appears in
+#: :data:`MENTIONED_ONLY_PATTERNS`, and that is not a contradiction: mentioned-only is matched
+#: cue-BEFORE-name ("discusses Mike Pritchard" — he is the topic), this is matched
+#: name-BEFORE-cue ("Mike Pritchard ... discusses" — he is speaking). The two can never fire on the
+#: same text in the same direction.
+#:
+#: MEASURED against 1,400 episodes whose roster already names a real guest, so a wrong pick is a
+#: genuine error rather than a roster gap:
+#:     NAME joins ...................... 46 fires, 82.6% a real speaker
+#:     NAME, <role>, discusses ......... 49 fires, 75.5%
+#: The looser "NAME ... discusses anywhere within 60 chars" scored 58.1% and is NOT included.
+INTERVIEW_TRAILING_GAPPED_PATTERNS = [
+    r",?\s*joins?\b",
+    r",?\s*(?:discusses|explains|shares|unpacks|breaks\s+down)\b",
+    r",?\s*(?:tells|speaks?\s+(?:with|to)|sits?\s+down\s+with)\b",
 ]
 
 MENTIONED_ONLY_PATTERNS = [

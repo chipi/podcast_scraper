@@ -651,7 +651,9 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         guest_speakers = [s for s in speakers if s.get("role") == "guest"]
         self.assertEqual(len(host_speakers), len(detected_hosts))
         self.assertGreater(len(guest_speakers), 0, "Guests should be in metadata")
-        self.assertIn("Bob Guest", data["content"]["detected_guests"])
+        # Schema 1.2.0 (#2075): the computed `detected_guests` field is gone; the guest is in the
+        # speaker record, with its role.
+        self.assertIn("Bob Guest", [s["name"] for s in guest_speakers])
 
         # Verify OpenAI summarization results in metadata
         # Summary is stored in a separate "summary" field, not in "content"

@@ -9,6 +9,9 @@ exclude =
     __pycache__,
     .venv,
     .venv-dev,
+    # Gitignored OUTPUT directory — generated artifacts and local eval harnesses, never shipped
+    # code. flake8 walked it because exclusion is by path, not by gitignore.
+    .test_outputs,
 per-file-ignores =
     __init__.py:F401
     tests/integration/*:E501

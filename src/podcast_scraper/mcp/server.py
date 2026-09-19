@@ -495,12 +495,14 @@ def _register_enrichment(server: Any, ctx: CorpusContext) -> None:
     @server.tool()
     @_enveloped
     def episode_speaker_roster(metadata_path: str) -> dict:
-        """Diarized speaker roster + talk-share for one episode — who spoke, %, host/guest.
+        """Speaker roster + talk-share for one episode — who spoke, %, host/guest.
 
-        Reads the pipeline's ``.speakers.diagnostics.json`` (talk_share, unattributed share,
-        per-voice_type counts). This has no HTTP route — net-new capability. Distinct from the
-        knowledge-graph person tools: this is the diarized-voice layer. ``diagnostics: None``
-        when the episode has no persisted diarization diagnostics.
+        ``speakers`` is the episode's speaker record: each person with ``placed`` (true = a voice
+        was matched to them, so they spoke; false = only named by the feed or show notes, NOT a
+        speaker), role and talk share. Treat only ``placed: true`` entries as people who spoke.
+        ``diagnostics`` explains how names were chosen (per-voice method, voice types); it is
+        ``None`` when the episode has no persisted diarization diagnostics. Distinct from the
+        knowledge-graph person tools: this is the diarized-voice layer.
         """
         return _enrichment.episode_speaker_roster(ctx, metadata_path)
 

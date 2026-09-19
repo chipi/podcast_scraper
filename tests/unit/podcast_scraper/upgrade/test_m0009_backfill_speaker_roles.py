@@ -21,9 +21,11 @@ import pytest
 from podcast_scraper.upgrade.migration import MigrationContext
 from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import (
     BackfillSpeakerRolesMigration,
+    demote_non_persons,
     promote_person_roles,
     roster_roles,
     voices_heard,
+    voices_in_episode,
 )
 
 pytestmark = pytest.mark.unit
@@ -46,6 +48,39 @@ def _kg(persons) -> Dict[str, Any]:
         ],
         "edges": [],
     }
+
+
+def _meta_with_sidecar(root, *, speakers, raw_voices, feed="Show"):
+    """Metadata artifact plus the segments sidecar that PROVES the voice count (#2070).
+
+    `voices_heard` reads the sidecar rather than `diarization_num_speakers`, because the field
+    cannot distinguish a real diarizer count from a fallback derived from the roster's length.
+    A test that wants route (b) to fire therefore has to supply the evidence route (b) requires.
+    """
+    import json as _json
+
+    meta_dir = root / "metadata"
+    tx_dir = root / "transcripts"
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    tx_dir.mkdir(parents=True, exist_ok=True)
+    (tx_dir / "e1.segments.json").write_text(
+        _json.dumps([{"speaker": f"SPEAKER_{i:02d}"} for i in range(raw_voices)]), encoding="utf-8"
+    )
+    path = meta_dir / "e1.metadata.json"
+    path.write_text(
+        _json.dumps(
+            {
+                "feed": {"title": feed},
+                "content": {
+                    "speakers": speakers,
+                    "diarization_num_speakers": raw_voices,
+                    "transcript_file_path": "transcripts/e1.txt",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 class TestReadingTheRoster:
@@ -408,16 +443,14 @@ class TestDemotionRequiresACompleteRoster:
             ]
         )
 
-    def test_a_complete_roster_still_demotes(self) -> None:
-        meta = {
-            "content": {
-                "speakers": [{"name": "Elad Gil", "role": "host"}],
-                "diarization_num_speakers": 1,
-            }
-        }
+    def test_a_complete_roster_still_demotes(self, tmp_path: Path) -> None:
+        path = _meta_with_sidecar(
+            tmp_path, speakers=[{"name": "Elad Gil", "role": "host"}], raw_voices=1
+        )
+        meta = json.loads(path.read_text(encoding="utf-8"))
         kg = self._kg_with_a_stranger()
         promoted, demoted, _u = promote_person_roles(
-            kg, roster_roles(meta), voices_heard=voices_heard(meta)
+            kg, roster_roles(meta), voices_heard=voices_heard(meta, path)
         )
         assert (promoted, demoted) == (1, 1)
 
@@ -453,11 +486,9 @@ class TestReadingTheVoiceCountFromTheArtifact:
     `promote_person_roles`, because a roster can name a voice with something no one can place.
     """
 
-    def test_the_diarization_count_is_returned(self) -> None:
-        meta = {
-            "content": {"speakers": [{"name": "A", "role": "host"}], "diarization_num_speakers": 3}
-        }
-        assert voices_heard(meta) == 3
+    def test_the_count_comes_from_the_sidecar(self, tmp_path: Path) -> None:
+        path = _meta_with_sidecar(tmp_path, speakers=[{"name": "A", "role": "host"}], raw_voices=3)
+        assert voices_heard(json.loads(path.read_text(encoding="utf-8")), path) == 3
 
     def test_a_missing_voice_count_is_unknowable(self) -> None:
         # 6.6% of production episodes carry no `diarization_num_speakers`, and when diarization
@@ -642,9 +673,7 @@ class TestARosterEntryNobodyCanFindIsNotEvidence:
                 ("person:sarah-guo", "Sarah Guo", "host"),
             ]
         )
-        promoted, demoted, _u = promote_person_roles(
-            kg, roster_roles(meta), voices_heard=voices_heard(meta)
-        )
+        promoted, demoted, _u = promote_person_roles(kg, roster_roles(meta), voices_heard=2)
         assert (promoted, demoted) == (2, 1)
         roles = {n["id"]: n["properties"]["role"] for n in kg["nodes"]}
         assert roles["person:sarah-guo"] == "mentioned"
@@ -727,3 +756,306 @@ class TestANonPersonCannotHoldAMicrophone:
             kg, roster_roles(meta), voices_heard=voices_heard(meta), feed_title="Some Show"
         )
         assert demoted == 0
+
+
+class TestTheShowNamePredicateIsImperfectAndSaysSo:
+    """`names_the_show` has a known false positive; it is REPORTED, not silently guarded.
+
+    The predicate matches a multi-token PREFIX of the feed title, so it also classifies a host
+    whose name LEADS their own show as the show itself::
+
+        names_the_show('Lex Fridman', 'Lex Fridman Podcast')            -> True
+        names_the_show('Dan Carlin',  "Dan Carlin's Hardcore History")  -> True
+
+    The title cannot settle it: 'Lex Fridman Podcast' and 'Latent Space: The AI Engineer Podcast'
+    are structurally identical and 'Latent.Space' really IS the show.
+
+    "A SHOW DOES NOT SPEAK" LOOKS LIKE THE MISSING EVIDENCE AND IS NOT — this was tried and
+    measured. `SPOKEN_BY` inherits the roster's mistakes: the roster is what put the show in the
+    host seat (#2064), so the show ends up with quotes attributed to it. 'Machine Learning Street'
+    has a voice on 4 of its 6 episodes. Sparing every node with a voice rescued 4 real show names
+    this pass exists to demote, in order to protect a host shape that occurs nowhere in the corpus
+    — all 8 title/name hits across the 55 production feeds are genuine show names.
+
+    So the demotion stands and the ambiguous ones are listed in `suspect_demotions` for a human to
+    read before this runs on a corpus with an eponymous show.
+    """
+
+    @staticmethod
+    def _gi(spoken_name: str, node_id: str = "person:spk"):
+        return {
+            "nodes": [{"id": node_id, "type": "Person", "properties": {"name": spoken_name}}],
+            "edges": [{"type": "SPOKEN_BY", "from": "quote:q1", "to": node_id}],
+        }
+
+    @staticmethod
+    def _kg(name: str, role: str, node_id: str = "person:spk"):
+        return {
+            "schema_version": "2.1",
+            "nodes": [
+                {"id": node_id, "type": "Person", "properties": {"name": name, "role": role}}
+            ],
+            "edges": [{"type": "HOSTS", "from": node_id, "to": "podcast:p1"}],
+        }
+
+    def test_voices_are_read_from_the_gi_sibling_not_the_kg(self) -> None:
+        # SPOKEN_BY is absent from all 287 production kg.json files and present in 259 gi.json.
+        # A guard that read the KG payload's edges was a no-op on every real artifact.
+        kg = self._kg("Lex Fridman", "host")
+        assert voices_in_episode({}, kg) == set()
+        assert voices_in_episode(self._gi("Lex Fridman"), kg) == {"person:spk"}
+
+    def test_a_voice_is_matched_across_the_two_ID_FAMILIES(self) -> None:
+        # #2056's shape: the GI id comes from the roster, the KG id from the extractor.
+        kg = self._kg("Aaron Levie", "host", node_id="person:aaron-levie")
+        gi = self._gi("Aaron Levy", node_id="person:aaron-levy")
+        assert voices_in_episode(gi, kg) == {"person:aaron-levie"}
+
+    def test_a_show_with_a_voice_is_still_demoted_but_flagged(self) -> None:
+        kg = self._kg("Machine Learning Street", "host")
+        voices = voices_in_episode(self._gi("Machine Learning Street"), kg)
+        suspects: list[str] = []
+        assert demote_non_persons(kg, "Machine Learning Street Talk", voices, suspects) == 1
+        assert kg["nodes"][0]["properties"]["role"] == "mentioned"
+        assert suspects and "Machine Learning Street" in suspects[0]
+
+    def test_a_show_with_no_voice_is_demoted_and_not_flagged(self) -> None:
+        kg = self._kg("Africa Tech Summit", "host")
+        suspects: list[str] = []
+        assert demote_non_persons(kg, "Africa Tech Summit Podcast", set(), suspects) == 1
+        assert suspects == [], "no ambiguity here — nothing for a human to read"
+
+    def test_a_role_word_is_demoted_and_never_flagged(self) -> None:
+        # "Host" is not a human even with a voice; there is no judgement call to escalate.
+        kg = self._kg("Host", "host", node_id="person:host")
+        suspects: list[str] = []
+        assert demote_non_persons(kg, "Some Show", {"person:host"}, suspects) == 1
+        assert suspects == []
+
+    def test_apply_reports_the_suspect_class(self, tmp_path: Path) -> None:
+        # Through the real wiring: apply() must find the .gi.json sibling itself. An earlier
+        # version passed every function-level test while being a no-op in the migration.
+        d = tmp_path / "metadata"
+        d.mkdir(parents=True)
+        (d / "e1.metadata.json").write_text(
+            json.dumps(
+                {
+                    "feed": {"title": "Machine Learning Street Talk"},
+                    "content": {
+                        "speakers": [{"name": "Jeremy Berman", "role": "guest"}],
+                        "diarization_num_speakers": 2,
+                    },
+                }
+            )
+        )
+        (d / "e1.kg.json").write_text(json.dumps(self._kg("Machine Learning Street", "host")))
+        (d / "e1.gi.json").write_text(json.dumps(self._gi("Machine Learning Street")))
+        res = BackfillSpeakerRolesMigration().apply(
+            MigrationContext(corpus_root=tmp_path, dry_run=True)
+        )
+        assert res.details["suspect_demotions"], "the ambiguous demotion must reach the operator"
+        assert "HAND-READ REQUIRED" in res.message
+
+
+class TestANameThatCannotBeSluggedDoesNotKillTheRun:
+    """A non-Latin name must not abort the migration mid-corpus (advisor S2).
+
+    `identity.slugify.person_id` raises when NFKD -> ASCII leaves nothing::
+
+        person_id('张川红')          -> ValueError: Slug is empty after normalisation
+        person_id('Владимир Путин')  -> ValueError
+
+    `apply()` catches only OSError/JSONDecodeError, so the runner stops at the first such name and
+    records nothing for 0009. Files already rewritten stay rewritten (idempotent, so harmless), but
+    every re-run dies on the same file — there is no resume point.
+
+    Zero occurrences in the 287-artifact sample, which is 15% of production; Round Table China,
+    China Plus, ChinaTalk and The Naked Pravda are in the other 85%.
+    """
+
+    def test_a_cjk_roster_name_is_skipped_not_raised(self) -> None:
+        meta = {
+            "feed": {"title": "Round Table China"},
+            "content": {
+                "speakers": [
+                    {"name": "张川红", "role": "guest"},
+                    {"name": "Heyang Zhang", "role": "host"},
+                ],
+                "diarization_num_speakers": 2,
+            },
+        }
+        roles = roster_roles(meta)  # must not raise
+        assert "person:heyang-zhang" in roles
+        assert all("张" not in k for k in roles), "the unsluggable name is dropped, not crashed on"
+
+    def test_a_cyrillic_node_name_is_skipped_not_raised(self) -> None:
+        kg = _kg([("person:x", "Владимир Путин", "host")])
+        # must not raise
+        promoted, demoted, _u = promote_person_roles(
+            kg, {"person:heyang-zhang": "host"}, voices_heard=1
+        )
+        assert (promoted, demoted) == (0, 0)
+
+
+class TestAnAmbiguousMatchIsNotAMatch:
+    """A node that plausibly matches TWO roster entries matches neither (advisor S4).
+
+    `_fuzzy_roster_hit` iterated the roster and returned the FIRST `same_person` hit. `same_person`
+    treats a token subset as the same human — ``same_person('John', 'John Smith')`` is True — so a
+    bare-mononym node was promoted to whichever John the dict happened to yield first, landing a
+    role on the wrong person while the real full-name node kept its own.
+
+    That is the #2056 duplicate symptom manufactured BY the repair, which is the worst class of
+    bug this migration can have: it is irreversible, and the coherence checks cannot see it because
+    they share the migration's own predicate.
+
+    The safe answer to "which of these two?" is neither. An ambiguous node is left exactly as it
+    was, and — importantly — its roster keys are NOT marked as matched, so route (b) does not then
+    read the absence as "this person never spoke" and demote someone.
+    """
+
+    def test_a_mononym_matching_two_roster_entries_is_left_alone(self) -> None:
+        kg = _kg([("person:john", "John", "mentioned")])
+        roles = {"person:john-smith": "host", "person:john-doe": "guest"}
+        promoted, demoted, _u = promote_person_roles(kg, roles, voices_heard=2)
+        assert (promoted, demoted) == (0, 0)
+        assert kg["nodes"][0]["properties"]["role"] == "mentioned"
+
+    def test_an_unambiguous_mononym_still_resolves(self) -> None:
+        # One candidate is not a guess. `Twiggy` against a roster holding only `Twiggy Lawson`
+        # is the case `same_person`'s subset rule exists for.
+        kg = _kg([("person:twiggy", "Twiggy", "mentioned")])
+        promoted, _d, _u = promote_person_roles(
+            kg, {"person:twiggy-lawson": "guest"}, voices_heard=1
+        )
+        assert promoted == 1
+        assert kg["nodes"][0]["properties"]["role"] == "guest"
+
+    def test_an_ambiguous_node_does_not_make_the_roster_look_unspoken(self) -> None:
+        # The subtle half: if the ambiguous node consumed both roster keys, or neither key were
+        # marked matched, route (b) could conclude the roster is unaccounted for and demote a real
+        # speaker elsewhere in the episode.
+        kg = _kg(
+            [
+                ("person:john", "John", "mentioned"),
+                ("person:john-smith", "John Smith", "mentioned"),
+                ("person:john-doe", "John Doe", "mentioned"),
+            ]
+        )
+        roles = {"person:john-smith": "host", "person:john-doe": "guest"}
+        promoted, demoted, unmatched = promote_person_roles(kg, roles, voices_heard=2)
+        assert demoted == 0
+        assert promoted == 2, "both exact-id matches still promote"
+        assert unmatched == [], "the roster is fully accounted for by the two real nodes"
+
+    def test_ambiguity_is_reported_not_silent(self) -> None:
+        kg = _kg([("person:john", "John", "mentioned")])
+        roles = {"person:john-smith": "host", "person:john-doe": "guest"}
+        ambiguous: list[str] = []
+        promote_person_roles(kg, roles, voices_heard=2, ambiguous=ambiguous)
+        assert ambiguous and "John" in ambiguous[0]
+
+
+class TestTheCountComesFromTheMeasurementNotTheFallback:
+    """``diarization_num_speakers`` cannot tell a measurement from a fallback (#2070).
+
+    ``metadata_generation.py:1007``::
+
+        num_speakers = len(raw_ids) or (len(named_order) or None)
+
+    A real diarizer count and a count derived from the roster's LENGTH land in the same field and
+    look identical on disk. That matters here because route (b) demotes on "the roster accounted
+    for every voice", and it fires only when ``voices_heard <= len(matched)`` — and since
+    ``matched ⊆ roster``, only ever inside the ``heard == named`` bucket. Which is exactly the
+    bucket a fallback count also produces. Measured: all 4 route-(b) demotions on the staging copy
+    have ``heard == named``.
+
+    So the earlier "the field means heard-voices, measured on 287 artifacts" was an over-read: the
+    measurement covers the 186 episodes where ``heard > named`` — where route (b) never fires — and
+    is silent where it does.
+
+    THE MEASUREMENT IS ALREADY ON DISK. The segments sidecar carries a RAW diarizer id per segment
+    (``speaker``: ``SPEAKER_00`` / ``SPEAKER_01`` / …), independent of any naming. Counting
+    distinct values there is the real number, and its absence is honest ignorance rather than a
+    plausible-looking guess.
+
+    Sampled 40 production episodes: 40 had a reachable sidecar, and on all 34 that also carried a
+    numeric field, the raw distinct count equalled the field exactly.
+    """
+
+    @staticmethod
+    def _corpus(root: Path, *, segments, heard, speakers):
+        meta_dir = root / "metadata"
+        tx_dir = root / "transcripts"
+        meta_dir.mkdir(parents=True, exist_ok=True)
+        tx_dir.mkdir(parents=True, exist_ok=True)
+        (meta_dir / "e1.metadata.json").write_text(
+            json.dumps(
+                {
+                    "feed": {"title": "Show"},
+                    "content": {
+                        "speakers": speakers,
+                        "diarization_num_speakers": heard,
+                        "transcript_file_path": "transcripts/e1.txt",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        if segments is not None:
+            (tx_dir / "e1.segments.json").write_text(json.dumps(segments), encoding="utf-8")
+        return meta_dir / "e1.metadata.json"
+
+    def test_the_sidecar_is_preferred_over_the_field(self, tmp_path: Path) -> None:
+        # The field says 2 (which would let route (b) fire); the sidecar heard 5.
+        path = self._corpus(
+            tmp_path,
+            segments=[{"speaker": f"SPEAKER_0{i % 5}"} for i in range(20)],
+            heard=2,
+            speakers=[{"name": "A", "role": "host"}, {"name": "B", "role": "guest"}],
+        )
+        meta = json.loads(path.read_text(encoding="utf-8"))
+        assert voices_heard(meta, metadata_path=path) == 5
+
+    def test_no_sidecar_is_no_evidence_not_the_field(self, tmp_path: Path) -> None:
+        # The strict rule: unknown provenance does not count as a measurement. Returning the field
+        # here is what let a fallback masquerade as a diarizer count.
+        path = self._corpus(
+            tmp_path,
+            segments=None,
+            heard=2,
+            speakers=[{"name": "A", "role": "host"}, {"name": "B", "role": "guest"}],
+        )
+        meta = json.loads(path.read_text(encoding="utf-8"))
+        assert voices_heard(meta, metadata_path=path) is None
+
+    def test_a_sidecar_with_no_raw_ids_is_no_evidence(self, tmp_path: Path) -> None:
+        path = self._corpus(
+            tmp_path,
+            segments=[{"speaker": None, "speaker_label": "Alice"} for _ in range(5)],
+            heard=2,
+            speakers=[{"name": "A", "role": "host"}],
+        )
+        meta = json.loads(path.read_text(encoding="utf-8"))
+        assert voices_heard(meta, metadata_path=path) is None
+
+    def test_without_a_path_there_is_no_evidence_either(self, tmp_path: Path) -> None:
+        # A caller that cannot resolve the sidecar gets None, not a guess.
+        meta = {
+            "content": {"speakers": [{"name": "A", "role": "host"}], "diarization_num_speakers": 2}
+        }
+        assert voices_heard(meta) is None
+
+    def test_route_b_cannot_fire_without_a_sidecar(self, tmp_path: Path) -> None:
+        # The behavioural consequence, stated as a test: with no provable voice count, the
+        # "roster accounted for everyone" demotion has no denominator and must not run.
+        kg = _kg(
+            [
+                ("person:sarah-guo", "Sarah Guo", "host"),
+                ("person:elad-gil", "Elad Gil", "mentioned"),
+            ]
+        )
+        promoted, demoted, _u = promote_person_roles(
+            kg, {"person:elad-gil": "host"}, voices_heard=None
+        )
+        assert promoted == 1 and demoted == 0

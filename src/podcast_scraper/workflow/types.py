@@ -34,6 +34,11 @@ class HostDetectionResult(NamedTuple):
     cached_hosts: Set[str]
     heuristics: Optional[Dict[str, Any]]
     speaker_detector: Any = None  # Stage 3: Optional SpeakerDetector instance
+    #: The FEED's title, carried so per-episode detection can refuse a host that is really the
+    #: show ("Planet Money is joined by..."). Defaulted: every existing construction site is
+    #: unaffected, and a missing title simply means that particular guard has no opinion — the
+    #: same contract `names_the_show` already has.
+    feed_title: Optional[str] = None
 
 
 @dataclass

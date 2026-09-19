@@ -63,7 +63,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
 .PHONY: test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
+.PHONY: speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics diarization-quality diarization-quality compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-sweep-local autoresearch-sweep-multi autoresearch-score autoresearch-score-bundled silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict pipeline-validate transcription-sweep infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy
 
 help:
 	@echo "Common developer commands:"
@@ -1513,13 +1513,68 @@ upgrade-dry-run:
 
 # Apply pending migrations. Non-interactive (--yes) for automated upgrades; drop
 # `--yes` and run the CLI directly for an interactive confirmation prompt.
+# SNAPSHOT_DIR is optional but STRONGLY recommended on a deployed corpus (#2065 advisor S8): the
+# default snapshot location is a sibling of the corpus root, which is container-ephemeral when the
+# corpus is a volume mount — so the rollback story is only real if the snapshot outlives the
+# container. The run prints the path it used; capture it.
+#   make upgrade-corpus CORPUS_DIR=<corpus> SNAPSHOT_DIR=/persistent/path
 upgrade-corpus:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
-	$(PYTHON) -m podcast_scraper.cli upgrade run --corpus-dir "$${CORPUS_DIR}" --yes
+	$(PYTHON) -m podcast_scraper.cli upgrade run --corpus-dir "$${CORPUS_DIR}" --yes \
+		$${SNAPSHOT_DIR:+--snapshot-dir "$${SNAPSHOT_DIR}"}
 
 upgrade-verify:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -m podcast_scraper.cli upgrade verify --corpus-dir "$${CORPUS_DIR}"
+
+# Speaker/role coherence over a corpus, and what m0009 WOULD do to it (#2065 advisor S5).
+# The post-deploy runbook's verification steps had no commands behind them: "re-run the migration
+# and expect 0/0" is blocked by the upgrade ledger, and `check_corpus` had no CLI.
+#   make speaker-coherence CORPUS_DIR=<corpus>              # is the corpus self-consistent now
+#   make speaker-migration-preview CORPUS_DIR=<corpus>      # dry-run m0009, bypassing the ledger
+# The preview prints the two classes that need a human — SUSPECT demotions (the node had a voice,
+# which is what an eponymous-show host looks like) and AMBIGUOUS nodes — plus a node-level role
+# TRANSITION table. The violation count alone cannot see a wrongful demotion: the coherence checks
+# share the migration's own predicates, so a wrong demotion scores as a violation FIXED.
+# Roll back the role changes m0009 made, from the ledger it wrote (#2069). Refuses any node that
+# something else has written since — a rollback that overwrites a later re-enrich is a regression
+# wearing a rollback's clothes — and reports those rather than forcing.
+#   make upgrade-undo-roles CORPUS_DIR=<corpus>
+upgrade-undo-roles:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) scripts/ops/undo_speaker_roles.py --corpus-dir "$${CORPUS_DIR}"
+
+speaker-coherence:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) scripts/audit/speaker_coherence_report.py --corpus-dir "$${CORPUS_DIR}"
+
+# Does every episode's metadata point at ITS OWN transcript? (#2082)
+# A reprocess used to take `idx` from the episode's FILENAME, and every run dir numbers from 0001 —
+# so a feed with fourteen run dirs has fourteen "episode 1"s, and `idx` keys per-episode state.
+# They collided: metadata written for one episode carrying another's transcript, and the roster
+# computed from that other episode's words. On the 2026-09-14 snapshot, 275 of 2,256 files (12.2%)
+# and 119 confirmed crediting another episode's people.
+# RUN THIS BEFORE ANY MIGRATION: every measurement the post-deploy runbook takes reads
+# `content.speakers`, which on an affected episode describes a different episode.
+#   make transcript-pairing-audit CORPUS_DIR=<corpus>
+# Read-only. Exits 1 when any mismatch is found, so it can gate a deploy step.
+transcript-pairing-audit:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) scripts/audit/transcript_pairing_audit.py --corpus-dir "$${CORPUS_DIR}"
+
+# #2075: is every episode's people surface in sync with its speaker record?
+# Checks the transcript's speaker names, quote attribution (gi.json) and cast (kg.json) against
+# `content.speakers`. Pre-1.2.0 artifacts are skipped unless LEGACY=1.
+#   make speaker-sync-audit CORPUS_DIR=<corpus> [LEGACY=1]
+# Read-only. Exits 1 when any episode is out of sync, so it can gate a validation run.
+speaker-sync-audit:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) scripts/audit/speaker_sync_audit.py --corpus-dir "$${CORPUS_DIR}" $(if $(LEGACY),--legacy-as-placed,)
+
+speaker-migration-preview:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) scripts/audit/speaker_coherence_report.py --corpus-dir "$${CORPUS_DIR}" \
+		--migration-preview --roles
 
 # Run the RFC-088 enrichment layer over a corpus (#1127). Invokes the
 # `podcast_scraper.cli enrich` subcommand — the same verb a manual job / cron

@@ -69,7 +69,13 @@ def _write_corpus(
                         "title": "Hard Fork",
                         "description": feed_desc,
                         "authors": ["The New York Times"],
-                    }
+                    },
+                    # A finished corpus artifact: the pre-1.2.0 roster shape, plus a neighbouring
+                    # key the relabel has no new information about and must not touch.
+                    "content": {
+                        "speakers": [{"id": "host", "name": "Amy Lawrence", "role": "host"}],
+                        "transcript_source": "whisper_transcription",
+                    },
                 }
             ),
             encoding="utf-8",
@@ -79,7 +85,14 @@ def _write_corpus(
 
 def _cfg(
     pipeline_stage: Literal[
-        "full", "audio_only", "enrich_only", "download_only", "relabel_only", "rediarize_only"
+        "full",
+        "audio_only",
+        "enrich_only",
+        "download_only",
+        "relabel_only",
+        "rediarize_only",
+        "retranscript_only",
+        "rederive_only",
     ] = "full",
 ) -> config.Config:
     return config.Config(
@@ -412,6 +425,109 @@ def test_transcribe_media_to_text_dispatches_to_relabel(tmp_path: Path, monkeypa
     assert result == sentinel
 
 
+# --- the speaker record follows the relabel (#2075) ---
+
+
+def test_relabel_rewrites_the_speaker_record_to_match_the_new_labels(tmp_path: Path) -> None:
+    """The record is the ONE source every surface is written from, and no reprocess stage updated
+    it: measured on two DGX episodes, `metadata.json` was byte-identical before and after while the
+    transcript was relabelled. A relabel that changes a name would leave the record naming the old
+    person — the exact divergence the record exists to prevent."""
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    host_text = "Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)
+    co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
+    old_run, stem = _write_corpus(
+        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=[host_text, co_text]
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    ok, _rel, _ = _relabel_existing_transcript(_job(), _cfg(), run_tag, str(new_run), None, None)
+    assert ok is True
+
+    payload = json.loads(
+        (old_run / "metadata" / f"{stem}.metadata.json").read_text(encoding="utf-8")
+    )
+    names = {s["name"] for s in payload["content"]["speakers"]}
+    # The wrong name the relabel removed from the transcript is gone from the record too.
+    assert "Amy Lawrence" not in names
+    assert "Kevin Roose" in names
+    placed = [s for s in payload["content"]["speakers"] if s.get("placed")]
+    assert placed, "a relabelled episode has voices, so the record must place someone"
+    for sp in placed:
+        assert sp["voices"], "a placed person names the diarization voices that are them"
+        assert sp["source"], "and how the name was chosen"
+    assert payload["content"]["speakers_source"] == "diarized"
+    # A frozen stage has no new information about anything else in the artifact.
+    assert payload["content"]["transcript_source"] == "whisper_transcription"
+    assert payload["feed"]["title"] == "Hard Fork"
+
+
+def test_the_record_is_built_from_the_same_host_anchor_the_relabel_used(tmp_path: Path) -> None:
+    """The stage prefers the FROZEN sibling metadata over live feed detection, so a relabel of a
+    stored corpus is reproducible. Rebuilding the record from the live `job.feed_hosts` instead
+    would describe a different resolution from the one that produced the labels on disk — the two
+    would disagree about who was in the episode while claiming to be one record."""
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    old_run, stem = _write_corpus(
+        base,
+        run_tag,
+        seg_labels=["SPEAKER_00"],
+        texts=["Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)],
+    )
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+    job = _job()
+    job.feed_hosts = ["Someone Else"]  # live detection drifted from the stored feed blurb
+
+    ok, _rel, _ = _relabel_existing_transcript(job, _cfg(), run_tag, str(new_run), None, None)
+    assert ok is True
+
+    payload = json.loads(
+        (old_run / "metadata" / f"{stem}.metadata.json").read_text(encoding="utf-8")
+    )
+    names = {s["name"] for s in payload["content"]["speakers"]}
+    # The co-host the FROZEN blurb names, carried as a person no voice was matched to...
+    assert "Casey Newton" in names
+    # ...and never the live-detection name, which this relabel did not resolve with.
+    assert "Someone Else" not in names
+
+
+def test_relabel_keeps_the_relabel_when_the_record_cannot_be_written(
+    tmp_path: Path, caplog
+) -> None:
+    """A record failure must not lose the relabel that already succeeded: the transcript stays
+    rewritten and the run reports success, with the stale record logged."""
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    old_run, stem = _write_corpus(
+        base,
+        run_tag,
+        seg_labels=["Amy Lawrence", "SPEAKER_07"],
+        texts=["Welcome to Hard Fork. I'm Kevin Russo. " + ("Host turn. " * 60), "Hi. " * 80],
+    )
+    (old_run / "metadata" / f"{stem}.metadata.json").write_text("{ not json", encoding="utf-8")
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        ok, _rel, _ = _relabel_existing_transcript(
+            _job(), _cfg(), run_tag, str(new_run), None, None
+        )
+
+    assert ok is True
+    out = (old_run / "transcripts" / f"{stem}.txt").read_text(encoding="utf-8")
+    # The relabel itself still happened: v2's wrong name is gone from the transcript. (The host
+    # surname is NOT canonicalized here — the unreadable metadata is also where the feed-stated
+    # hosts come from, so there is no anchor to snap "Kevin Russo" against.)
+    assert "Amy Lawrence" not in out
+    assert any("still describes the OLD naming" in r.message for r in caplog.records)
+
+
 # --- rediarize_only (v2.2): fresh diarization aligned to the existing ASR transcript ---
 
 
@@ -481,3 +597,174 @@ def test_transcribe_dispatches_to_rediarize(tmp_path: Path, monkeypatch) -> None
     )
     assert seen.get("hit") is True
     assert result == sentinel
+
+
+# --- the cleaned transcript follows the relabel (#2075) ---
+
+
+def _relabel_with_cleaned(tmp_path: Path, cleaned_text: str):
+    base = tmp_path / "feed"
+    run_tag = "20260101-000000_t"
+    host_text = "Welcome to Hard Fork. I'm Kevin Russo, tech columnist. " + ("Host turn. " * 60)
+    co_text = "I'm Casey Noon from Platformer. " + ("Co-host turn. " * 60)
+    old_run, stem = _write_corpus(
+        base, run_tag, seg_labels=["Amy Lawrence", "SPEAKER_07"], texts=[host_text, co_text]
+    )
+    cleaned = old_run / "transcripts" / f"{stem}.cleaned.txt"
+    cleaned.write_text(cleaned_text, encoding="utf-8")
+    new_run = base / "run_20260102-000000_t"
+    new_run.mkdir(parents=True)
+    ok, _rel, _ = _relabel_existing_transcript(_job(), _cfg(), run_tag, str(new_run), None, None)
+    assert ok is True
+    return cleaned
+
+
+def test_relabel_rewrites_the_cleaned_transcripts_labels(tmp_path: Path) -> None:
+    """Measured before: 52/129 control and 82/163 broken-set episodes kept the OLD names here."""
+    cleaned = _relabel_with_cleaned(
+        tmp_path, "Amy Lawrence: Welcome to Hard Fork.\n\nSPEAKER_07: From Platformer.\n"
+    )
+    out = cleaned.read_text(encoding="utf-8")
+    assert "Amy Lawrence:" not in out
+    assert "Kevin Roose: Welcome to Hard Fork." in out
+    assert "\n\n" in out, "the cleaner's paragraph breaks are kept"
+
+
+def test_relabel_removes_a_cleaned_transcript_it_cannot_map(tmp_path: Path) -> None:
+    """Written from an even older labelling: its labels are not the transcript's. Wrong names in a
+    derivative are worse than none — the server falls back to the raw transcript."""
+    cleaned = _relabel_with_cleaned(tmp_path, "SPEAKER_02: Welcome.\nSPEAKER_04: Thanks.\n")
+    assert not cleaned.exists()
+
+
+def test_relabel_keeps_prose_colons_in_the_cleaned_transcript(tmp_path: Path) -> None:
+    """LLM cleaners write "So, to recap: …" and "First: …". Read as speaker labels, 569 of 2,071
+    real cleaned transcripts would have been removed or mangled."""
+    cleaned = _relabel_with_cleaned(
+        tmp_path,
+        "Amy Lawrence: Welcome to Hard Fork.\nSo, to recap: it was a big week.\n"
+        "First: the chips.\nOne food scientist stuck with me: she said so.\n",
+    )
+    out = cleaned.read_text(encoding="utf-8")
+    assert out.startswith("Kevin Roose: Welcome to Hard Fork.")
+    assert "So, to recap: it was a big week." in out
+    assert "First: the chips." in out
+    assert "One food scientist stuck with me: she said so." in out
+
+
+@pytest.mark.parametrize(
+    "stage", ["relabel_only", "retranscript_only", "rediarize_only", "rederive_only"]
+)
+def test_a_reprocess_stage_never_redownloads_a_publisher_transcript(
+    tmp_path: Path, monkeypatch, stage
+) -> None:
+    """#2075, found verifying retranscript_only on an Odd Lots episode: the publisher-transcript
+    branch ran before any stage check, so a feed that ships its own transcript was re-ingested into
+    a NEW run and the repair never ran — exit 0, stored transcript untouched."""
+    import queue
+
+    def _must_not_download(*_a, **_k):
+        raise AssertionError("a reprocess stage re-downloaded the publisher transcript")
+
+    monkeypatch.setattr(ep_mod, "process_transcript_download", _must_not_download)
+    # This test is about the PUBLISHER-TRANSCRIPT branch only. `rediarize_only` and
+    # `retranscript_only` legitimately fetch the AUDIO afterwards (they re-diarize / re-ASR it),
+    # which under the suite's `--disable-socket` reaches a real connect to example.com. Stub the
+    # media fetch so the failure surface stays the branch under test.
+    monkeypatch.setattr(ep_mod, "download_media_for_transcription", lambda *_a, **_k: None)
+    episode = Episode(
+        idx=1,
+        title="Ep",
+        title_safe="Ep",
+        item=ET.Element("item"),
+        transcript_urls=[("https://example.com/ep1.srt", "application/x-subrip")],
+        media_url="https://example.com/ep1.mp3",
+        media_type="audio/mpeg",
+    )
+    jobs: "queue.Queue" = queue.Queue()
+    ep_mod.process_episode_download(
+        episode,
+        _cfg(stage),  # type: ignore[arg-type]
+        str(tmp_path / "tmp"),
+        str(tmp_path / "out"),
+        "20260101-000000_t",
+        jobs,
+        None,
+    )
+
+
+# --- rederive_only routing (#2075): re-derive from the transcript already on disk ---
+
+
+def _rederive_episode() -> Episode:
+    return Episode(
+        idx=1,
+        title="Ep",
+        title_safe="Ep",
+        item=ET.Element("item"),
+        transcript_urls=[],
+        media_url="https://example.com/ep1.mp3",
+        media_type="audio/mpeg",
+    )
+
+
+def test_rederive_only_reuses_the_on_disk_transcript(tmp_path: Path, monkeypatch) -> None:
+    """rederive_only was a silent no-op: it coerces ``transcribe_missing=false``, and the only
+    other exit from ``process_episode_download`` was the ``transcribe_missing and temp_dir`` gate,
+    so the function returned (False, None, None, 0), nothing was ever queued, and the run exited 0
+    having re-derived nothing. The stage must resolve the stored transcript HERE."""
+    import queue
+
+    from podcast_scraper.utils import filesystem
+
+    out_dir = tmp_path / "out"
+    run_suffix = "20260101-000000_t"
+    stored = Path(filesystem.build_whisper_output_path(1, "Ep", run_suffix, str(out_dir)))
+    stored.parent.mkdir(parents=True)
+    stored.write_text("SPEAKER_00: Welcome to the show.\n", encoding="utf-8")
+
+    def _must_not_download_media(*_a, **_k):
+        raise AssertionError("rederive_only downloaded media for transcription")
+
+    monkeypatch.setattr(ep_mod, "download_media_for_transcription", _must_not_download_media)
+
+    jobs: "queue.Queue" = queue.Queue()
+    ok, path, source, downloaded = ep_mod.process_episode_download(
+        _rederive_episode(),
+        _cfg("rederive_only"),
+        str(tmp_path / "tmp"),
+        str(out_dir),
+        run_suffix,
+        jobs,
+        None,
+    )
+
+    assert ok is True  # the stage now reports the episode as processed
+    assert path == str(stored)  # ...from the transcript already on disk
+    # Provenance is READ from the episode's own metadata, never assumed, so a direct-download feed
+    # is not relabelled `whisper_transcription`. This fixture stores no metadata, and the
+    # documented fallback for unreadable metadata is exactly one value — accepting either would
+    # let a wrong provenance label through on a reused transcript.
+    assert source == "whisper_transcription"
+    assert downloaded == 0  # nothing was fetched
+    assert jobs.empty()  # and no ASR job was queued
+
+
+def test_rederive_only_reports_failure_when_nothing_is_on_disk(tmp_path: Path) -> None:
+    """The other half of the silent-success class: with no stored transcript there is nothing to
+    re-derive, and the episode must NOT be counted as processed."""
+    import queue
+
+    jobs: "queue.Queue" = queue.Queue()
+    ok, path, source, downloaded = ep_mod.process_episode_download(
+        _rederive_episode(),
+        _cfg("rederive_only"),
+        str(tmp_path / "tmp"),
+        str(tmp_path / "out"),
+        "20260101-000000_t",
+        jobs,
+        None,
+    )
+
+    assert (ok, path, source, downloaded) == (False, None, None, 0)
+    assert jobs.empty()

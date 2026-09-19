@@ -121,6 +121,9 @@ def _episode_metrics(gi_path: Path, meta: Optional[dict]) -> EpisodeDiarMetrics:
         speakers = _find(meta, "speakers")
         if isinstance(speakers, list):
             for sp in speakers:
+                # #2075: a person only NAMED (placed: false) is not a speaker this episode had.
+                if isinstance(sp, dict) and sp.get("placed") is False:
+                    continue
                 name = (sp.get("name") if isinstance(sp, dict) else None) or ""
                 if name:
                     em.content_speaker_names.append(name)
