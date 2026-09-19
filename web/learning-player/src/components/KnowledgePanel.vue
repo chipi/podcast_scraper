@@ -182,9 +182,6 @@ const dominantClusterId = computed<string | null>(() => {
   }
   return best
 })
-const dominantClusterLabel = computed(
-  () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null
-)
 
 // Theme clusters (co-occurrence "discussed together") — parallel to the semantic dominant above.
 // Marked on the pills (theme ring) + a "Theme ·" lead-in. No-op when topics carry no theme_cluster_id.
@@ -655,30 +652,35 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <!-- Storyline + similar context (IN.2): promoted from a cramped, right-aligned `text-xs`
              column to a clear left-aligned block, so the storyline (theme cluster) this episode's
              topics belong to reads at a glance rather than as fine print. -->
-          <div
-            v-if="themeDominantLabel || dominantClusterLabel"
-            class="mb-2 flex flex-col gap-0.5 text-sm leading-snug"
-          >
+          <div v-if="themeDominantLabel" class="mb-2 flex items-center gap-2">
             <!-- The storyline OPENS (operator 2026-09-19): it is a real destination with its own
                  sheet, and reading its name without being able to go there was the gap. Falls back
                  to a plain <span> when no member topic id is available to route with. -->
+            <!-- A PILL, in the accent, with its kind named (operator 2026-09-19).
+                 It used to be an underlined text link stacked above an inert "Similar ·" line, in a
+                 wall of identical grey topic pills — the one tappable thing in the section did not
+                 look tappable, and the line above it looked equally tappable and was not.
+                 Accent is correct by the app's own rule (`__checks__/accent-discipline`): it means
+                 "you can act on this", and in this section the storyline is the only thing you can.
+                 The word STORYLINE rides along so the kind is NAMED, not inferred from colour —
+                 colour alone reaches neither a colour-blind reader nor VoiceOver. -->
             <button
-              v-if="themeDominantLabel && themeDominantTopicId"
+              v-if="themeDominantTopicId"
               type="button"
               data-testid="kp-storyline-link"
-              class="text-left font-semibold text-theme underline-offset-2 hover:underline"
+              class="lp-tap inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/25"
               :aria-label="t('kp.openStoryline', { label: themeDominantLabel })"
               @click="storylineOpen = true"
             >
-              {{ t("kp.theme", { cluster: themeDominantLabel }) }}
+              <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>
+              {{ themeDominantLabel }}
             </button>
-            <span v-else-if="themeDominantLabel" class="font-semibold text-theme">
-              {{ t("kp.theme", { cluster: themeDominantLabel }) }}
-            </span>
-            <!-- "Similar" stays inert on purpose: a SEMANTIC cluster has no card and no route —
-                 nothing in the app routes on `cluster_id` — so there is nowhere for a tap to go. -->
-            <span v-if="dominantClusterLabel" class="text-topic">
-              {{ t("kp.similar", { cluster: dominantClusterLabel }) }}
+            <span
+              v-else
+              class="inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-muted"
+            >
+              <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>
+              {{ themeDominantLabel }}
             </span>
           </div>
           <div class="flex flex-wrap gap-1.5">
