@@ -34,6 +34,7 @@ import CollapsibleSection from "./CollapsibleSection.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
+import StorylineCard from "./StorylineCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
 import { isNative, openExternal, saveAndShareText } from "../services/native"
 
@@ -214,6 +215,18 @@ const themeDominantLabel = computed(
     props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.theme_cluster_label ??
     null
 )
+/**
+ * A topic id that opens the storyline named by the lead-in (operator 2026-09-19).
+ *
+ * ANY MEMBER topic works, which is why this does not need the anchor id the theme-cluster artifact
+ * carries: "a storyline has no dedicated endpoint, so StorylineView reconstructs the whole theme
+ * cluster from any member topic's card" (StorylineCard). Routing with the `thc:` cluster id instead
+ * is what 404s, so it is deliberately not used here.
+ */
+const themeDominantTopicId = computed<string | null>(
+  () => props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.id ?? null
+)
+const storylineOpen = ref(false)
 // Speaker-role badge on person chips (BE.4/PL.2) — same host/guest/mentioned vocabulary and i18n
 // keys as EntityCardBody, so the label reads identically wherever a person appears.
 const ROLE_LABEL_KEYS: Record<string, string> = {
@@ -228,6 +241,11 @@ function roleLabel(role: string | undefined): string {
   const key = ROLE_LABEL_KEYS[role.toLowerCase()]
   return key ? t(key) : role
 }
+/** Chip order for people: host, guest, then anyone else (mentioned, or an unlabelled role). */
+const PERSON_ROLE_ORDER: Record<string, number> = { host: 0, guest: 1 }
+const personRank = (p: { role?: string | null }): number =>
+  PERSON_ROLE_ORDER[(p.role ?? "").toLowerCase()] ?? 2
+
 const allTags = computed<Tag[]>(() => {
   const counts = topicClusterCounts.value
   const dom = dominantClusterId.value
@@ -236,6 +254,10 @@ const allTags = computed<Tag[]>(() => {
   const rank = (t: { cluster_id: string | null }): number =>
     t.cluster_id === dom && dom ? 0 : t.cluster_id ? 100 - (counts[t.cluster_id] ?? 0) : 1000
   const topics = [...props.topics].sort((a, b) => rank(a) - rank(b))
+  // People read in conversation order — host, then guest, then everyone merely mentioned
+  // (operator 2026-09-19). The server returns them in graph order, which put the guest first as
+  // often as not; "who is this episode" is answered by the two people actually in the room.
+  const persons = [...props.persons].sort((a, b) => personRank(a) - personRank(b))
   return [
     ...topics.map((tp) => ({
       key: tp.id,
@@ -245,7 +267,7 @@ const allTags = computed<Tag[]>(() => {
       themeMember: Boolean(tp.theme_cluster_id),
       episodeScoped: false,
     })),
-    ...props.persons.map((p) => ({
+    ...persons.map((p) => ({
       key: p.id,
       label: p.name,
       kind: "person" as const,
@@ -309,9 +331,21 @@ const surfaceInsights = computed(() =>
 )
 // Per-type filter (IN.3): null = all. Chips render only for the types actually present.
 const insightTypeFilter = ref<string | null>(null)
-const insightTypeOptions = computed(() => [
-  ...new Set(surfaceInsights.value.map((i) => insightTypeLabel(i)).filter(Boolean)),
-])
+/**
+ * The types present, each with how many insights carry it (operator 2026-09-19).
+ *
+ * Counted off `surfaceInsights` — the same list the filter narrows — so a chip's number is exactly
+ * what tapping it yields. Note this is a different cut of the same total from the INSIGHT DENSITY
+ * bars above, which split by POSITION (early/mid/late); both sum to the same count.
+ */
+const insightTypeOptions = computed<{ type: string; count: number }[]>(() => {
+  const counts = new Map<string, number>()
+  for (const i of surfaceInsights.value) {
+    const ty = insightTypeLabel(i)
+    if (ty) counts.set(ty, (counts.get(ty) ?? 0) + 1)
+  }
+  return [...counts].map(([type, count]) => ({ type, count }))
+})
 const typeFilteredInsights = computed(() =>
   insightTypeFilter.value
     ? surfaceInsights.value.filter((i) => insightTypeLabel(i) === insightTypeFilter.value)
@@ -589,9 +623,24 @@ watch(() => auth.isAuthenticated, loadCaptures)
             v-if="themeDominantLabel || dominantClusterLabel"
             class="mb-2 flex flex-col gap-0.5 text-sm leading-snug"
           >
-            <span v-if="themeDominantLabel" class="font-semibold text-theme">
+            <!-- The storyline OPENS (operator 2026-09-19): it is a real destination with its own
+                 sheet, and reading its name without being able to go there was the gap. Falls back
+                 to a plain <span> when no member topic id is available to route with. -->
+            <button
+              v-if="themeDominantLabel && themeDominantTopicId"
+              type="button"
+              data-testid="kp-storyline-link"
+              class="text-left font-semibold text-theme underline-offset-2 hover:underline"
+              :aria-label="t('kp.openStoryline', { label: themeDominantLabel })"
+              @click="storylineOpen = true"
+            >
+              {{ t("kp.theme", { cluster: themeDominantLabel }) }}
+            </button>
+            <span v-else-if="themeDominantLabel" class="font-semibold text-theme">
               {{ t("kp.theme", { cluster: themeDominantLabel }) }}
             </span>
+            <!-- "Similar" stays inert on purpose: a SEMANTIC cluster has no card and no route —
+                 nothing in the app routes on `cluster_id` — so there is nowhere for a tap to go. -->
             <span v-if="dominantClusterLabel" class="text-topic">
               {{ t("kp.similar", { cluster: dominantClusterLabel }) }}
             </span>
@@ -661,20 +710,23 @@ watch(() => auth.isAuthenticated, loadCaptures)
               @click="insightTypeFilter = null"
             >
               {{ t("kp.filterAll") }}
+              <span class="ml-1 font-mono opacity-70">{{ surfaceInsights.length }}</span>
             </button>
             <button
-              v-for="ty in insightTypeOptions"
-              :key="ty"
+              v-for="opt in insightTypeOptions"
+              :key="opt.type"
               type="button"
               class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize transition"
               :class="
-                insightTypeFilter === ty
+                insightTypeFilter === opt.type
                   ? 'bg-accent text-accent-foreground'
                   : 'bg-overlay text-muted hover:text-canvas-foreground'
               "
-              @click="insightTypeFilter = ty"
+              @click="insightTypeFilter = opt.type"
             >
-              {{ ty }}
+              {{ opt.type }}
+              <!-- `font-mono` + not capitalized: the count is data, not part of the type's name. -->
+              <span class="ml-1 font-mono normal-case opacity-70">{{ opt.count }}</span>
             </button>
           </div>
           <ul class="flex flex-col gap-3">
@@ -834,5 +886,15 @@ watch(() => auth.isAuthenticated, loadCaptures)
         <NoteComposer target="episode" :target-id="slug" />
       </div>
     </template>
+
+    <!-- The storyline named by the lead-in, opened ON TOP of this panel rather than replacing it —
+         the same stacking the panel already documents for a card's storyline ("topic underneath,
+         storyline on it"). Outside the `v-else` so it survives a chip swapping the body. -->
+    <StorylineCard
+      v-if="storylineOpen && themeDominantTopicId"
+      :id="themeDominantTopicId"
+      :depth="1"
+      @close="storylineOpen = false"
+    />
   </aside>
 </template>
