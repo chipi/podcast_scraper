@@ -67,6 +67,111 @@ async function shootNear(page: Page, target: Locator, name: string, pad = 24): P
   })
 }
 
+/**
+ * Seed follows and saves.
+ *
+ * The design identity is a constant account that starts empty, so Following, Saved, the Profile
+ * pills and the trends expand control all correctly render nothing — and a screenshot run that
+ * skipped four items looked, from the outside, exactly like one where those items were broken.
+ * Seeded through the API rather than by clicking, because the UI path costs a minute of navigation
+ * per item and proves nothing this spec is asking about.
+ */
+async function seedFollowsAndSaves(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const j = (u: string) => fetch(u, { credentials: 'include' }).then((r) => r.json())
+    const post = (u: string, body: unknown, method = 'POST') =>
+      fetch(u, {
+        method,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+    // Follow two shows, so Following has rows and its type chips have something to filter.
+    const shows = (await j('/api/app/podcasts')).items ?? []
+    for (const s of shows.slice(0, 3)) {
+      await post('/api/app/library', { feed_id: s.feed_id, title: s.title })
+    }
+
+    // Save a show and a couple of episodes, so Saved renders its sections and its filter bar.
+    const eps = (await j('/api/app/episodes?page_size=8')).items ?? []
+    for (const e of eps.slice(0, 7)) {
+      await post('/api/app/favorites', { kind: 'episode', ref: e.slug, label: e.title }, 'PUT')
+    }
+    if (shows[0]) {
+      await post(
+        '/api/app/favorites',
+        { kind: 'show', ref: shows[0].feed_id, label: shows[0].title },
+        'PUT',
+      )
+    }
+
+    // One of EACH interest kind — the whole point of the profile-pill shot is the contrast.
+    const topics = (await j('/api/app/trending?kind=topic&limit=2')).items ?? []
+    const people = (await j('/api/app/trending?kind=person&limit=1')).items ?? []
+    const stories = (await j('/api/app/trending?kind=storyline&limit=1')).items ?? []
+    const clusters = (await j('/api/app/clusters?limit=1')).items ?? []
+
+    // Two boards and a few notes — without them the Boards headings render no count at all
+    // (correctly: the count is gated on there being something to count), so the shot of "does the
+    // heading carry a tally" would be a shot of an empty tab.
+    for (const name of ['Weekend reading', 'Risk & rates']) {
+      await post('/api/app/collections', { name })
+    }
+    const noteTargets: Array<[string, string, string]> = [
+      ['episode', eps[0]?.slug ?? '', 'The framing here is the useful part.'],
+      ['episode', eps[1]?.slug ?? '', 'Come back to the second half.'],
+      ...topics.slice(0, 1).map((t: { entity_id: string }): [string, string, string] => [
+        'topic',
+        t.entity_id,
+        'Worth tracking how this develops.',
+      ]),
+    ]
+    for (const [target, target_id, text] of noteTargets) {
+      if (target_id) await post('/api/app/notes', { target, target_id, text })
+    }
+
+    await post(
+      '/api/app/interests',
+      {
+        items: [
+          ...topics.map((t: { entity_id: string }) => t.entity_id),
+          ...people.map((p: { entity_id: string }) => p.entity_id),
+          ...stories.map((s: { entity_id: string }) => s.entity_id),
+          ...clusters.map((c: { id: string }) => c.id),
+        ],
+      },
+      'PUT',
+    )
+  })
+}
+
+/**
+ * Shoot the band spanning TWO elements — for an ask that is about ORDER rather than appearance.
+ * Cropping to one of them proves nothing: "the arc moved up beside the sparkline" is only visible
+ * when both are in frame with nothing between them.
+ */
+async function shootSpan(page: Page, top: Locator, bottom: Locator, name: string): Promise<void> {
+  await expect(top).toBeVisible({ timeout: 30_000 })
+  await expect(bottom).toBeVisible({ timeout: 30_000 })
+  await top.scrollIntoViewIfNeeded()
+  await settle(page)
+  const a = await top.boundingBox()
+  const b = await bottom.boundingBox()
+  if (!a || !b) throw new Error(`${name}: one of the two elements has no box`)
+  const vp = page.viewportSize()!
+  const y = Math.max(0, a.y - 12)
+  await page.screenshot({
+    path: dir(name),
+    clip: {
+      x: 0,
+      y,
+      width: vp.width,
+      height: Math.min(vp.height - y, b.y + b.height + 12 - y),
+    },
+  })
+}
+
 /** Open the first topic card reachable from Discover's trends. */
 async function openTopicCard(page: Page): Promise<void> {
   await page.goto('/browse')
@@ -78,11 +183,34 @@ async function openTopicCard(page: Page): Promise<void> {
 
 // --- Home ----------------------------------------------------------------------------------- //
 
+/**
+ * Seed an in-progress listen. Both the resume hero and Recommended are gated on one — Recommended
+ * is keyed off the most recent play — so on a fresh account neither section exists and a shot of
+ * "Home" would be a shot of their absence.
+ */
+async function seedInProgress(page: Page): Promise<void> {
+  await page.goto('/')
+  await page.locator('a[href*="/episode/"]').first().click()
+  await expect(page).toHaveURL(/\/episode\//)
+  await page.evaluate(() => {
+    const a = document.querySelector('audio')
+    if (a) {
+      a.currentTime = 120
+      a.dispatchEvent(new Event('timeupdate'))
+    }
+  })
+  await page.waitForTimeout(1200) // let the position write land
+}
+
 test('home: recommended caps at four with a show-more', async ({ page }) => {
   await signIn(page)
+  await seedInProgress(page)
   await page.goto('/')
-  const grid = page.locator('section', { has: page.getByText('Recommended for you') })
-  await shootNear(page, grid, 'recommended-four')
+  const heading = page.getByText('Recommended for you')
+  if (!(await heading.count())) {
+    test.skip(true, 'no recommendations for this listen — the section correctly does not render')
+  }
+  await shootNear(page, heading.locator('xpath=ancestor::section[1]'), 'recommended-four')
 })
 
 test('home: the queue is reachable beside Resume', async ({ page }) => {
@@ -136,7 +264,13 @@ test('topic: the conversation arc sits under the activity sparkline', async ({ p
   await openTopicCard(page)
   const spark = page.locator('[data-testid="ec-topic-activity"]')
   if (!(await spark.count())) test.skip(true, 'this topic has too few dated episodes for a sparkline')
-  await shootNear(page, spark.locator('xpath=..'), 'topic-charts-stacked', 8)
+  // Span the sparkline through the arc: the ask was about ORDER, so both must be in one frame.
+  const arc = page.locator('[data-testid="topic-conversation-arc"]')
+  if (!(await arc.count())) {
+    await shootNear(page, spark.locator('xpath=..'), 'topic-charts-stacked', 8)
+    test.skip(true, 'no conversation arc for this topic — shot the sparkline alone')
+  }
+  await shootSpan(page, spark, arc, 'topic-charts-stacked')
 })
 
 test('topic: similar topics excludes the topic you are on', async ({ page }) => {
@@ -167,12 +301,20 @@ test('topic: the episode list caps at ten', async ({ page }) => {
 
 test('library: the Following filters sit on one row', async ({ page }) => {
   await signIn(page)
-  await page.goto('/library?tab=following')
-  await shootNear(page, page.locator('[data-testid="following-type-filter"]'), 'following-one-row')
+  // Following is the `shows` tab, and it renders the SAME `SavedFilterBar` as Saved (minus the
+  // colour strip), so it carries Saved's static testids rather than ones of its own.
+  await page.goto('/')
+  await seedFollowsAndSaves(page)
+  await page.goto('/library?tab=shows')
+  const bar = page.locator('[data-testid="saved-filter-bar"]')
+  if (!(await bar.count())) test.skip(true, 'this account follows nothing — the bar does not render')
+  await shootNear(page, bar, 'following-one-row')
 })
 
 test('library: Saved type filters, colours and mute all sit on one row', async ({ page }) => {
   await signIn(page)
+  await page.goto('/')
+  await seedFollowsAndSaves(page)
   await page.goto('/library?tab=saved')
   const bar = page.locator('[data-testid="saved-filter-bar"]')
   if (!(await bar.count())) test.skip(true, 'nothing saved on this account — the bar does not render')
@@ -181,14 +323,30 @@ test('library: Saved type filters, colours and mute all sit on one row', async (
 
 test('library: Boards headings carry their counts', async ({ page }) => {
   await signIn(page)
+  await page.goto('/')
+  await seedFollowsAndSaves(page)
   await page.goto('/library?tab=collections')
   await shootNear(page, page.getByRole('heading', { name: /collections/i }).first(), 'boards-counts')
+})
+
+test('library: the Notes filters sit on one row and carry counts', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/')
+  await seedFollowsAndSaves(page)
+  await page.goto('/library?tab=collections')
+  const filter = page.locator('[data-testid="notes-type-filter"]')
+  if (!(await filter.count())) {
+    test.skip(true, 'fewer than two note kinds — the strip correctly does not render')
+  }
+  await shootNear(page, filter, 'notes-filter-counts')
 })
 
 // --- Profile -------------------------------------------------------------------------------- //
 
 test('profile: topic, theme, storyline and person pills are told apart', async ({ page }) => {
   await signIn(page)
+  await page.goto('/')
+  await seedFollowsAndSaves(page)
   await page.goto('/profile?tab=topics')
   const pills = page.locator('[data-testid^="profile-interest-"]')
   if (!(await pills.count())) test.skip(true, 'this account follows nothing yet')
@@ -202,6 +360,10 @@ test('player: the transcript line reads time, separator, speaker — flush left'
   await page.goto('/')
   await page.locator('a[href*="/episode/"]').first().click()
   await expect(page).toHaveURL(/\/episode\//)
+  // Opt-in per episode: `transcriptOpen` starts false and the panel is `hidden` until the toggle
+  // is pressed, so the element exists from first paint and is not visible. Waiting on visibility
+  // without pressing it is a guaranteed 30s timeout.
+  await page.locator('[data-testid="transcript-toggle"]').click()
   const transcript = page.locator('[data-testid="transcript"]')
   await expect(transcript).toBeVisible({ timeout: 30_000 })
   // Proof the capture is of real transcript content, not an empty scroller.

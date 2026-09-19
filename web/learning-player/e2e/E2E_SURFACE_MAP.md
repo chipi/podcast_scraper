@@ -242,6 +242,7 @@ to the same contract as the PR suite.
 | `validation/multi-perspective-topic-real-corpus.spec.ts` | Multi-perspective topic card (#1146) | nightly (Tier-3) |
 | `validation/offline-shell-real-corpus.spec.ts` | Offline shell survives a REAL network drop | nightly (Tier-3) |
 | `design/surfaces.design.spec.ts` | Screenshots every redesigned surface for the critic loop (#1944, #1945) — asserts only that the surface LOADED; input, not a test | manual / design runs |
+| `design/feedback-2026-09-19.design.spec.ts` | ONE shot per item of the operator's 2026-09-19 device round, each CROPPED to the element that changed (`fb-*.png`) — a full-page shot answers "did this specific thing change" badly. Seeds follows / saves / boards / notes / interests through the API first, because the design identity starts empty and four items would otherwise skip, which from outside looks identical to being broken. Asserts only enough that a blank or still-loading capture FAILS; input, not a test | manual / design runs |
 
 `search-result-actions` is the `EpisodeActions` cluster on a SearchView result row; it is covered
 by unit (`SearchView.test.ts`) rather than by a spec, and named here so the map accounts for it.
@@ -268,6 +269,8 @@ component — a name is the contract "this exists and here is where it is exerci
 | `BrandGlyph` | Close Listening ember-waveform mark; header / login / empty states | decorative identity mark — no dedicated spec |
 | `CardRail` | Horizontal swipe/snap carousel with desktop chevrons; Your Week, Player | `your-week.spec.ts` |
 | `ConnectedAgents` | MCP connector URL + PAT wiring for entitled users (RFC-112); Settings | `SettingsView.test.ts` (unit); native/settings surface |
+| Discover → Episodes load-more (`catalog-load-more`) | The full-width bar at the foot of the paginated episode list. Matches the Shows list's `show-browse-more` deliberately — the two sit on one page and were a pill and a bar respectively (operator 2026-09-19) | exercised via the design shots |
+| Home resume hero (`home-resume`) | The filled accent "Resume · {time}" pill on Home's in-progress hero, with `home-open-queue` beside it — the queue's only other entrances are the full player and the mini-player, so with nothing playing it was unreachable (operator 2026-09-19) | `home-rails.spec.ts`, design shots |
 | `EpisodeRow` | The one compact episode list-row — thumbnail + title + show kicker linking to the player (`episode-row`), top-aligned, with a `#trailing` slot for a row action; entity card, storyline page, Knowledge Panel "More like this" | exercised via `entity-and-rails-invariants.spec.ts`, `storyline.spec.ts`, `knowledge-bands.spec.ts` |
 | `EntityEpisodeList` | The "discussed in N episodes" list shared by EVERY entity surface — topic, storyline, person, org. Ten `EpisodeRow`s, then a full-width `entity-episodes-more` control that adds ten more; re-collapses when the entity changes (these surfaces drill in place). Replaced four separate uncapped `<ul><li v-for>` lists which had already drifted — three stated "newest first" and the storyline did not — and which buried the analysis sections below them on any busy entity (operator 2026-09-19). | exercised via the entity card — `entity-and-rails-invariants.spec.ts`, `storyline.spec.ts` |
 | `EntityCardBody` dismiss (`ec-dismiss`) | The entity card's single left control: ✕ when the card IS the destination (overlay sheet, standalone page), ‹ back when it is a drill-down inside a panel — `dismissAtRoot` decides. The ✕ is a drawn `CloseIcon`, not the character U+2715, which is a tofu box on iOS. | `icon-rendering.spec.ts` (asserts a drawn icon with a non-zero box, and that no tofu-prone character is rendered) |
@@ -357,7 +360,11 @@ Storylines surface in `DiscoveryList` when `kind="storyline"` — each row is `d
 | Follow (this entity) | header `data-testid="ec-follow"` — text `Follow` / `Following` (`aria-pressed`; token = the entity id) |
 | Topic momentum | `data-testid="ec-topic-momentum"` — the "↑ Rising" badge (`TrendMomentum`) leading the topic card, gated to genuinely-rising topics (moved here from EntitySignals) |
 | Storyline | `data-testid="ec-storyline-link"` — one link that opens the storyline overlay (`storyline-card`) on top; Follow-storyline lives there now (`storyline-follow`). A topic with no cluster shows `ec-single-topic` |
-| Similar topics | the cluster-members chips (`ec-similar-topic`) — drill in place via the back stack |
+| Similar topics | the cluster-members chips (`ec-similar-topic`) — drill in place via the back stack. Does NOT include the topic you are reading: it led the list as a ringed chip and was counted, so the "N similar topics" heading disagreed with what was under it (operator 2026-09-19) |
+| Discussed over time | `data-testid="ec-topic-activity"` — a monthly activity sparkline on EVERY topic, derived client-side from its own episodes. The `TopicConversationArc` (`topic-conversation-arc`) sits directly beneath it; the two were at opposite ends of the scroll until 2026-09-19 |
+| Strongest shows | `data-testid="ec-top-shows"` — shows ranked by how many of this topic's episodes they carry, each a compact row with the SHOW's artwork at `EpisodeRow`'s 40px (`feed_artwork_url`, never the episode's own image) |
+| Top voices | `data-testid="ec-top-voices"`, per-person `ec-top-voice` — a 4-column avatar grid. `TopicPerspectives` follows it directly (operator 2026-09-19): it names the same people and says what they argued |
+| Episodes | the shared `EntityEpisodeList` — ten `EpisodeRow`s then `entity-episodes-more` |
 | Perspectives | `data-testid="topic-perspectives"`, per-take `topic-perspective` |
 | Signals | `data-testid="entity-signals"` — PERSON-only now, rows `es-coappears` / `es-consensus` / `es-consensus-row` (grounding removed #1927 → per-EPISODE, operator-only; topic momentum moved to `ec-topic-momentum` on the card; similar + storyline render on the card itself, not here) |
 
