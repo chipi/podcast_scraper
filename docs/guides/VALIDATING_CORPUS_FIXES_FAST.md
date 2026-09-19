@@ -141,8 +141,30 @@ artifact (kill it and read the files).
 
 ### Tier 4 — the harness (hours)
 
-The acceptance gate for a PR, not a feedback loop. Run it once, at the end, on the code
-you intend to ship.
+The acceptance gate, not a feedback loop. Run it once, at the end, on the code you intend
+to ship: `scripts/measure/2075_relabel_harness.sh`.
+
+**Copy every corpus first.** Relabel rewrites in place, so the run destroys the only BEFORE
+you have. Two lines of `cp -R` are the difference between a measurement and an anecdote.
+
+**Give it a watchdog, and make it progress-based.** A single wedged feed otherwise blocks
+the whole run forever. Freshness/mtime does not work here: the stalled loop logs a
+diagnostic once a minute and keeps the file looking alive. Count *work done* — episodes
+whose record was rewritten.
+
+**Then make the watchdog cheap.** A blind timeout is paid on every feed, not just broken
+ones: at 12 minutes x 48 feeds that is 9.6 hours of waiting. The stall announced itself in
+the log, so keying on its own signature cut it to ~3 minutes and the run finished in 1h45m
+instead of an estimated 8.5h. When something wastes hours on every run, read what it prints
+while it wastes them.
+
+**Score it by what happened to each PERSON, and audit every single change.** On the 2026-09-19
+pass the headline was "168 names removed", which sounds catastrophic. Classified, it was 84
+organisations and show names, 35 placeholders, 31 ASR manglings replaced by the correct
+spelling, 12 names never spoken in their own episode, 4 duplicates, 2 bare tokens — and zero
+real speakers. Two removals looked alarming and were not: a name whose surname appears **0
+times** in the transcript, and one whose apparent matches were the substring in "quantum
+echo's". Sampling would have missed both readings; classifying all of them took one script.
 
 ---
 

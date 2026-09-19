@@ -39,7 +39,11 @@ from ...utils.provider_metadata import (
     validate_api_key_format,
     warn_if_truncated,
 )
-from ...utils.timeout_config import get_openai_client_timeout, get_single_chat_call_timeout
+from ...utils.timeout_config import (
+    get_openai_client_timeout,
+    get_single_chat_call_timeout,
+    get_small_chat_call_timeout,
+)
 from ...workflow import metrics
 from .. import guardrails as _guardrails, insight_salvage as _insight_salvage
 from ..capabilities import ProviderCapabilities
@@ -1492,6 +1496,14 @@ class OpenAICompatibleProvider:
                     temperature=self.speaker_temperature,
                     **self._token_kwarg(300),
                     response_format={"type": "json_object"},
+                    # #1323: this is a SMALL structured call — ~870 prompt tokens, 300 max
+                    # completion, measured at 0.1 s against vLLM. Without this it inherits
+                    # `summarization_timeout / 3` = 400 s, so one socket that stops answering
+                    # stalls the feed for 400 s (up to ~20 min across the retries below). A
+                    # thread dump of a wedged run shows exactly that: blocked in
+                    # `_receive_response_headers` while the same server answered a fresh
+                    # request in 116 ms. Bounding it turns the hang into a retry.
+                    timeout=get_small_chat_call_timeout(self.cfg),
                 ),
                 max_retries=2,
                 initial_delay=1.0,

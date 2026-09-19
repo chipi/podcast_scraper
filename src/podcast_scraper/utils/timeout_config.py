@@ -145,6 +145,25 @@ SINGLE_CALL_TIMEOUT_FRACTION = 1.0 / 3.0
 #: produce a per-call timeout that kills healthy calls on a slow model.
 MIN_SINGLE_CALL_TIMEOUT_SEC = 120.0
 
+#: Transport timeout for a SMALL, STRUCTURED chat call — speaker detection and friends (#1323).
+#:
+#: These are not summaries. Measured on the 2026-09-19 harness against vLLM on the DGX, a
+#: speaker-detection request is ~870 prompt tokens, ~30-60 completion tokens, and answers in
+#: **0.1 s**. Giving it `summarization_timeout / 3` = 400 s means a stuck socket costs 400 s —
+#: and up to ~20 min once the SDK's two retries are spent.
+#:
+#: That is not hypothetical. A full thread dump taken while a feed was wedged shows the process
+#: blocked in `httpcore ... _receive_response_headers` inside `openai/_base_client._send_request`
+#: — a plain socket read waiting for headers that never arrive — while `/v1/models` and a real
+#: chat completion against the same server answered in 6 ms and 116 ms. Every feed in that run
+#: wedged this way after its last episode; at 48 feeds it is hours of dead waiting.
+#:
+#: 60 s is ~600x the measured healthy duration, so it cannot fire on a slow-but-working model,
+#: and it turns a hung socket into a retry on a fresh connection instead of a stalled run.
+#: Deliberately absolute rather than a fraction of the summarization deadline: the whole defect
+#: is that these calls were sized by a budget belonging to a different kind of work.
+SMALL_CALL_TIMEOUT_SEC = 60.0
+
 
 #: Seconds of metadata generation (summary+GI+KG) to budget per 1000 transcript words (#1920).
 #:
@@ -316,3 +335,12 @@ def get_openai_client_timeout(cfg: config.Config) -> httpx.Timeout | float | Non
         base_read = float(raw_read if raw_read is not None else getattr(cfg, "timeout", 60.0))
     read_timeout = max(base_read, float(summ), float(trans))
     return get_http_timeout(cfg, read_timeout=read_timeout)
+
+
+def get_small_chat_call_timeout(cfg: config.Config) -> float:
+    """Transport timeout for a small structured chat call (speaker detection) — see #1323.
+
+    Never longer than the general per-call bound: if an operator has configured a very short
+    summarization deadline, that shorter value still wins.
+    """
+    return min(SMALL_CALL_TIMEOUT_SEC, get_single_chat_call_timeout(cfg))
