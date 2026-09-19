@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
 import { startBackgroundAudio, stopBackgroundAudio } from '../services/native'
 
@@ -15,6 +15,16 @@ export interface NextUp {
   url: string
   title?: string | null
   artwork?: string | null
+  /**
+   * The episode's known length, from metadata (operator 2026-09-19).
+   *
+   * A FALLBACK for {@link duration}, not a replacement: the element's own duration wins whenever it
+   * has one. Offline, playing a downloaded file, the element frequently never reports a duration at
+   * all — so the transport showed `0:00` as the total, the scrub bar (`currentTime / duration`) sat
+   * at zero for the whole episode, and the listener could see how far in they were and had no idea
+   * how far that was through. The metadata is cached with the download and is right there.
+   */
+  durationSeconds?: number | null
 }
 
 /**
@@ -47,7 +57,27 @@ export const usePlayerStore = defineStore('player', () => {
   const currentArtwork = ref<string | null>(null)
   const playing = ref(false)
   const currentTime = ref(0)
-  const duration = ref(0)
+  /** What the <audio> element reports — 0 whenever it has not (or cannot) work it out. */
+  const elementDuration = ref(0)
+  /** The episode's length from metadata; used only while the element has nothing. See NextUp. */
+  const durationHint = ref(0)
+  /**
+   * The episode's length, best available.
+   *
+   * The element wins when it knows: it is the truth about the file actually loaded, and a metadata
+   * figure can disagree with it (a re-encoded enclosure, a trailer spliced in). The hint covers the
+   * offline case where the element reports nothing at all, which used to leave every consumer —
+   * the scrub bar, the total-time label, the lock-screen position state — reading zero.
+   */
+  const duration = computed({
+    get: () => (elementDuration.value > 0 ? elementDuration.value : durationHint.value),
+    // WRITABLE, because `duration` was a plain ref and callers (and specs) assign to it to stand in
+    // for what the element reports. A write means "the element's length is this", so it lands on
+    // `elementDuration` and keeps precedence over the metadata hint.
+    set: (v: number) => {
+      elementDuration.value = v
+    },
+  })
   const rate = ref(1)
   const audioError = ref(false)
 
@@ -117,6 +147,9 @@ export const usePlayerStore = defineStore('player', () => {
     if (currentSlug.value === opts.slug && audio.src) {
       currentTitle.value = opts.title ?? currentTitle.value
       currentArtwork.value = opts.artwork ?? currentArtwork.value
+      // The re-entrant path matters for the hint: PlayerView calls load() again once the episode
+      // detail arrives, and that second call is usually the FIRST one carrying a duration.
+      if (opts.durationSeconds && opts.durationSeconds > 0) durationHint.value = opts.durationSeconds
       return
     }
     // Flush the OUTGOING episode before its identity is overwritten — otherwise up to a full
@@ -126,6 +159,7 @@ export const usePlayerStore = defineStore('player', () => {
     currentSlug.value = opts.slug
     currentTitle.value = opts.title ?? null
     currentArtwork.value = opts.artwork ?? null
+    durationHint.value = opts.durationSeconds && opts.durationSeconds > 0 ? opts.durationSeconds : 0
     // A locally downloaded copy wins over the origin URL (#1905). The resolver is INJECTED by the
     // shell, exactly like the advance resolver: this store must not import the downloads store or
     // the API, or playback stops being independent of data fetching (stores/README.md).
@@ -185,7 +219,7 @@ export const usePlayerStore = defineStore('player', () => {
     maybeSavePosition()
   }
   function onDurationChange(): void {
-    duration.value = el.value?.duration || 0
+    elementDuration.value = el.value?.duration || 0
     syncPositionState()
   }
   function onError(): void {
@@ -392,7 +426,8 @@ export const usePlayerStore = defineStore('player', () => {
   function resetForLoad(): void {
     playing.value = false
     currentTime.value = 0
-    duration.value = 0
+    elementDuration.value = 0
+    durationHint.value = 0
     audioError.value = false
     void stopBackgroundAudio()
   }

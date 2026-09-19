@@ -859,14 +859,26 @@ describe('a downloaded episode paints from disk, not from the network', () => {
       localPosition.mockReturnValue({ seconds: 42, finished: false, updatedAt: Date.now() })
       await router.push({ name: 'player', params: { slug: SLUG }, query })
       await router.isReady()
+      /**
+       * Spy BEFORE mounting (operator 2026-09-19).
+       *
+       * This used to mount, then attach the spy, then set `duration = 100` to stand in for the
+       * element working the length out late — the play intent waits on a known duration, so that
+       * ordering was what let the spy see it. A downloaded episode now carries its length from the
+       * registry into `player.load()`, so the duration is known DURING mount and the intent fires
+       * there: exactly the point of the change (offline, the element often never reports one at
+       * all). The spy has to exist before mount or it watches for a call that has already happened.
+       */
+      const player = usePlayerStore()
+      const play = vi.spyOn(player, 'play').mockImplementation(() => {})
       const w = mount(PlayerView, {
         props: { slug: SLUG },
         global: { plugins: [i18n, router], stubs: { teleport: true } },
       })
       mountedPlayers.push(w)
       await flushPromises()
-      const player = usePlayerStore()
-      const play = vi.spyOn(player, 'play').mockImplementation(() => {})
+      // Still asserted, for the case the registry had no duration: the element reporting one must
+      // drive the intent exactly as before.
       player.duration = 100
       await flushPromises()
       return { player, play }
