@@ -143,7 +143,7 @@ function toggleShown(): void {
       >
         <button
           type="button"
-          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left md:flex-none"
+          class="flex min-h-9 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 text-left md:flex-none"
           data-testid="trend-spark-row"
           :title="rowTitle(tp)"
           :aria-label="`${tp.label}, trending at ${tp.v} times its recent average`"
@@ -151,20 +151,27 @@ function toggleShown(): void {
         >
           <!-- A person with a hosted photo gets a small avatar (value + space); every other row
                keeps the theme swatch (same hue as the sparkline). Gating on image_url means topics
-               never get an avatar, so a shared chip stays correct for both. -->
-          <ProfileAvatar
-            v-if="tp.image_url"
-            :name="tp.label"
-            :src="tp.image_url"
-            :size="20"
-            class="shrink-0"
-          />
-          <span
-            v-else
-            class="h-2.5 w-2.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: colorOf(tp.id) }"
-            aria-hidden="true"
-          />
+               never get an avatar, so a shared chip stays correct for both.
+
+               FIXED-SIZE SLOT (operator 2026-09-19): a 20px avatar and a 10px dot are different
+               heights, so the rows grew when the tab switched to People and the whole page jumped
+               under the finger that had just tapped. The slot is now one size for every kind and
+               the row carries a `min-h`, so Topics / Storylines / People are always the same
+               height — the media inside may vary, the row may not. -->
+          <span class="flex h-5 w-5 shrink-0 items-center justify-center">
+            <ProfileAvatar
+              v-if="tp.image_url"
+              :name="tp.label"
+              :src="tp.image_url"
+              :size="20"
+            />
+            <span
+              v-else
+              class="h-2.5 w-2.5 rounded-full"
+              :style="{ backgroundColor: colorOf(tp.id) }"
+              aria-hidden="true"
+            />
+          </span>
           <span class="min-w-0 flex-1 truncate text-sm">{{ tp.label }}</span>
           <!-- Role badge (people): says WHY someone trends — a busy host vs a recurring guest vs a
                much-mentioned figure. Absent for topics and for people with no KG role. -->

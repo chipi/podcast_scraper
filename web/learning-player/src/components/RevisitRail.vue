@@ -171,18 +171,55 @@ const titleOf = (slug: string): string => details.value[slug]?.title ?? ''
         >
           <div class="min-w-0 flex-1">
             <!-- A capture with no quote text is common on real data — a moment marked before the
-                 line was stored, or an insight — and the card rendered an EMPTY paragraph for it,
-                 collapsing to a single kicker row (operator 2026-09-18, on device). It now falls
-                 back to what the capture IS, so every card has a body and the same height. -->
-            <p class="line-clamp-2 text-sm font-semibold leading-snug text-canvas-foreground"
-               :class="quoteOf(item.highlight) ? 'italic' : 'text-muted'">
-              {{ quoteOf(item.highlight) || t(KIND_KEY[item.highlight.kind] ?? 'highlights.moment') }}
+                 line was stored (that landed 2026-09-17), or an insight — and the card rendered an
+                 EMPTY paragraph for it, collapsing to a single kicker row (operator 2026-09-18, on
+                 device).
+
+                 The kind LABEL is no longer the body (operator 2026-09-19): three cards reading
+                 "Marked moment" in the largest type on the card told the user only what they
+                 already knew, and buried the one line that distinguishes them. When there is no
+                 stored quote, a small mark carries "this is a moment" and the episode+speaker line
+                 is promoted into the body, where it can actually be read. There is nothing else to
+                 show — the text was never captured, so no amount of layout recovers it. -->
+            <p
+              v-if="quoteOf(item.highlight)"
+              class="line-clamp-2 text-sm font-semibold italic leading-snug text-canvas-foreground"
+            >
+              {{ quoteOf(item.highlight) }}
             </p>
+            <p
+              v-else
+              class="line-clamp-2 flex items-start gap-1.5 text-sm font-semibold leading-snug text-canvas-foreground"
+              data-testid="home-revisit-untexted"
+            >
+              <!-- Bookmark glyph: says "a moment you marked" in the space a label used to take. -->
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                class="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted"
+                aria-hidden="true"
+              >
+                <path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z" />
+              </svg>
+              <span class="min-w-0 truncate">
+                <span v-if="item.highlight.speaker">{{ item.highlight.speaker }} · </span>
+                <span>{{ titleOf(item.highlight.episode_slug) }}</span>
+              </span>
+              <span class="sr-only">
+                {{ t(KIND_KEY[item.highlight.kind] ?? 'highlights.moment') }}</span
+              >
+            </p>
+            <!-- With the body promoted, the kicker keeps only what it does not already say. -->
             <p class="lp-kicker mt-1 truncate">
-              <span v-if="item.highlight.speaker">{{ item.highlight.speaker }} · </span>
-              <span>{{ titleOf(item.highlight.episode_slug) }}</span>
-              <span v-if="item.highlight.start_ms != null">
-                · {{ formatTime(item.highlight.start_ms / 1000) }}</span>
+              <template v-if="quoteOf(item.highlight)">
+                <span v-if="item.highlight.speaker">{{ item.highlight.speaker }} · </span>
+                <span>{{ titleOf(item.highlight.episode_slug) }}</span>
+                <span v-if="item.highlight.start_ms != null">
+                  · {{ formatTime(item.highlight.start_ms / 1000) }}</span>
+              </template>
+              <span v-else-if="item.highlight.start_ms != null">{{
+                formatTime(item.highlight.start_ms / 1000)
+              }}</span>
             </p>
           </div>
           <!-- A plain square thumbnail, the same one `EpisodeRow` and the downloads rows use.
