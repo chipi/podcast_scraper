@@ -735,4 +735,50 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     expect(filename).toContain("-notes.md")
     expect(body).toContain("# Notes")
   })
+
+  /**
+   * The panel is REUSED across episodes — PlayerView passes a new `slug` prop rather than
+   * unmounting — so anything held in a plain `ref` survives the change unless it is cleared.
+   *
+   * A filter set on episode A carried into episode B. If B had no insights of that type the user
+   * saw the "Insights" heading, the chip strip, and nothing under it, with no explanation and no
+   * obvious escape (review 2026-09-19).
+   */
+  it("clears the insight-type filter when the episode changes", async () => {
+    // Episode A has claims and predictions; the user filters to predictions.
+    const a = [
+      insight({ id: "i1", insight_type: "claim", text: "alpha claim" }),
+      insight({ id: "i2", insight_type: "prediction", text: "alpha prediction" }),
+    ]
+    const w = mountPanel({ insights: a, persons: [] })
+    await flushPromises()
+
+    const chips = w.findAll('[data-testid="insight-type-filter"] button')
+    expect(chips.length, "expected a type filter on a multi-type episode").toBeGreaterThan(1)
+    const predictionChip = chips.find((c) => c.text().toLowerCase().includes("prediction"))!
+    expect(predictionChip, "no prediction chip to filter by").toBeTruthy()
+    await predictionChip.trigger("click")
+    await flushPromises()
+    expect(w.text()).toContain("alpha prediction")
+    expect(w.text()).not.toContain("alpha claim")
+
+    // Episode B has claims and observations — NOTHING of the filtered type. Its insights must show.
+    //
+    // Asserting on the rendered LIST, not on chip state: with `insights: []` the chip strip does
+    // not render at all (`v-if="insightTypeOptions.length > 1"`), so "no chip is active" is
+    // trivially true and the test cannot fail. That vacuous version passed with the fix removed.
+    const b = [
+      insight({ id: "i3", insight_type: "claim", text: "bravo claim" }),
+      insight({ id: "i4", insight_type: "observation", text: "bravo observation" }),
+    ]
+    await w.setProps({ slug: "s2", episode: { ...episode(), slug: "s2" }, insights: b })
+    await flushPromises()
+
+    expect(
+      w.text(),
+      "a filter from the PREVIOUS episode is still applied, so this episode's insights are hidden " +
+        "behind a heading and a chip strip with no explanation",
+    ).toContain("bravo claim")
+    expect(w.text()).toContain("bravo observation")
+  })
 })

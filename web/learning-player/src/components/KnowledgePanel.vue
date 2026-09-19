@@ -454,7 +454,17 @@ onMounted(() => {
 })
 watch(
   () => props.slug,
-  (s) => loadRelated(s)
+  (s) => {
+    // Clear the insight-type filter when the EPISODE changes.
+    //
+    // The panel is not remounted between episodes — PlayerView passes a new `slug` prop — so a
+    // filter set on episode A survived into episode B. If B had no insights of that type the user
+    // got the "Insights" heading, the chip strip, and an empty list with no explanation, and the
+    // only escape was tapping "All", which nobody would think to do. The filter is a property of
+    // the episode you are reading, not of the session (review 2026-09-19).
+    insightTypeFilter.value = null
+    return loadRelated(s)
+  }
 )
 watch(() => auth.isAuthenticated, loadCaptures)
 </script>
@@ -730,16 +740,21 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
           <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
           <!-- Per-type filter (IN.3) — only shown when the episode has more than one insight type. -->
+          <!-- ONE row that scrolls, not a wrapping block (operator 2026-09-19). The per-type counts
+               widened every chip, so a fourth type pushed "Claim 9" alone onto a second line and
+               the insight list below jumped down. `shrink-0` on the chips is load-bearing: without
+               it flex squashes them to fit instead of overflowing, so the labels truncate rather
+               than scroll. Same overflow pattern the rails use. -->
           <div
             v-if="insightTypeOptions.length > 1"
-            class="mb-3 flex flex-wrap gap-1.5"
+            class="mb-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="group"
             :aria-label="t('kp.filterByType')"
             data-testid="insight-type-filter"
           >
             <button
               type="button"
-              class="rounded-full px-2.5 py-1 text-xs font-semibold transition"
+              class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold transition"
               :class="
                 insightTypeFilter === null
                   ? 'bg-accent text-accent-foreground'
@@ -754,7 +769,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
               v-for="opt in insightTypeOptions"
               :key="opt.type"
               type="button"
-              class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize transition"
+              class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold capitalize transition"
               :class="
                 insightTypeFilter === opt.type
                   ? 'bg-accent text-accent-foreground'
