@@ -1,0 +1,57 @@
+# Coverage config for the E2E tier ONLY. Everything else (unit, integration, combined) keeps using
+# the `[tool.coverage]` config in pyproject.toml, which measures the full package.
+#
+# WHY THIS EXISTS
+#
+# `tests/e2e/` is 66 files of PIPELINE tests — CLI, scraping, transcription, summarisation,
+# providers, batch runs. Exactly one of them touches the consumer app.
+#
+# The gate used to divide what those pipeline tests covered by the WHOLE package, consumer app
+# included. So shipping a player feature lowered the score even when that feature arrived with
+# tests, because its tests are unit and integration tests (50 files across those two tiers) and land
+# in a different job with a different measurement. The numerator could not move; only the
+# denominator did.
+#
+# That is why it fell repeatedly for the same reason and was "fixed" each time by lowering the
+# floor: 38.0 -> 37.5 (#2049). It was never measuring test quality. It was measuring the ratio of
+# pipeline code to total code, which falls as the app grows however well anything is tested. Worse,
+# PRs run `test-e2e-fast` with no gate, so it could only ever fail AFTER merge to main — where it
+# blocks stack-test, and with it the container images and the deploy.
+#
+# MEASURED, on the coverage-e2e.xml of run 35439345239 (main @ d38b70fb): between the last green
+# run and that one the denominator grew by 2,322 statements while the e2e tier gained 613 hits, and
+# the single largest contributor was `server/app_new_episode_digest.py` arriving at 157 statements
+# with zero e2e coverage. Recomputing that same run's totals with the omit below reproduces CI's
+# reported 37.04% without it and yields 38.58% with it.
+#
+# So the gate now asks the question it was always meant to ask: how much of the PIPELINE do the
+# pipeline tests cover.
+#
+# WHAT THIS DOES NOT DO
+#
+# It does not stop measuring the consumer app. That code is gated where its tests actually live:
+# integration at 42% and combined at 70%, both over the full package. Omitting it here removes a
+# number that was never about it; it does not remove its coverage requirement.
+#
+# The honest cost: the e2e tier does execute part of the app subtree (imports, shared helpers,
+# incidental paths), so this discards some real signal. That signal is redundant — the same lines
+# are measured by the two gates above — and it came bundled with a denominator that made the
+# headline number meaningless.
+
+[run]
+branch = True
+source = podcast_scraper
+patch = subprocess
+disable_warnings = couldnt-parse
+
+# The consumer app: the player's backend. Tested by tests/unit and tests/integration, not by
+# tests/e2e. Both `server/app_*.py` and `server/routes/app_*.py`.
+omit =
+    */podcast_scraper/server/app_*.py
+    */podcast_scraper/server/routes/app_*.py
+
+[report]
+show_missing = True
+skip_covered = True
+precision = 2
+ignore_errors = True

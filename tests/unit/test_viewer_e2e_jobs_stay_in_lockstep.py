@@ -117,3 +117,67 @@ def test_the_makefile_e2e_threshold_matches_ci() -> None:
         f"Makefile COVERAGE_THRESHOLD_E2E={m.group(1)} but CI gates at {ci} — "
         "the local check and the real gate disagree"
     )
+
+
+def _e2e_pytest_body(workflow: str, job: str) -> str:
+    """The shell body of the step that actually runs `tests/e2e/` in `job`."""
+    for step in _steps(workflow, job):
+        body = step.get("run", "") or ""
+        if "pytest tests/e2e/" in body:
+            return body
+    raise AssertionError(f"no step in {workflow}:{job} runs pytest over tests/e2e/")
+
+
+def test_every_e2e_run_measures_the_same_denominator() -> None:
+    """The floor is a ratio, so pinning the number pins only half of it.
+
+    `.coveragerc-e2e` omits the consumer app from the e2e denominator (see that file for why). The
+    floor of 37.5 is calibrated against THAT denominator. An e2e invocation that forgets
+    `--cov-config` silently measures the full package instead and reports a different, lower number
+    against the same floor — which is how this gate went red on main at 37.04% while the suite was
+    `382 passed, 0 failed`.
+
+    Four places run e2e with coverage — two workflows, `test-e2e-fast`, and the Makefile target a
+    contributor runs locally. All four must measure the same thing or the floor means nothing.
+    """
+    import re
+
+    for workflow, job in (
+        ("python-app.yml", "test-e2e"),
+        ("python-app.yml", "test-e2e-fast"),
+        ("nightly.yml", "nightly-test-e2e"),
+    ):
+        body = _e2e_pytest_body(workflow, job)
+        assert "--cov-config=.coveragerc-e2e" in body, (
+            f"{workflow}:{job} runs tests/e2e/ with coverage but without "
+            "--cov-config=.coveragerc-e2e, so it measures the full package against a floor "
+            "calibrated on the pipeline-only denominator"
+        )
+
+    makefile = (_WORKFLOWS.parents[1] / "Makefile").read_text(encoding="utf-8")
+    target = re.search(r"^coverage-check-e2e:\n(?:(?:\t|#|\s*$).*\n)*", makefile, re.M)
+    assert target, "the coverage-check-e2e target is gone from the Makefile — was it renamed?"
+    assert "--cov-config=.coveragerc-e2e" in target.group(0), (
+        "make coverage-check-e2e measures the full package while CI measures the pipeline only, "
+        "so the local check would disagree with the real gate"
+    )
+
+
+def test_the_e2e_coverage_config_exists_and_omits_the_consumer_app() -> None:
+    """The config the four gates above point at must actually do the omit they rely on.
+
+    A `--cov-config` pointing at a missing file is not an error in coverage.py — it falls back to
+    the default configuration and measures the full package, which is precisely the failure the
+    flag exists to prevent, arriving silently.
+    """
+    cfg_path = _WORKFLOWS.parents[1] / ".coveragerc-e2e"
+    assert cfg_path.is_file(), (
+        ".coveragerc-e2e is missing, but four e2e gates pass --cov-config to it; coverage.py "
+        "would silently fall back to the full-package config"
+    )
+    cfg = cfg_path.read_text(encoding="utf-8")
+    for pattern in (
+        "*/podcast_scraper/server/app_*.py",
+        "*/podcast_scraper/server/routes/app_*.py",
+    ):
+        assert pattern in cfg, f".coveragerc-e2e no longer omits {pattern}"
