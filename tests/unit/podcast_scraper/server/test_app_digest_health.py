@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -123,14 +123,72 @@ def test_health_failure_does_not_break_dispatch(tmp_path: Path, monkeypatch) -> 
     assert res.total == len(app_digest_dispatch.ENQUEUERS)  # dispatch unaffected
 
 
+class _U:
+    """Minimal user stand-in. ``provider``/``email`` drive the deliverability gate."""
+
+    def __init__(self, uid, provider="google", email="x@example.com"):
+        self.user_id = uid
+        self.provider = provider
+        self.email = email
+
+
+def test_unverified_email_is_excluded_from_the_denominator(tmp_path: Path, monkeypatch) -> None:
+    """Found on prod: a provider="smoke" account showed as consenting for a digest it can NEVER
+    be sent, because every enqueuer also requires a verified (Google) email.
+
+    Over-counting is the dangerous direction — it manufactures false alarms, and a false alarm
+    is how an outcome alert gets muted, which is how #2119 stayed invisible for months.
+    """
+    from podcast_scraper.server import app_comms_store, app_user_store
+
+    monkeypatch.setattr(
+        app_user_store,
+        "list_users",
+        lambda d: [_U("real"), _U("smoke", provider="smoke")],
+    )
+    monkeypatch.setattr(
+        app_comms_store, "get_comms", lambda d, uid: {"types": {"digest": {"email": True}}}
+    )
+    assert app_digest_health.count_consenting_users(tmp_path)["digest"] == 1
+
+
+def test_google_user_without_an_email_is_excluded(tmp_path: Path, monkeypatch) -> None:
+    from podcast_scraper.server import app_comms_store, app_user_store
+
+    monkeypatch.setattr(app_user_store, "list_users", lambda d: [_U("noaddr", email="")])
+    monkeypatch.setattr(
+        app_comms_store, "get_comms", lambda d, uid: {"types": {"digest": {"email": True}}}
+    )
+    assert app_digest_health.count_consenting_users(tmp_path)["digest"] == 0
+
+
+def test_consenting_matches_the_enqueuer_gate() -> None:
+    """The denominator predicate must stay identical to the one the enqueuers apply.
+
+    ``app_digest_health._email_deliverable`` duplicates ``routes/app_comms._email_verified``
+    (the routes module drags FastAPI in, and the network-isolated sidecar imports this one).
+    Duplication is only safe if something fails when they diverge. This is that something.
+    """
+    from podcast_scraper.server.routes.app_comms import _email_verified
+
+    for provider, email in (
+        ("google", "a@b.c"),
+        ("google", ""),
+        ("smoke", "a@b.c"),
+        (None, "a@b.c"),
+    ):
+        # cast: _U is a structural stand-in for User; both predicates only read
+        # ``provider``/``email``, which is precisely what this asserts stays true.
+        u = cast("Any", _U("u", provider=provider, email=email))
+        assert app_digest_health._email_deliverable(u) == _email_verified(
+            u
+        ), f"denominator and enqueuer disagree for provider={provider!r} email={email!r}"
+
+
 def test_consenting_users_counts_email_channel_only(tmp_path: Path, monkeypatch) -> None:
     """The denominator. Zero envelopes is CORRECT with an empty roster; without this the age
     alerts cannot tell that from a fault."""
     from podcast_scraper.server import app_comms_store, app_user_store
-
-    class _U:
-        def __init__(self, uid):
-            self.user_id = uid
 
     monkeypatch.setattr(app_user_store, "list_users", lambda d: [_U("u1"), _U("u2")])
 
@@ -147,10 +205,6 @@ def test_consenting_users_counts_email_channel_only(tmp_path: Path, monkeypatch)
 
 def test_consenting_users_survives_one_unreadable_user(tmp_path: Path, monkeypatch) -> None:
     from podcast_scraper.server import app_comms_store, app_user_store
-
-    class _U:
-        def __init__(self, uid):
-            self.user_id = uid
 
     monkeypatch.setattr(app_user_store, "list_users", lambda d: [_U("bad"), _U("good")])
 

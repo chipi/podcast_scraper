@@ -49,6 +49,10 @@ ENQUEUERS: tuple[tuple[str, str, str], ...] = (
     ("recommendations", "app_digest_recommendations", "enqueue_due_recommendations"),
     # Daily post-episode recap (#2039, RFC-122) — daily hour slot, per-day id.
     ("daily_recap", "app_digest_daily_recap", "enqueue_due_daily_recaps"),
+    # New-episode alerts (#2124 email / #2125 push) — EVENT-DRIVEN, not a slot. Deduped per
+    # episode slug forever, with a rate floor and quiet hours instead of a send hour. Covers
+    # BOTH outbound channels from one enqueuer, since they share the dedupe ledger.
+    ("new_episodes", "app_new_episode_digest", "enqueue_due_new_episodes"),
 )
 
 

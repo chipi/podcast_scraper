@@ -107,15 +107,35 @@ def test_every_comms_type_with_a_schedule_has_an_enqueuer() -> None:
     produce it. ``daily_recap`` was toggleable in the profile UI while nothing in prod could
     ever emit it (#2119).
 
-    ``new_episodes`` is intentionally exempt — it is push-nudged from the weekly enqueuer rather
-    than having a cadence slot of its own. ``product`` is announcement-driven, not scheduled.
+    ``new_episodes`` USED to be exempt here, with the note "push-nudged from the weekly enqueuer
+    rather than having a cadence slot of its own". That exemption encoded the exact assumption
+    that made the type's Email and Push checkboxes inert — the UI offered three channels and
+    only in-app was implemented (#2124 / #2125). The exemption is gone and the type is covered.
+
+    ``product`` remains uncovered on purpose: it has NO implementation on ANY channel, which is
+    its own open question rather than something to assert about here.
     """
     from podcast_scraper.server import app_comms_store
 
-    scheduled_types = {"digest", "daily_recap"}
+    scheduled_types = {"digest", "daily_recap", "new_episodes"}
     assert scheduled_types <= set(app_comms_store.TYPES)
 
     labels = {label for label, _, _ in app_digest_dispatch.ENQUEUERS}
     # "digest" is the weekly cadence; its enqueuer label is "weekly".
     assert "weekly" in labels, "no enqueuer for the weekly 'digest' comms type"
     assert "daily_recap" in labels, "no enqueuer for the 'daily_recap' comms type"
+    assert "new_episodes" in labels, "no enqueuer for the 'new_episodes' comms type"
+
+
+def test_new_episodes_has_a_schedule_block() -> None:
+    """Every outbound type needs its controls to exist, or the UI has nothing to bind to.
+
+    ``new_episodes`` had NO schedule block at all while shipping three checkboxes — there was
+    no answer in the system to "when does this send". Event-driven means a rate floor and quiet
+    hours rather than an hour, but it still needs somewhere to live.
+    """
+    from podcast_scraper.server import app_comms_store
+
+    sched = app_comms_store.DEFAULTS["new_episodes_schedule"]
+    assert set(sched) == {"floor_minutes", "quiet_start", "quiet_end", "paused"}
+    assert sched["floor_minutes"] > 0, "a zero floor would allow unbounded notification bursts"

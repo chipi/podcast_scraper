@@ -62,6 +62,23 @@ DEFAULTS: dict[str, Any] = {
         "hour": 22,
         "paused": False,
     },
+    # New-episode alerts (#2124 email / #2125 push). NOT a slot — this type is EVENT-DRIVEN: it
+    # fires when an unheard episode appears in a followed show, deduped per episode so each is
+    # announced exactly once ever. A fixed hour would make it a second daily digest, which is not
+    # what "New episodes" means to a user. The controls are a rate floor and quiet hours:
+    #
+    #   floor_minutes    minimum gap between sends for this user. Following 20 active shows must
+    #                    not produce a dozen notifications in a morning — that is how people mute
+    #                    a channel permanently.
+    #   quiet_start/end  LOCAL hours during which nothing is sent; anything due is HELD and rolls
+    #                    into the next allowed send (never dropped). Matters far more for push
+    #                    than email. Set both equal to disable.
+    "new_episodes_schedule": {
+        "floor_minutes": 240,
+        "quiet_start": 22,
+        "quiet_end": 8,
+        "paused": False,
+    },
     # The user's IANA timezone (#2041), e.g. "America/New_York". Auto-detected from the browser and
     # overridable in Settings. Both digests fire at the user's LOCAL configured hour by resolving
     # this with zoneinfo (DST-safe). Empty string = unknown → UTC fallback (the prior behavior).
@@ -110,6 +127,11 @@ def _merged(stored: dict[str, Any]) -> dict[str, Any]:
     if isinstance(recap_sched, dict):
         out["daily_recap_schedule"].update(
             {k: v for k, v in recap_sched.items() if k in out["daily_recap_schedule"]}
+        )
+    newep_sched = stored.get("new_episodes_schedule")
+    if isinstance(newep_sched, dict):
+        out["new_episodes_schedule"].update(
+            {k: v for k, v in newep_sched.items() if k in out["new_episodes_schedule"]}
         )
     if isinstance(stored.get("timezone"), str):
         out["timezone"] = stored["timezone"]

@@ -120,12 +120,31 @@ def record_dispatch(
         return  # a read-only or full volume must not take down the scheduler
 
 
-def count_consenting_users(data_dir: Path) -> dict[str, int]:
-    """How many users have each comms type enabled on the EMAIL channel.
+def _email_deliverable(user: Any) -> bool:
+    """Whether email can actually be DELIVERED to this user.
 
-    The denominator for the age alerts. Counted from the same store the enqueuers gate on, so a
-    drift between "who the alert thinks is consenting" and "who the enqueuer serves" is not
-    possible.
+    Mirrors ``routes/app_comms._email_verified`` — identity-derived, not a stored flag: only a
+    Google-authenticated address counts as verified. Every email enqueuer gates on this in
+    addition to the consent toggle.
+
+    Duplicated rather than imported because ``routes.app_comms`` pulls the FastAPI route layer
+    in, and this module is imported by the network-isolated sidecar. If that predicate ever
+    changes, ``test_consenting_matches_the_enqueuer_gate`` fails — it asserts the two agree.
+    """
+    return getattr(user, "provider", None) == "google" and bool(getattr(user, "email", None))
+
+
+def count_consenting_users(data_dir: Path) -> dict[str, int]:
+    """How many users could ACTUALLY receive each comms type by email.
+
+    The denominator for the age alerts, so it has to mean the same thing the enqueuers mean.
+    It did not: this counted the consent toggle alone, while every enqueuer ALSO requires a
+    verified (Google) email. On prod that made a ``provider="smoke"`` account look eligible for
+    a digest it can never be sent — inflating the denominator and, with it, the confidence of
+    an alert that says "N users consent and nothing was produced".
+
+    An over-counted denominator is the dangerous direction: it manufactures false alarms, and a
+    false alarm is how an outcome alert gets muted, which is exactly how #2119 stayed invisible.
     """
     from podcast_scraper.server import app_comms_store
 
@@ -141,6 +160,8 @@ def count_consenting_users(data_dir: Path) -> dict[str, int]:
         return counts
 
     for user in users:
+        if not _email_deliverable(user):
+            continue  # the enqueuers skip them, so they are not part of the denominator
         try:
             comms = app_comms_store.get_comms(data_dir, user.user_id)
         except Exception:  # noqa: BLE001 — one unreadable user must not void the whole count
