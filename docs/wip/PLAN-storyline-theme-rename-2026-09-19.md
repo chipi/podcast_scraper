@@ -27,13 +27,25 @@ reopened because of it.
 
 ## What is actually inverted
 
+There are **THREE** prefixes, not two. I had this wrong in the first draft and a blast-radius
+sweep caught it.
+
 | Wire prefix | Backend name | Built from | Reader-facing name |
 | --- | --- | --- | --- |
 | `thc:` | "theme cluster" | **co-occurrence** — topics discussed together | **Storyline** |
 | `tc:` | "topic cluster" | **vector similarity** — topics that mean similar things | **Theme** |
+| `sth:` | "super theme" | a rollup **above** storylines | **no agreed name** |
 
 So `search/theme_clusters.py` serves storylines and `search/topic_clusters.py` serves themes; the
 route `/theme-clusters` returns storylines and `/clusters` returns themes.
+
+The third tier is the sharpest illustration of the problem:
+`enrichment/enrichers/topic_theme_clusters.py:88` defines
+`_LONG_TAIL_ID = "sth:other-themes"` — a catch-all bucket whose id calls a group of STORYLINES
+"themes", which is the one word now assigned to the other axis entirely. Minted at line 330.
+
+**Super-themes have no product name at all.** Naming them is a product question, not a refactor,
+and it is a prerequisite for renaming anything in that tier. It is out of scope here.
 
 ## Four separable pieces, very different costs
 
@@ -43,6 +55,14 @@ route `/theme-clusters` returns storylines and `/clusters` returns themes.
 | **B** | API field + route names | 6 schema fields, 2 routes, 97 client refs | coordinated across 2 in-repo clients | none | medium — aligns the contract |
 | **C** | Wire prefixes `thc:` / `tc:` | 1 mint site each, 4 fixture occurrences | cheap **now** | **launch** | **low** once A lands |
 | **D** | Artifact filename `topic_theme_clusters.json` | 16 code refs | forces a prod re-enrichment | none | low |
+
+### C is worse than "low value" — it is silently lossy
+
+`interest_events.jsonl` keeps follow history as raw tokens. Rename `thc:` and every historical
+follow stops matching the entity it was for, so engagement momentum quietly drops for exactly the
+storylines a user cared about most. Nothing errors; a test would have to be written specifically
+to catch it. Pre-launch the log is nearly empty, so the loss is small — but the mechanism means C
+buys a cosmetic gain for a silent data break, and it stays true forever after.
 
 ### The deadline applies to the piece that matters least
 
@@ -64,8 +84,12 @@ the module around it is named correctly.
 
 - **Mint sites are singular.** `thc:` at `enrichment/enrichers/topic_theme_clusters.py:456`
   (`f"thc:{slug}"`); `tc:` at `search/topic_clusters.py:512` (`f"tc:{tc_slug}"`). One line each.
-- **Persisted user state does not parse prefixes.** The per-user interests/collections stores keep
-  whatever token the client sends; no prefix logic, so no data migration.
+- **Persisted user state does not parse prefixes** — but it does STORE them, and one store is
+  historical. `interest_events.jsonl` is an append-only follow log, read by
+  `server/app_engagement_series.py:115` to compute engagement momentum. Changing a prefix orphans
+  every past event: momentum for followed storylines would silently degrade, with no error and no
+  failing test. This is a correctness cost, not an effort cost, and it is the strongest argument
+  against piece C below.
 - **Fixture data is trivial.** 4 occurrences of `thc:` across two committed corpus JSONs
   (3.8 KB + 5.5 KB). No search-index rows carry the id.
 - **Prefix MATCHING is small and already centralised-ish**: `utils/interests.ts` (the boundary),
@@ -122,6 +146,17 @@ independently revertable.
 `_size`; `FeedSignalTheme` → `FeedSignalStoryline`; `dominant_themes` → `dominant_storylines`.
 Server + both clients in ONE commit — a split would ship a broken contract between them.
 
+**Resolve the schema collision first.** `AppStoryline` (schemas.py:687) and `AppThemeCluster`
+(schemas.py:1040) are two VIEWS of the same object, and both want the same new name:
+
+- `AppStoryline` — the CONSUMER shape (`id`, `label`, `size`, `anchor_topic_id`), player rail.
+- `AppThemeCluster` — the OPERATOR shape (`graph_compound_parent_id`, `canonical_label`,
+  `members[]`), served by `routes/app_enrichment.py:311` to the viewer.
+
+So the rename must name the AUDIENCE, not just the thing: keep `AppStoryline` for the consumer and
+take `AppThemeCluster` → `AppStorylineDetail` (or `…Raw`). Renaming both to "Storyline" and
+discovering the clash mid-refactor is the failure mode to avoid.
+
 ### Stage B2 — routes
 
 `/api/app/theme-clusters` → `/api/app/storylines`; `/api/app/clusters` → `/api/app/themes`.
@@ -148,5 +183,7 @@ retaining a short historical note. Close the naming half of #1603.
 - **D (artifact filename)** — declined; costs a prod re-enrichment for no reader-visible gain.
 - **Where semantic clusters (`tc:` / Theme) belong in the product** — an open product question
   (#1603, #1595). This plan renames the thing; it does not decide where it lives.
+- **Naming the `sth:` super-theme tier** — it has no reader-facing name, so there is nothing to
+  rename it TO. Needs a product decision first; `"sth:other-themes"` stays as-is until then.
 - **The `"theme"` / `"similar"` i18n pair and the Knowledge Panel lead-in** — user-visible copy,
   tracked on #1603, not gated on this.
