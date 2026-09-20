@@ -895,26 +895,32 @@ class TestFullPipelineE2E:
     @pytest.mark.slow
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     def test_pipeline_kg_person_roles_correct(self):
-        """A NEVER-DIARIZED episode casts nobody into the KG (#598, #2075).
+        """An episode the PUBLISHER diarized casts exactly the people it named (#598, #2075).
 
         Uses podcast1_with_transcript (host Maya, guest Liam) with ``transcribe_missing=False``:
-        the transcript is DOWNLOADED, so there is no ASR and no diarization, and no speaker is
-        ever bound to a voice.
+        the transcript is DOWNLOADED, so no ASR and no diarizer ever run.
 
-        This test used to assert the RSS author reached the KG as a host Person. That was the
-        behaviour until the operator decision of 2026-09-17, recorded at
-        ``test_speaker_lists_for_graph.py::test_no_roster_casts_nobody``: *"an episode never
-        diarized, or diarized with nobody named, casts nobody"*. The graph is cast from the
-        speaker record ONLY, and a record with nothing placed states that no voice was matched —
-        so promoting the show-notes guess to a Person node would assert something no audio
-        supports (#876).
+        THIS TEST HAS BEEN BOTH WAYS, so the reasoning matters more than the assertion.
 
-        What the episode knows is not lost, it just is not in the GRAPH: the assertions below
-        check that the record still names Maya as the host, carried as ``placed: false``.
+        It first asserted the RSS author reached the KG as a host Person. The operator decision of
+        2026-09-17 (``test_speaker_lists_for_graph.py::test_no_roster_casts_nobody``) reversed
+        that — *"an episode never diarized, or diarized with nobody named, casts nobody"* — because
+        promoting a show-notes GUESS to a Person asserts something no evidence supports (#876), so
+        it was changed to assert an empty graph.
 
-        Host/guest role correctness for episodes that WERE diarized is covered by
+        The operator decision of 2026-09-20 draws the line where it belongs. The feed's transcript
+        is WebVTT that tags every turn (``<v Maya>``): that is the SOURCE stating who spoke, not a
+        model inferring it, and it binds each name to a span of audio. So the episode IS diarized —
+        by the publisher — and its people belong in the graph.
+
+        What must never happen is unchanged, and is what the assertions below actually check: a
+        name the transcript did NOT say must not appear, whatever the feed metadata claims. The
+        roster is fed the publisher's labels at top precedence for exactly that reason.
+
+        Role correctness on audio-diarized episodes is covered by
         ``tests/unit/podcast_scraper/workflow/test_speaker_lists_for_graph.py`` and
-        ``test_speaker_record.py``, which exercise the same function on placed rosters.
+        ``test_speaker_record.py``; the publisher-label precedence itself by
+        ``tests/unit/podcast_scraper/providers/ml/diarization/test_publisher_labels_outrank_inference.py``.
         """
         require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
 
@@ -959,15 +965,32 @@ class TestFullPipelineE2E:
         # guest is expected, not an error. (The prior ``len(guest_persons) == 0``
         # assertion was wrong and only ever "passed" while the v2-stale filter above
         # matched nothing — un-vacuuming it surfaced the contradiction.)
-        roster = [
-            (n["properties"].get("name"), n["properties"].get("role")) for n in person_entities
-        ]
-        # Nothing was diarized, so nothing may be cast. Anything here is a show-notes guess that
-        # has been promoted to a speaker, which is the #876 failure this boundary exists to stop.
-        assert person_entities == [], (
-            "a never-diarized episode must cast no Person into the KG "
-            f"(operator decision 2026-09-17), got: {roster}"
+        roster = {
+            str(n["properties"].get("name")): n["properties"].get("role") for n in person_entities
+        }
+        # THE PUBLISHER DIARIZED THIS EPISODE. Its transcript tags every turn (`<v Maya>`), which
+        # is the source STATING who spoke — stronger evidence than a model matching a name to a
+        # voice, and the operator decision of 2026-09-20 admits it as diarized for #2075.
+        #
+        # So the boundary this test guards is no longer "cast nobody"; it is "cast exactly the
+        # people the transcript names, and nobody else". A show-notes guess reaching the graph is
+        # still the #876 failure — it would show up here as a name the VTT never said.
+        assert roster, (
+            "the publisher transcript names its turns, so the KG must cast those people "
+            "(operator decision 2026-09-20); got no Person nodes at all"
         )
+        assert set(roster) <= {
+            "Maya Koster",
+            "Liam Verbeek",
+            "Maya",
+            "Liam",
+        }, f"a Person reached the KG that the transcript never named: {roster}"
+        assert any(
+            "maya" in n.lower() for n in roster
+        ), f"the host is missing from the KG: {roster}"
+        assert all(
+            role in {"host", "guest"} for role in roster.values()
+        ), f"every cast Person needs a resolved role: {roster}"
 
         # ...and the attribution itself is still recorded, just as unplaced. Without this the
         # test would also pass if the pipeline had simply stopped detecting speakers at all.
@@ -980,9 +1003,12 @@ class TestFullPipelineE2E:
         assert any(
             "maya" in n.lower() for n in names
         ), f"the record must still name the RSS author Maya, got: {names}"
-        assert all(
-            sp.get("placed") is not True for sp in speakers if isinstance(sp, dict)
-        ), f"nothing can be placed without diarization, got: {speakers}"
+        # ...and placed, because the publisher bound each name to a turn. This is the assertion
+        # that would catch the roster silently falling back to the show-notes guess: a guess can
+        # name Maya, but it cannot place her on a voice.
+        assert any(
+            sp.get("placed") is True for sp in speakers if isinstance(sp, dict)
+        ), f"the publisher named these voices, so they must be placed: {speakers}"
 
     @pytest.mark.critical_path
     def test_pipeline_handles_rss_feed_404(self):

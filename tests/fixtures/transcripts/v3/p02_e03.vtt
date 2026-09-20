@@ -1,0 +1,166 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:10.800
+<v Ethan>Welcome back to Practical Systems. Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.</v>
+
+00:00:10.800 --> 00:00:12.720
+<v Priya Nair>Thanks, Ethan. Great to be back.</v>
+
+00:00:12.720 --> 00:00:18.780
+<v Ethan>Today's episode is sponsored by Vanta. Vanta automates SOC 2 and ISO compliance. Try vanta.com today.</v>
+
+00:00:18.780 --> 00:00:25.500
+<v Ethan>Before we get into it — I was last on the show talking about on-call rotations. The pattern shows up again here.</v>
+
+00:00:25.500 --> 00:00:28.980
+<v Priya Nair>Yeah, exactly. And it ties into what we're covering today.</v>
+
+00:00:28.980 --> 00:00:38.640
+<v Priya Nair>I used to argue for a single central security team. After the 2024 webhook incident I changed my mind — embedded ownership beats a central gatekeeper every time.</v>
+
+00:00:38.640 --> 00:00:40.920
+<v Ethan>That's a real shift. Worth pulling on.</v>
+
+00:00:40.920 --> 00:00:49.320
+<v Ethan>Real talk: Sentry is the tool I'd pay double for. Not an ad — they're not paying us. I just think it's the best in class for error tracking.</v>
+
+00:03:30.000 --> 00:03:36.120
+<v Ethan>What's the one heuristic you keep coming back to? What's the most underrated piece of security design?</v>
+
+00:03:36.120 --> 00:03:51.660
+<v Priya Nair>Let me give you the version I actually believe. Threat modeling is a framing exercise — frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier.</v>
+
+00:03:51.660 --> 00:03:57.720
+<v Ethan>What's the one heuristic you keep coming back to? Where do reliability and security design intersect?</v>
+
+00:03:57.720 --> 00:04:07.500
+<v Priya Nair>Let me give you the version I actually believe. Authn/authz separation matters more than people think. I've watched this pattern hold across three different teams.</v>
+
+00:04:07.500 --> 00:04:13.200
+<v Ethan>What does the failure mode look like? What's the version of the question that actually matters?</v>
+
+00:04:13.200 --> 00:04:23.640
+<v Priya Nair>It comes down to this: Security incidents are reliability incidents. We've seen this play out at teams using Sentry. And the second-order effect is the part most people miss.</v>
+
+00:04:23.640 --> 00:04:25.260
+<v Ethan>Where does that break down?</v>
+
+00:04:25.260 --> 00:04:34.200
+<v Priya Nair>And when teams adopt PagerDuty in that flow, the trade-off becomes visible — The framing matters because it tells you which trade-offs you're making.</v>
+
+00:04:34.200 --> 00:04:39.960
+<v Ethan>Push back on the conventional wisdom for me. Where do reliability and security design intersect?</v>
+
+00:04:39.960 --> 00:04:49.740
+<v Priya Nair>Here's how I think about it. Vanta-style compliance work and real security work overlap maybe 60%. Once you internalize that, the rest of the decisions get easier.</v>
+
+00:04:49.740 --> 00:04:55.080
+<v Ethan>That's a useful framing. What's the structural angle most listeners don't have access to?</v>
+
+00:04:55.080 --> 00:05:08.760
+<v Priya Nair>It comes down to this: The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Sentry. If you ignore that, you end up rebuilding it from scratch a year later.</v>
+
+00:12:00.000 --> 00:12:03.420
+<v Ethan>We'll be right back after a quick word from our sponsors.</v>
+
+00:12:03.420 --> 00:12:11.040
+<v Ad>Today's episode is sponsored by Sentry. Sentry catches the errors your tests didn't. Visit sentry.com/podcast for a free trial.</v>
+
+00:12:11.040 --> 00:12:12.540
+<v Ethan>Welcome back to the show.</v>
+
+00:14:00.000 --> 00:14:04.620
+<v Ethan>I want to dig into that. What's the most underrated piece of security design?</v>
+
+00:14:04.620 --> 00:14:17.400
+<v Priya Nair>Sure. Threat modeling is a framing exercise — frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Linear. I've watched this pattern hold across three different teams.</v>
+
+00:14:17.400 --> 00:14:22.020
+<v Ethan>I want to dig into that. What's the most underrated piece of security design?</v>
+
+00:14:22.020 --> 00:14:29.280
+<v Priya Nair>Sure. Authn/authz separation matters more than people think. I've watched this pattern hold across three different teams.</v>
+
+00:14:29.280 --> 00:14:35.880
+<v Ethan>Push back on the conventional wisdom for me. What's the operational angle most listeners don't have access to?</v>
+
+00:14:35.880 --> 00:14:46.320
+<v Priya Nair>Sure. Security incidents are reliability incidents. We've seen this play out at teams using PagerDuty. If you ignore that, you end up rebuilding it from scratch a year later.</v>
+
+00:14:46.320 --> 00:14:47.820
+<v Ethan>That tracks.</v>
+
+00:14:47.820 --> 00:14:54.900
+<v Priya Nair>Datadog is one of the platforms where this shows up cleanly. And the second-order effect is the part most people miss.</v>
+
+00:14:54.900 --> 00:14:59.880
+<v Ethan>Push back on the conventional wisdom for me. How does Notion fit into this picture?</v>
+
+00:14:59.880 --> 00:15:08.520
+<v Priya Nair>Honestly, Vanta-style compliance work and real security work overlap maybe 60%. Once you internalize that, the rest of the decisions get easier.</v>
+
+00:15:08.520 --> 00:15:13.740
+<v Ethan>Take me through the decision. What's the version of the question that actually matters?</v>
+
+00:15:13.740 --> 00:15:26.700
+<v Priya Nair>Yeah, so — The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Sentry. If you ignore that, you end up rebuilding it from scratch a year later.</v>
+
+00:22:00.000 --> 00:22:04.320
+<v Ethan>Let's pivot — risk management is where I want to spend the last stretch.</v>
+
+00:22:04.320 --> 00:22:12.060
+<v Priya Nair>That's where the conversation gets interesting, because the trade-offs around risk management cross-cut everything we've covered.</v>
+
+00:22:12.060 --> 00:22:15.840
+<v Ethan>That's a useful framing. How does Notion fit into this picture?</v>
+
+00:22:15.840 --> 00:22:29.940
+<v Priya Nair>It comes down to this: Threat modeling is a framing exercise — frame the decision wrong and you build the wrong defenses. We've seen this play out at teams using Datadog. Once you internalize that, the rest of the decisions get easier.</v>
+
+00:22:29.940 --> 00:22:34.560
+<v Ethan>That's a useful framing. What's the most underrated piece of security design?</v>
+
+00:22:34.560 --> 00:22:41.820
+<v Priya Nair>Sure. Authn/authz separation matters more than people think. I've watched this pattern hold across three different teams.</v>
+
+00:22:41.820 --> 00:22:46.080
+<v Ethan>Let's start there. What's the most underrated piece of security design?</v>
+
+00:22:46.080 --> 00:22:55.800
+<v Priya Nair>Yeah, so — Security incidents are reliability incidents. We've seen this play out at teams using Linear. And the second-order effect is the part most people miss.</v>
+
+00:22:55.800 --> 00:22:57.300
+<v Ethan>Say more about that.</v>
+
+00:22:57.300 --> 00:23:05.040
+<v Priya Nair>Outside of Sentry-class tooling, the failure mode is harder to spot. I've watched this pattern hold across three different teams.</v>
+
+00:23:05.040 --> 00:23:09.660
+<v Ethan>I want to dig into that. What's the most underrated piece of security design?</v>
+
+00:23:09.660 --> 00:23:17.640
+<v Priya Nair>Sure. Vanta-style compliance work and real security work overlap maybe 60%. And the second-order effect is the part most people miss.</v>
+
+00:23:17.640 --> 00:23:22.980
+<v Ethan>That's a useful framing. What's the contrarian angle most listeners don't have access to?</v>
+
+00:23:22.980 --> 00:23:35.940
+<v Priya Nair>Honestly, The frame for a security review is 'what could go wrong if this assumption is wrong'. We've seen this play out at teams using Notion. The framing matters because it tells you which trade-offs you're making.</v>
+
+00:28:00.000 --> 00:28:03.660
+<v Ethan>Before we wrap, what's one thing listeners can try this week?</v>
+
+00:28:03.660 --> 00:28:08.520
+<v Priya Nair>Pick one of the ideas we covered and run it for two weeks. The rest is iteration.</v>
+
+00:28:08.520 --> 00:28:16.860
+<v Ethan>And finally, a big thank you to our partners at Linear. Linear is the issue tracker built for speed — keyboard-first. Check out linear.com.</v>
+
+00:28:16.860 --> 00:28:19.260
+<v Ethan>Priya Nair, thanks for the conversation.</v>
+
+00:28:19.260 --> 00:28:20.760
+<v Priya Nair>Thanks, Ethan.</v>
+
+00:28:20.760 --> 00:28:24.960
+<v Ethan>That's it for today's episode of Practical Systems. See you next time.</v>

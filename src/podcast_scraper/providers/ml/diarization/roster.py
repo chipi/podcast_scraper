@@ -27,6 +27,7 @@ import re
 from dataclasses import dataclass, replace
 from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
+from ....graph_id_utils import is_bare_speaker_label
 from ....speaker_detectors.hosts import (
     _clean_stated_name as _clean_intro_name,
     _GUEST_GREETED as _GUEST_GREETED_RE,
@@ -919,6 +920,48 @@ def _canonicalize_to_stated_person(name: str, stated: Sequence[str]) -> str:
     return next(iter(matches)) if len(matches) == 1 else name
 
 
+#: Labels a transcript uses for a VOICE that is not a person. A publisher tags a sponsor read
+#: `<v Ad>` and a read-in link `<v Narrator>`; neither names anybody, and both would otherwise be
+#: published as speakers.
+#:
+#: This is its own list because the existing predicates do not cover it: `Ad` passes
+#: `is_publishable_speaker_name` (it is a capitalised word) and is NOT matched by
+#: `is_bare_speaker_label` (which targets `SPEAKER_01` / `Speaker 2` shapes). `_ROLE_LABELS` in
+#: `graph_id_utils` deliberately excludes narrator/announcer for id-scoping reasons, so it answers
+#: a different question and must not be widened for this one.
+NON_PERSON_VOICE_LABELS = frozenset(
+    {
+        "ad",
+        "ads",
+        "advert",
+        "advertisement",
+        "advertiser",
+        "announcer",
+        "commercial",
+        "music",
+        "narrator",
+        "promo",
+        "sfx",
+        "sponsor",
+        "sponsored",
+        "voiceover",
+    }
+)
+
+
+def _is_person_voice_label(name: Optional[str]) -> bool:
+    """Is this transcript-supplied voice label a PERSON's name we may publish?
+
+    Guards the one thing a publisher label must never do: turn a production credit into a speaker.
+    """
+    if not name or not name.strip():
+        return False
+    cleaned = name.strip()
+    if cleaned.casefold() in NON_PERSON_VOICE_LABELS:
+        return False
+    return is_publishable_speaker_name(cleaned) and not is_bare_speaker_label(cleaned)
+
+
 def _canonicalize_to_known_host(
     name: str,
     known_hosts: Sequence[str],
@@ -1480,6 +1523,7 @@ def _name_host_voices(
     voice_intro: Dict[str, str],
     used_lower: set,
     llm_named: Optional[set] = None,
+    publisher_named: Optional[AbstractSet[str]] = None,
     *,
     conv_host_voices: Optional[AbstractSet[str]] = None,
     voice_texts: Optional[Mapping[str, str]] = None,
@@ -1573,7 +1617,12 @@ def _name_host_voices(
         iname = voice_intro.get(v)
         if iname and iname.lower() not in used_lower:
             used_lower.add(iname.lower())
-            src = "llm_resolution" if (llm_named and v in llm_named) else "self_intro"
+            if publisher_named and v in publisher_named:
+                src = "publisher_transcript"
+            elif llm_named and v in llm_named:
+                src = "llm_resolution"
+            else:
+                src = "self_intro"
             out[v] = SpeakerRole(name=iname, role="host", named=True, source=src)
             continue
         if forced_name is not None and v == unnamed_seats[0]:
@@ -1696,6 +1745,7 @@ def _name_guest_voices(
     used_lower: set,
     talk: Optional[Dict[str, float]] = None,
     llm_named: Optional[set] = None,
+    publisher_named: Optional[AbstractSet[str]] = None,
     cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
     voice_texts: Optional[Mapping[str, str]] = None,
     self_intros: Optional[Mapping[str, str]] = None,
@@ -1805,7 +1855,12 @@ def _name_guest_voices(
         iname = voice_intro.get(v)
         if iname and iname.lower() not in used_lower and iname.lower() not in host_names_lower:
             used_lower.add(iname.lower())
-            src = "llm_resolution" if (llm_named and v in llm_named) else "self_intro"
+            if publisher_named and v in publisher_named:
+                src = "publisher_transcript"
+            elif llm_named and v in llm_named:
+                src = "llm_resolution"
+            else:
+                src = "self_intro"
             out[v] = SpeakerRole(name=iname, role="guest", named=True, source=src)
         elif (
             forced is not None
@@ -2456,7 +2511,10 @@ def _select_host_voices(
     conv_guests: AbstractSet[str],
     voices_by_intro: Sequence[str],
     llm_named: AbstractSet[str],
-    llm_voice_roles: Optional[Dict[str, str]],
+    # Voices whose name the PUBLISHER stated (a `<v Name>` cue label). Defaults to "none stated",
+    # so every existing caller and the ASR path are unchanged.
+    publisher_named: AbstractSet[str] = frozenset(),
+    llm_voice_roles: Optional[Dict[str, str]] = None,
     content_start: float,
     intro_window_s: float,
     ad_intervals: Optional[Sequence[Tuple[float, float]]],
@@ -2472,7 +2530,11 @@ def _select_host_voices(
     stated_non_host_voices = {
         v
         for v, n in voice_intro.items()
-        if host_pool and n and n.lower() not in host_pool_lower and v not in llm_named
+        if host_pool
+        and n
+        and n.lower() not in host_pool_lower
+        and v not in llm_named
+        and v not in publisher_named
     }
     # ADR-137 — the LLM's host/guest verdict as BOUNDED advice: it may DEMOTE a positional host
     # guess (a voice it calls "guest" is blocked from the opener/intro-fill steps) and ANCHOR a
@@ -2596,6 +2658,7 @@ def resolve_speaker_roster(
     ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
     metadata_named: Sequence[str] = (),
+    stated_voice_names: Optional[Mapping[str, str]] = None,
     llm_voice_names: Optional[Dict[str, str]] = None,
     llm_voice_roles: Optional[Dict[str, str]] = None,
     cleaning: Optional[VoiceCleaning] = None,
@@ -2693,6 +2756,34 @@ def resolve_speaker_roster(
     # what makes the most-trusted signal the easiest one to poison.
     # ...and the name it gives is the ASR's spelling, so it is snapped onto the configured host
     # when it is plainly the same person ("Kevin Russo" / "Kevin Roos" -> "Kevin Roose").
+    # THE PUBLISHER'S OWN LABELS OUTRANK EVERY INFERENCE. A transcript that tags each turn
+    # (`<v Maya>`) is not a guess we have to corroborate — it is the source stating who spoke, so
+    # it seeds `voice_intro` BEFORE the self-intro pass and everything downstream defers to it:
+    # `_intro_reader_voice_names` skips a voice already in `voice_intro`, the LLM merge skips it
+    # explicitly, and `_name_host_voices` / `_name_guest_voices` take the entry as the name.
+    #
+    # This is the whole point of the mechanism. Without it the publisher's names were discarded and
+    # re-derived from the feed, which put `Liam Verbeek` on a voice the file named `Maya` —
+    # authoring a name the source contradicts, the one thing #876 forbids.
+    #
+    # ROLES ARE NOT TAKEN FROM THE FILE. A publisher states WHO speaks, never who HOSTS, so the
+    # roster still decides host/guest from its own evidence with the name held fixed.
+    #
+    # Two filters, both necessary. An ad voice is excluded because a sponsor read is not a person.
+    # And a label that is not a person's name — `Ad`, `Speaker 2`, `Narrator` — never names
+    # anybody: `Ad` passes `is_publishable_speaker_name` and is NOT caught by
+    # `is_bare_speaker_label`, so it would otherwise be published as a guest called "Ad".
+    publisher_named: Set[str] = set()
+    stated_seed: Dict[str, str] = {}
+    for _v, _n in (stated_voice_names or {}).items():
+        if _v in ad_voices or not _is_person_voice_label(_n):
+            continue
+        # Snap to the feed's spelling when it is plainly the same person ("Maya" -> "Maya Koster"),
+        # the same bounded canonicalisation the self-intro path uses; verbatim when nothing states
+        # a fuller form.
+        stated_seed[_v] = _canonicalize_to_known_host(_n, known_hosts)
+        publisher_named.add(_v)
+
     _strategy = labeling_strategy_for(diarization_provider)
     voice_intro = _self_intro_voice_names(
         diarization,
@@ -2706,6 +2797,11 @@ def resolve_speaker_roster(
         suppress_merged=profile.suppress_merged_speaker_clusters,
         cameo_max_talk_s=profile.cameo_max_talk_s,
     )
+    # The publisher's label WINS over a self-intro for the same voice. A self-intro is the ASR's
+    # transcription of a spoken name ("I'm Kevin Russo"); the publisher's label is the name the
+    # source wrote down. When they disagree about spelling the written one is the better record,
+    # and when they disagree about identity the file is the thing we were handed as fact.
+    voice_intro.update(stated_seed)
 
     # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting
     # reclamation (#1226 follow-up): a voice that self-introduced as a STATED host, plus the first
@@ -2818,6 +2914,7 @@ def resolve_speaker_roster(
         conv_guests=conv_guests,
         voices_by_intro=voices_by_intro,
         llm_named=llm_named,
+        publisher_named=publisher_named,
         llm_voice_roles=llm_voice_roles,
         content_start=content_start,
         intro_window_s=intro_window_s,
@@ -2834,6 +2931,7 @@ def resolve_speaker_roster(
         voice_intro,
         used_lower,
         llm_named,
+        publisher_named=publisher_named,
         conv_host_voices=conv_host_voices,
         voice_texts=voice_texts or {},
         episode_text=episode_text,
@@ -2920,6 +3018,7 @@ def resolve_speaker_roster(
             used_lower,
             talk=total,
             llm_named=llm_named,
+            publisher_named=publisher_named,
             cameo_max_talk_s=profile.cameo_max_talk_s,
             voice_texts=voice_texts or {},
             self_intros=_names_self_intro,

@@ -18,7 +18,7 @@
       <pubDate>Mon, 29 Sep 2025 07:00:00 +0000</pubDate>
       <description>Newest pubDate in this feed (selection E2E).</description>
       <enclosure url="/audio/p01_multi_e05.mp3" length="60000" type="audio/mpeg"/>
-      <podcast:transcript url="/transcripts/p01_multi_e05.txt" type="text/plain" />
+      <podcast:transcript url="/transcripts/p01_multi_e05.vtt" type="text/vtt" />
       <itunes:episode>5</itunes:episode>
       <itunes:duration>00:00:12</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -30,7 +30,7 @@
       <pubDate>Mon, 15 Sep 2025 07:00:00 +0000</pubDate>
       <description>Middle pubDate in this feed (selection E2E).</description>
       <enclosure url="/audio/p01_multi_e03.mp3" length="75000" type="audio/mpeg"/>
-      <podcast:transcript url="/transcripts/p01_multi_e03.txt" type="text/plain" />
+      <podcast:transcript url="/transcripts/p01_multi_e03.vtt" type="text/vtt" />
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:00:15</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -42,7 +42,7 @@
       <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
       <description>Oldest pubDate in this feed (selection E2E).</description>
       <enclosure url="/audio/p01_multi_e01.mp3" length="50000" type="audio/mpeg"/>
-      <podcast:transcript url="/transcripts/p01_multi_e01.txt" type="text/plain" />
+      <podcast:transcript url="/transcripts/p01_multi_e01.vtt" type="text/vtt" />
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:00:10</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

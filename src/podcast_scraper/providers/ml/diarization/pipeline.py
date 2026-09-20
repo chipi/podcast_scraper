@@ -8,7 +8,7 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import AbstractSet, Any, Dict, List, Optional, Sequence, Tuple
+from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from .... import config
 from ....speaker_detectors.normalization import filter_default_speaker_names
@@ -463,6 +463,7 @@ def apply_diarization_to_result(
     metadata_named: Optional[List[str]] = None,
     cache_dir: Optional[str] = None,
     precomputed_diarization: Optional[DiarizationResult] = None,
+    stated_voice_names: Optional[Mapping[str, str]] = None,
     feed_hosts: Optional[List[str]] = None,
     bypass_cache_read: bool = False,
     episode_title: Optional[str] = None,
@@ -627,6 +628,19 @@ def apply_diarization_to_result(
 
     _md_named = list(metadata_named or ())
 
+    # NAMES THE SOURCE STATED, minus the voices that are not people. A publisher tags its sponsor
+    # read like any other turn, and `classify_voices` is what knows which cluster that is — so the
+    # filter belongs here, after classification, not in the caller.
+    #
+    # NOT filtered to `cleaning.real`: `CAMEO_MAX_TALK_S` is 20s and every voice in the short
+    # fixture episodes is a cameo, so that would discard the entire roster on exactly the corpus
+    # this is meant to serve. Ad and commercial are the only classes that are not people.
+    _stated_voices: Dict[str, str] = {
+        v: n
+        for v, n in (stated_voice_names or {}).items()
+        if v not in cleaning.ad and v not in cleaning.commercial
+    }
+
     def _run_roster(
         names: Optional[Dict[str, str]], roles: Optional[Dict[str, str]]
     ) -> SpeakerRoster:
@@ -639,6 +653,7 @@ def apply_diarization_to_result(
             ordered_turns=ordered_turns,
             ad_intervals=ad_intervals,
             metadata_named=_md_named,
+            stated_voice_names=_stated_voices,
             llm_voice_names=names,
             llm_voice_roles=roles,
             cleaning=cleaning,

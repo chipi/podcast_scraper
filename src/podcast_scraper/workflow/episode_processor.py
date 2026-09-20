@@ -2773,6 +2773,30 @@ def _segments_carry_native_speakers(result: Any) -> bool:
 
 
 def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> dict:
+    """``_roster_native_segments`` for a :class:`TranscriptionJob`. See that function."""
+    return _roster_native_segments(
+        result,
+        cfg,
+        idx=getattr(job, "idx", None),
+        detected_speaker_names=job.detected_speaker_names,
+        metadata_named=job.metadata_named,
+        feed_hosts=job.feed_hosts,
+        detection_ran=getattr(job, "speaker_detection_ran", None),
+    )
+
+
+def _roster_native_segments(
+    result: dict,
+    cfg: config.Config,
+    *,
+    idx: Any = None,
+    detected_speaker_names: Optional[List[str]] = None,
+    metadata_named: Optional[List[str]] = None,
+    feed_hosts: Optional[List[str]] = None,
+    detection_ran: Optional[bool] = None,
+    episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+) -> dict:
     """Route a natively-diarized transcript through the SINGLE role authority (the roster).
 
     A provider that diarizes server-side (deepgram/moss) tags each segment with a ``speaker`` id
@@ -2781,6 +2805,17 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
     roster (``precomputed_diarization`` — no re-diarization, no extra API call) so names AND roles
     come from evidence and land as ``speaker_label`` + ``speaker_role`` on the durable segments,
     exactly like the local-diarizer path.
+
+    The inputs are EXPLICIT rather than read off a ``job``. Taking the whole object made this
+    silently depend on a shape only ``TranscriptionJob`` has; passing an ``Episode`` — which
+    declares none of those fields — raised ``AttributeError`` and killed every transcript download
+    (be1ed96d, reverted). A keyword-only signature cannot be satisfied by accident.
+
+    A PERSON-LIKE ``speaker`` VALUE IS A NAME THE SOURCE STATED, and it is carried through to the
+    roster as ``stated_voice_names`` so it can be published as-is. Anonymising it first — which is
+    what the cluster ids below are for — threw the answer away and let the roster paint a feed host
+    onto a voice the file had already named (ac1751b4, reverted). Bare ids (``Speaker 2``, ints
+    from deepgram/moss) are clustered only, exactly as before.
 
     No-op unless the segments carry a native ``speaker`` id (provider-agnostic, gated on data). A
     roster failure is swallowed so the successfully-transcribed text is never lost. ``cost_usd=0.0``
@@ -2811,6 +2846,16 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
     ]
     if not dsegs:
         return result
+
+    # WHICH CLUSTERS THE SOURCE ACTUALLY NAMED. `_anon` maps each distinct raw value to a cluster
+    # id; a value that is a person's name is also recorded as a stated name for that cluster. The
+    # roster filters these again (ads, non-person labels) — this only decides what was STATED.
+    from ..providers.ml.diarization.roster import _is_person_voice_label
+
+    stated_voice_names: Dict[str, str] = {}
+    for raw, cluster in cluster_ids.items():
+        if _is_person_voice_label(raw):
+            stated_voice_names[cluster] = raw.strip()
     diar = DiarizationResult(segments=dsegs, num_speakers=len(cluster_ids), cost_usd=0.0)
     # Preserve ASR-provenance top-level fields; only the segments are re-clustered by the roster.
     clean = dict(result)
@@ -2824,16 +2869,19 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
             clean,
             "",
             cfg,
-            job.detected_speaker_names,
-            metadata_named=job.metadata_named,
+            detected_speaker_names,
+            metadata_named=metadata_named,
             precomputed_diarization=diar,
-            feed_hosts=job.feed_hosts,
-            detection_ran=getattr(job, "speaker_detection_ran", None),
+            stated_voice_names=stated_voice_names or None,
+            feed_hosts=feed_hosts,
+            detection_ran=detection_ran,
+            episode_title=episode_title,
+            episode_description=episode_description,
         )
     except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
         logger.warning(
             "[%s] Native-speaker roster pass failed; keeping the provider screenplay: %s",
-            job.idx,
+            idx,
             format_exception_for_log(exc),
         )
         _capture_stage_exception(exc, stage="diarization")
@@ -3901,6 +3949,9 @@ def process_transcript_download(
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
+    detected_speaker_names: Optional[List[str]] = None,
+    metadata_named: Optional[List[str]] = None,
+    feed_hosts: Optional[List[str]] = None,
 ) -> tuple[bool, Optional[str], Optional[str], int]:
     """Download and save a transcript file.
 
@@ -3995,14 +4046,82 @@ def process_transcript_download(
         else:
             plain, segments = parse_srt(body)
         if plain.strip() and segments:
+            # A PUBLISHER TRANSCRIPT THAT NAMES ITS TURNS IS A DIARIZATION WE DID NOT HAVE TO
+            # COMPUTE. `parse_webvtt` lifts `<v Speaker>` voice spans into `seg["speaker"]`, but
+            # nothing turned them into a roster, so the names went nowhere and the episode arrived
+            # as one undifferentiated voice. Measured on the production corpus, EVERY episode that
+            # used a publisher transcript ended with a single voice — 128 of 128 (`cues.py`).
+            #
+            # Route them through the SAME role authority as every other source, via
+            # `precomputed_diarization`: no audio, no diarizer, no API call. The publisher's names
+            # are carried as `stated_voice_names` and OUTRANK every inference, so the roster
+            # decides roles while the source decides identity.
+            #
+            # NO `feed_hosts` GATE. An earlier version skipped the pass when no feed host was
+            # known, on the theory that the roster could then only emit bare cluster ids. That was
+            # true only while the names were being discarded; with them carried the roster names
+            # from the file alone. Worse, the "skip" was never inert — the raw `speaker` survived
+            # onto the segments, `adfree` promoted it (`speaker_label or speaker`) and
+            # `metadata_generation` defaulted a role-less name to host + placed, so skipping
+            # published the publisher's GUEST as a placed host.
+            #
+            # No-op unless the cues actually name someone.
+            rostered = _roster_native_segments(
+                {"text": plain, "segments": segments},
+                cfg,
+                idx=episode.idx,
+                detected_speaker_names=detected_speaker_names,
+                metadata_named=metadata_named,
+                feed_hosts=feed_hosts,
+                detection_ran=detected_speaker_names is not None or None,
+                episode_title=getattr(episode, "title", None),
+                episode_description=getattr(episode, "description", None),
+            )
+            segments = rostered.get("segments") or segments
+
+            # HONOUR `cfg.screenplay`, as the ASR path does. GI quote attribution reads `Name:`
+            # line markers (`gi/speakers.py::build_named_turns`), so a plain-text transcript gives
+            # every quote no SPOKEN_BY edge — the speakers would resolve and the people surfaces
+            # would still be empty. Falls back to `plain` whenever the roster named nobody.
+            # HONOUR `cfg.screenplay`, as the ASR path does — but ONLY when the roster actually
+            # named somebody. GI quote attribution reads `Name:` line markers
+            # (`gi/speakers.py::build_named_turns`), so a plain transcript gives every quote no
+            # SPOKEN_BY edge and the people surfaces stay empty even though speakers resolved.
+            #
+            # The guard matters: formatting unconditionally rewrote transcripts that name nobody,
+            # turning the two-cue "Hello world" into "Hello\nworld". A transcript without voice
+            # spans must come out byte for byte as before, which is what
+            # `test_process_transcript_download_normalizes_vtt_to_txt_and_segments_json` pins.
+            named = any(isinstance(s, dict) and s.get("speaker_label") for s in (segments or []))
+            text_to_store = plain
+            if named:
+                text_to_store = (
+                    _format_transcript_if_needed(
+                        rostered, cfg, detected_speaker_names, "direct_download"
+                    )
+                    or plain
+                )
+
             txt_path = os.path.splitext(out_path)[0] + ".txt"
             rel_path_result = _write_transcript_file(
-                plain.encode("utf-8"), txt_path, cfg, episode, effective_output_dir
+                text_to_store.encode("utf-8"), txt_path, cfg, episode, effective_output_dir
             )
             if rel_path_result is None:
                 return False, None, None, bytes_downloaded
             _save_transcript_segments_file(segments, rel_path_result, effective_output_dir)
-            _maybe_produce_adfree(cfg, plain, segments, rel_path_result, effective_output_dir)
+            # `content.speakers` is derived from the SAVED segments' `speaker_label`
+            # (metadata_generation, #876), so the diagnostics must land beside them or an operator
+            # cannot explain a voice the roster declined to name.
+            _save_speaker_diagnostics_file(
+                rostered.get("speaker_diagnostics"), rel_path_result, effective_output_dir
+            )
+            # The adfree sidecar's char offsets are derived against the text we STORED, not
+            # the pre-screenplay plain text — `build_adfree_artifacts` branches on
+            # `rebuilt == text` to pick its exact-offset path, and feeding it a different
+            # string would silently desynchronise every quote span.
+            _maybe_produce_adfree(
+                cfg, text_to_store, segments, rel_path_result, effective_output_dir
+            )
             logger.info(
                 "[%s] normalized %s to .txt with %d segment(s) for GI timing",
                 episode.idx,
@@ -4053,6 +4172,7 @@ def process_episode_download(
     transcription_jobs_lock: Optional[threading.Lock],
     detected_speaker_names: Optional[List[str]] = None,
     metadata_named: Optional[List[str]] = None,
+    feed_hosts: Optional[List[str]] = None,
     pipeline_metrics=None,
 ) -> tuple[bool, Optional[str], Optional[str], int]:
     """Process a single episode: download transcript or prepare for Whisper transcription.
@@ -4098,7 +4218,15 @@ def process_episode_download(
             len(episode.transcript_urls),
         )
         success, transcript_path, transcript_source, bytes_downloaded = process_transcript_download(
-            episode, t_url, t_type, cfg, effective_output_dir, run_suffix
+            episode,
+            t_url,
+            t_type,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            detected_speaker_names=detected_speaker_names,
+            metadata_named=metadata_named,
+            feed_hosts=feed_hosts,
         )
         if success and cfg.delay_ms:
             time.sleep(cfg.delay_ms / MS_TO_SECONDS)

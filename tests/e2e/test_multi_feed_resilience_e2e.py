@@ -320,7 +320,11 @@ class TestMultiFeedMultiEpisodePartialTranscriptFailure:
             pytest.skip("Needs multi_episode mode so max_episodes>1 applies per feed")
 
         assert E2EHTTPRequestHandler is not None
-        E2EHTTPRequestHandler.set_error_behavior("/transcripts/p01_multi_e03.txt", status=404)
+        # The URL must be the one the FEED advertises. `p01_episode_selection.xml` serves WebVTT
+        # (a transcript that names its own turns is a diarization the pipeline does not have to
+        # compute), so a 404 registered against the old `.txt` path never fires and this test
+        # silently stops testing the partial-failure path it exists for.
+        E2EHTTPRequestHandler.set_error_behavior("/transcripts/p01_multi_e03.vtt", status=404)
 
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)

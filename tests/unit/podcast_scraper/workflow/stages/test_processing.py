@@ -703,10 +703,17 @@ class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
     def test_download_args_tuple_arity_contract(self) -> None:
         """Producer/consumer contract for the download_args tuple.
 
-        prepare_episode_download_args emits a 9-tuple; summarization unpacks all 9 (index 7 =
-        detected guests, index 8 = stated names) and transcription reads args[7]. When #1169 grew
-        the producer to 9 elements the 8-element unpack in summarization crashed EVERY real
-        summarization run, and only e2e caught it. This pins the arity cheaply at unit level.
+        prepare_episode_download_args emits a 10-tuple: index 7 = detected guests, index 8 =
+        stated names, index 9 = the feed's hosts. When #1169 grew the producer, the fixed-arity
+        unpack then in summarization crashed EVERY real summarization run and only e2e caught it.
+        This pins the arity cheaply at unit level.
+
+        Grown 9 -> 10 deliberately: a publisher transcript that names its own turns is rostered on
+        the DOWNLOAD path, where the feed's hosts anchor seat-matching and canonicalise a stated
+        mononym to the feed's spelling — and that is the only point before the transcription stage
+        where they exist. Safe because every consumer reads by INDEX (`args[0]`, `args[7]`) rather
+        than unpacking; summarization says so in a comment at its read site. The unpack below is
+        the test's own and must track the producer.
         """
         ep = self._episode(1, "g1", "ep")
         m = workflow_metrics.Metrics()
@@ -714,12 +721,16 @@ class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
 
         self.assertEqual(len(args_list), 1)
         args = args_list[0]
-        self.assertEqual(len(args), 9, f"download_args arity drifted: {len(args)} != 9")
-        # the exact unpack summarization._collect_episodes_for_summarization performs
-        episode_obj, _, _, _, _, _, _, detected_names, stated = args
+        self.assertEqual(len(args), 10, f"download_args arity drifted: {len(args)} != 10")
+        episode_obj, _, _, _, _, _, _, detected_names, stated, feed_hosts = args
         self.assertIs(episode_obj, ep)
         # transcription reads args[7]; it must be addressable (guests, or None)
         self.assertEqual(args[7], detected_names)
+        self.assertEqual(args[8], stated)
+        # Index 9 must be a LIST, never None: a publisher-named transcript is rostered without it,
+        # but a None here would mean the feed's hosts silently stopped reaching the download path,
+        # so a stated mononym would never canonicalise to the feed's spelling.
+        self.assertIsInstance(feed_hosts, list, f"feed_hosts must be a list, got {feed_hosts!r}")
 
     def test_append_skips_complete_episode_and_keeps_incomplete(self) -> None:
         """Complete on-disk episode is omitted from download args; incomplete is kept."""
