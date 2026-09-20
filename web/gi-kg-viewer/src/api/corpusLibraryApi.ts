@@ -145,21 +145,21 @@ export type FeedSignalPerson = {
   episode_count: number
 }
 
-export type FeedSignalTheme = {
+export type FeedSignalStoryline = {
   /**
    * The graph compound id (`thc:…`). Label-derived and therefore UNSTABLE — it is not a routable
    * node in a loaded artifact graph. Use `anchor_topic_id` to open the chip; this is for display
    * and keying only.
    */
-  theme_id: string
+  storyline_id: string
   label: string
   topic_count: number
   /**
    * A member topic actually present in this show — the click target (#2115).
    *
-   * Added to the backend because routing on `theme_id` opens a node that may not exist in the
+   * Added to the backend because routing on `storyline_id` opens a node that may not exist in the
    * loaded graph. The player consumes it and disables the chip when it is absent; the viewer was
-   * still navigating on `theme_id` (cross-surface review 2026-09-18).
+   * still navigating on `storyline_id` (cross-surface review 2026-09-18).
    */
   anchor_topic_id?: string | null
 }
@@ -200,7 +200,7 @@ export type CorpusFeedSignalsResponse = {
   top_topics: FeedSignalTopic[]
   key_people: FeedSignalPerson[]
   recurring_guests: FeedSignalPerson[]
-  dominant_themes: FeedSignalTheme[]
+  dominant_storylines: FeedSignalStoryline[]
   trending_topics: FeedSignalTrend[]
   grounding: FeedGroundingSummary | null
   /** #1932 — how often this show returns to the same topic PAIR. Operator-only by design:

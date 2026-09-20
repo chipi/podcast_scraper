@@ -208,11 +208,11 @@ const dominantClusterId = computed<string | null>(() => {
 })
 
 // Theme clusters (co-occurrence "discussed together") — parallel to the semantic dominant above.
-// Marked on the pills (theme ring) + a "Storyline ·" lead-in. No-op when topics carry no theme_cluster_id.
+// Marked on the pills (theme ring) + a "Storyline ·" lead-in. No-op when topics carry no storyline_id.
 const themeClusterCounts = computed<Record<string, number>>(() => {
   const c: Record<string, number> = {}
   for (const t of props.topics)
-    if (t.theme_cluster_id) c[t.theme_cluster_id] = (c[t.theme_cluster_id] ?? 0) + 1
+    if (t.storyline_id) c[t.storyline_id] = (c[t.storyline_id] ?? 0) + 1
   return c
 })
 const themeDominantId = computed<string | null>(() => {
@@ -221,19 +221,19 @@ const themeDominantId = computed<string | null>(() => {
   let bestCount = 1
   let bestSize = -1
   for (const t of props.topics) {
-    if (!t.theme_cluster_id) continue
-    const n = counts[t.theme_cluster_id] ?? 0
-    if (n > bestCount || (n === bestCount && (t.theme_cluster_size ?? 0) > bestSize)) {
-      best = t.theme_cluster_id
+    if (!t.storyline_id) continue
+    const n = counts[t.storyline_id] ?? 0
+    if (n > bestCount || (n === bestCount && (t.storyline_size ?? 0) > bestSize)) {
+      best = t.storyline_id
       bestCount = n
-      bestSize = t.theme_cluster_size ?? 0
+      bestSize = t.storyline_size ?? 0
     }
   }
   return best
 })
 const themeDominantLabel = computed(
   () =>
-    props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.theme_cluster_label ??
+    props.topics.find((t) => t.storyline_id === themeDominantId.value)?.storyline_label ??
     null
 )
 /**
@@ -245,7 +245,7 @@ const themeDominantLabel = computed(
  * is what 404s, so it is deliberately not used here.
  */
 const themeDominantTopicId = computed<string | null>(
-  () => props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.id ?? null
+  () => props.topics.find((t) => t.storyline_id === themeDominantId.value)?.id ?? null
 )
 const storylineOpen = ref(false)
 // Speaker-role badge on person chips (BE.4/PL.2) — same host/guest/mentioned vocabulary and i18n
@@ -293,7 +293,7 @@ const allTags = computed<Tag[]>(() => {
       label: tp.label,
       kind: "topic" as const,
       dominant: Boolean(dom) && tp.cluster_id === dom,
-      themeMember: Boolean(tp.theme_cluster_id),
+      themeMember: Boolean(tp.storyline_id),
       episodeScoped: false,
     })),
     ...persons.map((p) => ({

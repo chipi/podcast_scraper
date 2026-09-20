@@ -182,7 +182,7 @@ def _episode_features(
         if isinstance(cid, str):
             clusters.add(cid)
         tinfo = theme_map.get(topic.id)
-        tcid = tinfo.get("theme_cluster_id") if tinfo else None
+        tcid = tinfo.get("storyline_id") if tinfo else None
         if isinstance(tcid, str):
             clusters.add(tcid)
     return clusters, topic_ids, {p.id for p in persons}

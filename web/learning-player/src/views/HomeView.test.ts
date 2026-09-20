@@ -83,7 +83,7 @@ beforeEach(() => {
     has_velocity_data: false,
     window_months: [],
     topics: [],
-    theme_clusters: [],
+    storylines: [],
   })
   vi.spyOn(api, 'getStorylines').mockResolvedValue([])
   vi.spyOn(api, 'getTrending').mockResolvedValue([])

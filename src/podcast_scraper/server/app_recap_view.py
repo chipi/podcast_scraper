@@ -60,7 +60,7 @@ def episode_storylines(
     """
     if not topics:
         return []
-    theme_map = storyline_map_by_topic(root)  # topic_id -> {theme_cluster_id, ...}
+    theme_map = storyline_map_by_topic(root)  # topic_id -> {storyline_id, ...}
     if not theme_map:
         return []
     # thc id -> {id, label, size, anchor_topic_id}; the floor + anchor are enforced here.
@@ -69,7 +69,7 @@ def episode_storylines(
     seen: set[str] = set()
     for topic in topics:
         info = theme_map.get(topic.id)
-        thc = info.get("theme_cluster_id") if info else None
+        thc = info.get("storyline_id") if info else None
         summary = summaries.get(thc) if thc else None
         if not summary:
             continue

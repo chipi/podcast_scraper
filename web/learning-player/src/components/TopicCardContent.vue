@@ -64,8 +64,8 @@ const episodes = computed<EpisodeSummary[]>(() => props.topic.episodes ?? [])
 const episodeCount = computed(() => props.topic.episode_count ?? 0)
 const siblings = computed(() => props.topic.sibling_topics ?? [])
 // Theme cluster (co-occurrence "discussed together") — the STORYLINE this topic is part of.
-const themeClusterLabel = computed(() => props.topic.theme_cluster_label ?? null)
-const themeClusterSize = computed(() => props.topic.theme_cluster_size ?? 0)
+const themeClusterLabel = computed(() => props.topic.storyline_label ?? null)
+const themeClusterSize = computed(() => props.topic.storyline_size ?? 0)
 // The people who drive this topic — related_people is server-ranked by co-occurrence, so the top
 // few ARE the key voices. Prominent avatar chips.
 const topVoices = computed<Entity[]>(() => (props.topic.related_people ?? []).slice(0, 8))

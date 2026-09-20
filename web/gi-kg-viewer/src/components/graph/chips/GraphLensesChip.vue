@@ -143,7 +143,7 @@ const rows = computed<LensRow[]>(() => {
     {
       key: 'themeClusterRegions',
       label: 'Theme regions',
-      description: 'Soft underlay tint per theme cluster (needs the theme_clusters enricher).',
+      description: 'Soft underlay tint per theme cluster (needs the storylines enricher).',
       testid: 'lens-theme-cluster-regions',
       available: themeClustersAvailable.value,
     },

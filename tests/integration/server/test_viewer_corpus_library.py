@@ -451,7 +451,7 @@ def test_corpus_feed_signals_real_person_format_and_enrichment_aggregates(tmp_pa
     recurring = {p["person_id"] for p in s["recurring_guests"]}
     assert recurring == {"person:jane"}  # only jane is in ≥2 episodes
 
-    themes = {t["theme_id"]: t for t in s["dominant_themes"]}
+    themes = {t["storyline_id"]: t for t in s["dominant_storylines"]}
     assert themes["thc:ai-stuff"]["topic_count"] == 2  # both topic:ai + topic:ml are members
 
     trending = {t["topic_id"] for t in s["trending_topics"]}

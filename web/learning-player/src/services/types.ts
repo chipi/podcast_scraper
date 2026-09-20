@@ -222,8 +222,8 @@ export interface PodcastSignals {
   }>
   key_people: Array<{ person_id: string; name: string; episode_count: number }>
   recurring_guests: Array<{ person_id: string; name: string; episode_count: number }>
-  dominant_themes: Array<{
-    theme_id: string
+  dominant_storylines: Array<{
+    storyline_id: string
     label: string
     topic_count: number
     anchor_topic_id: string | null
@@ -328,9 +328,9 @@ export interface Topic {
   cluster_id: string | null
   cluster_label: string | null
   cluster_size: number
-  theme_cluster_id?: string | null
-  theme_cluster_label?: string | null
-  theme_cluster_size?: number
+  storyline_id?: string | null
+  storyline_label?: string | null
+  storyline_size?: number
 }
 
 export interface EntitiesResponse {
@@ -803,9 +803,9 @@ export interface TopicCard {
   cluster_label: string | null
   cluster_size: number
   sibling_topics: Topic[]
-  theme_cluster_id?: string | null
-  theme_cluster_label?: string | null
-  theme_cluster_size?: number
+  storyline_id?: string | null
+  storyline_label?: string | null
+  storyline_size?: number
   theme_sibling_topics?: Topic[]
   episode_count: number
   episodes: EpisodeSummary[]
@@ -942,7 +942,7 @@ export interface TrendingTopicsResponse {
     total: number
     monthly_counts: Record<string, number>
   }>
-  theme_clusters: Array<{
+  storylines: Array<{
     graph_compound_parent_id?: string | null
     canonical_label?: string | null
     members: Array<{ topic_id: string }>
