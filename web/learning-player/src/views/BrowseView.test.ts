@@ -89,8 +89,9 @@ describe('BrowseView (Discover)', () => {
    */
   it('carries a search box that submits to the results page', async () => {
     const w = await mountView()
-    const box = w.get('[data-testid="browse-search-section"]')
-    expect(box.exists()).toBe(true)
+    // `.find()` not `.get()`: `get` throws when absent, so `.exists()` on its result is both
+    // redundant and a type error (the wrapper it returns has no `exists`).
+    expect(w.find('[data-testid="browse-search-section"]').exists()).toBe(true)
 
     await w.get('[data-testid="browse-search-input"]').setValue('  reward hacking  ')
     await w.get('[data-testid="browse-search-section"] form').trigger('submit')

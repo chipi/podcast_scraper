@@ -6,10 +6,13 @@
  * app whose primary Playwright project is a Pixel 7. The plumbing was always phone-first (`dvh`,
  * safe areas, sticky transport, touch-first rails); the layout idiom was not.
  *
- * Four destinations, chosen so each answers a different question: **Home** (what should I listen to),
- * **Search** (find a specific moment — the differentiator, previously reachable from one page only),
- * **Library** (my saved things), **Profile** (me). Browse folds into Home and Search rather than
- * taking a fifth slot; it is a corpus index, not a daily destination.
+ * THREE destinations, each answering a different question: **Home** (what should I listen to),
+ * **Discovery** (what is out there), **Library** (my saved things).
+ *
+ * It shipped with four. Profile left for the masthead avatar (2026-09-09) and Search left for
+ * Discovery (2026-09-20) — see the notes on `TABS` and `OWNED_ROUTES` below for why each moved and
+ * what replaced it. Both are still one tap away; neither needs a slot in the scarcest strip on the
+ * screen.
  *
  * Mobile only — `sm:hidden`. Desktop keeps the header nav, where a top reach costs nothing and the
  * horizontal space is free.
@@ -36,6 +39,7 @@ import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useResurfacingStore } from '../stores/resurfacing'
+import { ownsRoute } from '../utils/navOwnership'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -90,45 +94,10 @@ function target(name: string): { name: string; query?: Record<string, string> } 
   return { name }
 }
 
-/**
- * Which routes each tab OWNS — not just the route it links to.
- *
- * Highlighting only on an exact name match meant no tab was active on `player`, `podcast` or
- * `catalog` — the three routes users spend most of their time on. The bar went blank exactly when
- * it was most needed for orientation, which is the opposite of what a tab bar is for.
- *
- * Browse now has its own tab (#14): the hub plus the corpus indexes (catalogue, topic/people browse)
- * and show pages belong to it, since it is the destination that gathers them.
- *
- * Browse also owns `search` (operator 2026-09-20). #14 moved every other discovery surface under
- * the gatherer and left search outside; this finishes that. Note what it costs, deliberately: a
- * user who searched from Home's "Ask" box lands on `/search` with Discovery lit, which is a path
- * they did not take — the exact thing the player rule below refuses to do. The operator's call:
- * "search is really part of discovery". It is a decision, not an oversight, so it is written here
- * rather than left for the next reader to discover as a bug.
- *
- * The player owns NOTHING, deliberately. You can reach an episode from any tab, so lighting one up
- * would assert a path the user may not have taken — and a wrong "you are here" is worse than none.
- * Search differs from the player in one way that makes the trade acceptable: it has a canonical
- * parent, where an episode has none.
- */
-const OWNED_ROUTES: Record<string, readonly string[]> = {
-  home: ['home'],
-  browse: [
-    'browse',
-    'search',
-    'catalog',
-    'podcast',
-    'browse-shows',
-    'browse-topics',
-    'browse-people',
-  ],
-  library: ['library'],
-}
+/* Route ownership is shared with the desktop masthead — see utils/navOwnership.ts. */
 
 /** Highlight by the routes the tab OWNS, not the resolved target, so a gated tab still reads active. */
-const isActive = (name: string): boolean =>
-  OWNED_ROUTES[name]?.includes(String(route.name)) ?? false
+const isActive = (name: string): boolean => ownsRoute(name, route.name as string | undefined)
 </script>
 
 <template>

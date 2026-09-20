@@ -5,10 +5,20 @@
  * is passed as the default slot (an inline `currentColor` SVG so it inherits theme colours).
  */
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
+import { ownsRoute } from '../utils/navOwnership'
 
 const props = defineProps<{ to: RouteLocationRaw; label: string; badge?: number
+  /**
+   * Which nav destination this icon represents, for highlighting (`utils/navOwnership.ts`).
+   *
+   * Without it this fell back to `RouterLink`'s exact-active, which answers a DIFFERENT question:
+   * "is this the current URL" rather than "does this destination own the current screen". On
+   * `/search` that lit Search here while the phone bar lit Discovery — the same URL answered two
+   * ways depending on window width. Omit it and the link simply never reads active.
+   */
+  owns?: string
   /**
    * Which edge the hover tooltip hangs from.
    *
@@ -32,13 +42,20 @@ const props = defineProps<{ to: RouteLocationRaw; label: string; badge?: number
 const ariaLabel = computed(() =>
   props.badge ? `${props.label} (${props.badge})` : props.label,
 )
+
+const route = useRoute()
+const active = computed(() =>
+  props.owns ? ownsRoute(props.owns, route.name as string | undefined) : false,
+)
 </script>
 
 <template>
   <RouterLink
     :to="to"
     :aria-label="ariaLabel"
-    class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
+    :aria-current="active ? 'page' : undefined"
+    class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
+    :class="active ? 'text-accent' : 'text-muted'"
   >
     <slot />
     <span
