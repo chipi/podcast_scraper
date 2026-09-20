@@ -145,3 +145,45 @@ describe("affordances survive on touch", () => {
     }
   })
 })
+
+/**
+ * Guardrail (#1588, operator 2026-09-20) — search must stay reachable on a phone.
+ *
+ * #1588 existed because search had ONE entry point and was unreachable from the catalogue, player,
+ * library or a show page. Folding search into Discovery removed its bottom-nav tab, so the masthead
+ * magnifier is now the only always-available search control. If it slips back inside the
+ * `hidden … sm:flex` span it vanishes on phones and #1588 is live again — silently, because the
+ * desktop layout would still look correct.
+ *
+ * A static source check for the same reason as the rest of this file: the breakage is a media
+ * query, and jsdom does not evaluate one, so a mounted test would pass either way.
+ */
+describe("search survives the loss of its tab (#1588)", () => {
+  it("the masthead search link sits OUTSIDE the desktop-only icon span", () => {
+    const searchAt = appSrc.indexOf('data-testid="masthead-search"')
+    expect(searchAt, "masthead search link not found in App.vue").toBeGreaterThan(-1)
+
+    const desktopOnlyAt = appSrc.indexOf('class="hidden items-center gap-1.5 sm:flex"')
+    expect(desktopOnlyAt, "desktop-only icon span not found in App.vue").toBeGreaterThan(-1)
+
+    // Before the span opens => not inside it => visible at every width.
+    expect(
+      searchAt,
+      "the masthead search icon must not be inside the `hidden … sm:flex` span: it is the only " +
+        "always-available search control now that Search is not a bottom-nav tab",
+    ).toBeLessThan(desktopOnlyAt)
+  })
+
+  it("the bottom nav no longer carries a Search tab", () => {
+    // Paired with the check above: if BOTH the tab and the always-visible icon disappeared, a
+    // phone would have no nav-level search at all.
+    const nav = readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "components", "BottomNav.vue"),
+      "utf8",
+    )
+    const tabs = nav.slice(nav.indexOf("const TABS"), nav.indexOf("] as const"))
+    expect(tabs).not.toContain("'search'")
+    expect(tabs).toContain("'browse'")
+  })
+})
+
