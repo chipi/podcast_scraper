@@ -52,8 +52,14 @@ test.describe('Tier-3 graph-v3 tier 8 — top-down mount + expand-on-tap (real c
     // artifact. Fail LOUDLY here (not skip) — the operator's fixture is
     // committed and enriched deterministically, so a miss means the
     // corpus wasn't re-enriched before the walk.
+    //
+    // ``min_members=0`` deliberately: this asserts what the ARTIFACT holds, not what the surface
+    // chooses to show. The endpoint has floored at DEFAULT_MIN_STORYLINE_MEMBERS (4) since #1936
+    // and every cluster in the synthetic corpus has 2 members, so the floored default returns
+    // zero clusters — this check then failed with "re-run the enricher", accusing a corpus that
+    // was never the problem.
     const themeRes = await request.get(
-      `/api/corpus/storylines?path=${encodeURIComponent(CORPUS_PATH)}`,
+      `/api/corpus/storylines?path=${encodeURIComponent(CORPUS_PATH)}&min_members=0`,
     )
     expect(
       themeRes.status(),
