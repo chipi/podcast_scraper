@@ -158,4 +158,30 @@ describe('RecapPrompt', () => {
     // Nested anchors are invalid and break assistive tech: the topics must stay text.
     expect(w.findAll('a')).toHaveLength(1)
   })
+
+  it('reads as one sentence to a screen reader, not the pills run together', async () => {
+    // The card is ONE link, so without an explicit name its accessible name is every string inside
+    // it — badges included: "…expert interviews lifelong learning NEW personal finance NEW".
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({
+        topics: [
+          { token: 'topic:a', label: 'Index investing', episodes: 5, delta: 2, is_new: false },
+          { token: 'topic:b', label: 'Sleep science', episodes: 3, delta: 0, is_new: true },
+        ],
+      }),
+    )
+    const w = mountPrompt()
+    await flushPromises()
+
+    const label = w.find('a').attributes('aria-label')!
+    expect(label).toContain('Your week in listening')
+    expect(label).toContain('6 episodes')
+    expect(label).toContain('Index investing')
+    expect(label).toContain('Sleep science')
+    // The movement markers are visual: "NEW" mid-sentence reads as noise when spoken.
+    expect(label).not.toContain('new')
+    expect(label).not.toContain('↑')
+  })
 })
+

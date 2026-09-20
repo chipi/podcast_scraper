@@ -609,11 +609,14 @@ def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str
     resolvable in one episode and orphan in another — `person:alex` demonstrably is. Per-token
     rollups say how consistent each one is.
     """
-    from podcast_scraper.search.storylines import storyline_map_by_topic as _themes
-    from podcast_scraper.search.topic_clusters import theme_map_by_topic as _topics
+    # Imported under their own names: aliasing the storyline reader to ``_themes`` and the theme
+    # reader to ``_topics`` re-created, locally, the exact inversion this module's callers were
+    # renamed to remove.
+    from podcast_scraper.search.storylines import storyline_map_by_topic
+    from podcast_scraper.search.topic_clusters import theme_map_by_topic
 
-    cluster_map = _topics(root)
-    storyline_map = _themes(root)
+    cluster_map = theme_map_by_topic(root)
+    storyline_map = storyline_map_by_topic(root)
 
     verdicts: Counter = Counter()
     per_token: Dict[str, Counter] = {}

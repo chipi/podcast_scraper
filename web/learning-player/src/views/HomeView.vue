@@ -675,16 +675,16 @@ async function loadContinue(): Promise<void> {
       <!-- The same heading tier as every other section. It was `font-display text-2xl` — a third
            title size on one page — and its kicker ("Ask across every episode") restated the title
            beneath it. No kicker: the pattern is a count or a date, and this section has neither. -->
-      <SectionHeading :title="t('home.askTitle')" />
+      <SectionHeading :title="t('ask.title')" />
       <!-- Cap the ask box: full-bleed on a wide desktop flung the Search button to the far right
            with an oversized input between (mobile-first layout, unbounded wide). -->
       <form class="lp-search mt-3 flex gap-2" @submit.prevent="goSearch(query)">
-        <label class="sr-only" for="home-search">{{ t("home.askKicker") }}</label>
+        <label class="sr-only" for="home-search">{{ t("ask.kicker") }}</label>
         <input
           id="home-search"
           v-model="query"
           type="search"
-          :placeholder="t('home.askPlaceholder')"
+          :placeholder="t('ask.placeholder')"
           data-testid="home-search-input"
           class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
         />

@@ -166,4 +166,48 @@ describe('useSavedQueriesStore (#1261-8)', () => {
       'the mirror must be flush:"sync" — a queued watcher has not run yet at this point',
     ).toEqual(['from elsewhere'])
   })
+
+  /**
+   * OVERLAPPING writes — why the guard counts rather than flags.
+   *
+   * The Save button has no pending state, so a second tap during the first PATCH is reachable, and
+   * rapid Save/un-Save is exactly what the original e2e flake did. With a boolean, the FIRST PATCH
+   * to resolve clears it while the second is still in flight, and a refresh landing in that window
+   * reverts the write the user just made — the same bug, one interaction deeper.
+   */
+  it('a refresh during the SECOND of two overlapping writes still cannot revert', async () => {
+    const s = useSavedQueriesStore()
+    const prefs = useUserPreferencesStore()
+    useAuthStore().$patch({ user: { user_id: 'u_test', email: 't@e2e.local' } as never })
+
+    const release: Array<() => void> = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+      if ((init as RequestInit | undefined)?.method === 'PATCH') {
+        return new Promise((resolve) => {
+          release.push(() =>
+            resolve(new Response(JSON.stringify({ preferences: {} }), { status: 200 })),
+          )
+        })
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ preferences: { 'lp.savedQueries': [] } }), { status: 200 }),
+      )
+    })
+
+    const first = s.save('one', 'all', 1)
+    const second = s.save('two', 'all', 2)
+    expect(release).toHaveLength(2)
+
+    // The FIRST write settles while the second is still open — a boolean guard opens here.
+    release[0]!()
+    await first
+
+    await prefs.hydrate() // stale snapshot, inside the second write's window
+
+    release[1]!()
+    await second
+
+    expect(s.isSaved('one', 'all'), 'the first write must survive').toBe(true)
+    expect(s.isSaved('two', 'all'), 'the second write must survive').toBe(true)
+  })
 })

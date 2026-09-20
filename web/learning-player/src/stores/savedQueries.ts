@@ -50,8 +50,13 @@ export const useSavedQueriesStore = defineStore('savedQueries', () => {
 
   /* Our own writes are already applied locally; this guard stops the mirror below from
      re-applying them, and — the part that mattered — from reverting them. Same
-     echo-suppression `graphTopDown` uses; this store was the one that never got it. */
-  let writingLocally = false
+     echo-suppression `graphTopDown` uses; this store was the one that never got it.
+
+     A COUNTER, not a boolean. Writes overlap: the Save button has no pending state, so tapping
+     Save then un-Save fires two `commit()`s and the first PATCH to resolve would clear a boolean
+     while the second was still in flight — leaving the window the guard exists for unguarded,
+     under precisely the rapid Save/un-Save interaction that produced the original flake. */
+  let pendingWrites = 0
 
   // Mirror the preferences store's payload → refresh on any prefs mutation
   // (whether from initial hydrate, another feature's write, or an external
@@ -64,25 +69,25 @@ export const useSavedQueriesStore = defineStore('savedQueries', () => {
   // the save branch and re-saved. Intermittent by nature — it needs a refresh to land between two
   // taps — which is exactly why it surfaced as a flaky e2e rather than a reported bug.
   // `flush: 'sync'` is load-bearing, not a style choice. With the default ('pre') the callback is
-  // queued and can run AFTER the write has settled and the flag is back to false — so the guard
+  // queued and can run AFTER the write has settled and the count is back to zero — so the guard
   // would read as protecting the window while letting the very interleaving it exists for through.
   watch(
     () => prefs.get<unknown>(PREF_KEY),
     (raw) => {
-      if (writingLocally) return
+      if (pendingWrites > 0) return
       items.value = readList(raw)
     },
     { immediate: true, flush: 'sync' },
   )
 
-  /** Apply optimistically, persist, and keep the mirror off our back until the write settles. */
+  /** Apply optimistically, persist, and keep the mirror off our back until EVERY write settles. */
   async function commit(next: SavedQuery[]): Promise<void> {
     items.value = next
-    writingLocally = true
+    pendingWrites += 1
     try {
       await prefs.set(PREF_KEY, next)
     } finally {
-      writingLocally = false
+      pendingWrites -= 1
     }
   }
 

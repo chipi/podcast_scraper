@@ -151,14 +151,14 @@ watch(
          should be the same control, not two dialects of it. Half width from `lg` up, matching the
          trends section directly below rather than stretching a single input across the column. -->
     <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="browse-search-section">
-      <SectionHeading :title="t('home.askTitle')" />
+      <SectionHeading :title="t('ask.title')" />
       <form class="lp-search mt-3 flex gap-2" @submit.prevent="onSearchSubmit">
-        <label class="sr-only" for="browse-search">{{ t('home.askKicker') }}</label>
+        <label class="sr-only" for="browse-search">{{ t('ask.kicker') }}</label>
         <input
           id="browse-search"
           v-model="searchQuery"
           type="search"
-          :placeholder="t('home.askPlaceholder')"
+          :placeholder="t('ask.placeholder')"
           data-testid="browse-search-input"
           class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
         />

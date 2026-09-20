@@ -86,7 +86,10 @@ test('the DESKTOP masthead agrees with the phone bar on /search', async ({ page 
   await signInIsolated(page, 'sid-desktop', testInfo)
   await page.goto('/search?q=risk')
 
-  const browseIcon = page.locator('header a[aria-label="Browse"]')
+  // By TESTID, not by label: the label is i18n and reads "Discover", so `aria-label="Browse"`
+  // matched nothing, both projects fell to the else branch, and the desktop assertions below never
+  // ran — 12/12 green while proving nothing about the masthead. Found in review.
+  const browseIcon = page.getByTestId('masthead-browse')
   if (await browseIcon.isVisible().catch(() => false)) {
     // Desktop width: Discovery owns /search here too, so the Browse icon carries the marker...
     await expect(browseIcon).toHaveAttribute('aria-current', 'page')
