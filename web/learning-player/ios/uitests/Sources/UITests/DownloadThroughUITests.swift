@@ -124,28 +124,66 @@ final class DownloadThroughUITests: UITestCase {
       "the deep link did not land on \(title)"
     )
 
-    // SCOPED to the episode page. `app.buttons[...].firstMatch` searches the whole app, and the
-    // download states are label-only — so a DIFFERENT episode that is already downloaded (p05,
-    // left by an earlier run) satisfied the query instantly and this test reported a success it
-    // had not produced. That is the exact failure mode a device test must not have.
-    let page = app.otherElements["main"]
-    let already = page.buttons["Downloaded — tap to remove"].firstMatch
+    // The Download control lives in the player's OVERFLOW menu (operator 2026-09-13), not in the
+    // action row — so it must be opened before it exists at all: the panel is `v-if="open"`.
+    //
+    // The test was looking in the right place for where the button used to be. How the scope is
+    // replaced is argued at the query below.
+    let trigger = app.buttons["More actions"].firstMatch
+    guard trigger.waitForExistence(timeout: 20) else {
+      print("=====NO_OVERFLOW_TRIGGER_TREE_START====="); print(app.debugDescription)
+      print("=====NO_OVERFLOW_TRIGGER_TREE_END=====")
+      XCTFail("no overflow menu on \(title) — the episode page never rendered its action row")
+      return
+    }
+    trigger.tap()
+
+    let already = app.buttons["Downloaded — tap to remove"].firstMatch
     if already.waitForExistence(timeout: 10) {
       already.tap()
       // Removal deletes the file and rewrites the registry; give it room, and CONFIRM the control
-      // actually went back to offering a download rather than assuming the tap took.
-      if !page.buttons["Download for offline"].firstMatch.waitForExistence(timeout: 30) {
+      // actually went back to offering a download rather than assuming the tap took. The menu
+      // stays open — the item re-renders in place.
+      if !app.buttons["Download for offline"].firstMatch.waitForExistence(timeout: 30) {
         print("=====REMOVE_TREE_START====="); print(app.debugDescription); print("=====REMOVE_TREE_END=====")
         XCTFail("removing the existing download never restored the Download control for \(title)")
         return
       }
     }
 
-    let downloadButton = page.buttons["Download for offline"].firstMatch
+    // UNIQUENESS instead of a container. The old scope was `app.otherElements["main"]`, which
+    // cannot work now for two reasons: the control moved into the overflow menu, and that menu
+    // teleports to `<body>` to escape clipped ancestors — so it is not inside `main` even when
+    // open. Scoping to the panel instead would mean selecting it by `data-testid`, and nothing in
+    // this suite resolves that way: every selector that works here is an accessible NAME.
+    //
+    // So assert there is exactly ONE, which is strictly stronger than the scope it replaces. The
+    // scope existed because an unscoped `firstMatch` once matched a DIFFERENT episode that was
+    // already downloaded and reported a success it had not produced — `Library → Downloaded`
+    // renders these controls bare, and that view is kept alive. A count of one cannot pick wrong,
+    // and a count above one says so out loud instead of guessing.
+    let candidates = app.buttons.matching(identifier: "Download for offline")
+    if candidates.count > 1 {
+      print("=====AMBIGUOUS_DOWNLOAD_TREE_START====="); print(app.debugDescription)
+      print("=====AMBIGUOUS_DOWNLOAD_TREE_END=====")
+      XCTFail(
+        "\(candidates.count) Download controls are on screen for \(title) — another surface "
+          + "(kept-alive Library → Downloaded?) is offering one too, so tapping would be a guess"
+      )
+      return
+    }
+    let downloadButton = candidates.firstMatch
     if !downloadButton.waitForExistence(timeout: 20) {
       print("=====NO_DOWNLOAD_CONTROL_TREE_START====="); print(app.debugDescription)
       print("=====NO_DOWNLOAD_CONTROL_TREE_END=====")
-      XCTFail("no Download control on \(title) — signed out, or the episode never loaded")
+      // No longer conflated (the issue asked for this split): reaching here means the page
+      // rendered AND the menu opened, so neither "signed out" nor "never loaded" applies. The
+      // control is native-only and self-hides on web — if it is absent here, the app does not
+      // believe it is running natively.
+      XCTFail(
+        "the overflow menu opened on \(title) but carries no Download control — it self-hides "
+          + "off-native, so the app is not reporting itself as a native platform"
+      )
       return
     }
     downloadButton.tap()
