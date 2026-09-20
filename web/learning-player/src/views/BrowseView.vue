@@ -9,7 +9,7 @@
  * v-show (not v-if) keeps each panel mounted so switching tabs never refetches; supports ?tab= for
  * deep links.
  */
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
@@ -32,6 +32,13 @@ const router = useRouter()
  *  magnifier — one capability, three doors. Blank submits are ignored rather than routing to an
  *  empty result page. */
 const searchQuery = ref('')
+/* This view is kept-alive, so setup runs once and the box kept whatever you last typed — you
+   returned to Discovery and found a stale query sitting in it, which reads as the app having
+   remembered something you did not ask it to. Cleared on re-entry; the search you ran is still on
+   the results page, which is where it belongs. */
+onActivated(() => {
+  searchQuery.value = ''
+})
 function onSearchSubmit(): void {
   const term = searchQuery.value.trim()
   if (term) void router.push({ name: 'search', query: { q: term } })

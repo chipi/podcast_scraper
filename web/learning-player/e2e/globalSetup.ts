@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 /**
@@ -75,6 +75,7 @@ async function rejectMisconfiguredReusedApi(): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<void> {
+  assertBuildIsNotStale()
   await rejectMisconfiguredReusedApi()
 
   // Playwright runs the config from web/learning-player/, matching the webServer cwd that
@@ -103,3 +104,46 @@ export default async function globalSetup(): Promise<void> {
     },
   })
 }
+
+/**
+ * Fail loudly when the built bundle is older than the source it was built from.
+ *
+ * `playwright.config.ts` sets `reuseExistingServer: !CI`, so when a preview server is ALREADY up on
+ * :4174 the `npm run build && npm run preview` command never runs — and the suite silently tests a
+ * stale bundle. During the 2026-09-20 session this produced three runs that showed "no change"
+ * after real source edits, twice in a row on the same screenshot, and once a green pass against
+ * code that had since been rewritten. A green run against the wrong bytes is worse than a red one.
+ *
+ * Checked here rather than in the webServer command precisely because this runs either way.
+ */
+function assertBuildIsNotStale(): void {
+  // `process.cwd()` (not `__dirname`): the config runs from web/learning-player/ and this file is
+  // ESM, where `__dirname` does not exist — the rest of this module resolves the same way.
+  const dist = join(process.cwd(), 'dist')
+  const src = join(process.cwd(), 'src')
+  if (!existsSync(dist)) return // nothing built yet → the webServer will build it
+
+  const newest = (dir: string): number => {
+    let max = 0
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === 'node_modules' || e.name.startsWith('.')) continue
+      const full = join(dir, e.name)
+      max = Math.max(max, e.isDirectory() ? newest(full) : statSync(full).mtimeMs)
+    }
+    return max
+  }
+
+  const builtAt = newest(dist)
+  const editedAt = newest(src)
+  if (editedAt <= builtAt) return
+
+  throw new Error(
+    `[globalSetup] dist/ is OLDER than src/ — the suite would run against a stale bundle.\n` +
+      `  src newest:  ${new Date(editedAt).toISOString()}\n` +
+      `  dist newest: ${new Date(builtAt).toISOString()}\n` +
+      `A preview server is probably still up on :4174 from an earlier run, and ` +
+      `reuseExistingServer means the build step is skipped. Kill it and re-run:\n` +
+      `  lsof -ti tcp:4174 | xargs kill`,
+  )
+}
+

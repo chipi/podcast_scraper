@@ -64,6 +64,18 @@ def _load_storylines_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
     )
 
 
+def load_storylines_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
+    """The storyline artifact, cached on the artifact's OWN mtime. Unwrapped (``clusters`` at top).
+
+    Public so the momentum layer can read the same file on the same token. It used to read it via
+    ``cached_json_artifact``, which tokens on ``perf_cache.corpus_mtime`` — run-summary / manifest /
+    upgrade-ledger / edges-stamp. Enrichment writes none of those, so re-enriching only this
+    artifact left ``/api/app/storylines`` fresh and ``/api/app/trending?kind=storyline`` stale until
+    the next ingest or a restart (#2065 is the same shape).
+    """
+    return _load_storylines_payload(corpus_root)
+
+
 def _read_storylines_payload(joined: str) -> Optional[Dict[str, Any]]:
     """Parse the already-path-validated artifact at ``joined``."""
     try:
@@ -71,7 +83,7 @@ def _read_storylines_payload(joined: str) -> Optional[Dict[str, Any]]:
         with open(joined, encoding="utf-8") as fh:
             payload = cast(Dict[str, Any], json.loads(fh.read()))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("theme clusters: skip %s: %s", joined, exc)
+        logger.warning("storylines: skip %s: %s", joined, exc)
         return None
     if not isinstance(payload, dict):
         return None
@@ -203,7 +215,7 @@ def top_storylines_by_member_count(
     *,
     min_members: int = DEFAULT_MIN_STORYLINE_MEMBERS,
 ) -> list[Dict[str, Any]]:
-    """Top-N THEME clusters ("storylines") by member count (desc) — for the picker + Home rail.
+    """Top-N storylines by member count (desc) — for the picker + Home rail.
 
     Returns ``[{"id", "label", "size", "anchor_topic_id"}, ...]``; empty when the artifact is
     missing/invalid. ``id`` is the cluster's ``graph_compound_parent_id`` (``thc:…``, the interest

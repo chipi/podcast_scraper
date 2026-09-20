@@ -2335,6 +2335,22 @@ mobile-build-release:
 	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
 		MOBILE_RELEASE=1 npm install && npm run build && npx cap sync
+	@# The gate credential must not reach a SHIPPED app. `.env.mobile.example` states this as a
+	@# fact ("never baked into a shipped app"), but it is not one: `VITE_PREVIEW_BASIC_AUTH` is a
+	@# build-time substitution, so the literal lands in the bundle and only disappears if the
+	@# bundler happens to constant-fold `tierSwitchEnabled()` to false and drop the now-unused
+	@# const. That is an optimisation, not a guarantee — so verify it on the artifact, at the one
+	@# moment it matters, instead of trusting it.
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
+		if [ -n "$$VITE_PREVIEW_BASIC_AUTH" ] && \
+		   grep -rqF "$$VITE_PREVIEW_BASIC_AUTH" dist/ 2>/dev/null; then \
+			echo ""; \
+			echo "FAIL: the preview gate credential is present in the RELEASE bundle (dist/)."; \
+			echo "      It was expected to be tree-shaken out of a prod-locked build."; \
+			echo "      Do not ship this artifact; rotate the credential if it already shipped."; \
+			exit 1; \
+		fi; \
+		echo "OK: preview gate credential absent from the release bundle"
 
 # --- TestFlight (iOS) -------------------------------------------------------------------
 # Requires App Store Connect credentials in web/learning-player/ios/fastlane/.env — copy

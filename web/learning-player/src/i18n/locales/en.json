@@ -524,7 +524,6 @@
     "personOtherEpisodes": "Also appears in {count} episode | Also appears in {count} episodes",
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
     "clusterMembers": "{count} similar topic | {count} similar topics",
-    "storylineMembers": "{count} topic in this storyline | {count} topics in this storyline",
     "topShows": "Strongest shows on this topic",
     "topShowCount": "{count} episode | {count} episodes",
     "topVoices": "Top voices",

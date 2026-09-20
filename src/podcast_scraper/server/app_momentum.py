@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper import perf_cache
-from podcast_scraper.search.storylines import storyline_anchor
+from podcast_scraper.search.storylines import load_storylines_payload, storyline_anchor
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
@@ -29,6 +29,8 @@ from podcast_scraper.server.corpus_catalog import aggregate_feeds
 _CONTENT_REL = "enrichments/temporal_velocity.json"
 _TOPIC_CLUSTERS_REL = "search/topic_clusters.json"
 _STORYLINES_REL = "enrichments/topic_theme_clusters.json"
+# Storyline reads go through ``_artifact_env`` below, NOT ``cached_json_artifact`` — the two token
+# on different clocks and this file is read by both. See that helper for why.
 
 _PERSON_ROLES_NS = "app_momentum.person_roles"
 # Strongest speaker role wins as a person's headline (host outranks guest outranks mentioned).
@@ -41,7 +43,7 @@ _LOOKBACK_WEEKS = 52  # history the EWMA integrates (older weeks are negligible 
 # --------------------------------------------------------------------------- #
 _DEFAULT_BLEND: dict[str, tuple[float, float]] = {  # kind → (w_content, w_engagement)
     "topic": (0.85, 0.15),
-    "cluster": (0.85, 0.15),
+    "theme": (0.85, 0.15),
     "storyline": (0.85, 0.15),
     "person": (0.80, 0.20),
     "episode": (0.50, 0.50),
@@ -321,7 +323,7 @@ def _content_weekly_by_entity(root: Path) -> dict[tuple[str, str], dict[str, int
         oid = str(row.get("org_id") or "")
         if oid:
             out[("organization", oid)] = dict(row.get("weekly_counts") or {})
-    _add_cluster_series(out, by_topic, root, _TOPIC_CLUSTERS_REL, "cluster")
+    _add_cluster_series(out, by_topic, root, _TOPIC_CLUSTERS_REL, "theme")
     _add_cluster_series(out, by_topic, root, _STORYLINES_REL, "storyline")
     out.update(_show_content_series(root))  # shows: publishing cadence (RFC-103 §show)
     return out
@@ -335,7 +337,7 @@ def _add_cluster_series(
     kind: str,
 ) -> None:
     """Aggregate member topics' weekly series into each cluster/storyline (Σ members)."""
-    env = cached_json_artifact(root, rel)
+    env = _artifact_env(root, rel)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     for cl in data.get("clusters") or []:
         cid = str(cl.get("graph_compound_parent_id") or "")
@@ -407,10 +409,30 @@ def _labels_from_content(root: Path) -> dict[str, str]:
     return out
 
 
+def _artifact_env(root: Path, rel: str) -> dict | None:
+    """Read a corpus artifact, tokened on the clock that actually tracks it.
+
+    ``cached_json_artifact`` tokens on ``perf_cache.corpus_mtime`` (run-summary / manifest /
+    upgrade-ledger / edges-stamp). Enrichment writes NONE of those, so an enricher that rewrites a
+    single artifact is invisible to it until the next ingest or a process restart — the #2065 shape.
+
+    The storyline artifact is read here AND by ``search/storylines.py``, which tokens on the file's
+    own mtime. Two clocks over one file meant a re-enrichment left the picker fresh and
+    ``/trending?kind=storyline`` stale — rank, labels and anchors. Routed to the same
+    file-mtime-cached loader so both surfaces move together.
+
+    The topic-cluster artifact keeps the corpus-mtime cache: it has one reader, so there is no
+    second clock to disagree with, and it benefits from the shared per-request cache.
+    """
+    if rel == _STORYLINES_REL:
+        return load_storylines_payload(root)
+    return cached_json_artifact(root, rel)
+
+
 def _labels_from_clusters(root: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     for rel in (_TOPIC_CLUSTERS_REL, _STORYLINES_REL):
-        env = cached_json_artifact(root, rel)
+        env = _artifact_env(root, rel)
         data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
         for cl in data.get("clusters") or []:
             cid = str(cl.get("graph_compound_parent_id") or "")
@@ -433,7 +455,7 @@ def _storyline_anchors(root: Path) -> dict[str, str]:
     anchoring only the ones some other surface considers worth showing would leave exactly the rows
     this ranking chose unopenable.
     """
-    env = cached_json_artifact(root, _STORYLINES_REL)
+    env = _artifact_env(root, _STORYLINES_REL)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     out: dict[str, str] = {}
     for cl in data.get("clusters") or []:

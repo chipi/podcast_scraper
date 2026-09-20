@@ -27,7 +27,6 @@ describe("the learning differentiator stays legible", () => {
     // cluster — exactly backwards — and "Storyline" (Home's word) appeared in no spec at all. One
     // word wins, and it is the one users already meet on Home.
     expect(en.kp.storyline).toContain("Storyline")
-    expect(en.ec.storylineMembers).toContain("storyline")
     expect(en.ec.singleTopic).toContain("storyline")
 
     // "Similar" stays distinct WHERE IT STILL APPEARS: semantic similarity is a different idea
@@ -48,7 +47,7 @@ describe("the learning differentiator stays legible", () => {
     expect(en.ec.clusterMembers).toContain("similar")
 
     // No consumer string may reintroduce "Theme ·" for either concept.
-    for (const v of [en.kp.storyline, en.ec.storylineMembers, en.ec.clusterMembers]) {
+    for (const v of [en.kp.storyline, en.ec.clusterMembers]) {
       expect(v).not.toMatch(/Theme ·/)
     }
   })

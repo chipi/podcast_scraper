@@ -707,7 +707,7 @@ class AppTrendingEntity(BaseModel):
     """One trending entity (RFC-103 momentum) — velocity (rising) + volume (recent level)."""
 
     entity_id: str = Field(description="Namespaced id (topic:/tc:/thc:/person:, slug, or feed_id).")
-    kind: str = Field(description="topic|cluster|storyline|person|episode|show|insight.")
+    kind: str = Field(description="topic|theme|storyline|person|episode|show|insight.")
     label: str = Field(description="Display label.")
     velocity: float = Field(
         description="Rising signal (RFC-103 R2): recent-window rate ÷ prior rate."

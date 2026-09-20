@@ -88,7 +88,9 @@ def _kind_of_token(token: str) -> str | None:
     for prefix, kind in (("person:", "person"), ("topic:", "topic"), ("thc:", "storyline")):
         if token.startswith(prefix):
             return kind
-    return "cluster" if token.startswith("tc:") else None
+    # "theme", matching the /trending kind enum — engagement series join momentum on this
+    # string, so the two must move together or the join silently yields nothing for `tc:`.
+    return "theme" if token.startswith("tc:") else None
 
 
 def _tally_user(data_dir: Path, uid: str, acc: _Acc, active: set[str]) -> None:
