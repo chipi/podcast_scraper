@@ -1,7 +1,7 @@
 """Unit tests for :func:`podcast_scraper.search.storylines.top_storylines_by_member_count`.
 
 The storyline enumerator feeds the Home rail + interests picker. It mirrors the semantic
-``top_clusters_by_member_count`` (ranks by member count, limits) but reads the envelope-wrapped
+``top_themes_by_member_count`` (ranks by member count, limits) but reads the envelope-wrapped
 ``enrichments/topic_theme_clusters.json`` and additionally resolves each cluster's
 ``anchor_topic_id`` (most-central member) so the client can open a representative topic card.
 """

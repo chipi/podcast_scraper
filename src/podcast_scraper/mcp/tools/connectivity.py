@@ -198,10 +198,10 @@ def topic_clusters(ctx: CorpusContext, topic_id: str) -> Dict[str, Any]:
     from pathlib import Path
 
     from ...search.storylines import storyline_siblings_by_topic
-    from ...search.topic_clusters import consumer_cluster_siblings
+    from ...search.topic_clusters import theme_siblings_by_topic
 
     root = Path(ctx.corpus_dir)
-    semantic = consumer_cluster_siblings(root, topic_id)
+    semantic = theme_siblings_by_topic(root, topic_id)
     theme = storyline_siblings_by_topic(root, topic_id)
     note = "" if (semantic or theme) else "topic is a singleton or cluster artifacts are absent"
     return _ok("topic", {"id": topic_id}, {"semantic": semantic, "theme": theme}, note)

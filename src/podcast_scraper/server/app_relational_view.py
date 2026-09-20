@@ -23,8 +23,8 @@ from podcast_scraper.search.storylines import (
     top_storylines_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import (
-    consumer_cluster_siblings,
-    consumer_topic_cluster_map,
+    theme_map_by_topic,
+    theme_siblings_by_topic,
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -366,7 +366,7 @@ def build_person_card(
     top_k: int = _DEFAULT_TOP_K,
 ) -> AppPersonCard | None:
     """Project the person's corpus footprint to a card, or ``None`` if they appear nowhere."""
-    cluster_map: ClusterMap = consumer_topic_cluster_map(root)
+    cluster_map: ClusterMap = theme_map_by_topic(root)
     theme_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
@@ -425,7 +425,7 @@ def build_topic_card(
     top_k: int = _DEFAULT_TOP_K,
 ) -> AppTopicCard | None:
     """Project the topic's corpus footprint + cluster siblings to a card, or ``None`` if absent."""
-    cluster_map: ClusterMap = consumer_topic_cluster_map(root)
+    cluster_map: ClusterMap = theme_map_by_topic(root)
     theme_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
@@ -460,7 +460,7 @@ def build_topic_card(
     )
     siblings = [
         _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
-        for s in consumer_cluster_siblings(root, topic_id)[:top_k]
+        for s in theme_siblings_by_topic(root, topic_id)[:top_k]
     ]
     theme_siblings = [
         _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
@@ -545,7 +545,7 @@ def build_org_card(
     Mirrors ``build_person_card`` but keyed on MENTIONS_ORG, and carries a co-occurring-orgs list
     the person card has no analog for. No web enrichment — orgs have no bio/photo (#2031).
     """
-    cluster_map: ClusterMap = consumer_topic_cluster_map(root)
+    cluster_map: ClusterMap = theme_map_by_topic(root)
     theme_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""

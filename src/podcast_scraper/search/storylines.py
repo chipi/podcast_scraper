@@ -209,7 +209,7 @@ def top_storylines_by_member_count(
     missing/invalid. ``id`` is the cluster's ``graph_compound_parent_id`` (``thc:…``, the interest
     key stored per-user); ``size`` is ``member_count`` when present else ``len(members)``;
     ``anchor_topic_id`` is the most-central member (see :func:`_anchor_topic_id`). Sibling of the
-    semantic ``top_clusters_by_member_count`` but over ``enrichments/topic_theme_clusters.json``.
+    semantic ``top_themes_by_member_count`` but over ``enrichments/topic_theme_clusters.json``.
     """
     payload = _load_storylines_payload(corpus_root)
     if payload is None:
@@ -242,7 +242,7 @@ def storyline_siblings_by_topic(corpus_root: Path, topic_id: str) -> list[Dict[s
 
     Returns ``[{"id", "label"}, ...]`` from the theme cluster's ``members``. Empty when the
     topic is in no theme cluster, or the artifact is missing/invalid. Mirrors the semantic
-    ``consumer_cluster_siblings`` but over ``enrichments/topic_theme_clusters.json``.
+    ``theme_siblings_by_topic`` but over ``enrichments/topic_theme_clusters.json``.
     """
     tid = topic_id.strip()
     if not tid:
