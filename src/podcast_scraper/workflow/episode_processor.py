@@ -3942,6 +3942,12 @@ def _write_transcript_file(
         return None
 
 
+#: ``transcript_source`` reported when a publisher transcript was refused for carrying no speaker
+#: turns. Distinct from a failed download: the caller falls through to ASR + diarization instead of
+#: reporting the episode as unprocessable.
+TRANSCRIPT_LACKS_SPEAKERS = "rejected_no_speaker_turns"
+
+
 def process_transcript_download(
     episode: Episode,  # type: ignore[valid-type]
     transcript_url: str,
@@ -4045,6 +4051,31 @@ def process_transcript_download(
             plain, segments = parse_webvtt(body)
         else:
             plain, segments = parse_srt(body)
+        # A TRANSCRIPT WITH NO TURNS IS WORSE THAN NO TRANSCRIPT, when the operator says so.
+        #
+        # Taking the transcript skips ASR *and* diarization together — they are one decision in
+        # this path, though they are two different things. For a cue file that labels its turns
+        # that trade is excellent: professional text AND speaker separation, no GPU. For one that
+        # labels nothing it is a bad trade: the episode arrives as a single undifferentiated
+        # voice, so no host, no guest, no Person node and no SPOKEN_BY on any quote — all to save
+        # a transcription we would rather have paid for.
+        #
+        # Measured across the six feeds in the corpus that publish transcripts: Explaining Brazil
+        # (397 entries) and every SRT feed carry zero spans; SRT has no span syntax at all.
+        #
+        # Rejected BEFORE anything is written, and reported with a distinct source so the caller
+        # can fall through to the transcription path rather than treat it as a failed download.
+        if cfg.require_transcript_speakers and not any(
+            isinstance(s, dict) and s.get("speaker") for s in (segments or [])
+        ):
+            logger.info(
+                "[%s] transcript carries no speaker turns (%d cue(s)); transcribing instead "
+                "(require_transcript_speakers)",
+                episode.idx,
+                len(segments or []),
+            )
+            return False, None, TRANSCRIPT_LACKS_SPEAKERS, bytes_downloaded
+
         if plain.strip() and segments:
             # A PUBLISHER TRANSCRIPT THAT NAMES ITS TURNS IS A DIARIZATION WE DID NOT HAVE TO
             # COMPUTE. `parse_webvtt` lifts `<v Speaker>` voice spans into `seg["speaker"]`, but
@@ -4228,9 +4259,18 @@ def process_episode_download(
             metadata_named=metadata_named,
             feed_hosts=feed_hosts,
         )
-        if success and cfg.delay_ms:
-            time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-        return success, transcript_path, transcript_source, bytes_downloaded
+        if transcript_source == TRANSCRIPT_LACKS_SPEAKERS:
+            # Not a failure — a deliberate refusal. Fall through to the transcription path below
+            # so the audio is fetched, transcribed and DIARIZED, which is the whole point of
+            # refusing. Every other outcome, success or genuine download failure, returns as before.
+            logger.info(
+                "[%s] falling through to transcription: the transcript separates no turns",
+                episode.idx,
+            )
+        else:
+            if success and cfg.delay_ms:
+                time.sleep(cfg.delay_ms / MS_TO_SECONDS)
+            return success, transcript_path, transcript_source, bytes_downloaded
 
     # pipeline_stage=rederive_only: re-derive cleaning/GI/KG from the transcript ALREADY on disk.
     #

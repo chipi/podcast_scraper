@@ -43,9 +43,85 @@ def slugify(text: str) -> str:
     return text
 
 
+#: Post-nominal CREDENTIALS. Not part of a name: `Peter Attia, MD` is the same man as
+#: `Peter Attia`, and minting `person:peter-attia-md` beside `person:peter-attia` is two KG nodes
+#: for one human. Measured on 400 sampled prod episodes: The Peter Attia Drive carries the pair on
+#: four of them.
+CREDENTIAL_SUFFIXES = frozenset(
+    {
+        "md",
+        "phd",
+        "dphil",
+        "dds",
+        "dvm",
+        "do",
+        "rn",
+        "jd",
+        "esq",
+        "mba",
+        "msc",
+        "ma",
+        "bsc",
+        "ba",
+        "cfa",
+        "cpa",
+        "pe",
+        "pharmd",
+        "psyd",
+        "edd",
+        "llm",
+    }
+)
+
+#: Generational suffixes — the OPPOSITE of a credential. These exist to tell a father from a son,
+#: so they are never stripped and two names disagreeing about one are two people.
+GENERATIONAL_SUFFIXES = frozenset({"jr", "jnr", "junior", "sr", "snr", "senior", "ii", "iii", "iv"})
+
+
+def letters_or_digits_at_the_edges(name: str) -> str:
+    """A name starts and ends with a LETTER OR A DIGIT; nothing else is part of it.
+
+    Stated as the rule rather than a list of characters to strip, because the list was always
+    going to be incomplete — `Aaron Levie)` (show-notes name cut at a bracket) and `Peter Attia,`
+    (credential removed, punctuation left behind) are one defect reached two ways, and each
+    leftover mark mints a separate person id from the clean spelling elsewhere.
+
+    Digits are admitted so a regnal or generational number survives (`Louis 14`). Internal
+    punctuation is untouched: `John F. Kennedy`, `Anne-Marie Slaughter`, `O'Neill`.
+    """
+    cleaned = (name or "").strip()
+    while cleaned and not cleaned[0].isalnum():
+        cleaned = cleaned[1:]
+    while cleaned and not cleaned[-1].isalnum():
+        cleaned = cleaned[:-1]
+    return cleaned
+
+
+def canonical_person_name(name: str) -> str:
+    """The ONE spelling of a person's name that every surface must write.
+
+    Applied both where a name is published (the roster) and where its node id is minted, because
+    normalising in only one of those places is what produced the duplicate it is meant to remove:
+    the roster could tidy `Peter Attia, MD` to `Peter Attia` while any other writer minting an id
+    from the raw string still created `person:peter-attia-md` beside it.
+    """
+    cleaned = letters_or_digits_at_the_edges(" ".join((name or "").split()))
+    while "," in cleaned:
+        head, _, tail = cleaned.rpartition(",")
+        if tail.strip().lower().replace(".", "") not in CREDENTIAL_SUFFIXES:
+            break
+        cleaned = letters_or_digits_at_the_edges(head)
+    return cleaned
+
+
 def person_id(name: str) -> str:
-    """Return canonical ``person:{slug}`` (Phase 2+); slugifier is shared from Phase 1."""
-    return f"person:{slugify(name)}"
+    """Return canonical ``person:{slug}`` (Phase 2+); slugifier is shared from Phase 1.
+
+    The name is normalised FIRST, here at the lowest layer, so every minting path inherits it.
+    `graph_id_utils.entity_node_id` is the other one; normalising in only one of them is what
+    `TestEveryLayerMintsTheSameId` exists to catch, and did.
+    """
+    return f"person:{slugify(canonical_person_name(name) or name)}"
 
 
 def org_id(name: str) -> str:

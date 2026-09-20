@@ -15,7 +15,16 @@ import hashlib
 import re
 from typing import Any, Dict, Optional
 
-from podcast_scraper.identity.slugify import slugify as canonical_slugify
+# Re-exported so callers that already depend on this module (the roster) reach the ONE
+# implementation rather than keeping a second copy. `canonical_person_name` lives in
+# `identity.slugify` because that is the lowest layer every id path goes through.
+from podcast_scraper.identity.slugify import (  # noqa: F401
+    canonical_person_name,
+    CREDENTIAL_SUFFIXES,
+    GENERATIONAL_SUFFIXES,
+    letters_or_digits_at_the_edges,
+    slugify as canonical_slugify,
+)
 
 #: v2.0 (RFC-097) plus legacy: node types treated as Person/Org "entity-like".
 #: Node types carrying a named real-world referent. ``Object`` joined in v2.1 (#2057) as the
@@ -242,6 +251,9 @@ def entity_node_id(entity_kind: str, name: str, episode_id: Optional[str] = None
     # person node. Unknown now lands on `object:`, never on `person:`.
     ek = entity_kind if entity_kind in ("person", "organization", "object") else "object"
     base = (name or "").strip()
+    if ek == "person":
+        # Normalise HERE so every writer agrees on the id, whatever decoration it was handed.
+        base = canonical_person_name(base) or base
     if episode_id and ek == "person" and is_bare_speaker_label(base):
         return _scoped_speaker_person_id(base, episode_id)
     slug = slugify_label(base) if base else "unknown"

@@ -4036,6 +4036,27 @@ class Config(BaseModel):
     save_adfree_transcript: bool = Field(
         default=True, alias="save_adfree_transcript"
     )  # Save ad-free processing-base transcript (.adfree.txt) + segments + ad-map (#974)
+    require_transcript_speakers: bool = Field(
+        default=False,
+        alias="require_transcript_speakers",
+        description=(
+            "Refuse a downloaded CUE FILE that separates no speaker turns, and transcribe the "
+            "audio instead. Without turns the episode arrives as one undifferentiated voice: no "
+            "host, no guest, no Person nodes, no SPOKEN_BY on any quote — strictly worse than "
+            "diarizing the audio ourselves, which is what this makes it do.\n\n"
+            "SCOPE, precisely. It applies to `.vtt` and `.srt`, the two formats this pipeline "
+            "parses into segments; a `text/plain` transcript is stored as-is and is NOT gated "
+            "(it has no segment structure to inspect). Both cue formats CAN carry turns — WebVTT "
+            "via `<v Speaker>` voice spans, SRT via `Speaker N:` line prefixes "
+            "(`transcript_formats.cues`) — so this refuses a file that carries none, never a "
+            "format. It asks whether turns are SEPARATED, not whether the labels are names: "
+            "anonymous `Speaker 1/2/3` is diarization obtained for free and is kept.\n\n"
+            "MEASURED on the corpus: of six feeds publishing transcripts, Explaining Brazil "
+            "(397 entries) and every SRT feed currently carry zero turn labels. Default off "
+            "because turning it on moves those feeds onto ASR, which costs GPU time; it also "
+            "needs `transcribe_missing` on, or a refused episode ends with no transcript at all."
+        ),
+    )
     crosspromo_cue_patterns: Optional[List[str]] = Field(
         default=None,
         alias="crosspromo_cue_patterns",

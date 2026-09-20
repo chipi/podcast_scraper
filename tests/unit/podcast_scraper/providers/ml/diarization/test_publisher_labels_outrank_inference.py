@@ -161,3 +161,30 @@ def test_without_stated_names_the_roster_is_unchanged() -> None:
     assert by_voice["SPEAKER_00"][0] == "Maya Koster"
     assert by_voice["SPEAKER_00"][2] != "publisher_transcript"
     assert by_voice["SPEAKER_01"][0] == "SPEAKER_01"
+
+
+# --------------------------------------------------------------------------------------------
+# Initials. A label can separate turns perfectly and still not be a name.
+# --------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("label", ["MG", "M.G.", "JW", "TA"])
+def test_initials_are_a_cluster_id_not_a_name(label: str) -> None:
+    """MEASURED ON A REAL FEED. In Moscow's Shadows tags every turn ``<v MG>`` for Mark Galeotti.
+
+    Publishing that mints a KG Person called "MG" — a string nobody says aloud, that no other
+    surface will ever match, and that stops the roster resolving the real name from the
+    conversation. The turn separation is still used; only the identity claim is declined, exactly
+    as it is for an audio diarizer's ``SPEAKER_00``.
+    """
+    by_voice = _roster({"SPEAKER_00": "Maya", "SPEAKER_01": label}, known_hosts=["Maya Koster"])
+    assert (
+        by_voice["SPEAKER_01"][0] == "SPEAKER_01"
+    ), f"{label!r} was published as a person; initials abbreviate a name, they are not one"
+
+
+@pytest.mark.parametrize("label", ["Jo", "Bo", "Liam", "Maya"])
+def test_a_short_mixed_case_name_is_still_a_name(label: str) -> None:
+    """The initials rule keys on ALL-UPPERCASE, so genuinely short names survive it."""
+    by_voice = _roster({"SPEAKER_00": label, "SPEAKER_01": "Liam"}, known_hosts=[])
+    assert by_voice["SPEAKER_00"][0] == label

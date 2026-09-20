@@ -27,7 +27,12 @@ import re
 from dataclasses import dataclass, replace
 from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
-from ....graph_id_utils import is_bare_speaker_label
+from ....graph_id_utils import (
+    canonical_person_name,
+    CREDENTIAL_SUFFIXES as _CREDENTIAL_SUFFIXES,
+    GENERATIONAL_SUFFIXES as _GENERATIONAL_SUFFIXES,
+    is_bare_speaker_label,
+)
 from ....speaker_detectors.hosts import (
     _clean_stated_name as _clean_intro_name,
     _GUEST_GREETED as _GUEST_GREETED_RE,
@@ -738,9 +743,6 @@ _NAME_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv", "v"})
 # guest, exactly one trailing post-comma credential occurs — "MD", 66 times, all of them this feed.
 # The rest of the set is the standard post-nominal group, listed because the next such feed should
 # not cost another bug rather than because the corpus has one today.
-_CREDENTIAL_SUFFIXES = frozenset(
-    {"md", "phd", "dphil", "mba", "dds", "dvm", "do", "rn", "esq", "cfa", "cpa", "jd", "msc", "ma"}
-)
 
 
 def _core_name_tokens(name: str) -> List[str]:
@@ -800,6 +802,40 @@ def _same_person(a: str, b: str) -> bool:
     return True  # one side is title + surname only ("Professor Pape")
 
 
+def _generation(name: str) -> str:
+    """The generational suffix a name carries, or `""` for none."""
+    tokens = [tok for tok in name.lower().replace(".", " ").replace(",", " ").split() if tok]
+    return tokens[-1] if tokens and tokens[-1] in _GENERATIONAL_SUFFIXES else ""
+
+
+def _strip_titles(name: str) -> List[str]:
+    """Lower-cased name tokens with any leading honorific removed (`Dr.`, `Professor`, `Sir`).
+
+    A title says how someone is addressed, not who they are, so it must never make two spellings
+    of one person look different. Only LEADING titles are dropped — a surname that happens to
+    match a title word is left alone once a real given name precedes it.
+    """
+    tokens = [tok for tok in name.lower().replace(".", " ").replace(",", " ").split() if tok]
+    while len(tokens) > 1 and tokens[0] in HONORIFIC_TITLES:
+        tokens.pop(0)
+    while len(tokens) > 1 and tokens[-1] in _CREDENTIAL_SUFFIXES:
+        tokens.pop()
+    return tokens
+
+
+#: Similarity at which the token that DIFFERS is a respelling rather than a different name.
+#: Measured on the varying token: respellings run 0.750-0.923, genuinely different
+#: names 0.182-0.667.
+_TOKEN_RESPELLING_SIMILARITY = 0.70
+
+
+#: Whole-name similarity at which two names in ONE episode are taken to be one person.
+#: Measured: observed same-person pairs bottom out at 0.846 and observed different-people pairs
+#: top out at 0.667, so the populations separate; 0.91 also clears every constructed adversarial
+#: pair (max 0.900). See `_same_person_on_one_episode`.
+_ONE_EPISODE_NAME_SIMILARITY = 0.91
+
+
 def _same_person_on_one_episode(a: str, b: str) -> bool:
     """Whether two names placed on voices of ONE episode are the same human.
 
@@ -811,19 +847,91 @@ def _same_person_on_one_episode(a: str, b: str) -> bool:
     and `Elad Gil` as one person, and also Planet Money's host `Alex Maasi` and a construction-site
     worker who says "I'm Alex" — which made the host a guest called `Alex` (advisor review, #2075).
     """
-    ta, tb = a.lower().split(), b.lower().split()
+    # A DISAGREEMENT ABOUT THE GENERATION IS A DISAGREEMENT ABOUT THE PERSON. `Sam Lee` and
+    # `Sam Lee Jr` are a father and a son, and every other signal says they are the same man —
+    # same given name, same surname, near-identical strings. The suffix is the entire distinction,
+    # so it is checked FIRST and settles the question on its own.
+    if _generation(a) != _generation(b):
+        return False
+
+    # A TITLE IS NOT PART OF A NAME. `Dr. Adam Rodman` and `Adam Rodman` are one person and must
+    # compare as one: left attached, the honorific costs four characters of pure difference and
+    # drags whole-name similarity to 0.846, below any threshold that is safe for the rest.
+    ta, tb = _strip_titles(a), _strip_titles(b)
     if not ta or not tb:
         return False
     if ta == tb or _same_person(a, b):
         return True
-    # Same given name, near-identical surname — an ASR respelling. Short surnames are excluded:
-    # `Pape`/`Page` and `Chen`/`Chan` are one letter apart and are different families.
-    return (
-        len(ta) == len(tb) >= 2
-        and ta[0] == tb[0]
-        and min(len(ta[-1]), len(tb[-1])) >= 5
-        and difflib.SequenceMatcher(None, ta[-1], tb[-1]).ratio() >= 0.75
-    )
+    # A NEAR-IDENTICAL SPELLING ON EITHER SIDE OF THE NAME, with the other side identical — an ASR
+    # or house-style respelling of one human, not two people.
+    #
+    # Surname variance was handled from the start (`Michael Barbaro` / `Michael Babaro`). The GIVEN
+    # name needs the same tolerance and did not have it: measured on Odd Lots, the publisher
+    # transcript says `Tracey Alloway` while the feed states `Tracy Alloway`, and the two landed on
+    # different voices as host AND guest — one human, two KG Person nodes, contradictory roles.
+    # That is the exact defect #2075 built `_one_name_per_person` for, slipping through on the one
+    # axis the matcher did not cover.
+    #
+    # WHOLE-NAME SIMILARITY, scoped to ONE EPISODE. Two speakers in a single episode whose full
+    # names are this close are one person the diarizer split, not two humans who happen to be
+    # named alike — the prior on the latter is vanishingly small once the scope is one episode.
+    #
+    # THE THRESHOLD IS MEASURED, not chosen. Against the pairs this repo has actually OBSERVED on
+    # the corpus, the two populations separate cleanly: same-person bottoms out at 0.846
+    # (`Dr. Adam Rodman` / `Adam Rodman`) while different-people tops out at 0.667 (`Elad` /
+    # `Elad Gil`, `Robert Pape` / `Karen Pape`). 0.91 sits well inside that gap.
+    #
+    # It does NOT separate a respelling from a relative — `Dan Smith` / `Dana Smith` scores 0.947
+    # and `Sergei Ivanov` / `Sergei Ivanova` 0.963. Nothing about the strings can; that is
+    # `_one_name_per_person`'s job, using what the episode actually introduced.
+    #
+    # It is ADDITIVE. The structural rules below still carry the variants similarity cannot see —
+    # a title prefix costs four characters of pure difference (`Dr. Adam Rodman`, 0.846) and a
+    # surname respelling can fall under the bar (`Misha Glenny` / `Misha Glennie`, 0.880).
+    if (
+        difflib.SequenceMatcher(None, " ".join(ta), " ".join(tb)).ratio()
+        >= _ONE_EPISODE_NAME_SIMILARITY
+    ):
+        return True
+
+    if len(ta) != len(tb) or len(ta) < 2:
+        return False
+
+    def _near(x: str, y: str) -> bool:
+        """Is the token that DIFFERS a respelling of the other, or a different name?
+
+        The earlier rule asked whether the tokens were LONG (>= 5 characters), which is the wrong
+        question and produced the wrong answer for short surnames: within one episode `Sarah Chen`
+        and `Sarah Chan` are the diarizer splitting one guest and the ASR spelling her surname two
+        ways, not two women who happen to share a given name. Length says nothing about that;
+        similarity does.
+
+        Measured on the varying token, the populations separate with a wide margin:
+
+            respellings   chen/chan 0.750  glenny/glennie 0.769  leong/leung 0.800
+                          tracy/tracey 0.909  barbaro/babaro 0.923
+            real people   jon/jan 0.667  joe/jane 0.571  robert/karen 0.364
+                          smith/jones 0.200  roose/newton 0.182
+
+        `_TOKEN_RESPELLING_SIMILARITY` = 0.70 sits in that gap. `Anna Smith` / `Anna Jones` stays
+        refused at 0.200 — a different surname is a different person, however short it is.
+
+        THIS PREDICATE IS DELIBERATELY PERMISSIVE AND IS NOT THE LAST WORD. It answers "could
+        these be one voice transcribed two ways", which on strings alone is all anyone can answer:
+        `Dan Smith` / `Dana Smith` and `Li Qiang` / `Li Keqiang` both pass it. It is
+        `_one_name_per_person` that then refuses any grouping whose spellings the EPISODE
+        independently introduced, which is where two real people are actually told apart.
+        """
+        return difflib.SequenceMatcher(None, x, y).ratio() >= _TOKEN_RESPELLING_SIMILARITY
+
+    same_given, same_surname = ta[0] == tb[0], ta[-1] == tb[-1]
+    if same_given and same_surname:
+        return True
+    if same_given:
+        return _near(ta[-1], tb[-1])
+    if same_surname:
+        return _near(ta[0], tb[0])
+    return False
 
 
 def _tidy_published_name(name: str) -> str:
@@ -832,8 +940,17 @@ def _tidy_published_name(name: str) -> str:
     Both reach voices from prose and were measured on the production snapshot: `Amanda  Aronchik`
     (double space) and `Aaron Levie)` (a parenthesised show-notes name cut at the open bracket).
     Left as they were, each is a different person id from the clean spelling on another surface.
+
+    A POST-NOMINAL CREDENTIAL IS DROPPED TOO. `Peter Attia, MD` is the same man as `Peter Attia`,
+    and the feed states the credentialled form, so it won the canonical spelling and the plain one
+    survived beside it as a separate `mentioned` node — measured on 4 of 400 sampled episodes of
+    The Peter Attia Drive. The credential says what he is qualified as, not who he is, and every
+    other surface writes the name without it.
+
+    Generational suffixes (`Jr.`, `Sr.`, `III`) are NOT dropped: those exist to tell a father from
+    a son, so removing one would merge two people (see `_CREDENTIAL_SUFFIXES`).
     """
-    return " ".join(name.split()).strip(" ()[]{}\"',;:")
+    return canonical_person_name(name)
 
 
 def _one_name_per_person(
@@ -880,7 +997,43 @@ def _one_name_per_person(
                 break
         else:
             groups.append([v])
-    stated_lower = {_tidy_published_name(n).lower() for n in stated}
+    # A BARE FIRST NAME JOINS THE FULL NAME THAT CARRIES IT — unless it is only a cameo.
+    #
+    # `Elad` and `Elad Gil` on two voices of one episode are one person the diarizer split, and
+    # leaving them apart mints two KG Person nodes for him. Name shape alone cannot prove that,
+    # though: Planet Money has host `Alex Maasi` AND a construction-site worker who says "I'm
+    # Alex" — structurally identical, two real people, and merging them made the host a guest
+    # (advisor review, #2075). That is why the pure name predicate still refuses this shape.
+    #
+    # TALK TIME is what separates them. A person the diarizer split keeps a substantial share of
+    # the conversation on both voices; a passer-by interviewed for one answer does not. So the
+    # merge is allowed only when the bare-named voice speaks for longer than a cameo
+    # (`CAMEO_MAX_TALK_S`), which is the same bar the roster already uses to decide a voice is a
+    # real participant rather than a walk-on.
+    #
+    # Restricted to ONE candidate: if two different full names share the given name, nothing
+    # distinguishes which the bare voice belongs to, and a guess there is exactly the #876 failure.
+    _mononyms = [v for v in named if len(out[v].name.split()) == 1]
+    for v in _mononyms:
+        given = out[v].name.lower()
+        if talk.get(v, 0.0) <= CAMEO_MAX_TALK_S:
+            continue
+        hosts_full = [
+            w
+            for w in named
+            if w != v and len(out[w].name.split()) > 1 and out[w].name.split()[0].lower() == given
+        ]
+        if len(hosts_full) != 1:
+            continue
+        gv = next((g for g in groups if v in g), None)
+        gw = next((g for g in groups if hosts_full[0] in g), None)
+        if gv is not None and gw is not None and gv is not gw:
+            gw.extend(gv)
+            groups.remove(gv)
+
+    # The feed's KNOWN HOSTS are statements too — a show that names its host has vouched for that
+    # spelling as surely as an episode description naming a guest.
+    stated_lower = {_tidy_published_name(n).lower() for n in (*stated, *known_hosts)}
     text_lower = " ".join((episode_text or "").split()).lower()
 
     def _is_stated(name: str) -> bool:
@@ -892,8 +1045,48 @@ def _one_name_per_person(
     for g in groups:
         if len(g) < 2:
             continue
+
+        # A FUZZY GROUPING NEEDS THE EPISODE TO VOUCH FOR EXACTLY ONE SPELLING.
+        #
+        # Near-identical names in one episode are usually one person the diarizer split — but not
+        # always, and the exceptions are the shape that co-occurs MOST often, because sharing a
+        # surname means being related:
+        #
+        #     Dan Smith / Dana Smith          Maria Silva / Mario Silva
+        #     Andrea Rossi / Andrew Rossi     Sergei Ivanov / Sergei Ivanova   (husband and wife)
+        #
+        # And where the family name comes first, the rule's "given name" IS the family name, so
+        # two unrelated guests collide outright — `Li Qiang` / `Li Keqiang` are different premiers,
+        # `Kim Jong-un` / `Kim Jong-il` different people. Sinica, Korea Deconstructed and
+        # The China-Global South Podcast are live feeds; this is not hypothetical.
+        #
+        # What separates a respelling from two relatives is not the strings, it is the EPISODE.
+        # A diarizer split leaves at most ONE of the spellings vouched for — the feed states
+        # `Tracy Alloway`, never `Tracey`, because `Tracey` is the ASR's or the publisher's
+        # transcription, not a person the episode introduced. Two real participants are BOTH
+        # introduced: a spouse pair, two premiers, two guests from one family.
+        #
+        # So the refusal triggers on exactly that signal — two independently vouched spellings —
+        # and nothing else. An unvouched pair (`Misha Glennie` / `Misha Glennnie`, neither stated
+        # anywhere) is still merged: nobody is claiming they are two people, and the repeated
+        # letter is plainly one voice transcribed twice.
+        _distinct = {out[v].name.lower() for v in g}
+        if len(_distinct) > 1 and sum(1 for n in _distinct if _is_stated(n)) > 1:
+            continue
+
         pool = [v for v in g if _is_stated(out[v].name)] or g
-        keep = max(pool, key=lambda v: (len(out[v].name.split()), talk.get(v, 0.0)))
+        # "Fullest name wins" — but a CREDENTIAL is not part of the name, and counting it as a
+        # token made `Peter Attia, MD` beat `Peter Attia` for the canonical spelling. Rank on the
+        # name with prefixes and post-nominals stripped, so the winner is chosen on how much of
+        # the PERSON it states, then prefer the shorter raw string to drop the decoration.
+        keep = max(
+            pool,
+            key=lambda v: (
+                len(_strip_titles(out[v].name)),
+                talk.get(v, 0.0),
+                -len(out[v].name),
+            ),
+        )
         roles = {out[v].role for v in g}
         if len(roles) == 1:
             role = out[keep].role
@@ -949,15 +1142,38 @@ NON_PERSON_VOICE_LABELS = frozenset(
 )
 
 
+def _looks_like_initials(name: str) -> bool:
+    """``MG``, ``M.G.``, ``JW`` — an abbreviation standing in for a name, not a name.
+
+    Publishers use these as turn labels (In Moscow's Shadows tags every turn ``<v MG>`` for Mark
+    Galeotti). Publishing one mints a KG Person called "MG": a string nobody says aloud, that no
+    other surface will ever match, and that blocks the roster from resolving the real name from the
+    conversation. Treating it as an anonymous cluster id instead costs nothing — identity was never
+    the transcript's job.
+
+    All-uppercase and at most three letters, ignoring dots and spaces. Short MIXED-case names
+    (``Jo``, ``Bo``, ``Li``) are real and must survive. A transcript that uppercases every label
+    would trip this for a genuine short name — which is the safe direction: we decline the
+    publisher's word and the roster names the voice from evidence, exactly as it does for audio
+    diarization.
+    """
+    letters = name.replace(".", "").replace(" ", "")
+    return bool(letters) and letters.isalpha() and letters.isupper() and len(letters) <= 3
+
+
 def _is_person_voice_label(name: Optional[str]) -> bool:
     """Is this transcript-supplied voice label a PERSON's name we may publish?
 
-    Guards the one thing a publisher label must never do: turn a production credit into a speaker.
+    Guards the one thing a publisher label must never do: turn a production credit or an
+    abbreviation into a speaker. Everything it rejects still becomes a VOICE — the turn separation
+    is kept, only the identity claim is declined.
     """
     if not name or not name.strip():
         return False
     cleaned = name.strip()
     if cleaned.casefold() in NON_PERSON_VOICE_LABELS:
+        return False
+    if _looks_like_initials(cleaned):
         return False
     return is_publishable_speaker_name(cleaned) and not is_bare_speaker_label(cleaned)
 
