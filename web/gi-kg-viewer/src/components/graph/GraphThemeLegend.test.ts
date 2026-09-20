@@ -34,13 +34,13 @@ async function loadComponent() {
 async function useStores() {
   const { useArtifactsStore } = await import('../../stores/artifacts')
   const { useGraphLensesStore } = await import('../../stores/graphLenses')
-  const { useGraphThemeFocusStore } = await import('../../stores/graphThemeFocus')
+  const { useGraphStorylineFocusStore } = await import('../../stores/graphStorylineFocus')
   const artifacts = useArtifactsStore()
   const lenses = useGraphLensesStore()
-  const themeFocus = useGraphThemeFocusStore()
+  const storylineFocus = useGraphStorylineFocusStore()
   // Legend renders only when this lens is on + a doc is loaded.
-  lenses.setThemeClusterRegions(true)
-  return { artifacts, lenses, themeFocus }
+  lenses.setStorylineRegions(true)
+  return { artifacts, lenses, storylineFocus }
 }
 
 /** graph-v3 tier 7 shape: 8 flat clusters, 2 rolled up under sth:alpha,
@@ -66,10 +66,10 @@ describe('GraphThemeLegend (graph-v3 tier 7)', () => {
     setActivePinia(createPinia())
   })
 
-  it('hides itself when the themeClusterRegions lens is off', async () => {
+  it('hides itself when the storylineRegions lens is off', async () => {
     const { artifacts, lenses } = await useStores()
-    lenses.setThemeClusterRegions(false)
-    artifacts.themeClustersDoc = tier7Doc()
+    lenses.setStorylineRegions(false)
+    artifacts.storylinesDoc = tier7Doc()
     const Legend = await loadComponent()
     const w = mount(Legend)
     await nextTick()
@@ -78,7 +78,7 @@ describe('GraphThemeLegend (graph-v3 tier 7)', () => {
 
   it('renders single-child super-themes flat (no expand chevron)', async () => {
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = tier7Doc()
+    artifacts.storylinesDoc = tier7Doc()
     const Legend = await loadComponent()
     const w = mount(Legend)
     await nextTick()
@@ -89,7 +89,7 @@ describe('GraphThemeLegend (graph-v3 tier 7)', () => {
 
   it('renders a header + expand chevron for multi-child super-themes', async () => {
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = tier7Doc()
+    artifacts.storylinesDoc = tier7Doc()
     const Legend = await loadComponent()
     const w = mount(Legend)
     await nextTick()
@@ -107,35 +107,35 @@ describe('GraphThemeLegend (graph-v3 tier 7)', () => {
   })
 
   it('clicking a super-theme label focuses all its children in the theme-focus store', async () => {
-    const { artifacts, themeFocus } = await useStores()
-    artifacts.themeClustersDoc = tier7Doc()
+    const { artifacts, storylineFocus } = await useStores()
+    artifacts.storylinesDoc = tier7Doc()
     const Legend = await loadComponent()
     const w = mount(Legend)
     await nextTick()
     await w.find('[data-testid="graph-theme-legend-super-focus-sth:alpha"]').trigger('click')
-    expect(themeFocus.focusedThemeIds.has('thc:c1')).toBe(true)
-    expect(themeFocus.focusedThemeIds.has('thc:c2')).toBe(true)
-    expect(themeFocus.focusedThemeIds.size).toBe(2)
+    expect(storylineFocus.focusedStorylineIds.has('thc:c1')).toBe(true)
+    expect(storylineFocus.focusedStorylineIds.has('thc:c2')).toBe(true)
+    expect(storylineFocus.focusedStorylineIds.size).toBe(2)
     // Re-click toggles off.
     await w.find('[data-testid="graph-theme-legend-super-focus-sth:alpha"]').trigger('click')
-    expect(themeFocus.focusedThemeIds.size).toBe(0)
+    expect(storylineFocus.focusedStorylineIds.size).toBe(0)
   })
 
   it('clicking a single-child (flat) row focuses just that cluster', async () => {
-    const { artifacts, themeFocus } = await useStores()
-    artifacts.themeClustersDoc = tier7Doc()
+    const { artifacts, storylineFocus } = await useStores()
+    artifacts.storylinesDoc = tier7Doc()
     const Legend = await loadComponent()
     const w = mount(Legend)
     await nextTick()
     // sth:beta is a single-child group — the flat row's focus button is the whole row.
     await w.find('[data-testid="graph-theme-legend-row-focus-thc:c3"]').trigger('click')
-    expect(themeFocus.focusedThemeIds.size).toBe(1)
-    expect(themeFocus.focusedThemeIds.has('thc:c3')).toBe(true)
+    expect(storylineFocus.focusedStorylineIds.size).toBe(1)
+    expect(storylineFocus.focusedStorylineIds.has('thc:c3')).toBe(true)
   })
 
   it('filter input is hidden when there are <=6 super-themes', async () => {
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = tier7Doc() // 3 super-themes → filter hidden
+    artifacts.storylinesDoc = tier7Doc() // 3 super-themes → filter hidden
     const Legend = await loadComponent()
     const w = mount(Legend)
     await nextTick()
@@ -144,9 +144,9 @@ describe('GraphThemeLegend (graph-v3 tier 7)', () => {
 
   it('filter input filters rows by substring against super + child labels', async () => {
     const { artifacts, lenses } = await useStores()
-    lenses.setThemeClusterRegions(true)
+    lenses.setStorylineRegions(true)
     // 7 super-themes — trips the filter-visible threshold (>6).
-    artifacts.themeClustersDoc = {
+    artifacts.storylinesDoc = {
       clusters: Array.from({ length: 7 }, (_, i) => ({
         graph_compound_parent_id: `thc:c${i}`,
         canonical_label: i === 3 ? 'quantum computing' : `cluster ${i}`,
@@ -169,7 +169,7 @@ describe('GraphThemeLegend (graph-v3 tier 7)', () => {
 
   it('backwards-compat: clusters without super_theme_* land as single-child flat rows', async () => {
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = {
+    artifacts.storylinesDoc = {
       clusters: [
         { graph_compound_parent_id: 'thc:only', canonical_label: 'Only', member_count: 3 },
       ],
@@ -200,7 +200,7 @@ describe('GraphThemeLegend — withheld themes (#1932)', () => {
    */
   it('reports how many themes were withheld, and the floor applied', async () => {
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = {
+    artifacts.storylinesDoc = {
       ...tier7Doc(),
       surfaced_cluster_count: 4,
       withheld_below_min_members: 36,
@@ -217,7 +217,7 @@ describe('GraphThemeLegend — withheld themes (#1932)', () => {
     // The route omits the keys entirely when every theme cleared the floor, so an unconditional
     // "+0 smaller themes not shown" would be noise on every healthy corpus.
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = tier7Doc()
+    artifacts.storylinesDoc = tier7Doc()
     const w = mount(await loadComponent())
     await nextTick()
     expect(w.find('[data-testid="graph-theme-legend-withheld"]').exists()).toBe(false)
@@ -227,7 +227,7 @@ describe('GraphThemeLegend — withheld themes (#1932)', () => {
     // "No clusters in this corpus" would be false: the artifact has 36 of them, all too small
     // to browse. Absent evidence and filtered evidence must not read identically.
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = {
+    artifacts.storylinesDoc = {
       clusters: [],
       surfaced_cluster_count: 0,
       withheld_below_min_members: 36,

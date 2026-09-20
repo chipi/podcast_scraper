@@ -6,7 +6,7 @@ import { ref } from 'vue'
  *
  * The theme legend calls `setFocus(themeIds)` when a super-theme or cluster
  * row is clicked; GraphCanvas watches this store and dims every node whose
- * `themeClusterId` is NOT in the focus set. Empty set = no focus (canvas is
+ * `storylineId` is NOT in the focus set. Empty set = no focus (canvas is
  * in its default state).
  *
  * Ephemeral, not synced across tabs / devices — focus is an in-session read
@@ -16,28 +16,28 @@ import { ref } from 'vue'
  * `subject`) so the responsibility is single-purpose: one write path, one
  * read path, easy to test.
  */
-export const useGraphThemeFocusStore = defineStore('graphThemeFocus', () => {
-  const focusedThemeIds = ref<Set<string>>(new Set())
+export const useGraphStorylineFocusStore = defineStore('graphStorylineFocus', () => {
+  const focusedStorylineIds = ref<Set<string>>(new Set())
 
   function setFocus(ids: Iterable<string>): void {
-    focusedThemeIds.value = new Set(ids)
+    focusedStorylineIds.value = new Set(ids)
   }
 
   function clearFocus(): void {
-    if (focusedThemeIds.value.size === 0) return
-    focusedThemeIds.value = new Set()
+    if (focusedStorylineIds.value.size === 0) return
+    focusedStorylineIds.value = new Set()
   }
 
   function hasFocus(): boolean {
-    return focusedThemeIds.value.size > 0
+    return focusedStorylineIds.value.size > 0
   }
 
   function isFocused(themeId: string): boolean {
-    return focusedThemeIds.value.has(themeId)
+    return focusedStorylineIds.value.has(themeId)
   }
 
   return {
-    focusedThemeIds,
+    focusedStorylineIds,
     setFocus,
     clearFocus,
     hasFocus,

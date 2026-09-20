@@ -26,7 +26,7 @@ import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphLensesStore } from '../../stores/graphLenses'
 import { useGraphLoadModeStore } from '../../stores/graphLoadMode'
-import { useGraphThemeFocusStore } from '../../stores/graphThemeFocus'
+import { useGraphStorylineFocusStore } from '../../stores/graphStorylineFocus'
 import { useGraphTopDownStore } from '../../stores/graphTopDown'
 import { useGraphAnalyticsStore } from '../../stores/graphAnalytics'
 import { useGraphHandoffStore } from '../../stores/graphHandoff'
@@ -39,7 +39,7 @@ import type { ParsedArtifact, RawGraphNode } from '../../types/artifact'
 import type { TopicClustersDocument } from '../../api/corpusTopicClustersApi'
 import {
   THEME_REGION_PALETTE_SIZE,
-  themeRegionIndex,
+  storylineRegionIndex,
 } from '../../utils/themeRegionPalette'
 import {
   applyCoGuestEdges,
@@ -115,7 +115,7 @@ const emit = defineEmits<{
 
 const gf = useGraphFilterStore()
 const lenses = useGraphLensesStore()
-const themeFocus = useGraphThemeFocusStore()
+const storylineFocus = useGraphStorylineFocusStore()
 const loadMode = useGraphLoadModeStore()
 const topDown = useGraphTopDownStore()
 const ge = useGraphExplorerStore()
@@ -791,10 +791,10 @@ function clearGraphSelectionDim(core: Core): void {
 }
 
 /** graph-v3 tier 7-3 — theme-focus dim.
- *  Called from the legend focus bus (`useGraphThemeFocusStore`). Every node
- *  whose `themeClusterId` is IN the provided set is treated as focused;
+ *  Called from the legend focus bus (`useGraphStorylineFocusStore`). Every node
+ *  whose `storylineId` is IN the provided set is treated as focused;
  *  everything else is dimmed. Edges are dimmed unless BOTH endpoints are in
- *  the focus set. `themeClusterId` is propagated onto Insight / Episode /
+ *  the focus set. `storylineId` is propagated onto Insight / Episode /
  *  Person / Podcast / Org nodes upstream (see graph-v3 tier T), so the
  *  focus signal reaches the whole community, not just its TopicCluster
  *  parent. Empty set clears back to the default view.  */
@@ -807,7 +807,7 @@ function applyGraphSelectionDimFromThemeIds(core: Core, themeIds: Set<string>): 
     core.nodes().addClass('graph-dimmed')
     core.edges().addClass('graph-edge-dimmed')
     core.nodes().forEach((n) => {
-      const tid = n.data('themeClusterId')
+      const tid = n.data('storylineId')
       if (typeof tid === 'string' && themeIds.has(tid)) {
         n.addClass('graph-neighbour').removeClass('graph-dimmed')
       }
@@ -1079,11 +1079,11 @@ function applyGraphSelectionDimFromNode(core: Core, node: NodeSingular): void {
 
 /** graph-v3 R-V + Tier 5A-2 — paint theme-cluster region classes.
  *
- *  Propagation now runs artifact-side in `applyThemeClustersOverlay` so
+ *  Propagation now runs artifact-side in `applyStorylinesOverlay` so
  *  every raw graph node with a theme membership already carries a
- *  `themeClusterId` on its data (Topics + Episodes as direct seeds;
+ *  `storylineId` on its data (Topics + Episodes as direct seeds;
  *  Insights + Persons + Orgs + Podcasts by edge-walk propagation).
- *  This function only PAINTS: for each node with themeClusterId set,
+ *  This function only PAINTS: for each node with storylineId set,
  *  add the matching `theme-region-N` class based on the stable hash.
  *  Enricher-gated caller (finishLayoutPass / watcher) keeps this a
  *  no-op when the artifact isn't loaded. */
@@ -1097,9 +1097,9 @@ function applyThemeRegionClasses(
       core.nodes().removeClass(`theme-region-${i}`)
     }
     core.nodes().forEach((n) => {
-      const raw = n.data('themeClusterId')
+      const raw = n.data('storylineId')
       if (typeof raw !== 'string' || !raw.trim()) return
-      n.addClass(`theme-region-${themeRegionIndex(raw)}`)
+      n.addClass(`theme-region-${storylineRegionIndex(raw)}`)
     })
   })
 }
@@ -1191,7 +1191,7 @@ function refreshEnricherLensOverlays(): void {
 
 /** graph-v3 Tier 5B — annotate bridge nodes with the themes they bridge.
  *  For each node carrying the `graph-bridge` class, walk its neighbourhood
- *  and collect the distinct themeClusterId values touched by neighbours;
+ *  and collect the distinct storylineId values touched by neighbours;
  *  when the set has >=2 entries, store both the ids and the human labels
  *  on the bridge node's data as `bridgedThemes` / `bridgedThemeLabels`.
  *
@@ -1214,7 +1214,7 @@ function annotateBridgesWithThemes(
     core.nodes('.graph-bridge').forEach((bridge) => {
       const themes = new Set<string>()
       bridge.neighborhood('node').forEach((nb) => {
-        const t = nb.data('themeClusterId')
+        const t = nb.data('storylineId')
         if (typeof t === 'string' && t && labelById.has(t)) themes.add(t)
       })
       if (themes.size >= 2) {
@@ -1858,7 +1858,7 @@ function finishLayoutPass(core: Core): void {
    * capture-graph-lcp mjs (private eval repo) can observe real settle time on the topDown
    * expand-on-tap path (and everywhere else). Cost is a `performance.mark`
    * pair on entry/exit — sub-microsecond, no allocation, no side-effect.
-   * Per-phase marks (`flp:bridgeRing`, `flp:themeClusterRegions`, …) were
+   * Per-phase marks (`flp:bridgeRing`, `flp:storylineRegions`, …) were
    * removed pre-commit in #1207 and are NOT restored here — they can be
    * added back locally when a specific phase needs blame. */
   const flpStartMark = `flp:start:${core.nodes().length}`
@@ -1873,15 +1873,15 @@ function finishLayoutPass(core: Core): void {
   } else {
     cy.nodes().removeClass('graph-bridge')
   }
-  if (lenses.themeClusterRegions) {
-    applyThemeRegionClasses(cy, artifacts.themeClustersDoc)
+  if (lenses.storylineRegions) {
+    applyThemeRegionClasses(cy, artifacts.storylinesDoc)
   } else {
     clearThemeRegionClasses(cy)
   }
   // graph-v3 Tier 5B — when both bridge + theme lenses are on, tag each bridge
   // node with the set of themes it connects. Data-only for now (surfaced in
   // NodeDetail below); a future iteration could paint a specific glyph.
-  annotateBridgesWithThemes(cy, artifacts.themeClustersDoc)
+  annotateBridgesWithThemes(cy, artifacts.storylinesDoc)
   /* graph-v3 Tier 5C/5D — enricher-based lens overlays. Fire-and-forget
      async fetches (cache-warm after first call). Each apply function is
      a no-op when the envelope is null. */
@@ -2617,10 +2617,10 @@ function animateCameraToFocusedNode(
 function maybeExpandTopDownForPendingFocus(rawId: string): void {
   const full = artifacts.displayArtifact?.data
   if (!full) return
-  const themeDoc = artifacts.themeClustersDoc
-  if (!themeDoc?.clusters?.length) return
+  const storylineDoc = artifacts.storylinesDoc
+  if (!storylineDoc?.clusters?.length) return
   const clusterToSuper = new Map<string, string>()
-  for (const cl of themeDoc.clusters) {
+  for (const cl of storylineDoc.clusters) {
     const cid =
       typeof cl?.graph_compound_parent_id === 'string'
         ? cl.graph_compound_parent_id.trim()
@@ -2649,8 +2649,8 @@ function maybeExpandTopDownForPendingFocus(rawId: string): void {
   }
   if (!target) return
   const tcid =
-    typeof (target as { themeClusterId?: unknown }).themeClusterId === 'string'
-      ? String((target as { themeClusterId?: unknown }).themeClusterId).trim()
+    typeof (target as { storylineId?: unknown }).storylineId === 'string'
+      ? String((target as { storylineId?: unknown }).storylineId).trim()
       : ''
   if (!tcid) return
   const sid = clusterToSuper.get(tcid)
@@ -2676,7 +2676,7 @@ function tryApplyPendingFocus(core: Core): boolean {
   if (!cyId) {
     /* graph-v3 tier 8-3 — search reveals hidden. In top-down mode the
      * search target may live under a collapsed super-theme. Look up
-     * the target's themeClusterId in the FULL display artifact,
+     * the target's storylineId in the FULL display artifact,
      * roll it up to super_theme_id, and expand that super-theme.
      * The store change re-derives topDownDisplayArtifact and the
      * next redraw's tryApplyPendingFocus call succeeds. */
@@ -3956,7 +3956,7 @@ function redraw(): void {
       subject.clearSubject()
       clearSelectedNodeZoomAnchor()
       // graph-v3 tier 7-3 — tapping the empty canvas clears legend focus too.
-      themeFocus.clearFocus()
+      storylineFocus.clearFocus()
       return
     }
     if (typeof t.isNode === 'function' && t.isNode()) {
@@ -3970,7 +3970,7 @@ function redraw(): void {
       }
       // Tapping a node hands control back to the selection-dim path; drop
       // any active theme focus so the two dim sources don't fight.
-      themeFocus.clearFocus()
+      storylineFocus.clearFocus()
       core.nodes().unselect()
       t.select()
       selectedNodeId.value = t.id()
@@ -4512,25 +4512,25 @@ watch(
    itself: switching corpora reloads the artifact, so the region tint
    needs to refresh even if the lens flag hasn't changed. */
 watch(
-  () => lenses.themeClusterRegions,
+  () => lenses.storylineRegions,
   (on) => {
-    safeGraphWatch('themeClusterRegions', () => {
+    safeGraphWatch('storylineRegions', () => {
       const c = cy
       if (!c) return
-      if (on) applyThemeRegionClasses(c, artifacts.themeClustersDoc)
+      if (on) applyThemeRegionClasses(c, artifacts.storylinesDoc)
       else clearThemeRegionClasses(c)
     })
   },
 )
 
 watch(
-  () => artifacts.themeClustersDoc,
+  () => artifacts.storylinesDoc,
   () => {
-    safeGraphWatch('themeClustersDoc', () => {
+    safeGraphWatch('storylinesDoc', () => {
       const c = cy
       if (!c) return
-      if (lenses.themeClusterRegions) {
-        applyThemeRegionClasses(c, artifacts.themeClustersDoc)
+      if (lenses.storylineRegions) {
+        applyThemeRegionClasses(c, artifacts.storylinesDoc)
       }
     })
   },
@@ -4578,13 +4578,13 @@ watch(
 )
 
 /** graph-v3 tier 7-3 — legend focus bus.
- *  React to `useGraphThemeFocusStore` changes. Skip when a node is
+ *  React to `useGraphStorylineFocusStore` changes. Skip when a node is
  *  currently :selected (existing selection-dim wins) so a legend click
  *  can't strip the user's node-selection context. */
 watch(
-  () => themeFocus.focusedThemeIds,
+  () => storylineFocus.focusedStorylineIds,
   (ids) => {
-    safeGraphWatch('themeFocus', () => {
+    safeGraphWatch('storylineFocus', () => {
       const c = cy
       if (!c) return
       if (c.nodes(':selected').length > 0) return
