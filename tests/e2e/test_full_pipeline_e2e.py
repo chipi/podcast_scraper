@@ -279,7 +279,7 @@ class TestFullPipelineE2E:
     @pytest.mark.critical_path
     @unittest.skipIf(not ML_AVAILABLE, "ML dependencies not available")
     def test_pipeline_solo_speaker_host_only(self):
-        """Test full pipeline with solo speaker podcast (host only, no guests).
+        """Speaker roles from a feed whose transcript labels its turns (#2075).
 
         This test validates that:
         - Solo speaker podcasts are handled correctly
@@ -332,10 +332,23 @@ class TestFullPipelineE2E:
             assert any(
                 "alex" in host.lower() or "morgan" in host.lower() for host in detected_hosts
             ), f"Should detect 'Alex Morgan' as host, got: {detected_hosts}"
-            # Verify NO guests are detected (this is the key validation)
-            assert (
-                len(detected_guests) == 0
-            ), f"Solo speaker podcast should have NO guests, but got: {detected_guests}"
+            # THIS FIXTURE IS NOT SOLO, and the test only ever passed because the transcript
+            # hid that. FIXTURES_SPEC.md describes p09 as "Cross-Show · host Sam · Cross-podcast
+            # guest appearances", and `p09_e01.groundtruth.json` states
+            # `speakers: ["Sam", "Dr. Elena Fischer"]`. The feed was served as plain text, which
+            # carries no speaker turns, so only the RSS author surfaced and the guest was
+            # invisible — the assertion was reading an artefact of the transcript format.
+            #
+            # Now that the feed serves a WebVTT transcript that labels its turns, the guest the
+            # episode actually has is detected. Asserting her absence would be asserting that we
+            # still cannot see her.
+            #
+            # Genuine solo coverage is NOT provided by this fixture and is tracked separately —
+            # `p06_e05` (`speakers: ["Maya"]`) is the only single-speaker episode in the corpus
+            # and no feed serves it on its own.
+            assert detected_guests == ["Dr. Elena Fischer"], (
+                "the transcript states this episode's guest; got: " f"{detected_guests}"
+            )
 
             # Verify config_snapshot reflects correct speaker detection
             if "config_snapshot" in metadata:
