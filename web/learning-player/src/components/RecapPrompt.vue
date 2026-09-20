@@ -60,6 +60,27 @@ const moreTopics = computed(() =>
 const worthShowing = computed(() => (recap.value?.listening_seconds ?? 0) > 0)
 
 /**
+ * The card is ONE link, so its accessible name is everything inside it — which now includes three
+ * pills and their NEW/↑2 badges, announced as one run-on string before the user can act.
+ *
+ * Composed here instead: same facts, ordered as a sentence, with the movement markers dropped. A
+ * screen-reader user gets "up two" from the recap itself; what this control needs to convey is
+ * where it goes and why it is worth going.
+ */
+const linkLabel = computed(() => {
+  const parts = [
+    t('recap.promptTitle'),
+    `${hoursLabel.value}h`,
+    t('recap.promptEpisodes', recap.value?.distinct_episodes ?? 0, {
+      named: { count: recap.value?.distinct_episodes ?? 0 },
+    }),
+    ...(headline.value ? [headline.value] : []),
+    ...moreTopics.value.map((topic) => topic.label),
+  ]
+  return parts.join(', ')
+})
+
+/**
  * The week's own shape, as the card's backdrop (operator 2026-09-19: "not just another empty-ish
  * card").
  *
@@ -84,6 +105,7 @@ const dayBars = computed<number[]>(() => {
   <RouterLink
     v-if="worthShowing"
     :to="{ name: 'profile', query: { tab: 'stats' } }"
+    :aria-label="linkLabel"
     class="lp-recap-prompt relative mt-7 flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-border bg-surface px-4 py-3 transition hover:border-accent"
   >
     <!-- The week, behind the words. Bars are bottom-anchored and run the full width of the card,

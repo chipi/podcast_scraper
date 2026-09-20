@@ -959,6 +959,13 @@ lands on `/search` with Discovery lit, a path they did not take. Accepted becaus
 episode, has a canonical parent. It is pinned by tests at both layers so it cannot be quietly
 reverted into looking like a bug.
 
+**Accessibility: the highlight is a SPOKEN claim too.** Discovery carries `aria-current="page"` on
+`/search`, and the Search control — the link to the page you are actually on — carries none. The
+visual trade the operator accepted therefore extends to assistive tech, where it is stated more
+strongly ("Discover, current page") than a colour implies. Recorded rather than discovered later:
+both navs answer from one ownership map, so the alternative is the two disagreeing again, which is
+the bug this replaced. Revisit if AT users report it as disorienting.
+
 **The trap this must not spring.** #1588 existed because search had ONE entry point and was
 unreachable from the catalogue, player, library and show pages. Dropping its tab without hoisting
 the masthead icon out of the `hidden … sm:flex` span would re-open it — silently, since desktop

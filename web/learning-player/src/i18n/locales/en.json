@@ -52,10 +52,7 @@
     }
   },
   "home": {
-    "askKicker": "Ask across every episode",
-    "askTitle": "Find any moment you've heard.",
     "askTagline": "Search across every episode — answers that jump you straight to the moment.",
-    "askPlaceholder": "e.g. how memory consolidates…",
     "continue": "Continue listening",
     "revisitTitle": "Worth revisiting",
     "revisitSeeAll": "See all",
@@ -131,6 +128,11 @@
     "seeAllTrends": "See all",
     "trendsNotOpenable": "These aren’t linked to topic pages yet — momentum is still live.",
     "rowNotOpenable": "{label} — nothing to open"
+  },
+  "ask": {
+    "title": "Find any moment you've heard.",
+    "kicker": "Ask across every episode",
+    "placeholder": "e.g. how memory consolidates…"
   },
   "rail": {
     "prev": "Scroll left",

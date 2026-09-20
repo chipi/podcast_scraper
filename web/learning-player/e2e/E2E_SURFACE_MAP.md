@@ -86,7 +86,7 @@ Rules the suite depends on that are **not** visible from any single spec:
 ## App shell + routes
 
 Header brand (→ **home**) + `<nav>` of [NavIconLink](../src/components/NavIconLink.vue): **Search**
-(`data-testid="masthead-search"`), **Browse** (catalog), **Library**, and a profile link when signed
+(`data-testid="masthead-search"`), **Browse** (`data-testid="masthead-browse"`, catalog), **Library**, and a profile link when signed
 in; **Sign in** / **Sign up** links when signed out.
 
 **Search is the one icon visible at EVERY width** — the others are `hidden … sm:flex`, desktop-only,
@@ -338,7 +338,7 @@ on **roles / accessible names / RouterLinks**; reusable widgets carry `data-test
 
 | Element | Hook |
 | ------- | ---- |
-| Search input | `#home-search` (label `home.askKicker`) |
+| Search input | `#home-search` (label `ask.kicker`, shared with Discovery's box) |
 | Home topic chips | `home-topic-chips` (container), `home-topic-chip` (each) |
 | Discovery section | `data-testid="home-discovery"` |
 | Interests card CTA | button `interests.cardCta` → opens `InterestsPicker` |
