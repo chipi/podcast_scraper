@@ -59,7 +59,7 @@ from podcast_scraper.server.schemas import (
 # enricher emits an org series (the org card/browse do not depend on trending).
 _TRENDING_KINDS = (
     "topic",
-    "cluster",
+    "theme",
     "storyline",
     "person",
     "organization",

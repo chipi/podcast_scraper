@@ -93,9 +93,17 @@ and are named for their audience, not just their subject.
 
 Three things deliberately keep the old spelling, and none is an oversight:
 
-- **The wire prefixes** `thc:` / `tc:`. `interest_events.jsonl` is an append-only follow log read
-  to compute engagement momentum, so renaming a prefix orphans every historical event — momentum
-  would quietly drop for the storylines a user cared about most, with nothing erroring.
+- **The wire prefixes** `thc:` / `tc:`. Not for back-compat — this project is pre-launch and
+  forward-only, so "it would orphan historical events" is not a binding argument here and would
+  read as an excuse later. The real reason: an id prefix is a contract with DATA, not with a
+  reader. It has to be unique and stable; it does not have to be meaningful, and nobody ever sees
+  one. `interest_events.jsonl` (append-only follow log), the artifacts and operator localStorage
+  all key on these, so a rename is pure cost against zero reader-facing gain — permanently, not
+  "for now". No dual-read, no alias: that is exactly the compat shim this project bans.
+
+  Worth stating plainly because the option decays: today a prefix rename is a one-shot corpus
+  rewrite plus a follow-log reset. Once there are real users, forward-only ends and it becomes a
+  true migration. Pre-launch is the cheapest this will ever be, and the answer is still no.
 - **The artifact** `enrichments/topic_theme_clusters.json`, because renaming it forces a
   re-enrichment of every existing corpus, prod included, for no reader-visible gain.
 - **The persisted lens key** `themeClusterRegions` inside `ps_graph_lenses`. The viewer symbol is
@@ -107,8 +115,21 @@ Three things deliberately keep the old spelling, and none is an oversight:
 All three are invisible to readers of the product. `interestKind()` remains the boundary where the
 wire names stop mattering.
 
-The `sth:` super-theme tier is untouched and unnamed: it has no reader-facing name, so there is
-nothing to rename it TO, and `sth:` ids are persisted as the operator's saved graph expansions.
+The `sth:` super-theme tier is untouched. It has no LISTENER-facing name, so there is nothing to
+rename it to, and `sth:` ids are persisted as the operator's saved graph expansions.
+
+It is not invisible, though, and the distinction matters: the operator graph renders
+`super_theme_label` as the node label (`utils/topDownSlice.ts`) and styles `node[type =
+"SuperTheme"]`. Super-themes group **storylines** (`thc:`, from the `topic_theme_clusters`
+enricher), so the name reads as "an aggregate of Themes" while actually aggregating Storylines —
+the same inversion this page exists to kill, surviving one tier up. Left as-is because
+`"SuperTheme"` is a graph-payload contract and `sth:` is persisted operator state; rename both
+together the next time that payload takes a breaking change, not before.
+
+One more half-renamed edge: `GET /api/app/trending?kind=` takes `cluster` for a **Theme** (`tc:`)
+and `storyline` for a Storyline (`thc:`). The storyline half got the new word and the theme half did
+not. Harmless today because nothing reads `cluster` as a reader-facing label; worth aligning
+whenever that enum next changes.
 
 This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in and the remaining
 `"theme"`/`"similar"` i18n pair are tracked on #1603.

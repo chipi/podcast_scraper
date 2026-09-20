@@ -120,14 +120,65 @@ def test_the_ranking_and_the_anchor_read_ONE_snapshot(tmp_path: Path, monkeypatc
     _write_clusters(tmp_path, [_cluster("thc:a", [{"topic_id": "topic:a"}], member_count=6)])
 
     reads: list[str] = []
-    real = app_momentum.cached_json_artifact
+    real = app_momentum._artifact_env
 
     def counting(root: Path, rel: str):  # type: ignore[no-untyped-def]
         reads.append(rel)
         return real(root, rel)
 
-    monkeypatch.setattr(app_momentum, "cached_json_artifact", counting)
+    monkeypatch.setattr(app_momentum, "_artifact_env", counting)
+
+    # The corpus-mtime reader must not be reached for storylines AT ALL: that is the second clock,
+    # and it is what let the ranking and the anchors disagree after a re-enrichment.
+    corpus_mtime_reads: list[str] = []
+    real_cja = app_momentum.cached_json_artifact
+
+    def counting_cja(root: Path, rel: str):  # type: ignore[no-untyped-def]
+        corpus_mtime_reads.append(rel)
+        return real_cja(root, rel)
+
+    monkeypatch.setattr(app_momentum, "cached_json_artifact", counting_cja)
     _storyline_anchors(tmp_path)
 
     theme_reads = [r for r in reads if "theme" in r]
     assert len(theme_reads) == 1, f"the artifact was read {len(theme_reads)} times, not once"
+    assert not [r for r in corpus_mtime_reads if "theme" in r], (
+        "storylines were read via cached_json_artifact (corpus-mtime token); they must go "
+        "through _artifact_env to share one clock with search/storylines.py"
+    )
+
+
+def test_a_reenrichment_is_visible_to_BOTH_the_picker_and_momentum(tmp_path: Path) -> None:
+    """Two clocks over one file is a staleness bug, not a caching detail.
+
+    ``search/storylines.py`` tokens on the artifact's own mtime; the momentum layer used
+    ``cached_json_artifact``, which tokens on ``perf_cache.corpus_mtime`` — run-summary / manifest /
+    upgrade-ledger / edges-stamp. Enrichment writes NONE of those. So re-enriching only this
+    artifact left ``/api/app/storylines`` fresh and ``/trending?kind=storyline`` stale (rank, labels
+    AND anchors) until the next ingest or a process restart.
+
+    This rewrites the artifact WITHOUT touching any stamp — the exact thing enrichment does — and
+    asserts both readers move. Reverting momentum to ``cached_json_artifact`` fails the second half.
+    """
+    import time
+
+    from podcast_scraper.search.storylines import load_storylines_payload
+    from podcast_scraper.server.app_momentum import _storyline_anchors
+
+    _write_clusters(tmp_path, [_cluster("thc:a", [{"topic_id": "topic:old"}], member_count=6)])
+    assert load_storylines_payload(tmp_path) is not None
+    assert _storyline_anchors(tmp_path) == {"thc:a": "topic:old"}
+
+    # Re-enrich: same path, new content, no stamp written anywhere.
+    time.sleep(0.01)  # mtime granularity
+    _write_clusters(tmp_path, [_cluster("thc:a", [{"topic_id": "topic:new"}], member_count=6)])
+
+    payload = load_storylines_payload(tmp_path) or {}
+    anchors = _storyline_anchors(tmp_path)
+    picker_topic = (payload.get("clusters") or [{}])[0].get("members", [{}])[0].get("topic_id")
+
+    assert picker_topic == "topic:new", "the picker must see the re-enrichment"
+    assert anchors == {"thc:a": "topic:new"}, (
+        "momentum served a stale anchor after a re-enrichment that touched no corpus stamp — the "
+        "two readers are back on different clocks"
+    )

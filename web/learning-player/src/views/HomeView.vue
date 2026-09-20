@@ -331,6 +331,10 @@ onMounted(async () => {
 // (App.vue), unlike onMounted which runs once. So returning to Home refreshes the resume hero without
 // factory-refreshing the whole page (#1 — the rest stays cached).
 onActivated(async () => {
+  // The Ask box is kept-alive too, so it held whatever you last typed. Returning to Home and
+  // finding a stale query in it reads as the app remembering something you did not ask it to —
+  // the same clear Discovery's box does.
+  query.value = ""
   if (!(auth.isAuthenticated || !auth.loaded)) {
     continueSection.phase.value = "ready" // signed out: nothing to resume is the truth, not a gap
     return
