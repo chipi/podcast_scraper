@@ -295,15 +295,15 @@ def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
 
 
 def _enrich_topic(
-    topic: AppTopic, cluster_map: ClusterMap, theme_map: ClusterMap | None = None
+    topic: AppTopic, cluster_map: ClusterMap, storyline_map: ClusterMap | None = None
 ) -> AppTopic:
     """Attach semantic + theme cluster identity to a topic (no-op when unclustered)."""
     update: dict[str, object] = {}
     info = cluster_map.get(topic.id)
     if info:
         update.update(info)
-    if theme_map:
-        tinfo = theme_map.get(topic.id)
+    if storyline_map:
+        tinfo = storyline_map.get(topic.id)
         if tinfo:
             update.update(tinfo)
     return topic.model_copy(update=update) if update else topic
@@ -367,7 +367,7 @@ def build_person_card(
 ) -> AppPersonCard | None:
     """Project the person's corpus footprint to a card, or ``None`` if they appear nowhere."""
     cluster_map: ClusterMap = theme_map_by_topic(root)
-    theme_map: ClusterMap = storyline_map_by_topic(root)
+    storyline_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     roles: list[str | None] = []
@@ -401,7 +401,7 @@ def build_person_card(
         [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
     )
     related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map, theme_map)
+        _enrich_topic(topics_by_id[i], cluster_map, storyline_map)
         for i, _ in topic_counts.most_common(top_k)
     ]
     return AppPersonCard(
@@ -426,7 +426,7 @@ def build_topic_card(
 ) -> AppTopicCard | None:
     """Project the topic's corpus footprint + cluster siblings to a card, or ``None`` if absent."""
     cluster_map: ClusterMap = theme_map_by_topic(root)
-    theme_map: ClusterMap = storyline_map_by_topic(root)
+    storyline_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     about: list[CatalogEpisodeRow] = []
@@ -452,18 +452,18 @@ def build_topic_card(
     )
     info = cluster_map.get(topic_id) or {}
     cid, clabel, csize = info.get("cluster_id"), info.get("cluster_label"), info.get("cluster_size")
-    tinfo = theme_map.get(topic_id) or {}
+    tinfo = storyline_map.get(topic_id) or {}
     tcid, tclabel, tcsize = (
         tinfo.get("storyline_id"),
         tinfo.get("storyline_label"),
         tinfo.get("storyline_size"),
     )
     siblings = [
-        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
+        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, storyline_map)
         for s in theme_siblings_by_topic(root, topic_id)[:top_k]
     ]
-    theme_siblings = [
-        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
+    storyline_siblings = [
+        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, storyline_map)
         for s in storyline_siblings_by_topic(root, topic_id)[:top_k]
     ]
     return AppTopicCard(
@@ -476,7 +476,7 @@ def build_topic_card(
         storyline_id=tcid if isinstance(tcid, str) else None,
         storyline_label=tclabel if isinstance(tclabel, str) else None,
         storyline_size=tcsize if isinstance(tcsize, int) else 0,
-        theme_sibling_topics=theme_siblings,
+        storyline_sibling_topics=storyline_siblings,
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
         related_people=related_people,
@@ -546,7 +546,7 @@ def build_org_card(
     the person card has no analog for. No web enrichment — orgs have no bio/photo (#2031).
     """
     cluster_map: ClusterMap = theme_map_by_topic(root)
-    theme_map: ClusterMap = storyline_map_by_topic(root)
+    storyline_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     appears_in: list[CatalogEpisodeRow] = []
@@ -584,7 +584,7 @@ def build_org_card(
     )
     related_orgs = [orgs_by_id[i] for i, _ in org_counts.most_common(top_k)]
     related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map, theme_map)
+        _enrich_topic(topics_by_id[i], cluster_map, storyline_map)
         for i, _ in topic_counts.most_common(top_k)
     ]
     return AppOrgCard(

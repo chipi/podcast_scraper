@@ -407,7 +407,7 @@ def _storyline(root: Path, ident: str, with_art: bool = True) -> OgCardModel | N
     card = build_topic_card(root, ident)
     if card is None:
         return None
-    members = [card.label] + [t.label for t in (card.theme_sibling_topics or []) if t.label]
+    members = [card.label] + [t.label for t in (card.storyline_sibling_topics or []) if t.label]
     n_topics = len(members)
     n_eps = len(card.episodes or [])
     stats = f"{n_topics} {'topic' if n_topics == 1 else 'topics'}"

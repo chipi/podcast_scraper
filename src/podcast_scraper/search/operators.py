@@ -84,7 +84,7 @@ def _topic_label_from_hit(hit_meta: dict[str, Any]) -> str | None:
 
 def _hit_cluster_key(
     hit_meta: dict[str, Any],
-    theme_map: dict[str, dict[str, Any]],
+    storyline_map: dict[str, dict[str, Any]],
 ) -> tuple[str, str, str] | None:
     """Return ``(kind, id, label)`` for the hit's best cluster surface, or None.
 
@@ -103,8 +103,8 @@ def _hit_cluster_key(
             return ("topic_cluster", cid.strip(), str(clabel or cid).strip())
 
     topic_id = _topic_id_from_hit(hit_meta)
-    if topic_id and theme_map:
-        theme = theme_map.get(topic_id)
+    if topic_id and storyline_map:
+        theme = storyline_map.get(topic_id)
         if theme:
             thc = theme.get("storyline_id")
             tlabel = theme.get("storyline_label") or thc
@@ -128,7 +128,7 @@ def cluster_hits(
     non-empty. Hit indices point back into the caller's ``hits`` list in
     original order so the client can render groups without re-sorting.
     """
-    theme_map = storyline_map_by_topic(corpus_root)
+    storyline_map = storyline_map_by_topic(corpus_root)
     # (kind, cluster_id) -> {label, indices}
     groups: dict[tuple[str, str], dict[str, Any]] = {}
     ungrouped: list[int] = []
@@ -137,7 +137,7 @@ def cluster_hits(
         if not isinstance(meta, dict):
             ungrouped.append(idx)
             continue
-        key = _hit_cluster_key(meta, theme_map)
+        key = _hit_cluster_key(meta, storyline_map)
         if key is None:
             ungrouped.append(idx)
             continue

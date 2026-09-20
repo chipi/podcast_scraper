@@ -441,12 +441,12 @@ def episode_entities(
     # (enrichments/topic_theme_clusters.json, co-occurrence "Theme"). Each is a no-op when its
     # artifact is absent → flat list / no theme markers, today's behaviour.
     cluster_map = theme_map_by_topic(root)
-    theme_map = storyline_map_by_topic(root)
-    if cluster_map or theme_map:
+    storyline_map = storyline_map_by_topic(root)
+    if cluster_map or storyline_map:
         topics = [
             (
-                t.model_copy(update={**cluster_map.get(t.id, {}), **theme_map.get(t.id, {})})
-                if (t.id in cluster_map or t.id in theme_map)
+                t.model_copy(update={**cluster_map.get(t.id, {}), **storyline_map.get(t.id, {})})
+                if (t.id in cluster_map or t.id in storyline_map)
                 else t
             )
             for t in topics

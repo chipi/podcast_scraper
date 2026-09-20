@@ -55,7 +55,7 @@ describe('StorylineView', () => {
       storyline_id: 'thc:energy',
       storyline_label: 'Energy transition',
       storyline_size: 2,
-      theme_sibling_topics: [
+      storyline_sibling_topics: [
         { id: 'topic:grid', label: 'Grid', cluster_id: null, cluster_label: null, cluster_size: 0 },
       ],
       episode_count: 1,
@@ -120,7 +120,7 @@ describe('StorylineView', () => {
       storyline_id: themeClusterId,
       storyline_label: 'Energy transition',
       storyline_size: 2,
-      theme_sibling_topics: [],
+      storyline_sibling_topics: [],
       episode_count: 0,
       episodes: [],
       related_people: [],

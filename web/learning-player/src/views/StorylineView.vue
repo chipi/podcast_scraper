@@ -5,7 +5,7 @@
  * actions on one row, the member topics, top episodes and the people involved, and notes.
  *
  * There is no dedicated storyline endpoint — the anchor topic's card IS the storyline (its
- * `theme_cluster_*` + `theme_sibling_topics` + `related_people` + `episodes`), so the route param is
+ * `theme_cluster_*` + `storyline_sibling_topics` + `related_people` + `episodes`), so the route param is
  * the anchor topic id and everything derives from `getTopicCard`.
  */
 import { computed, ref, watch, defineAsyncComponent } from "vue"
@@ -86,7 +86,7 @@ async function load(anchorTopicId: string): Promise<void> {
     // Anchor + its theme siblings = the storyline's topics; de-dupe (the API may include the anchor).
     const members: Member[] = [
       { id: card.id, label: card.label },
-      ...(card.theme_sibling_topics ?? []).map((tp) => ({ id: tp.id, label: tp.label })),
+      ...(card.storyline_sibling_topics ?? []).map((tp) => ({ id: tp.id, label: tp.label })),
     ]
     const seen = new Set<string>()
     topics.value = members.filter((tp) => tp.id && !seen.has(tp.id) && seen.add(tp.id))

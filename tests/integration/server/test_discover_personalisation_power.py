@@ -103,10 +103,10 @@ def feed(rows, tokens, limit=10):
 def coverage(rows) -> dict[str, int]:
     """token -> how many episodes carry it."""
     cluster_map = theme_map_by_topic(CORPUS)
-    theme_map = storyline_map_by_topic(CORPUS)
+    storyline_map = storyline_map_by_topic(CORPUS)
     counts: dict[str, int] = {}
     for row in rows:
-        clusters, topics, persons = _episode_features(CORPUS, row, cluster_map, theme_map)
+        clusters, topics, persons = _episode_features(CORPUS, row, cluster_map, storyline_map)
         for token in (*clusters, *topics, *persons):
             counts[token] = counts.get(token, 0) + 1
     return counts

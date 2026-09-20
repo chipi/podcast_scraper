@@ -806,7 +806,7 @@ export interface TopicCard {
   storyline_id?: string | null
   storyline_label?: string | null
   storyline_size?: number
-  theme_sibling_topics?: Topic[]
+  storyline_sibling_topics?: Topic[]
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]
