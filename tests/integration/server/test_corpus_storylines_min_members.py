@@ -70,7 +70,7 @@ def _labels(body: dict) -> set[str]:
 
 def test_default_surfaces_only_navigable_themes(app: FastAPI, corpus: Path) -> None:
     """The regression: 2- and 3-member themes must not reach the navigation surface."""
-    body = TestClient(app).get("/api/corpus/theme-clusters", params={"path": str(corpus)}).json()
+    body = TestClient(app).get("/api/corpus/storylines", params={"path": str(corpus)}).json()
     assert _labels(body) == {"big", "mid"}
     assert body["withheld_below_min_members"] == 3
     assert body["min_members"] == 4
@@ -80,7 +80,7 @@ def test_zero_returns_the_unfiltered_artifact(app: FastAPI, corpus: Path) -> Non
     """Diagnostics need the full set — #1929 is about telling 'no themes' from 'not computed'."""
     body = (
         TestClient(app)
-        .get("/api/corpus/theme-clusters", params={"path": str(corpus), "min_members": 0})
+        .get("/api/corpus/storylines", params={"path": str(corpus), "min_members": 0})
         .json()
     )
     assert len(body["clusters"]) == 5
@@ -90,11 +90,11 @@ def test_zero_returns_the_unfiltered_artifact(app: FastAPI, corpus: Path) -> Non
 def test_threshold_is_tunable_without_recomputing(app: FastAPI, corpus: Path) -> None:
     client = TestClient(app)
     at3 = client.get(
-        "/api/corpus/theme-clusters", params={"path": str(corpus), "min_members": 3}
+        "/api/corpus/storylines", params={"path": str(corpus), "min_members": 3}
     ).json()
     assert _labels(at3) == {"big", "mid", "triple"}
     at9 = client.get(
-        "/api/corpus/theme-clusters", params={"path": str(corpus), "min_members": 9}
+        "/api/corpus/storylines", params={"path": str(corpus), "min_members": 9}
     ).json()
     assert _labels(at9) == {"big"}
 
@@ -106,19 +106,19 @@ def test_filtering_does_not_poison_the_cache(app: FastAPI, corpus: Path) -> None
     every later caller — including ``min_members=0`` — would see the filtered list.
     """
     client = TestClient(app)
-    client.get("/api/corpus/theme-clusters", params={"path": str(corpus)})  # prime + filter
+    client.get("/api/corpus/storylines", params={"path": str(corpus)})  # prime + filter
     full = client.get(
-        "/api/corpus/theme-clusters", params={"path": str(corpus), "min_members": 0}
+        "/api/corpus/storylines", params={"path": str(corpus), "min_members": 0}
     ).json()
     assert len(full["clusters"]) == 5, "the cached artifact was mutated by an earlier filter"
-    again = client.get("/api/corpus/theme-clusters", params={"path": str(corpus)}).json()
+    again = client.get("/api/corpus/storylines", params={"path": str(corpus)}).json()
     assert _labels(again) == {"big", "mid"}
 
 
 def test_no_filtering_metadata_when_nothing_is_withheld(app: FastAPI, corpus: Path) -> None:
     body = (
         TestClient(app)
-        .get("/api/corpus/theme-clusters", params={"path": str(corpus), "min_members": 2})
+        .get("/api/corpus/storylines", params={"path": str(corpus), "min_members": 2})
         .json()
     )
     assert len(body["clusters"]) == 5

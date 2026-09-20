@@ -35,7 +35,7 @@ Today the app is **not** login-first. `HomeView` renders for anonymous visitors 
 `/discover` + `/corpus/trending-topics` on mount; the router only gates `/queue`, `/library`,
 `/profile`; and **dozens** of `/api/app/*` read endpoints serve content to anonymous users by
 design (`get_optional_user`): `/episodes`, `/episodes/:slug*`, `/search`, `/discover`, `/trending`,
-`/topics/:id`, `/persons/:id`, `/podcasts`, `/theme-clusters`, `/clusters`, etc. The only thing
+`/topics/:id`, `/persons/:id`, `/podcasts`, `/storylines`, `/themes`, etc. The only thing
 hiding this pre-launch is the Caddy coming-soon curtain (`#1262`) — a **shared** secret
 (`cl_preview` cookie / `marko`+`guest` basic-auth).
 
@@ -115,7 +115,7 @@ Enforce login-first at **both** the frontend (router/UI) **and** the backend now
 review (B2):** most content endpoints today have **no auth dependency at all** (not merely
 `get_optional_user`) — e.g. every GET in `app_episodes.py` (`/episodes`, `/podcasts`,
 `/podcasts/{id}/episodes|signals`, `/episodes/{slug}` + `/related|/insights|/stats|/entities|/segments|/audio-source|/search`),
-`/clusters`, `/theme-clusters` (`app_discover.py`), `/entities/search`, `/topics/{id}/perspectives`
+`/themes`, `/storylines` (`app_discover.py`), `/entities/search`, `/topics/{id}/perspectives`
 (`app_relational.py`). So the sweep is **"add an auth dependency to ~30 endpoints that never had
 one,"** not "swap `get_optional_user` → `get_current_user`" (which is only ~12 call sites).
 

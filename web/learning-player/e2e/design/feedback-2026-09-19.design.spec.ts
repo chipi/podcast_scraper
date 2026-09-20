@@ -110,7 +110,7 @@ async function seedFollowsAndSaves(page: Page): Promise<void> {
     const topics = (await j('/api/app/trending?kind=topic&limit=2')).items ?? []
     const people = (await j('/api/app/trending?kind=person&limit=1')).items ?? []
     const stories = (await j('/api/app/trending?kind=storyline&limit=1')).items ?? []
-    const clusters = (await j('/api/app/clusters?limit=1')).items ?? []
+    const clusters = (await j('/api/app/themes?limit=1')).items ?? []
 
     // Two boards and a few notes — without them the Boards headings render no count at all
     // (correctly: the count is gated on there being something to count), so the shot of "does the

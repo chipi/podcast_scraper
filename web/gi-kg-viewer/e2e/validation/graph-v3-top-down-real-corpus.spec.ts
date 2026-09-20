@@ -53,7 +53,7 @@ test.describe('Tier-3 graph-v3 tier 8 — top-down mount + expand-on-tap (real c
     // committed and enriched deterministically, so a miss means the
     // corpus wasn't re-enriched before the walk.
     const themeRes = await request.get(
-      `/api/corpus/theme-clusters?path=${encodeURIComponent(CORPUS_PATH)}`,
+      `/api/corpus/storylines?path=${encodeURIComponent(CORPUS_PATH)}`,
     )
     expect(
       themeRes.status(),

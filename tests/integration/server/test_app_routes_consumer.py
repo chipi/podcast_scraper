@@ -203,7 +203,7 @@ def test_entity_search_route(tmp_path: Path) -> None:
 def test_clusters_route(tmp_path: Path) -> None:
     _corpus(tmp_path)
     _write_clusters(tmp_path)
-    body = _client(tmp_path).get("/api/app/clusters").json()
+    body = _client(tmp_path).get("/api/app/themes").json()
     assert [c["id"] for c in body["items"]] == ["tc:ai"]
     assert body["items"][0]["size"] == 2
 

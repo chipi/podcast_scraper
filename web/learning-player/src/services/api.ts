@@ -519,12 +519,12 @@ export function recordDiscoverClick(slug: string, position: number): void {
 
 /** Top interest clusters for the picker, by corpus prevalence. */
 export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
-  return (await getJSON<{ items: InterestCluster[] }>("/clusters", { limit })).items
+  return (await getJSON<{ items: InterestCluster[] }>("/themes", { limit })).items
 }
 
 /** Top storylines (theme clusters — topics discussed together) for the Home rail + picker. */
 export async function getStorylines(limit = 12): Promise<Storyline[]> {
-  return (await getJSON<{ items: Storyline[] }>("/theme-clusters", { limit })).items
+  return (await getJSON<{ items: Storyline[] }>("/storylines", { limit })).items
 }
 
 /** Trending entities of a kind (RFC-103 momentum), corpus-wide or the signed-in user's ('mine'). */

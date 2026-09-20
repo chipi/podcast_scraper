@@ -1,10 +1,11 @@
-"""GET /api/corpus/theme-clusters — ``topic_theme_clusters.json`` overlay.
+"""GET /api/corpus/storylines — ``topic_theme_clusters.json`` overlay.
 
-Theme clusters group topics *discussed together* (co-occurrence lift), as
-opposed to ``/api/corpus/topic-clusters`` which serves the *semantic*
-(embedding-similarity) clusters. The two are complementary and themed apart in
-the consumer. Produced by the ``topic_theme_clusters`` enricher under
-``enrichments/`` (not ``search/`` — different producer).
+Storylines group topics *discussed together* (co-occurrence lift), as opposed to
+``/api/corpus/topic-clusters``, which serves the *semantic*
+(embedding-similarity) clusters the consumer calls **themes**. The two are
+complementary and surfaced apart. Produced by the ``topic_theme_clusters``
+enricher under ``enrichments/`` (not ``search/`` — different producer); the
+artifact filename keeps its old name, which is why it still reads "theme".
 """
 
 from __future__ import annotations
@@ -70,7 +71,7 @@ def _filter_by_min_members(payload: dict, min_members: int) -> dict:
     return out
 
 
-@router.get("/corpus/theme-clusters")
+@router.get("/corpus/storylines")
 async def corpus_storylines(
     request: Request,
     path: str | None = Query(

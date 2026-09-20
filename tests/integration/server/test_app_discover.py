@@ -1,6 +1,6 @@
 """Integration tests for personalized discovery (#1098).
 
-GET /api/app/clusters (interests picker) and GET /api/app/discover (flag-gated ranking):
+GET /api/app/themes (interests picker) and GET /api/app/discover (flag-gated ranking):
 - flag OFF (default) → recency, identical to the catalog;
 - flag ON + signed-in user with interests → significance × interest-affinity re-ranking.
 """
@@ -158,7 +158,7 @@ def _client(root: Path, *, personalized: bool, derived: bool = False) -> TestCli
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     app.state.personalized_ranking = personalized
     app.state.derived_interests = derived
-    # RFC-120: auth-gated routes (/clusters, /theme-clusters, /trending, /discover/click) now
+    # RFC-120: auth-gated routes (/themes, /storylines, /trending, /discover/click) now
     # require a signed-in user. Pre-sign a default user; tests that need different state call
     # _sign_in() or _sign_in_heard() after _client() to overwrite the cookie.
     user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
@@ -193,9 +193,7 @@ def _sign_in(client: TestClient, root: Path, interests: list[str]) -> None:
 
 def test_clusters_endpoint_returns_top_by_prevalence(tmp_path: Path) -> None:
     _corpus(tmp_path)
-    body = (
-        _client(tmp_path, personalized=False).get("/api/app/clusters", params={"limit": 5}).json()
-    )
+    body = _client(tmp_path, personalized=False).get("/api/app/themes", params={"limit": 5}).json()
     ids = [c["id"] for c in body["items"]]
     assert ids == ["tc:ai", "tc:health"]  # ranked by member_count desc
     assert body["items"][0] == {"id": "tc:ai", "label": "AI", "size": 3}
@@ -204,7 +202,7 @@ def test_clusters_endpoint_returns_top_by_prevalence(tmp_path: Path) -> None:
 def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
     _corpus(tmp_path)
     _write_storylines(tmp_path)
-    body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    body = _client(tmp_path, personalized=False).get("/api/app/storylines").json()
     # thc:tiny (2 members) is withheld: Storylines is a navigation destination, and the same
     # ``DEFAULT_MIN_STORYLINE_MEMBERS`` floor the operator overlay applies has to apply here too —
     # it was added to the operator route alone at first, leaving the consumer rail (the surface
@@ -216,7 +214,7 @@ def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
 
 def test_theme_clusters_endpoint_empty_without_artifact(tmp_path: Path) -> None:
     _corpus(tmp_path)  # no enrichments/topic_theme_clusters.json → empty items, not 404
-    body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    body = _client(tmp_path, personalized=False).get("/api/app/storylines").json()
     assert body["items"] == []
 
 
@@ -225,7 +223,7 @@ class TestTrendingStorylinesCarryTheirClickTarget:
 
     A storyline has no endpoint of its own — it is read as its most-central member topic's card —
     so a row without `anchor_topic_id` cannot be opened at all. The client used to derive it by
-    joining these rows against `/theme-clusters` on `thc:` id, which fails by construction: that
+    joining these rows against `/storylines` on `thc:` id, which fails by construction: that
     endpoint applies the >=4-member navigation floor and a top-N by SIZE, while trending ranks
     every cluster with a series by MOMENTUM and floors nothing. The client's `?? entity_id`
     fallback then handed a `thc:` id to a TOPIC lookup, which resolves nothing, so the row was dead

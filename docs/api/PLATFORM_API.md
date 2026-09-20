@@ -158,7 +158,7 @@ discovery (`rank_discover`, which scores cluster + topic + person overlap; see P
 | GET, PUT | `/api/app/interests` | The user's interest token list `{items: [token, …]}` (`InterestsResponse`); `PUT` replaces it `{items}` (`InterestsUpdate`). Tokens are a mixed set (`tc:` / `topic:` / `person:`). |
 | POST | `/api/app/interests/{token}` | Follow one token (cluster `tc:` / topic `topic:` / person `person:`), idempotent; returns `{items[]}`. |
 | DELETE | `/api/app/interests/{token}` | Unfollow one token (no-op if absent); returns `{items[]}`. |
-| GET | `/api/app/clusters?limit=` | **Top interest clusters** for the picker, by corpus prevalence: `{items[{id, label, size}]}` (`AppInterestClustersResponse`). `1≤limit≤50` (default 12). |
+| GET | `/api/app/themes?limit=` | **Top themes** (`tc:` — semantically alike topics) for the picker, by corpus prevalence: `{items[{id, label, size}]}` (`AppInterestClustersResponse`). `1≤limit≤50` (default 12). |
 
 ### Listening analytics
 
@@ -418,7 +418,7 @@ class names resolve against `server/schemas.py`.
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/app/discover` | `AppEpisodesResponse` | optional session | `limit` | Home discovery feed. When signed in AND `APP_PERSONALIZED_RANKING=true`, interest-ranked via the user's followed clusters; otherwise recency. |
 | POST | `/api/app/discover/click` | 204 | optional session | JSON body: `slug`, `position` | Fire-and-forget click telemetry for ranking feedback. Silent no-op signed out or on network error. |
-| GET | `/api/app/theme-clusters` | `AppStorylinesResponse` | open | `limit` | Home "Storylines" — theme clusters (topics discussed together). |
+| GET | `/api/app/storylines` | `AppStorylinesResponse` | open | `limit` | Home "Storylines" — topics discussed together. |
 | GET | `/api/app/trending` | `AppTrendingResponse` | optional session | `kind`, `scope`, `limit` | RFC-103 momentum — trending entities of a given `kind`, corpus-wide or `scope=mine`. |
 | GET | `/api/app/ranking-config` | ranking-config JSON | open | — | Discovery-ranking weights + toggles (admin surface; write-gated). |
 | PUT | `/api/app/ranking-config` | ranking-config JSON | open | JSON body | Persist ranking-config changes. |

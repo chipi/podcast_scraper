@@ -190,7 +190,7 @@ describe('GraphThemeLegend — withheld themes (#1932)', () => {
   })
 
   /**
-   * ``GET /api/corpus/theme-clusters`` withholds themes below ``min_members`` from this surface:
+   * ``GET /api/corpus/storylines`` withholds storylines below ``min_members`` from this surface:
    * a 2-member theme is a single co-occurrence pair, not a place to send someone. On the real
    * corpus that is 36 of 54 themes.
    *

@@ -110,7 +110,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
     const ep = list.items?.find((e) => e.status === 'ready' && e.has_bridge)
     const warmups = [
       `${baseURL}/api/app/podcasts`,
-      `${baseURL}/api/app/theme-clusters?limit=3`,
+      `${baseURL}/api/app/storylines?limit=3`,
       ...(ep ? [`${baseURL}/api/app/episodes/${ep.slug}`] : []),
     ]
     await Promise.allSettled(
