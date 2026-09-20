@@ -144,8 +144,19 @@ class TestLibraryAPIReturnValues:
 
             # Verify actual files match count
             # When transcribe_missing=True, files are saved in run_whisper_base subdirectory
-            transcript_files = list(Path(tmpdir).rglob("*.txt"))
-            assert len(transcript_files) == count, "Count should match number of files created"
+            # Count EPISODE transcripts, not every `.txt`. A feed that ships a
+            # speaker-labelled WebVTT transcript also gets an ad-free processing base
+            # written beside it (`<base>.adfree.txt`), so a bare rglob counts two files
+            # for one episode and this assertion would measure sidecar behaviour
+            # instead of what it is named for.
+            _DERIVED = (".adfree.", ".cleaned.")
+            transcript_files = [
+                p for p in Path(tmpdir).rglob("*.txt") if not any(d in p.name for d in _DERIVED)
+            ]
+            assert len(transcript_files) == count, (
+                "Count should match number of files created, got: "
+                f"{[p.name for p in transcript_files]}"
+            )
 
     def test_run_pipeline_return_summary(self, e2e_server):
         """Test that run_pipeline() returns meaningful summary."""

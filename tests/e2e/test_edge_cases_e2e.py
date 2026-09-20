@@ -51,7 +51,13 @@ class TestSpecialCharactersInTitles:
 
             # Verify output file was created with sanitized filename
             # (now in transcripts/ subdirectory)
-            output_files = list(Path(tmpdir).rglob("*.txt"))
+            # Count EPISODE transcripts, not every `.txt`: a speaker-labelled WebVTT
+            # feed also writes `<base>.adfree.txt` beside each transcript.
+            output_files = [
+                p
+                for p in Path(tmpdir).rglob("*.txt")
+                if not any(d in p.name for d in (".adfree.", ".cleaned."))
+            ]
             assert len(output_files) == 1, "Should create one transcript file"
             # Filename should be sanitized (no special chars)
             assert "Special Chars" in output_files[0].name or "Episode 1" in output_files[0].name
@@ -89,7 +95,13 @@ class TestUnicodeCharacters:
             assert isinstance(summary, str), "Summary should be a string"
 
             # Verify output files were created (now in transcripts/ subdirectory)
-            output_files = list(Path(tmpdir).rglob("*.txt"))
+            # Count EPISODE transcripts, not every `.txt`: a speaker-labelled WebVTT
+            # feed also writes `<base>.adfree.txt` beside each transcript.
+            output_files = [
+                p
+                for p in Path(tmpdir).rglob("*.txt")
+                if not any(d in p.name for d in (".adfree.", ".cleaned."))
+            ]
             assert (
                 len(output_files) == expected_episodes
             ), f"Should create {expected_episodes} transcript file(s), got {len(output_files)}"
@@ -358,7 +370,13 @@ class TestAllEdgeCasesTogether:
             assert result.error is None, "Should not have errors"
 
             # Verify output files were created (now in transcripts/ subdirectory)
-            output_files = list(Path(tmpdir).rglob("*.txt"))
+            # Count EPISODE transcripts, not every `.txt`: a speaker-labelled WebVTT
+            # feed also writes `<base>.adfree.txt` beside each transcript.
+            output_files = [
+                p
+                for p in Path(tmpdir).rglob("*.txt")
+                if not any(d in p.name for d in (".adfree.", ".cleaned."))
+            ]
             assert (
                 len(output_files) == expected_episodes
             ), f"Should create {expected_episodes} transcript file(s), got {len(output_files)}"

@@ -457,7 +457,7 @@ def _save_gemini_responses(  # noqa: C901
             candidate_files = [
                 f
                 for f in all_transcript_files
-                if "cleaned" not in f.name and "metadata" not in f.name
+                if not any(d in f.name for d in (".cleaned.", ".adfree.", "metadata"))
             ]
 
             # Try to match by episode index (format: "0001 - Title.txt")
@@ -485,7 +485,7 @@ def _save_gemini_responses(  # noqa: C901
             candidate_files = [
                 f
                 for f in all_transcript_files
-                if "cleaned" not in f.name and "metadata" not in f.name
+                if not any(d in f.name for d in (".cleaned.", ".adfree.", "metadata"))
             ]
             if candidate_files:
                 transcript_file = candidate_files[0]
@@ -1115,7 +1115,15 @@ class TestGeminiProviderE2E:
             if cleaned_files:
                 transcript_files = list(Path(temp_dir).rglob("*.txt"))
                 # Filter out cleaned files from transcript files
-                original_transcripts = [f for f in transcript_files if "cleaned" not in f.name]
+                # `.adfree.txt` is a DERIVED processing base, not the episode transcript. A
+                # feed that ships a speaker-labelled WebVTT now produces one beside every
+                # transcript, and picking it here would compare the cleaned text against the
+                # wrong file entirely.
+                original_transcripts = [
+                    f
+                    for f in transcript_files
+                    if not any(d in f.name for d in (".cleaned.", ".adfree."))
+                ]
                 if original_transcripts and cleaned_files:
                     # Verify cleaned files are different (shorter or different content)
                     original_text = original_transcripts[0].read_text(encoding="utf-8")

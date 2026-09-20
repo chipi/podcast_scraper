@@ -307,8 +307,18 @@ class TestFullPipelineWithLargeFiles:
 
             # Verify transcript file was created (downloaded/transcribed using streaming)
             # When transcribe_missing=True, files are saved in run_whisper_base subdirectory
-            output_files = list(Path(tmpdir).rglob("*.txt"))
-            assert len(output_files) == 1, "Should create one transcript file"
+            # Count EPISODE transcripts, not every `.txt`. A feed that ships a
+            # speaker-labelled WebVTT transcript also gets an ad-free processing base
+            # written beside it (`<base>.adfree.txt`), so a bare rglob counts two files
+            # for one episode and this assertion would measure sidecar behaviour
+            # instead of what it is named for.
+            _DERIVED = (".adfree.", ".cleaned.")
+            output_files = [
+                p for p in Path(tmpdir).rglob("*.txt") if not any(d in p.name for d in _DERIVED)
+            ]
+            assert len(output_files) == 1, (
+                "Should create one transcript file, got: " f"{[p.name for p in output_files]}"
+            )
             assert output_files[0].stat().st_size > 0, "Transcript file should not be empty"
 
     def test_full_pipeline_streaming_behavior(self, e2e_server):

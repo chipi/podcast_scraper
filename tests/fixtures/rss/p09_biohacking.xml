@@ -18,7 +18,7 @@
       <pubDate>Mon, 20 Oct 2025 07:00:00 +0000</pubDate>
       <description>A grounded overview of biohacking in 2025: why it moved from fringe experimentation toward measurement, fundamentals, and systems thinking—and where it still goes wrong.</description>
       <enclosure url="/audio/p09_e01.mp3" length="0" type="audio/mpeg"/>
-      <ns1:transcript url="/transcripts/p09_e01.txt" type="text/plain" />
+      <ns1:transcript url="/transcripts/p09_e01.vtt" type="text/vtt" />
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:32:00</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -30,7 +30,7 @@
       <pubDate>Mon, 27 Oct 2025 07:00:00 +0000</pubDate>
       <description>A practical framework for 2025: how sleep and metabolism interact, what wearables and glucose data can (and cannot) tell you, and how to integrate measurement without obsession.</description>
       <enclosure url="/audio/p09_e02.mp3" length="0" type="audio/mpeg"/>
-      <ns1:transcript url="/transcripts/p09_e02.txt" type="text/plain" />
+      <ns1:transcript url="/transcripts/p09_e02.vtt" type="text/vtt" />
       <itunes:episode>2</itunes:episode>
       <itunes:duration>00:34:00</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -42,7 +42,7 @@
       <pubDate>Mon, 03 Nov 2025 07:00:00 +0000</pubDate>
       <description>A sober look at what biohacking cannot solve: biological constraints, ethical trade-offs, inequality risks, and how the next decade may normalize—rather than sensationalize—human optimization.</description>
       <enclosure url="/audio/p09_e03.mp3" length="0" type="audio/mpeg"/>
-      <ns1:transcript url="/transcripts/p09_e03.txt" type="text/plain" />
+      <ns1:transcript url="/transcripts/p09_e03.vtt" type="text/vtt" />
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:31:00</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

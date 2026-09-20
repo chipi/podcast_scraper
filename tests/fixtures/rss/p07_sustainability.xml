@@ -18,7 +18,7 @@
       <pubDate>Mon, 06 Oct 2025 07:00:00 +0000</pubDate>
       <description>A deep, long-form exploration of sustainability as a systems concept: origins, meanings, trade-offs, and why it dominates modern discourse.</description>
       <enclosure url="/audio/p07_e01.mp3" length="0" type="audio/mpeg"/>
-      <ns1:transcript url="/transcripts/p07_e01.txt" type="text/plain" />
+      <ns1:transcript url="/transcripts/p07_e01.vtt" type="text/vtt" />
       <itunes:episode>1</itunes:episode>
       <itunes:duration>01:30:00</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

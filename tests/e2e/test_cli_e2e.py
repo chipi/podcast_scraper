@@ -136,8 +136,19 @@ class TestCLIConfigFile:
 
             # Verify only 1 episode was processed (CLI override)
             # When transcribe_missing=True, files are saved in run_whisper_base subdirectory
-            transcript_files = list(Path(tmpdir).rglob("*.txt"))
-            assert len(transcript_files) == 1, "CLI should override config max_episodes"
+            # Count EPISODE transcripts, not every `.txt`. A feed that ships a
+            # speaker-labelled WebVTT transcript also gets an ad-free processing base
+            # written beside it (`<base>.adfree.txt`), so a bare rglob counts two files
+            # for one episode and this assertion would measure sidecar behaviour
+            # instead of what it is named for.
+            _DERIVED = (".adfree.", ".cleaned.")
+            transcript_files = [
+                p for p in Path(tmpdir).rglob("*.txt") if not any(d in p.name for d in _DERIVED)
+            ]
+            assert len(transcript_files) == 1, (
+                "CLI should override config max_episodes, got: "
+                f"{[p.name for p in transcript_files]}"
+            )
 
 
 @pytest.mark.e2e
