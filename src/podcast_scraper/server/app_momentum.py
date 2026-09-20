@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper import perf_cache
-from podcast_scraper.search.theme_clusters import cluster_anchor
+from podcast_scraper.search.storylines import storyline_anchor
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
@@ -28,7 +28,7 @@ from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
 _CONTENT_REL = "enrichments/temporal_velocity.json"
 _TOPIC_CLUSTERS_REL = "search/topic_clusters.json"
-_THEME_CLUSTERS_REL = "enrichments/topic_theme_clusters.json"
+_STORYLINES_REL = "enrichments/topic_theme_clusters.json"
 
 _PERSON_ROLES_NS = "app_momentum.person_roles"
 # Strongest speaker role wins as a person's headline (host outranks guest outranks mentioned).
@@ -322,7 +322,7 @@ def _content_weekly_by_entity(root: Path) -> dict[tuple[str, str], dict[str, int
         if oid:
             out[("organization", oid)] = dict(row.get("weekly_counts") or {})
     _add_cluster_series(out, by_topic, root, _TOPIC_CLUSTERS_REL, "cluster")
-    _add_cluster_series(out, by_topic, root, _THEME_CLUSTERS_REL, "storyline")
+    _add_cluster_series(out, by_topic, root, _STORYLINES_REL, "storyline")
     out.update(_show_content_series(root))  # shows: publishing cadence (RFC-103 §show)
     return out
 
@@ -409,7 +409,7 @@ def _labels_from_content(root: Path) -> dict[str, str]:
 
 def _labels_from_clusters(root: Path) -> dict[str, str]:
     out: dict[str, str] = {}
-    for rel in (_TOPIC_CLUSTERS_REL, _THEME_CLUSTERS_REL):
+    for rel in (_TOPIC_CLUSTERS_REL, _STORYLINES_REL):
         env = cached_json_artifact(root, rel)
         data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
         for cl in data.get("clusters") or []:
@@ -433,12 +433,12 @@ def _storyline_anchors(root: Path) -> dict[str, str]:
     anchoring only the ones some other surface considers worth showing would leave exactly the rows
     this ranking chose unopenable.
     """
-    env = cached_json_artifact(root, _THEME_CLUSTERS_REL)
+    env = cached_json_artifact(root, _STORYLINES_REL)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     out: dict[str, str] = {}
     for cl in data.get("clusters") or []:
         cid = str(cl.get("graph_compound_parent_id") or "")
-        anchor = cluster_anchor(cl) if cid else None
+        anchor = storyline_anchor(cl) if cid else None
         if cid and anchor:
             out[cid] = anchor
     return out

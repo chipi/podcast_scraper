@@ -17,10 +17,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from podcast_scraper.search.theme_clusters import (
-    consumer_theme_cluster_map,
-    consumer_theme_cluster_siblings,
-    top_theme_clusters_by_member_count,
+from podcast_scraper.search.storylines import (
+    storyline_map_by_topic,
+    storyline_siblings_by_topic,
+    top_storylines_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import (
     consumer_cluster_siblings,
@@ -72,7 +72,7 @@ def _person_web_payload(root: Path) -> dict[str, Any] | None:
     The executor writes every enrichment artifact as an envelope
     (``{derived, status, data:{provider, persons}, …}``), so the payload the card reads lives under
     ``data`` — the same convention every other enrichment reader uses (routes/app_enrichment.py,
-    routes/corpus_theme_clusters.py, cil_queries.py). Reading the top level instead found nothing
+    routes/corpus_storylines.py, cil_queries.py). Reading the top level instead found nothing
     on a real corpus (only the hand-written flat test fixtures matched), so bios/photos never
     surfaced. Tolerates an already-flat dict too. Uncached: the corpus-mtime token keys on
     corpus_run_summary.json, which an enrichment run does not bump, so a cached miss would hide
@@ -279,7 +279,7 @@ def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
     searching for something by name and being told it does not exist.
     """
     out: dict[str, AppEntityRef] = {}
-    for s in top_theme_clusters_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
+    for s in top_storylines_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
         label = str(s.get("label") or "").strip()
         # The ANCHOR TOPIC id, not the `thc:` id. There is no storyline endpoint — the anchor
         # topic's card IS the storyline — so `thc:…` is not openable and a client that routed with
@@ -367,7 +367,7 @@ def build_person_card(
 ) -> AppPersonCard | None:
     """Project the person's corpus footprint to a card, or ``None`` if they appear nowhere."""
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
-    theme_map: ClusterMap = consumer_theme_cluster_map(root)
+    theme_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     roles: list[str | None] = []
@@ -426,7 +426,7 @@ def build_topic_card(
 ) -> AppTopicCard | None:
     """Project the topic's corpus footprint + cluster siblings to a card, or ``None`` if absent."""
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
-    theme_map: ClusterMap = consumer_theme_cluster_map(root)
+    theme_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     about: list[CatalogEpisodeRow] = []
@@ -464,7 +464,7 @@ def build_topic_card(
     ]
     theme_siblings = [
         _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
-        for s in consumer_theme_cluster_siblings(root, topic_id)[:top_k]
+        for s in storyline_siblings_by_topic(root, topic_id)[:top_k]
     ]
     return AppTopicCard(
         id=topic_id,
@@ -546,7 +546,7 @@ def build_org_card(
     the person card has no analog for. No web enrichment — orgs have no bio/photo (#2031).
     """
     cluster_map: ClusterMap = consumer_topic_cluster_map(root)
-    theme_map: ClusterMap = consumer_theme_cluster_map(root)
+    theme_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     appears_in: list[CatalogEpisodeRow] = []

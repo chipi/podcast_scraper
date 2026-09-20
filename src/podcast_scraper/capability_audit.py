@@ -34,7 +34,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 from podcast_scraper.identity.bare_name_scope import scoped_person_id, SCOPED_PREFIX
-from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
+from podcast_scraper.search.storylines import storyline_map_by_topic
 from podcast_scraper.search.topic_clusters import (
     _load_topic_clusters_payload,
     consumer_topic_cluster_map,
@@ -89,7 +89,7 @@ def _coverage(root: Path, rows: Sequence[Any]) -> Tuple[Counter, Dict[str, set]]
     ONE show from one that genuinely spans shows.
     """
     cluster_map = consumer_topic_cluster_map(root)
-    theme_map = consumer_theme_cluster_map(root)
+    theme_map = storyline_map_by_topic(root)
     counts: Counter = Counter()
     feeds: Dict[str, set] = {}
     for row in rows:
@@ -609,7 +609,7 @@ def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str
     resolvable in one episode and orphan in another — `person:alex` demonstrably is. Per-token
     rollups say how consistent each one is.
     """
-    from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map as _themes
+    from podcast_scraper.search.storylines import storyline_map_by_topic as _themes
     from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map as _topics
 
     cluster_map = _topics(root)

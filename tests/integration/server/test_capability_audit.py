@@ -1000,7 +1000,7 @@ class TestTheMeasureActuallyUsesBothLayers:
             ca, "_episode_features", lambda *a, **k: (set(), set(), {"person:alex"})
         )
         monkeypatch.setattr(ca, "consumer_topic_cluster_map", lambda root: {}, raising=False)
-        monkeypatch.setattr(ca, "consumer_theme_cluster_map", lambda root: {}, raising=False)
+        monkeypatch.setattr(ca, "storyline_map_by_topic", lambda root: {}, raising=False)
 
         out = ca.measure_bare_name_resolvability(tmp_path, [row])
         assert out["occurrences"] == 1

@@ -18,10 +18,10 @@ from podcast_scraper.search.cli_handlers import (
 )
 from podcast_scraper.search.hybrid_search import hybrid_candidates, QueryEmbeddingError
 from podcast_scraper.search.protocol import SearchResult
-from podcast_scraper.search.theme_clusters import (
+from podcast_scraper.search.storylines import (
     STORYLINE_DOC_TYPE,
     storyline_episode_ids,
-    top_theme_clusters_by_member_count,
+    top_storylines_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import load_topic_cluster_enrichment_map
 from podcast_scraper.search.transcript_chunk_lift import (
@@ -147,8 +147,7 @@ def _attach_storyline_metadata(
     that is gone.
     """
     summaries = {
-        str(s["id"]): s
-        for s in top_theme_clusters_by_member_count(corpus_root, 10_000, min_members=1)
+        str(s["id"]): s for s in top_storylines_by_member_count(corpus_root, 10_000, min_members=1)
     }
     # The episodes a storyline draws on, so a listening-scoped caller can decide whether it is
     # "mine". A storyline has no single episode, so this union IS its only membership.

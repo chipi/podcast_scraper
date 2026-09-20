@@ -325,11 +325,12 @@ listed alongside collections in the Library Collections tab.
 
 ## Storyline page (`StorylineView`)
 
-A storyline (theme cluster — topics discussed together) is a full **page** (`/storyline/:id`, keyed
-by the anchor topic id), not a sheet: same detail template as the topic/person page — back on its
-own row, title + follow-storyline on one row, then the member topics (ordered), top episodes, the
-people involved, and notes. There is no storyline endpoint; the anchor topic's card carries the
-cluster (`theme_*`), so the route param is the anchor topic id.
+A storyline (topics discussed together — co-occurrence) is a full **page** (`/storyline/:id`,
+keyed by the anchor topic id), not a sheet: same detail template as the topic/person page — back on
+its own row, title + follow-storyline on one row, then the member topics (ordered), top episodes,
+the people involved, and notes. There is no storyline endpoint; the anchor topic's card carries it,
+so the route param is the anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
+"theme cluster", which is the opposite of what a reader means by theme.
 
 ## Insight type marks (#2004 item 8)
 

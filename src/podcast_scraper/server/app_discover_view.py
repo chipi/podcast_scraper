@@ -20,7 +20,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
+from podcast_scraper.search.storylines import storyline_map_by_topic
 from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -457,7 +457,7 @@ def rank_discover(
     explicit_persons, explicit_topics, explicit_clusters = _split(explicit_set)
     derived_persons, derived_topics, derived_clusters = _split(derived_set)
     cluster_map = consumer_topic_cluster_map(root)
-    theme_map = consumer_theme_cluster_map(root)
+    theme_map = storyline_map_by_topic(root)
     sig_params = config.params_of(SIGNAL_SIGNIFICANCE)
     affinity_weight = config.weight_of(SIGNAL_INTEREST_AFFINITY)
     affinity_params = config.params_of(SIGNAL_INTEREST_AFFINITY)

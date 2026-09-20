@@ -13,7 +13,7 @@ Two operators today, both additive on the existing ``CorpusSearchApiResponse``:
 * ``operator=cluster`` — group the hit page by topic-cluster (from the
   shipped ``enrichments/topic_clusters.json`` join in
   ``_attach_topic_cluster_metadata``) with fallback to theme-cluster
-  (via ``theme_clusters.consumer_theme_cluster_map``) and finally to a
+  (via ``storylines.storyline_map_by_topic``) and finally to a
   single-topic anchor. Hits with no resolvable cluster surface land in
   an ungrouped bucket (``cluster_id=null``).
 * ``operator=consensus`` — read ``enrichments/topic_consensus.json``
@@ -35,9 +35,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.search.theme_clusters import (
-    consumer_theme_cluster_map,
-    THEME_CLUSTERS_REL,
+from podcast_scraper.search.storylines import (
+    storyline_map_by_topic,
+    STORYLINES_REL,
 )
 
 _logger = logging.getLogger(__name__)
@@ -128,7 +128,7 @@ def cluster_hits(
     non-empty. Hit indices point back into the caller's ``hits`` list in
     original order so the client can render groups without re-sorting.
     """
-    theme_map = consumer_theme_cluster_map(corpus_root)
+    theme_map = storyline_map_by_topic(corpus_root)
     # (kind, cluster_id) -> {label, indices}
     groups: dict[tuple[str, str], dict[str, Any]] = {}
     ungrouped: list[int] = []
@@ -326,7 +326,7 @@ def _maybe_str(v: Any) -> str | None:
 
 
 __all__ = [
-    "THEME_CLUSTERS_REL",  # re-export for callers that need the path constant
+    "STORYLINES_REL",  # re-export for callers that need the path constant
     "cluster_hits",
     "consensus_pairs_for_hits",
 ]

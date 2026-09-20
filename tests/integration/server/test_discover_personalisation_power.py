@@ -45,7 +45,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
+from podcast_scraper.search.storylines import storyline_map_by_topic
 from podcast_scraper.search.topic_clusters import (
     consumer_topic_cluster_map,
     top_clusters_by_member_count,
@@ -103,7 +103,7 @@ def feed(rows, tokens, limit=10):
 def coverage(rows) -> dict[str, int]:
     """token -> how many episodes carry it."""
     cluster_map = consumer_topic_cluster_map(CORPUS)
-    theme_map = consumer_theme_cluster_map(CORPUS)
+    theme_map = storyline_map_by_topic(CORPUS)
     counts: dict[str, int] = {}
     for row in rows:
         clusters, topics, persons = _episode_features(CORPUS, row, cluster_map, theme_map)

@@ -177,6 +177,32 @@ retaining a short historical note. Close the naming half of #1603.
 | Fixture corpora embed `thc:` | Untouched — C is skipped |
 | A stage looks green because a test was renamed alongside the code it guards | Per stage, assert the test COUNT is unchanged, and diff the list of test ids before/after |
 
+## HARD CONSTRAINT — the operator graph's Theme / Super-theme filter must not change behaviour
+
+Raised by the operator 2026-09-19: the viewer's graph has a filter over themes, and super-themes
+are part of how it works. It is a live feature with its own contract and its own persistence, so it
+is not merely "code to rename carefully" — it is a behaviour to preserve and prove.
+
+What it actually depends on:
+
+| Dependency | Where | Why a rename would break it |
+| --- | --- | --- |
+| Graph node type string `"SuperTheme"` | `utils/cyGraphStylesheet.ts:603`, `utils/topDownSlice.ts:115`, `components/graph/GraphCanvas.vue:3967,3992,4024` | It is a **graph-payload contract** between the backend graph builder and the viewer's stylesheet + expansion logic. Renaming it silently drops the styling and the top-down expansion for those nodes |
+| `sth:` id prefix | `stores/graphTopDown.ts` | Expansion state is **persisted in the operator's localStorage** under a top-down-expanded key. Renaming the prefix orphans every saved expansion — the operator's graph quietly forgets what they had open. Same class as the `interest_events.jsonl` finding |
+| Theme-cluster ring on topics | `utils/cyGraphStylesheet.ts:410`, `utils/parsing.ts:2024` | Node decoration driven by cluster membership |
+
+**Therefore `sth:` and the `"SuperTheme"` node type are OUT OF SCOPE and stay exactly as they are.**
+That was already the plan's position (super-themes have no reader-facing name), but it now has
+concrete reasons rather than only the naming argument.
+
+### Required gates before any viewer stage (A3) is merged
+
+1. `graphFilters.test.ts` and `graphTopDown.test.ts` — pass, with the test-id diff unchanged.
+2. Viewer e2e: `graph-expansion-mocks.spec.ts`, `operator-profile-filter-mocks.spec.ts`,
+   `search-to-graph-mocks.spec.ts`, `offline-graph.spec.ts`.
+3. A manual check that a saved top-down expansion still restores — the localStorage path is not
+   covered by the mocked specs.
+
 ## Explicitly NOT in this plan
 
 - **C (wire prefixes)** — deferred indefinitely; available until launch if ever wanted.

@@ -20,13 +20,13 @@ from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
-THEME_CLUSTERS_REL = os.path.join("enrichments", "topic_theme_clusters.json")
+STORYLINES_REL = os.path.join("enrichments", "topic_theme_clusters.json")
 
-#: Cache namespace for the parsed artifact. See :func:`_load_theme_clusters_payload`.
-_PAYLOAD_NS = "theme_clusters_payload"
+#: Cache namespace for the parsed artifact. See :func:`_load_storylines_payload`.
+_PAYLOAD_NS = "storylines_payload"
 
 
-def _load_theme_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
+def _load_storylines_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
     """Path-safe load of ``enrichments/topic_theme_clusters.json`` (None if missing/invalid).
 
     Cached through :mod:`podcast_scraper.perf_cache`, because this is read on a REQUEST path and
@@ -48,7 +48,7 @@ def _load_theme_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
         return None
     root_s = os.path.normpath(str(root_p))
     safe_prefix = root_s + os.sep
-    joined = os.path.normpath(os.path.join(root_s, THEME_CLUSTERS_REL))
+    joined = os.path.normpath(os.path.join(root_s, STORYLINES_REL))
     if joined != root_s and not joined.startswith(safe_prefix):
         return None
     # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
@@ -59,12 +59,12 @@ def _load_theme_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
     return cast(
         Optional[Dict[str, Any]],
         perf_cache.get_or_compute(
-            _PAYLOAD_NS, joined, token, lambda: _read_theme_clusters_payload(joined)
+            _PAYLOAD_NS, joined, token, lambda: _read_storylines_payload(joined)
         ),
     )
 
 
-def _read_theme_clusters_payload(joined: str) -> Optional[Dict[str, Any]]:
+def _read_storylines_payload(joined: str) -> Optional[Dict[str, Any]]:
     """Parse the already-path-validated artifact at ``joined``."""
     try:
         # codeql[py/path-injection] -- joined sanitized above.
@@ -83,7 +83,7 @@ def _read_theme_clusters_payload(joined: str) -> Optional[Dict[str, Any]]:
     return inner if isinstance(inner, dict) else payload
 
 
-def consumer_theme_cluster_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
+def storyline_map_by_topic(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
     """Per-topic theme-cluster info for attaching to episode topics.
 
     ``topic_id`` → ``{theme_cluster_id, theme_cluster_label, theme_cluster_size}`` where
@@ -92,7 +92,7 @@ def consumer_theme_cluster_map(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
     count. Topics not in any theme cluster are simply absent. Empty when the artifact
     is missing/invalid (→ no theme markers, today's behaviour).
     """
-    payload = _load_theme_clusters_payload(corpus_root)
+    payload = _load_storylines_payload(corpus_root)
     if payload is None:
         return {}
     raw = payload.get("clusters")
@@ -150,7 +150,7 @@ def _anchor_topic_id(members: list[Any]) -> Optional[str]:
     return best_id
 
 
-def _theme_cluster_summary(cl: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+def _storyline_summary(cl: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     """Project a theme cluster to ``{id, label, size, anchor_topic_id}`` (``None`` if unusable)."""
     gpid = cl.get("graph_compound_parent_id")
     if not isinstance(gpid, str) or not gpid.strip():
@@ -194,14 +194,14 @@ def _theme_cluster_summary(cl: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
 #: surface, which is the one this floor exists for, was still unfiltered. At the default
 #: ``limit=12`` the size-desc sort hid that (the top 12 already clear 4 members); at higher
 #: limits, and in the picker, 2-member pairs surfaced as destinations.
-DEFAULT_MIN_THEME_MEMBERS = 4
+DEFAULT_MIN_STORYLINE_MEMBERS = 4
 
 
-def top_theme_clusters_by_member_count(
+def top_storylines_by_member_count(
     corpus_root: Path,
     top_n: int = 12,
     *,
-    min_members: int = DEFAULT_MIN_THEME_MEMBERS,
+    min_members: int = DEFAULT_MIN_STORYLINE_MEMBERS,
 ) -> list[Dict[str, Any]]:
     """Top-N THEME clusters ("storylines") by member count (desc) — for the picker + Home rail.
 
@@ -211,20 +211,20 @@ def top_theme_clusters_by_member_count(
     ``anchor_topic_id`` is the most-central member (see :func:`_anchor_topic_id`). Sibling of the
     semantic ``top_clusters_by_member_count`` but over ``enrichments/topic_theme_clusters.json``.
     """
-    payload = _load_theme_clusters_payload(corpus_root)
+    payload = _load_storylines_payload(corpus_root)
     if payload is None:
         return []
     raw = payload.get("clusters")
     if not isinstance(raw, list):
         return []
-    out = [s for cl in raw if isinstance(cl, Mapping) and (s := _theme_cluster_summary(cl))]
+    out = [s for cl in raw if isinstance(cl, Mapping) and (s := _storyline_summary(cl))]
     if min_members > 1:
         out = [c for c in out if c["size"] >= min_members]
     out.sort(key=lambda c: c["size"], reverse=True)
     return out[: max(top_n, 0)]
 
 
-def cluster_anchor(cl: Mapping[str, Any]) -> Optional[str]:
+def storyline_anchor(cl: Mapping[str, Any]) -> Optional[str]:
     """The anchor topic of ONE already-loaded cluster mapping.
 
     Exposed for callers that are already iterating the artifact and should not read it again — the
@@ -237,7 +237,7 @@ def cluster_anchor(cl: Mapping[str, Any]) -> Optional[str]:
     return _anchor_topic_id(members) if isinstance(members, list) else None
 
 
-def consumer_theme_cluster_siblings(corpus_root: Path, topic_id: str) -> list[Dict[str, str]]:
+def storyline_siblings_by_topic(corpus_root: Path, topic_id: str) -> list[Dict[str, str]]:
     """Sibling topics sharing ``topic_id``'s THEME cluster, excluding itself.
 
     Returns ``[{"id", "label"}, ...]`` from the theme cluster's ``members``. Empty when the
@@ -247,7 +247,7 @@ def consumer_theme_cluster_siblings(corpus_root: Path, topic_id: str) -> list[Di
     tid = topic_id.strip()
     if not tid:
         return []
-    payload = _load_theme_clusters_payload(corpus_root)
+    payload = _load_storylines_payload(corpus_root)
     if payload is None:
         return []
     raw = payload.get("clusters")
@@ -298,7 +298,7 @@ def storyline_episode_ids(corpus_root: Path) -> Dict[str, frozenset]:
     Empty for a cluster whose members record no episodes, which then simply never matches a
     listening scope rather than matching everything.
     """
-    payload = _load_theme_clusters_payload(corpus_root)
+    payload = _load_storylines_payload(corpus_root)
     if payload is None:
         return {}
     raw = payload.get("clusters")
@@ -346,7 +346,7 @@ def storyline_index_rows(corpus_root: Path) -> list[tuple[str, str, Dict[str, An
     The embed text is the canonical label followed by its member topic labels — that is what lets a
     query naming a MEMBER reach the storyline, which exact-name resolution cannot do.
     """
-    payload = _load_theme_clusters_payload(corpus_root)
+    payload = _load_storylines_payload(corpus_root)
     if payload is None:
         return []
     raw = payload.get("clusters")
@@ -356,7 +356,7 @@ def storyline_index_rows(corpus_root: Path) -> list[tuple[str, str, Dict[str, An
     for cl in raw:
         if not isinstance(cl, Mapping):
             continue
-        summary = _theme_cluster_summary(cl)
+        summary = _storyline_summary(cl)
         if summary is None:
             continue  # anchorless / unopenable — the same skip the rail makes
         members = cl.get("members")
@@ -394,9 +394,9 @@ def storyline_index_rows(corpus_root: Path) -> list[tuple[str, str, Dict[str, An
 
 __all__ = [
     "STORYLINE_DOC_TYPE",
-    "consumer_theme_cluster_map",
-    "consumer_theme_cluster_siblings",
+    "storyline_map_by_topic",
+    "storyline_siblings_by_topic",
     "storyline_episode_ids",
     "storyline_index_rows",
-    "top_theme_clusters_by_member_count",
+    "top_storylines_by_member_count",
 ]

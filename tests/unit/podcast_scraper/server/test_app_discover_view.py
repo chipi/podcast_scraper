@@ -218,7 +218,7 @@ def test_person_interest_reranks(tmp_path: Path) -> None:
     assert [s.title for s in out] == ["Episode old", "Episode new"]
 
 
-def _write_theme_clusters(root: Path, thc_id: str, label: str, member_topic_ids: list[str]) -> None:
+def _write_storylines(root: Path, thc_id: str, label: str, member_topic_ids: list[str]) -> None:
     """Write ``enrichments/topic_theme_clusters.json`` with one theme cluster (envelope-wrapped)."""
     (root / "enrichments").mkdir(parents=True, exist_ok=True)
     payload = {
@@ -243,7 +243,7 @@ def test_theme_cluster_interest_reranks_matching_episode_first(tmp_path: Path) -
     # A followed storyline (`thc:`) must re-rank exactly like a semantic cluster: the episode whose
     # topic is in the theme cluster leads. epOld (topic:ai, +GI) is in the storyline → it wins.
     _corpus(tmp_path)
-    _write_theme_clusters(tmp_path, "thc:ai-safety", "AI safety", ["topic:ai"])
+    _write_storylines(tmp_path, "thc:ai-safety", "AI safety", ["topic:ai"])
     rows = _rows_newest_first(tmp_path)
     out = rank_discover(tmp_path, ["thc:ai-safety"], rows, limit=10)
     assert [s.title for s in out] == ["Episode old", "Episode new"]
