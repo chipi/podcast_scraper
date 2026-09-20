@@ -80,12 +80,24 @@ export const useSavedQueriesStore = defineStore('savedQueries', () => {
     { immediate: true, flush: 'sync' },
   )
 
-  /** Apply optimistically, persist, and keep the mirror off our back until EVERY write settles. */
+  /* Writes are SERIALISED, not just counted.
+     Each write PATCHes the whole list, so two in flight at once is a last-write-wins race decided
+     by the server's ordering, not the user's. Tap Save then un-Save fast enough and the save can
+     land after the remove — leaving the query saved on the server, so the next refresh puts it
+     back and the button sits on "Saved ✓" refusing to toggle off.
+     Counting pending writes stopped the mirror from reverting mid-write; it did nothing about the
+     order they arrive in. This chains them: optimistic local state still updates immediately, so
+     the UI stays instant, but the network sees save → remove in the order the user tapped. */
+  let writeChain: Promise<void> = Promise.resolve()
+
+  /** Apply optimistically, then persist IN ORDER; the mirror stays off until every write settles. */
   async function commit(next: SavedQuery[]): Promise<void> {
     items.value = next
     pendingWrites += 1
+    const mine = writeChain.then(() => prefs.set(PREF_KEY, next)).catch(() => undefined)
+    writeChain = mine
     try {
-      await prefs.set(PREF_KEY, next)
+      await mine
     } finally {
       pendingWrites -= 1
     }

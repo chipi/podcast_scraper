@@ -175,39 +175,50 @@ describe('useSavedQueriesStore (#1261-8)', () => {
    * to resolve clears it while the second is still in flight, and a refresh landing in that window
    * reverts the write the user just made — the same bug, one interaction deeper.
    */
-  it('a refresh during the SECOND of two overlapping writes still cannot revert', async () => {
+  it('serialises writes, so a fast Save then un-Save cannot land out of order', async () => {
+    /*
+     * Each write PATCHes the WHOLE list, so two in flight at once is a last-write-wins race decided
+     * by the server. Tap Save then un-Save quickly and the save could land after the remove — the
+     * query stays saved server-side, the next refresh restores it, and the button sits on
+     * "Saved ✓" refusing to toggle off. That is the e2e flake this store kept producing, and
+     * counting pending writes did not fix it: the count stopped the mirror reverting mid-write, it
+     * said nothing about the ORDER the writes reach the server.
+     */
     const s = useSavedQueriesStore()
-    const prefs = useUserPreferencesStore()
     useAuthStore().$patch({ user: { user_id: 'u_test', email: 't@e2e.local' } as never })
 
-    const release: Array<() => void> = []
+    const sent: string[][] = []
+    let release: (() => void) | undefined
     vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
-      if ((init as RequestInit | undefined)?.method === 'PATCH') {
-        return new Promise((resolve) => {
-          release.push(() =>
-            resolve(new Response(JSON.stringify({ preferences: {} }), { status: 200 })),
-          )
-        })
-      }
-      return Promise.resolve(
-        new Response(JSON.stringify({ preferences: { 'lp.savedQueries': [] } }), { status: 200 }),
-      )
+      const body = JSON.parse(String((init as RequestInit).body)) as Record<string, SavedQuery[]>
+      sent.push((body['lp.savedQueries'] ?? []).map((it) => it.q))
+      return new Promise((resolve) => {
+        release = () =>
+          resolve(new Response(JSON.stringify({ preferences: {} }), { status: 200 }))
+      })
     })
 
-    const first = s.save('one', 'all', 1)
-    const second = s.save('two', 'all', 2)
-    expect(release).toHaveLength(2)
+    const saving = s.save('AI regulation', 'all', 1)
+    const removing = s.remove('AI regulation', 'all')
 
-    // The FIRST write settles while the second is still open — a boolean guard opens here.
-    release[0]!()
-    await first
+    // Optimistic state is immediate — the UI must not wait on the network, or on the queue.
+    expect(s.isSaved('AI regulation', 'all')).toBe(false)
 
-    await prefs.hydrate() // stale snapshot, inside the second write's window
+    // The chain hands off through a microtask, so let it start before inspecting the wire.
+    await Promise.resolve()
+    await Promise.resolve()
 
-    release[1]!()
-    await second
+    // Only the FIRST write is on the wire; the second is queued behind it.
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toEqual(['AI regulation'])
 
-    expect(s.isSaved('one', 'all'), 'the first write must survive').toBe(true)
-    expect(s.isSaved('two', 'all'), 'the second write must survive').toBe(true)
+    release?.()
+    await saving
+    release?.()
+    await removing
+
+    // Both sent, in the order the user tapped — so the server's final state is the removal.
+    expect(sent).toHaveLength(2)
+    expect(sent[1]).toEqual([])
   })
 })
