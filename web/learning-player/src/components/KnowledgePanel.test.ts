@@ -732,7 +732,11 @@ describe("episode-scoped people (#1685 / #2062)", () => {
 
     expect(share).toHaveBeenCalledTimes(1)
     const [filename, body] = share.mock.calls[0]
-    expect(filename).toContain("-notes.md")
+    // Named from the TITLE, not the slug. The slug is `{feed_slug}-{sha256hex}`, so this used to
+    // save as `long-horizon-notes-9f2c4a1b…-notes.md` — "some crazy name" (operator 2026-09-19).
+    // The `-notes` suffix stays: the same episode can also export highlights.
+    expect(filename).toBe("ep-notes.md")
+    expect(filename).not.toMatch(/[0-9a-f]{8}/)
     expect(body).toContain("# Notes")
   })
 

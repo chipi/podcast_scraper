@@ -257,14 +257,31 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
 // Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
 /** Undo a retire. Only reachable from a row that IS retired, so there is no toggle to reason about. */
 /**
- * Open the print-styled export so the browser can save it as PDF.
+ * The print-styled export, for the browser's Save-as-PDF.
  *
  * Carries the SAME filters as the other formats — it is the same document, one route along.
+ *
+ * On NATIVE it fetches the document and shares the file rather than handing the URL to a browser.
+ * `openExternal` opens SFSafariViewController, which does not carry the app's session cookie, so
+ * the export route arrived unauthenticated and rendered the sign-in gate (operator 2026-09-19).
+ * Sharing `.html` lets iOS preview it and offer Print -> Save as PDF, which is the platform's own
+ * print-to-PDF path. Web keeps the tab, where the cookie travels.
  */
+const printing = ref(false)
 async function openPrintable(): Promise<void> {
-  await openExternal(
-    highlightsPrintUrl(props.filterColor, { mutedOnly: props.mutedOnly, q: props.search }),
-  )
+  const opts = { mutedOnly: props.mutedOnly, q: props.search }
+  if (!isNative()) {
+    await openExternal(highlightsPrintUrl(props.filterColor, opts))
+    return
+  }
+  if (printing.value) return
+  printing.value = true
+  try {
+    const html = await fetchHighlightsExport(props.filterColor, opts, 'html')
+    await saveAndShareText('my-highlights.html', html, 'text/html')
+  } finally {
+    printing.value = false
+  }
 }
 
 async function resume(id: string): Promise<void> {

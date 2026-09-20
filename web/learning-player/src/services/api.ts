@@ -1098,8 +1098,11 @@ export function highlightsExportUrl(
 export async function fetchHighlightsExport(
   color?: string | null,
   opts?: { mutedOnly?: boolean; q?: string },
+  format: "md" | "html" = "md",
 ): Promise<string> {
-  const resp = await apiFetch(highlightsExportUrl(color, opts), { credentials: "include" })
+  const url =
+    format === "html" ? highlightsPrintUrl(color, opts) : highlightsExportUrl(color, opts)
+  const resp = await apiFetch(url, { credentials: "include" })
   if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
   return resp.text()
 }
@@ -1108,8 +1111,8 @@ export async function fetchHighlightsExport(
  * The episode-notes Markdown as TEXT — the native shell's path, where `<a download>` saves nothing.
  * Web keeps the plain download link.
  */
-export async function fetchEpisodeNotes(slug: string): Promise<string> {
-  const resp = await apiFetch(episodeNotesUrl(slug, "md"), { credentials: "include" })
+export async function fetchEpisodeNotes(slug: string, ext: "md" | "html" = "md"): Promise<string> {
+  const resp = await apiFetch(episodeNotesUrl(slug, ext), { credentials: "include" })
   if (!resp.ok) throw new Error(`episode notes export failed: ${resp.status}`)
   return resp.text()
 }
