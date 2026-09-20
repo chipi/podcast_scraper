@@ -20,6 +20,7 @@ import { RouterLink } from 'vue-router'
 import { getRecap } from '../services/api'
 import type { RecapResponse } from '../services/types'
 import { useAuthStore } from '../stores/auth'
+import { trendLabel } from '../utils/recapTrend'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -34,8 +35,27 @@ const hours = computed(() => (recap.value?.listening_seconds ?? 0) / 3600)
 const hoursLabel = computed(() =>
   hours.value >= 10 ? String(Math.round(hours.value)) : hours.value.toFixed(1),
 )
-/** The single strongest theme — a rail is not the place for a list. */
+/** The single strongest theme — the summary line keeps the shape it has always had. */
 const headline = computed(() => recap.value?.topics[0]?.label ?? null)
+/**
+ * The NEXT recurring topics, as a second row (operator 2026-09-20).
+ *
+ * The endpoint already returns five topics carrying `delta` / `is_new`; the card read one label
+ * and dropped the rest on every Home load. These start at index 1 — the strongest is already the
+ * headline above, and repeating it would spend the new row saying something already said.
+ *
+ * Movement is the reason the row is worth its height: the same labels every week say nothing,
+ * "up two" says what changed.
+ *
+ * People are deliberately left out for now. Fewer things, said better.
+ */
+const moreTopics = computed(() =>
+  (recap.value?.topics ?? []).slice(1, 4).map((topic) => ({
+    label: topic.label,
+    trend: trendLabel(topic, t('recap.new')),
+    isNew: topic.is_new,
+  })),
+)
 /** Nothing listened to means nothing to look back on. */
 const worthShowing = computed(() => (recap.value?.listening_seconds ?? 0) > 0)
 
@@ -91,6 +111,40 @@ const dayBars = computed<number[]>(() => {
           <span class="text-muted"> · </span><span class="text-muted">{{ headline }}</span>
         </template>
       </p>
+      <!-- Second row: the topics after the headline, as pills.
+           Pills rather than more running text — at plain weight the marker ran into the label it
+           annotates ("expert interviewsNEW") and the whole row read as one grey sentence. A bordered
+           chip gives each topic an edge to end at, which is what was actually missing.
+           They are TEXT, not links: the card is already a RouterLink and an anchor inside an anchor
+           is invalid and breaks assistive tech. Tapping anywhere lands on the full recap, which is
+           where a topic is followable. -->
+      <div
+        v-if="moreTopics.length"
+        class="mt-2 flex flex-wrap items-center gap-1.5"
+        data-testid="recap-prompt-topics"
+      >
+        <span
+          v-for="topic in moreTopics"
+          :key="topic.label"
+          class="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-canvas/60 py-1 pl-2.5 pr-1.5 text-xs"
+        >
+          <span class="truncate text-muted">{{ topic.label }}</span>
+          <!-- NEW is a filled accent badge; a delta is a quieter outlined one. "Appeared this week"
+               and "moved two places" are different kinds of news and should not look identical. -->
+          <span
+            v-if="topic.trend"
+            class="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase leading-none tracking-wide"
+            :class="
+              topic.isNew
+                ? 'bg-accent text-canvas'
+                : topic.trend.startsWith('↓')
+                  ? 'bg-overlay text-muted'
+                  : 'bg-overlay text-canvas-foreground'
+            "
+            >{{ topic.trend }}</span
+          >
+        </span>
+      </div>
     </div>
     <span class="relative shrink-0 text-sm font-medium text-muted" aria-hidden="true">→</span>
   </RouterLink>
