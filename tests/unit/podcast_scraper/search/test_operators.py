@@ -131,7 +131,7 @@ class TestClusterHits:
         groups = cluster_hits(hits, tmp_path)
         assert len(groups) == 1
         assert groups[0]["cluster_id"] == "thc:ai"
-        assert groups[0]["cluster_kind"] == "theme_cluster"
+        assert groups[0]["cluster_kind"] == "storyline"
         assert groups[0]["label"] == "Artificial intelligence"
 
     def test_groups_are_ordered_by_descending_size_then_ungrouped_last(

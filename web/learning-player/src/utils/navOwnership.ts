@@ -16,6 +16,10 @@
  * The cost is deliberate: someone who searched from Home's Ask box lands on `/search` with Discovery
  * lit, a path they did not take. Accepted because search has a canonical parent — an episode does
  * not, which is why `player` appears nowhere below and no nav item lights up on it.
+ *
+ * `profile` is absent for a different reason: it is reached from the masthead AVATAR, not from a
+ * `NavIconLink`, so nothing would consume an entry for it. An unused key here reads as a wired
+ * destination and invites someone to "fix" the avatar to match.
  */
 export const OWNED_ROUTES: Record<string, readonly string[]> = {
   home: ['home'],
@@ -29,7 +33,6 @@ export const OWNED_ROUTES: Record<string, readonly string[]> = {
     'browse-people',
   ],
   library: ['library'],
-  profile: ['profile'],
 }
 
 /** True when `routeName` belongs to the nav destination `owner`. */

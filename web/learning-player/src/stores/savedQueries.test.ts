@@ -140,4 +140,30 @@ describe('useSavedQueriesStore (#1261-8)', () => {
     expect(s.isSaved('AI regulation', 'all')).toBe(false)
     expect(s.list).toEqual([])
   })
+
+  /**
+   * The mirror must be SYNCHRONOUS, and that is not a style preference.
+   *
+   * With Vue's default `flush: 'pre'` the watcher callback is queued and can run AFTER the write
+   * has settled and `writingLocally` is back to false — a guard that reads as protecting the write
+   * window while letting through the exact interleaving it exists for. My first version of this fix
+   * shipped that way, and the guard test above passed against it.
+   *
+   * Asserted as a property rather than a race: outside any write, a prefs mutation must land in
+   * `items` with NO await at all. `prefs.set` assigns `preferences.value` synchronously before it
+   * PATCHes, so a sync watcher has already run by the next statement; a queued one has not.
+   */
+  it('mirrors a prefs change synchronously, with no tick in between', async () => {
+    const s = useSavedQueriesStore()
+    const prefs = useUserPreferencesStore()
+    expect(s.list).toEqual([])
+
+    // Deliberately NOT awaited: the assertion is about what is true before the microtask queue runs.
+    void prefs.set('lp.savedQueries', [{ q: 'from elsewhere', scope: 'all', saved_at: 5 }])
+
+    expect(
+      s.list.map((it) => it.q),
+      'the mirror must be flush:"sync" — a queued watcher has not run yet at this point',
+    ).toEqual(['from elsewhere'])
+  })
 })

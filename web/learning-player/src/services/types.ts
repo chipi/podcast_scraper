@@ -321,7 +321,9 @@ export interface Entity {
 }
 
 /** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact.
- *  `cluster_*` = semantic ("Similar"); `theme_cluster_*` = co-occurrence ("Theme"). */
+ *  `cluster_*` = semantic (`tc:`, the product calls these **Themes**);
+ *  `storyline_*` = co-occurrence (`thc:`, **Storylines**). See UXS-013 — the wire prefixes invert
+ *  against the reader-facing names, which is the single most re-made mistake in this codebase. */
 export interface Topic {
   id: string
   label: string

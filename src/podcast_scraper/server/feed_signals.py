@@ -149,8 +149,14 @@ def _recurring_guests(
     return out[:top_k]
 
 
-def _dominant_themes(root: str, show_topic_ids: set[str], top_k: int) -> list[FeedSignalStoryline]:
-    """Theme clusters (topic_theme_clusters) that the show's topics fall into, by overlap."""
+def _dominant_storylines(
+    root: str, show_topic_ids: set[str], top_k: int
+) -> list[FeedSignalStoryline]:
+    """Storylines the show's topics fall into, by overlap.
+
+    Reads the ``topic_theme_clusters`` artifact, whose FILENAME keeps the old spelling because
+    renaming it would force a re-enrichment of every corpus including prod (UXS-013).
+    """
     data = _read_enrichment_data(root, "topic_theme_clusters")
     if not data:
         return []
@@ -457,7 +463,7 @@ def compute_feed_signals(
         top_topics=top_topics,
         key_people=key_people,
         recurring_guests=_recurring_guests(person_eps, top_k),
-        dominant_storylines=_dominant_themes(root_s, set(topic_eps.keys()), top_k),
+        dominant_storylines=_dominant_storylines(root_s, set(topic_eps.keys()), top_k),
         trending_topics=_trending_topics(vel, topic_eps, top_k),
         grounding=_show_grounding(root_s, show_episode_ids),
         connectivity=connectivity,

@@ -2394,7 +2394,7 @@ class SearchClusterGroupModel(BaseModel):
     )
     cluster_kind: str = Field(
         description=(
-            "``topic_cluster`` / ``theme_cluster`` / ``topic`` / ``ungrouped`` — which "
+            "``topic_cluster`` / ``storyline`` / ``topic`` / ``ungrouped`` — which "
             "aggregation surface produced the group. Callers may filter or badge "
             "clusters by kind (e.g. render a 'Theme' chip on theme-cluster groups)."
         ),

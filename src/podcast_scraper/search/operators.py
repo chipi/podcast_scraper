@@ -109,7 +109,7 @@ def _hit_cluster_key(
             thc = theme.get("storyline_id")
             tlabel = theme.get("storyline_label") or thc
             if isinstance(thc, str) and thc.strip():
-                return ("theme_cluster", thc.strip(), str(tlabel or thc).strip())
+                return ("storyline", thc.strip(), str(tlabel or thc).strip())
 
     if topic_id:
         label = _topic_label_from_hit(hit_meta) or topic_id
