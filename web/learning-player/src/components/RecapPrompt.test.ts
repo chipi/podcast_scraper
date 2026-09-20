@@ -95,5 +95,67 @@ describe('RecapPrompt', () => {
     await flushPromises()
     expect(w.find('a').exists()).toBe(true)
     expect(w.text()).toContain('2.4h')
+    // No topics → no second line at all, rather than an empty one.
+    expect(w.find('[data-testid="recap-prompt-topics"]').exists()).toBe(false)
+  })
+
+  /**
+   * Three topics with movement (operator 2026-09-20).
+   *
+   * The endpoint already returned five topics carrying `delta` / `is_new`; the card rendered one
+   * label and no movement, so the rest was fetched on every Home load and dropped.
+   */
+  it('shows the top three topics, each with how it moved', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({
+        topics: [
+          { token: 'topic:a', label: 'Index investing', episodes: 5, delta: 2, is_new: false },
+          { token: 'topic:b', label: 'Sleep science', episodes: 3, delta: 0, is_new: false },
+          { token: 'topic:c', label: 'Fusion power', episodes: 2, delta: 0, is_new: true },
+          { token: 'topic:d', label: 'Should render too', episodes: 1, delta: -1, is_new: false },
+          { token: 'topic:e', label: 'Should not render', episodes: 1, delta: -1, is_new: false },
+        ],
+      }),
+    )
+    const w = mountPrompt()
+    await flushPromises()
+    const line = w.find('[data-testid="recap-prompt-topics"]')
+    expect(line.exists()).toBe(true)
+
+    // The strongest topic stays in the summary line; the row carries the ones AFTER it, so it
+    // never repeats what was just said one line up.
+    expect(w.text()).toContain('Index investing')
+    expect(line.text()).not.toContain('Index investing')
+    expect(line.text()).toContain('Sleep science')
+    expect(line.text()).toContain('Fusion power')
+    expect(line.text()).toContain('Should render too')
+
+    // Capped: headline + three pills, so the fifth topic never renders.
+    expect(line.text()).not.toContain('Should not render')
+    expect(line.text()).toContain('new')
+    expect(line.text()).toContain('↓1')
+    // A delta of zero renders no arrow: "unchanged" on most entries is noise.
+    expect(line.text()).not.toContain('↑0')
+    expect(line.text()).not.toContain('↓0')
+  })
+
+  it('renders fewer than three without padding, and keeps the card a single link', async () => {
+    signIn()
+    vi.spyOn(api, 'getRecap').mockResolvedValue(
+      recap({
+        topics: [
+          { token: 'topic:a', label: 'Headline one', episodes: 9, delta: 1, is_new: false },
+          { token: 'topic:b', label: 'Only one', episodes: 5, delta: -3, is_new: false },
+        ],
+      }),
+    )
+    const w = mountPrompt()
+    await flushPromises()
+    const line = w.find('[data-testid="recap-prompt-topics"]')
+    expect(line.text()).toContain('Only one')
+    expect(line.text()).toContain('↓3')
+    // Nested anchors are invalid and break assistive tech: the topics must stay text.
+    expect(w.findAll('a')).toHaveLength(1)
   })
 })
