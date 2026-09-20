@@ -1021,7 +1021,7 @@ export interface EpisodeStats {
 }
 
 /** A topic or person that recurred across a recap window's episodes (#1914). */
-export interface RecapTheme {
+export interface RecapRecurring {
   token: string
   label: string
   episodes: number
@@ -1067,8 +1067,8 @@ export interface RecapResponse {
   distinct_episodes: number
   top_episodes: { slug: string; starts: number }[]
   episodes_finished: number
-  topics: RecapTheme[]
-  people: RecapTheme[]
+  topics: RecapRecurring[]
+  people: RecapRecurring[]
   top_by_strength: RecapStrongEpisode[]
   best_line: RecapLine | null
   days_recorded: number
