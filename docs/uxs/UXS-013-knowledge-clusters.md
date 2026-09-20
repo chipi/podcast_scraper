@@ -72,20 +72,43 @@ ones. Getting this backwards is the recurring failure (#1603), so it is stated o
 `interestKind()` in `web/learning-player/src/utils/interests.ts` is the boundary where the wire
 names stop mattering — every surface should take its word from there rather than from the prefix.
 
-**The code is being renamed to match.** `search/theme_clusters.py` is now `search/storylines.py`
-and its symbols read `storyline_*`; `search/topic_clusters.py` (which serves THEMES) follows. See
-`docs/wip/PLAN-storyline-theme-rename-2026-09-19.md` for what is in scope and what is not.
+**The code now matches** (rename completed 2026-09-20). Only the prefixes still invert; everything
+built on top of them reads the same word a reader sees:
 
-Two things deliberately keep the old spelling, and neither is an oversight:
+| Layer | Storyline (`thc:`) | Theme (`tc:`) |
+| --- | --- | --- |
+| Module | `search/storylines.py` | `search/topic_clusters.py` |
+| Consumer route | `GET /api/app/storylines` | `GET /api/app/themes` |
+| Operator route | `GET /api/corpus/storylines` | `GET /api/corpus/topic-clusters` |
+| Wire fields | `storyline_id` / `_label` / `_size`, `storyline_sibling_topics`, `dominant_storylines` | `cluster_id` / `_label` / `_size`, `sibling_topics` |
+| Player symbols | `storylineId`, `storylineDominantLabel` | — |
+| Viewer symbols | `storylineId`, `storylinesDoc`, `storylineRegions`, `useGraphStorylineFocusStore` | — |
+
+Two response models keep older names on purpose. `AppInterestCluster` /
+`AppInterestClustersResponse` are the wire shape behind `GET /api/app/themes`: they carry `tc:`
+ids, so they mean **Theme**. The name is stale rather than wrong — it does not claim to be the
+other object — and renaming it would move the consumer picker on both sides for no reader-visible
+gain. `AppStoryline` (consumer) and `AppStorylineDetail` (operator) are two views of one storyline
+and are named for their audience, not just their subject.
+
+Three things deliberately keep the old spelling, and none is an oversight:
 
 - **The wire prefixes** `thc:` / `tc:`. `interest_events.jsonl` is an append-only follow log read
   to compute engagement momentum, so renaming a prefix orphans every historical event — momentum
   would quietly drop for the storylines a user cared about most, with nothing erroring.
 - **The artifact** `enrichments/topic_theme_clusters.json`, because renaming it forces a
   re-enrichment of every existing corpus, prod included, for no reader-visible gain.
+- **The persisted lens key** `themeClusterRegions` inside `ps_graph_lenses`. The viewer symbol is
+  `storylineRegions`, but the operator's saved value is still READ under the old key: that flag
+  defaults to false, so dropping it would not look like a reset, it would look like the region lens
+  had stopped working. `localStorage` is a storage contract, not a variable name — the same reason
+  `communityColours` is still read one line above it.
 
-Both are invisible to readers of the product. `interestKind()` remains the boundary where the wire
-names stop mattering.
+All three are invisible to readers of the product. `interestKind()` remains the boundary where the
+wire names stop mattering.
+
+The `sth:` super-theme tier is untouched and unnamed: it has no reader-facing name, so there is
+nothing to rename it TO, and `sth:` ids are persisted as the operator's saved graph expansions.
 
 This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in and the remaining
 `"theme"`/`"similar"` i18n pair are tracked on #1603.
