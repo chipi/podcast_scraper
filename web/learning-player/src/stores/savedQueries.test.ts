@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MAX_SAVED_QUERIES, useSavedQueriesStore } from './savedQueries'
 import { useUserPreferencesStore } from './userPreferences'
+import { useAuthStore } from './auth'
 
 describe('useSavedQueriesStore (#1261-8)', () => {
   beforeEach(() => {
@@ -89,5 +90,54 @@ describe('useSavedQueriesStore (#1261-8)', () => {
     expect(s.isSaved('sleep science', 'all')).toBe(true)
     expect(s.isSaved('sleep science', 'mine')).toBe(false)
     expect(s.isSaved('  SLEEP SCIENCE  ', 'all')).toBe(true)
+  })
+
+  /**
+   * A prefs refresh landing MID-WRITE must not revert the write.
+   *
+   * `prefs.set` applies locally then PATCHes. A refresh resolving in that window carries a server
+   * snapshot that predates our write; applying it dropped the query, `isSaved()` went false, and a
+   * second tap re-SAVED instead of removing — the user saw "Saved ✓" refuse to toggle off. It only
+   * reproduces when a refresh interleaves two taps, so it surfaced as a flaky e2e (the same spec
+   * failed on desktop-chrome, then on mobile-chrome) rather than as a bug report.
+   *
+   * The stale snapshot is injected while the PATCH is still pending — exactly the window the bug
+   * lived in. Without the echo-suppression guard this test fails on the final assertion.
+   */
+  it('a stale prefs refresh arriving mid-write does not revert the write (toggle-off works)', async () => {
+    const s = useSavedQueriesStore()
+    const prefs = useUserPreferencesStore()
+    // `hydrate()` no-ops for a signed-out visitor, and preferences are per-account anyway.
+    useAuthStore().$patch({ user: { user_id: 'u_test', email: 't@e2e.local' } as never })
+
+    let releasePatch: (() => void) | undefined
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+      // The write: hold it open so the refresh below lands INSIDE the write window.
+      if ((init as RequestInit | undefined)?.method === 'PATCH') {
+        return new Promise((resolve) => {
+          releasePatch = () =>
+            resolve(new Response(JSON.stringify({ preferences: {} }), { status: 200 }))
+        })
+      }
+      // The refresh: the server has not seen the PATCH yet, so it returns the PRE-save list.
+      return Promise.resolve(
+        new Response(JSON.stringify({ preferences: { 'lp.savedQueries': [] } }), { status: 200 }),
+      )
+    })
+
+    const saving = s.save('AI regulation', 'all', 1_000)
+    await prefs.hydrate() // stale snapshot arrives mid-write
+    releasePatch?.()
+    await saving
+
+    expect(s.isSaved('AI regulation', 'all')).toBe(true)
+
+    // The tap that was broken: with the write reverted, this took the save branch and stayed saved.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ preferences: {} }), { status: 200 }),
+    )
+    await s.remove('AI regulation', 'all')
+    expect(s.isSaved('AI regulation', 'all')).toBe(false)
+    expect(s.list).toEqual([])
   })
 })
