@@ -188,8 +188,8 @@ def _storyline_summary(cl: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
 #: diagnostics need the full set), and this number can change without recomputing enrichment.
 #:
 #: Lives here, not in a route module, because BOTH theme surfaces must apply it: the operator
-#: overlay (``GET /api/corpus/theme-clusters``) and the player's Storylines rail + interest
-#: picker (``GET /api/app/theme-clusters``). It was originally added to the operator route
+#: overlay (``GET /api/corpus/storylines``) and the player's Storylines rail + interest
+#: picker (``GET /api/app/storylines``). It was originally added to the operator route
 #: only, while its own docstring claimed the player was covered — the consumer navigation
 #: surface, which is the one this floor exists for, was still unfiltered. At the default
 #: ``limit=12`` the size-desc sort hid that (the top 12 already clear 4 members); at higher

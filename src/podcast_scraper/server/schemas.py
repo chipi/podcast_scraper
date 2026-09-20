@@ -679,7 +679,7 @@ class AppInterestCluster(BaseModel):
 
 
 class AppInterestClustersResponse(BaseModel):
-    """Top interest clusters for the picker (GET /api/app/clusters)."""
+    """Top themes for the picker (GET /api/app/themes)."""
 
     items: list[AppInterestCluster] = Field(default_factory=list)
 
@@ -698,7 +698,7 @@ class AppStoryline(BaseModel):
 
 
 class AppStorylinesResponse(BaseModel):
-    """Top storylines (theme clusters) for the Home rail + picker (GET /api/app/theme-clusters)."""
+    """Top storylines for the Home rail + picker (GET /api/app/storylines)."""
 
     items: list[AppStoryline] = Field(default_factory=list)
 

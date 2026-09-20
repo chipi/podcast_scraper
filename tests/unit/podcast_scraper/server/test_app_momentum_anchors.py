@@ -2,8 +2,8 @@
 
 A storyline has no endpoint of its own — it is read as its most-central member topic's card — so a
 trending row without an anchor cannot be opened at all. That was the shipped bug: the client
-derived the anchor by joining trending rows against ``/theme-clusters`` on ``thc:`` id, and those
-two lists cannot cover the same set. ``/theme-clusters`` floors at four members and returns a
+derived the anchor by joining trending rows against ``/storylines`` on ``thc:`` id, and those
+two lists cannot cover the same set. ``/storylines`` floors at four members and returns a
 top-N by SIZE; momentum ranks every cluster carrying a series, by MOMENTUM, with no floor. Misses
 were routine, and the client's fallback handed the ``thc:`` id to a TOPIC lookup, which resolves
 nothing.
@@ -45,7 +45,7 @@ def _cluster(gpid: str, members: list[dict], member_count: int | None = None) ->
 def test_a_cluster_below_the_surfacing_floor_still_gets_an_anchor(tmp_path: Path) -> None:
     """The bug in one assertion.
 
-    ``/theme-clusters`` withholds a 2-member theme — a storyline is somewhere a listener is SENT,
+    ``/storylines`` withholds a 2-member theme — a storyline is somewhere a listener is SENT,
     and a single co-occurrence pair is not a destination. Momentum ranks it anyway. Anchoring only
     what some other surface considers worth showing would leave exactly the rows THIS ranking chose
     unopenable, which is what shipped.

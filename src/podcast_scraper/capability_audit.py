@@ -49,7 +49,7 @@ from podcast_scraper.server.app_discover_view import (
 )
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
-#: The picker's default page size, mirroring ``GET /api/app/clusters?limit=``.
+#: The picker's default page size, mirroring ``GET /api/app/themes?limit=``.
 DEFAULT_PICKER_LIMIT = 12
 #: The discover feed length these measurements compare.
 DEFAULT_FEED_LIMIT = 12

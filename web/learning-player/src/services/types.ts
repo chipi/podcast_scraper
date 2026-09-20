@@ -670,14 +670,14 @@ export interface YourWeekResponse {
   generated_at: string
 }
 
-/** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
+/** One selectable theme (GET /api/app/themes — AppInterestCluster). */
 export interface InterestCluster {
   id: string
   label: string
   size: number
 }
 
-/** One storyline — a THEME cluster (topics discussed together). GET /api/app/theme-clusters.
+/** One storyline — topics discussed together. GET /api/app/storylines.
  *  `id` is the `thc:` interest token; `anchor_topic_id` is the representative topic card to open. */
 export interface Storyline {
   id: string

@@ -1,4 +1,4 @@
-"""Integration tests for GET /api/corpus/theme-clusters.
+"""Integration tests for GET /api/corpus/storylines.
 
 Theme clusters (co-occurrence lift) are served from ``enrichments/`` — the
 sibling of the semantic ``/api/corpus/topic-clusters`` endpoint.
@@ -41,7 +41,7 @@ def test_theme_clusters_uses_default_output_dir(tmp_path: Path) -> None:
     (enr / "topic_theme_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
-    r = client.get("/api/corpus/theme-clusters")
+    r = client.get("/api/corpus/storylines")
     assert r.status_code == 200
     body = r.json()
     assert body.get("method") == "cooccurrence_lift"
@@ -51,7 +51,7 @@ def test_theme_clusters_uses_default_output_dir(tmp_path: Path) -> None:
 def test_theme_clusters_404_when_missing(tmp_path: Path) -> None:
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
-    r = client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path)})
+    r = client.get("/api/corpus/storylines", params={"path": str(tmp_path)})
     assert r.status_code == 404
     body = r.json()
     assert body.get("available") is False
@@ -82,7 +82,7 @@ def test_theme_clusters_200_returns_theme_payload(tmp_path: Path) -> None:
     (enr / "topic_theme_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
-    r = client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path), "min_members": 0})
+    r = client.get("/api/corpus/storylines", params={"path": str(tmp_path), "min_members": 0})
     assert r.status_code == 200
     body = r.json()
     assert body["clusters"][0]["cluster_type"] == "theme"
@@ -119,7 +119,7 @@ def test_theme_clusters_unwraps_enrichment_envelope(tmp_path: Path) -> None:
     (enr / "topic_theme_clusters.json").write_text(json.dumps(envelope), encoding="utf-8")
     app = create_app(tmp_path, static_dir=False)
     r = TestClient(app).get(
-        "/api/corpus/theme-clusters", params={"path": str(tmp_path), "min_members": 0}
+        "/api/corpus/storylines", params={"path": str(tmp_path), "min_members": 0}
     )
     assert r.status_code == 200
     body = r.json()
@@ -152,21 +152,21 @@ def test_theme_clusters_cached_by_file_mtime(tmp_path: Path) -> None:
 
     write("first", 1_000_000.0)
     assert (
-        client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path)}).json()["method"]
+        client.get("/api/corpus/storylines", params={"path": str(tmp_path)}).json()["method"]
         == "first"
     )
 
     # New content, SAME mtime → the cache must still serve the first parse.
     write("second", 1_000_000.0)
     assert (
-        client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path)}).json()["method"]
+        client.get("/api/corpus/storylines", params={"path": str(tmp_path)}).json()["method"]
         == "first"
     ), "a content change without an mtime bump was NOT served from cache"
 
     # Mtime advances → the cache invalidates and the new content is served.
     os.utime(artifact, (2_000_000.0, 2_000_000.0))
     assert (
-        client.get("/api/corpus/theme-clusters", params={"path": str(tmp_path)}).json()["method"]
+        client.get("/api/corpus/storylines", params={"path": str(tmp_path)}).json()["method"]
         == "second"
     ), "the cache did not invalidate on an mtime bump"
 

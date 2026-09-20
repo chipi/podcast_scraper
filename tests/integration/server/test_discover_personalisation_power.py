@@ -15,7 +15,7 @@ Measured on the committed corpus (2026-08-16):
     thc:managing-risk         36/36 (100%)    -> all three produce ONE identical feed
     tc:lifelong-learning      36/36 (100%)
 
-The picker (`GET /api/app/clusters` -> `top_themes_by_member_count`) ranks its options by
+The picker (`GET /api/app/themes` -> `top_themes_by_member_count`) ranks its options by
 PREVALENCE, and prevalence is inversely related to usefulness as a filter: a token on every
 episode gives every episode the same affinity, so the feed collapses to a single significance
 ordering — identical no matter which option is chosen. The engine discriminates; its input does not.

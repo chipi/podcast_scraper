@@ -1,6 +1,6 @@
-"""Consumer personalized-discovery routes (``/api/app/clusters``, ``/api/app/discover``).
+"""Consumer personalized-discovery routes (``/api/app/themes``, ``/api/app/discover``).
 
-The interests picker reads the corpus's top clusters; the discovery feed re-ranks the catalog by
+The interests picker reads the corpus's top themes; the discovery feed re-ranks the catalog by
 the signed-in user's interests when ``APP_PERSONALIZED_RANKING`` is enabled (PRD-043 FR4 / #1098).
 Both are read-only over the shared corpus; ``/discover`` reads per-user interests when signed in
 and otherwise (or when the flag is off) returns recency — the default, unchanged behaviour.
@@ -77,29 +77,29 @@ def _momentum_config(request: Request) -> MomentumConfig:
 router = APIRouter(tags=["app"])
 
 
-@router.get("/clusters", response_model=AppInterestClustersResponse)
-def top_clusters(
+@router.get("/themes", response_model=AppInterestClustersResponse)
+def top_themes(
     request: Request,
-    limit: int = Query(default=12, ge=1, le=50, description="Max clusters (by prevalence)."),
+    limit: int = Query(default=12, ge=1, le=50, description="Max themes (by prevalence)."),
     _user: User = Depends(get_current_user),
 ) -> AppInterestClustersResponse:
-    """Top interest clusters by corpus prevalence — the picker's choices (PRD-043 FR4)."""
+    """Top themes by corpus prevalence — the picker's choices (PRD-043 FR4)."""
     root = corpus_root_or_503(request)
     items = [AppInterestCluster(**c) for c in top_themes_by_member_count(root, limit)]
     return AppInterestClustersResponse(items=items)
 
 
-@router.get("/theme-clusters", response_model=AppStorylinesResponse)
+@router.get("/storylines", response_model=AppStorylinesResponse)
 def top_storylines(
     request: Request,
     limit: int = Query(default=12, ge=1, le=50, description="Max storylines (by member count)."),
     _user: User = Depends(get_current_user),
 ) -> AppStorylinesResponse:
-    """Top storylines (theme clusters — topics discussed together) for the Home rail + picker.
+    """Top storylines (topics discussed together) for the Home rail + picker.
 
-    Complementary to ``/clusters`` (semantic): these group co-occurring topics. Each is followable
+    Complementary to ``/themes`` (semantic): these group co-occurring topics. Each is followable
     as a ``thc:`` interest and carries an ``anchor_topic_id`` so the client can open a card that
-    shows the whole storyline. Empty (never 404) when the theme-cluster artifact is absent.
+    shows the whole storyline. Empty (never 404) when the storyline artifact is absent.
 
     Floored at ``storylines.DEFAULT_MIN_STORYLINE_MEMBERS`` (4): a storyline is somewhere a
     listener is SENT, and a 2-member theme is a single co-occurrence pair, not a destination. The
