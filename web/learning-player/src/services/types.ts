@@ -498,13 +498,6 @@ export interface Collection {
   cover_url?: string | null
   /** Manual sort position (CO.7); null for a board never reordered — those follow the ordered ones. */
   position?: number | null
-  /**
-   * Whether this collection already holds the item the request asked about (`contains_kind` +
-   * `contains_ref`). NULL — not false — when the caller did not ask, so "not in it" stays
-   * distinguishable from "never checked" and no surface renders a confident "not added" it has no
-   * evidence for.
-   */
-  contains?: boolean | null
 }
 
 /** A pinnable kind (RFC-119). */

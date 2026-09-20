@@ -8,8 +8,10 @@
  *
  * All three kinds come from one endpoint (`GET /api/app/trending`), which carries BOTH `velocity`
  * and `volume` per entity — so Rising vs Trending is a client-side re-sort, not a second fetch.
- * Storylines are the one exception: the trending row lacks their `size` (for the "N topics" subtitle)
- * and `anchor_topic_id` (what the overlay opens on), so we merge in `getStorylines` by id.
+ * Storylines are the one exception, and only for DECORATION now: `anchor_topic_id` — what the row
+ * opens on — arrives on the trending row itself, because deriving it client-side from
+ * `getStorylines` could not work (the two lists cover different sets; see `fetchRows`). Only the
+ * "N topics" subtitle still comes from that join, and a missing count simply renders nothing.
  *
  * Controls (kind tabs, sort/scope toggles, window) live in the parent (HomeView); this is a
  * controlled presentational list. It emits `open` with the kind + the id to open.
@@ -134,6 +136,15 @@ const rows = computed<Row[]>(() =>
   )
 )
 const hasAny = computed(() => rows.value.length > 0)
+/**
+ * Every row inert — not one of them openable.
+ *
+ * A single unopenable storyline is a data gap and renders dimmed, which is enough. ALL of them is
+ * a different thing: the theme-cluster artifact is missing or mid-rebuild, and the reader gets a
+ * full, populated list where nothing responds. Dimming each row individually does not say that —
+ * it looks exactly like a feature that is broken rather than one that is briefly without its data.
+ */
+const allInert = computed(() => hasAny.value && rows.value.every((r) => !r.openId))
 
 const visible = computed(() =>
   props.expanded ? rows.value : rows.value.slice(0, props.collapsed)
@@ -178,11 +189,17 @@ function rowLabel(r: Row): string {
       </p>
     </div>
     <SectionStatus :phase="section.phase.value" :rows="4" @retry="load" />
+    <!-- Says WHY nothing opens, once, instead of leaving the reader to infer it from N dimmed
+         rows. The momentum is real and still followable, so the list stays. -->
+    <p v-if="allInert" class="mb-2 text-xs text-muted" data-testid="discovery-all-inert">
+      {{ t("home.trendsNotOpenable") }}
+    </p>
     <ul v-if="hasAny" class="flex flex-col">
       <li
         v-for="r in visible"
         :key="r.id"
-        class="flex items-center gap-1 rounded-lg transition hover:bg-overlay"
+        class="flex items-center gap-1 rounded-lg transition"
+        :class="r.openId ? 'hover:bg-overlay' : ''"
         data-testid="discovery-row"
       >
         <!-- Not openable rather than a click that goes nowhere: a storyline with no resolvable
@@ -190,14 +207,21 @@ function rowLabel(r: Row): string {
 
              `aria-disabled`, NOT the `disabled` attribute. `disabled` drops the button out of the
              tab order entirely, so a keyboard or switch user skips the row without ever learning it
-             is there — which is the same silence, moved to a different user. It stays focusable,
-             says why in its accessible name, and dims so the state is visible rather than only
-             felt on tap. -->
+             is there — which is the same silence, moved to a different user. It stays focusable and
+             says why in its accessible name.
+
+             The ROW's hover highlight goes with it. Without that, an inert row still lit up under
+             the cursor — promising a target — and then did nothing when clicked, which is the
+             original complaint restored for mouse users by the very fix meant to end it. Dimmed,
+             no hover, no pointer: inert on sight rather than on tap.
+
+             `aria-disabled` is undefined (not `false`) on working rows: every row announcing its
+             own not-disabled-ness is noise in the one place a screen reader is reading fast. -->
         <button
           type="button"
           class="flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
           :class="r.openId ? '' : 'cursor-default opacity-60'"
-          :aria-disabled="!r.openId"
+          :aria-disabled="r.openId ? undefined : true"
           :aria-label="r.openId ? rowLabel(r) : t('home.rowNotOpenable', { label: rowLabel(r) })"
           @click="r.openId && emit('open', { kind, id: r.openId })"
         >

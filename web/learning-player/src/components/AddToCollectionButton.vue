@@ -7,7 +7,12 @@
  */
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { addToCollection, createCollection, getCollections } from '../services/api'
+import {
+  addToCollection,
+  createCollection,
+  getCollections,
+  getCollectionsContaining,
+} from '../services/api'
 import { enqueue, isPermanent } from '../services/outbox'
 import type { Collection, CollectionItemRef } from '../services/types'
 import { useSignInGate } from '../composables/useSignInGate'
@@ -30,6 +35,10 @@ const { t } = useI18n()
 const { isGated, gated } = useSignInGate()
 
 const collections = ref<Collection[]>([])
+/** Collection ids holding `props.item`. Empty AND `membershipKnown=false` means "we could not look". */
+const holdingIds = ref<Set<string>>(new Set())
+const membershipKnown = ref(false)
+const holds = (id: string): boolean => membershipKnown.value && holdingIds.value.has(id)
 const loaded = ref(false)
 const newName = ref('')
 const addedTo = ref<string | null>(null)
@@ -72,8 +81,17 @@ watch(open, async (isOpen) => {
   // the next open.
   error.value = null
   try {
-    // Ask which boards ALREADY hold this item, so the list can say so (operator 2026-09-19).
-    collections.value = await getCollections(props.item)
+    // Two calls, deliberately: the boards, and — separately — which of them already hold this
+    // item. Membership is a question about the ITEM, so it is not a field on a collection.
+    const [rows, membership] = await Promise.all([
+      getCollections(),
+      getCollectionsContaining(props.item).catch(() => ({ ids: [] as string[], checked: false })),
+    ])
+    collections.value = rows
+    // `checked` false = we could not look. Keep the set EMPTY and remember we did not know, so the
+    // rows stay unmarked rather than confidently claiming the item is saved nowhere.
+    holdingIds.value = membership.checked ? new Set(membership.ids) : new Set()
+    membershipKnown.value = membership.checked
     loaded.value = true
   } catch {
     // Only surface empty + error when we have NOTHING to show; never blank a list we already have.
@@ -109,6 +127,8 @@ async function pick(id: string): Promise<void> {
     window.setTimeout(() => close(false), 800)
     return
   }
+  holdingIds.value = new Set(holdingIds.value).add(id)
+  membershipKnown.value = true
   const i = collections.value.findIndex((c) => c.id === updated.id)
   if (i >= 0) collections.value[i] = updated
   addedTo.value = id
@@ -199,23 +219,23 @@ async function createAndAdd(): Promise<void> {
            look identical, so the only way to find out where something already lived was to add it
            again and watch nothing happen — the add is idempotent, so that tap is silent.
 
-           `contains` is nullable on purpose and this reads it strictly: `=== true`. Null means the
-           server was not asked, and an un-asked question must not render as a confident "not in
-           this one". The word "Added" carries it, not the tick alone — a bare ✓ beside a name reads
-           as "selected", which is the opposite of what it means here. -->
+           `holds()` is false when the lookup did not happen, so a failed membership read renders
+           nothing rather than a confident "not in this one". The word "Added" carries the state,
+           not the tick alone — a bare ✓ beside a name reads as "selected", which is the opposite
+           of what it means here. -->
       <ul class="max-h-48 overflow-y-auto">
         <li v-for="c in collections" :key="c.id">
           <button
             type="button"
             class="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-overlay"
-            :class="c.contains === true ? 'text-grounded' : ''"
+            :class="holds(c.id) ? 'text-grounded' : ''"
             data-testid="add-to-collection-pick"
-            :data-contains="c.contains === true ? 'true' : undefined"
+            :data-contains="holds(c.id) ? 'true' : undefined"
             @click="pick(c.id)"
           >
             <span class="min-w-0 truncate">{{ c.name }}</span>
             <span
-              v-if="addedTo === c.id || c.contains === true"
+              v-if="addedTo === c.id || holds(c.id)"
               class="shrink-0 whitespace-nowrap text-xs text-grounded"
               >✓ {{ t('collections.alreadyIn') }}</span
             >

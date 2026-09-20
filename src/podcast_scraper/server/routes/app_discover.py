@@ -14,10 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
-from podcast_scraper.search.theme_clusters import (
-    theme_cluster_anchors,
-    top_theme_clusters_by_member_count,
-)
+from podcast_scraper.search.theme_clusters import top_theme_clusters_by_member_count
 from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
 from podcast_scraper.server import (
     app_ranking_config_store,
@@ -162,25 +159,6 @@ def app_trending(
                 else it
             )
             for it in items
-        ]
-    elif kind == "storyline":
-        # Hydrate the anchor topic — the thing a storyline row OPENS (operator 2026-09-19).
-        #
-        # The client used to derive this itself by joining these rows against GET /storylines on
-        # `thc:` id. The two lists do not cover the same set and never did: /storylines floors at
-        # DEFAULT_MIN_THEME_MEMBERS (4) and returns the top-N BY SIZE, while trending ranks every
-        # theme cluster that has a member series BY MOMENTUM and applies no member floor. So a
-        # storyline that is small, or large but outside the size top-N, is absent from the join —
-        # and the client's fallback handed the raw `thc:` id to a route that resolves a TOPIC.
-        # `getTopicCard("thc:…")` finds nothing, so the tap did nothing at all. Reported as
-        # "storylines do open directly from the topic, but not from the trends" (operator).
-        #
-        # Resolved here instead, from the unfiltered anchor map, because this route already knows
-        # which clusters it ranked. A client cannot reconstruct that from a differently-filtered
-        # list, and neither can the surfacing helper.
-        anchors = theme_cluster_anchors(root)
-        items = [
-            it.model_copy(update={"anchor_topic_id": anchors.get(it.entity_id)}) for it in items
         ]
     return AppTrendingResponse(
         kind=kind,

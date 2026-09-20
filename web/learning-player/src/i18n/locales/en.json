@@ -129,6 +129,7 @@
     "staleServer": "We can't reach your account right now — showing what you saved.",
     "staleForcedAction": "Offline mode is on",
     "seeAllTrends": "See all",
+    "trendsNotOpenable": "These aren’t linked to topic pages yet — momentum is still live.",
     "rowNotOpenable": "{label} — nothing to open"
   },
   "rail": {
@@ -533,6 +534,7 @@
     "perspectives": "{count} perspective | {count} perspectives",
     "newestFirst": "newest first",
     "moreEpisodes": "Show {count} more",
+    "moreEpisodesShown": "{count} more episodes shown",
     "perspectivesTitle": "Perspectives",
     "conversationArc": "Conversation over time",
     "convArcInsights": "{count} insight | {count} insights",
@@ -664,6 +666,7 @@
     "tabTopics": "Topics",
     "tabStats": "Stats",
     "interests": "Interest topics",
+    "openInterest": "Open {label}",
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
     "editInterests": "Edit",
     "noInterests": "No interests chosen yet.",

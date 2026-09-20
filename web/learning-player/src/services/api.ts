@@ -1394,7 +1394,7 @@ export async function getHealth(): Promise<HealthInfo | null> {
 
 // --- Collections / boards (PRD-046 FR4 / #1417) ---
 
-export async function getCollections(contains?: CollectionItemRef): Promise<Collection[]> {
+export async function getCollections(): Promise<Collection[]> {
   /**
    * A 401 used to be swallowed into an empty list (#2004 item 13).
    *
@@ -1411,13 +1411,22 @@ export async function getCollections(contains?: CollectionItemRef): Promise<Coll
    * end state (the app has `gated()` for exactly that) and is not built yet. Recorded on #2004 so
    * the gap is visible rather than implied by this comment.
    */
-  // With `contains`, every row comes back flagged for whether it already holds that item — what
-  // the add-to-collection picker needs to show you where a thing already is. Without it the server
-  // leaves `contains` null, which is the honest value for a question that was not asked.
-  const q = contains
-    ? `?contains_kind=${encodeURIComponent(contains.kind)}&contains_ref=${encodeURIComponent(contains.ref)}`
-    : ""
-  return withAbsoluteCovers((await getJSON<{ items: Collection[] }>(`/collections${q}`)).items)
+  return withAbsoluteCovers((await getJSON<{ items: Collection[] }>("/collections")).items)
+}
+
+/**
+ * Which collections already hold an item.
+ *
+ * Its own call rather than a flag on the list, because membership is a question about the ITEM.
+ * `checked` distinguishes "we looked and it is in none of them" from "we could not look" — an
+ * empty `ids` under `checked: false` must never render as a confident "not added", since that is
+ * the answer a user acts on by saving the thing twice.
+ */
+export async function getCollectionsContaining(
+  item: CollectionItemRef
+): Promise<{ ids: string[]; checked: boolean }> {
+  const q = `?kind=${encodeURIComponent(item.kind)}&ref=${encodeURIComponent(item.ref)}`
+  return await getJSON<{ ids: string[]; checked: boolean }>(`/collections/containing${q}`)
 }
 
 /**

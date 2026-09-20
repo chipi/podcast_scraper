@@ -31,6 +31,7 @@ from podcast_scraper.server.schemas import (
     CollectionItem,
     CollectionItemBody,
     CollectionReorder,
+    CollectionsContainingResponse,
     CollectionsResponse,
 )
 
@@ -196,28 +197,9 @@ def _resolve_item(item: dict, highlights_by_id: dict[str, dict]) -> CollectionIt
 
 @router.get("/collections", response_model=CollectionsResponse)
 async def list_collections(
-    request: Request,
-    contains_kind: str | None = Query(
-        default=None,
-        max_length=64,
-        description="With contains_ref: flag which collections already hold this item.",
-    ),
-    contains_ref: str | None = Query(
-        default=None, max_length=512, description="See contains_kind."
-    ),
-    user: User = Depends(get_current_user),
+    request: Request, user: User = Depends(get_current_user)
 ) -> CollectionsResponse:
     """The user's collections, newest-first, each with its item count.
-
-    Pass ``contains_kind`` + ``contains_ref`` and every row comes back with ``contains`` set — the
-    add-to-collection picker needs it to show where the item already is (operator 2026-09-19).
-    Before, that picker listed every board identically, so the only way to learn an item was
-    already on one was to add it again and watch nothing change. Answered here rather than by the
-    client because membership lives in one file the client would otherwise have to walk board by
-    board.
-
-    Omit the pair and ``contains`` stays NULL on every row, which is the honest value for a
-    question nobody asked.
 
     Backfills a MISSING cover lazily (operator 2026-09-16: boards with items were still showing the
     empty placeholder). ``cover_url`` is only ever written by ``_recompute_cover`` on a membership
@@ -234,16 +216,43 @@ async def list_collections(
         if row.get("cover_url") or not row.get("count"):
             continue
         row["cover_url"] = _recompute_cover(request, data_dir, user.user_id, str(row["id"]))
-    if contains_kind and contains_ref:
-        # ONE read for every row. Asking per row via ``get_items`` re-reads and re-parses the same
-        # user file each time — 200 synchronous reads at the collection cap, on the request path of
-        # a menu the user opens constantly.
-        holding = app_collections_store.collections_containing(
-            data_dir, user.user_id, contains_kind, contains_ref
-        )
-        for row in rows:
-            row["contains"] = str(row["id"]) in holding
     return CollectionsResponse(items=[Collection(**c) for c in rows])
+
+
+@router.get("/collections/containing", response_model=CollectionsContainingResponse)
+async def collections_containing(
+    request: Request,
+    kind: str = Query(max_length=64, description="Item kind (episode | highlight | link | …)."),
+    ref: str = Query(
+        # 2048, the de-facto URL ceiling — NOT a round number picked for tidiness. `kind=link`
+        # stores a URL as its ref, and the add endpoint caps ref at nothing at all, so a bound
+        # here tighter than what can be STORED makes an item permanently unqueryable. The bound
+        # exists only to stop an unbounded string being compared against every member.
+        max_length=2048,
+        description="Item ref (episode slug / highlight id / url / …).",
+    ),
+    user: User = Depends(get_current_user),
+) -> CollectionsContainingResponse:
+    """Which of the user's collections already hold ``(kind, ref)``.
+
+    Its own resource rather than a query pair on ``GET /collections``, because membership is a
+    question ABOUT an item, not a property OF a collection. As a field it made ``Collection`` mean
+    different things depending on how it was fetched — present on a list read, absent on every
+    mutation response — which needed a nullable tri-state and a written doctrine to keep straight.
+    Here the shape says what it is and the client does a set lookup.
+
+    ONE read of the user's file, never one per collection: the add-to-collection picker asks this
+    every time it opens, and membership lives in a single document.
+
+    ``checked: false`` when that document could not be read. An empty ``ids`` then means "we could
+    not look", NOT "it is in none of them" — the second is the answer a user acts on by saving the
+    item a second time, and it must never be inferred from a failed read.
+    """
+    data_dir = _data_dir(request)
+    holding = app_collections_store.collections_containing(data_dir, user.user_id, kind, ref)
+    if holding is None:
+        return CollectionsContainingResponse(ids=[], checked=False)
+    return CollectionsContainingResponse(ids=sorted(holding), checked=True)
 
 
 @router.post("/collections", response_model=Collection, status_code=201)

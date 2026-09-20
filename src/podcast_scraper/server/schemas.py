@@ -1482,16 +1482,26 @@ class Collection(BaseModel):
             "position 0 and a created_at epoch cannot share one sort key."
         ),
     )
-    contains: bool | None = Field(
-        default=None,
+
+
+class CollectionsContainingResponse(BaseModel):
+    """GET /api/app/collections/containing — which boards already hold one item.
+
+    A question ABOUT an item, so it is its own resource rather than a flag on ``Collection``: as a
+    field it meant different things depending on how the collection was fetched, which needed a
+    nullable tri-state to express and a doctrine to keep straight.
+    """
+
+    ids: list[str] = Field(
+        default_factory=list, description="Collection ids holding the item ([] when none do)."
+    )
+    checked: bool = Field(
         description=(
-            "Whether this collection already holds the item named by the ``contains_kind`` + "
-            "``contains_ref`` query pair. NULL — not false — when the caller did not ask, so a "
-            "client can tell 'not in it' from 'never checked' and never renders a confident "
-            "'not added' it has no evidence for. Populated ONLY by ``GET /collections`` with that "
-            "query pair: every mutation response (create, add-item, remove-item, reorder) carries "
-            "NULL because none of them was asked the question."
-        ),
+            "Whether the lookup actually happened. FALSE when the user's collections file could "
+            "not be read — an empty ``ids`` then means 'we could not look', NOT 'it is in none of "
+            "them'. The second is what a user acts on by saving the item a second time, so it must "
+            "never be inferred from a failed read."
+        )
     )
 
 

@@ -17,9 +17,17 @@
  * ## Why the count in the heading is not this component's job
  *
  * Callers word their own heading ("Discussed in N episodes", "In N episodes", and the person card
- * switches between two depending on whether it is showing host episodes). They pass it in; the
- * list only owns the rows and the paging. What IS owned here is the "newest first" kicker, because
- * that was the thing that drifted.
+ * switches between two depending on whether it is showing host episodes). They pass it in; this
+ * owns the rows, the cap and the paging.
+ *
+ * The "newest first" kicker is NOT owned here, and that is worth stating because the drift which
+ * motivated this extraction was precisely that kicker — three callers said it and the storyline
+ * did not. It sits in the heading, the heading belongs to the caller, and a fifth caller can
+ * forget it exactly as StorylineView did. Moving it would mean owning the whole heading row,
+ * which is the thing the callers legitimately differ on.
+ *
+ * Nor does this SORT. "Newest first" is the server's guarantee (`_sorted_episode_cards`); nothing
+ * here verifies it, so the kicker is true by contract rather than by construction.
  */
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
@@ -40,18 +48,29 @@ watch(
   () => props.episodes,
   () => {
     shown.value = PAGE
+    announcement.value = ""
   }
 )
 
 const visible = computed(() => props.episodes.slice(0, shown.value))
+// Empty until the user presses, so nothing is announced on mount.
+const announcement = ref("")
+
+function reveal(): void {
+  const before = visible.value.length
+  shown.value += PAGE
+  announcement.value = t("ec.moreEpisodesShown", { count: visible.value.length - before })
+}
 const remaining = computed(() => Math.max(0, props.episodes.length - visible.value.length))
 </script>
 
 <template>
-  <!-- `aria-live`: pressing "show more" appends rows silently otherwise — a screen-reader user
-       activates the control and hears nothing at all, which is indistinguishable from a dead
-       button. `atomic=false` so only the added rows are announced, not the whole list again. -->
-  <ul class="flex flex-col" aria-live="polite" aria-atomic="false">
+  <!-- The announcement lives on a STATUS element, not on the list.
+       A live region wrapped around the `<ul>` fires on MOUNT too, so a screen reader read all ten
+       initial episodes aloud before the user had done anything — worse than the silence it was
+       meant to fix. This is empty until a press, so it announces the delta and nothing else. -->
+  <p aria-live="polite" class="sr-only">{{ announcement }}</p>
+  <ul class="flex flex-col">
     <li v-for="e in visible" :key="e.slug">
       <EpisodeRow :episode="e" />
     </li>
@@ -63,7 +82,7 @@ const remaining = computed(() => Math.max(0, props.episodes.length - visible.val
     type="button"
     class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
     data-testid="entity-episodes-more"
-    @click="shown += PAGE"
+    @click="reveal"
   >
     {{ t("ec.moreEpisodes", { count: Math.min(remaining, PAGE) }) }}
   </button>
