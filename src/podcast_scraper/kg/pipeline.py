@@ -546,6 +546,7 @@ def build_artifact(
     # from different sites with no cross-site check at all. Two nodes sharing an id crashed the
     # whole corpus reindex on 2026-08-26 (LanceDB refuses ambiguous merges). Last-writer's
     # properties fill gaps; an explicit host/guest role always beats 'mentioned'.
+    nodes, edges = _collapse_mentions_into_speakers(nodes, edges)
     nodes = _dedupe_nodes_by_id(nodes)
 
     return {
@@ -561,6 +562,106 @@ def build_artifact(
         "nodes": nodes,
         "edges": edges,
     }
+
+
+def _collapse_mentions_into_speakers(
+    nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """A person MENTIONED in the episode they also SPOKE in is one Person node, not two.
+
+    MEASURED on 400 sampled prod episodes: 20 distinct pairs where one spelling is a speaker and
+    a near-identical one is a `mentioned` Person in the SAME episode —
+
+        Joe Weisenthal (host) / Joe Wiesenthal      x5   Odd Lots
+        Peter Attia, MD (host) / Peter Attia        x4   The Peter Attia Drive
+        Tracy Alloway (host) / Tracy Allaway        x3   Odd Lots
+        Theo Jaffe / Theo Jaffee                    x3   The a16z Show
+        Mark Galeotti (host) / Mark Galliotti       x2   In Moscow's Shadows
+        ...15 more
+
+    Neither existing mechanism closes this. `_one_name_per_person` (the roster) operates on
+    diarized VOICES and never sees a mention; `_dedupe_nodes_by_id` merges only nodes that already
+    share a slug, and `joe-weisenthal` / `joe-wiesenthal` do not.
+
+    THE SPEAKER'S SPELLING WINS. A voice is established evidence — somebody spoke and the roster
+    resolved who. A mention is a name extracted from prose, where the ASR's rendering is whatever
+    it heard. So the mention is rewritten onto the speaker's id, and every edge that referenced it
+    is remapped rather than left dangling.
+
+    THREE GUARDS, because merging two real people is worse than leaving a duplicate (#876):
+
+    * only mention -> SPEAKER, never mention -> mention. The dangerous shape is several mentions of
+      one family: in `ChinaTalk — "North Korea's Messiah"`, `Kim Jong-il`, `Kim Jong-un` and
+      `Kim Il-sung` are three different people, all mentions, and `same_person` scores the first
+      two at 0.857. Comparing only against speakers keeps them apart — that episode's only speaker
+      is Jordan Schneider.
+    * exactly ONE speaker may match. Two matches means nothing says which, and a guess there is
+      precisely the failure this guards.
+    * a generational disagreement settles it outright. `same_person`'s subset rule reads
+      `Sam Lee` as `Sam Lee Jr`, but that suffix exists to tell a father from a son.
+    """
+    from ..graph_id_utils import GENERATIONAL_SUFFIXES
+    from .speaker_coherence import same_person
+
+    def _generation(name: str) -> str:
+        toks = [x for x in name.lower().replace(".", " ").replace(",", " ").split() if x]
+        return toks[-1] if toks and toks[-1] in GENERATIONAL_SUFFIXES else ""
+
+    people = [n for n in nodes if isinstance(n, dict) and n.get("type") == "Person"]
+    speakers = [
+        n for n in people if str((n.get("properties") or {}).get("role") or "") in ("host", "guest")
+    ]
+    if not speakers:
+        return nodes, edges
+
+    remap: Dict[str, str] = {}
+    for node in people:
+        props = node.get("properties") or {}
+        if str(props.get("role") or "") in ("host", "guest"):
+            continue
+        name = str(props.get("name") or "").strip()
+        nid = str(node.get("id") or "")
+        if not name or not nid:
+            continue
+        hits = [
+            s
+            for s in speakers
+            if _generation(name) == _generation(str((s.get("properties") or {}).get("name") or ""))
+            and same_person(name, str((s.get("properties") or {}).get("name") or ""))
+        ]
+        if len(hits) != 1:
+            continue
+        target = str(hits[0].get("id") or "")
+        if target and target != nid:
+            remap[nid] = target
+            logger.info(
+                "kg build_artifact: %r (mentioned) is %r (%s) — collapsing onto %s",
+                name,
+                (hits[0].get("properties") or {}).get("name"),
+                (hits[0].get("properties") or {}).get("role"),
+                target,
+            )
+
+    if not remap:
+        return nodes, edges
+
+    kept = [n for n in nodes if str(n.get("id") or "") not in remap]
+    remapped_edges: List[Dict[str, Any]] = []
+    seen_edges: set = set()
+    for e in edges:
+        e2 = dict(e)
+        for end in ("from", "to"):
+            if str(e2.get(end) or "") in remap:
+                e2[end] = remap[str(e2[end])]
+        if e2.get("from") == e2.get("to"):
+            # The mention and the speaker were the two ends of one edge; it says nothing now.
+            continue
+        key = (e2.get("from"), e2.get("to"), e2.get("type"))
+        if key in seen_edges:
+            continue
+        seen_edges.add(key)
+        remapped_edges.append(e2)
+    return kept, remapped_edges
 
 
 def _dedupe_nodes_by_id(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
