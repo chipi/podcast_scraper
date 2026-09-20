@@ -89,11 +89,11 @@ def _coverage(root: Path, rows: Sequence[Any]) -> Tuple[Counter, Dict[str, set]]
     ONE show from one that genuinely spans shows.
     """
     cluster_map = theme_map_by_topic(root)
-    theme_map = storyline_map_by_topic(root)
+    storyline_map = storyline_map_by_topic(root)
     counts: Counter = Counter()
     feeds: Dict[str, set] = {}
     for row in rows:
-        clusters, topics, persons = _episode_features(root, row, cluster_map, theme_map)
+        clusters, topics, persons = _episode_features(root, row, cluster_map, storyline_map)
         feed_id = str(getattr(row, "feed_id", "") or "?")
         for token in (*clusters, *topics, *persons):
             counts[token] += 1
@@ -613,14 +613,16 @@ def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str
     from podcast_scraper.search.topic_clusters import theme_map_by_topic as _topics
 
     cluster_map = _topics(root)
-    theme_map = _themes(root)
+    storyline_map = _themes(root)
 
     verdicts: Counter = Counter()
     per_token: Dict[str, Counter] = {}
     examples: Dict[str, List[Dict[str, str]]] = {"resolvable": [], "ambiguous": [], "orphan": []}
 
     for row in rows:
-        _clusters, _topics_set, kg_persons = _episode_features(root, row, cluster_map, theme_map)
+        _clusters, _topics_set, kg_persons = _episode_features(
+            root, row, cluster_map, storyline_map
+        )
         persons = _episode_person_ids(root, row, kg_persons)
         bare = [p for p in persons if len(_slug(p).split("-")) == 1]
         for token in sorted(bare):

@@ -60,15 +60,15 @@ def episode_storylines(
     """
     if not topics:
         return []
-    theme_map = storyline_map_by_topic(root)  # topic_id -> {storyline_id, ...}
-    if not theme_map:
+    storyline_map = storyline_map_by_topic(root)  # topic_id -> {storyline_id, ...}
+    if not storyline_map:
         return []
     # thc id -> {id, label, size, anchor_topic_id}; the floor + anchor are enforced here.
     summaries = {c["id"]: c for c in top_storylines_by_member_count(root, top_n=1000)}
     out: list[AppStorylineRef] = []
     seen: set[str] = set()
     for topic in topics:
-        info = theme_map.get(topic.id)
+        info = storyline_map.get(topic.id)
         thc = info.get("storyline_id") if info else None
         summary = summaries.get(thc) if thc else None
         if not summary:

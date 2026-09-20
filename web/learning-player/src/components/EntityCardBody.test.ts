@@ -184,7 +184,7 @@ describe("EntityCardBody — Follow control", () => {
         storyline_id: "thc:sanctions",
         storyline_label: "sanctions",
         storyline_size: 3,
-        theme_sibling_topics: [
+        storyline_sibling_topics: [
           { id: "topic:oil", label: "oil", cluster_id: null, cluster_label: null, cluster_size: 0 },
         ],
       })

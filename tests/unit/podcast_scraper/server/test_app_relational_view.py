@@ -420,12 +420,12 @@ def test_build_topic_card_carries_theme_cluster_and_siblings(tmp_path: Path) -> 
     assert card.storyline_id == "thc:ai-safety"
     assert card.storyline_label == "ai safety"
     assert card.storyline_size == 2
-    assert {s.id for s in card.theme_sibling_topics} == {"topic:ml"}
+    assert {s.id for s in card.storyline_sibling_topics} == {"topic:ml"}
     # Semantic + theme are independent — no semantic cluster written here.
     assert card.cluster_id is None
     assert card.sibling_topics == []
     # The theme sibling itself carries theme identity (via _enrich_topic).
-    ml = next(s for s in card.theme_sibling_topics if s.id == "topic:ml")
+    ml = next(s for s in card.storyline_sibling_topics if s.id == "topic:ml")
     assert ml.storyline_id == "thc:ai-safety"
 
 
