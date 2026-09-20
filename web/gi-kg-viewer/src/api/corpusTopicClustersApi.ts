@@ -121,7 +121,7 @@ export async function fetchTopicClustersFromApi(corpusPath: string): Promise<Top
  * the viewer API. Same document shape as the semantic clusters. ``missing`` on 404
  * so the caller degrades to "no theme rings on the graph".
  */
-export async function fetchThemeClustersFromApi(
+export async function fetchStorylinesFromApi(
   corpusPath: string,
 ): Promise<TopicClustersFetchResult> {
   const url = `/api/corpus/storylines${corpusQuery(corpusPath)}`

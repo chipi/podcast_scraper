@@ -3,7 +3,7 @@
  * graph-v3 Q — Lenses popover in the graph bottom bar.
  *
  * Renders one checkbox per RFC-080 lens (nine total after tier 5C/5D:
- * `nodeSizeByDegree`, `bridgeRing`, `themeClusterRegions`, `velocityHalo`,
+ * `nodeSizeByDegree`, `bridgeRing`, `storylineRegions`, `velocityHalo`,
  * `personCredibility`, `consensusEdges`, `coGuestEdges`, `personCommunities`,
  * `aggregatedEdges`). Toggles write to `useGraphLensesStore` which persists
  * to localStorage; GraphCanvas watchers re-apply the class overlays
@@ -36,7 +36,7 @@ const panelRef = ref<HTMLDivElement | null>(null)
 const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
 /** Theme-cluster lens is enricher-gated. */
-const themeClustersAvailable = computed(() => artifacts.themeClustersDoc != null)
+const storylinesAvailable = computed(() => artifacts.storylinesDoc != null)
 
 /* aggregatedEdges lens is data-gated: it renders Episode↔Topic (`ABOUT_AGG`)
    + Episode↔Person (`SPOKE_IN_AGG`) roll-ups on top of the per-Insight
@@ -111,7 +111,7 @@ interface LensRow {
   key:
     | 'aggregatedEdges'
     | 'nodeSizeByDegree'
-    | 'themeClusterRegions'
+    | 'storylineRegions'
     | 'bridgeRing'
     | 'velocityHalo'
     | 'personCredibility'
@@ -141,11 +141,11 @@ const rows = computed<LensRow[]>(() => {
       available: true,
     },
     {
-      key: 'themeClusterRegions',
+      key: 'storylineRegions',
       label: 'Theme regions',
       description: 'Soft underlay tint per theme cluster (needs the storylines enricher).',
       testid: 'lens-theme-cluster-regions',
-      available: themeClustersAvailable.value,
+      available: storylinesAvailable.value,
     },
     {
       key: 'velocityHalo',
@@ -208,7 +208,7 @@ const chipLabel = computed(() => {
 function setLens(key: LensRow['key'], value: boolean): void {
   if (key === 'aggregatedEdges') lenses.setAggregatedEdges(value)
   else if (key === 'nodeSizeByDegree') lenses.setNodeSizeByDegree(value)
-  else if (key === 'themeClusterRegions') lenses.setThemeClusterRegions(value)
+  else if (key === 'storylineRegions') lenses.setStorylineRegions(value)
   else if (key === 'bridgeRing') lenses.setBridgeRing(value)
   else if (key === 'velocityHalo') lenses.setVelocityHalo(value)
   else if (key === 'personCredibility') lenses.setPersonCredibility(value)

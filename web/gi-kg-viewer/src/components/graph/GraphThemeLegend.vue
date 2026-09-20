@@ -2,7 +2,7 @@
 /**
  * graph-v3 Tier 5A-1 → Tier 7-1 — floating legend for theme-cluster regions.
  *
- * Renders only when the `themeClusterRegions` lens is on AND the
+ * Renders only when the `storylineRegions` lens is on AND the
  * `topic_theme_clusters.json` artifact is loaded.
  *
  * Two-level tree (graph-v3 tier 7-1): rows are grouped under the super-theme
@@ -21,13 +21,13 @@ import type { TopicClustersCluster } from '../../api/corpusTopicClustersApi'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphLensesStore } from '../../stores/graphLenses'
 import { useUserPreferencesStore } from '../../stores/userPreferences'
-import { useGraphThemeFocusStore } from '../../stores/graphThemeFocus'
+import { useGraphStorylineFocusStore } from '../../stores/graphStorylineFocus'
 import { themeRegionColor } from '../../utils/themeRegionPalette'
 
 const artifacts = useArtifactsStore()
 const lenses = useGraphLensesStore()
 const userPrefs = useUserPreferencesStore()
-const themeFocus = useGraphThemeFocusStore()
+const storylineFocus = useGraphStorylineFocusStore()
 
 const COLLAPSED_KEY = 'ps_graph_theme_legend_collapsed'
 const EXPANDED_SUPERS_KEY = 'ps_graph_theme_legend_expanded_supers'
@@ -122,14 +122,14 @@ watch(
 )
 
 const visible = computed(() => {
-  return lenses.themeClusterRegions && artifacts.themeClustersDoc != null
+  return lenses.storylineRegions && artifacts.storylinesDoc != null
 })
 
 // How many themes the route withheld from this surface, and the floor it applied. Present only
 // when something was actually withheld (the route omits the keys when nothing was), so `0` here
 // means "nothing hidden", not "unknown".
-const withheldCount = computed(() => artifacts.themeClustersDoc?.withheld_below_min_members ?? 0)
-const minMembers = computed(() => artifacts.themeClustersDoc?.min_members ?? 0)
+const withheldCount = computed(() => artifacts.storylinesDoc?.withheld_below_min_members ?? 0)
+const minMembers = computed(() => artifacts.storylinesDoc?.min_members ?? 0)
 
 interface ClusterRow {
   id: string
@@ -160,7 +160,7 @@ function clearFilter(): void {
 }
 
 const allGroups = computed<SuperGroup[]>(() => {
-  const doc = artifacts.themeClustersDoc
+  const doc = artifacts.storylinesDoc
   const clusters = (doc?.clusters ?? []) as TopicClustersCluster[]
   const byId = new Map<string, SuperGroup>()
   const order: string[] = []
@@ -227,28 +227,28 @@ const groups = computed<SuperGroup[]>(() => {
 function focusSuper(g: SuperGroup): void {
   const ids = new Set(g.children.map((c) => c.id))
   if (isSuperFocused(g)) {
-    themeFocus.clearFocus()
+    storylineFocus.clearFocus()
   } else {
-    themeFocus.setFocus(ids)
+    storylineFocus.setFocus(ids)
   }
 }
 
 function focusCluster(clusterId: string): void {
-  if (isClusterFocused(clusterId) && themeFocus.focusedThemeIds.size === 1) {
-    themeFocus.clearFocus()
+  if (isClusterFocused(clusterId) && storylineFocus.focusedStorylineIds.size === 1) {
+    storylineFocus.clearFocus()
   } else {
-    themeFocus.setFocus([clusterId])
+    storylineFocus.setFocus([clusterId])
   }
 }
 
 function isSuperFocused(g: SuperGroup): boolean {
-  if (!themeFocus.hasFocus() || g.children.length === 0) return false
-  const focus = themeFocus.focusedThemeIds
+  if (!storylineFocus.hasFocus() || g.children.length === 0) return false
+  const focus = storylineFocus.focusedStorylineIds
   return g.children.every((c) => focus.has(c.id)) && focus.size === g.children.length
 }
 
 function isClusterFocused(clusterId: string): boolean {
-  return themeFocus.isFocused(clusterId)
+  return storylineFocus.isFocused(clusterId)
 }
 
 function isExpanded(g: SuperGroup): boolean {

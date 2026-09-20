@@ -105,7 +105,7 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
 
   it('renders 2 rows when no artifact is loaded (all enricher/data-gated rows hidden)', async () => {
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = null
+    artifacts.storylinesDoc = null
     // parsedList empty → displayArtifact.value?.data?.edges is undefined
     artifacts.parsedList = [] as unknown as typeof artifacts.parsedList
     const Chip = await loadChip()
@@ -122,7 +122,7 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
 
   it('renders theme regions row when the artifact is present', async () => {
     const { artifacts } = await useStores()
-    artifacts.themeClustersDoc = {
+    artifacts.storylinesDoc = {
       clusters: [{ graph_compound_parent_id: 'thc:x', canonical_label: 'X' }],
     }
     const Chip = await loadChip()
@@ -160,21 +160,21 @@ describe('GraphLensesChip (graph-v3 Q + Tier 5A-4)', () => {
 
   it('toggling a checkbox writes to the lens store', async () => {
     const { lenses, artifacts } = await useStores()
-    artifacts.themeClustersDoc = { clusters: [{ graph_compound_parent_id: 'thc:x' }] }
-    // Defaults: themeClusterRegions=false, bridgeRing=true.
-    expect(lenses.themeClusterRegions).toBe(false)
+    artifacts.storylinesDoc = { clusters: [{ graph_compound_parent_id: 'thc:x' }] }
+    // Defaults: storylineRegions=false, bridgeRing=true.
+    expect(lenses.storylineRegions).toBe(false)
     const Chip = await loadChip()
     const w = mount(Chip)
     await nextTick()
     const themeCheckbox = w.find('[data-testid="lens-theme-cluster-regions"]')
     expect(themeCheckbox.exists()).toBe(true)
     await themeCheckbox.setValue(true)
-    expect(lenses.themeClusterRegions).toBe(true)
+    expect(lenses.storylineRegions).toBe(true)
   })
 
   it('reset link calls resetToDefaults', async () => {
     const { lenses, artifacts } = await useStores()
-    artifacts.themeClustersDoc = null
+    artifacts.storylinesDoc = null
     lenses.setAggregatedEdges(true)
     lenses.setNodeSizeByDegree(false)
     const Chip = await loadChip()

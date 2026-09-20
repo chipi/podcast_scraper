@@ -4,7 +4,7 @@ import {
   THEME_REGION_PALETTE,
   THEME_REGION_PALETTE_SIZE,
   themeRegionColor,
-  themeRegionIndex,
+  storylineRegionIndex,
 } from './themeRegionPalette'
 
 describe('themeRegionPalette', () => {
@@ -13,15 +13,15 @@ describe('themeRegionPalette', () => {
     expect(THEME_REGION_PALETTE_SIZE).toBe(8)
   })
 
-  it('themeRegionIndex is deterministic — same id → same slot across calls', () => {
-    expect(themeRegionIndex('thc:interest-rates')).toBe(themeRegionIndex('thc:interest-rates'))
-    expect(themeRegionIndex('thc:ai-agents')).toBe(themeRegionIndex('thc:ai-agents'))
+  it('storylineRegionIndex is deterministic — same id → same slot across calls', () => {
+    expect(storylineRegionIndex('thc:interest-rates')).toBe(storylineRegionIndex('thc:interest-rates'))
+    expect(storylineRegionIndex('thc:ai-agents')).toBe(storylineRegionIndex('thc:ai-agents'))
   })
 
-  it('themeRegionIndex returns an integer in [0, PALETTE_SIZE)', () => {
+  it('storylineRegionIndex returns an integer in [0, PALETTE_SIZE)', () => {
     const ids = ['thc:a', 'thc:b', 'thc:c', 'thc:interest-rates', 'thc:ai-agents']
     for (const id of ids) {
-      const idx = themeRegionIndex(id)
+      const idx = storylineRegionIndex(id)
       expect(Number.isInteger(idx)).toBe(true)
       expect(idx).toBeGreaterThanOrEqual(0)
       expect(idx).toBeLessThan(THEME_REGION_PALETTE_SIZE)

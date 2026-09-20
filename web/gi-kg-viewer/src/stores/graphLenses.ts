@@ -19,7 +19,7 @@ import { useUserPreferencesStore } from './userPreferences'
  *   - V5 `nodeSizeByDegree` — **on** by default (graph-v3 C). Replaces
  *     fixed Topic + Episode width/height with `mapData(degreeHeat, ...)`
  *     so hub structure reads at a glance.
- *   - V6 `themeClusterRegions` — **off** initially (graph-v3 R-V). Paints
+ *   - V6 `storylineRegions` — **off** initially (graph-v3 R-V). Paints
  *     a soft underlay tint over every node in each theme cluster (via the
  *     `topic_theme_clusters` enricher artifact + viewer-side propagation
  *     from Topics to Insights/Episodes/Persons/Podcasts/Orgs). Enricher-
@@ -43,7 +43,7 @@ const STORAGE_KEY = 'ps_graph_lenses'
 export interface GraphLensFlags {
   aggregatedEdges: boolean
   nodeSizeByDegree: boolean
-  themeClusterRegions: boolean
+  storylineRegions: boolean
   bridgeRing: boolean
   /* graph-v3 Tier 5C — enricher-based decoration lenses. */
   velocityHalo: boolean
@@ -63,7 +63,7 @@ const DEFAULT_FLAGS: GraphLensFlags = {
   /* graph-v3 R-V — V6 opt-in during rollout. Enricher-gated: even when
      set to true the toggle stays hidden if the theme-cluster artifact
      is not available for the current corpus. */
-  themeClusterRegions: false,
+  storylineRegions: false,
   /* graph-v3 K/N — V7 default-on because K (bridge betweenness ring) was
      already validated on prod-v2 in commit d8447b8a. Users who find
      the rose rings noisy can toggle off. */
@@ -94,16 +94,22 @@ function readInitialFlags(): GraphLensFlags {
     if (!raw) return { ...DEFAULT_FLAGS }
     const parsed = JSON.parse(raw) as Partial<GraphLensFlags> & {
       /** Legacy key from an intermediate graph-v3 iteration (MCL, since
-       *  reverted). Migrated once into `themeClusterRegions` so users
+       *  reverted). Migrated once into `storylineRegions` so users
        *  who toggled it don't lose their opt-in. */
       communityColours?: boolean
+      /** The name this flag was PERSISTED under before the storyline rename. Read so an operator
+       *  who had the lens ON does not silently find it OFF: the flag defaults to false, so a lost
+       *  value does not look like a reset, it looks like the lens stopped working. Same one-line
+       *  treatment `communityColours` got above, and the reason this rename is not purely
+       *  internal — `ps_graph_lenses` is a storage contract, not a variable name. */
+      themeClusterRegions?: boolean
     }
     return {
       aggregatedEdges: readBool(parsed.aggregatedEdges, DEFAULT_FLAGS.aggregatedEdges),
       nodeSizeByDegree: readBool(parsed.nodeSizeByDegree, DEFAULT_FLAGS.nodeSizeByDegree),
-      themeClusterRegions: readBool(
-        parsed.themeClusterRegions ?? parsed.communityColours,
-        DEFAULT_FLAGS.themeClusterRegions,
+      storylineRegions: readBool(
+        parsed.storylineRegions ?? parsed.themeClusterRegions ?? parsed.communityColours,
+        DEFAULT_FLAGS.storylineRegions,
       ),
       bridgeRing: readBool(parsed.bridgeRing, DEFAULT_FLAGS.bridgeRing),
       velocityHalo: readBool(parsed.velocityHalo, DEFAULT_FLAGS.velocityHalo),
@@ -121,7 +127,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   const initial = readInitialFlags()
   const aggregatedEdges = ref(initial.aggregatedEdges)
   const nodeSizeByDegree = ref(initial.nodeSizeByDegree)
-  const themeClusterRegions = ref(initial.themeClusterRegions)
+  const storylineRegions = ref(initial.storylineRegions)
   const bridgeRing = ref(initial.bridgeRing)
   const velocityHalo = ref(initial.velocityHalo)
   const personCredibility = ref(initial.personCredibility)
@@ -132,7 +138,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   const flags = computed<GraphLensFlags>(() => ({
     aggregatedEdges: aggregatedEdges.value,
     nodeSizeByDegree: nodeSizeByDegree.value,
-    themeClusterRegions: themeClusterRegions.value,
+    storylineRegions: storylineRegions.value,
     bridgeRing: bridgeRing.value,
     velocityHalo: velocityHalo.value,
     personCredibility: personCredibility.value,
@@ -143,7 +149,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
 
   function setAggregatedEdges(v: boolean): void { aggregatedEdges.value = v }
   function setNodeSizeByDegree(v: boolean): void { nodeSizeByDegree.value = v }
-  function setThemeClusterRegions(v: boolean): void { themeClusterRegions.value = v }
+  function setStorylineRegions(v: boolean): void { storylineRegions.value = v }
   function setBridgeRing(v: boolean): void { bridgeRing.value = v }
   function setVelocityHalo(v: boolean): void { velocityHalo.value = v }
   function setPersonCredibility(v: boolean): void { personCredibility.value = v }
@@ -154,7 +160,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   function resetToDefaults(): void {
     aggregatedEdges.value = DEFAULT_FLAGS.aggregatedEdges
     nodeSizeByDegree.value = DEFAULT_FLAGS.nodeSizeByDegree
-    themeClusterRegions.value = DEFAULT_FLAGS.themeClusterRegions
+    storylineRegions.value = DEFAULT_FLAGS.storylineRegions
     bridgeRing.value = DEFAULT_FLAGS.bridgeRing
     velocityHalo.value = DEFAULT_FLAGS.velocityHalo
     personCredibility.value = DEFAULT_FLAGS.personCredibility
@@ -205,9 +211,9 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
       applyingRemote = true
       aggregatedEdges.value = readBool(remote.aggregatedEdges, aggregatedEdges.value)
       nodeSizeByDegree.value = readBool(remote.nodeSizeByDegree, nodeSizeByDegree.value)
-      themeClusterRegions.value = readBool(
-        remote.themeClusterRegions,
-        themeClusterRegions.value,
+      storylineRegions.value = readBool(
+        remote.storylineRegions,
+        storylineRegions.value,
       )
       bridgeRing.value = readBool(remote.bridgeRing, bridgeRing.value)
       velocityHalo.value = readBool(remote.velocityHalo, velocityHalo.value)
@@ -230,7 +236,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
   return {
     aggregatedEdges,
     nodeSizeByDegree,
-    themeClusterRegions,
+    storylineRegions,
     bridgeRing,
     velocityHalo,
     personCredibility,
@@ -240,7 +246,7 @@ export const useGraphLensesStore = defineStore('graphLenses', () => {
     flags,
     setAggregatedEdges,
     setNodeSizeByDegree,
-    setThemeClusterRegions,
+    setStorylineRegions,
     setBridgeRing,
     setVelocityHalo,
     setPersonCredibility,

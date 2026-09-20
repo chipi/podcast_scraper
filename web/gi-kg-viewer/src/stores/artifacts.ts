@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { fetchArtifactJson } from '../api/artifactsApi'
 import type { TopicClustersDocument, TopicClustersFetchResult } from '../api/corpusTopicClustersApi'
 import {
-  fetchThemeClustersFromApi,
+  fetchStorylinesFromApi,
   fetchTopicClustersFromApi,
   postTopicClustersRebuild,
 } from '../api/corpusTopicClustersApi'
@@ -23,7 +23,7 @@ import {
 } from '../utils/clusterSiblingMerge'
 import {
   findClusterByCompoundId,
-  withThemeClustersOnDisplay,
+  withStorylinesOnDisplay,
   withTopicClustersOnDisplay,
 } from '../utils/topicClustersOverlay'
 import { buildTopDownSlice } from '../utils/topDownSlice'
@@ -52,7 +52,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   /** ``topic_theme_clusters.json`` (co-occurrence THEME clusters) — decorates Topic
    *  nodes with a teal ring (--lp-theme), coexisting with the semantic compound
    *  boxes. Best-effort; null when the corpus has no theme clusters. */
-  const themeClustersDoc = ref<TopicClustersDocument | null>(null)
+  const storylinesDoc = ref<TopicClustersDocument | null>(null)
   /**
    * How the last load obtained topic clusters: API success, 404, error, local file picker (no API JSON),
    * or idle (cleared / not yet loaded).
@@ -107,12 +107,12 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
 
   const displayArtifact = computed(() =>
-    withThemeClustersOnDisplay(
+    withStorylinesOnDisplay(
       withTopicClustersOnDisplay(
         buildDisplayArtifact(giArts.value, kgArts.value),
         topicClustersDoc.value,
       ),
-      themeClustersDoc.value,
+      storylinesDoc.value,
     ),
   )
 
@@ -123,12 +123,12 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    * the theme doc hasn't loaded yet or has no super-themes. */
   const topDown = useGraphTopDownStore()
   const topDownDisplayArtifact = computed<ParsedArtifact | null>(() => {
-    const themeDoc = themeClustersDoc.value
-    if (!themeDoc || !Array.isArray(themeDoc.clusters) || themeDoc.clusters.length === 0) {
+    const storylineDoc = storylinesDoc.value
+    if (!storylineDoc || !Array.isArray(storylineDoc.clusters) || storylineDoc.clusters.length === 0) {
       return null
     }
     const data = buildTopDownSlice({
-      themeDoc,
+      storylineDoc,
       fullArtifact: displayArtifact.value?.data ?? null,
       expandedSuperThemeIds: topDown.expandedSuperThemeIds,
     })
@@ -218,10 +218,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     // fully independent + best-effort, so a missing/errored fetch just means
     // "no rings" and never disturbs the semantic topic-cluster state above.
     try {
-      const th = await fetchThemeClustersFromApi(root)
-      themeClustersDoc.value = th.status === 'ok' ? th.document : null
+      const th = await fetchStorylinesFromApi(root)
+      storylinesDoc.value = th.status === 'ok' ? th.document : null
     } catch {
-      themeClustersDoc.value = null
+      storylinesDoc.value = null
     }
   }
 
@@ -260,7 +260,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList.value = []
     bridgeDocument.value = null
     topicClustersDoc.value = null
-    themeClustersDoc.value = null
+    storylinesDoc.value = null
     topicClustersFetchedForRoot = null
     topicClustersLoadState.value = 'idle'
     topicClustersErrorDetail.value = null
@@ -866,7 +866,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     parsedList,
     bridgeDocument,
     topicClustersDoc,
-    themeClustersDoc,
+    storylinesDoc,
     topicClustersLoadState,
     topicClustersErrorDetail,
     topicClustersSchemaWarning,
