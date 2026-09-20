@@ -387,9 +387,21 @@ class TestCLISubprocessConfigFile:
             f"CLI should succeed. " f"returncode: {result.returncode}, " f"stderr: {result.stderr}"
         )
 
-        # Verify only 1 episode processed (CLI override worked)
-        transcript_files = list(output_dir.rglob("*.txt"))
-        assert len(transcript_files) == 1, "CLI should override config max_episodes"
+        # Verify only 1 episode processed (CLI override worked).
+        #
+        # Count EPISODE transcripts, not every `.txt`. A feed that ships a speaker-labelled
+        # WebVTT transcript also gets an ad-free processing base written beside it
+        # (`<base>.adfree.txt`, `_maybe_produce_adfree`), so a bare `rglob("*.txt")` counts two
+        # files for one episode and this assertion would measure sidecar behaviour rather than
+        # the `--max-episodes` override it is named for.
+        transcript_files = [
+            p
+            for p in output_dir.rglob("*.txt")
+            if not any(part in p.name for part in (".adfree.", ".cleaned."))
+        ]
+        assert (
+            len(transcript_files) == 1
+        ), f"CLI should override config max_episodes, got: {[p.name for p in transcript_files]}"
 
 
 @pytest.mark.e2e
