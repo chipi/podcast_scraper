@@ -5,7 +5,7 @@
  * actions on one row, the member topics, top episodes and the people involved, and notes.
  *
  * There is no dedicated storyline endpoint — the anchor topic's card IS the storyline (its
- * `theme_cluster_*` + `storyline_sibling_topics` + `related_people` + `episodes`), so the route param is
+ * `storyline_*` + `storyline_sibling_topics` + `related_people` + `episodes`), so the route param is
  * the anchor topic id and everything derives from `getTopicCard`.
  */
 import { computed, ref, watch, defineAsyncComponent } from "vue"

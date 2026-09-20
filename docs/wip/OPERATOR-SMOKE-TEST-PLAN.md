@@ -25,7 +25,7 @@
   - `listener` — player only; **403** on operator routes.
   - `creator` — viewer base: **digest / library / graph** (KG curation).
   - `admin` — everything creator has **plus dashboard / ops / configuration / user management**. Dashboard is `v-if="auth.isAdmin"` in `App.vue`.
-- **Operator APIs gated ≥creator** on the public surface (`_OPERATOR_PUBLIC_READ_ROUTES`, each mounted with `require_viewer_access`): `usage_routes, artifacts, index_stats, search, relational, query_activity, explore, corpus_library, corpus_binary, corpus_media, corpus_text_file, corpus_metrics, corpus_coverage, corpus_persons, corpus_digest, corpus_enrichments, corpus_topic_clusters, corpus_theme_clusters, corpus_trending, cil`. All **read-only**. `index_rebuild` / `ops` are NOT mounted on the public operator surface.
+- **Operator APIs gated ≥creator** on the public surface (`_OPERATOR_PUBLIC_READ_ROUTES`, each mounted with `require_viewer_access`): `usage_routes, artifacts, index_stats, search, relational, query_activity, explore, corpus_library, corpus_binary, corpus_media, corpus_text_file, corpus_metrics, corpus_coverage, corpus_persons, corpus_digest, corpus_enrichments, corpus_topic_clusters, corpus_storylines, corpus_trending, cil`. All **read-only**. `index_rebuild` / `ops` are NOT mounted on the public operator surface.
 
 ## 4. What to validate
 
