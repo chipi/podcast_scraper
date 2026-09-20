@@ -15,29 +15,33 @@ import os
 from pathlib import Path
 from typing import Any, cast, Dict, Mapping, Optional
 
+from podcast_scraper import perf_cache
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
 THEME_CLUSTERS_REL = os.path.join("enrichments", "topic_theme_clusters.json")
 
-#: ``abs path -> (mtime_ns, size, payload)``. See :func:`_load_theme_clusters_payload`.
-_PAYLOAD_CACHE: Dict[str, tuple[int, int, Optional[Dict[str, Any]]]] = {}
+#: Cache namespace for the parsed artifact. See :func:`_load_theme_clusters_payload`.
+_PAYLOAD_NS = "theme_clusters_payload"
 
 
 def _load_theme_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
     """Path-safe load of ``enrichments/topic_theme_clusters.json`` (None if missing/invalid).
 
-    Cached on ``(mtime_ns, size)``, because this is read on a REQUEST path and was re-parsing the
-    whole artifact every time. ``GET /trending?kind=storyline`` alone paid for it twice: once
-    through the momentum layer and again through :func:`theme_cluster_anchors`. The server has a
-    corpus-mtime cache for exactly this class of artifact (``cached_json_artifact``) which the
-    momentum layer already uses — but ``search`` does not import ``server`` and must not start, so
-    the equivalent lives here.
+    Cached through :mod:`podcast_scraper.perf_cache`, because this is read on a REQUEST path and
+    was re-parsing the whole artifact every time.
 
-    Keyed on the FILE's own mtime and size rather than the corpus root's, so a re-enrichment that
-    rewrites this artifact alone still invalidates. The returned dict is SHARED: callers derive new
-    structures from it and none mutate it, the same convention `cached_json_artifact` documents.
+    NOT a hand-rolled cache. The first version here was a module-level dict plus a lock plus an
+    mtime token plus an LRU — which is verbatim the thing ``perf_cache`` was extracted to stop
+    people writing ("Previously each call site hand-rolled its own dict + lock + mtime token +
+    clear()"). It was built on the premise that ``search`` could not reach a shared cache; what is
+    true is that ``search`` must not import ``server``, and ``perf_cache`` is neither — it is
+    top-level, and ``search`` already imports it from ``corpus_graph`` and ``lance_index_stats``.
+
+    The token is the FILE's own mtime, not the corpus root's, so a re-enrichment that rewrites this
+    artifact alone still invalidates. The returned dict is SHARED: callers derive new structures
+    from it and none mutate it, the same convention ``cached_json_artifact`` documents.
     """
     root_p = safe_resolve_directory(corpus_root)
     if root_p is None:
@@ -51,13 +55,13 @@ def _load_theme_clusters_payload(corpus_root: Path) -> Optional[Dict[str, Any]]:
     if not os.path.isfile(joined):
         return None
     # codeql[py/path-injection] -- joined sanitized above.
-    st = os.stat(joined)
-    hit = _PAYLOAD_CACHE.get(joined)
-    if hit is not None and hit[0] == st.st_mtime_ns and hit[1] == st.st_size:
-        return hit[2]
-    payload = _read_theme_clusters_payload(joined)
-    _PAYLOAD_CACHE[joined] = (st.st_mtime_ns, st.st_size, payload)
-    return payload
+    token = os.stat(joined).st_mtime
+    return cast(
+        Optional[Dict[str, Any]],
+        perf_cache.get_or_compute(
+            _PAYLOAD_NS, joined, token, lambda: _read_theme_clusters_payload(joined)
+        ),
+    )
 
 
 def _read_theme_clusters_payload(joined: str) -> Optional[Dict[str, Any]]:
@@ -220,33 +224,17 @@ def top_theme_clusters_by_member_count(
     return out[: max(top_n, 0)]
 
 
-def theme_cluster_anchors(corpus_root: Path) -> Dict[str, str]:
-    """``thc:`` id → anchor topic id, for EVERY theme cluster. No member floor, no top-N.
+def cluster_anchor(cl: Mapping[str, Any]) -> Optional[str]:
+    """The anchor topic of ONE already-loaded cluster mapping.
 
-    A storyline has no endpoint of its own: it is read as its most-central member topic's card, so
-    whoever wants to OPEN a storyline needs this mapping. The surfacing function above is the wrong
-    source for that — it exists to decide which storylines are worth showing (≥4 members, top-N by
-    size), and anything it filtered out still has a perfectly good anchor. Callers that rank
-    storylines some other way (``/trending`` ranks by momentum, over every cluster with a series)
-    would otherwise silently fail to resolve exactly the rows their own ranking chose.
-
-    Empty when the artifact is missing or invalid, and a cluster with no resolvable anchor is
-    simply absent — callers treat a missing key as "not openable", never as "use the thc: id".
+    Exposed for callers that are already iterating the artifact and should not read it again — the
+    momentum layer resolves every storyline's anchor inside the loop it already runs over these
+    clusters, so the anchor comes from the same snapshot that produced the ranking. A second,
+    independently-cached read could serve anchors from a newer file than the one the rows were
+    ranked from, and the mismatch renders as rows that will not open.
     """
-    payload = _load_theme_clusters_payload(corpus_root)
-    if payload is None:
-        return {}
-    raw = payload.get("clusters")
-    if not isinstance(raw, list):
-        return {}
-    out: Dict[str, str] = {}
-    for cl in raw:
-        if not isinstance(cl, Mapping):
-            continue
-        summary = _theme_cluster_summary(cl)
-        if summary and summary.get("anchor_topic_id"):
-            out[str(summary["id"])] = str(summary["anchor_topic_id"])
-    return out
+    members = cl.get("members")
+    return _anchor_topic_id(members) if isinstance(members, list) else None
 
 
 def consumer_theme_cluster_siblings(corpus_root: Path, topic_id: str) -> list[Dict[str, str]]:

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper import perf_cache
+from podcast_scraper.search.theme_clusters import cluster_anchor
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
@@ -381,6 +382,10 @@ class TrendingEntity:
     # say WHY a person is trending (a busy host vs a recurring guest vs a much-mentioned figure).
     # None for non-person kinds and for people whose KG nodes carry no role.
     role: str | None = None
+    #: A storyline's most-central member topic — what the row OPENS, since a storyline has no
+    #: endpoint of its own. None for every other kind, and for a storyline whose members do not
+    #: resolve, which means the row is genuinely not openable rather than openable-somewhere-wrong.
+    anchor_topic_id: str | None = None
     # RFC-103 R2 — the trend window this row was ranked under (1m|3m|6m|1y).
     window: str = "3m"
 
@@ -411,6 +416,31 @@ def _labels_from_clusters(root: Path) -> dict[str, str]:
             cid = str(cl.get("graph_compound_parent_id") or "")
             if cid:
                 out[cid] = str(cl.get("canonical_label") or "")
+    return out
+
+
+def _storyline_anchors(root: Path) -> dict[str, str]:
+    """``thc:`` id → its anchor topic, from the SAME artifact read the labels come from.
+
+    A storyline has no endpoint of its own — it is read as its most-central member topic's card —
+    so a trending row without this cannot be opened at all. It is resolved HERE, beside the labels,
+    rather than hydrated in the route: the route would have to read the artifact a second time
+    under a different cache token, and on a re-enrichment that rewrites only this file the two
+    views disagree — rows ranked from the stale cluster list, anchors resolved from the fresh one,
+    every mismatch rendering as a row that will not open. Same snapshot, same loop, no skew.
+
+    No member floor and no top-N, deliberately: momentum ranks EVERY cluster carrying a series, so
+    anchoring only the ones some other surface considers worth showing would leave exactly the rows
+    this ranking chose unopenable.
+    """
+    env = cached_json_artifact(root, _THEME_CLUSTERS_REL)
+    data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
+    out: dict[str, str] = {}
+    for cl in data.get("clusters") or []:
+        cid = str(cl.get("graph_compound_parent_id") or "")
+        anchor = cluster_anchor(cl) if cid else None
+        if cid and anchor:
+            out[cid] = anchor
     return out
 
 
@@ -500,6 +530,8 @@ def trending(
     eng_user = user_id if scope == "mine" else None
     engagement = _engagement_weekly_by_entity(data_dir, eng_user)
     labels = _entity_labels(root)
+    # Only storylines have one; every other kind leaves the field None, exactly as `role` does.
+    anchors = _storyline_anchors(root) if kind == "storyline" else {}
     roles = _person_roles(root) if kind == "person" else {}
 
     # Anchor to the corpus's latest content month/week — unless a test pins the reference via
@@ -560,6 +592,7 @@ def trending(
                 series,
                 role=roles.get(eid),
                 window=win_key,
+                anchor_topic_id=anchors.get(eid),
             )
         )
     # R2: rank by velocity × volume (dampened) so big-and-rising outranks a tiny recent spike.

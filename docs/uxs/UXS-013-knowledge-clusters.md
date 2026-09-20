@@ -69,9 +69,15 @@ ones. Getting this backwards is the recurring failure (#1603), so it is stated o
 | `thc:` | theme cluster | **co-occurrence** — topics that keep coming up together | **Storyline** |
 | `tc:` | topic cluster | **vector similarity** — topics that mean similar things | **Theme** |
 
-The wire prefixes are stored per user and cannot be renamed. `interestKind()` in
-`web/learning-player/src/utils/interests.ts` is the boundary where they stop mattering — every
-surface should take its word from there rather than from the prefix.
+`interestKind()` in `web/learning-player/src/utils/interests.ts` is the boundary where the wire
+names stop mattering — every surface should take its word from there rather than from the prefix.
+
+**The inversion is deferred, not permanent.** Pre-launch there are no users whose stored tokens
+must be preserved, so renaming the prefixes (and `theme_clusters.py`, which serves storylines, and
+`topic_clusters.py`, which serves themes, and the `topic_theme_clusters.json` artifact) is a
+bounded mechanical refactor rather than a migration. That window closes at launch. Until then the
+honest statement is that we chose the boundary function over the rename — not that the rename was
+impossible.
 
 This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in and the remaining
 `"theme"`/`"similar"` i18n pair are tracked on #1603.

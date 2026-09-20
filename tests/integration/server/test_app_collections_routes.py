@@ -405,73 +405,98 @@ def test_the_export_carries_every_note_the_user_wrote(tmp_path: Path) -> None:
 
 
 class TestWhichBoardsAlreadyHoldThisItem:
-    """``GET /collections?contains_kind=&contains_ref=`` (operator 2026-09-19).
+    """``GET /collections/containing`` (operator 2026-09-19).
 
     The add-to-collection picker listed every board identically, so the only way to learn an item
     was already on one was to add it again and watch nothing happen — the add is idempotent, so
-    that tap is silent. The picker now asks the server which boards hold the item.
+    that tap is silent.
+
+    Its OWN resource, not a query pair on ``GET /collections``. As a field, ``contains`` made a
+    ``Collection`` mean different things depending on how it was fetched: set on a list read,
+    absent on every mutation response. That needed a nullable tri-state and a written doctrine to
+    stay coherent — context leaking into an entity schema.
     """
 
-    def test_flags_only_the_boards_that_hold_it(self, tmp_path: Path) -> None:
+    def test_reports_only_the_boards_that_hold_it(self, tmp_path: Path) -> None:
         client, data_dir, uid = _authed(tmp_path)
         app_user_state.add_highlight(
             data_dir, uid, {"id": "h1", "episode_slug": "ep", "kind": "span", "created_at": 1}
         )
         holding = client.post("/api/app/collections", json={"name": "Holding"}).json()["id"]
-        empty = client.post("/api/app/collections", json={"name": "Empty"}).json()["id"]
+        client.post("/api/app/collections", json={"name": "Empty"})
         client.post(
             f"/api/app/collections/{holding}/items", json={"kind": "highlight", "ref": "h1"}
         )
 
-        rows = client.get(
-            "/api/app/collections",
-            params={"contains_kind": "highlight", "contains_ref": "h1"},
-        ).json()["items"]
-        by_id = {r["id"]: r["contains"] for r in rows}
-        assert by_id[holding] is True
-        assert by_id[empty] is False
+        body = client.get(
+            "/api/app/collections/containing", params={"kind": "highlight", "ref": "h1"}
+        ).json()
+        assert body == {"ids": [holding], "checked": True}
 
     def test_the_same_ref_under_a_DIFFERENT_kind_is_not_a_match(self, tmp_path: Path) -> None:
         # Membership is keyed on (kind, ref), and ids collide across kinds — an episode slug and a
         # person id can be the same string. Matching on ref alone would mark the wrong board.
-        client, data_dir, uid = _authed(tmp_path)
+        client, _data_dir, _uid = _authed(tmp_path)
         cid = client.post("/api/app/collections", json={"name": "Board"}).json()["id"]
         client.post(f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": "ep1"})
 
-        rows = client.get(
-            "/api/app/collections", params={"contains_kind": "person", "contains_ref": "ep1"}
-        ).json()["items"]
-        assert rows[0]["contains"] is False
+        body = client.get(
+            "/api/app/collections/containing", params={"kind": "person", "ref": "ep1"}
+        ).json()
+        assert body == {"ids": [], "checked": True}
 
-    def test_unasked_is_NULL_rather_than_false(self, tmp_path: Path) -> None:
+    def test_an_unreadable_file_is_NOT_CHECKED_rather_than_in_nothing(self, tmp_path: Path) -> None:
         """The distinction the client leans on.
 
-        ``false`` means "we checked, it is not in this one"; ``null`` means "nobody asked". Rendering
-        the second as the first is how a picker shows a confident "not added" it has no evidence
-        for — so a plain list must not claim to have checked.
+        ``checked: false`` with an empty ``ids`` means "we could not look". Rendering that as "it
+        is in none of your boards" gives the user the one answer they act on by saving the item a
+        second time — so it must never be inferred from a failed read.
         """
-        client, _data_dir, _uid = _authed(tmp_path)
+        client, data_dir, uid = _authed(tmp_path)
         client.post("/api/app/collections", json={"name": "Board"})
+        (data_dir / "users" / uid / "collections.json").write_text("{not json", encoding="utf-8")
 
-        rows = client.get("/api/app/collections").json()["items"]
-        assert rows[0]["contains"] is None
+        body = client.get(
+            "/api/app/collections/containing", params={"kind": "episode", "ref": "ep1"}
+        ).json()
+        assert body == {"ids": [], "checked": False}
 
-        # Half a pair is not a question either.
-        half = client.get("/api/app/collections", params={"contains_kind": "episode"}).json()
-        assert half["items"][0]["contains"] is None
+    def test_a_long_url_ref_is_still_answerable(self, tmp_path: Path) -> None:
+        # `kind=link` stores a URL, and the ADD endpoint caps `ref` at nothing at all. A bound here
+        # tighter than what can be stored would make such an item permanently unqueryable: 422, and
+        # the picker silently shows nothing marked.
+        client, _data_dir, _uid = _authed(tmp_path)
+        cid = client.post("/api/app/collections", json={"name": "Links"}).json()["id"]
+        url = "https://example.test/" + ("a" * 900)
+        assert (
+            client.post(f"/api/app/collections/{cid}/items", json={"kind": "link", "ref": url})
+        ).status_code == 200
 
-    def test_a_mutation_response_never_claims_to_have_checked(self, tmp_path: Path) -> None:
-        # create / add-item / delete-item all return Collection rows. None of them was asked the
-        # membership question, so none may answer it.
+        body = client.get(
+            "/api/app/collections/containing", params={"kind": "link", "ref": url}
+        ).json()
+        assert body == {"ids": [cid], "checked": True}
+
+    def test_the_list_endpoint_carries_no_membership_at_all(self, tmp_path: Path) -> None:
+        # The point of the split: a Collection means one thing however it was fetched.
         client, _data_dir, _uid = _authed(tmp_path)
         created = client.post("/api/app/collections", json={"name": "Board"}).json()
-        assert created["contains"] is None
+        listed = client.get("/api/app/collections").json()["items"][0]
+        assert "contains" not in created
+        assert "contains" not in listed
 
-        added = client.post(
-            f"/api/app/collections/{created['id']}/items",
-            json={"kind": "episode", "ref": "ep1"},
-        ).json()
-        assert added["contains"] is None
+    def test_containing_is_not_swallowed_by_the_collection_id_route(self, tmp_path: Path) -> None:
+        """Route ORDER, pinned.
+
+        ``/collections/{collection_id}`` would happily match ``containing`` as an id and 404. It
+        only works because the literal path is declared first, which a reorder silently undoes.
+        """
+        client, _data_dir, _uid = _authed(tmp_path)
+        resp = client.get(
+            "/api/app/collections/containing", params={"kind": "episode", "ref": "ep1"}
+        )
+        assert resp.status_code == 200, "'containing' was matched as a collection id"
+        assert "ids" in resp.json()
 
     def test_one_read_regardless_of_how_many_boards(self, tmp_path: Path, monkeypatch) -> None:
         """The cap is 200 boards; asking per board re-read the same file once per board.
@@ -493,9 +518,5 @@ class TestWhichBoardsAlreadyHoldThisItem:
             return real_read(*a, **k)  # type: ignore[arg-type]
 
         monkeypatch.setattr(store, "_read", counting_read)
-        client.get(
-            "/api/app/collections",
-            params={"contains_kind": "episode", "contains_ref": "ep1"},
-        )
-        # One for the listing, one for the membership sweep. NOT one per board.
-        assert reads["n"] <= 2, f"{reads['n']} reads for 8 boards — the per-row loop is back"
+        client.get("/api/app/collections/containing", params={"kind": "episode", "ref": "ep1"})
+        assert reads["n"] == 1, f"{reads['n']} reads for 8 boards — the per-row loop is back"

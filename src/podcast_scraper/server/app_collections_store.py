@@ -365,7 +365,7 @@ def get_items(data_dir: Path, user_id: str, collection_id: str) -> list[dict[str
     return list(_read(data_dir, user_id)["items"].get(collection_id, []))
 
 
-def collections_containing(data_dir: Path, user_id: str, kind: str, ref: str) -> set[str]:
+def collections_containing(data_dir: Path, user_id: str, kind: str, ref: str) -> set[str] | None:
     """Ids of the collections holding ``(kind, ref)`` — ONE read of the user's file.
 
     The add-to-collection picker needs this for every row at once. Asking per row via
@@ -374,11 +374,21 @@ def collections_containing(data_dir: Path, user_id: str, kind: str, ref: str) ->
     synchronous and all of them on the request path of a menu the user opens constantly.
 
     Membership lives in one document, so the answer is one pass over it.
+
+    Reads STRICTLY, and returns ``None`` when the file cannot be read. Readers here are normally
+    lenient — a browsable list over a temporarily bad file beats a 500 — but "it is in none of your
+    boards" is a stronger claim than "here is what I could list". Answering an unreadable file with
+    an empty set would tell the user their item is saved nowhere, which is exactly the assurance
+    they would act on by saving it again. ``None`` means "could not check", and the caller leaves
+    the flag unset rather than inventing a ``false``.
     """
     if not _is_safe_user_id(user_id):
-        return set()
+        return None
     want = (str(kind), str(ref))
-    items = _read(data_dir, user_id)["items"]
+    try:
+        items = _read(data_dir, user_id, strict=True)["items"]
+    except UserStateUnreadable:
+        return None
     return {
         str(cid)
         for cid, members in items.items()

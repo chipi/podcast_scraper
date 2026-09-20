@@ -16,7 +16,6 @@ import pytest
 from podcast_scraper.search.theme_clusters import (
     STORYLINE_DOC_TYPE,
     storyline_index_rows,
-    theme_cluster_anchors,
     top_theme_clusters_by_member_count,
 )
 
@@ -288,68 +287,3 @@ def test_storyline_index_rows_skip_an_anchorless_cluster(tmp_path: Path) -> None
     """No resolvable anchor → not indexed, as the rail also skips an unopenable cluster."""
     _write(tmp_path, {"data": {"clusters": [_cluster("thc:broken", "Broken", [], member_count=4)]}})
     assert storyline_index_rows(tmp_path) == []
-
-
-class TestAnchorsAreResolvableForEveryCluster:
-    """``theme_cluster_anchors`` answers "what does this storyline OPEN", for any cluster.
-
-    It exists because the surfacing function above answers a different question — which storylines
-    are worth SHOWING — and a caller that ranks storylines its own way then cannot resolve the very
-    rows its ranking chose. ``/trending?kind=storyline`` ranks every cluster with a series, by
-    momentum, with no member floor; ``top_theme_clusters_by_member_count`` floors at 4 members and
-    returns the top-N by size. Joining the first against the second missed routinely, and the
-    client's `?? entity_id` fallback then handed a ``thc:`` id to a TOPIC lookup, so the row was
-    dead on tap (operator 2026-09-19).
-    """
-
-    def test_a_cluster_below_the_surfacing_floor_still_has_an_anchor(self, tmp_path: Path) -> None:
-        # This is the bug in one assertion: the small cluster is absent from the surfaced list and
-        # present in the anchor map. Before, absent-from-the-list meant not-openable.
-        _write(
-            tmp_path,
-            {
-                "data": {
-                    "clusters": [
-                        _cluster("thc:pair", "Pair", [{"topic_id": "topic:a"}], member_count=2),
-                        _cluster("thc:real", "Real", [{"topic_id": "topic:b"}], member_count=6),
-                    ]
-                }
-            },
-        )
-        surfaced = {c["id"] for c in top_theme_clusters_by_member_count(tmp_path)}
-        assert surfaced == {"thc:real"}, "premise changed: the floor no longer withholds thc:pair"
-
-        anchors = theme_cluster_anchors(tmp_path)
-        assert anchors == {"thc:pair": "topic:a", "thc:real": "topic:b"}
-
-    def test_a_cluster_outside_the_size_top_n_still_has_an_anchor(self, tmp_path: Path) -> None:
-        # The second way the join missed: big enough to clear the floor, too far down by SIZE to
-        # make the top-N — while being near the top by MOMENTUM, which is what trending ranks on.
-        _write(
-            tmp_path,
-            {
-                "data": {
-                    "clusters": [
-                        _cluster(f"thc:{i}", f"C{i}", [{"topic_id": f"topic:{i}"}], member_count=n)
-                        for i, n in enumerate((30, 20, 10, 5))
-                    ]
-                }
-            },
-        )
-        surfaced = [c["id"] for c in top_theme_clusters_by_member_count(tmp_path, top_n=2)]
-        assert surfaced == ["thc:0", "thc:1"]
-        assert theme_cluster_anchors(tmp_path)["thc:3"] == "topic:3"
-
-    def test_a_cluster_with_no_resolvable_anchor_is_absent_not_self_referential(
-        self, tmp_path: Path
-    ) -> None:
-        # The contract the client leans on: a MISSING key means "not openable". If this ever
-        # returned {"thc:broken": "thc:broken"} the dead tap would be back, wearing a new coat.
-        _write(
-            tmp_path,
-            {"data": {"clusters": [_cluster("thc:broken", "Broken", [], member_count=4)]}},
-        )
-        assert theme_cluster_anchors(tmp_path) == {}
-
-    def test_no_artifact_is_empty_rather_than_an_error(self, tmp_path: Path) -> None:
-        assert theme_cluster_anchors(tmp_path) == {}

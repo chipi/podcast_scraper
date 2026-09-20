@@ -86,12 +86,16 @@ describe("EntityEpisodeList", () => {
     const w = mountList(25)
     expect(more(w).text()).toContain("10")
 
-    await more(w).trigger("click")
-    await more(w).trigger("click")
-    // 25 - 20 = 5 left, which is less than a page: now the remainder IS what the press reveals.
+    // The DISCRIMINATING case: 15 items, so 5 are hidden — fewer than a page. Above, "what
+    // remains" and "what this press reveals" are both 10, so that assertion cannot tell the two
+    // readings apart, and the regression being guarded ("Show 8 more" revealing four) lives
+    // exactly in the gap between them. Read the LABEL, and read it while the control still exists.
     const w2 = mountList(15)
+    expect(more(w2).text(), "the label should promise the 5 it can actually reveal").toContain("5")
+
     await more(w2).trigger("click")
     expect(rows(w2)).toHaveLength(15)
+    expect(more(w2).exists(), "nothing left to reveal").toBe(false)
   })
 
   it("offers nothing when the list already fits", () => {
@@ -119,12 +123,31 @@ describe("EntityEpisodeList", () => {
     expect(rows(w)[0].text()).toContain("Episode 100")
   })
 
-  it("announces the newly revealed rows instead of appending them silently", () => {
-    // A screen-reader user presses "show more" and, without this, hears nothing at all — which is
-    // indistinguishable from a dead button.
+  it("says nothing on mount, then announces only what a press revealed", async () => {
+    // Two failure modes, and the first fix traded one for the other. Without any live region a
+    // screen-reader user presses "show more" and hears nothing — indistinguishable from a dead
+    // button. But wrapping the LIST in the live region announces all ten initial episodes at
+    // mount, before the user has done anything, which is worse than the silence it replaced.
     const w = mountList(25)
-    const list = w.find("ul")
-    expect(list.attributes("aria-live")).toBe("polite")
-    expect(list.attributes("aria-atomic")).toBe("false")
+    const status = w.find('[aria-live="polite"]')
+    expect(status.exists()).toBe(true)
+    expect(status.classes()).toContain("sr-only")
+    expect(status.text(), "it spoke before the user touched anything").toBe("")
+
+    // The list itself must NOT be the live region.
+    expect(w.find("ul").attributes("aria-live")).toBeUndefined()
+
+    await more(w).trigger("click")
+    expect(status.text()).toContain("10")
+  })
+
+  it("stops announcing the previous entity when it is handed a new one", async () => {
+    const w = mountList(25)
+    await more(w).trigger("click")
+    expect(w.find('[aria-live="polite"]').text()).not.toBe("")
+
+    await w.setProps({ episodes: Array.from({ length: 25 }, (_, i) => ep(100 + i)) })
+    // A stale "10 more episodes shown" hanging over a list that just collapsed is a lie.
+    expect(w.find('[aria-live="polite"]').text()).toBe("")
   })
 })

@@ -29,8 +29,16 @@ export type InterestKind = 'topic' | 'theme' | 'storyline' | 'person'
  *
  * NOTE THE INVERSION between the wire names and the product ones, because it WILL mislead: the
  * backend's `thc:` is a "theme cluster" and is what a reader calls a STORYLINE, while `tc:` is a
- * "topic cluster" and is what a reader calls a THEME (operator 2026-09-19). The wire prefixes are
- * stored per user and cannot be renamed; this function is the boundary where they stop mattering.
+ * "topic cluster" and is what a reader calls a THEME. This function is the boundary where the wire
+ * names stop mattering, and every surface should take its word from here rather than the prefix.
+ *
+ * The inversion is DEFERRED, not permanent. Pre-launch there are no users whose tokens must be
+ * preserved, so renaming the prefixes — and the modules, and the artifact — is a bounded
+ * mechanical refactor rather than a migration. It goes all the way down (`theme_clusters.py`
+ * serves storylines; `topic_clusters.py` serves themes; the artifact is `topic_theme_clusters`),
+ * which is why #1603 keeps being reopened by people reading it the natural way. A comment warning
+ * that something "WILL mislead" is the codebase admitting a fix was available and declined; that
+ * option closes at launch, and after it this note becomes retroactively true.
  */
 export function interestKind(id: string): InterestKind {
   if (id.startsWith('person:')) return 'person'

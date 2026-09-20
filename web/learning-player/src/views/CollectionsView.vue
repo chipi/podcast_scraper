@@ -877,7 +877,12 @@ onMounted(() => {
     >
       <h2 class="lp-section mb-2">
         {{ t("notes.title") }}
-        <span class="lp-kicker ml-1 font-normal">{{ capture.notes.length }}</span>
+        <!-- The FILTERED count, not the raw total. With a kind chip active the heading said
+             "Your notes 18" over a list of 3 — the same disagreement LibraryView's highlights
+             count was made filter-aware to fix, reintroduced here by adding a count to a heading
+             whose list was already filtered. The chips keep their unfiltered numbers on purpose:
+             a chip's count answers "how many would this leave", which must not move as you type. -->
+        <span class="lp-kicker ml-1 font-normal">{{ visibleNotes.length }}</span>
       </h2>
       <!-- Kind chips at the TOP of the section (operator 2026-09-17), filtering by the entity a note
            is ON. The section is gated on `capture.notes.length`, not on the filtered list: gating on

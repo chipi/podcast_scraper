@@ -112,17 +112,46 @@ afterEach(() => {
   while (mountedProfiles.length) mountedProfiles.pop()!.unmount()
 })
 
+/**
+ * Shared mount options.
+ *
+ * The entity overlays are `defineAsyncComponent`, so in a test they never resolve and the id they
+ * were handed is invisible in the rendered HTML. Stubbing surfaces it — which is the whole point
+ * of the assertion below: a storyline must open on its ANCHOR topic, never on its `thc:` id.
+ */
+const mountOpts = {
+  global: {
+    plugins: [i18n, router],
+    stubs: {
+      EntityCard: {
+        props: ["kind", "id"],
+        template: '<div data-testid="stub-entity-card">{{ kind }}:{{ id }}</div>',
+      },
+      StorylineCard: {
+        props: ["id"],
+        template: '<div data-testid="stub-storyline-card">{{ id }}</div>',
+      },
+    },
+  },
+}
+
 function mountProfile() {
   setActivePinia(createPinia())
   const auth = useAuthStore()
   auth.user = { user_id: "u_1", email: "dev@localhost", name: "Dev" }
-  const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+  const w = mount(ProfileView, mountOpts)
   mountedProfiles.push(w)
   return w
 }
 
 beforeEach(() => {
   vi.spyOn(api, "getTopClusters").mockResolvedValue(clusters)
+  vi.spyOn(api, "getStorylines").mockResolvedValue([
+    { id: "thc:ai-safety", label: "AI safety", size: 4, anchor_topic_id: "topic:ai" },
+    // Deliberately anchorless: a storyline the server could not resolve must not become a tap
+    // that goes nowhere, which is the bug this whole round began with.
+    { id: "thc:orphan", label: "Orphan storyline", size: 4, anchor_topic_id: "" },
+  ])
   vi.spyOn(api, "getMyStats").mockResolvedValue(stats())
   vi.spyOn(api, "getComms").mockResolvedValue(comms())
 })
@@ -156,7 +185,7 @@ describe("ProfileView — Settings entry (#8)", () => {
     auth.user = { user_id: "u_1", email: "dev@localhost", name: "Dev" }
     const upload = vi.spyOn(api, "uploadAvatar").mockResolvedValue({ image: "/api/app/x/avatar" })
     const refresh = vi.spyOn(auth, "refresh").mockResolvedValue()
-    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    const w = mount(ProfileView, mountOpts)
     mountedProfiles.push(w)
     await pickFileAndOpenCrop(w)
     const modal = w.findComponent(AvatarCropModal)
@@ -176,7 +205,7 @@ describe("ProfileView — Settings entry (#8)", () => {
     const auth = useAuthStore()
     auth.user = { user_id: "u_1", email: "dev@localhost", name: "Dev" }
     vi.spyOn(api, "uploadAvatar").mockRejectedValue(new api.ApiError(413, "too big"))
-    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    const w = mount(ProfileView, mountOpts)
     mountedProfiles.push(w)
     await pickFileAndOpenCrop(w)
     w.findComponent(AvatarCropModal).vm.$emit("confirm", new Blob([new Uint8Array([1])]))
@@ -189,7 +218,7 @@ describe("ProfileView — Settings entry (#8)", () => {
     const auth = useAuthStore()
     auth.user = { user_id: "u_1", email: "dev@localhost", name: "Dev" }
     const upload = vi.spyOn(api, "uploadAvatar").mockResolvedValue({ image: "/x" })
-    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    const w = mount(ProfileView, mountOpts)
     mountedProfiles.push(w)
     await pickFileAndOpenCrop(w)
     w.findComponent(AvatarCropModal).vm.$emit("cancel")
@@ -202,7 +231,7 @@ describe("ProfileView — Settings entry (#8)", () => {
     setActivePinia(createPinia())
     const auth = useAuthStore()
     auth.user = { user_id: "u_1", email: "dev@localhost", name: "Dev", username: "jane_doe" }
-    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    const w = mount(ProfileView, mountOpts)
     mountedProfiles.push(w)
     expect(w.get('[data-testid="profile-handle"]').text()).toBe("@jane_doe")
   })
@@ -226,7 +255,7 @@ describe("ProfileView — Your Week layout", () => {
     vi.spyOn(prefs, "get").mockReturnValue("full") // a saved 'full' preference
     const setSpy = vi.spyOn(prefs, "set").mockResolvedValue()
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
-    const w = mount(ProfileView, { global: { plugins: [i18n, router] } })
+    const w = mount(ProfileView, mountOpts)
     await flushPromises()
 
     // Initial state reflects the saved pref: the Full button is the active one.
@@ -262,9 +291,9 @@ describe("ProfileView — interest chips", () => {
     const w = mountProfile()
     await flushPromises()
 
-    const chips = w
-      .findAll("span")
-      .filter((s) => s.classes().includes("text-person") || s.classes().includes("text-topic"))
+    // By testid, not by tag: a pill is a `<button>` when it opens something and a `<span>` when it
+    // does not, so a tag-based selector silently stops seeing the openable ones.
+    const chips = w.findAll('[data-testid^="profile-interest-"]')
     const personChip = chips.find((c) => c.classes().includes("text-person"))!
     const topicChips = chips.filter((c) => c.classes().includes("text-topic"))
 
@@ -298,6 +327,56 @@ describe("ProfileView — interest chips", () => {
     // And it is not wearing the storyline treatment.
     expect(theme.classes()).not.toContain("text-accent")
     expect(w.find('[data-testid="profile-interest-storyline"]').classes()).toContain("text-accent")
+  })
+
+  it("a storyline pill opens on its ANCHOR topic, never on the thc: id", async () => {
+    // The trap this round started with: `StorylineCard` takes the anchor topic id, so wiring the
+    // pill to its own `thc:` id would resolve nothing and produce a dead tap in a new place.
+    vi.spyOn(api, "getUserInterests").mockResolvedValue(["thc:ai-safety"])
+    const w = mountProfile()
+    await flushPromises()
+
+    const pill = w.find('[data-testid="profile-interest-storyline"]')
+    expect(pill.element.tagName).toBe("BUTTON")
+    await pill.trigger("click")
+    await flushPromises()
+
+    const overlay = w.find('[data-testid="stub-storyline-card"]')
+    expect(overlay.exists(), "the storyline overlay never opened").toBe(true)
+    expect(overlay.text()).toBe("topic:ai")
+  })
+
+  it("an interest with nowhere to go is inert ON SIGHT, not a button that does nothing", async () => {
+    // A `tc:` theme has no destination yet (#1603), and a storyline whose anchor did not resolve
+    // cannot be opened. Both must read as non-interactive before they are tapped — the lesson
+    // from the trend rows, where dimming only on tap was not a fix.
+    vi.spyOn(api, "getUserInterests").mockResolvedValue(["tc:ai", "thc:orphan"])
+    const w = mountProfile()
+    await flushPromises()
+
+    for (const kind of ["theme", "storyline"]) {
+      const pill = w.find(`[data-testid="profile-interest-${kind}"]`)
+      expect(pill.exists(), kind).toBe(true)
+      expect(pill.element.tagName, `${kind} looks tappable`).toBe("SPAN")
+      expect(pill.classes(), kind).toContain("opacity-60")
+      expect(pill.classes(), kind).toContain("cursor-default")
+    }
+  })
+
+  it("a topic and a person pill open their own entity card", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue(["topic:sleep", "person:jane"])
+    const w = mountProfile()
+    await flushPromises()
+
+    const topic = w.find('[data-testid="profile-interest-topic"]')
+    expect(topic.element.tagName).toBe("BUTTON")
+    expect(topic.attributes("aria-label")).toContain("Open")
+
+    await topic.trigger("click")
+    await flushPromises()
+    const card = w.find('[data-testid="stub-entity-card"]')
+    expect(card.exists(), "the entity card never opened").toBe(true)
+    expect(card.text()).toBe("topic:topic:sleep")
   })
 
   it("a followed STORYLINE is visibly not a topic", async () => {
