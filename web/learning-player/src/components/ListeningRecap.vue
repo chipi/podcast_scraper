@@ -18,7 +18,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getRecap } from '../services/api'
-import type { RecapResponse, RecapTheme, RecapWindow } from '../services/types'
+import type { RecapResponse, RecapRecurring, RecapWindow } from '../services/types'
 
 const { t } = useI18n()
 
@@ -80,7 +80,7 @@ const partial = computed(
  * A delta of zero renders nothing at all: an arrow that means "unchanged" is noise on every chip
  * that did not move, which is most of them.
  */
-function trendOf(theme: RecapTheme): string {
+function trendOf(theme: RecapRecurring): string {
   if (theme.is_new) return t('recap.new')
   if (theme.delta > 0) return `↑${theme.delta}`
   if (theme.delta < 0) return `↓${Math.abs(theme.delta)}`

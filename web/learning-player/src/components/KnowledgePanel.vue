@@ -165,7 +165,7 @@ type Tag = {
   label: string
   kind: "topic" | "person"
   dominant: boolean
-  themeMember: boolean
+  storylineMember: boolean
   /** Person only: aggregate speaker role (host/guest/mentioned), raw; localized at render. */
   role?: string
   /**
@@ -209,14 +209,14 @@ const dominantClusterId = computed<string | null>(() => {
 
 // Theme clusters (co-occurrence "discussed together") — parallel to the semantic dominant above.
 // Marked on the pills (theme ring) + a "Storyline ·" lead-in. No-op when topics carry no storyline_id.
-const themeClusterCounts = computed<Record<string, number>>(() => {
+const storylineCounts = computed<Record<string, number>>(() => {
   const c: Record<string, number> = {}
   for (const t of props.topics)
     if (t.storyline_id) c[t.storyline_id] = (c[t.storyline_id] ?? 0) + 1
   return c
 })
-const themeDominantId = computed<string | null>(() => {
-  const counts = themeClusterCounts.value
+const storylineDominantId = computed<string | null>(() => {
+  const counts = storylineCounts.value
   let best: string | null = null
   let bestCount = 1
   let bestSize = -1
@@ -231,9 +231,9 @@ const themeDominantId = computed<string | null>(() => {
   }
   return best
 })
-const themeDominantLabel = computed(
+const storylineDominantLabel = computed(
   () =>
-    props.topics.find((t) => t.storyline_id === themeDominantId.value)?.storyline_label ??
+    props.topics.find((t) => t.storyline_id === storylineDominantId.value)?.storyline_label ??
     null
 )
 /**
@@ -244,8 +244,8 @@ const themeDominantLabel = computed(
  * cluster from any member topic's card" (StorylineCard). Routing with the `thc:` cluster id instead
  * is what 404s, so it is deliberately not used here.
  */
-const themeDominantTopicId = computed<string | null>(
-  () => props.topics.find((t) => t.storyline_id === themeDominantId.value)?.id ?? null
+const storylineDominantTopicId = computed<string | null>(
+  () => props.topics.find((t) => t.storyline_id === storylineDominantId.value)?.id ?? null
 )
 const storylineOpen = ref(false)
 // Speaker-role badge on person chips (BE.4/PL.2) — same host/guest/mentioned vocabulary and i18n
@@ -293,7 +293,7 @@ const allTags = computed<Tag[]>(() => {
       label: tp.label,
       kind: "topic" as const,
       dominant: Boolean(dom) && tp.cluster_id === dom,
-      themeMember: Boolean(tp.storyline_id),
+      storylineMember: Boolean(tp.storyline_id),
       episodeScoped: false,
     })),
     ...persons.map((p) => ({
@@ -301,7 +301,7 @@ const allTags = computed<Tag[]>(() => {
       label: p.name,
       kind: "person" as const,
       dominant: false,
-      themeMember: false,
+      storylineMember: false,
       role: p.role ?? undefined,
       // #1685/#2062: a person identified only within this episode has no corpus-wide entity, so
       // the chip shows (she IS the guest) but does not offer a tap into an empty card.
@@ -686,7 +686,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <!-- Storyline + similar context (IN.2): promoted from a cramped, right-aligned `text-xs`
              column to a clear left-aligned block, so the storyline (theme cluster) this episode's
              topics belong to reads at a glance rather than as fine print. -->
-          <div v-if="themeDominantLabel" class="mb-2 flex items-center gap-2">
+          <div v-if="storylineDominantLabel" class="mb-2 flex items-center gap-2">
             <!-- The storyline OPENS (operator 2026-09-19): it is a real destination with its own
                  sheet, and reading its name without being able to go there was the gap. Falls back
                  to a plain <span> when no member topic id is available to route with. -->
@@ -699,22 +699,22 @@ watch(() => auth.isAuthenticated, loadCaptures)
                  The word STORYLINE rides along so the kind is NAMED, not inferred from colour —
                  colour alone reaches neither a colour-blind reader nor VoiceOver. -->
             <button
-              v-if="themeDominantTopicId"
+              v-if="storylineDominantTopicId"
               type="button"
               data-testid="kp-storyline-link"
               class="lp-tap inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/25"
-              :aria-label="t('kp.openStoryline', { label: themeDominantLabel })"
+              :aria-label="t('kp.openStoryline', { label: storylineDominantLabel })"
               @click="storylineOpen = true"
             >
               <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>
-              {{ themeDominantLabel }}
+              {{ storylineDominantLabel }}
             </button>
             <span
               v-else
               class="inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-muted"
             >
               <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>
-              {{ themeDominantLabel }}
+              {{ storylineDominantLabel }}
             </span>
           </div>
           <div class="flex flex-wrap gap-1.5">
@@ -732,7 +732,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
               class="rounded-full px-2.5 py-1 text-xs transition"
               :class="[
                 tag.kind === 'topic' ? 'text-topic' : 'text-person',
-                tag.themeMember
+                tag.storylineMember
                   ? 'lp-theme-chip'
                   : tag.dominant
                   ? 'bg-overlay ring-1 ring-topic hover:bg-elevated'
@@ -968,8 +968,8 @@ watch(() => auth.isAuthenticated, loadCaptures)
          the same stacking the panel already documents for a card's storyline ("topic underneath,
          storyline on it"). Outside the `v-else` so it survives a chip swapping the body. -->
     <StorylineCard
-      v-if="storylineOpen && themeDominantTopicId"
-      :id="themeDominantTopicId"
+      v-if="storylineOpen && storylineDominantTopicId"
+      :id="storylineDominantTopicId"
       :depth="1"
       @close="storylineOpen = false"
     />

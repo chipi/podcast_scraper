@@ -64,8 +64,8 @@ const episodes = computed<EpisodeSummary[]>(() => props.topic.episodes ?? [])
 const episodeCount = computed(() => props.topic.episode_count ?? 0)
 const siblings = computed(() => props.topic.sibling_topics ?? [])
 // Theme cluster (co-occurrence "discussed together") — the STORYLINE this topic is part of.
-const themeClusterLabel = computed(() => props.topic.storyline_label ?? null)
-const themeClusterSize = computed(() => props.topic.storyline_size ?? 0)
+const storylineLabel = computed(() => props.topic.storyline_label ?? null)
+const storylineSize = computed(() => props.topic.storyline_size ?? 0)
 // The people who drive this topic — related_people is server-ranked by co-occurrence, so the top
 // few ARE the key voices. Prominent avatar chips.
 const topVoices = computed<Entity[]>(() => (props.topic.related_people ?? []).slice(0, 8))
@@ -229,7 +229,7 @@ function searchLibrary(): void {
 
   <!-- Part of a storyline: ONE link that opens the whole storyline ON TOP (StorylineCard overlay).
        A topic with no cluster says so, quietly. -->
-  <section v-if="themeClusterLabel" class="mb-4" data-testid="ec-storyline">
+  <section v-if="storylineLabel" class="mb-4" data-testid="ec-storyline">
     <h3 class="lp-section mb-2">{{ t("ec.storylineHeading") }}</h3>
     <button
       type="button"
@@ -238,9 +238,9 @@ function searchLibrary(): void {
       @click="openStoryline"
     >
       <span class="min-w-0 flex-1">
-        <span class="block text-sm font-bold text-accent">{{ themeClusterLabel }}</span>
-        <span v-if="themeClusterSize" class="lp-kicker">{{
-          t("ec.clusterSize", themeClusterSize, { named: { count: themeClusterSize } })
+        <span class="block text-sm font-bold text-accent">{{ storylineLabel }}</span>
+        <span v-if="storylineSize" class="lp-kicker">{{
+          t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
         }}</span>
       </span>
       <span class="shrink-0 text-muted" aria-hidden="true">›</span>

@@ -74,7 +74,7 @@ const label = ref("")
 const topics = ref<Member[]>([])
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
-const themeClusterId = ref<string | null>(null)
+const storylineId = ref<string | null>(null)
 
 async function load(anchorTopicId: string): Promise<void> {
   loading.value = true
@@ -82,7 +82,7 @@ async function load(anchorTopicId: string): Promise<void> {
   try {
     const card = await getTopicCard(anchorTopicId)
     label.value = card.storyline_label ?? card.label
-    themeClusterId.value = card.storyline_id ?? null
+    storylineId.value = card.storyline_id ?? null
     // Anchor + its theme siblings = the storyline's topics; de-dupe (the API may include the anchor).
     const members: Member[] = [
       { id: card.id, label: card.label },
@@ -105,16 +105,16 @@ watch(
 )
 
 // Storyline momentum (BT.4): /trending?kind=storyline keys the same thc: id as the theme cluster,
-// so match the loaded storyline by its themeClusterId. Same badge idiom as the topic card
+// so match the loaded storyline by its storylineId. Same badge idiom as the topic card
 // (TrendMomentum badge variant). Best-effort — no badge when this storyline isn't in the top set.
 const trendingStorylines = useTrendingIndex("storyline")
 const storylineMomentum = computed(() =>
-  themeClusterId.value ? trendingStorylines.value[themeClusterId.value] ?? null : null
+  storylineId.value ? trendingStorylines.value[storylineId.value] ?? null : null
 )
 
-const following = computed(() => !!themeClusterId.value && interests.has(themeClusterId.value))
+const following = computed(() => !!storylineId.value && interests.has(storylineId.value))
 function toggleFollow(): void {
-  if (themeClusterId.value) void interests.toggle(themeClusterId.value)
+  if (storylineId.value) void interests.toggle(storylineId.value)
 }
 
 // #2036 — the shareable card for this storyline: the cluster label + how many topics/episodes it
@@ -186,7 +186,7 @@ function goBack(): void {
         <!-- Share (card / link / text) — #2036. -->
         <ShareMenu :model="shareModel" />
         <button
-          v-if="auth.isAuthenticated && themeClusterId"
+          v-if="auth.isAuthenticated && storylineId"
           type="button"
           data-testid="storyline-follow"
           class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"

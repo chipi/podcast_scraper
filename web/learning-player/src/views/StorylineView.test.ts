@@ -109,7 +109,7 @@ describe('StorylineView', () => {
   // Follow subscribes to the storyline's THEME CLUSTER (distinct from the heart, which favorites the
   // storyline). The e2e always skips — the fixture corpus has no `thc:` cluster — so this unit test
   // is the only guard on the toggle wiring.
-  function mockCard(themeClusterId: string | null) {
+  function mockCard(storylineId: string | null) {
     vi.spyOn(api, 'getTopicCard').mockResolvedValue({
       id: 'topic:energy',
       label: 'Energy',
@@ -117,7 +117,7 @@ describe('StorylineView', () => {
       cluster_label: null,
       cluster_size: 0,
       sibling_topics: [],
-      storyline_id: themeClusterId,
+      storyline_id: storylineId,
       storyline_label: 'Energy transition',
       storyline_size: 2,
       storyline_sibling_topics: [],
