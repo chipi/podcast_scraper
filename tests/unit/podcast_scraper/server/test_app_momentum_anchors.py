@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.search.theme_clusters import DEFAULT_MIN_THEME_MEMBERS
+from podcast_scraper.search.storylines import DEFAULT_MIN_STORYLINE_MEMBERS
 from podcast_scraper.server.app_momentum import _storyline_anchors
 
 pytestmark = [pytest.mark.unit]
@@ -50,7 +50,9 @@ def test_a_cluster_below_the_surfacing_floor_still_gets_an_anchor(tmp_path: Path
     what some other surface considers worth showing would leave exactly the rows THIS ranking chose
     unopenable, which is what shipped.
     """
-    assert DEFAULT_MIN_THEME_MEMBERS == 4, "the floor moved; this test's premise needs re-reading"
+    assert (
+        DEFAULT_MIN_STORYLINE_MEMBERS == 4
+    ), "the floor moved; this test's premise needs re-reading"
     _write_clusters(
         tmp_path,
         [

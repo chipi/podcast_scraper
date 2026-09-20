@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key
 from podcast_scraper.search.query_log import append_query_event
-from podcast_scraper.search.theme_clusters import STORYLINE_DOC_TYPE
+from podcast_scraper.search.storylines import STORYLINE_DOC_TYPE
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_search_view import build_search_response

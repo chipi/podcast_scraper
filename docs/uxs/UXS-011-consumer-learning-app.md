@@ -168,7 +168,12 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 | `insight`  | `var(--accent)` | GIL insight markers / "insight surfacing now"   |
 | `topic`    | `#A8B0C6`       | KG topic chips                                  |
 | `person`   | `#CCC7BB`       | Person chips / speaker emphasis                 |
-| `theme`    | `#98A0AE`       | Theme cluster (co-occurrence) chips             |
+| `theme`    | `#98A0AE`       | **Theme** chips (`tc:` — vector similarity)     |
+
+> **`theme` renders THEMES, not storylines (2026-09-19).** It used to describe "theme cluster
+> (co-occurrence)" — which is a **storyline**, the other object entirely. Storylines now take the
+> accent treatment wherever they render as a pill, so this token is free to mean what its name
+> says. See UXS-013 §Vocabulary; the backend still calls a storyline a "theme cluster" on the wire.
 
 ## Typography
 

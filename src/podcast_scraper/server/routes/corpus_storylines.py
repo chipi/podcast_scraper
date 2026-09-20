@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
-from podcast_scraper.search.theme_clusters import DEFAULT_MIN_THEME_MEMBERS
+from podcast_scraper.search.storylines import DEFAULT_MIN_STORYLINE_MEMBERS
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["corpus"])
 
-_THEME_CLUSTERS_REL = "enrichments/topic_theme_clusters.json"
+_STORYLINES_REL = "enrichments/topic_theme_clusters.json"
 
 
 def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None:
@@ -71,7 +71,7 @@ def _filter_by_min_members(payload: dict, min_members: int) -> dict:
 
 
 @router.get("/corpus/theme-clusters")
-async def corpus_theme_clusters(
+async def corpus_storylines(
     request: Request,
     path: str | None = Query(
         default=None,
@@ -80,7 +80,7 @@ async def corpus_theme_clusters(
         ),
     ),
     min_members: int = Query(
-        default=DEFAULT_MIN_THEME_MEMBERS,
+        default=DEFAULT_MIN_STORYLINE_MEMBERS,
         ge=0,
         description=(
             "Smallest theme to surface as a navigation destination. 0 returns the unfiltered "
@@ -103,7 +103,7 @@ async def corpus_theme_clusters(
 
     root_s = os.path.normpath(str(root_dir))
     safe_prefix = root_s + os.sep
-    parts = [p for p in _THEME_CLUSTERS_REL.replace("\\", "/").split("/") if p and p != "."]
+    parts = [p for p in _STORYLINES_REL.replace("\\", "/").split("/") if p and p != "."]
     if any(p == ".." for p in parts):
         raise HTTPException(status_code=400, detail="Invalid corpus path.")
     joined = os.path.normpath(os.path.join(root_s, *parts))
@@ -126,7 +126,7 @@ async def corpus_theme_clusters(
             with open(joined, encoding="utf-8") as fh:
                 loaded = json.loads(fh.read())
         except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("corpus_theme_clusters: failed to read %s: %s", joined, exc)
+            logger.warning("corpus_storylines: failed to read %s: %s", joined, exc)
             raise HTTPException(
                 status_code=500,
                 detail="topic_theme_clusters.json is unreadable or invalid JSON.",
@@ -149,12 +149,12 @@ async def corpus_theme_clusters(
     # joined is normpath'd + startswith(safe_prefix)-guarded above; getmtime only stats it.
     # codeql[py/path-injection] -- joined startswith(safe_prefix)-guarded above (Type 1).
     artifact_mtime = os.path.getmtime(joined)
-    payload = perf_cache.get_or_compute("corpus_theme_clusters", joined, artifact_mtime, _load)
+    payload = perf_cache.get_or_compute("corpus_storylines", joined, artifact_mtime, _load)
     payload = _filter_by_min_members(payload, min_members)
     _clusters = payload.get("clusters")
     _n = len(_clusters) if isinstance(_clusters, list) else None
     logger.debug(
-        "corpus_theme_clusters: serving schema_version=%s cluster_entries=%s min_members=%s",
+        "corpus_storylines: serving schema_version=%s cluster_entries=%s min_members=%s",
         payload.get("schema_version"),
         _n,
         min_members,

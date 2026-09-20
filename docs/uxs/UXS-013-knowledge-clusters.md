@@ -72,12 +72,20 @@ ones. Getting this backwards is the recurring failure (#1603), so it is stated o
 `interestKind()` in `web/learning-player/src/utils/interests.ts` is the boundary where the wire
 names stop mattering — every surface should take its word from there rather than from the prefix.
 
-**The inversion is deferred, not permanent.** Pre-launch there are no users whose stored tokens
-must be preserved, so renaming the prefixes (and `theme_clusters.py`, which serves storylines, and
-`topic_clusters.py`, which serves themes, and the `topic_theme_clusters.json` artifact) is a
-bounded mechanical refactor rather than a migration. That window closes at launch. Until then the
-honest statement is that we chose the boundary function over the rename — not that the rename was
-impossible.
+**The code is being renamed to match.** `search/theme_clusters.py` is now `search/storylines.py`
+and its symbols read `storyline_*`; `search/topic_clusters.py` (which serves THEMES) follows. See
+`docs/wip/PLAN-storyline-theme-rename-2026-09-19.md` for what is in scope and what is not.
+
+Two things deliberately keep the old spelling, and neither is an oversight:
+
+- **The wire prefixes** `thc:` / `tc:`. `interest_events.jsonl` is an append-only follow log read
+  to compute engagement momentum, so renaming a prefix orphans every historical event — momentum
+  would quietly drop for the storylines a user cared about most, with nothing erroring.
+- **The artifact** `enrichments/topic_theme_clusters.json`, because renaming it forces a
+  re-enrichment of every existing corpus, prod included, for no reader-visible gain.
+
+Both are invisible to readers of the product. `interestKind()` remains the boundary where the wire
+names stop mattering.
 
 This section settles the INTERESTS vocabulary only. The Knowledge Panel lead-in and the remaining
 `"theme"`/`"similar"` i18n pair are tracked on #1603.

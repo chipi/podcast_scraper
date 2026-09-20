@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from podcast_scraper.search.theme_clusters import (
-    consumer_theme_cluster_map,
-    top_theme_clusters_by_member_count,
+from podcast_scraper.search.storylines import (
+    storyline_map_by_topic,
+    top_storylines_by_member_count,
 )
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -60,11 +60,11 @@ def episode_storylines(
     """
     if not topics:
         return []
-    theme_map = consumer_theme_cluster_map(root)  # topic_id -> {theme_cluster_id, ...}
+    theme_map = storyline_map_by_topic(root)  # topic_id -> {theme_cluster_id, ...}
     if not theme_map:
         return []
     # thc id -> {id, label, size, anchor_topic_id}; the floor + anchor are enforced here.
-    summaries = {c["id"]: c for c in top_theme_clusters_by_member_count(root, top_n=1000)}
+    summaries = {c["id"]: c for c in top_storylines_by_member_count(root, top_n=1000)}
     out: list[AppStorylineRef] = []
     seen: set[str] = set()
     for topic in topics:

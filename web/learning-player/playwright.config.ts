@@ -14,7 +14,9 @@ export default defineConfig({
   // wrong for the SW-driven validation walks.
   // e2e/live/** is the #43 post-deploy smoke vs the LIVE closelistening.app — it runs under
   // playwright.live.config.ts against the deployed origin, NOT this local preview stack.
-  testIgnore: ['**/validation/**', '**/live/**'],
+  //  has its OWN config (vite dev, seeded state, screenshot-shaped assertions). Running
+  // those specs here fails them for the wrong reason — they were never written for this harness.
+  testIgnore: ['**/validation/**', '**/live/**', '**/design/**'],
   fullyParallel: true,
   // The heavy auth-gated specs (capture, consolidation) sign in as ISOLATED per-(spec,project) mock
   // identities (see e2e/helpers.ts) so they never share per-user files WITHIN a run. But those ids

@@ -293,7 +293,7 @@ piece to its design home:
   new listen, with an artwork backdrop + gradient scrim where available; links to the player at the
   captured timestamp.
 - **`TrendingSparkChips`** — the trending topics as compact rows (theme-colour swatch, label,
-  ×velocity, a mini sparkline), co-occurrence themes grouped by hue, collapsed to top-N on mobile.
+  ×velocity, a mini sparkline), storylines grouped by hue, collapsed to top-N on mobile.
 - **`TrendWindowTabs`** — the segmented 1M·3M·6M·1Y control (RFC-103 R2) that picks the window over
   which trending velocity is measured (default 3M).
 - **`DiscoveryList`** — the one shared list for a single entity kind (topic / storyline / person),

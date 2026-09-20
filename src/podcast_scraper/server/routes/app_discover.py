@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
-from podcast_scraper.search.theme_clusters import top_theme_clusters_by_member_count
+from podcast_scraper.search.storylines import top_storylines_by_member_count
 from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
 from podcast_scraper.server import (
     app_ranking_config_store,
@@ -101,13 +101,13 @@ def top_storylines(
     as a ``thc:`` interest and carries an ``anchor_topic_id`` so the client can open a card that
     shows the whole storyline. Empty (never 404) when the theme-cluster artifact is absent.
 
-    Floored at ``theme_clusters.DEFAULT_MIN_THEME_MEMBERS`` (4): a storyline is somewhere a
+    Floored at ``storylines.DEFAULT_MIN_STORYLINE_MEMBERS`` (4): a storyline is somewhere a
     listener is SENT, and a 2-member theme is a single co-occurrence pair, not a destination. The
     artifact keeps every theme — this is a surfacing decision, shared with the operator overlay so
     the two cannot drift.
     """
     root = corpus_root_or_503(request)
-    items = [AppStoryline(**s) for s in top_theme_clusters_by_member_count(root, limit)]
+    items = [AppStoryline(**s) for s in top_storylines_by_member_count(root, limit)]
     return AppStorylinesResponse(items=items)
 
 

@@ -108,10 +108,10 @@ def _corpus(root: Path) -> None:
     (root / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _write_theme_clusters(root: Path) -> None:
+def _write_storylines(root: Path) -> None:
     """Two theme clusters ("storylines") — one offerable, one below the navigation floor.
 
-    ``AI safety`` has 4 members and clears ``DEFAULT_MIN_THEME_MEMBERS``; ``thc:tiny`` has 2 and
+    ``AI safety`` has 4 members and clears ``DEFAULT_MIN_STORYLINE_MEMBERS``; ``thc:tiny`` has 2 and
     must not be offered. A 2-member theme is a single co-occurrence pair — a fact the corpus
     contains, not a place to send a listener — so the fixture carries both shapes rather than only
     the happy one.
@@ -203,10 +203,10 @@ def test_clusters_endpoint_returns_top_by_prevalence(tmp_path: Path) -> None:
 
 def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
     _corpus(tmp_path)
-    _write_theme_clusters(tmp_path)
+    _write_storylines(tmp_path)
     body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
     # thc:tiny (2 members) is withheld: Storylines is a navigation destination, and the same
-    # ``DEFAULT_MIN_THEME_MEMBERS`` floor the operator overlay applies has to apply here too —
+    # ``DEFAULT_MIN_STORYLINE_MEMBERS`` floor the operator overlay applies has to apply here too —
     # it was added to the operator route alone at first, leaving the consumer rail (the surface
     # the floor exists for) unfiltered.
     assert body["items"] == [
@@ -276,7 +276,7 @@ class TestTrendingStorylinesCarryTheirClickTarget:
             ],
         )
         _corpus(tmp_path)
-        _write_theme_clusters(tmp_path)
+        _write_storylines(tmp_path)
         body = (
             _client(tmp_path, personalized=False)
             .get("/api/app/trending", params={"kind": kind, "limit": 50})
@@ -312,7 +312,7 @@ def test_discover_personalizes_by_followed_storyline(tmp_path: Path) -> None:
     # Following a storyline (thc: token) re-ranks like any other interest: epOld's topic:ai is in
     # the theme cluster, so epOld leads despite being older.
     _corpus(tmp_path)
-    _write_theme_clusters(tmp_path)
+    _write_storylines(tmp_path)
     client = _client(tmp_path, personalized=True)
     _sign_in(client, tmp_path, ["thc:ai-safety"])
     titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]
