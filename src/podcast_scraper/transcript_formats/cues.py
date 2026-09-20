@@ -63,13 +63,46 @@ def _timestamp_to_seconds(ts: str) -> float:
     return float(ts)
 
 
+#: The escapes WebVTT cue text is allowed to carry, in the order they must be applied.
+#:
+#: WHY NOT ``html.unescape``. It decodes the HTML5 legacy set, which is wrong for a cue file in two
+#: measured ways: ``"&copy 2026"`` (no semicolon — an ampersand followed by a word) becomes
+#: ``"© 2026"``, silently rewriting text the publisher wrote literally; and ``&nbsp;`` becomes
+#: ``\xa0``, which the ``[ \t]+`` collapse below does not treat as whitespace, so it survives into
+#: the stored transcript, the search index and every quote span. The cue-text grammar defines
+#: exactly these five, so decode exactly these five.
+#:
+#: ``&amp;`` MUST be last: decoding it first would turn ``&amp;lt;`` into ``&lt;`` and then into
+#: ``<``, resurrecting markup the publisher escaped on purpose.
+_CUE_ESCAPES = (
+    ("&lt;", "<"),
+    ("&gt;", ">"),
+    ("&nbsp;", " "),
+    ("&lrm;", ""),
+    ("&rlm;", ""),
+    ("&amp;", "&"),
+)
+
+
 def _normalize_cue_text(raw: str) -> str:
-    """Strip simple HTML-like tags; newlines to space; collapse horizontal runs.
+    """Strip simple HTML-like tags, decode cue escapes; newlines to space; collapse runs.
 
     Leading/trailing spaces within a cue are preserved so adjacent cues can form
     ``"Hello world"`` when the second cue begins with a space.
+
+    ENTITIES ARE DECODED HERE, per segment, and that placement is load-bearing. ``plain`` is
+    ``"".join(s["text"] for s in segments)`` and GI quote char offsets are derived from it (#545),
+    so decoding on the joined string instead would shorten the text out from under every segment
+    offset. Decoding here keeps segment text and plain text in one coordinate space by
+    construction.
+
+    Tags are stripped BEFORE escapes are decoded, so a literal ``&lt;b&gt;`` the publisher escaped
+    survives as the text ``<b>`` instead of being stripped as markup. ``_VOICE_SPAN`` reads the RAW
+    cue, so speaker labels are unaffected either way.
     """
     t = _HTML_TAG.sub("", raw)
+    for entity, char in _CUE_ESCAPES:
+        t = t.replace(entity, char)
     t = t.replace("\n", " ").replace("\r", " ")
     return re.sub(r"[ \t]+", " ", t)
 

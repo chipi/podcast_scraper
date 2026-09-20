@@ -203,3 +203,66 @@ class TestCuesCutBetweenWordsStaySeparate:
         )
         plain, _segs = parse_srt(body)
         assert plain == "Hello world"
+
+
+class TestCueEscapesAreDecoded:
+    """A cue file that says ``&amp;`` means ``&`` — and the stored transcript must say ``&``.
+
+    The WebVTT grammar REQUIRES ``&amp;`` for a literal ampersand in cue text (likewise ``&lt;``,
+    ``&gt;``, ``&nbsp;``), so every conforming publisher transcript carries them. They were being
+    stored raw, which is not cosmetic: the transcript is the processing base, so ``Johnson &amp;
+    Johnson`` reached summaries, GI quotes, entity names, the KG and the search index, where it
+    cannot match a query for ``Johnson & Johnson``.
+    """
+
+    def _cue(self, body: str) -> str:
+        return f"WEBVTT\n\n00:00:00.000 --> 00:00:05.000\n<v Joe>{body}</v>\n"
+
+    def test_an_escaped_ampersand_is_decoded(self) -> None:
+        plain, _ = parse_webvtt(self._cue("We saw this at Spoke &amp; Wrench."))
+        assert plain.strip() == "We saw this at Spoke & Wrench."
+
+    def test_escaped_angle_brackets_are_decoded(self) -> None:
+        plain, _ = parse_webvtt(self._cue("5 &lt; 7 &gt; 3"))
+        assert plain.strip() == "5 < 7 > 3"
+
+    def test_markup_the_publisher_escaped_survives_as_text(self) -> None:
+        """Tags are stripped BEFORE escapes are decoded. The other order would strip ``<b>`` —
+        markup the publisher deliberately wrote as text."""
+        plain, _ = parse_webvtt(self._cue("he wrote &lt;b&gt;bold&lt;/b&gt;"))
+        assert plain.strip() == "he wrote <b>bold</b>"
+
+    def test_a_legacy_html_entity_is_left_alone(self) -> None:
+        """Why this is a fixed table and not ``html.unescape``: that decodes the HTML5 legacy set,
+        turning an ampersand followed by a word into a character the publisher never wrote."""
+        plain, _ = parse_webvtt(self._cue("&copy 2026 Acme"))
+        assert plain.strip() == "&copy 2026 Acme"
+
+    def test_a_bare_ampersand_is_untouched(self) -> None:
+        plain, _ = parse_webvtt(self._cue("AT&T earnings"))
+        assert plain.strip() == "AT&T earnings"
+
+    def test_nbsp_becomes_a_real_space(self) -> None:
+        """``html.unescape`` yields ``\\xa0``, which the horizontal-whitespace collapse does not
+        treat as a space, so it would survive into the stored text and every quote span."""
+        plain, _ = parse_webvtt(self._cue("a&nbsp;b"))
+        assert plain.strip() == "a b"
+
+    def test_srt_gets_the_same_decoding(self) -> None:
+        plain, _ = parse_srt("1\n00:00:00,000 --> 00:00:05,000\nTea &amp; biscuits\n")
+        assert plain.strip() == "Tea & biscuits"
+
+    def test_decoding_keeps_plain_text_and_segments_in_one_coordinate_space(self) -> None:
+        """#545: quote char offsets come from ``plain``. Decoding SHORTENS the text, so doing it on
+        the joined string instead of per segment would desynchronise every offset."""
+        vtt = (
+            "WEBVTT\n\n00:00:00.000 --> 00:00:02.000\n<v A>Spoke &amp; Wrench\n\n"
+            "00:00:02.000 --> 00:00:04.000\n<v B> and 5 &lt; 7\n"
+        )
+        plain, segs = parse_webvtt(vtt)
+        assert "".join(s["text"] for s in segs) == plain
+        assert "&amp;" not in plain and "&lt;" not in plain
+
+    def test_the_voice_span_still_names_the_speaker(self) -> None:
+        _plain, segs = parse_webvtt(self._cue("Spoke &amp; Wrench"))
+        assert [s.get("speaker") for s in segs] == ["Joe"]
