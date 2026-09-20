@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAX_SAVED_QUERIES, useSavedQueriesStore } from './savedQueries'
+import { MAX_SAVED_QUERIES, useSavedQueriesStore, type SavedQuery } from './savedQueries'
 import { useUserPreferencesStore } from './userPreferences'
 import { useAuthStore } from './auth'
 
