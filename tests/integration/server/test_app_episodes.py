@@ -693,9 +693,9 @@ def test_entities_topics_carry_theme_cluster_info(tmp_path: Path) -> None:
     slug = _only_slug(tmp_path)
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
     topic = next(t for t in body["topics"] if t["id"] == "topic:ai")
-    assert topic["theme_cluster_id"] == "thc:ai-safety"
-    assert topic["theme_cluster_label"] == "ai safety"
-    assert topic["theme_cluster_size"] == 2
+    assert topic["storyline_id"] == "thc:ai-safety"
+    assert topic["storyline_label"] == "ai safety"
+    assert topic["storyline_size"] == 2
     # Theme and semantic clusters are independent — semantic absent here.
     assert topic["cluster_id"] is None
 

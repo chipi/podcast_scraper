@@ -894,7 +894,7 @@ def _theme_clusters_data(topic_episodes: dict[str, list[str]]) -> dict[str, Any]
     ``lift_to_cluster`` (anchor = highest) + their episode ids, matching the enricher output the
     consumer readers parse. Deterministic, like ``search/topic_clusters.json``.
 
-    FOUR members, not three, and the count is load-bearing. ``theme_clusters`` surfaces a
+    FOUR members, not three, and the count is load-bearing. ``storylines`` surfaces a
     storyline only at ``DEFAULT_MIN_THEME_MEMBERS`` (4) — "a 2-member theme is a single
     co-occurrence pair, not a destination". The floor was raised from 2 to 4 in #1936, which
     silently dropped this corpus's only storyline below it: the Home rail still rendered, with

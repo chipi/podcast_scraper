@@ -86,9 +86,9 @@ def _read_storylines_payload(joined: str) -> Optional[Dict[str, Any]]:
 def storyline_map_by_topic(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
     """Per-topic theme-cluster info for attaching to episode topics.
 
-    ``topic_id`` → ``{theme_cluster_id, theme_cluster_label, theme_cluster_size}`` where
-    ``theme_cluster_id`` is the cluster's ``graph_compound_parent_id`` (``thc:…``),
-    ``theme_cluster_label`` its canonical label, and ``theme_cluster_size`` its member
+    ``topic_id`` → ``{storyline_id, storyline_label, storyline_size}`` where
+    ``storyline_id`` is the cluster's ``graph_compound_parent_id`` (``thc:…``),
+    ``storyline_label`` its canonical label, and ``storyline_size`` its member
     count. Topics not in any theme cluster are simply absent. Empty when the artifact
     is missing/invalid (→ no theme markers, today's behaviour).
     """
@@ -121,9 +121,9 @@ def storyline_map_by_topic(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
             tid = m.get("topic_id")
             if isinstance(tid, str) and tid.strip():
                 out[tid.strip()] = {
-                    "theme_cluster_id": gpid.strip(),
-                    "theme_cluster_label": label,
-                    "theme_cluster_size": size,
+                    "storyline_id": gpid.strip(),
+                    "storyline_label": label,
+                    "storyline_size": size,
                 }
     return out
 

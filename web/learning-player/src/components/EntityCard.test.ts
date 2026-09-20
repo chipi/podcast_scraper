@@ -192,7 +192,7 @@ describe("EntityCard", () => {
     // The storyline no longer sits under the title as a caption/heading; it is one link near the
     // foot, labelled with the cluster, that opens the storyline overlay.
     vi.spyOn(api, "getTopicCard").mockResolvedValue(
-      topicCard({ theme_cluster_label: "Agent infrastructure", theme_cluster_size: 5 }) as never
+      topicCard({ storyline_label: "Agent infrastructure", storyline_size: 5 }) as never
     )
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()

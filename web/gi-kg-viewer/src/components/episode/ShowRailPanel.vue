@@ -58,7 +58,7 @@ const descIsLong = computed(() => description.value.length > DESC_CLAMP)
 const topTopics = computed(() => signals.value?.top_topics ?? [])
 const keyPeople = computed(() => signals.value?.key_people ?? [])
 const recurringGuests = computed(() => signals.value?.recurring_guests ?? [])
-const dominantThemes = computed(() => signals.value?.dominant_themes ?? [])
+const dominantThemes = computed(() => signals.value?.dominant_storylines ?? [])
 const trendingTopics = computed(() => signals.value?.trending_topics ?? [])
 const grounding = computed(() => signals.value?.grounding ?? null)
 const groundingPct = computed(() =>
@@ -362,7 +362,7 @@ watch(
         <div class="flex flex-wrap gap-1">
           <button
             v-for="th in dominantThemes"
-            :key="th.theme_id"
+            :key="th.storyline_id"
             type="button"
             data-testid="show-rail-theme"
             class="rounded-full border px-2 py-0.5 text-[11px] font-medium outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary"

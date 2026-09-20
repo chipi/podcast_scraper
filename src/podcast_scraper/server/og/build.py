@@ -413,11 +413,11 @@ def _storyline(root: Path, ident: str, with_art: bool = True) -> OgCardModel | N
     stats = f"{n_topics} {'topic' if n_topics == 1 else 'topics'}"
     if n_eps:
         stats += f" · {_eps(n_eps)}"
-    tcid = card.theme_cluster_id
+    tcid = card.storyline_id
     hot, spark, mult = _trend(root, "storyline", tcid) if tcid else (None, None, None)
     return OgCardModel(
         kicker="Storyline",
-        title=card.theme_cluster_label or card.label,
+        title=card.storyline_label or card.label,
         blurb=_clip(" · ".join(members), _MAX_BLURB),
         byline="Topics discussed together",
         stats=stats,

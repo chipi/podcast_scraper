@@ -34,7 +34,7 @@ export type InterestKind = 'topic' | 'theme' | 'storyline' | 'person'
  *
  * The inversion is DEFERRED, not permanent. Pre-launch there are no users whose tokens must be
  * preserved, so renaming the prefixes — and the modules, and the artifact — is a bounded
- * mechanical refactor rather than a migration. It goes all the way down (`theme_clusters.py`
+ * mechanical refactor rather than a migration. It goes all the way down (`storylines.py`
  * serves storylines; `topic_clusters.py` serves themes; the artifact is `topic_theme_clusters`),
  * which is why #1603 keeps being reopened by people reading it the natural way. A comment warning
  * that something "WILL mislead" is the codebase admitting a fix was available and declined; that

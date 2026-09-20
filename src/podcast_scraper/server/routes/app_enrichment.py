@@ -29,8 +29,8 @@ from podcast_scraper.server.schemas import (
     AppCorpusEnrichmentResponse,
     AppEntitySignalsResponse,
     AppEpisodeEnrichmentResponse,
-    AppThemeCluster,
-    AppThemeClusterMember,
+    AppStorylineDetail,
+    AppStorylineMember,
     AppTrendingTopicRow,
     AppTrendingTopicsResponse,
 )
@@ -308,11 +308,11 @@ def corpus_trending_topics(
     ttc = ttc if isinstance(ttc, dict) else {}
     clusters_any = ttc.get("clusters")
     clusters = [
-        AppThemeCluster(
+        AppStorylineDetail(
             graph_compound_parent_id=(c.get("graph_compound_parent_id") or None),
             canonical_label=(c.get("canonical_label") or None),
             members=[
-                AppThemeClusterMember(topic_id=str(m.get("topic_id")))
+                AppStorylineMember(topic_id=str(m.get("topic_id")))
                 for m in (c.get("members") or [])
                 if isinstance(m, dict) and m.get("topic_id")
             ],
@@ -338,7 +338,7 @@ def corpus_trending_topics(
             )
             for r in top
         ],
-        theme_clusters=clusters,
+        storylines=clusters,
     )
 
 

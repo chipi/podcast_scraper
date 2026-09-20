@@ -454,9 +454,9 @@ def build_topic_card(
     cid, clabel, csize = info.get("cluster_id"), info.get("cluster_label"), info.get("cluster_size")
     tinfo = theme_map.get(topic_id) or {}
     tcid, tclabel, tcsize = (
-        tinfo.get("theme_cluster_id"),
-        tinfo.get("theme_cluster_label"),
-        tinfo.get("theme_cluster_size"),
+        tinfo.get("storyline_id"),
+        tinfo.get("storyline_label"),
+        tinfo.get("storyline_size"),
     )
     siblings = [
         _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
@@ -473,9 +473,9 @@ def build_topic_card(
         cluster_label=clabel if isinstance(clabel, str) else None,
         cluster_size=csize if isinstance(csize, int) else 0,
         sibling_topics=siblings,
-        theme_cluster_id=tcid if isinstance(tcid, str) else None,
-        theme_cluster_label=tclabel if isinstance(tclabel, str) else None,
-        theme_cluster_size=tcsize if isinstance(tcsize, int) else 0,
+        storyline_id=tcid if isinstance(tcid, str) else None,
+        storyline_label=tclabel if isinstance(tclabel, str) else None,
+        storyline_size=tcsize if isinstance(tcsize, int) else 0,
         theme_sibling_topics=theme_siblings,
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),

@@ -308,16 +308,16 @@ class AppTopic(BaseModel):
     cluster_size: int = Field(
         default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
     )
-    theme_cluster_id: str | None = Field(
+    storyline_id: str | None = Field(
         default=None,
         description="Corpus THEME-cluster id (thc:{slug}) — topics discussed together "
         "(co-occurrence), distinct from the semantic cluster_id. Null when not in a theme. "
         "From enrichments/topic_theme_clusters.json.",
     )
-    theme_cluster_label: str | None = Field(
+    storyline_label: str | None = Field(
         default=None, description="Canonical label of the topic's theme cluster, when in one."
     )
-    theme_cluster_size: int = Field(
+    storyline_size: int = Field(
         default=0, ge=0, description="Member count of the topic's theme cluster (0 if none)."
     )
 
@@ -610,15 +610,15 @@ class AppTopicCard(BaseModel):
         default_factory=list,
         description="Other topics in the same SEMANTIC ('Similar') cluster.",
     )
-    theme_cluster_id: str | None = Field(
+    storyline_id: str | None = Field(
         default=None,
         description="Corpus THEME-cluster id (thc:{slug}) — topics discussed together "
         "(co-occurrence), distinct from the semantic cluster_id.",
     )
-    theme_cluster_label: str | None = Field(
+    storyline_label: str | None = Field(
         default=None, description="Canonical label of the topic's theme cluster, when in one."
     )
-    theme_cluster_size: int = Field(
+    storyline_size: int = Field(
         default=0, ge=0, description="Member count of the topic's theme cluster (0 if none)."
     )
     theme_sibling_topics: list[AppTopic] = Field(
@@ -1031,18 +1031,18 @@ class AppCorpusEnrichmentResponse(BaseModel):
 #     fetches KB, not the whole ~25 MB corpus-enrichment payload, to render a rail/card. ---
 
 
-class AppThemeClusterMember(BaseModel):
+class AppStorylineMember(BaseModel):
     """A topic that belongs to a co-occurrence theme cluster ("storyline")."""
 
     topic_id: str
 
 
-class AppThemeCluster(BaseModel):
+class AppStorylineDetail(BaseModel):
     """A co-occurrence theme cluster; the trending rail colours + groups its topics by these."""
 
     graph_compound_parent_id: str | None = None
     canonical_label: str | None = None
-    members: list[AppThemeClusterMember] = Field(default_factory=list)
+    members: list[AppStorylineMember] = Field(default_factory=list)
 
 
 class AppTrendingTopicRow(BaseModel):
@@ -1091,7 +1091,7 @@ class AppTrendingTopicsResponse(BaseModel):
         default_factory=list, description="Ordered YYYY-MM axis the monthly_counts are keyed on."
     )
     topics: list[AppTrendingTopicRow] = Field(default_factory=list)
-    theme_clusters: list[AppThemeCluster] = Field(default_factory=list)
+    storylines: list[AppStorylineDetail] = Field(default_factory=list)
 
 
 class AppEntitySignalsResponse(BaseModel):
@@ -2795,10 +2795,10 @@ class FeedSignalPerson(BaseModel):
     episode_count: int = Field(ge=1, description="Episodes of this show that mention the person.")
 
 
-class FeedSignalTheme(BaseModel):
+class FeedSignalStoryline(BaseModel):
     """A theme cluster (topic_theme_clusters) the show's topics fall into."""
 
-    theme_id: str = Field(description="Graph compound id (thc:…) for graph linking.")
+    storyline_id: str = Field(description="Graph compound id (thc:…) for graph linking.")
     label: str
     topic_count: int = Field(ge=1, description="Show topics that are members of this theme.")
     anchor_topic_id: str | None = Field(
@@ -2891,7 +2891,7 @@ class CorpusFeedSignalsResponse(BaseModel):
     recurring_guests: list[FeedSignalPerson] = Field(
         default_factory=list, description="People in ≥2 of this show's episodes."
     )
-    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
+    dominant_storylines: list[FeedSignalStoryline] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
     grounding: FeedGroundingSummary | None = None
     connectivity: FeedConnectivity | None = None
@@ -2910,7 +2910,7 @@ class AppPodcastSignalsResponse(BaseModel):
     top_topics: list[FeedSignalTopic] = Field(default_factory=list)
     key_people: list[FeedSignalPerson] = Field(default_factory=list)
     recurring_guests: list[FeedSignalPerson] = Field(default_factory=list)
-    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
+    dominant_storylines: list[FeedSignalStoryline] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
 
 

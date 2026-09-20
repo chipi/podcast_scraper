@@ -66,9 +66,9 @@ const SIGNALS = {
   recurring_guests: [{ person_id: 'person:jane', name: 'Jane Doe', episode_count: 2 }],
   // `anchor_topic_id` is the routable click target (#2115). The `thc:` id is label-derived and is
   // NOT a node in the loaded graph, so a fixture without the anchor encodes the pre-#2115 shape —
-  // which is how the viewer went on routing with `theme_id` unnoticed.
-  dominant_themes: [
-    { theme_id: 'thc:ai-stuff', label: 'AI stuff', topic_count: 3, anchor_topic_id: 'topic:ai' },
+  // which is how the viewer went on routing with `storyline_id` unnoticed.
+  dominant_storylines: [
+    { storyline_id: 'thc:ai-stuff', label: 'AI stuff', topic_count: 3, anchor_topic_id: 'topic:ai' },
   ],
   trending_topics: [{ topic_id: 'topic:ai', label: 'AI', velocity: 2.5, episode_count: 2 }],
   grounding: { grounded_insights: 8, total_insights: 10, rate: 0.8, episode_count: 3 },
@@ -346,7 +346,7 @@ describe('ShowRailPanel — episode rows, sort, graph', () => {
   it('a theme with no anchor is disabled rather than opening nothing', async () => {
     stubApi(null, {
       ...SIGNALS,
-      dominant_themes: [{ theme_id: 'thc:orphan', label: 'Orphan', topic_count: 1 }],
+      dominant_storylines: [{ storyline_id: 'thc:orphan', label: 'Orphan', topic_count: 1 }],
     })
     const w = mount(ShowRailPanel)
     await flushPromises()

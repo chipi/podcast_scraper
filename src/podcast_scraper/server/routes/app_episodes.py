@@ -198,7 +198,7 @@ def podcast_signals(
         top_topics=s.top_topics,
         key_people=s.key_people,
         recurring_guests=s.recurring_guests,
-        dominant_themes=s.dominant_themes,
+        dominant_storylines=s.dominant_storylines,
         trending_topics=s.trending_topics,
     )
 

@@ -106,8 +106,8 @@ def _hit_cluster_key(
     if topic_id and theme_map:
         theme = theme_map.get(topic_id)
         if theme:
-            thc = theme.get("theme_cluster_id")
-            tlabel = theme.get("theme_cluster_label") or thc
+            thc = theme.get("storyline_id")
+            tlabel = theme.get("storyline_label") or thc
             if isinstance(thc, str) and thc.strip():
                 return ("theme_cluster", thc.strip(), str(tlabel or thc).strip())
 

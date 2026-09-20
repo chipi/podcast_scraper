@@ -81,8 +81,8 @@ async function load(anchorTopicId: string): Promise<void> {
   failed.value = false
   try {
     const card = await getTopicCard(anchorTopicId)
-    label.value = card.theme_cluster_label ?? card.label
-    themeClusterId.value = card.theme_cluster_id ?? null
+    label.value = card.storyline_label ?? card.label
+    themeClusterId.value = card.storyline_id ?? null
     // Anchor + its theme siblings = the storyline's topics; de-dupe (the API may include the anchor).
     const members: Member[] = [
       { id: card.id, label: card.label },
