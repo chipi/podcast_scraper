@@ -996,8 +996,10 @@ const showEmpty = computed(
     </template>
 
     <!-- Zero state (before the first search): teach the feature instead of a blank page. Search is
-         the differentiator (jump-to-moment), and the phone Search tab skips Home's selling hero, so
-         a first-timer landing here needs a nudge. Tapping an example runs it. -->
+         the differentiator (jump-to-moment), and you can arrive here without passing Home's selling
+         hero — via the masthead magnifier from any screen, or Discovery's box (the phone Search tab
+         that used to do this was removed 2026-09-20). A first-timer landing here needs a nudge.
+         Tapping an example runs it. -->
     <!-- Zero state sits directly under the search row (operator): the examples + any saved searches
          follow the field with normal spacing. The prior version centred the chips in a 58dvh box,
          which read as a big blank gap on a tall phone. -->

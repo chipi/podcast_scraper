@@ -520,6 +520,9 @@ const mainBottomPadding = computed(() =>
           the bottom of the same screen. Two navs is worse than either one — it makes the app feel
           like two designs stacked, and it wastes the scarcest space on a phone.
 
+          Search is the exception now (2026-09-20) and is hoisted out of this span: it is no longer a
+          tab, so it no longer appears twice, and it needs to stay reachable on a phone.
+
           Browse lives only here, and that is fine: it is a corpus index, not a daily destination
           (the reason it did not take a tab), and Home carries a "Browse all →" link plus the
           catalogue link in the empty shows state. The auth buttons below stay visible at every
@@ -550,7 +553,7 @@ const mainBottomPadding = computed(() =>
              the hub with Episodes · Shows · Topics · People, versus a bare episode list. `/browse`
              is a strict superset — it renders `<CatalogView embedded />` as its Episodes tab — so
              the catalogue was never missing, three indexes were. -->
-        <NavIconLink :to="{ name: 'browse' }" :label="t('nav.browse')">
+        <NavIconLink :to="{ name: 'browse' }" :label="t('nav.browse')" owns="browse">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
@@ -562,6 +565,7 @@ const mainBottomPadding = computed(() =>
             :to="resurfacing.dueCount ? { name: 'library', query: { tab: 'revisit' } } : { name: 'library' }"
             :label="t('library.title')"
             :badge="resurfacing.dueCount"
+            owns="library"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />

@@ -933,6 +933,37 @@ is a broken link.
 | Recap panel + Home prompt | `recap-and-deep-links.spec.ts`, `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3) |
 | `?t=` deep links | `recap-and-deep-links.spec.ts`, `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3) |
 | Offline shell / SW | `offline.spec.ts`, `offline-shell-real-corpus.spec.ts` (Tier-3) |
+| Search folded into Discovery (nav) | `search-in-discovery.spec.ts` (tab count · masthead reachability at phone width · placement between Trending shows and Trends · Discovery highlight on `/search`), `BottomNav.test.ts`, `touch-affordances.test.ts` (#1588 source guard) |
+
+### Navigation: Search is part of Discovery (operator 2026-09-20)
+
+The phone bar carries **three** destinations — **Home** · **Discover** · **Library**. Search is not
+one of them, and `/search` lights **Discovery**.
+
+This finishes a decision the app had already half-made. #14 gave Browse its own tab because it "is
+the destination that gathers" the discovery surfaces; before it, `search` owned
+`['search', 'catalog', 'podcast']`. #14 inverted the parent and left search outside. Search is a
+discovery surface, so it now sits under the gatherer with the rest.
+
+Search gained entry points rather than losing them — three, up from two:
+
+| Entry point | Where | Notes |
+| --- | --- | --- |
+| Masthead magnifier | Every screen, **every width** | The only always-available control now. The other masthead icons are desktop-only |
+| Discovery's search box | `/browse`, between Trending shows and Trends | Same `lp-search` control as Home's, not a second dialect of it |
+| Home's "Ask" box | Home | Unchanged |
+
+**What this knowingly overrules.** `BottomNav` holds that "a wrong 'you are here' is worse than
+none" — the reason the player lights no tab at all. Someone who searches from Home's Ask box now
+lands on `/search` with Discovery lit, a path they did not take. Accepted because search, unlike an
+episode, has a canonical parent. It is pinned by tests at both layers so it cannot be quietly
+reverted into looking like a bug.
+
+**The trap this must not spring.** #1588 existed because search had ONE entry point and was
+unreachable from the catalogue, player, library and show pages. Dropping its tab without hoisting
+the masthead icon out of the `hidden … sm:flex` span would re-open it — silently, since desktop
+would still look right. Guarded as a source check, because the breakage is a media query and jsdom
+does not evaluate one: a mounted test would pass either way.
 
 ## The view inventory (documented 2026-09-03)
 
