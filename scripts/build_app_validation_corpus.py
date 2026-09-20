@@ -35,7 +35,7 @@ fields the consumer readers require*, derived from studying the consumer readers
 * ``metadata.content.media_url`` (+ ``media_type``) — ``app_audio_bridge`` /
   the audio-source route read these for direct playback.
 * ``search/topic_clusters.json`` with multi-member clusters — the Profile
-  interests picker (``top_clusters_by_member_count``) and discover ranking read
+  interests picker (``top_themes_by_member_count``) and discover ranking read
   it.
 
 Usage::
@@ -1507,8 +1507,8 @@ def main() -> int:
 
     # --- search/topic_clusters.json -----------------------------------------
     # Real clusters group DISTINCT topic ids under one themed parent. We build two
-    # multi-member clusters so the interests picker (top_clusters_by_member_count)
-    # surfaces them and entity-card siblings (consumer_cluster_siblings) resolve:
+    # multi-member clusters so the interests picker (top_themes_by_member_count)
+    # surfaces them and entity-card siblings (theme_siblings_by_topic) resolve:
     #
     #   tc:lifelong-learning  — the shared "lifelong learning" + "expert interviews"
     #                           umbrellas (cross-show themes), 2 distinct members.

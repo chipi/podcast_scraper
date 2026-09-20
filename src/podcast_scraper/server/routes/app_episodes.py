@@ -22,7 +22,7 @@ from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.search.storylines import storyline_map_by_topic
-from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
+from podcast_scraper.search.topic_clusters import theme_map_by_topic
 from podcast_scraper.server import app_stats, app_user_state
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
@@ -440,7 +440,7 @@ def episode_entities(
     # topic — semantic (search/topic_clusters.json, "Similar") and theme
     # (enrichments/topic_theme_clusters.json, co-occurrence "Theme"). Each is a no-op when its
     # artifact is absent → flat list / no theme markers, today's behaviour.
-    cluster_map = consumer_topic_cluster_map(root)
+    cluster_map = theme_map_by_topic(root)
     theme_map = storyline_map_by_topic(root)
     if cluster_map or theme_map:
         topics = [

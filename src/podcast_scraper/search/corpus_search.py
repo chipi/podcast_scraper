@@ -23,7 +23,7 @@ from podcast_scraper.search.storylines import (
     storyline_episode_ids,
     top_storylines_by_member_count,
 )
-from podcast_scraper.search.topic_clusters import load_topic_cluster_enrichment_map
+from podcast_scraper.search.topic_clusters import load_theme_enrichment_map
 from podcast_scraper.search.transcript_chunk_lift import (
     lift_row_if_transcript,
     TranscriptLiftGiCache,
@@ -107,7 +107,7 @@ class CorpusSearchOutcome:
 
 def _attach_topic_cluster_metadata(rows: List[Dict[str, Any]], corpus_root: Path) -> None:
     """Join ``topic_clusters.json`` into ``kg_topic`` metadata (query-time join)."""
-    m = load_topic_cluster_enrichment_map(corpus_root)
+    m = load_theme_enrichment_map(corpus_root)
     if not m:
         return
     for row in rows:

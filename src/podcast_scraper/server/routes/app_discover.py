@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
 from podcast_scraper.search.storylines import top_storylines_by_member_count
-from podcast_scraper.search.topic_clusters import top_clusters_by_member_count
+from podcast_scraper.search.topic_clusters import top_themes_by_member_count
 from podcast_scraper.server import (
     app_ranking_config_store,
     app_ranking_telemetry,
@@ -85,7 +85,7 @@ def top_clusters(
 ) -> AppInterestClustersResponse:
     """Top interest clusters by corpus prevalence — the picker's choices (PRD-043 FR4)."""
     root = corpus_root_or_503(request)
-    items = [AppInterestCluster(**c) for c in top_clusters_by_member_count(root, limit)]
+    items = [AppInterestCluster(**c) for c in top_themes_by_member_count(root, limit)]
     return AppInterestClustersResponse(items=items)
 
 

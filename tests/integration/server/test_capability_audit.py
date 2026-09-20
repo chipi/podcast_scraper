@@ -258,7 +258,7 @@ class TestClusterReach:
         assert reach["single_feed"] == 0
 
     def test_member_topics_are_actually_read(self, report) -> None:
-        """The bug this catches: `top_clusters_by_member_count` DROPS `members`.
+        """The bug this catches: `top_themes_by_member_count` DROPS `members`.
 
         The first version of this measurement called it and asked for member topic ids, got
         nothing, and reported "0 topics across 0 feeds" for every cluster — which reads like a
@@ -999,7 +999,7 @@ class TestTheMeasureActuallyUsesBothLayers:
         monkeypatch.setattr(
             ca, "_episode_features", lambda *a, **k: (set(), set(), {"person:alex"})
         )
-        monkeypatch.setattr(ca, "consumer_topic_cluster_map", lambda root: {}, raising=False)
+        monkeypatch.setattr(ca, "theme_map_by_topic", lambda root: {}, raising=False)
         monkeypatch.setattr(ca, "storyline_map_by_topic", lambda root: {}, raising=False)
 
         out = ca.measure_bare_name_resolvability(tmp_path, [row])

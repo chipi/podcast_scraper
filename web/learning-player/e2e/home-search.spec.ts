@@ -59,9 +59,22 @@ test('a hero topic chip runs its own search', async ({ page }, testInfo) => {
   // early return on zero makes the test unfailable, which is how the first version of this passed
   // in 528ms while asserting nothing at all. The server states which case it is, so ask it.
   await signInIsolated(page, 'home-search-chips', testInfo)
-  const trending = page.waitForResponse((r) => r.url().includes('/corpus/trending-topics'))
   await page.goto('/')
-  const payload = await (await trending).json()
+  // ASK the server directly rather than intercepting the load-time response.
+  //
+  // This was `waitForResponse(...)` followed by `.json()` after `goto` resolved, and it flaked
+  // roughly one run in three with `Protocol error (Network.getResponseBody): No resource with
+  // given identifier found` — Chromium discards a response body when the document that requested
+  // it goes away, and Home re-routes during load. The body was already gone by the time the test
+  // asked for it.
+  //
+  // Nothing about the assertion needs the intercepted response; it needs the server's answer to
+  // "is there velocity data". A fetch in page context carries the session cookie and cannot race
+  // a navigation.
+  const payload = await page.evaluate(async () => {
+    const r = await fetch('/api/app/corpus/trending-topics', { credentials: 'include' })
+    return r.json()
+  })
   const expected: string[] = (payload.topics ?? [])
     // The hero shows just TWO example chips now (operator) — was four.
     .slice(0, 2)
