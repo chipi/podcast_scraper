@@ -525,6 +525,25 @@ const mainBottomPadding = computed(() =>
           catalogue link in the empty shows state. The auth buttons below stay visible at every
           width — signing in is not a tab.
         -->
+        <!-- Search is the differentiator — corpus-wide semantic search with jump-to-moment, which
+             neither Spotify nor Apple Podcasts offers. It had exactly ONE entry point (the Home
+             search box), so from the catalogue, player, library or a show page there was no way to
+             reach it at all (#1588). Public, like Browse: reads are open.
+
+             Visible at EVERY width (operator 2026-09-20), unlike the icons below. The note above
+             hid these on phones because "Search appeared twice" — masthead AND bottom tab. Search
+             is no longer a tab, so that duplication is gone and the objection with it. This is now
+             the only always-available search control, which is what keeps folding search into
+             Discovery from re-opening #1588. -->
+        <NavIconLink
+          :to="{ name: 'search' }"
+          :label="t('nav.search')"
+          data-testid="masthead-search"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+          </svg>
+        </NavIconLink>
         <span class="hidden items-center gap-1.5 sm:flex">
         <!-- `browse`, not `catalog` (#2013). This link is labelled "Browse" and the bottom tab bar's
              "Browse" goes to `/browse`, so desktop and mobile disagreed on where the same word led:
@@ -535,15 +554,6 @@ const mainBottomPadding = computed(() =>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-          </svg>
-        </NavIconLink>
-        <!-- Search is the differentiator — corpus-wide semantic search with jump-to-moment, which
-             neither Spotify nor Apple Podcasts offers. It had exactly ONE entry point (the Home
-             search box), so from the catalogue, player, library or a show page there was no way to
-             reach it at all (#1588). Public, like Browse: reads are open. -->
-        <NavIconLink :to="{ name: 'search' }" :label="t('nav.search')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
           </svg>
         </NavIconLink>
         <template v-if="auth.hasSession">

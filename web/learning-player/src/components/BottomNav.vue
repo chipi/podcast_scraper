@@ -64,11 +64,16 @@ function tabLabel(name: string): string {
  *
  * Profile is NO LONGER a tab (operator 2026-09-09) — it moved to the masthead avatar, so the same
  * destination isn't reachable from two navs at once.
+ *
+ * Search is NO LONGER a tab either (operator 2026-09-20) — it is part of Discovery. It keeps three
+ * entry points, which is MORE than the two it had as a tab: the masthead magnifier (visible at every
+ * width, so reachable from any screen — the #1588 requirement), Discovery's own search box, and
+ * Home's "Ask" box. Removing a nav entry for search without the masthead icon would re-open #1588,
+ * which existed precisely because search had one entry point and was unreachable elsewhere.
  */
 const TABS = [
   { name: 'home', label: 'nav.home' },
   { name: 'browse', label: 'nav.browse' },
-  { name: 'search', label: 'nav.search' },
   { name: 'library', label: 'library.title' },
 ] as const
 
@@ -93,16 +98,31 @@ function target(name: string): { name: string; query?: Record<string, string> } 
  * it was most needed for orientation, which is the opposite of what a tab bar is for.
  *
  * Browse now has its own tab (#14): the hub plus the corpus indexes (catalogue, topic/people browse)
- * and show pages belong to it, since it is the destination that gathers them. Search owns only the
- * search route again.
+ * and show pages belong to it, since it is the destination that gathers them.
+ *
+ * Browse also owns `search` (operator 2026-09-20). #14 moved every other discovery surface under
+ * the gatherer and left search outside; this finishes that. Note what it costs, deliberately: a
+ * user who searched from Home's "Ask" box lands on `/search` with Discovery lit, which is a path
+ * they did not take — the exact thing the player rule below refuses to do. The operator's call:
+ * "search is really part of discovery". It is a decision, not an oversight, so it is written here
+ * rather than left for the next reader to discover as a bug.
  *
  * The player owns NOTHING, deliberately. You can reach an episode from any tab, so lighting one up
  * would assert a path the user may not have taken — and a wrong "you are here" is worse than none.
+ * Search differs from the player in one way that makes the trade acceptable: it has a canonical
+ * parent, where an episode has none.
  */
 const OWNED_ROUTES: Record<string, readonly string[]> = {
   home: ['home'],
-  browse: ['browse', 'catalog', 'podcast', 'browse-shows', 'browse-topics', 'browse-people'],
-  search: ['search'],
+  browse: [
+    'browse',
+    'search',
+    'catalog',
+    'podcast',
+    'browse-shows',
+    'browse-topics',
+    'browse-people',
+  ],
   library: ['library'],
 }
 
@@ -134,9 +154,6 @@ const isActive = (name: string): boolean =>
             <template v-else-if="tab.name === 'browse'">
               <circle cx="12" cy="12" r="10" />
               <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-            </template>
-            <template v-else-if="tab.name === 'search'">
-              <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
             </template>
             <template v-else-if="tab.name === 'library'">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />

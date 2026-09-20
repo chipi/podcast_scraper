@@ -20,6 +20,7 @@ function makeRouter(query: Record<string, string> = {}) {
     history: createMemoryHistory(),
     routes: [
       { path: '/browse', name: 'browse', component: BrowseView },
+      { path: '/search', name: 'search', component: { template: '<div/>' } },
     ],
   })
   void router.push({ name: 'browse', query })
@@ -78,5 +79,34 @@ describe('BrowseView (Discover)', () => {
     await flushPromises()
     expect(w.get('[data-testid="browse-tab-episodes"]').attributes('aria-selected')).toBe('true')
     expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
+  })
+
+  /**
+   * Search folded into Discovery (operator 2026-09-20).
+   *
+   * It sits between the trending-shows rail and the trends dashboard — the point where the page
+   * stops saying "here is what is popular" and starts saying "go find something".
+   */
+  it('carries a search box that submits to the results page', async () => {
+    const w = await mountView()
+    const box = w.get('[data-testid="browse-search-section"]')
+    expect(box.exists()).toBe(true)
+
+    await w.get('[data-testid="browse-search-input"]').setValue('  reward hacking  ')
+    await w.get('[data-testid="browse-search-section"] form').trigger('submit')
+    await flushPromises()
+
+    const r = w.vm.$router.currentRoute.value
+    expect(r.name).toBe('search')
+    // Trimmed: a leading space must not become part of the query.
+    expect(r.query.q).toBe('reward hacking')
+  })
+
+  it('ignores a blank submit rather than opening an empty results page', async () => {
+    const w = await mountView()
+    await w.get('[data-testid="browse-search-input"]').setValue('   ')
+    await w.get('[data-testid="browse-search-section"] form').trigger('submit')
+    await flushPromises()
+    expect(w.vm.$router.currentRoute.value.name).toBe('browse')
   })
 })
