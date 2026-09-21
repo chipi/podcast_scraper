@@ -4114,18 +4114,26 @@ def process_transcript_download(
             # line markers (`gi/speakers.py::build_named_turns`), so a plain-text transcript gives
             # every quote no SPOKEN_BY edge — the speakers would resolve and the people surfaces
             # would still be empty. Falls back to `plain` whenever the roster named nobody.
-            # HONOUR `cfg.screenplay`, as the ASR path does — but ONLY when the roster actually
-            # named somebody. GI quote attribution reads `Name:` line markers
-            # (`gi/speakers.py::build_named_turns`), so a plain transcript gives every quote no
-            # SPOKEN_BY edge and the people surfaces stay empty even though speakers resolved.
+            # HONOUR `cfg.screenplay`, as the ASR path does, WHENEVER THE TRANSCRIPT SEPARATED
+            # TURNS — which is not the same as "named somebody", and an earlier version of this
+            # comment claimed the latter while the code did the former.
             #
-            # The guard matters: formatting unconditionally rewrote transcripts that name nobody,
-            # turning the two-cue "Hello world" into "Hello\nworld". A transcript without voice
-            # spans must come out byte for byte as before, which is what
+            # The condition is a `speaker_label` on any segment, and `_enriched_segments` writes
+            # one for every voice the roster clustered, real name or bare `SPEAKER_NN`. That is
+            # deliberate, not an oversight: the ASR + diarize path writes the same screenplay with
+            # the same bare labels, and the markers carry TURN BOUNDARIES that GI reads for quote
+            # attribution (`gi/speakers.py::build_named_turns`) even when nobody is named. Storing
+            # prose instead would throw that structure away to no benefit.
+            #
+            # The case that must NOT be reformatted is a transcript with no spans at all: nothing
+            # was clustered, no `speaker_label` exists, and the text is stored byte for byte —
+            # otherwise the two-cue "Hello world" becomes "Hello\nworld", which
             # `test_process_transcript_download_normalizes_vtt_to_txt_and_segments_json` pins.
-            named = any(isinstance(s, dict) and s.get("speaker_label") for s in (segments or []))
+            has_turns = any(
+                isinstance(s, dict) and s.get("speaker_label") for s in (segments or [])
+            )
             text_to_store = plain
-            if named:
+            if has_turns:
                 text_to_store = (
                     _format_transcript_if_needed(
                         rostered, cfg, detected_speaker_names, "direct_download"

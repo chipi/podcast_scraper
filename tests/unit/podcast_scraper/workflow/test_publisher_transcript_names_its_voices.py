@@ -379,3 +379,66 @@ def test_the_caller_really_reaches_transcription(tmp_path, monkeypatch) -> None:
         "a refused transcript must fall through to the audio path; without it the episode is "
         "simply dropped"
     )
+
+
+# --------------------------------------------------------------------------------------------
+# What decides whether the stored .txt is reformatted: TURNS, not NAMES.
+# --------------------------------------------------------------------------------------------
+
+_ANON_TURNS = """WEBVTT
+
+00:00:00.000 --> 00:00:06.000
+<v Speaker 1>Some words here about a topic nobody is named in.</v>
+
+00:00:06.000 --> 00:00:12.000
+<v Speaker 2>And a reply that names nobody at all either.</v>
+"""
+
+
+def test_anonymous_turns_are_still_written_as_a_screenplay(tmp_path, monkeypatch) -> None:
+    """A transcript that separates turns but names NOBODY keeps its turn boundaries.
+
+    `_enriched_segments` writes a `speaker_label` for every clustered voice, bare `SPEAKER_NN`
+    included, and the ASR + diarize path stores exactly the same screenplay. The markers are what
+    GI reads for quote attribution (`build_named_turns`), so keeping them is the point — an
+    earlier comment claimed this only happened when the roster named somebody, which was never
+    what the code did.
+    """
+    monkeypatch.setattr(
+        epx, "_fetch_transcript_content", lambda url, cfg: (_ANON_TURNS.encode("utf-8"), "text/vtt")
+    )
+    # NO hints: with detected names or feed hosts the roster resolves these anonymous turns to
+    # real people (that is the Odd Lots case and it is covered elsewhere). Here nobody can be
+    # named, so the labels stay bare — which is exactly the condition under test.
+    ok, rel_path, _source, _ = epx.process_transcript_download(
+        _episode(),
+        "http://feed.example/t.vtt",
+        "text/vtt",
+        config_module.Config(output_dir=str(tmp_path)),
+        str(tmp_path),
+        None,
+    )
+    assert ok and rel_path
+    stored = next(
+        p for p in Path(tmp_path).rglob("*.txt") if not any(d in p.name for d in (".adfree.",))
+    ).read_text(encoding="utf-8")
+    assert "SPEAKER_0" in stored, (
+        "anonymous turns must survive as screenplay markers; storing prose would discard the turn "
+        f"boundaries GI attributes quotes with. Got: {stored[:120]!r}"
+    )
+
+
+def test_a_transcript_with_no_turns_is_stored_byte_for_byte(tmp_path, monkeypatch) -> None:
+    """The case that must NOT be reformatted. Nothing was clustered, so there is no structure to
+    preserve and rewriting only mangles the text — the two-cue "Hello world" became
+    "Hello\\nworld" when this ran unconditionally."""
+    body = (
+        "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n\n"
+        "00:00:01.000 --> 00:00:02.000\n world\n"
+    )
+    ok, rel_path, _source, _ = _download(tmp_path, monkeypatch, body)
+    assert ok and rel_path
+    stored = next(
+        p for p in Path(tmp_path).rglob("*.txt") if not any(d in p.name for d in (".adfree.",))
+    ).read_text(encoding="utf-8")
+    assert stored == "Hello world", repr(stored)

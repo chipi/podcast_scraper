@@ -789,6 +789,13 @@ def _same_person(a: str, b: str) -> bool:
     title variant. Same surname AND (one side is title-only, OR matching given name, OR one given is
     an initial of the other). "Dr. Adam Rodman" == "Adam Rodman"; "Professor Fenwick" ==
     "Alan Fenwick"; but "Robert Pape" != "Karen Pape" — distinct people who merely share a surname.
+
+    A GENERATIONAL SUFFIX IS DELIBERATELY NOT CHECKED HERE, though it IS at episode scope
+    (`_same_person_on_one_episode`). This predicate compares names ACROSS SOURCES, where one side
+    routinely omits what the other states — a feed writing `Robert Pape` for the transcript's
+    `Robert Pape Jr.` is one man described twice, and `test_generational_suffixes_still_work`
+    pins that. Two VOICES in one episode differing by a suffix are the opposite case, a father and
+    a son, which is why the guard lives there and not here.
     """
     sa, sb = _surname_token(a), _surname_token(b)
     if not sa or sa != sb:
