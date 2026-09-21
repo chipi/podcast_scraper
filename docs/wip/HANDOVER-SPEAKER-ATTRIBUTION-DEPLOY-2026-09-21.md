@@ -1,6 +1,7 @@
 # Handover — speaker attribution, ready to validate (2026-09-21)
 
-Short version: **five commits are on `main` and not pushed.** The code is clean under every local
+Short version: **several commits are on `main` and not pushed** — five when this was written, and
+more since; `git log origin/main..main` is the answer, not this line. The code is clean under every local
 gate; the thing that needs a human is the *validation*, and epic
 [#2097](https://github.com/chipi/podcast_scraper/issues/2097) is that validation. Read this, then
 work from the epic.
@@ -94,8 +95,11 @@ feeds. The epic's blocking pre-check ("verify it on ONE before any batch") stand
    suite has not answered against the final tree.
 2. ~~`drill-corpus-upgrade.yml` against `main`~~ — **this cannot run before the push, and the line
    above was wrong.** The drill upgrades *with the published image* (`IMAGE_TAG`, default `main`),
-   and `docker.yml:115` publishes only on a push to `main`, so against unpushed commits it would
-   drill the OLD code and report green. The order is: push → the image publishes → *then* the
+   and the image is published by `stack-test.yml`'s `publish` job — NOT `docker.yml`, which
+   builds with `push: false` — gated on `refs/heads/main` AND stack-test having SUCCEEDED. So
+   against unpushed commits the drill would run the OLD code and report green; and if stack-test
+   is red, no new image is published at all and `deploy-prod` silently ships the previous one.
+   Pin `override_image_sha` from the publish run summary. The order is: push → the image publishes → *then* the
    drill. What replaces it beforehand is a local walkthrough on a restored snapshot
    (`make restore-corpus-prod`), which is what was done on 2026-09-21 — see the runbook.
 3. Push, deploy.

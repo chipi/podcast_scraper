@@ -37,6 +37,13 @@ on:
           # all, so "expect ALL TEN migrations pending" and m0002's three preconditions were
           # being asserted rather than measured. See the step for why m0002 decides the run.
           - upgrade_dry_run
+          # The rest of the runbook's read-only measurements. These live in `scripts/`, which is
+          # in NO runtime image (`docker/api/Dockerfile` copies `src/` only) and the host has no
+          # Python — so Step 0a, Step 0's BEFORE number and Step 4 had no way to run on prod at
+          # all. They import stdlib + `podcast_scraper`, so the mount trick below is enough.
+          - transcript_pairing_audit
+          - speaker_coherence
+          - speaker_migration_preview
           - none
         default: all
       write_worklist:
@@ -428,6 +435,73 @@ jobs:
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/upgrade_dry_run_pkg" || true
+
+            echo '```' >> "$SUMMARY"
+            echo "" >> "$SUMMARY"
+          fi
+
+          # The runbook's other read-only measurements — Step 0a's pairing audit, Step 0's BEFORE
+          # coherence number, and the m0009 preview whose SUSPECT/AMBIGUOUS lists are the
+          # hand-read gate before step 2. Each is a script under `scripts/`, which no runtime
+          # image carries, so both `scripts/` and `src/podcast_scraper` are staged and the script
+          # is run as a FILE (not `-m`) with PYTHONPATH pointing at the staged package.
+          #
+          # Read-only: the audit opens metadata/transcripts and prints; the coherence report and
+          # the preview call the same predicates the migration does with no write path. The audit
+          # EXITS 1 on any finding by design, so it is run under `|| true` and the summary carries
+          # the verdict — a non-zero here would fail the job for reporting damage, which is the
+          # opposite of useful.
+          case "${CHECKS}" in
+            transcript_pairing_audit) AUDIT_SCRIPT=scripts/audit/transcript_pairing_audit.py ;;
+            speaker_coherence)        AUDIT_SCRIPT=scripts/audit/speaker_coherence_report.py ;;
+            speaker_migration_preview) AUDIT_SCRIPT=scripts/audit/speaker_coherence_report.py ;;
+            *)                        AUDIT_SCRIPT='' ;;
+          esac
+          if [ -n "${AUDIT_SCRIPT}" ]; then
+            EXTRA=''
+            # Exactly what `make speaker-migration-preview` passes — the preview and the plain
+            # coherence report are the same script with different flags.
+            if [ "${CHECKS}" = "speaker_migration_preview" ]; then
+              EXTRA='--migration-preview --roles'
+            fi
+            {
+              echo "### ${CHECKS} (read-only)"
+              echo '```'
+            } >> "$SUMMARY"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/audit_pkg && mkdir -p /tmp/audit_pkg"
+
+            scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              src/podcast_scraper "$SSH_TARGET:/tmp/audit_pkg/podcast_scraper"
+            scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              scripts "$SSH_TARGET:/tmp/audit_pkg/scripts"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "cd /srv/podcast-scraper && \
+               SEC=''; \
+               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+                 SEC='-f compose/docker-compose.secrets.yml'; \
+               fi; \
+               docker compose --env-file .env \
+                 -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+                 -f compose/docker-compose.vps-prod.yml \
+                 \$SEC \
+                 run --rm --no-deps \
+                 -e PYTHONPATH=/mnt/audit_pkg \
+                 -v /tmp/audit_pkg:/mnt/audit_pkg:ro \
+                 --entrypoint python api \
+                 /mnt/audit_pkg/${AUDIT_SCRIPT} --corpus-dir /app/output ${EXTRA} || true" \
+              2>&1 | tee -a "$SUMMARY"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/audit_pkg" || true
 
             echo '```' >> "$SUMMARY"
             echo "" >> "$SUMMARY"

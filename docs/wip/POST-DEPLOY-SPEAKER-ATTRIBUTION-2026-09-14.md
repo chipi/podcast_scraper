@@ -45,17 +45,26 @@ corrupted one.
 
 On a reprocess, `idx` used to come from the episode's filename prefix. Every run directory numbers
 from `0001`, so a feed with fourteen run dirs has fourteen "episode 1"s, and `idx` keys per-episode
-state and output filenames — so they collided. Measured on the 2026-09-14 snapshot:
+state and output filenames — so they collided. Re-measured on `snapshot-prod-20260920`
+(2026-09-21), which is the number to quote:
 
 ```
-metadata files pointing at ANOTHER episode's transcript   275 of 2,256  (12.2%)
+metadata files pointing at ANOTHER episode's transcript   147 of 2,297  (6.4%)
   of those, roster matches the WRONG transcript             119
   roster matches its own                                      0
-  inconclusive                                              146
+  unclassified — NOT proven safe                             28
 
 repairable in place (own transcript still on disk)           42
-needs re-download + re-ASR + re-diarize                     233
+needs re-download + re-ASR + re-diarize                     105
 ```
+
+**The 275 / 146 / 233 this section used to print were wrong**, and anything scoped off them — GPU
+estimates, repair batches, #2082's headline — was scoped off a number 87% too large. A plain stem
+equality test called 128 episodes mispaired that are not: the metadata filename truncates the
+title and the transcript filename does not, so `0006 - This Funding Model is Helping Fi_<guid>`
+and `0006 - This Funding Model is Helping Fight Climate Change_<guid>` compared unequal. The
+corrected test (`utils.filesystem.names_the_same_episode`, shared with the pipeline since
+2026-09-21) rescues those 128 and **not one** of the real mismatches.
 
 119 episodes credit their quotes to people from a different episode — "DHH's new way of writing
 code" is credited to Addy Osmani; "How Kent Beck shapes the software engineering industry" to Grady
@@ -79,6 +88,16 @@ audio, no GPU) and the rest (needs re-download + re-ASR + re-diarize).
 
 Do not quote the confirmed count as a total until the unclassified ones have been looked at.
 
+**Take this number BEFORE Step 2, and do not compare it verdict-by-verdict afterwards.** m0010
+rewrites `content.speakers` in `.metadata.json`, and this audit classifies by matching roster
+names against transcript labels — so after Step 2 some episodes move toward `inconclusive` without
+anything having been repaired or broken. The *count of mismatched pointers* stays comparable; the
+verdict split does not.
+
+**`exits 0` is not reachable by repair alone.** The audit exits 1 on ANY finding, and the 105 that
+need a re-ingest stay findings until they are re-ingested. Treat "42 fewer findings after Step 1b"
+as the success criterion, not a clean exit.
+
 Why this comes first:
 
 1. **Every measurement below is taken from `content.speakers`.** On an affected episode that field
@@ -88,7 +107,7 @@ Why this comes first:
    attribution deeper and makes the damage harder to see.
 3. **The 42 repairable ones are cheap** — a scoped `relabel_only`, no audio, no GPU. Do them before
    the migrations so the migrations see the corrected rows.
-4. **The 233 are not cheap** and are a separate decision: their transcript does not exist anywhere
+4. **The 105 are not cheap** and are a separate decision: their transcript does not exist anywhere
    in the corpus, because `relabel_only` overwrites the transcript it picks, so where episode A was
    relabelled onto B's file, A's was never written and B's was overwritten with A's labels. Only a
    full re-ingest recovers them. Size that GPU bill deliberately; do not let it start by accident.
@@ -96,16 +115,68 @@ Why this comes first:
 The code fix (unique per-run `idx`, `Episode.on_disk_idx` kept only for the legacy search) is on
 `fix/duplicate-people-variant-resolution` and stops NEW damage. It repairs nothing already written.
 
-## Step 0b — REPAIR the cheap half of #2082, BEFORE any migration
+## Step 1 — Deploy
 
-Step 0a only MEASURES. The repair is a separate step and it belongs here, not after step 2 — epic
-[#2097](https://github.com/chipi/podcast_scraper/issues/2097) activities 4 and 5 say so ("Only
-after 2-4"), and this file used to go 0a → 0 → 1 → 2 with no repair step at all, which reads as
-"measure the damage, then migrate on top of it".
+Images publish only from `main`, and one tag pins all three services. This fixes every future
+ingest and changes nothing already stored.
+
+**PIN THE SHA — do not let the deploy choose.** Publishing is `stack-test.yml`'s `publish` job
+(not `docker.yml`, which builds with `push: false`), gated on `refs/heads/main` **and stack-test
+having succeeded**. `deploy-prod` with an empty `override_image_sha` deploys the newest published
+`sha-<7>` — so if stack-test is red or still running, it silently ships the PREVIOUS image and
+every step after this runs the old code. Step 1b in particular would then re-inflict the damage it
+is there to repair.
+
+```bash
+# 1. wait for: python-app -> Stack test -> publish -> verify-manifests
+# 2. take sha-<7> from the publish run summary
+# 3. dispatch deploy-prod with override_image_sha=<that sha>
+# 4. confirm on the box, do not assume:
+grep PODCAST_IMAGE_TAG /srv/podcast-scraper/.env
+docker ps --format '{{.Image}}'
+```
+
+## Step 1b — REPAIR the cheap half of #2082, AFTER the deploy and BEFORE any migration
+
+Step 0a only MEASURES. The repair is a separate step, and this file used to have no repair step
+at all — it went 0a → 0 → 1 → 2, which reads as "measure the damage, then migrate on top of it".
+
+**It goes AFTER the deploy, and that is not a detail.** The repair runs pipeline code, and the fix
+that makes it safe (below) ships in this deploy. Run it against the old image and it re-inflicts
+the damage. An earlier draft of this section numbered it 0b, i.e. before Step 1 — wrong.
+
+**The command.** There is no per-episode parameter on `POST /api/jobs` (`routes/jobs.py` takes
+`feed`, `max_episodes`, `episode_offset`, `episode_order`, `episode_selection`, `profile`,
+`pipeline_stage` — an earlier draft of this file invented `&episode=<id>`). Per-episode scoping is
+`--reprocess-episode-ids <file>`, which **Reprocess prod corpus** reaches via:
 
 ```
-POST /api/jobs?pipeline_stage=relabel_only&episode=<id>    # the 42 repairable, scoped
+selection        : episode_ids_worklist
+episode_ids      : <paste the 42 ids, or leave empty to use the file on the box>
+pipeline_stage   : relabel_only        # added 2026-09-21; without it this workflow only did
+                                       # a full re-download + re-ASR, which is not the cheap route
+use_transcript_cache : false
+cost_cap_usd     : <state it — a relabel has no ASR cost but the GI/KG cascade does>
 ```
+
+Get the ids from the audit itself — `--worklist <path>` writes the **repairable** ones only, so
+the 105 that need a re-ingest cannot ride along in a cheap batch:
+
+```bash
+# via Inspect prod corpus -> checks: transcript_pairing_audit, or on the box:
+python scripts/audit/transcript_pairing_audit.py --corpus-dir /app/output --worklist /app/output/pairing_repair_worklist.txt
+```
+
+**What the fix changed, and what to watch.** `_transcript_beside_metadata` used to try the stored
+`content.transcript_file_path` FIRST. On all 147 damaged records that pointer names another
+episode's transcript — which exists, with its `.segments.json` — so a relabel of A opened B's
+file, overwrote it with names re-resolved from B's words, and rewrote B's roster
+(`_rewrite_speaker_record_in_place` derived the record from the transcript's stem). The repair
+re-inflicted the damage and left A untouched. Now the episode's own sibling wins, the pointer is
+accepted only when it names the same episode, and a relabel repairs the pointer as it goes.
+
+Watch each `reprocess: [seq] (on-disk idx) '<title>' -> <path>` line: the path's stem must be the
+episode's own. Then re-run the audit — it should report exactly 42 fewer findings.
 
 **Why it cannot wait.** m0009 reads `content.speakers` and demotes a graph node the roster
 contradicts. On an idx-collided episode that roster describes a DIFFERENT episode, so the
@@ -122,7 +193,15 @@ are exactly this:
 Both #2082 cases are in the audit's findings, so step 0b removes them. Do the 42 first; the 105
 that need a re-ingest are a GPU decision (activity 5), not a blocker for the migrations.
 
-## Step 0 — Pre-flight
+
+## Step 1c — Pre-flight (was "Step 0")
+
+**Numbered after the repair deliberately.** Every measurement here reads `content.speakers`, and
+on a #2082 episode that field describes a different episode — so a BEFORE number taken ahead of
+Step 1b is partly measuring the wrong episodes, and the AFTER/BEFORE comparison at Step 4 cannot
+tell a quality change from the contamination. The m0002 precondition check below is read-only and
+can be run at any time; run it early, because it decides whether Step 2 is minutes or a rebuild.
+
 
 ```bash
 make upgrade-status CORPUS_DIR=<prod corpus>
@@ -191,14 +270,25 @@ What each pending migration actually does on that corpus:
 | **0009** | 3,177 promoted, 195 demoted, 1,844 artifacts |
 | **0010** | **rewrites 93 episodes** — 39 person ids remapped (33 of them MERGING into an id already in the same episode), 1 duplicate node id folded, 164 published names canonicalised (`snapshot-prod-20260920`; the 2026-09-14 snapshot gave 91/162). Idempotent on re-run, `verify` returns ok, 0 unparsable. **It also REISSUES m0009's role ledger** — 94 rows re-pointed, 32 episodes deliberately left unrestorable; see Rollback, and expect `upgrade-undo-roles` to exit 2. **Its numbers were measured on the UNREPAIRED corpus and inherit the Step 0a caveat below.** |
 
-## Step 1 — Deploy
-
-Images publish only from `main`, and one tag pins all three services. This fixes every future
-ingest and changes nothing already stored.
-
 ## Step 2 — Migrate (fixes class A)
 
+### Before you start: pause the queue, and pick the window
+
 Confirm no ingest job is running (`GET /api/jobs`) first: a mid-ingest snapshot is inconsistent.
+`GET /api/jobs` is the check that matters, **not the lock** — the corpus lock covers a multi-feed
+ingest, but a PER-FEED job locks `<root>/feeds/<slug>` instead, a different file. Per-feed is the
+shape Step 1b and Step 3 use, so an `upgrade run` started during one is not refused. Never rely on
+contention to protect you here.
+
+```bash
+touch /srv/podcast-scraper/corpus/.viewer/jobs.paused   # scheduler queues instead of failing
+# ... Steps 2-4 ...
+rm /srv/podcast-scraper/corpus/.viewer/jobs.paused      # and re-trigger anything that was skipped
+```
+
+**Window: 07:00–02:00 UTC.** The nightly ingest fires at 03:00 UTC and the corpus backup at 05:37.
+The `prod-corpus` concurrency group serialises *workflows*, and an SSH-driven `upgrade run` is not
+a workflow — so a backup running over a migration gets `file changed as we read it`.
 
 ### The snapshot is the ONLY rollback for 0007 and 0008 — mount it or lose it
 
@@ -237,8 +327,58 @@ docker compose --env-file .env \
   -m podcast_scraper.cli upgrade run \
     --corpus-dir /app/output \
     --snapshot-dir /mnt/upgrade-snapshots \
-    --yes
+    --yes 2>&1 | tee "/srv/podcast-scraper/logs/upgrade-$(date -u +%Y%m%dT%H%M%SZ).log"
 ```
+
+**Capture the output.** m0009's SUSPECT/AMBIGUOUS lists and m0010's "left stale" lines are printed
+once and are the only record of what needed a human; a terminal that scrolls is not a record.
+
+### If it dies part-way: what each migration leaves behind
+
+`upgrade run` records each migration as it COMPLETES, so the one that raised is not recorded and a
+re-run resumes there. That makes most of the chain simply re-runnable. The exceptions are the
+point of this table.
+
+| dies at | what is on disk | can you just re-run? | recovery |
+| --- | --- | --- | --- |
+| 0001 | nothing | yes | — |
+| **0002** | ledger `{0001}`, nothing rewritten | **no, not until the index has its sidecar** | run `reindex-prod.yml` (writes `search/metadata.json`), re-dispatch `upgrade_dry_run`, then re-run |
+| 0003 / 0005 / 0006 | per-file atomic, already-current skipped | yes | re-run |
+| 0004 | no-op unless the index is stale | as 0002 | as 0002 |
+| **0007 / 0008** | per-file atomic, idempotent | yes | re-run — but there is **no undo and no verify** for these two, so the snapshot is the only way back |
+| **0009** | per-episode write, then ledger append | yes, it converges | a re-run gets a NEW `run_id`, and the undo defaults to the newest — so a later rollback is partial unless you pass `--run-id` per run |
+| **0010** | gi → kg → meta per episode; the ledger resync runs ONCE at the end | files yes, ledger **no** | see below |
+
+**m0010 is the one with a real hole.** If it dies before the resync, every episode it already
+rewrote carries a stale m0009 hash — and the re-run only resyncs the episodes IT rewrites, so
+those rows stay stale permanently: `upgrade verify` will fail 0009 and the undo will refuse them
+forever. There is no repair short of restoring the snapshot. If m0010 crashes, **restore rather
+than re-run**, unless you are content to lose the role rollback for that slice.
+
+Not verified: whether a crash *between* m0010's three per-episode writes (gi, kg, metadata) leaves
+a trio the re-run converges. Assume it does not.
+
+One misleading message to ignore: `cli_handlers` catches `RuntimeError` and prints "Upgrade
+refused — the corpus is in use". No migration raises `RuntimeError` today, so if you ever see that
+text from a migration failure, the corpus is *not* necessarily in use — read the traceback.
+
+### Restart the API after Step 2 — and it is about file OWNERSHIP, not just caches
+
+`--entrypoint python` bypasses `docker/api/entrypoint.sh`, which is where the privilege drop
+happens, and the api image sets no `USER`. So **the migrations write as root**: every file they
+rewrite via `os.replace` becomes `root:root`, including m0010's `.metadata.json` rewrites. Step 3
+writes `metadata.json` in place as uid `podcast` and will hit `PermissionError` on exactly those
+files. The restart re-runs the entrypoint's `chown -R podcast:podcast`, which is what repairs it:
+
+```bash
+docker compose --env-file .env -f compose/docker-compose.stack.yml \
+  -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml \
+  restart api viewer
+```
+
+**`restart`, never `--force-recreate`** — recreating without re-staged secrets kills the api
+(DEPLOY_GOTCHAS §1b). The snapshot directory on the host is root-owned too, so removing it later
+needs sudo.
 
 **Check the snapshot exists on the HOST before trusting it** — the line the CLI prints is a
 container path:
@@ -250,6 +390,26 @@ ls -ld "$SNAP"/.corpus-upgrade-backup-* && du -sh "$SNAP"/.corpus-upgrade-backup
 If the snapshot cannot be written the run aborts before mutating anything (`_snapshot_corpus`
 returns `None` and the caller stops), which is the safe direction — but it is a failed deploy
 step, not a warning, so check the free space first.
+
+**"4.2 GB" is the PRUNED backup, not the live corpus.** The backup drops `search/` and the audio;
+the box measured 48 GB in 2026-08. Size this from `du -sh corpus` in the dry-run output, not from
+this page.
+
+### How to actually restore from it — UNTESTED, write it down before you need it
+
+The runbook said "replace the corpus with this dir" and gave no command, which is not a procedure.
+This is the shape; **nobody has run it**, so rehearse it on a copy before trusting it:
+
+```bash
+touch /srv/podcast-scraper/corpus/.viewer/jobs.paused
+docker compose --env-file .env -f compose/docker-compose.stack.yml \
+  -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml stop api viewer
+# --delete, but NOT the job registry: .viewer/ is live state, not corpus content.
+rsync -a --delete --exclude '.viewer/' \
+  "$SNAP"/.corpus-upgrade-backup-*/ /srv/podcast-scraper/corpus/
+chown -R 1000:1000 /srv/podcast-scraper/corpus      # the snapshot is root-owned; see the restart note
+docker compose ... start api viewer
+```
 
 ### 0008 is the BIGGEST write and does the LEAST work — expect it
 
@@ -344,14 +504,31 @@ Every step here is a runnable command. An earlier version of this section named 
 CLI and told you to "re-run the migration", which the upgrade ledger blocks — it was a description,
 not a procedure (advisor S5).
 
+**On prod these are `Inspect prod corpus` dispatches, not `make` targets.** The scripts behind
+them live in `scripts/`, which no runtime image carries (`docker/api/Dockerfile` copies `src/`
+only) and the box has no Python — so until 2026-09-21 this step had no execution path on
+production at all. Use `checks: speaker_migration_preview`, `speaker_coherence`,
+`transcript_pairing_audit`. The `make` forms below are the local equivalents.
+
 ```bash
-# What m0009 would do, bypassing the ledger. Run this BEFORE step 2 as the pre-flight, and again
+# What m0009 would do, bypassing the ledger. Run this at Step 1c as the pre-flight, and again
 # after step 3 to confirm it has nothing left to do.
 make speaker-migration-preview CORPUS_DIR=<prod corpus>
 
 # Is the corpus self-consistent now?
 make speaker-coherence CORPUS_DIR=<prod corpus>
+
+# Did the migrations actually land, and is m0009's ledger still honoured? This one DOES run in
+# the prod container (it is `src/`, reached through the same `upgrade` CLI as step 2) and it is
+# the only prod-executable check of the chain — expect `[OK] 0009: N of N` and, after m0010,
+# `[OK] 0010: every person name is canonical`.
+docker compose ... run --rm --no-deps --entrypoint python api \
+  -m podcast_scraper.cli upgrade verify --corpus-dir /app/output
 ```
+
+**After Step 3, expect `upgrade-undo-roles` to refuse far more than 32** — a relabel rewrites
+`.kg.json`, so m0009's recorded hash no longer matches and those episodes refuse by design. That
+is the "undo BEFORE step 3, or not at all" rule, stated as a number.
 
 **Read the preview's two human classes before running anything.** They exist because the
 predicates are imperfect and say so:
@@ -431,13 +608,21 @@ is only needed if that is 0.
   (`bernt børnich` vs `bernt bornich`). The migration reports them and deliberately does not insert
   a node, because that would put the same human in the graph twice. Needs step 3 or #2056's
   variant resolver.
-- **Whether a `relabel_only` run rebuilds the search index by itself is UNVERIFIED.** Assume not;
-  do step 4.3 explicitly.
-- **The 17.4% figure is from the 287-artifact sample.** Prod is ~678 episodes / ~953 artifacts and
-  the real proportion has not been measured.
-- **The full `make upgrade-corpus` chain was never run end to end during development** — migration
-  0002 rebuilds the Lance index and needs `sentence_transformers`, unavailable on the dev Intel
-  Mac. m0009's `apply` was driven directly with a real `MigrationContext` and `dry_run=False`.
+- **Does a `relabel_only` run rebuild the search index by itself? UNVERIFIED, and this file used
+  to answer it both ways** — "reindexes incrementally on its own" under Step 4, "assume not" here,
+  pointing at a "step 4.3" that does not exist. Treat it as unverified: after Step 3, read
+  `vector_index_seconds` in the run summary and reindex explicitly if it is 0.
+- **The 17.4% figure is from the 287-artifact sample** and the real proportion has not been
+  measured. Corpus size depends on what you are counting and this file used to give three answers:
+  `snapshot-prod-20260920` holds **2,298 episode artifact sets** (2,297 with a transcript pointer);
+  prod's API reports ~1,956 EPISODES. Metadata files include superseded runs — never compare the
+  two directly.
+- **The full chain HAS now been run end to end** (2026-09-21, four times, on a restored
+  `snapshot-prod-20260920`) — but with m0002 recorded as applied, because `restore-corpus-prod`
+  prunes `search/` so it can never no-op locally. 0003-0010 are exercised for real; **m0002 is
+  the one migration no local drill can cover**, which is why its prod plan line is a hard gate.
+  For the same reason `drill-corpus-upgrade.yml` cannot rehearse this chain: it restores the same
+  pruned backup and dies at migration 2 of 10 every time.
 - **Three feeds will light up the `empty_host_anchor` rework queue at once, and that is the fix
   working.** The feed-host work may now only REMOVE a host, so 63 episodes across The Rest Is
   History (`Norman Conquest`, 84 voices), Latin America in Focus (`Americas Online`, 32) and
@@ -461,6 +646,46 @@ root recording every `(episode, node, role_before, role_after, route)` transitio
 make upgrade-undo-roles CORPUS_DIR=<prod corpus>              # replay every role_before
 python scripts/ops/undo_speaker_roles.py --corpus-dir <c> --show   # read it, change nothing
 ```
+
+### On PROD, that `make` target does not exist — here is the command
+
+`undo_speaker_roles.py` lives in `scripts/`, which no runtime image carries and the box has no
+Python for. This is the ONLY write in this document that has no workflow behind it, so it is
+written out in full; assembling it during an incident is how a rollback gets skipped.
+
+```bash
+cd /srv/podcast-scraper
+touch corpus/.viewer/jobs.paused                        # and confirm GET /api/jobs is idle
+rm -rf /tmp/undo_pkg && mkdir -p /tmp/undo_pkg          # stage OUR code next to the image's deps
+# from a checkout, or scp these two from your laptop:
+#   src/podcast_scraper -> /tmp/undo_pkg/podcast_scraper
+#   scripts             -> /tmp/undo_pkg/scripts
+SEC=''; [ -n "$(ls -A /dev/shm/podcast-secrets 2>/dev/null)" ] && SEC='-f compose/docker-compose.secrets.yml'
+C="docker compose --env-file .env -f compose/docker-compose.stack.yml \
+   -f compose/docker-compose.prod.yml -f compose/docker-compose.vps-prod.yml $SEC"
+
+# READ FIRST — lists every run in the ledger. More than one means m0009 ran twice.
+$C run --rm --no-deps -e PYTHONPATH=/mnt/undo_pkg -v /tmp/undo_pkg:/mnt/undo_pkg:ro \
+  --entrypoint python api /mnt/undo_pkg/scripts/ops/undo_speaker_roles.py \
+  --corpus-dir /app/output --show | head -20
+
+# THEN write. Drop --run-id only when --show reported exactly one run.
+$C run --rm --no-deps -e PYTHONPATH=/mnt/undo_pkg -v /tmp/undo_pkg:/mnt/undo_pkg:ro \
+  --entrypoint python api /mnt/undo_pkg/scripts/ops/undo_speaker_roles.py \
+  --corpus-dir /app/output [--run-id <newest>]
+```
+
+**It runs as root** (`--entrypoint python` bypasses the privilege drop), so restart afterwards
+exactly as after Step 2 — the entrypoint's `chown` is what makes the files writable by the
+pipeline again.
+
+**Expect a non-zero exit.** After the full chain 32 episodes refuse by design; after Step 3 far
+more will. Non-zero here means "partial", not "failed" — read the `REFUSED` lines.
+
+**If m0009 ran more than once, the default undoes only the newest run.** `--show` now names every
+run and warns when there is more than one; undo them newest-first, one `--run-id` per call. There
+is deliberately no "undo everything" flag: the order matters, and the wrong order writes an older
+run's `role_before` over a newer one's.
 
 Verified twice. On a 287-artifact staging copy with nothing else touching it: 401 changes applied,
 401 restored, 0 refused, corpus sha256 **byte-identical**.

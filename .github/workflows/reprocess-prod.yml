@@ -47,6 +47,23 @@ on:
           - whisper_transcription
           - direct_download
         default: whisper_transcription
+      pipeline_stage:
+        description: >-
+          Which part of the pipeline to run. LEAVE EMPTY for the full reprocess (re-downloads
+          audio and re-runs ASR — the expensive route, and the only one this workflow could do
+          before). `relabel_only` re-resolves speaker NAMES on the frozen diarization and
+          cascades GI/KG: no audio, no ASR, no GPU — it is what the #2082 repair of the 42
+          recoverable episodes needs, and without this input that repair had no prod command at
+          all. `rediarize_only` re-runs diarization against the existing text (downloads audio,
+          needs GPU). `retranscript_only` re-fetches the publisher transcript.
+        type: choice
+        options:
+          - ""
+          - relabel_only
+          - rediarize_only
+          - retranscript_only
+          - rederive_only
+        default: ""
       use_transcript_cache:
         description: >-
           Leave FALSE for any repair. The transcript cache key is the original media hash plus
@@ -210,6 +227,7 @@ jobs:
           EPISODE_IDS_FILE: ${{ github.event.inputs.episode_ids_file }}
           EPISODE_IDS_INLINE: ${{ github.event.inputs.episode_ids }}
           REPROCESS_SOURCE: ${{ github.event.inputs.reprocess_source }}
+          PIPELINE_STAGE: ${{ github.event.inputs.pipeline_stage }}
           USE_TRANSCRIPT_CACHE: ${{ github.event.inputs.use_transcript_cache }}
           PROFILE: ${{ github.event.inputs.profile }}
           # Input OVERRIDES; vars.PROD_LITELLM_API_BASE is the configured default. Without the
@@ -313,9 +331,19 @@ jobs:
             CAP_ARGS=""
           fi
 
+          # STAGE. Empty = the full reprocess this workflow has always run. A reprocess stage
+          # reuses what is on disk, so the cache warning above is moot for them — `relabel_only`
+          # never reaches ASR at all (STAGES_THAT_NEVER_TRANSCRIBE).
+          if [ -n "${PIPELINE_STAGE}" ]; then
+            STAGE_ARGS="--pipeline-stage '${PIPELINE_STAGE}'"
+          else
+            STAGE_ARGS=""
+          fi
+
           echo "selection : ${SELECTION}"
           echo "ids       : ${IDS_FILE}"
           echo "cost cap  : ${COST_CAP_USD:-<profile default>}"
+          echo "stage     : ${PIPELINE_STAGE:-<full reprocess>}"
           echo "cache     : ${USE_TRANSCRIPT_CACHE}"
           echo "gateway   : ${LITELLM_API_BASE_INPUT:-<profile default>}"
 
@@ -431,4 +459,5 @@ jobs:
                  ${CACHE_ARGS} \
                  ${GATEWAY_ARGS} \
                  ${CAP_ARGS} \
+                 ${STAGE_ARGS} \
                  ${SELECT_ARGS} 2>&1 | tee -a '${REMOTE_LOG}'"
