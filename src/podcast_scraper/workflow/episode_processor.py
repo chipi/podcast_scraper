@@ -2614,11 +2614,31 @@ def _relabel_existing_transcript(
     # so names are re-resolved from evidence — correct for names WE inferred, wrong for names the
     # SOURCE stated. `stated_speaker` carries those (written by `_roster_native_segments`), and
     # they are handed back to the roster at top precedence, exactly as on the first pass.
+    #
+    # TWO CARRIERS, because two different writers produce this file and only one of them is new.
+    # `stated_speaker` is written by the download path added alongside this. But `retranscript_only`
+    # — the stage that repairs the 129 production episodes whose spans were never stored at all —
+    # writes the PARSED CUES verbatim: `{start, end, text, speaker}`, where `speaker` is the
+    # publisher's own label and there is no `stated_speaker` to find. Reading only the new key
+    # meant the repair ran, logged "rewrote ... with 2 speaker(s); relabelling", and published
+    # `SPEAKER_00` / `SPEAKER_01` — every stated name discarded, which is the whole point of the
+    # repair. Verified by simulating the stage's exact output before this line existed.
+    #
+    # ONLY `speaker`, NEVER `speaker_label`. That is the same split the clustering comment above
+    # draws: `speaker` is what the SOURCE said and is not ours to revise; `speaker_label` is OUR
+    # resolved answer from a previous run, and re-deriving it is what relabel is FOR. Treating the
+    # latter as stated would freeze v2's names forever.
+    from ..providers.ml.diarization.roster import _is_person_voice_label
+
     _stated_relabel: Dict[str, str] = {}
     for s in segs:
         if not isinstance(s, dict):
             continue
         stated = s.get("stated_speaker")
+        if not stated:
+            raw_voice = s.get("speaker")
+            if raw_voice is not None and _is_person_voice_label(str(raw_voice)):
+                stated = str(raw_voice).strip()
         ident = _identity(s)
         if stated and ident is not None:
             _stated_relabel.setdefault(_anon(ident), str(stated))

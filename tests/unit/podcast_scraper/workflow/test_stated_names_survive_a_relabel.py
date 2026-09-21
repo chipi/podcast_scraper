@@ -269,3 +269,90 @@ def test_an_ordinary_inferred_name_is_still_re_derived(tmp_path: Path) -> None:
 
     assert ok is True
     assert "Amy Lawrence" not in text, "v2's inferred name was frozen; relabel must re-derive it"
+
+
+# ------------------------------------------------------------------------------------------
+# The retranscript_only hand-off — the post-deploy repair path for #2130.
+# ------------------------------------------------------------------------------------------
+
+
+def _retranscript_segments() -> List[Dict[str, Any]]:
+    """EXACTLY what ``_retranscript_existing_transcript`` writes: the parsed cues, verbatim.
+
+    ``{start, end, text, speaker}`` and nothing else — no ``stated_speaker`` (that key is written
+    by the DOWNLOAD path, which never ran for these episodes) and no ``speaker_label`` (nothing
+    has resolved anything yet).
+    """
+    _plain, segments = parse_webvtt(_NAMED_VTT)
+    return [dict(s) for s in segments]
+
+
+def test_the_retranscript_handoff_keeps_the_publishers_names(tmp_path: Path) -> None:
+    """THE post-deploy regression, found by simulating the stage rather than reading it.
+
+    ``retranscript_only`` repairs the 129 production episodes whose voice spans were never stored
+    (measured on the 2,257-episode snapshot: those 129 have no ``.segments.json`` at all, and all
+    129 do record a transcript URL, so this is the stage that can repair them). It re-fetches,
+    re-parses, writes the cues, and hands off to the relabel below.
+
+    Before this was fixed the hand-off discarded every stated name and published ``SPEAKER_00`` /
+    ``SPEAKER_01`` — the repair ran, logged "rewrote ... with 2 speaker(s); relabelling", and named
+    nobody, which is the entire thing #2130 exists to fix.
+    """
+    base = tmp_path / "feed"
+    _write_corpus(base, "20260101-000000_t", _retranscript_segments())
+
+    ok, rows, text = _relabel(base, "20260101-000000_t", "20260102-000000_t")
+
+    assert ok is True
+    labels = {r.get("speaker_label") for r in rows if r.get("speaker_label")}
+    assert labels == {"Maya", "Liam"}, (
+        f"the retranscript hand-off published {sorted(labels)} — the publisher stated Maya and "
+        "Liam, and a bare SPEAKER_NN means the repair named nobody"
+    )
+    assert "Kevin Roose" not in text and "Casey Newton" not in text, text[:300]
+
+
+def test_a_bare_cue_label_is_still_only_a_cluster_id(tmp_path: Path) -> None:
+    """The guard on the new fallback. Providers that tag turns positionally (``Speaker 1``, SRT's
+    ``Speaker N``) state SEPARATION, not identity — publishing those would mint a KG person called
+    "Speaker 1"."""
+    segs = _retranscript_segments()
+    for i, s in enumerate(segs):
+        s["speaker"] = f"Speaker {i % 2 + 1}"
+    base = tmp_path / "feed"
+    _write_corpus(base, "20260101-000000_t", segs)
+
+    _ok, rows, _text = _relabel(base, "20260101-000000_t", "20260102-000000_t")
+
+    labels = {r.get("speaker_label") for r in rows if r.get("speaker_label")}
+    assert all(lbl.startswith("SPEAKER_") for lbl in labels), labels
+
+
+def test_a_previous_runs_resolved_label_is_still_re_derived(tmp_path: Path) -> None:
+    """The line the fallback must not cross. ``speaker`` is what the SOURCE said; ``speaker_label``
+    is OUR answer from a previous run, and re-deriving it is what relabel is FOR. Treating the
+    latter as stated would freeze v2's names forever — the exact bug this stage was built to undo.
+    """
+    segs = [
+        {
+            "start": 0.0,
+            "end": 60.0,
+            "speaker": None,
+            "speaker_label": "Amy Lawrence",
+            "text": "Welcome back. I'm Kevin Russo, tech columnist, here with Casey.",
+        },
+        {
+            "start": 60.0,
+            "end": 120.0,
+            "speaker": None,
+            "speaker_label": "SPEAKER_01",
+            "text": "Thanks Kevin. Let's get into the agents story.",
+        },
+    ]
+    base = tmp_path / "feed"
+    _write_corpus(base, "20260101-000000_t", segs)
+
+    _ok, _rows, text = _relabel(base, "20260101-000000_t", "20260102-000000_t")
+
+    assert "Amy Lawrence" not in text, "a previous run's resolved name was frozen as if stated"
