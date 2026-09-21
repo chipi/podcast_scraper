@@ -225,3 +225,58 @@ class TestTheIdAndTheNameKeyAgree:
         # keyed on NAME alone cannot protect a lookup keyed on ID.
         n = "Aaron Levie"
         assert len({entity_node_id(k, n) for k in ("person", "organization", "object")}) == 3
+
+
+class TestACanonicalNameIsNeverWorseThanTheInput:
+    """INVARIANT 8 — `canonical_person_name` is applied at every mint AND every publish, so a
+    spelling it damages is damaged EVERYWHERE, with no surface left showing the original.
+
+    THE DEFECT. `letters_or_digits_at_the_edges` stripped any non-alphanumeric edge character, and
+    a name may legitimately END in one: `Empress Elisabeth (Sisi)` became
+    `Empress Elisabeth (Sisi` — an unmatched bracket, a spelling nobody wrote, that then mints its
+    own id and publishes on the person rail.
+
+    Found by dry-running the #2130 migration over the 2,257-episode production snapshot, which is
+    also where the counts come from: 3 names carry a balanced bracket pair, 8 an unmatched
+    trailing one. Both shapes are real, so the rule cannot be "always strip" or "never strip" —
+    it is "strip it when it has no partner".
+    """
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Empress Elisabeth (Sisi)",  # prod: The Rest Is History
+            "Valderis (Deco)",
+            "Aramar Castro (Mara)",
+            "Kato (Ekaterina) Stalin",  # the bracket is mid-name, and already survived
+        ],
+    )
+    def test_a_balanced_bracket_is_part_of_the_name(self, name: str) -> None:
+        from podcast_scraper.identity.slugify import canonical_person_name
+
+        assert canonical_person_name(name) == name, (
+            "a matched bracket pair is how the publisher wrote the name; dropping half of it "
+            "produces a spelling nobody wrote and mints an id from it"
+        )
+
+    @pytest.mark.parametrize(
+        "raw,want",
+        [
+            ("Aaron Levie)", "Aaron Levie"),  # prod: show-notes name cut at a bracket
+            ("Sophia Dew)", "Sophia Dew"),
+            ("Lukasz Kaiser)", "Lukasz Kaiser"),
+            ("(Sisi)", "Sisi"),  # both edges: the opener goes first, then the orphaned closer
+        ],
+    )
+    def test_an_unmatched_closing_bracket_is_still_stripped(self, raw: str, want: str) -> None:
+        """The fix must not disarm the rule it narrows — this is the case it was written for."""
+        from podcast_scraper.identity.slugify import canonical_person_name
+
+        assert canonical_person_name(raw) == want
+
+    @pytest.mark.parametrize("name", ["Peter Attia, MD", "Aaron Levie)", "Sophia Dew)", ")", "))"])
+    def test_it_never_returns_something_longer_than_it_was_given(self, name: str) -> None:
+        """A blanket guard: this function only ever REMOVES edge junk. Anything else is a bug."""
+        from podcast_scraper.identity.slugify import canonical_person_name
+
+        assert len(canonical_person_name(name)) <= len(name)

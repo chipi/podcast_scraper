@@ -78,6 +78,11 @@ CREDENTIAL_SUFFIXES = frozenset(
 GENERATIONAL_SUFFIXES = frozenset({"jr", "jnr", "junior", "sr", "snr", "senior", "ii", "iii", "iv"})
 
 
+#: Closing brackets, and the opener each one pairs with. Used only to decide whether a trailing
+#: bracket is a cut mark or part of the name — see `letters_or_digits_at_the_edges`.
+_CLOSERS = {")": "(", "]": "[", "}": "{"}
+
+
 def letters_or_digits_at_the_edges(name: str) -> str:
     """A name starts and ends with a LETTER OR A DIGIT; nothing else is part of it.
 
@@ -88,11 +93,21 @@ def letters_or_digits_at_the_edges(name: str) -> str:
 
     Digits are admitted so a regnal or generational number survives (`Louis 14`). Internal
     punctuation is untouched: `John F. Kennedy`, `Anne-Marie Slaughter`, `O'Neill`.
+
+    A CLOSING BRACKET IS JUNK ONLY WHEN IT IS UNMATCHED. `Aaron Levie)` is a name cut at a
+    bracket; `Empress Elisabeth (Sisi)` is a name that CONTAINS one, and stripping its final `)`
+    left `Empress Elisabeth (Sisi` — a corrupt spelling, worse than the input, and one this
+    function would then have published everywhere. Measured on the 2,257-episode production
+    snapshot: 3 names carry a balanced bracket pair (`Empress Elisabeth (Sisi)`,
+    `Valderis (Deco)`, `Aramar Castro (Mara)`) against 8 carrying an unmatched trailing one.
+    Both are real; only the unmatched one is damage.
     """
     cleaned = (name or "").strip()
     while cleaned and not cleaned[0].isalnum():
         cleaned = cleaned[1:]
     while cleaned and not cleaned[-1].isalnum():
+        if cleaned[-1] in _CLOSERS and _CLOSERS[cleaned[-1]] in cleaned[:-1]:
+            break  # it has a partner — part of the name, not a cut mark
         cleaned = cleaned[:-1]
     return cleaned
 
