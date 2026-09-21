@@ -104,9 +104,11 @@ make speaker-migration-preview CORPUS_DIR=<prod corpus>
 make speaker-coherence CORPUS_DIR=<prod corpus>          # record the BEFORE number
 ```
 
-**EXPECT ALL NINE MIGRATIONS PENDING, not two.** An earlier version of this file said "confirm
+**EXPECT ALL TEN MIGRATIONS PENDING, not two.** An earlier version of this file said "confirm
 pending is exactly [0008, 0009]". That is wrong: production carries **no `upgrade_ledger.json` at
-all**, so `upgrade status` reports `Applied: none` and all nine pending, at version `2.7.0.dev0`.
+all**, so `upgrade status` reports `Applied: none` and all of them pending, at version
+`2.7.0.dev0`. (**NINE until 2026-09-21**, when `0010_canonical_person_names` was added — see its
+row below.)
 The artifacts are nonetheless already modern — kg schema `2.0`, gi schema `3.1`, m0007 scoped ids
 present — because the pipeline writes those natively and re-ingestion satisfied the migrations
 without recording them. Rehearsed against the real `snapshot-prod-20260914` corpus (2,257
@@ -122,6 +124,7 @@ What each pending migration actually does on that corpus:
 | **0007** | **rewrites 153 episodes** (18 healed, 255 scoped) — see the numbers below, this is not a formality |
 | **0008** | **rewrites all 2,257 artifacts** for a one-character change — see below |
 | **0009** | 3,177 promoted, 195 demoted, 1,844 artifacts |
+| **0010** | **rewrites 91 episodes** — 39 person ids remapped (33 of them MERGING into an id already in the same episode), 1 duplicate node id folded, 162 published names canonicalised. Rehearsed by applying it to a copy of the same 2,257-artifact snapshot on 2026-09-21: idempotent on re-run, `verify` returns ok, 0 unparsable, 0 dangling edge endpoints, 0 leftover `.tmp`. **Its numbers were measured on the UNREPAIRED corpus and inherit the Step 0a caveat below.** |
 
 ## Step 1 — Deploy
 

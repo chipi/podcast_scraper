@@ -19,6 +19,7 @@ from .migrations.m0006_kg_v2_typed_entities import KgV2TypedEntitiesMigration
 from .migrations.m0007_scope_bare_person_names import ScopeBarePersonNamesMigration
 from .migrations.m0008_object_entity_kind import ObjectEntityKindMigration
 from .migrations.m0009_backfill_speaker_roles import BackfillSpeakerRolesMigration
+from .migrations.m0010_canonical_person_names import CanonicalPersonNamesMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -41,6 +42,7 @@ _MIGRATIONS: List[Migration] = [
     ScopeBarePersonNamesMigration(),
     ObjectEntityKindMigration(),
     BackfillSpeakerRolesMigration(),
+    CanonicalPersonNamesMigration(),
 ]
 
 
