@@ -96,6 +96,72 @@ class TestNameMatchingToleratesWhatItMust:
         assert not same_person(a, b)
 
 
+class TestATitleAndAMisspellingTogether:
+    """Either alone was tolerated; the two at once were not, and that demoted a real guest.
+
+    Found by running m0009's preview against the 2026-09-20 production snapshot: *Ground Truths*
+    episode "Bruce Lanphear: Chronic Lead Exposure" has a graph node `Bruce Lanphear` and a roster
+    that heard `Professor Bruce Lanphier`. m0009 reads "matches no roster entry" as "did not
+    speak", so the episode's actual guest was demoted to `mentioned` — the one direction the
+    migration's own docstring promises never to take for a spelling variant.
+    """
+
+    def test_either_alone_already_matched(self) -> None:
+        assert same_person("Bruce Lanphear", "Bruce Lanphier")  # misspelling, no title
+        assert same_person("Bruce Lanphear", "Professor Bruce Lanphear")  # title, no misspelling
+
+    def test_both_at_once_now_matches(self) -> None:
+        assert same_person("Bruce Lanphear", "Professor Bruce Lanphier")
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Eric Topol", "Professor Bruce Lanphier"),  # the co-speaker on that same episode
+            ("Sarah Guo", "Dr. Elad Gil"),
+            ("Ryan Knutson", "Senator Jessica Mendoza"),
+            # A TITLE OVER A MONONYM is the shape that merges strangers: strip the title and the
+            # subset rule reads the bare surname as "the same human as anyone sharing it".
+            ("Dr. Smith", "Jane Smith"),
+            ("Senator Warren", "Elizabeth Warren"),
+            ("Prof. Jones", "Indiana Jones"),
+        ],
+    )
+    def test_dropping_a_title_does_not_merge_strangers(self, a: str, b: str) -> None:
+        assert not same_person(a, b)
+
+    @pytest.mark.parametrize(
+        "a,b",
+        [
+            ("Justice Smith", "Will Smith"),  # two actors
+            ("Major Garrett", "Garrett Smith"),  # a journalist
+            ("Sister Souljah", "Souljah Boy"),
+            ("Gen Kato", "Kato Hiroshi"),
+            ("Lady Gaga", "Gaga Smith"),
+        ],
+    )
+    def test_a_title_that_is_also_a_name_is_not_treated_as_a_title(self, a: str, b: str) -> None:
+        """`HONORIFIC_PREFIXES` is deliberately short: a token that heads real names stays out.
+
+        The asymmetry is the whole argument — missing one variant costs a single unmatched name,
+        while admitting `Justice` or `Major` merges two different people into one identity.
+        """
+        assert not same_person(a, b)
+
+    def test_a_real_mononym_still_matches(self) -> None:
+        """The rule the mononym guard must not break."""
+        assert same_person("Twiggy", "Twiggy Lawson")
+
+    def test_a_name_that_is_only_a_title_keeps_its_token(self) -> None:
+        """Folding it away would leave "", which every caller reads as "no name at all"."""
+        assert same_person("Professor", "professor")
+        assert not same_person("Professor", "Bruce Lanphear")
+
+    def test_a_title_that_is_also_a_surname_survives_in_place(self) -> None:
+        """`Major` and `Rev` are real surnames; only a LEADING title is dropped."""
+        assert not same_person("John Major", "John Smith")
+        assert same_person("Sir John Major", "John Major")
+
+
 class TestASpeakerMustHaveSpoken:
     def test_a_coherent_episode_is_clean(self) -> None:
         assert check_speakers_actually_spoke(GOOD_META, GOOD_KG) == []

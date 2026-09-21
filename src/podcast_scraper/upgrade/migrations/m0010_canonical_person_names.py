@@ -85,6 +85,55 @@ def _write_atomic(path: Path, payload: dict) -> None:
     os.replace(tmp, path)
 
 
+#: Roles that assert the person spoke. Losing one silently is the damage `_absorbed_speaking_roles`
+#: exists to report; `mentioned` folding into `mentioned` costs nothing.
+_SPEAKING_ROLES = frozenset({"host", "guest"})
+
+
+def _absorbed_speaking_roles(kg: Optional[dict], id_map: Dict[str, str]) -> Dict[str, str]:
+    """``{id_that_will_not_survive: the speaking role it holds}``, read BEFORE the merge.
+
+    A merge keeps one node and discards the other, and the survivor's role is whichever one
+    ``rewrite_ids`` kept — so a role can leave the graph without any migration having recorded a
+    transition for it. m0009's ledger cannot describe that: it only knows the nodes IT changed.
+    The undo would then restore the survivor's recorded ``role_before`` and delete a role that was
+    never its to give back.
+
+    Only ids that genuinely disappear are reported: an id mapping to ITSELF is a duplicate-node
+    fold, where the two nodes share one id and the roles are read from every copy.
+    """
+    by_id: Dict[str, List[str]] = {}
+    for node in _person_nodes(kg):
+        node_id = str(node.get("id") or "")
+        if node_id not in id_map:
+            continue
+        role = str((node.get("properties") or {}).get("role") or "").strip().lower()
+        by_id.setdefault(node_id, []).append(role)
+
+    absorbed: Dict[str, str] = {}
+    for node_id, roles in by_id.items():
+        speaking = next((r for r in roles if r in _SPEAKING_ROLES), None)
+        if speaking is None:
+            continue
+        if id_map[node_id] != node_id:
+            # A true merge: every copy of this id disappears into another node's.
+            absorbed[node_id] = speaking
+        elif len(roles) > 1:
+            # A DUPLICATE-ID FOLD. N copies become 1, and the ledger has a row for at most one of
+            # them, so a speaking role on any other copy has no receipt and cannot be restored.
+            #
+            # COMPARING THE COPIES' ROLES DOES NOT WORK, which is the trap: by the time this runs
+            # m0009 has already promoted the recorded copy, so both read `host` and look like
+            # agreement. Measured on the production snapshot — one episode carried
+            # `person:jen-kha` twice, "Jen Kha" (`mentioned`, promoted to `host` and recorded)
+            # and "Jen Kha)" (a name cut at a bracket, already `host`, never recorded). The fold
+            # kept one; the undo restored `mentioned`; the host was gone. So a fold that discards
+            # any copy holding a speaking role is unsafe, full stop. It cost exactly 1 episode of
+            # 2,298 to refuse this class outright.
+            absorbed[node_id] = speaking
+    return absorbed
+
+
 def _person_nodes(payload: Optional[dict]) -> Iterable[dict]:
     """Every ``person:`` node in a GI/KG artifact, scoped placeholders included.
 
@@ -402,6 +451,17 @@ class CanonicalPersonNamesMigration(Migration):
         changed: List[str] = []
         remapped = merged = renamed = deduped = unchanged = 0
         unparsable: List[str] = []
+        #: corpus-relative ``.kg.json`` -> the id map applied to it, for the role-ledger reissue
+        #: below. Only episodes whose ``.kg.json`` was actually written belong here: an episode
+        #: where nothing but ``.gi.json`` changed still has the hash m0009 recorded.
+        kg_id_maps: Dict[str, Dict[str, str]] = {}
+        #: corpus-relative ``.kg.json`` -> ``{id_that_did_not_survive: the role it held}``, for
+        #: speaking roles only. A merge can DELETE a role nobody recorded: on the production
+        #: snapshot the pipeline wrote ``host`` on ``person:peter-attia-md`` and m0009 never
+        #: touched it, so there is no ledger row for it; folding it into ``person:peter-attia``
+        #: moves that host onto the survivor, and an undo restoring the survivor's own recorded
+        #: ``role_before`` then deletes it. Measured: 30 episodes, reported as ``refused 0``.
+        kg_absorbed_roles: Dict[str, Dict[str, str]] = {}
 
         for gi_path in files:
             plan = _plan_for_episode(gi_path)
@@ -455,9 +515,27 @@ class CanonicalPersonNamesMigration(Migration):
             if (gi_id_changes or gi_name_changes or plan.dupe_ids) and out_gi is not None:
                 _write_atomic(gi_path, out_gi)
             if (kg_id_changes or kg_name_changes or plan.dupe_ids) and out_kg:
-                _write_atomic(_sibling(gi_path, ".kg.json"), out_kg)
+                kg_path = _sibling(gi_path, ".kg.json")
+                _write_atomic(kg_path, out_kg)
+                rel_kg = str(kg_path.relative_to(ctx.corpus_root))
+                kg_id_maps[rel_kg] = dict(_full_map)
+                kg_absorbed_roles[rel_kg] = _absorbed_speaking_roles(plan.kg, _full_map)
             if meta_changes and out_meta is not None:
                 _write_atomic(_sibling(gi_path, ".metadata.json"), out_meta)
+
+        # REISSUE m0009's RECEIPTS. This migration rewrites the very .kg.json files m0009 hashed,
+        # so without this every episode it touches refuses its own rollback and fails
+        # ``upgrade verify`` — see `role_ledger.resync_after_rewrite` for the measured damage.
+        roles_resynced = 0
+        roles_left_stale: List[str] = []
+        if not ctx.dry_run and kg_id_maps:
+            from ..role_ledger import resync_after_rewrite
+
+            roles_resynced, roles_left_stale = resync_after_rewrite(
+                ctx.corpus_root, kg_id_maps, absorbed_roles=kg_absorbed_roles
+            )
+            for line in roles_left_stale:
+                ctx.log(f"role ledger left stale (undo will refuse it, correctly): {line}")
 
         message = (
             f"{'would rewrite' if ctx.dry_run else 'rewrote'} {len(changed)} episode(s): "
@@ -466,6 +544,11 @@ class CanonicalPersonNamesMigration(Migration):
             f"{renamed} published name(s) canonicalised; {unchanged} already-current, "
             f"{len(unparsable)} unparsable"
         )
+        if roles_resynced or roles_left_stale:
+            message += (
+                f"; {roles_resynced} role-ledger row(s) re-pointed"
+                f", {len(roles_left_stale)} episode(s) left stale"
+            )
         return MigrationResult(
             self.id,
             applied=True,
@@ -479,5 +562,7 @@ class CanonicalPersonNamesMigration(Migration):
                 "duplicate_ids_folded": deduped,
                 "names_canonicalised": renamed,
                 "unparsable": unparsable[:20],
+                "role_ledger_rows_repointed": roles_resynced,
+                "role_ledger_left_stale": roles_left_stale[:20],
             },
         )

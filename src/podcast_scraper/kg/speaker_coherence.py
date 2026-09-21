@@ -86,11 +86,76 @@ def _fold(name: str) -> str:
     return " ".join("".join(c if c.isalnum() else " " for c in s).split())
 
 
+#: Titles someone is ADDRESSED by, never part of the name. The post-nominal half of this problem
+#: (``Peter Attia, MD``) already has an owner in ``identity.slugify.canonical_person_name``, which
+#: normalises what gets PUBLISHED; these are stripped only for the comparison below, because a
+#: title is the one token that can appear on one side of a pair and not the other.
+#: DELIBERATELY SHORT. Every token here widens `same_person`, and the widening is not symmetric
+#: with the risk: a title that is also a common given name, stage name or surname merges two
+#: strangers rather than reuniting one person. `Justice Smith` and `Will Smith` are different
+#: actors; `Major Garrett` is a journalist; `Sister Souljah`, `Gen`, `Lady` and `Lord` head stage
+#: names. Those are all excluded — the cost of missing them is one unmatched variant, the cost of
+#: including them is a wrong identity. Only titles that are vanishingly rare as names survive.
+HONORIFIC_PREFIXES = frozenset(
+    {
+        "dr",
+        "mr",
+        "mrs",
+        "ms",
+        "mx",
+        "prof",
+        "professor",
+        "sir",
+        "dame",
+        "rev",
+        "reverend",
+        "hon",
+        "honorable",
+        "honourable",
+        "capt",
+        "colonel",
+        "lieutenant",
+        "sgt",
+        "sergeant",
+        "admiral",
+        "senator",
+        "ambassador",
+        "governor",
+    }
+)
+
+
+def _drop_honorifics(folded: str) -> str:
+    """*folded* without its leading titles — unchanged when that would leave nothing.
+
+    Only leading tokens are dropped. ``Rev`` and ``Major`` are real surnames, so a title is
+    recognised by POSITION as well as spelling, and a name that is nothing but a title
+    (``'Professor'`` alone, from a roster that named a voice by its role) keeps its only token
+    rather than folding to the empty string, which every caller reads as "no name at all".
+    """
+    tokens = folded.split()
+    while len(tokens) > 1 and tokens[0] in HONORIFIC_PREFIXES:
+        tokens.pop(0)
+    return " ".join(tokens)
+
+
 def same_person(a: str, b: str, threshold: float = FUZZY_THRESHOLD) -> bool:
     """True when two spellings plausibly name one human.
 
     Exact after folding, one a subset of the other's tokens (``"Twiggy"`` vs ``"Twiggy Lawson"``,
     ``"Dr. Adam Rodman"`` vs ``"Adam Rodman"``), or similar enough overall to be an ASR variant.
+
+    A TITLE AND A MISHEARD SPELLING TOGETHER used to defeat all three, though either alone was
+    caught: ``"Professor Bruce Lanphier"`` against a graph's ``"Bruce Lanphear"`` fails the subset
+    rule (neither token set contains the other once the surnames differ) and then fails the ratio,
+    because the extra title lengthens one side enough to drag an otherwise-matching pair under the
+    threshold — ``same_person`` was True for that pair without the title and True for the title
+    without the misspelling. So the comparison is retried with leading titles dropped. This only
+    ever ADDS matches, and m0009 reads a non-match as "this person did not speak", so each one it
+    misses demotes a real speaker out of their own episode. Measured on the 2,298-episode
+    2026-09-20 production snapshot: of 650 speaking nodes matching no roster entry, this rescues
+    exactly 1 (Bruce Lanphear on *Ground Truths*) and makes 0 previously-unambiguous nodes
+    ambiguous.
     """
     fa, fb = _fold(a), _fold(b)
     if not fa or not fb:
@@ -100,7 +165,24 @@ def same_person(a: str, b: str, threshold: float = FUZZY_THRESHOLD) -> bool:
     ta, tb = set(fa.split()), set(fb.split())
     if ta and tb and (ta <= tb or tb <= ta):
         return True
-    return SequenceMatcher(None, fa, fb).ratio() >= threshold
+    if SequenceMatcher(None, fa, fb).ratio() >= threshold:
+        return True
+    ha, hb = _drop_honorifics(fa), _drop_honorifics(fb)
+    if (ha, hb) == (fa, fb):
+        return False  # no title on either side — nothing the retry could change
+    if ha == hb:
+        return True
+    untitled_a, untitled_b = ha.split(), hb.split()
+    # NO SUBSET RULE ON A TITLE-STRIPPED MONONYM. Dropping the title off "Dr. Smith" leaves
+    # "smith", and the subset rule reads a mononym as the same human as anyone sharing it — so
+    # "Dr. Smith" would become Jane Smith, and "Senator Warren" Elizabeth Warren. The mononym rule
+    # exists for a name someone actually goes by ("Twiggy"); a surname left behind by a title is
+    # not that, it is the half of a name we just threw the other half away from.
+    if len(untitled_a) > 1 and len(untitled_b) > 1:
+        sa, sb = set(untitled_a), set(untitled_b)
+        if sa <= sb or sb <= sa:
+            return True
+    return SequenceMatcher(None, ha, hb).ratio() >= threshold
 
 
 def _persons(kg: Mapping[str, Any]) -> List[dict]:

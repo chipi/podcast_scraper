@@ -305,7 +305,7 @@ def test_the_retranscript_handoff_keeps_the_publishers_names(tmp_path: Path) -> 
     ok, rows, text = _relabel(base, "20260101-000000_t", "20260102-000000_t")
 
     assert ok is True
-    labels = {r.get("speaker_label") for r in rows if r.get("speaker_label")}
+    labels = {str(r.get("speaker_label")) for r in rows if r.get("speaker_label")}
     assert labels == {"Maya", "Liam"}, (
         f"the retranscript hand-off published {sorted(labels)} — the publisher stated Maya and "
         "Liam, and a bare SPEAKER_NN means the repair named nobody"
@@ -325,7 +325,7 @@ def test_a_bare_cue_label_is_still_only_a_cluster_id(tmp_path: Path) -> None:
 
     _ok, rows, _text = _relabel(base, "20260101-000000_t", "20260102-000000_t")
 
-    labels = {r.get("speaker_label") for r in rows if r.get("speaker_label")}
+    labels = {str(r.get("speaker_label")) for r in rows if r.get("speaker_label")}
     assert all(lbl.startswith("SPEAKER_") for lbl in labels), labels
 
 

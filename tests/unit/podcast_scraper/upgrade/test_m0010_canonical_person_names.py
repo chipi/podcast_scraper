@@ -65,7 +65,8 @@ def _run(root: Path, dry_run: bool = False):
 
 
 def _load(root: Path, stem: str, suffix: str) -> dict:
-    return json.loads((root / f"{stem}{suffix}").read_text(encoding="utf-8"))
+    payload: dict = json.loads((root / f"{stem}{suffix}").read_text(encoding="utf-8"))
+    return payload
 
 
 def _person_ids(payload: dict) -> List[str]:
@@ -74,7 +75,7 @@ def _person_ids(payload: dict) -> List[str]:
 
 def _names(payload: dict) -> List[str]:
     return [
-        (n.get("properties") or {}).get("name")
+        str((n.get("properties") or {}).get("name") or "")
         for n in payload["nodes"]
         if n.get("type") == "Person"
     ]
@@ -479,3 +480,264 @@ class TestTwoNodesOneIdAreFolded:
         before = (tmp_path / "ok.kg.json").read_bytes()
         _run(tmp_path)
         assert (tmp_path / "ok.kg.json").read_bytes() == before
+
+
+class TestItReissuesTheRoleLedgerItInvalidates:
+    """m0009 hashes each .kg.json; this migration rewrites them minutes later in the same chain.
+
+    Measured on the 2026-09-20 production snapshot before this was fixed: a full `upgrade run` left
+    73 of 1,775 ledgered episodes (134 of 3,285 rows) unrestorable, and `upgrade verify` reported
+    `3283 of 3285 recorded role(s) still present` — the two missing rows addressing
+    `person:peter-attia-md`, the id this migration MERGES into `person:peter-attia`.
+    """
+
+    @staticmethod
+    def _ledger(root: Path, stem: str, node_id: str, name: str, after: str, index: int) -> None:
+        from podcast_scraper.upgrade.role_ledger import append_ledger, file_sha, RoleChange
+
+        append_ledger(
+            root,
+            [
+                RoleChange(
+                    episode=f"{stem}.kg.json",
+                    node_id=node_id,
+                    name=name,
+                    role_before="mentioned",
+                    role_after=after,
+                    route="promote",
+                    file_sha_after=file_sha(root / f"{stem}.kg.json"),
+                    node_index=index,
+                    run_id="r1",
+                )
+            ],
+        )
+
+    def test_the_undo_survives_a_name_only_rewrite(self, tmp_path: Path) -> None:
+        """The commonest case by far — 164 names canonicalised against 39 ids remapped on the
+        production snapshot. The id is untouched, so only the hash went stale."""
+        from podcast_scraper.upgrade.role_ledger import undo_from_ledger
+
+        _episode(tmp_path, "ep", [_person("person:aaron-levie", "Aaron Levie)", role="guest")])
+        self._ledger(tmp_path, "ep", "person:aaron-levie", "Aaron Levie)", "guest", 1)
+        _run(tmp_path)
+
+        restored, _skipped, refused = undo_from_ledger(tmp_path)
+        assert refused == [], refused
+        assert restored == 1, restored
+        roles = {
+            n["id"]: (n.get("properties") or {}).get("role")
+            for n in _load(tmp_path, "ep", ".kg.json")["nodes"]
+            if n.get("type") == "Person"
+        }
+        assert roles["person:aaron-levie"] == "mentioned", roles
+
+    def test_a_row_is_repointed_across_a_merge_the_roles_agree_on(self, tmp_path: Path) -> None:
+        from podcast_scraper.upgrade.role_ledger import file_sha, read_ledger, undo_from_ledger
+
+        _episode(
+            tmp_path,
+            "ep",
+            [
+                _person("person:peter-attia", "Peter Attia", role="guest"),
+                _person("person:peter-attia-md", "Peter Attia, MD", role="guest"),
+            ],
+        )
+        self._ledger(tmp_path, "ep", "person:peter-attia-md", "Peter Attia, MD", "guest", 2)
+        _run(tmp_path)
+
+        row = read_ledger(tmp_path)[0]
+        assert row.node_id == "person:peter-attia", row
+        assert row.file_sha_after == file_sha(tmp_path / "ep.kg.json")
+        _restored, _skipped, refused = undo_from_ledger(tmp_path)
+        assert refused == [], refused
+
+    def test_a_merge_that_swallows_an_unrecorded_host_refuses(self, tmp_path: Path) -> None:
+        """THE MEASURED PRODUCTION SHAPE, and the one that cost real data.
+
+        On `snapshot-prod-20260920`, 30 episodes carried `host` on `person:peter-attia-md` —
+        written by the PIPELINE, so m0009 never recorded it — beside `person:peter-attia` at
+        `mentioned` under a `mentioned -> host` row. The merge moves that host onto the survivor,
+        whose role then MATCHES the row's `role_after`, so every other guard passes and the row is
+        re-pointed. The undo restores `mentioned` and the man stops being the host of his own show,
+        reported as `restored 3285; skipped 0; refused 0`.
+        """
+        from podcast_scraper.upgrade.role_ledger import undo_from_ledger
+
+        _episode(
+            tmp_path,
+            "ep",
+            [
+                _person("person:peter-attia", "Peter Attia", role="mentioned"),
+                _person("person:peter-attia-md", "Peter Attia, MD", role="host"),
+            ],
+        )
+        # m0009 promoted only the clean id; nothing recorded the credentialled node's host.
+        self._ledger(tmp_path, "ep", "person:peter-attia", "Peter Attia", "host", 1)
+        # m0009's own write would have left it at `host`; mirror that before m0010 runs.
+        payload = _load(tmp_path, "ep", ".kg.json")
+        for node in payload["nodes"]:
+            if node.get("id") == "person:peter-attia":
+                node["properties"]["role"] = "host"
+        (tmp_path / "ep.kg.json").write_text(json.dumps(payload), encoding="utf-8")
+
+        _run(tmp_path)
+
+        _restored, _skipped, refused = undo_from_ledger(tmp_path)
+        assert refused, "a merge that swallows an unrecorded speaking role must refuse"
+        roles = {
+            n["id"]: (n.get("properties") or {}).get("role")
+            for n in _load(tmp_path, "ep", ".kg.json")["nodes"]
+            if n.get("type") == "Person"
+        }
+        assert roles["person:peter-attia"] == "host", roles
+
+    def test_a_duplicate_fold_that_discards_a_speaking_role_refuses(self, tmp_path: Path) -> None:
+        """The second measured loss, and the subtler one — a fold, not a rename.
+
+        One production episode carried `person:jen-kha` TWICE: "Jen Kha" as `mentioned` and
+        "Jen Kha)" — a name cut at a bracket — as `host`. m0009 promoted the first and recorded
+        `mentioned -> host`; the fold kept one node; the undo restored `mentioned` and the host
+        was gone. The id never changes here, so every id-based guard sails past it.
+
+        Note the roles AGREE by the time m0010 runs — m0009 has already promoted the recorded
+        copy to `host` — so a "do the copies disagree?" test does not catch this. Both copies are
+        set to `host` below for exactly that reason.
+        """
+        from podcast_scraper.upgrade.role_ledger import undo_from_ledger
+
+        _episode(
+            tmp_path,
+            "ep",
+            [
+                _person("person:jen-kha", "Jen Kha", role="mentioned"),
+                _person("person:jen-kha", "Jen Kha)", role="host"),
+            ],
+        )
+        self._ledger(tmp_path, "ep", "person:jen-kha", "Jen Kha", "host", 1)
+        payload = _load(tmp_path, "ep", ".kg.json")
+        payload["nodes"][1]["properties"]["role"] = "host"  # as m0009 left it
+        (tmp_path / "ep.kg.json").write_text(json.dumps(payload), encoding="utf-8")
+
+        _run(tmp_path)
+
+        _restored, _skipped, refused = undo_from_ledger(tmp_path)
+        assert refused, "a fold whose copies disagree on a speaking role must refuse"
+
+    def test_a_fold_of_mentioned_copies_still_resyncs(self, tmp_path: Path) -> None:
+        """Refusing must stay narrow: folding two `mentioned` copies discards no speaking role."""
+        from podcast_scraper.upgrade.role_ledger import undo_from_ledger
+
+        _episode(
+            tmp_path,
+            "ep",
+            [
+                _person("person:jen-kha", "Jen Kha", role="mentioned"),
+                _person("person:jen-kha", "Jen Kha)", role="mentioned"),
+                _person("person:ada-brook", "Ada Brook", role="guest"),
+            ],
+        )
+        self._ledger(tmp_path, "ep", "person:ada-brook", "Ada Brook", "guest", 3)
+        _run(tmp_path)
+
+        _restored, _skipped, refused = undo_from_ledger(tmp_path)
+        assert refused == [], refused
+
+    def test_a_merge_onto_a_different_role_is_left_refusing(self, tmp_path: Path) -> None:
+        """The survivor's role came from the OTHER half of the merge, so the receipt describes a
+        transition this node never made. Restoring `role_before` here would destroy a real role."""
+        from podcast_scraper.upgrade.role_ledger import undo_from_ledger
+
+        _episode(
+            tmp_path,
+            "ep",
+            [
+                _person("person:peter-attia", "Peter Attia", role="host"),
+                _person("person:peter-attia-md", "Peter Attia, MD", role="guest"),
+            ],
+        )
+        self._ledger(tmp_path, "ep", "person:peter-attia-md", "Peter Attia, MD", "guest", 2)
+        _run(tmp_path)
+
+        _restored, _skipped, refused = undo_from_ledger(tmp_path)
+        assert refused, "a merge the roles disagree on must refuse, not guess"
+
+    def test_an_untouched_episode_keeps_its_original_receipt(self, tmp_path: Path) -> None:
+        """Only episodes this migration REWROTE may be re-pointed."""
+        from podcast_scraper.upgrade.role_ledger import append_ledger, file_sha, RoleChange
+
+        _episode(tmp_path, "ok", [_person("person:maya-okonkwo", "Maya Okonkwo", role="host")])
+        original = file_sha(tmp_path / "ok.kg.json")
+        append_ledger(
+            tmp_path,
+            [
+                RoleChange(
+                    episode="ok.kg.json",
+                    node_id="person:maya-okonkwo",
+                    name="Maya Okonkwo",
+                    role_before="mentioned",
+                    role_after="host",
+                    route="promote",
+                    file_sha_after=original,
+                    node_index=1,
+                    run_id="r1",
+                )
+            ],
+        )
+        _run(tmp_path)
+        from podcast_scraper.upgrade.role_ledger import read_ledger
+
+        assert read_ledger(tmp_path)[0].file_sha_after == original
+
+    def test_a_merge_whose_rows_disagree_is_left_refusing(self, tmp_path: Path) -> None:
+        """Two receipts, one survivor, two different roles to restore — there is no right answer.
+
+        Leaving the hash stale is the honest outcome: the undo refuses the episode and says so,
+        rather than confidently writing one of the two roles onto the merged node.
+        """
+        from podcast_scraper.upgrade.role_ledger import (
+            append_ledger,
+            file_sha,
+            RoleChange,
+            undo_from_ledger,
+        )
+
+        _episode(
+            tmp_path,
+            "ep",
+            [
+                _person("person:peter-attia", "Peter Attia", role="guest"),
+                _person("person:peter-attia-md", "Peter Attia, MD", role="guest"),
+            ],
+        )
+        sha = file_sha(tmp_path / "ep.kg.json")
+        append_ledger(
+            tmp_path,
+            [
+                RoleChange(
+                    episode="ep.kg.json",
+                    node_id="person:peter-attia",
+                    name="Peter Attia",
+                    role_before="mentioned",
+                    role_after="host",
+                    route="promote",
+                    file_sha_after=sha,
+                    node_index=1,
+                    run_id="r1",
+                ),
+                RoleChange(
+                    episode="ep.kg.json",
+                    node_id="person:peter-attia-md",
+                    name="Peter Attia, MD",
+                    role_before="host",
+                    role_after="guest",
+                    route="promote",
+                    file_sha_after=sha,
+                    node_index=2,
+                    run_id="r1",
+                ),
+            ],
+        )
+        _run(tmp_path)
+
+        _restored, _skipped, refused = undo_from_ledger(tmp_path)
+        assert refused, "an unresolvable merge must refuse, not guess"

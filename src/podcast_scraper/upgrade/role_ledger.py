@@ -164,6 +164,168 @@ def latest_run_id(root: Path | str) -> Optional[str]:
     return rows[-1].run_id if rows else None
 
 
+def resync_after_rewrite(
+    root: Path | str,
+    id_maps: Dict[str, Dict[str, str]],
+    *,
+    absorbed_roles: Optional[Dict[str, Dict[str, str]]] = None,
+) -> Tuple[int, List[str]]:
+    """Re-point rows at episodes a LATER migration rewrote. ``(rows_updated, episodes_left_stale)``.
+
+    A LATER MIGRATION IS NOT "SOMETHING ELSE". ``file_sha_after`` exists to refuse an episode a
+    re-enrich has taken ownership of, and it cannot tell that apart from the upgrade chain's own
+    next step: m0010 runs after m0009 in the same ``upgrade run``, rewrites ``.kg.json`` to
+    canonicalise names, and every episode it touches would then refuse its own rollback and fail
+    ``upgrade verify``. Measured on the 2026-09-20 production snapshot before this existed: 73 of
+    1,775 episodes (134 of 3,285 rows) unrestorable, and verify reporting
+    ``3283 of 3285 recorded role(s) still present`` — the two missing rows addressing
+    ``person:peter-attia-md``, an id m0010 had MERGED into ``person:peter-attia``.
+
+    So the migration that invalidates the receipt is the one that must reissue it: pass the id map
+    it applied per episode (corpus-relative ``.kg.json`` path -> ``{old_id: new_id}``; an empty map
+    is fine when only names changed) and each row is re-pointed at the surviving node and the new
+    file hash.
+
+    WHAT IT REFUSES TO FIX, and why that is the right answer. When a merge collapses two recorded
+    nodes onto ONE survivor and their ``role_before`` values disagree, there is no role to restore
+    — the survivor cannot be both. Such an episode is left STALE deliberately, so the sha check
+    still refuses it and the operator sees a refusal rather than a confident wrong restore. Same
+    for a row whose node has vanished entirely: a receipt for a node that is gone is not a receipt.
+
+    THE THIRD REFUSAL IS THE ONE THAT COST REAL DATA, so pass *absorbed_roles*. A merge can delete
+    a speaking role that NO ledger row describes, because the pipeline — not m0009 — wrote it: on
+    `snapshot-prod-20260920` 30 episodes carried ``host`` on ``person:peter-attia-md`` with
+    ``person:peter-attia`` sitting at ``mentioned`` under a ``mentioned -> host`` row. m0010 folds
+    the first into the second; the survivor is ``host``, which MATCHES the row's ``role_after``, so
+    every check above passes and the row is happily re-pointed. The undo then restores
+    ``mentioned`` and the man is no longer the host of his own show — reported as
+    ``restored 3285; refused 0``. An episode where a merge swallowed a speaking role that no row
+    accounts for is therefore left stale too.
+    """
+    root = Path(root)
+    rows = read_ledger(root)
+    if not rows or not id_maps:
+        return 0, []
+
+    by_episode: Dict[str, List[int]] = {}
+    for i, row in enumerate(rows):
+        by_episode.setdefault(row.episode, []).append(i)
+
+    updated = 0
+    stale: List[str] = []
+    patched: Dict[int, RoleChange] = {}
+
+    for episode, id_map in id_maps.items():
+        indices = by_episode.get(episode)
+        if not indices:
+            continue  # m0009 never touched this episode — nothing to reissue
+        path = root / episode
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            stale.append(f"{episode}: unreadable after rewrite")
+            continue
+        sha = file_sha(path)
+        if not sha:
+            stale.append(f"{episode}: unreadable after rewrite")
+            continue
+        nodes = payload.get("nodes")
+        if not isinstance(nodes, list):
+            stale.append(f"{episode}: no nodes after rewrite")
+            continue
+        index_of: Dict[str, int] = {}
+        for idx, node in enumerate(nodes):
+            if isinstance(node, dict):
+                index_of.setdefault(str(node.get("id") or ""), idx)
+
+        recorded_ids = {rows[i].node_id for i in indices}
+        swallowed = {}
+        for node_id, role in ((absorbed_roles or {}).get(episode) or {}).items():
+            if id_map.get(node_id, node_id) == node_id:
+                # A FOLD, not a rename: several nodes SHARE this id and one survives. A row for
+                # the id says nothing about how many copies it covers — the ledger addresses at
+                # most one of them — so a row here is not evidence of safety.
+                swallowed[node_id] = role
+            elif node_id not in recorded_ids:
+                swallowed[node_id] = role
+        if swallowed:
+            lost = ", ".join(f"{k} ({v})" for k, v in sorted(swallowed.items()))
+            stale.append(f"{episode}: the merge swallowed an unrecorded speaking role — {lost}")
+            continue
+
+        candidates: Dict[int, RoleChange] = {}
+        by_survivor: Dict[str, List[RoleChange]] = {}
+        for i in indices:
+            row = rows[i]
+            new_id = id_map.get(row.node_id, row.node_id)
+            if new_id not in index_of:
+                candidates.clear()
+                stale.append(f"{episode}: {row.node_id} is gone after the rewrite")
+                break
+            survivor = nodes[index_of[new_id]]
+            current = (survivor.get("properties") or {}).get("role")
+            if new_id != row.node_id and current != row.role_after:
+                # A MERGE ONTO A NODE THAT HELD A DIFFERENT ROLE. The row says "this node went
+                # role_before -> role_after"; the survivor is sitting at neither, because its role
+                # came from the OTHER half of the merge. Re-pointing here would hand the undo a
+                # receipt for a transition that never happened to this node, and restoring
+                # `role_before` onto it would destroy the survivor's own role.
+                candidates.clear()
+                stale.append(
+                    f"{episode}: {row.node_id} merged into {new_id}, which holds "
+                    f"{current!r} rather than the recorded {row.role_after!r}"
+                )
+                break
+            moved = RoleChange(
+                episode=row.episode,
+                node_id=new_id,
+                name=row.name,
+                role_before=row.role_before,
+                role_after=row.role_after,
+                route=row.route,
+                feed_title=row.feed_title,
+                file_sha_after=sha,
+                node_index=index_of[new_id],
+                run_id=row.run_id,
+            )
+            candidates[i] = moved
+            by_survivor.setdefault(new_id, []).append(moved)
+        if not candidates:
+            continue
+        conflict = next(
+            (
+                sid
+                for sid, merged in by_survivor.items()
+                if len({m.role_before for m in merged}) > 1
+            ),
+            None,
+        )
+        if conflict is not None:
+            stale.append(f"{episode}: rows disagree on the role to restore on {conflict}")
+            continue
+        patched.update(candidates)
+        updated += len(candidates)
+
+    if not patched:
+        return 0, stale
+
+    merged_rows = [patched.get(i, row) for i, row in enumerate(rows)]
+    path = root / LEDGER_FILE
+    fd, tmp_name = tempfile.mkstemp(dir=str(root), prefix=".roles-resync-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            for row in merged_rows:
+                fh.write(json.dumps(asdict(row), ensure_ascii=False) + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_name, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+    return updated, stale
+
+
 def _node_at(payload: dict, row: RoleChange) -> Optional[dict]:
     """The node this row addresses — by index when recorded, else by id."""
     nodes = payload.get("nodes")
