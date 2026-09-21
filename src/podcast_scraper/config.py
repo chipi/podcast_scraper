@@ -6985,6 +6985,21 @@ class Config(BaseModel):
         Raises:
             ValueError: If any validation check fails
         """
+        # REFUSING A TRANSCRIPT ONLY HELPS IF SOMETHING ELSE CAN PRODUCE ONE.
+        #
+        # `require_transcript_speakers` rejects a cue file that separates no turns so the episode
+        # is transcribed and DIARIZED instead. With `transcribe_missing` off there is no instead:
+        # the episode ends with no transcript at all, which is strictly worse than the
+        # single-voice transcript that was refused. Caught here rather than per-episode at
+        # runtime, where it would show up as a feed that silently produces nothing.
+        if self.require_transcript_speakers and not self.transcribe_missing:
+            raise ValueError(
+                "require_transcript_speakers refuses a transcript that separates no speaker "
+                "turns so the audio can be transcribed and diarized instead — but "
+                "transcribe_missing is off, so a refused episode would end with no transcript at "
+                "all. Enable transcribe_missing, or leave require_transcript_speakers off."
+            )
+
         # Episode selection (GitHub #521)
         if (
             self.episode_since is not None

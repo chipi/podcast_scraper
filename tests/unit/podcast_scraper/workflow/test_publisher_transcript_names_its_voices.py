@@ -442,3 +442,238 @@ def test_a_transcript_with_no_turns_is_stored_byte_for_byte(tmp_path, monkeypatc
         p for p in Path(tmp_path).rglob("*.txt") if not any(d in p.name for d in (".adfree.",))
     ).read_text(encoding="utf-8")
     assert stored == "Hello world", repr(stored)
+
+
+# --------------------------------------------------------------------------------------------
+# The gate's edges: what "separates no turns" actually covers.
+# --------------------------------------------------------------------------------------------
+
+_ONE_ANON_VOICE = """WEBVTT
+
+00:00:00.000 --> 00:00:06.000
+<v Speaker 1>A monologue with exactly one anonymous label throughout.</v>
+
+00:00:06.000 --> 00:00:12.000
+<v Speaker 1>Still the same single anonymous label, so nothing is separated.</v>
+"""
+
+_ONE_NAMED_VOICE = """WEBVTT
+
+00:00:00.000 --> 00:00:06.000
+<v Mark Galeotti>A monologue, but the publisher says who is speaking.</v>
+
+00:00:06.000 --> 00:00:12.000
+<v Mark Galeotti>Which is a real roster of one, not an absence of one.</v>
+"""
+
+
+def test_a_single_anonymous_voice_does_not_count_as_separated_turns(tmp_path, monkeypatch) -> None:
+    """`any(speaker)` treated one label on every cue as "turns separated". It is not: the file
+    has told us nothing a diarizer would not tell us better."""
+    _ok, _rel, source, _ = _download(
+        tmp_path, monkeypatch, _ONE_ANON_VOICE, require_transcript_speakers=True
+    )
+    assert source == epx.TRANSCRIPT_LACKS_SPEAKERS
+
+
+def test_a_single_NAMED_voice_is_a_real_roster_and_is_kept(tmp_path, monkeypatch) -> None:
+    """A solo show whose publisher names the speaker is exactly what this feature is for —
+    In Moscow's Shadows tags every turn `<v MG>`. One named voice is a roster of one."""
+    ok, rel_path, source, _ = _download(
+        tmp_path, monkeypatch, _ONE_NAMED_VOICE, require_transcript_speakers=True
+    )
+    assert ok and rel_path
+    assert source == "direct_download"
+
+
+def test_a_plain_text_transcript_is_refused_too(tmp_path, monkeypatch) -> None:
+    """Only `.vtt`/`.srt` are parsed into segments; plain text is stored as raw bytes with no
+    speaker structure in any form, so it fails the same test for the same reason. Leaving it
+    exempt made the setting's promise false for the one format guaranteed to carry nothing."""
+    monkeypatch.setattr(
+        epx,
+        "_fetch_transcript_content",
+        lambda url, cfg: (b"Just some prose with nobody attributed.", "text/plain"),
+    )
+    cfg = config_module.Config(
+        output_dir=str(tmp_path), require_transcript_speakers=True, transcribe_missing=True
+    )
+    ok, rel_path, source, _ = epx.process_transcript_download(
+        _episode(), "http://feed.example/t.txt", "text/plain", cfg, str(tmp_path), None
+    )
+    assert not ok and rel_path is None
+    assert source == epx.TRANSCRIPT_LACKS_SPEAKERS
+
+
+def test_refusing_without_transcription_is_a_config_error() -> None:
+    """Refusing only helps if something else can produce a transcript. With `transcribe_missing`
+    off there is no instead, and the episode ends with nothing — strictly worse than the
+    single-voice transcript that was refused."""
+    with pytest.raises(Exception) as exc:
+        config_module.Config(require_transcript_speakers=True, transcribe_missing=False)
+    assert "transcribe_missing" in str(exc.value)
+
+
+def test_a_refused_transcript_tries_the_feeds_other_candidates_first(tmp_path, monkeypatch) -> None:
+    """Odd Lots publishes `application/srt`, `text/plain` AND `text/vtt` for the same episode.
+
+    `choose_transcript_url` returns ONE best candidate. When that one separates no turns the
+    siblings have not been looked at, and spending ASR on an episode whose labelled VTT was one
+    fetch away is the wrong trade.
+    """
+    import queue as _queue
+    import xml.etree.ElementTree as _ET
+
+    served = {
+        "http://feed.example/plain.txt": (b"prose with nobody attributed", "text/plain"),
+        "http://feed.example/good.vtt": (_NAMED.encode("utf-8"), "text/vtt"),
+    }
+    fetched: List[str] = []
+
+    def _fetch(url, cfg):
+        fetched.append(url)
+        return served[url]
+
+    monkeypatch.setattr(epx, "_fetch_transcript_content", _fetch)
+    reached_asr: List[str] = []
+    monkeypatch.setattr(
+        epx, "download_media_for_transcription", lambda *a, **k: reached_asr.append("asr")
+    )
+
+    ep = Episode(
+        idx=1,
+        title="Building Trails That Last",
+        title_safe="building-trails",
+        item=_ET.Element("item"),
+        transcript_urls=[
+            ("http://feed.example/plain.txt", "text/plain"),
+            ("http://feed.example/good.vtt", "text/vtt"),
+        ],
+    )
+    cfg = config_module.Config(
+        output_dir=str(tmp_path), require_transcript_speakers=True, transcribe_missing=True
+    )
+    ok, rel_path, source, _ = epx.process_episode_download(
+        ep,
+        cfg,
+        str(tmp_path),
+        str(tmp_path),
+        None,
+        _queue.Queue(),
+        None,
+        detected_speaker_names=_DETECTED,
+        metadata_named=_DETECTED,
+        feed_hosts=_FEED_HOSTS,
+    )
+
+    assert "http://feed.example/good.vtt" in fetched, f"never tried the sibling: {fetched}"
+    assert ok and rel_path and source == "direct_download"
+    assert reached_asr == [], "ASR was spent although a usable transcript was published"
+
+
+# ==============================================================================================
+# WHETHER SPEAKER DETECTION RAN, ON THE DOWNLOAD PATH (#1647 / #2075).
+# ==============================================================================================
+#
+# THE DEFECT. The download path answered "did speaker detection run?" with
+# ``detected_speaker_names is not None or None`` — an inference from the stage's OUTPUT rather
+# than a reading of the stage ledger. Enumerated, that expression yields:
+#
+#   * a names list, even an EMPTY one -> ``True``   ("it ran")
+#   * ``None``                        -> ``None``   ("unknown")
+#   * ...and ``False`` is unreachable.
+#
+# So it is wrong in both directions. It ASSERTS "detection ran" from the mere presence of a list
+# — a claim the ledger never made, and one the #2075 decision acts on, because a voice left
+# unnamed by a detection that PROVABLY ran is a measured negative the episode may still be cast
+# around. And it can never report a skip: an episode whose detection stage was skipped or failed
+# outright is indistinguishable from one where it succeeded, so the roster is told "measured" for
+# an episode nobody measured. The ASR path has read the ledger since #1647 for exactly this
+# reason; these tests pin the download path onto the same source of truth.
+
+
+def _spy_detection_ran(monkeypatch) -> dict:
+    """Capture what `_roster_native_segments` is told, without running the roster."""
+    seen: dict = {}
+
+    def _fake(result, cfg, **kwargs):
+        seen.update(kwargs)
+        return result
+
+    monkeypatch.setattr(epx, "_roster_native_segments", _fake)
+    return seen
+
+
+class _Ledger:
+    """The slice of `workflow.metrics.Metrics` the download path reads."""
+
+    def __init__(self, outcome: Optional[str]) -> None:
+        self._outcome = outcome
+
+    def stage_did_run(self, stage: str, episode_idx: int) -> Optional[bool]:
+        if self._outcome is None:
+            return None
+        return self._outcome in ("ran", "degraded")
+
+
+def _download_with_metrics(tmp_path, monkeypatch, pipeline_metrics, detected):
+    monkeypatch.setattr(
+        epx, "_fetch_transcript_content", lambda url, cfg: (_NAMED.encode("utf-8"), "text/vtt")
+    )
+    seen = _spy_detection_ran(monkeypatch)
+    epx.process_episode_download(
+        _episode(),
+        config_module.Config(output_dir=str(tmp_path)),
+        None,
+        str(tmp_path),
+        None,
+        __import__("queue").Queue(),
+        None,
+        detected_speaker_names=detected,
+        metadata_named=None,
+        feed_hosts=_FEED_HOSTS,
+        pipeline_metrics=pipeline_metrics,
+    )
+    return seen
+
+
+def test_a_skipped_detection_is_reported_as_not_having_run(tmp_path, monkeypatch) -> None:
+    """THE regression, half one: ``False`` was unreachable, so a skipped stage read as "unknown"
+    at best and "ran" at worst. Detection names here to make the point sharply — the OUTPUT looks
+    like a successful detection, and the LEDGER says the stage never did any work."""
+    seen = _download_with_metrics(tmp_path, monkeypatch, _Ledger("skipped"), ["Maya"])
+    assert seen.get("detection_ran") is False, (
+        "the ledger says speaker detection was skipped, but the download path reported "
+        f"{seen.get('detection_ran')!r} — inferred from the names rather than read from the ledger"
+    )
+
+
+def test_a_ledger_that_says_it_ran_is_reported_as_having_run(tmp_path, monkeypatch) -> None:
+    """A detection that ran and named NOBODY is a measured negative, and stays one (#2075)."""
+    seen = _download_with_metrics(tmp_path, monkeypatch, _Ledger("ran"), [])
+    assert seen.get("detection_ran") is True, seen
+
+
+def test_an_empty_ledger_stays_unknown(tmp_path, monkeypatch) -> None:
+    """THE regression, half two: names present + nothing recorded used to read as ``True``. None
+    means "we genuinely do not know" and must not be upgraded to a claim the ledger never made,
+    nor flattened into False — callers use it to preserve pre-ledger behaviour (#1647)."""
+    seen = _download_with_metrics(tmp_path, monkeypatch, _Ledger(None), ["Maya"])
+    assert seen.get("detection_ran") is None, seen
+
+
+def test_no_metrics_object_at_all_is_unknown_not_false(tmp_path, monkeypatch) -> None:
+    """`pipeline_metrics` is optional on this entry point (tests, dry runs)."""
+    seen = _download_with_metrics(tmp_path, monkeypatch, None, ["Maya"])
+    assert seen.get("detection_ran") is None, seen
+
+
+def test_the_real_metrics_ledger_answers_the_same_way(tmp_path, monkeypatch) -> None:
+    """Not a hand-rolled double: the actual `Metrics` class, driven through its own recorder, so a
+    rename or a change to the outcome vocabulary fails here rather than drifting silently."""
+    from podcast_scraper.workflow import metrics as metrics_mod
+
+    real = metrics_mod.Metrics()
+    real.record_stage_outcome("speaker_detection", 1, "ran")
+    seen = _download_with_metrics(tmp_path, monkeypatch, real, [])
+    assert seen.get("detection_ran") is True, seen

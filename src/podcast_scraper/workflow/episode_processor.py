@@ -2609,6 +2609,19 @@ def _relabel_existing_transcript(
         )
         return False, None, 0
     diar = DiarizationResult(segments=dsegs, num_speakers=len(_cluster_ids))
+
+    # THE PUBLISHER'S LABELS SURVIVE A RELABEL. `_anon` above deliberately strips every identity
+    # so names are re-resolved from evidence — correct for names WE inferred, wrong for names the
+    # SOURCE stated. `stated_speaker` carries those (written by `_roster_native_segments`), and
+    # they are handed back to the roster at top precedence, exactly as on the first pass.
+    _stated_relabel: Dict[str, str] = {}
+    for s in segs:
+        if not isinstance(s, dict):
+            continue
+        stated = s.get("stated_speaker")
+        ident = _identity(s)
+        if stated and ident is not None:
+            _stated_relabel.setdefault(_anon(ident), str(stated))
     result: dict = {
         "text": text,
         "segments": [
@@ -2646,6 +2659,7 @@ def _relabel_existing_transcript(
         job.detected_speaker_names,
         metadata_named=job.metadata_named,
         precomputed_diarization=diar,
+        stated_voice_names=_stated_relabel or None,
         feed_hosts=feed_hosts,
         # ADR-137 — title + description feed the LLM's host/guest role determination and gate
         # role-only resolution. FULL passes both; relabel_only omitting them resolved on a strictly
@@ -2654,6 +2668,16 @@ def _relabel_existing_transcript(
         episode_description=getattr(job.episode, "description", None),
         detection_ran=getattr(job, "speaker_detection_ran", None),
     )
+    # AND THEY SURVIVE THE NEXT RELABEL TOO. The roster is handed a stripped
+    # ``{start, end, text}`` view, so whatever it returns carries no ``stated_speaker`` — writing
+    # that straight back would make the FIRST relabel keep the publisher's names and the SECOND
+    # fall back to the feed. Re-attach from the stored segments, in the order they were passed.
+    _old_dicts = [s for s in segs if isinstance(s, dict)]
+    _new_dicts = result.get("segments") if isinstance(result, dict) else None
+    if isinstance(_new_dicts, list):
+        for _old, _new in zip(_old_dicts, _new_dicts):
+            if isinstance(_new, dict) and _old.get("stated_speaker"):
+                _new["stated_speaker"] = _old["stated_speaker"]
     new_text = _format_transcript_if_needed(
         result, cfg, job.detected_speaker_names, transcription_provider
     )
@@ -2865,7 +2889,7 @@ def _roster_native_segments(
         if isinstance(s, dict)
     ]
     try:
-        return apply_diarization_to_result(
+        out = apply_diarization_to_result(
             clean,
             "",
             cfg,
@@ -2878,6 +2902,20 @@ def _roster_native_segments(
             episode_title=episode_title,
             episode_description=episode_description,
         )
+        # KEEP WHAT THE SOURCE SAID, beside what we resolved. `speaker_label` is OUR answer and a
+        # later `relabel_only` is entitled to re-derive it — that is what relabel is for. The
+        # publisher's own label is not ours to re-derive: it is a fact about the file, and
+        # `relabel_only` anonymises every identity it finds (`_anon(_identity(s))`), so without
+        # this a relabel would strip the names the transcript stated and fall back to the feed.
+        out_segs = out.get("segments")
+        if isinstance(out_segs, list):
+            for src_seg, out_seg in zip(segs, out_segs):
+                if not (isinstance(src_seg, dict) and isinstance(out_seg, dict)):
+                    continue
+                stated_raw = src_seg.get("speaker")
+                if stated_raw is not None and _is_person_voice_label(str(stated_raw)):
+                    out_seg["stated_speaker"] = str(stated_raw).strip()
+        return out
     except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
         logger.warning(
             "[%s] Native-speaker roster pass failed; keeping the provider screenplay: %s",
@@ -3958,6 +3996,7 @@ def process_transcript_download(
     detected_speaker_names: Optional[List[str]] = None,
     metadata_named: Optional[List[str]] = None,
     feed_hosts: Optional[List[str]] = None,
+    speaker_detection_ran: Optional[bool] = None,
 ) -> tuple[bool, Optional[str], Optional[str], int]:
     """Download and save a transcript file.
 
@@ -3968,6 +4007,8 @@ def process_transcript_download(
         cfg: Configuration object
         effective_output_dir: Output directory path
         run_suffix: Optional suffix for output filename
+        speaker_detection_ran: Whether the speaker-detection stage ran for this episode, read
+            from the stage ledger by the caller. ``None`` means unknown.
 
     Returns:
         Tuple of (success: bool, transcript_file_path: Optional[str],
@@ -4023,7 +4064,19 @@ def process_transcript_download(
             episode.title,
             transcript_url,
         )
-        logger.info(f"    [dry-run] would save as: {dry_path}")
+        if cfg.require_transcript_speakers:
+            # A DRY RUN MUST NOT PROMISE WHAT THE REAL RUN WILL REFUSE. The gate reads the PARSED
+            # cues, which a dry run never fetches, so whether this transcript survives cannot be
+            # known here. Saying "would save as .txt" for an episode the real run will send to ASR
+            # is the kind of plan an operator acts on and then finds undone.
+            logger.info(
+                "    [dry-run] would save as: %s — UNLESS the cue file separates no speaker "
+                "turns, in which case require_transcript_speakers refuses it and the episode is "
+                "transcribed instead (not knowable without fetching it)",
+                dry_path,
+            )
+        else:
+            logger.info(f"    [dry-run] would save as: {dry_path}")
         return True, dry_path, "direct_download", 0
 
     logger.info(f"[{episode.idx}] downloading transcript: {episode.title} -> {transcript_url}")
@@ -4065,14 +4118,31 @@ def process_transcript_download(
         #
         # Rejected BEFORE anything is written, and reported with a distinct source so the caller
         # can fall through to the transcription path rather than treat it as a failed download.
-        if cfg.require_transcript_speakers and not any(
-            isinstance(s, dict) and s.get("speaker") for s in (segments or [])
-        ):
+        # "SEPARATES TURNS" MEANS MORE THAN ONE VOICE, not merely that a label exists. A file
+        # tagging every cue `<v MG>` carries one voice, which is correct for a monologue and
+        # useless for an interview — and In Moscow's Shadows does exactly that on some episodes
+        # while carrying none at all on others, so this is per-episode, never per-feed.
+        #
+        # A single-voice transcript is accepted anyway when the roster can place that voice: one
+        # named speaker is a real roster. It is refused only when the lone label is anonymous,
+        # where the transcript has told us nothing a diarizer would not tell us better.
+        from ..providers.ml.diarization.roster import _is_person_voice_label
+
+        _distinct_voices = {
+            str(s.get("speaker"))
+            for s in (segments or [])
+            if isinstance(s, dict) and s.get("speaker")
+        }
+        _usable = len(_distinct_voices) > 1 or any(
+            _is_person_voice_label(v) for v in _distinct_voices
+        )
+        if cfg.require_transcript_speakers and not _usable:
             logger.info(
-                "[%s] transcript carries no speaker turns (%d cue(s)); transcribing instead "
-                "(require_transcript_speakers)",
+                "[%s] transcript separates no usable speaker turns (%d cue(s), voices=%s); "
+                "transcribing instead (require_transcript_speakers)",
                 episode.idx,
                 len(segments or []),
+                sorted(_distinct_voices) or "none",
             )
             return False, None, TRANSCRIPT_LACKS_SPEAKERS, bytes_downloaded
 
@@ -4104,7 +4174,7 @@ def process_transcript_download(
                 detected_speaker_names=detected_speaker_names,
                 metadata_named=metadata_named,
                 feed_hosts=feed_hosts,
-                detection_ran=detected_speaker_names is not None or None,
+                detection_ran=speaker_detection_ran,
                 episode_title=getattr(episode, "title", None),
                 episode_description=getattr(episode, "description", None),
             )
@@ -4194,6 +4264,20 @@ def process_transcript_download(
         )
         return False, None, None, bytes_downloaded
 
+    # PLAIN TEXT SEPARATES NO TURNS — BY CONSTRUCTION. Only `.vtt`/`.srt` are parsed into
+    # segments; everything reaching here is stored as raw bytes with no speaker structure at all,
+    # so under `require_transcript_speakers` it fails the same test the cue branch applies, for the
+    # same reason. Leaving it exempt made the setting's promise ("refuse a transcript that
+    # separates no speaker turns") false for the one format guaranteed never to carry any.
+    if cfg.require_transcript_speakers:
+        logger.info(
+            "[%s] transcript is %s, which carries no speaker turns in any form; transcribing "
+            "instead (require_transcript_speakers)",
+            episode.idx,
+            ext or "plain text",
+        )
+        return False, None, TRANSCRIPT_LACKS_SPEAKERS, bytes_downloaded
+
     rel_path_result = _write_transcript_file(data, out_path, cfg, episode, effective_output_dir)
     if rel_path_result is None:
         return False, None, None, bytes_downloaded
@@ -4247,6 +4331,28 @@ def process_episode_download(
         else choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
     )
 
+    # Bytes already pulled for a transcript we then REFUSED. Carried into whatever this function
+    # finally returns, so a run using `require_transcript_speakers` does not under-report what it
+    # fetched — the setting's network cost should be visible to whoever turned it on.
+    refused_transcript_bytes = 0
+
+    # WHETHER SPEAKER DETECTION RAN, FROM THE LEDGER — not inferred from the names it produced.
+    # The download path used ``detected_speaker_names is not None or None``, which is wrong in
+    # both directions: a names list — even an EMPTY one — yielded ``True``, and ``False`` was
+    # unreachable. So it asserted "detection ran" from the mere presence of a list, a claim the
+    # ledger never made, and could not report a skip at all: an episode whose detection stage was
+    # skipped or failed looked identical to one where it succeeded.
+    #
+    # The roster acts on exactly that difference (#2075): a voice left unnamed by a detection that
+    # PROVABLY ran is a measured negative the episode may still be cast around, while the same
+    # unnamed voice with no measurement behind it places nobody. The ASR path has read the ledger
+    # since #1647; this is the same read, for the same reason.
+    detection_ran = (
+        pipeline_metrics.stage_did_run("speaker_detection", episode.idx)
+        if pipeline_metrics is not None and hasattr(pipeline_metrics, "stage_did_run")
+        else None
+    )
+
     if chosen:
         t_url, t_type = chosen
         logger.debug(
@@ -4266,14 +4372,60 @@ def process_episode_download(
             detected_speaker_names=detected_speaker_names,
             metadata_named=metadata_named,
             feed_hosts=feed_hosts,
+            speaker_detection_ran=detection_ran,
         )
+        # A FEED MAY PUBLISH SEVERAL TRANSCRIPTS AND ONLY ONE OF THEM MAY CARRY TURNS.
+        # `choose_transcript_url` returns a single best candidate; when that one is refused for
+        # separating no turns, the others have not been looked at, and spending ASR on an episode
+        # whose sibling VTT was one fetch away is the wrong trade. Try each remaining candidate in
+        # preference order, stopping at the first that survives the gate.
+        if transcript_source == TRANSCRIPT_LACKS_SPEAKERS:
+            for alt_url, alt_type in episode.transcript_urls or []:
+                if alt_url == t_url:
+                    continue
+                logger.info(
+                    "[%s] trying another published transcript before transcribing: %s (type=%s)",
+                    episode.idx,
+                    alt_url,
+                    alt_type,
+                )
+                (
+                    alt_ok,
+                    alt_path,
+                    alt_source,
+                    alt_bytes,
+                ) = process_transcript_download(
+                    episode,
+                    alt_url,
+                    alt_type,
+                    cfg,
+                    effective_output_dir,
+                    run_suffix,
+                    detected_speaker_names=detected_speaker_names,
+                    metadata_named=metadata_named,
+                    feed_hosts=feed_hosts,
+                    speaker_detection_ran=detection_ran,
+                )
+                bytes_downloaded += alt_bytes
+                if alt_source != TRANSCRIPT_LACKS_SPEAKERS and alt_ok:
+                    success, transcript_path, transcript_source = alt_ok, alt_path, alt_source
+                    break
+
         if transcript_source == TRANSCRIPT_LACKS_SPEAKERS:
             # Not a failure — a deliberate refusal. Fall through to the transcription path below
             # so the audio is fetched, transcribed and DIARIZED, which is the whole point of
             # refusing. Every other outcome, success or genuine download failure, returns as before.
+            #
+            # The refused transcript WAS downloaded, so its bytes are carried into the
+            # transcription path's total rather than dropped — otherwise a run that refuses often
+            # under-reports what it pulled over the network, and the cost of the setting is
+            # invisible to whoever turned it on.
+            refused_transcript_bytes += bytes_downloaded
             logger.info(
-                "[%s] falling through to transcription: the transcript separates no turns",
+                "[%s] falling through to transcription: the transcript separates no turns "
+                "(%d bytes already fetched)",
                 episode.idx,
+                refused_transcript_bytes,
             )
         else:
             if success and cfg.delay_ms:
@@ -4367,9 +4519,9 @@ def process_episode_download(
                         error_type="DownloadError",
                         error_message="failed to download media",
                     )
-        return False, None, None, 0
+        return False, None, None, refused_transcript_bytes
 
     logger.info(f"[{episode.idx}] no transcript for: {episode.title}")
     if cfg.delay_ms:
         time.sleep(cfg.delay_ms / MS_TO_SECONDS)
-    return False, None, None, 0
+    return False, None, None, refused_transcript_bytes
