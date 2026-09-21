@@ -26,6 +26,42 @@ METADATA_SUBDIR = "metadata"
 _PLATFORMDIR_APP_NAMES = ("podcast_scraper", "podcast-scraper", "Podcast Scraper")
 
 
+def names_the_same_episode(meta_stem: str, transcript_stem: str) -> bool:
+    """Do these two filenames name the same episode, allowing for a truncated title?
+
+    The metadata filename truncates the episode title to ``WHISPER_TITLE_MAX_CHARS``; the
+    transcript filename does not. Both keep the same trailing identifier — a per-episode guid for
+    a downloaded transcript, a per-RUN timestamp for a transcribed one. So strip the common tail
+    and the remainder is the title as each file spells it; if one spells a prefix of the other,
+    they are the same episode.
+
+    A PLAIN EQUALITY TEST IS WRONG AND THE NUMBER IT PRODUCES IS WRONG. It called 128 episodes
+    mispaired that are not — ``0006 - This Funding Model is Helping Fi_<guid>`` against ``0006 -
+    This Funding Model is Helping Fight Climate Change_<guid>`` — which is how #2082's headline
+    was 275 instead of 147. Measured on the 2026-09-20 snapshot: 280 of 2,298 records have a
+    pointer stem that differs from the metadata stem, and this test clears all but the real ones.
+
+    This lives here, not in the audit script that first needed it, because the PIPELINE needs the
+    same answer: ``stages.scraping._transcript_beside_metadata`` uses it to refuse a stored
+    pointer that names another episode, and a second implementation there would be free to
+    disagree with the audit about which episodes are damaged.
+
+    The residual risk is stated rather than hidden: two episodes in the SAME run whose titles
+    agree for the first 32 characters would compare equal here. Nothing in the snapshot does.
+    """
+    if meta_stem == transcript_stem:
+        return True
+    n = 0
+    while (
+        n < min(len(meta_stem), len(transcript_stem))
+        and meta_stem[-1 - n] == transcript_stem[-1 - n]
+    ):
+        n += 1
+    a = meta_stem[: len(meta_stem) - n].rstrip()
+    b = transcript_stem[: len(transcript_stem) - n].rstrip()
+    return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))
+
+
 def _platformdirs_safe_roots() -> set[Path]:
     """Return resolved platformdirs locations considered safe for outputs."""
 

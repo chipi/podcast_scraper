@@ -2404,15 +2404,35 @@ def _rewrite_speaker_record_in_place(
     from .metadata_generation import _build_speaker_record
 
     stem = txt_path.name[: -len(".txt")] if txt_path.name.endswith(".txt") else txt_path.stem
-    md_path = txt_path.parent.parent / filesystem.METADATA_SUBDIR / f"{stem}.metadata.json"
+    md_dir = txt_path.parent.parent / filesystem.METADATA_SUBDIR
+    md_path = md_dir / f"{stem}.metadata.json"
     if not md_path.is_file():
-        logger.warning(
-            "[%s] %s: no sibling metadata at %s — the speaker record was NOT updated",
-            job.idx,
-            stage,
-            md_path,
+        # THE TWO FILENAMES DO NOT HAVE TO MATCH. The metadata name truncates the title and the
+        # transcript name does not, so on a downloaded transcript the stems differ by the title's
+        # tail alone — 280 of 2,298 records on the production snapshot. Deriving the record from
+        # the transcript stem therefore missed them silently ("no sibling metadata"), and a
+        # relabel that renamed a speaker left the record naming the old person: the exact
+        # divergence this function exists to prevent. Same predicate the audit and the transcript
+        # resolver use, so all three agree on what "the same episode" means.
+        match = next(
+            (
+                candidate
+                for candidate in sorted(md_dir.glob("*.metadata.json"))
+                if filesystem.names_the_same_episode(candidate.name[: -len(".metadata.json")], stem)
+            ),
+            None,
         )
-        return False
+        if match is None:
+            logger.warning(
+                "[%s] %s: no metadata in %s names the same episode as %s — "
+                "the speaker record was NOT updated",
+                job.idx,
+                stage,
+                md_dir,
+                stem,
+            )
+            return False
+        md_path = match
     try:
         payload = _json.loads(md_path.read_text(encoding="utf-8"))
         feed_block = payload.get("feed") if isinstance(payload.get("feed"), dict) else {}
@@ -2437,6 +2457,26 @@ def _rewrite_speaker_record_in_place(
             content["speakers_source"] = source
         if num_speakers is not None:
             content["diarization_num_speakers"] = num_speakers
+        # REPOINT THE RECORD AT THE TRANSCRIPT WE ACTUALLY JUST WROTE. On a #2082 episode the
+        # stored pointer names another episode's file; the resolver now refuses to follow it, but
+        # leaving it in place means the pairing audit keeps reporting the episode forever and
+        # "done when the audit exits 0" is unreachable by repair. The value is relative to the RUN
+        # dir, which is the metadata file's grandparent — the same join the audit reads it back
+        # with.
+        run_dir = md_path.parent.parent
+        try:
+            pointer = str(Path(txt_path).resolve().relative_to(run_dir.resolve()))
+        except ValueError:
+            pointer = ""
+        if pointer and content.get("transcript_file_path") != pointer:
+            logger.info(
+                "[%s] %s: repointing transcript_file_path %r -> %r",
+                job.idx,
+                stage,
+                content.get("transcript_file_path"),
+                pointer,
+            )
+            content["transcript_file_path"] = pointer
         md_path.write_text(_json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         logger.warning(

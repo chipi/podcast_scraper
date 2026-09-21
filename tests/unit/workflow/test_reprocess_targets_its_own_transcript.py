@@ -99,6 +99,74 @@ class TestItRefusesRatherThanGuessing:
         assert _transcript_beside_metadata(meta) is None
 
 
+class TestAPointerAtAnotherEpisodeIsRefused:
+    """#2082 on the repair path: the stored pointer is the corrupted field.
+
+    147 of 2,297 production records name ANOTHER episode's transcript, and that file exists with
+    its `.segments.json` — which is exactly what makes the audit call it a confirmed
+    misattribution. Following it meant a scoped `relabel_only` of A overwrote B's transcript with
+    names re-resolved from B's words, and rewrote B's roster. The repair step re-inflicted the
+    damage it was run to fix, silently, and left A untouched.
+    """
+
+    @staticmethod
+    def _mispair(run: Path) -> tuple[Path, Path]:
+        """A's record pointing at B's transcript, both on disk. Returns ``(a_meta, b_txt)``."""
+        a_meta = _episode_on_disk(run, 1, "Krishna Rao on being a CFO", "guid-a")
+        b_meta = _episode_on_disk(run, 2, "Sam Altman on abundance", "guid-b")
+        b_txt = run / "transcripts" / f"{b_meta.name[: -len('.metadata.json')]}.txt"
+        payload = json.loads(a_meta.read_text(encoding="utf-8"))
+        payload["content"]["transcript_file_path"] = f"transcripts/{b_txt.name}"
+        a_meta.write_text(json.dumps(payload), encoding="utf-8")
+        return a_meta, b_txt
+
+    def test_the_episodes_own_transcript_wins_over_the_pointer(self, tmp_path: Path) -> None:
+        run = tmp_path / "run_only_20260101-000000"
+        a_meta, _b_txt = self._mispair(run)
+
+        resolved = _transcript_beside_metadata(a_meta)
+
+        assert resolved is not None
+        assert "Krishna Rao" in Path(resolved).name, resolved
+        assert "Sam Altman" not in Path(resolved).name
+
+    def test_a_pointer_elsewhere_is_refused_when_the_own_file_is_gone(self, tmp_path: Path) -> None:
+        """The dangerous half: with A's transcript missing, falling through would overwrite B."""
+        run = tmp_path / "run_only_20260101-000000"
+        a_meta, b_txt = self._mispair(run)
+        stem = a_meta.name[: -len(".metadata.json")]
+        (run / "transcripts" / f"{stem}.txt").unlink()
+        (run / "transcripts" / f"{stem}.segments.json").unlink()
+        before = b_txt.read_bytes()
+
+        assert _transcript_beside_metadata(a_meta) is None
+        assert b_txt.read_bytes() == before
+
+    def test_a_truncated_title_is_still_the_same_episode(self, tmp_path: Path) -> None:
+        """The rule that makes equality the WRONG test — 280 of 2,298 records differ this way.
+
+        The metadata filename truncates the title to 32 chars; the transcript filename does not.
+        Refusing those would break every downloaded transcript in the corpus.
+        """
+        run = tmp_path / "run_only_20260101-000000"
+        long_title = "This Funding Model is Helping Fight Climate Change"
+        stem_full = f"0006 - {long_title}_{run.name}"
+        (run / "metadata").mkdir(parents=True, exist_ok=True)
+        (run / "transcripts").mkdir(parents=True, exist_ok=True)
+        (run / "transcripts" / f"{stem_full}.txt").write_text("t", encoding="utf-8")
+        (run / "transcripts" / f"{stem_full}.segments.json").write_text("[]", encoding="utf-8")
+        stem_cut = f"0006 - {long_title[:32]}_{run.name}"
+        meta = run / "metadata" / f"{stem_cut}.metadata.json"
+        meta.write_text(
+            json.dumps({"content": {"transcript_file_path": f"transcripts/{stem_full}.txt"}}),
+            encoding="utf-8",
+        )
+
+        resolved = _transcript_beside_metadata(meta)
+
+        assert resolved is not None and Path(resolved).name == f"{stem_full}.txt", resolved
+
+
 class TestTheFallbackStillWorksForJobsWithoutAnEpisode:
     def test_a_single_run_resolves_by_index_prefix(self, tmp_path: Path) -> None:
         run = tmp_path / "run_only_20260101-000000"

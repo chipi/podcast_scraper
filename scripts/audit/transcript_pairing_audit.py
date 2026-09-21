@@ -15,7 +15,10 @@ THE FIRST NUMBER PUBLISHED HERE WAS 275, AND IT WAS WRONG. A plain stem equality
 episodes mispaired that are not: the metadata filename truncates the title to 32 characters and the
 transcript filename does not, so ``0006 - This Funding Model is Helping Fi_<guid>`` and ``0006 -
 This Funding Model is Helping Fight Climate Change_<guid>`` are the SAME episode and compared
-unequal. ``_names_the_same_episode`` below is the corrected test. It rescues 128 downloaded
+unequal. ``utils.filesystem.names_the_same_episode`` is the corrected test — it lives in the
+package, not here, because the PIPELINE needs the same answer: ``_transcript_beside_metadata``
+uses it to refuse a stored pointer that names another episode, and two implementations would be
+free to disagree about which episodes are damaged. It rescues 128 downloaded
 transcripts and NOT ONE of the 147 whisper mismatches — so the damage this audit exists to find is
 the size it always was; only the false positives are gone. Anything scoped off the old 275 (repair
 batches, GPU estimates, #2082's headline) is scoped off a number that was 87% too large.
@@ -63,6 +66,12 @@ import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
+from podcast_scraper.utils.filesystem import (  # noqa: E402
+    names_the_same_episode as _names_the_same_episode,
+)
 
 #: A screenplay line: ``LABEL: text``. The label is the resolved speaker name once naming has run.
 _LINE = re.compile(r"^([^:\n]{1,60}): ")
@@ -122,34 +131,6 @@ def _feed_root(meta_path: Path, corpus: Path) -> Path:
     return corpus
 
 
-def _names_the_same_episode(meta_stem: str, transcript_stem: str) -> bool:
-    """Do these two filenames name the same episode, allowing for a truncated title?
-
-    The metadata filename truncates the episode title; the transcript filename does not. Both keep
-    the same trailing identifier — a per-episode guid for a downloaded transcript, a per-RUN
-    timestamp for a transcribed one. So strip the common tail and the remainder is the title as each
-    file spells it; if one spells a prefix of the other, they are the same episode.
-
-    This is deliberately NOT "skip ``direct_download`` episodes". Excluding by transcript source
-    would hide a genuine mispairing on a downloaded transcript — and there is exactly one in the
-    production snapshot, which this test still reports.
-
-    The residual risk is stated rather than hidden: two episodes in the SAME run whose titles agree
-    for the first 32 characters would compare equal here. Nothing in the snapshot does.
-    """
-    if meta_stem == transcript_stem:
-        return True
-    n = 0
-    while (
-        n < min(len(meta_stem), len(transcript_stem))
-        and meta_stem[-1 - n] == transcript_stem[-1 - n]
-    ):
-        n += 1
-    a = meta_stem[: len(meta_stem) - n].rstrip()
-    b = transcript_stem[: len(transcript_stem) - n].rstrip()
-    return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))
-
-
 def audit(corpus: Path) -> Tuple[List[dict], int]:
     """``(findings, total_examined)``. A finding is one metadata file pointing elsewhere."""
     findings: List[dict] = []
@@ -194,11 +175,18 @@ def audit(corpus: Path) -> Tuple[List[dict], int]:
             verdict = "inconclusive"
 
         segments = own.with_name(own.name[: -len(".txt")] + ".segments.json") if own else None
+        episode_block = data.get("episode") if isinstance(data.get("episode"), dict) else {}
         findings.append(
             {
                 "metadata": str(meta),
                 "feed": str((data.get("feed") or {}).get("title") or feed_root.name),
-                "episode": str((data.get("episode") or {}).get("title") or ""),
+                "episode": str(episode_block.get("title") or ""),
+                # The REPAIR needs an id, not a title. `--reprocess-episode-ids` matches on
+                # `episode_id` and falls back to the guid, so emit whichever this record has —
+                # without it the 42 repairable episodes have to be looked up by hand.
+                "episode_id": str(
+                    episode_block.get("episode_id") or episode_block.get("guid") or ""
+                ),
                 "points_at": Path(rel).name,
                 "verdict": verdict,
                 "repairable": bool(own and segments and segments.is_file()),
@@ -216,6 +204,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--quiet-ok", action="store_true", help="Print nothing when the corpus is clean"
     )
     ap.add_argument("--limit", type=int, default=10, help="Examples to show per verdict")
+    ap.add_argument(
+        "--worklist",
+        type=Path,
+        default=None,
+        help=(
+            "Write the REPAIRABLE episode ids here, one per line, for "
+            "`--reprocess-episode-ids`. Only the episodes whose own transcript is still on disk: "
+            "the rest need a re-ingest and must not ride along in a cheap relabel batch."
+        ),
+    )
     args = ap.parse_args(argv)
 
     corpus = Path(args.corpus_dir)
@@ -224,6 +222,23 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
 
     findings, total = audit(corpus)
+
+    if args.worklist is not None:
+        ids = sorted(
+            {str(f["episode_id"]) for f in findings if f["repairable"] and f["episode_id"]}
+        )
+        missing = sum(1 for f in findings if f["repairable"] and not f["episode_id"])
+        args.worklist.parent.mkdir(parents=True, exist_ok=True)
+        args.worklist.write_text("\n".join(ids) + ("\n" if ids else ""), encoding="utf-8")
+        print(
+            f"work-list: {len(ids)} repairable episode id(s) -> {args.worklist}"
+            + (
+                f"  ({missing} repairable record(s) carry NO id and are NOT listed)"
+                if missing
+                else ""
+            ),
+            file=sys.stderr,
+        )
     if args.json:
         print(json.dumps({"examined": total, "findings": findings}, indent=2))
         return 1 if findings else 0

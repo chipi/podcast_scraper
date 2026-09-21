@@ -448,10 +448,26 @@ def _synthesize_feed_item(guid: str, episode_meta: Dict[str, Any]) -> ET.Element
 def _transcript_beside_metadata(meta_path: Path) -> Optional[str]:
     """The transcript belonging to THIS metadata file, or ``None`` if it is not on disk.
 
-    Two ways to name it and they must agree. The stored ``content.transcript_file_path`` is
-    authoritative when present (it is what the run actually wrote, relative to the run dir); the
-    ``<run>/transcripts/<stem>.txt`` sibling covers a metadata file written before that field
-    existed. Either way the answer comes from THIS episode's own record.
+    Two ways to name it and they must agree. The ``<run>/transcripts/<stem>.txt`` sibling is named
+    by THIS metadata file; the stored ``content.transcript_file_path`` is what the run recorded.
+
+    THE STORED POINTER IS NOT TRUSTED ON ITS OWN, and that is #2082. On 147 of 2,297 production
+    records it names ANOTHER episode's transcript — and that file exists, with its
+    ``.segments.json`` beside it, which is exactly what makes the audit call it a confirmed
+    misattribution. This function used to try the pointer FIRST, so a scoped ``relabel_only`` of
+    episode A resolved to B's transcript, overwrote B's text with names re-resolved from B's words,
+    and rewrote B's roster (``_rewrite_speaker_record_in_place`` derives the record from the
+    transcript's stem). The repair step re-inflicted the damage it was run to fix, and left A
+    untouched.
+
+    So: the sibling wins, and the pointer is accepted only when it names the same episode. Equality
+    is the wrong test for that — the metadata filename truncates the title and the transcript
+    filename does not, which is why :func:`~podcast_scraper.utils.filesystem.names_the_same_episode`
+    is shared with the audit rather than re-derived here (280 of 2,298 records differ by truncation
+    alone).
+
+    Returning ``None`` is a REFUSAL, and refusing is the point: the caller skips the episode and
+    says so, where falling through to another episode's transcript is silent corruption.
 
     A ``.segments.json`` sibling is required, because a transcript with no per-segment diarization
     is nothing the relabel stage can work on — returning it would only move the failure later, and
@@ -466,7 +482,10 @@ def _transcript_beside_metadata(meta_path: Path) -> Optional[str]:
     except (OSError, json.JSONDecodeError):
         rel = ""
     if rel:
-        candidates.insert(0, run_dir / rel)
+        pointed = run_dir / rel
+        pointed_stem = pointed.name[: -len(".txt")] if pointed.name.endswith(".txt") else ""
+        if pointed_stem and filesystem.names_the_same_episode(stem, pointed_stem):
+            candidates.append(pointed)
     for path in candidates:
         if (
             path.is_file()
