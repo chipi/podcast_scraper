@@ -92,6 +92,11 @@ feeds. The epic's blocking pre-check ("verify it on ONE before any batch") stand
    reported**. Everything is clean under flake8 / black / isort / `mypy src` (680 files) and the
    targeted suites (1,779 workflow + diarization, 150 upgrade, 245 entity-identity), but the full
    suite has not answered against the final tree.
-2. `drill-corpus-upgrade.yml` against `main` — restore + migrate + verify on a real backup copy.
+2. ~~`drill-corpus-upgrade.yml` against `main`~~ — **this cannot run before the push, and the line
+   above was wrong.** The drill upgrades *with the published image* (`IMAGE_TAG`, default `main`),
+   and `docker.yml:115` publishes only on a push to `main`, so against unpushed commits it would
+   drill the OLD code and report green. The order is: push → the image publishes → *then* the
+   drill. What replaces it beforehand is a local walkthrough on a restored snapshot
+   (`make restore-corpus-prod`), which is what was done on 2026-09-21 — see the runbook.
 3. Push, deploy.
 4. Then the epic, starting at Step 0a. Nothing before that step produces a number worth quoting.

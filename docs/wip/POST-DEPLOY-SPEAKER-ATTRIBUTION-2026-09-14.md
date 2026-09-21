@@ -96,6 +96,32 @@ Why this comes first:
 The code fix (unique per-run `idx`, `Episode.on_disk_idx` kept only for the legacy search) is on
 `fix/duplicate-people-variant-resolution` and stops NEW damage. It repairs nothing already written.
 
+## Step 0b — REPAIR the cheap half of #2082, BEFORE any migration
+
+Step 0a only MEASURES. The repair is a separate step and it belongs here, not after step 2 — epic
+[#2097](https://github.com/chipi/podcast_scraper/issues/2097) activities 4 and 5 say so ("Only
+after 2-4"), and this file used to go 0a → 0 → 1 → 2 with no repair step at all, which reads as
+"measure the damage, then migrate on top of it".
+
+```
+POST /api/jobs?pipeline_stage=relabel_only&episode=<id>    # the 42 repairable, scoped
+```
+
+**Why it cannot wait.** m0009 reads `content.speakers` and demotes a graph node the roster
+contradicts. On an idx-collided episode that roster describes a DIFFERENT episode, so the
+migration demotes the people who actually spoke. Measured on `snapshot-prod-20260920`, the
+step-0 preview's three `guest -> mentioned` transitions — the direction step 4 says to stop on —
+are exactly this:
+
+| node demoted | roster on disk | why |
+| --- | --- | --- |
+| Krishna Rao (*"Anthropic's CFO"*) | `Sam Altman` | metadata points at `0001 - Sam Altman….txt` |
+| Brian Chesky (*"AI Founder Mode"*) | `Matthew Smith` | points at `0002 - Matthew Smith….txt` |
+| Bruce Lanphear (*Ground Truths*) | `Professor Bruce Lanphier` | not #2082 — a name-matching gap, fixed 2026-09-21 |
+
+Both #2082 cases are in the audit's findings, so step 0b removes them. Do the 42 first; the 105
+that need a re-ingest are a GPU decision (activity 5), not a blocker for the migrations.
+
 ## Step 0 — Pre-flight
 
 ```bash
@@ -103,6 +129,45 @@ make upgrade-status CORPUS_DIR=<prod corpus>
 make speaker-migration-preview CORPUS_DIR=<prod corpus>
 make speaker-coherence CORPUS_DIR=<prod corpus>          # record the BEFORE number
 ```
+
+### CHECK m0002's THREE PRECONDITIONS FIRST — it is migration 2 of 10, and the chain stops at it
+
+`upgrade run` **stops at the first failing migration**, so anything wrong at m0002 means 0007–0010
+never run. m0002 is a no-op only when ALL THREE hold (`m0002_two_tier_native_reindex.py:57-59`):
+
+1. `<corpus>/search/lance_index` exists,
+2. it is not schema-stale (`lance_index_is_stale` — an `index_meta.json` version below the code's),
+3. the `<corpus>/search/metadata.json` offset sidecar is present (#1010).
+
+Miss any one and it runs a **full native index build** — which needs `sentence_transformers`, so on
+a machine without the ML extras it aborts the whole chain. Verified on 2026-09-21 against the live
+prod API: `corpus_status` returns `index.present: true`, and semantic search returns results (a
+stale index makes read paths report `no_index`), so **1 and 2 hold on prod**. **3 was NOT verified
+from any read-only surface** — check it on the box before step 2:
+
+Two ways to settle it, both read-only:
+
+```bash
+# On the box:
+ls -l <prod corpus>/search/metadata.json      # present => m0002 no-ops; missing => full reindex
+```
+
+Or dispatch **Inspect prod corpus (read-only)** with `checks: upgrade_dry_run` (added 2026-09-21,
+so it must be on `main` before it can be dispatched). It prints that `ls` AND the whole Step 0
+plan from the prod image, including m0002's own words for which branch it will take:
+
+```
+"LanceDB index already present — no-op."                    <- safe, step 2 is minutes
+"...missing the metadata.json offset sidecar ... reindex"   <- full index rebuild
+"...schema-stale — rebuild natively."                       <- full index rebuild
+```
+
+That option exists because Step 0 had **no prod execution path at all** — `make upgrade-status` and
+the migration preview were being asserted against production rather than measured on it.
+
+A local drill on a restored backup CANNOT tell you this: `make restore-corpus-prod` prunes
+`search/` as regenerable, so m0002 always tries to build there. On 2026-09-21 that is exactly how
+the chain died at migration 2 of 10, leaving a ledger with only `0001` recorded.
 
 **EXPECT ALL TEN MIGRATIONS PENDING, not two.** An earlier version of this file said "confirm
 pending is exactly [0008, 0009]". That is wrong: production carries **no `upgrade_ledger.json` at
@@ -124,7 +189,7 @@ What each pending migration actually does on that corpus:
 | **0007** | **rewrites 153 episodes** (18 healed, 255 scoped) — see the numbers below, this is not a formality |
 | **0008** | **rewrites all 2,257 artifacts** for a one-character change — see below |
 | **0009** | 3,177 promoted, 195 demoted, 1,844 artifacts |
-| **0010** | **rewrites 91 episodes** — 39 person ids remapped (33 of them MERGING into an id already in the same episode), 1 duplicate node id folded, 162 published names canonicalised. Rehearsed by applying it to a copy of the same 2,257-artifact snapshot on 2026-09-21: idempotent on re-run, `verify` returns ok, 0 unparsable, 0 dangling edge endpoints, 0 leftover `.tmp`. **Its numbers were measured on the UNREPAIRED corpus and inherit the Step 0a caveat below.** |
+| **0010** | **rewrites 93 episodes** — 39 person ids remapped (33 of them MERGING into an id already in the same episode), 1 duplicate node id folded, 164 published names canonicalised (`snapshot-prod-20260920`; the 2026-09-14 snapshot gave 91/162). Idempotent on re-run, `verify` returns ok, 0 unparsable. **It also REISSUES m0009's role ledger** — 94 rows re-pointed, 32 episodes deliberately left unrestorable; see Rollback, and expect `upgrade-undo-roles` to exit 2. **Its numbers were measured on the UNREPAIRED corpus and inherit the Step 0a caveat below.** |
 
 ## Step 1 — Deploy
 
@@ -133,13 +198,58 @@ ingest and changes nothing already stored.
 
 ## Step 2 — Migrate (fixes class A)
 
+Confirm no ingest job is running (`GET /api/jobs`) first: a mid-ingest snapshot is inconsistent.
+
+### The snapshot is the ONLY rollback for 0007 and 0008 — mount it or lose it
+
+`make upgrade-corpus` is the local form. **On prod, do not run it without `--snapshot-dir` on a
+host-mounted path**, and here is why that is not a style note:
+
+* `_snapshot_corpus` defaults its destination to `corpus_root.parent` (`cli_handlers.py:171`);
+* the corpus is a bind-mounted volume at `/app/output` (`stack.yml:132`, repointed by
+  `prod.yml`), so that default is `/app/…` — **the container's own writable layer, not the bind**;
+* step 2 runs under `docker compose run --rm`, which deletes the container on exit.
+
+So the default writes a 4.2 GB snapshot inside the container, prints
+`rollback = replace the corpus with this dir if the upgrade fails`, and then throws it away. The
+operator is told they hold a rollback that does not outlive the command that made it.
+
+**And m0009's role ledger does not cover the rest.** 0007 rewrites 153 episodes and 0008 rewrites
+all 2,265; `upgrade verify` reports "no verification defined" for both and there is no undo for
+either. The snapshot is the only way back for them.
+
 ```bash
-# SNAPSHOT_DIR must be a persistent path — the default is a sibling of the corpus root, which is
-# container-ephemeral on a volume mount. Capture the path it prints.
-make upgrade-corpus CORPUS_DIR=<prod corpus> SNAPSHOT_DIR=<persistent path>
+# On the box. SNAP must be on a filesystem with >= the corpus size free (4.2 GB on the
+# 2026-09-20 snapshot) — the `upgrade_dry_run` inspection reports `du -sh corpus` and `df -h`.
+cd /srv/podcast-scraper
+SNAP=/srv/podcast-scraper/upgrade-snapshots          # host path, OUTSIDE the corpus dir
+mkdir -p "$SNAP" && df -h "$SNAP" | tail -1
+
+SEC=''; [ -n "$(ls -A /dev/shm/podcast-secrets 2>/dev/null)" ] && SEC='-f compose/docker-compose.secrets.yml'
+docker compose --env-file .env \
+  -f compose/docker-compose.stack.yml \
+  -f compose/docker-compose.prod.yml \
+  -f compose/docker-compose.vps-prod.yml \
+  $SEC \
+  run --rm --no-deps \
+  -v "$SNAP":/mnt/upgrade-snapshots \
+  --entrypoint python api \
+  -m podcast_scraper.cli upgrade run \
+    --corpus-dir /app/output \
+    --snapshot-dir /mnt/upgrade-snapshots \
+    --yes
 ```
 
-Confirm no ingest job is running (`GET /api/jobs`) first: a mid-ingest snapshot is inconsistent.
+**Check the snapshot exists on the HOST before trusting it** — the line the CLI prints is a
+container path:
+
+```bash
+ls -ld "$SNAP"/.corpus-upgrade-backup-* && du -sh "$SNAP"/.corpus-upgrade-backup-*
+```
+
+If the snapshot cannot be written the run aborts before mutating anything (`_snapshot_corpus`
+returns `None` and the caller stops), which is the safe direction — but it is a failed deploy
+step, not a warning, so check the free space first.
 
 ### 0008 is the BIGGEST write and does the LEAST work — expect it
 
@@ -280,6 +390,39 @@ is only needed if that is 0.
 
 ## Known limits — read before declaring victory
 
+- **AFTER the chain, step 4's own preview trips step 4's own stop condition — on a real person.**
+  Re-running `make speaker-migration-preview` on the migrated corpus reports 39 demotions, all
+  `Peter Attia (host) — The Peter Attia Drive`, 33 of them in the hand-read SUSPECT list. Nothing
+  demoted him during the run (the pre-migration preview has zero Peter Attia); m0010 canonicalises
+  `Peter Attia, MD` to `Peter Attia`, and `names_the_show` matches a multi-token PREFIX of the
+  article-stripped feed title, so `("Peter Attia", "The Peter Attia Drive")` is True where the
+  3-token credentialled spelling was not. **Do not read those 39 as damage from the migration, and
+  do not "hand-read and approve" them either.** The same composition reaches the LIVE pipeline —
+  `roster.py:960` canonicalises the published name and `metadata_generation.py:1159` drops placed
+  speakers that match — so that feed loses its host on future ingests. Measured across all feeds on
+  `snapshot-prod-20260920`: 6 feed/name pairs match, 5 are genuine show names (MLST, Conversations
+  with Tyler, Trivium China, Turkey Book, Africa Tech Summit) and **only The Peter Attia Drive is a
+  person**.
+
+  **UNRESOLVED, and a fix was tried and withdrawn on 2026-09-21 — read this before trying again.**
+  Nothing available locally separates the two cases: not the voice (Machine Learning Street has
+  one on 4 of 6 episodes), not the feed author (it is the show's own name for Trivium China,
+  Africa Tech Summit and MLST), and not a generic-suffix rule (it would swallow *The Tim Ferriss
+  Show* and *Lex Fridman Podcast*).
+
+  The withdrawn attempt used the feed's `known_hosts` as an operator statement that a name is a
+  PERSON. **It does not mean that.** `tried.known_hosts` in the diagnostics is the MERGED
+  `cfg.known_hosts + feed_hosts` (`providers/ml/diarization/pipeline.py`), and `feed_hosts` falls
+  back to the RSS author — which carries the SHOW's name. Measured on `snapshot-prod-20260920`:
+  2,094 of 2,492 diagnostics have a non-empty `known_hosts`, and for five feeds that value IS the
+  show name, so the guard would have re-seated the show as host on **111 episodes** — exactly the
+  #2064 damage it was meant to prevent. Any future attempt must read the operator's CONFIG, not
+  this field.
+
+  m0009 is deliberately NOT changed either: in chain order 0009 runs before 0010, so it never sees
+  the canonical spelling, and sparing voiced nodes there would undo 59 correct show-name demotions
+  to protect nobody.
+
 - **An org in the host seat whose name is not the show's** survives step 2 entirely: `China Plus`,
   `Mercatus Center at George Mason University`, `Brandon Anderson, RJ Honicky, and Latent.Space`.
   No predicate can tell these from a person. They are the bulk of the 56 remaining violations and
@@ -333,6 +476,62 @@ refused     :     0
 ```
 
 A clean, complete rollback at production scale.
+
+### That measurement predates m0010, and m0010 broke it — fixed 2026-09-21
+
+**Re-measure whenever a migration is added after 0009.** The run above stopped at 0009. m0010 runs
+*after* it and rewrites the same `.kg.json` files, so every episode it touched then failed its own
+`file_sha_after` check. Measured on `snapshot-prod-20260920` (2,298 episodes) with the full
+0001→0010 chain, before the fix:
+
+```
+ledger rows : 3,285  across 1,775 episodes
+REFUSED     :   134  rows /  73 episodes   <- unrestorable
+make upgrade-verify -> [FAIL] 0009: 3283 of 3285 recorded role(s) still present   (exit 2)
+```
+
+The two rows verify could not find addressed `person:peter-attia-md`, an id m0010 **merges** into
+`person:peter-attia` — those a hash refresh alone could never recover.
+
+The fix is `role_ledger.resync_after_rewrite`, called by m0010 for the episodes it rewrote: each
+row is re-pointed at the surviving node and the new file hash. It **deliberately refuses four
+cases**, because a receipt it cannot honour is worse than an admitted gap:
+
+1. a row whose node vanished entirely;
+2. a merge where the survivor holds a role other than the one recorded (its role came from the
+   other half of the merge);
+3. a merge that absorbed a node holding `host`/`guest` that **no row describes** — the pipeline,
+   not m0009, wrote that role;
+4. a duplicate-id FOLD that discards any copy holding a speaking role.
+
+**3 and 4 are not hypothetical, and the ledger's own totals cannot see them.** Measured on
+`snapshot-prod-20260920` before they were guarded: 30 episodes where the pipeline's `host` on
+`person:peter-attia-md` was folded into `person:peter-attia` and the undo then restored
+`mentioned`, plus 1 where `person:jen-kha` appeared TWICE — "Jen Kha" (`mentioned`) and "Jen Kha)"
+(a name cut at a bracket, `host`) — and the fold kept one. **All 31 were reported as
+`restored …; refused 0`.** Do not trust the restored/refused counts alone; diff the roles against
+a pre-upgrade copy, which is the only check that sees this class.
+
+Same corpus and chain, after the fix:
+
+```
+0010 ... 94 role-ledger row(s) re-pointed, 32 episode(s) left stale
+make upgrade-verify     -> [OK] 0009: 3284 of 3284 recorded role(s) still present   (exit 0)
+make upgrade-undo-roles -> restored 3244 role(s); skipped 0; refused 32             (exit 2)
+```
+
+**`upgrade-undo-roles` now exits NON-ZERO on a full-chain rollback, and that is correct** — 32
+episodes genuinely cannot be restored, and a partial rollback must not read as a complete one.
+Role diff of all 2,298 episodes against the pristine snapshot: 2,260 identical, 38 differing =
+32 refused + 6 where only the id was canonicalised (role preserved), **0 speaking roles lost, 0
+unexplained**.
+
+### Do NOT undo and then re-run the chain
+
+After an undo the ledger reads `0010 applied, 0009 pending`, so the only forward path re-applies
+m0009 against names m0010 has already canonicalised. `Peter Attia, MD` is now `Peter Attia`, which
+`names_the_show` matches against *The Peter Attia Drive* — so the re-run DEMOTES him where the
+first run did not. If you have undone, restore from the pre-upgrade snapshot instead of re-running.
 
 **An earlier version of this section claimed 54 refusals as "the realistic case". That was wrong,
 and the error was mine:** I had rehearsed 0009 BEFORE 0007, so 0009 recorded hashes that 0007 then

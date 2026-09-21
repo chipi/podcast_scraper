@@ -33,6 +33,10 @@ on:
           # Deliberately NOT part of `all`: this answers a migration question, not a health
           # question, and folding it into `all` would change what every other dispatch does.
           - m0007_dry_run
+          # Same reason, and it is the runbook's Step 0 — which had no prod execution path at
+          # all, so "expect ALL TEN migrations pending" and m0002's three preconditions were
+          # being asserted rather than measured. See the step for why m0002 decides the run.
+          - upgrade_dry_run
           - none
         default: all
       write_worklist:
@@ -357,6 +361,75 @@ jobs:
               -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
               "rm -rf /tmp/m0007_dry_run_pkg" || true
 
+            echo "" >> "$SUMMARY"
+          fi
+
+          # Runbook Step 0, on prod, read-only. `upgrade run --dry-run` writes nothing: every
+          # migration's `apply` returns on `ctx.dry_run` before touching an artifact, and m0002
+          # returns its `plan()` string instead of building anything.
+          #
+          # WHY THIS ONE MATTERS MORE THAN THE REST OF STEP 0. The chain STOPS at the first
+          # failing migration and m0002 is number 2 of 10, so if it does not no-op, 0007-0010
+          # never run. It no-ops only when the index exists, is not schema-stale, AND the
+          # `search/metadata.json` offset sidecar is present (#1010). Miss the sidecar and it
+          # starts a FULL native index build in the middle of the migration window. The plan
+          # line says which branch it is, in words, so read it before step 2:
+          #
+          #   "LanceDB index already present — no-op."                        <- safe
+          #   "...missing the metadata.json offset sidecar ... reindex"       <- full rebuild
+          #   "...schema-stale — rebuild natively."                           <- full rebuild
+          #
+          # A local drill on a restored backup CANNOT answer this: `restore-corpus-prod` prunes
+          # `search/` as regenerable, so m0002 always tries to build there (verified 2026-09-21
+          # — the chain died at migration 2 of 10 with ModuleNotFoundError: sentence_transformers).
+          #
+          # Unlike m0007's dry run this DOES go through the CLI, which imports the whole registry
+          # and needs lancedb — present in the prod image, which is the only place this runs.
+          if [ "${CHECKS}" = "upgrade_dry_run" ]; then
+            {
+              echo "### Runbook Step 0 — pending migrations + what m0002 would do"
+              echo '```'
+            } >> "$SUMMARY"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/upgrade_dry_run_pkg && mkdir -p /tmp/upgrade_dry_run_pkg"
+
+            scp -q -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes -r \
+              src/podcast_scraper "$SSH_TARGET:/tmp/upgrade_dry_run_pkg/podcast_scraper"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "cd /srv/podcast-scraper && \
+               SEC=''; \
+               if [ -d /dev/shm/podcast-secrets ] && [ -n \"\$(ls -A /dev/shm/podcast-secrets 2>/dev/null)\" ]; then \
+                 SEC='-f compose/docker-compose.secrets.yml'; \
+               fi; \
+               echo '-- is the m0002 sidecar on disk? --'; \
+               ls -l corpus/search/metadata.json 2>&1 || echo 'MISSING: corpus/search/metadata.json'; \
+               echo ''; \
+               echo '-- room for the pre-upgrade snapshot? (it copytrees the whole corpus) --'; \
+               du -sh corpus 2>/dev/null; \
+               df -h . | tail -2; \
+               echo ''; \
+               docker compose --env-file .env \
+                 -f compose/docker-compose.stack.yml \
+                 -f compose/docker-compose.prod.yml \
+                 -f compose/docker-compose.vps-prod.yml \
+                 \$SEC \
+                 run --rm --no-deps \
+                 -e PYTHONPATH=/mnt/dryrun_pkg \
+                 -v /tmp/upgrade_dry_run_pkg:/mnt/dryrun_pkg:ro \
+                 --entrypoint python api \
+                 -m podcast_scraper.cli upgrade run --corpus-dir /app/output --dry-run --yes" \
+              2>&1 | tee -a "$SUMMARY"
+
+            ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
+              "rm -rf /tmp/upgrade_dry_run_pkg" || true
+
+            echo '```' >> "$SUMMARY"
             echo "" >> "$SUMMARY"
           fi
 
