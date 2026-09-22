@@ -199,7 +199,7 @@ The following architectural principles govern this system. For the full history 
 
 - **Summarization**: Hybrid MAP-REDUCE strategy ([ADR-010](../adr/ADR-010-hierarchical-summarization-pattern.md), [ADR-043](../adr/ADR-043-hybrid-map-reduce-summarization.md)) favoring local models ([ADR-009](../adr/ADR-009-privacy-first-local-summarization.md)).
 - **Audio**: Mandatory preprocessing ([ADR-036](../adr/ADR-036-standardized-pre-provider-audio-stage.md)) with content-hash caching ([ADR-037](../adr/ADR-037-content-hash-based-audio-caching.md)) using FFmpeg ([ADR-038](../adr/ADR-038-ffmpeg-first-audio-manipulation.md)) and Opus ([ADR-039](../adr/ADR-039-speech-optimized-codec-opus.md)).
-- **Governance**: Explicit benchmarking gates ([ADR-042](../adr/ADR-042-heuristic-based-quality-gates.md)) and golden dataset versioning ([ADR-040](../adr/ADR-040-explicit-golden-dataset-versioning.md)).
+- **Governance**: Explicit benchmarking gates (`ADR-042` (moved to the private eval repo as ADR-011)) and golden dataset versioning (`ADR-040` (moved to the private eval repo as ADR-009)).
 
 ### Development & CI
 
@@ -1097,9 +1097,9 @@ aggregates), **KPIs** (wide table with ROUGE-L F1),
 `data/profiles/*.yaml` joined by release key;
 resource deltas, per-stage trends, quality-vs-cost
 scatter). See
-[RFC-047](../rfc/RFC-047-run-comparison-visual-tool.md)
+`RFC-047` (moved to the private eval repo as RFC-007)
 and
-[RFC-066](../rfc/RFC-066-run-compare-performance-tab.md).
+`RFC-066` (moved to the private eval repo as RFC-009).
 
 ### `scripts/` Directory
 

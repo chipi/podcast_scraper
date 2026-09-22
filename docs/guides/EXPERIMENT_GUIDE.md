@@ -1804,8 +1804,8 @@ Optional `BASELINE` picks the default row in the **Baseline (for deltas)** dropd
 
 | Doc | Role |
 | :--- | :--- |
-| [RFC-015](../rfc/RFC-015-ai-experiment-pipeline.md) | AI experiment pipeline design |
-| [RFC-041](../rfc/RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarking framework |
+| `RFC-015` (moved to the private eval repo as RFC-004) | AI experiment pipeline design |
+| `RFC-041` (moved to the private eval repo as RFC-005) | Benchmarking framework |
 | [RFC-044](../rfc/RFC-044-model-registry.md) | Model registry and mode promotion |
 | [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Resource-cost profiles (RSS, CPU%, wall time) |
 | `Optimization Workflow` | End-to-end optimization workflow |

@@ -210,8 +210,6 @@ nav:
       - ADR-010 Hierarchical Summarization Pattern: adr/ADR-010-hierarchical-summarization-pattern.md
       - ADR-011 Secure Credential Injection: adr/ADR-011-secure-credential-injection.md
       - ADR-012 Provider-Agnostic Preprocessing: adr/ADR-012-provider-agnostic-preprocessing.md
-      - ADR-013 Standalone Experiment Configuration: adr/ADR-013-standalone-experiment-configuration.md
-      - ADR-014 Codified Comparison Baselines: adr/ADR-014-codified-comparison-baselines.md
       - ADR-015 Deep Provider Fingerprinting: adr/ADR-015-deep-provider-fingerprinting.md
       - ADR-016 Typed Provider Parameter Models: adr/ADR-016-typed-provider-parameter-models.md
       - ADR-017 Registered Preprocessing Profiles: adr/ADR-017-registered-preprocessing-profiles.md
@@ -237,9 +235,6 @@ nav:
       - ADR-037 Content-Hash Based Audio Caching: adr/ADR-037-content-hash-based-audio-caching.md
       - ADR-038 FFmpeg-First Audio Manipulation: adr/ADR-038-ffmpeg-first-audio-manipulation.md
       - ADR-039 Speech-Optimized Codec (Opus): adr/ADR-039-speech-optimized-codec-opus.md
-      - ADR-040 Explicit Golden Dataset Versioning: adr/ADR-040-explicit-golden-dataset-versioning.md
-      - ADR-041 Multi-Tiered Benchmarking Strategy: adr/ADR-041-multi-tiered-benchmarking-strategy.md
-      - ADR-042 Heuristic-Based Quality Gates: adr/ADR-042-heuristic-based-quality-gates.md
       - ADR-043 Hybrid MAP-REDUCE Summarization: adr/ADR-043-hybrid-map-reduce-summarization.md
       - ADR-044 Local LLM Backend Abstraction: adr/ADR-044-local-llm-backend-abstraction.md
       - ADR-045 Strict REDUCE Prompt Contract: adr/ADR-045-strict-reduce-prompt-contract.md
@@ -268,8 +263,6 @@ nav:
       - ADR-071 Four-Tier Summarization Strategy: adr/ADR-071-four-tier-summarization-strategy.md
       - ADR-072 Llama 3.2:3b as Tier 3 Local LLM: adr/ADR-072-llama32-3b-as-tier3-local-llm.md
       - ADR-074 Multi-Feed Corpus Parent Layout and Manifest: adr/ADR-074-multi-feed-corpus-parent-layout-and-manifest.md
-      - ADR-075 Frozen YAML Performance Profiles for Release Baselines: adr/ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md
-      - ADR-076 Streamlit for Operator Run Comparison and Performance Views: adr/ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md
       - ADR-077 Local Ollama Model Selection — Core 5 from 11: adr/ADR-077-local-ollama-model-selection.md
       - ADR-078 GIL Evidence Stack Bundling — Per-Provider Champion Modes: adr/ADR-078-gil-evidence-bundling-per-provider-champions.md
       - ADR-079 OpenTofu for Always-On Hosting IaC: adr/ADR-079-opentofu-for-always-on-hosting-iac.md
@@ -333,7 +326,6 @@ nav:
       - RFC-011 Per-Episode Metadata Generation: rfc/RFC-011-metadata-generation.md
       - RFC-012 Episode Summarization: rfc/RFC-012-episode-summarization.md
       - RFC-013 OpenAI Provider Implementation: rfc/RFC-013-openai-provider-implementation.md
-      - RFC-015 AI Experiment Pipeline: rfc/RFC-015-ai-experiment-pipeline.md
       - RFC-016 Modularization for AI Experiments: rfc/RFC-016-modularization-for-ai-experiments.md
       - RFC-017 Prompt Management: rfc/RFC-017-prompt-management.md
       - RFC-018 Test Structure Reorganization: rfc/RFC-018-test-structure-reorganization.md
@@ -359,13 +351,10 @@ nav:
       - RFC-038 Continuous Review Tooling: rfc/RFC-038-continuous-review-tooling.md
       - RFC-039 Development Workflow: rfc/RFC-039-development-workflow-worktrees-ci.md
       - RFC-040 Audio Preprocessing Pipeline: rfc/RFC-040-audio-preprocessing-pipeline.md
-      - RFC-041 Podcast ML Benchmarking Framework: rfc/RFC-041-podcast-ml-benchmarking-framework.md
       - RFC-042 Hybrid Summarization Pipeline: rfc/RFC-042-hybrid-summarization-pipeline.md
       - RFC-043 Automated Metrics Alerts: rfc/RFC-043-automated-metrics-alerts.md
       - RFC-044 Model Registry: rfc/RFC-044-model-registry.md
       - RFC-045 ML Model Optimization Guide: rfc/RFC-045-ml-model-optimization-guide.md
-      - RFC-046 Materialization Architecture: rfc/RFC-046-materialization-architecture.md
-      - RFC-047 Run Comparison Visual Tool: rfc/RFC-047-run-comparison-visual-tool.md
       - RFC-049 Grounded Insight Layer – Core Concepts: rfc/RFC-049-grounded-insight-layer-core.md
       - RFC-050 Grounded Insight Layer – Use Cases: rfc/RFC-050-grounded-insight-layer-use-cases.md
       - RFC-051 Database Projection (GIL & KG): rfc/RFC-051-database-projection-gil-kg.md
@@ -380,9 +369,7 @@ nav:
       - RFC-061 Semantic Corpus Search: rfc/RFC-061-semantic-corpus-search.md
       - RFC-062 GI/KG Viewer v2: rfc/RFC-062-gi-kg-viewer-v2.md
       - RFC-063 Multi-Feed Corpus & Append/Resume: rfc/RFC-063-multi-feed-corpus-append-resume.md
-      - RFC-064 Performance Profiling & Release Freeze: rfc/RFC-064-performance-profiling-release-freeze.md
       - RFC-065 Live Pipeline Monitor: rfc/RFC-065-live-pipeline-monitor.md
-      - RFC-066 Run Comparison Performance Tab: rfc/RFC-066-run-compare-performance-tab.md
       - RFC-067 Corpus Library API & Viewer: rfc/RFC-067-corpus-library-api-viewer.md
       - RFC-068 Corpus Digest API & Viewer: rfc/RFC-068-corpus-digest-api-viewer.md
       - RFC-069 Graph Exploration Toolkit: rfc/RFC-069-graph-exploration-toolkit.md

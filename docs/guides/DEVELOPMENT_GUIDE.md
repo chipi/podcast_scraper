@@ -726,8 +726,8 @@ performance profiles. Lives in `tools/run_compare/`
   deltas, per-stage trends)
 - **Details:**
   [tools/run_compare/README.md](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md),
-  [RFC-047](../rfc/RFC-047-run-comparison-visual-tool.md),
-  [RFC-066](../rfc/RFC-066-run-compare-performance-tab.md)
+  `RFC-047` (moved to the private eval repo as RFC-007),
+  `RFC-066` (moved to the private eval repo as RFC-009)
 
 ## Evaluation artifacts (`data/eval/`)
 

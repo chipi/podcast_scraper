@@ -7,16 +7,16 @@
   - [PRD-016: Operational Observability & Pipeline Intelligence](../prd/PRD-016-operational-observability-pipeline-intelligence.md) —
     live visibility into runs (with RFC-027 / RFC-064 family)
 - **Related ADRs**:
-  - [ADR-075: Frozen YAML performance profiles](../adr/ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md) — sibling to this **live** view ([RFC-064](RFC-064-performance-profiling-release-freeze.md))
-  - [ADR-014: Codified Comparison Baselines](../adr/ADR-014-codified-comparison-baselines.md)
+  - ADR-075: Frozen YAML performance profiles (moved to the private eval repo as ADR-012) — sibling to this **live** view (`RFC-064` (moved to the private eval repo as RFC-008))
+  - ADR-014: Codified Comparison Baselines (moved to the private eval repo as ADR-008)
   - [ADR-027: Unified Provider Metrics Contract](../adr/ADR-027-unified-provider-metrics-contract.md)
-  - [ADR-040: Explicit Golden Dataset Versioning](../adr/ADR-040-explicit-golden-dataset-versioning.md)
+  - ADR-040: Explicit Golden Dataset Versioning (moved to the private eval repo as ADR-009)
 - **Related RFCs**:
-  - [RFC-064: Performance profiling and release freeze](RFC-064-performance-profiling-release-freeze.md) —
+  - RFC-064: Performance profiling and release freeze (moved to the private eval repo as RFC-008) —
     parent split; frozen profiles vs this live view
-  - [RFC-066: Run compare — Performance tab](RFC-066-run-compare-performance-tab.md) — consumes frozen
+  - RFC-066: Run compare — Performance tab (moved to the private eval repo as RFC-009) — consumes frozen
     profiles alongside quality runs
-  - [RFC-041: Podcast ML benchmarking framework](RFC-041-podcast-ml-benchmarking-framework.md) — quality
+  - RFC-041: Podcast ML benchmarking framework (moved to the private eval repo as RFC-005) — quality
     benchmarking context
 - **Related Documents**:
   - [Live Pipeline Monitor guide](../guides/LIVE_PIPELINE_MONITOR.md) — operator quickstart, artifacts,
@@ -383,7 +383,7 @@ Phases below match what shipped; only **terminal split** remains explicitly out 
 
 ## References
 
-- **Parent RFC**: [RFC-064](RFC-064-performance-profiling-release-freeze.md)
+- **Parent RFC**: `RFC-064` (moved to the private eval repo as RFC-008)
 - **Source**: `src/podcast_scraper/monitor/`
 - **Operator guide**: [LIVE_PIPELINE_MONITOR.md](../guides/LIVE_PIPELINE_MONITOR.md)
 - **Sampler pattern**: `scripts/eval/profile/freeze_profile.py` (**ResourceSampler**)

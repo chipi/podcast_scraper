@@ -7,7 +7,7 @@
   - [ADR-015: Deep Provider Fingerprinting](../adr/ADR-015-deep-provider-fingerprinting.md)
   - [ADR-016: Typed Provider Parameter Models](../adr/ADR-016-typed-provider-parameter-models.md)
   - [ADR-017: Registered Preprocessing Profiles](../adr/ADR-017-registered-preprocessing-profiles.md)
-- **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
+- **Related RFCs**: `RFC-015` (moved to the private eval repo as RFC-004), `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
 - **Related Issues**: [#303](https://github.com/chipi/podcast_scraper/issues/303) (RFC-016 Implementation)
 - **Updated**: 2026-01-16
 
@@ -1132,8 +1132,8 @@ Every provider output includes:
 ## Related Documents
 
 - `docs/prd/PRD-007-ai-experiment-pipeline.md`: Product requirements, use cases, and functional specifications
-- `docs/rfc/RFC-015-ai-experiment-pipeline.md`: Technical design and implementation details (updated with baseline-first concepts)
-- `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`: Benchmarking framework (complementary, shares baseline concept)
+- `RFC-015` (moved to the private eval repo as RFC-004): Technical design and implementation details (updated with baseline-first concepts)
+- `RFC-041` (moved to the private eval repo as RFC-005): Benchmarking framework (complementary, shares baseline concept)
 - `docs/rfc/RFC-013-openai-provider-implementation.md`: OpenAI provider design (shared refactoring plan)
 - `docs/rfc/RFC-017-prompt-management.md`: Prompt management and loading implementation
 - `docs/prd/PRD-006-openai-provider-integration.md`: Product requirements for OpenAI integration

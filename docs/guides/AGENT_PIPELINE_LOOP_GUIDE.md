@@ -300,6 +300,6 @@ make run-compare
 
 ### RFCs
 
-- [RFC-064: Performance Profiling and Release Freeze](../rfc/RFC-064-performance-profiling-release-freeze.md) — frozen profiles, `freeze_profile.py`
+- RFC-064: Performance Profiling and Release Freeze (moved to the private eval repo as RFC-008) — frozen profiles, `freeze_profile.py`
 - [RFC-065: Live Pipeline Monitor](../rfc/RFC-065-live-pipeline-monitor.md) — `--monitor`, status file, dashboard, py-spy/memray
-- [RFC-066: Run Comparison — Performance Tab](../rfc/RFC-066-run-compare-performance-tab.md) — Streamlit performance tab
+- RFC-066: Run Comparison — Performance Tab (moved to the private eval repo as RFC-009) — Streamlit performance tab

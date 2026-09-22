@@ -42,8 +42,8 @@ Experimentation platform, CI integration, review tooling.
 
 | Pri | Item | Type | Status | Gaps | Impact |
 | --- | --- | --- | --- | --- | --- |
-| **9** | [RFC-015](rfc/RFC-015-ai-experiment-pipeline.md) / [PRD-007](prd/PRD-007-ai-quality-experiment-platform.md) | RFC | **Partial** | Core pipeline, runner, configs, eval scoring exist. CI auto-run on PR not wired | Low-Medium |
-| **10** | [RFC-041](rfc/RFC-041-podcast-ml-benchmarking-framework.md) | RFC | **Partial** | `data/eval/`, golden datasets, baselines, comparison scripts exist. Automated CI benchmarking not wired | Low-Medium |
+| **9** | `RFC-015` (moved to the private eval repo as RFC-004) / [PRD-007](prd/PRD-007-ai-quality-experiment-platform.md) | RFC | **Partial** | Core pipeline, runner, configs, eval scoring exist. CI auto-run on PR not wired | Low-Medium |
+| **10** | `RFC-041` (moved to the private eval repo as RFC-005) | RFC | **Partial** | `data/eval/`, golden datasets, baselines, comparison scripts exist. Automated CI benchmarking not wired | Low-Medium |
 | **11** | [RFC-038](rfc/RFC-038-continuous-review-tooling.md) | RFC | **Partial** | Dependabot config + pydeps/coupling analysis exist. `make pre-release` checklist script missing | Low |
 | **12** | [PRD-015](prd/PRD-015-engineering-governance-productivity.md) | PRD | **Open** | Engineering governance umbrella | Low |
 

@@ -5,7 +5,7 @@
 This guide is the **operator manual** for **frozen performance profiles**: how to capture
 them, how to interpret them, and how that work relates to **quality evaluation** under
 `data/eval/`. For normative design and artifact schema, see
-[RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md).
+`RFC-064` (moved to the private eval repo as RFC-008).
 
 **Related guides**
 
@@ -463,7 +463,7 @@ for the per-provider **`freeze/*.yaml`** matrix (ML dev/prod, OpenAI, Anthropic,
 
 | Doc | Role |
 | --- | ---- |
-| [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md) | Design, stage model, non-goals |
+| `RFC-064` (moved to the private eval repo as RFC-008) | Design, stage model, non-goals |
 | [`config/profiles/README.md`](https://github.com/chipi/podcast_scraper/blob/main/config/profiles/README.md) | Capture config index and preset matrix |
 | [`data/profiles/README.md`](https://github.com/chipi/podcast_scraper/blob/main/data/profiles/README.md) | Artifact directory, index table, lifecycle |
 | [`scripts/eval/profile/freeze_profile.py`](https://github.com/chipi/podcast_scraper/blob/main/scripts/eval/profile/freeze_profile.py) | CLI (`--e2e-feed`, warm-up, `--monitor`, `PODCAST_SCRAPER_MONITOR_FILE_LOG` during measured run, …) |

@@ -6,7 +6,7 @@
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
 - **Related ADRs**:
   - [ADR-018: Externalized Prompt Management](../adr/ADR-018-externalized-prompt-management.md)
-- **Related RFCs**: `docs/rfc/RFC-012-episode-summarization.md`, `docs/rfc/RFC-013-openai-provider-implementation.md`, `docs/rfc/RFC-015-ai-experiment-pipeline.md`
+- **Related RFCs**: `docs/rfc/RFC-012-episode-summarization.md`, `docs/rfc/RFC-013-openai-provider-implementation.md`, `RFC-015` (moved to the private eval repo as RFC-004)
 - **Related Issues**: (to be created)
 
 ## Abstract

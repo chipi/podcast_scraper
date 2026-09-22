@@ -10,7 +10,7 @@
   - `docs/adr/ADR-017-registered-preprocessing-profiles.md` (Preprocessing profiles)
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md` (Episode summarization)
-  - `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` (ML benchmarking)
+  - `RFC-041` — ML benchmarking (moved to the private eval repo as RFC-005)
 - **Related Documents**:
   - Original preprocessing-improvements and baseline-BART-experiment plans (WIP source docs, now removed)
 

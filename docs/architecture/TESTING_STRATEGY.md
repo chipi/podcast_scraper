@@ -838,7 +838,7 @@ Evaluation is performed against human-verified ground
 truth data stored in `data/eval/`. This dataset is
 versioned and frozen to provide a stable baseline for
 comparison. See
-[ADR-040](../adr/ADR-040-explicit-golden-dataset-versioning.md)
+`ADR-040` (moved to the private eval repo as ADR-009)
 for details.
 
 **GIL Golden Dataset**: A golden dataset for GIL
