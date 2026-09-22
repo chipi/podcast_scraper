@@ -69,6 +69,9 @@ from typing import Dict, List, Optional, Set, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+from podcast_scraper.search.corpus_scope import (  # noqa: E402
+    dedupe_metadata_paths_newest_run_per_episode,
+)
 from podcast_scraper.utils.filesystem import (  # noqa: E402
     names_the_same_episode as _names_the_same_episode,
 )
@@ -80,8 +83,24 @@ _LINE = re.compile(r"^([^:\n]{1,60}): ")
 _VARIANTS = (".adfree.", ".cleaned.")
 
 
-def _metadata_files(corpus: Path) -> List[Path]:
-    """Every ``*.metadata.json`` under the corpus, in both layouts the corpus uses."""
+def _metadata_files(corpus: Path, newest_run_only: bool = False) -> List[Path]:
+    """Every ``*.metadata.json`` under the corpus, in both layouts the corpus uses.
+
+    TWO DENOMINATORS, AND THEY ANSWER DIFFERENT QUESTIONS. Undeduped (the default) is
+    what the MIGRATIONS see: m0007/m0009/m0010 all ``root.rglob`` with no dedupe, so a
+    superseded run's copy is read and rewritten like any other, and this number is the
+    one that says how many artifacts m0009 will read with a corrupted roster.
+
+    ``newest_run_only`` applies the central corpus-membership rule instead — one winner
+    per ``(feed_id, episode_id)`` — which is what the SERVING layer and
+    ``_on_disk_guid_index`` use. That number says how much damage is actually rendered
+    and how much of it ``relabel_only`` can reach: a superseded copy can never be
+    repaired, because the repair resolves through the newest-run index.
+
+    Measured on prod 2026-09-22: 2,312 undeduped vs 2,002 newest-run-only. Reporting
+    only one of them is how "147 mispaired" and "49 mispaired" both become true
+    statements about the same corpus.
+    """
     seen: Dict[str, Path] = {}
     for pattern in (
         "run_*/metadata/*.metadata.json",
@@ -91,7 +110,10 @@ def _metadata_files(corpus: Path) -> List[Path]:
     ):
         for p in corpus.glob(pattern):
             seen[str(p)] = p
-    return sorted(seen.values())
+    files = sorted(seen.values())
+    if newest_run_only:
+        files = sorted(dedupe_metadata_paths_newest_run_per_episode(corpus, files))
+    return files
 
 
 def _labels(path: Optional[Path]) -> Set[str]:
@@ -131,13 +153,48 @@ def _feed_root(meta_path: Path, corpus: Path) -> Path:
     return corpus
 
 
-def audit(corpus: Path) -> Tuple[List[dict], int]:
+#: A run stamp in a filename: ``_20260729-003748`` plus the optional feed-hash suffix.
+_RUN_STAMP = re.compile(r"_\d{8}-\d{6}(?:_[0-9a-f]{6,10})?")
+
+
+def _same_episode_allowing_stale_stamp(meta_stem: str, transcript_stem: str) -> bool:
+    """Same episode, tolerating a transcript filename that kept an OLDER run's stamp.
+
+    THE 43 "NEEDS RE-DOWNLOAD + RE-ASR + RE-DIARIZE" WERE ALL THIS, AND ALL FALSE.
+    A reprocess can carry a transcript forward into the new run directory under its
+    ORIGINAL name, so the file sits in the right place with a stale stamp:
+
+        metadata : 0012 - AI Agents and the Future of Glob_20260805-174108_7a69fc41
+        file     : 0012 - AI Agents and the Future of Glob_20260729-003748_ba02775e
+                   ^^^^^^^^^^^^^ same title ^^^^^^^^^^^^^^ ^^^^ differs ^^^^
+
+    ``names_the_same_episode`` strips the common TAIL and compares prefixes, which
+    handles a truncated title within one run but not this: the stamps differ mid-string,
+    neither stem prefixes the other, and the record is reported as pointing at another
+    episode's transcript. It points at its own.
+
+    Verified by content, not by name: the pointed transcript for the episode above is
+    labelled ``Kuo Zhang`` 22 times — the episode's own guest — against a title of
+    "AI Agents and the Future of Global Trade with Alibaba's Kuo Zhang".
+
+    Measured on `snapshot-prod-20260920` AND on live prod, independently: of the serving
+    view's findings, the same-name-modulo-stamp class is exactly the population marked
+    "needs re-ingest", and NONE of it is repairable. Stripping stamps turns those
+    findings into zero and leaves the genuinely cross-episode damage untouched — which
+    is the whole difference between a GPU bill and no GPU bill.
+    """
+    if _names_the_same_episode(meta_stem, transcript_stem):
+        return True
+    return _RUN_STAMP.sub("", meta_stem) == _RUN_STAMP.sub("", transcript_stem)
+
+
+def audit(corpus: Path, newest_run_only: bool = False) -> Tuple[List[dict], int]:
     """``(findings, total_examined)``. A finding is one metadata file pointing elsewhere."""
     findings: List[dict] = []
     total = 0
     own_cache: Dict[str, Dict[str, Path]] = {}
 
-    for meta in _metadata_files(corpus):
+    for meta in _metadata_files(corpus, newest_run_only=newest_run_only):
         try:
             data = json.loads(meta.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -148,7 +205,7 @@ def audit(corpus: Path) -> Tuple[List[dict], int]:
             continue
         total += 1
         stem = meta.name[: -len(".metadata.json")]
-        if _names_the_same_episode(stem, Path(rel).name[: -len(".txt")]):
+        if _same_episode_allowing_stale_stamp(stem, Path(rel).name[: -len(".txt")]):
             continue
 
         feed_root = _feed_root(meta, corpus)
@@ -205,6 +262,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     ap.add_argument("--limit", type=int, default=10, help="Examples to show per verdict")
     ap.add_argument(
+        "--newest-run-only",
+        action="store_true",
+        help=(
+            "Count only the newest run per episode — the SERVING view, and the only "
+            "population `relabel_only` can repair. Default counts every run, which is "
+            "what the migrations actually read. See _metadata_files."
+        ),
+    )
+    ap.add_argument(
         "--worklist",
         type=Path,
         default=None,
@@ -221,7 +287,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"not a directory: {corpus}", file=sys.stderr)
         return 2
 
-    findings, total = audit(corpus)
+    findings, total = audit(corpus, newest_run_only=args.newest_run_only)
 
     if args.worklist is not None:
         ids = sorted(
