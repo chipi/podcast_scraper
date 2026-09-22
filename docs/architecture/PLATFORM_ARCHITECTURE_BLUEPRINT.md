@@ -2573,7 +2573,7 @@ viewer v3, cross-content-type KG, prompt routing, scheduling) -- lives in the
 - [RFC-053: Adaptive summarization routing](../rfc/RFC-053-adaptive-summarization-routing.md)
 - [RFC-055: KG core](../rfc/RFC-055-knowledge-graph-layer-core.md)
 - [RFC-056: KG use cases](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)
-- [RFC-057: AutoResearch optimization loop](../rfc/RFC-057-autoresearch-optimization-loop.md)
+- RFC-057: AutoResearch optimization loop (moved to the private eval repo as RFC-002)
 - [RFC-058: Audio speaker diarization](../rfc/RFC-058-audio-speaker-diarization.md)
 - [RFC-059: Speaker detection refactor](../rfc/RFC-059-speaker-detection-refactor-test-audio.md)
 - [RFC-060: Diarization-aware commercial cleaning](../rfc/RFC-060-diarization-aware-commercial-cleaning.md)

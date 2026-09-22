@@ -1,6 +1,6 @@
 # AI Provider Comparison Guide
 
-> **Authoritative v2 reference**: ``eval-reports/EVAL_HELDOUT_V2_2026_04.md`` — 6 cloud APIs + 11 Ollama local models, 100+ held-out cells under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)), compound-scored on quality × latency × cost.
+> **Authoritative v2 reference**: ``eval-reports/EVAL_HELDOUT_V2_2026_04.md`` — 6 cloud APIs + 11 Ollama local models, 100+ held-out cells under the v2 framework (`RFC-073` (moved to the private eval repo as RFC-003)), compound-scored on quality × latency × cost.
 > v1 benchmark numbers later in this guide are **superseded** by the v2 report above.
 
 ---

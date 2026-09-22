@@ -23,7 +23,7 @@
   - [RFC-047: Run comparison visual tool](RFC-047-run-comparison-visual-tool.md) — Streamlit shell;
     **[RFC-066](RFC-066-run-compare-performance-tab.md)** adds the **Performance** page on top of
     frozen profiles
-  - [RFC-057: AutoResearch optimization loop](RFC-057-autoresearch-optimization-loop.md) —
+  - RFC-057: AutoResearch optimization loop (moved to the private eval repo as RFC-002) —
     overnight runs benefit from per-stage resource visibility (**ADR-073** closure)
   - [RFC-063: Multi-feed corpus append & resume](RFC-063-multi-feed-corpus-append-resume.md) —
     v1 freeze assumes single-feed; multi-feed profiling is a follow-on

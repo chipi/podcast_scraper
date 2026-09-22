@@ -5,7 +5,7 @@
 - **Authors**: Podcast Scraper Team
 - **Related Issues**: #698 (GIL evidence stack bundling)
 - **Related PRs**: #711 (implementation + matrix results)
-- **See Also**: [ADR-073](ADR-073-rfc057-autoresearch-closure.md) (autoresearch closure),
+- **See Also**: `ADR-073` — autoresearch closure (moved to the private eval repo as ADR-005),
   [ADR-077](ADR-077-local-ollama-model-selection.md) (Ollama model selection)
 
 ## Context & Problem Statement
@@ -177,4 +177,4 @@ mistral-small3.2 silently truncated and timed out. The fix is in
 - [autoresearch/gil_evidence_bundling/](https://github.com/chipi/podcast_scraper/tree/main/autoresearch/gil_evidence_bundling/)
   — full results.tsv, scaffolds, and per-cell experiment YAMLs
 - [ADR-077 — Local Ollama model selection](ADR-077-local-ollama-model-selection.md)
-- [RFC-073 — Autoresearch v2 framework](../rfc/RFC-073-autoresearch-v2-framework.md)
+- RFC-073 — Autoresearch v2 framework (moved to the private eval repo as RFC-003)

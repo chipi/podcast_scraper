@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-04-04
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md),
+- **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002),
   [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - **See Also**: [ADR-068](ADR-068-bart-led-as-ml-production-baseline.md),
   [ADR-069](ADR-069-hybrid-ml-pipeline-as-production-direction.md),
@@ -171,7 +171,7 @@ an external process.
 
 ## References
 
-- [RFC-057: AutoResearch Optimization Loop](../rfc/RFC-057-autoresearch-optimization-loop.md)
+- RFC-057: AutoResearch Optimization Loop (moved to the private eval repo as RFC-002)
 - [RFC-042: Hybrid Podcast Summarization Pipeline](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - [ADR-068: BART+LED as ML Production Baseline](ADR-068-bart-led-as-ml-production-baseline.md)
 - [ADR-069: Hybrid ML Pipeline as Production Direction](ADR-069-hybrid-ml-pipeline-as-production-direction.md)

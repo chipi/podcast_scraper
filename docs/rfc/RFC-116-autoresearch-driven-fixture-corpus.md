@@ -6,7 +6,7 @@
   autoresearch programme keeps surfacing). Living design — append new failure modes here.
 - **Authors**: Marko Dragoljevic (chipi), Claude
 - **Stakeholders**: Operator (sign-off), corpus / eval / fixture maintainers
-- **Related RFCs**: `docs/rfc/RFC-057-autoresearch-optimization-loop.md` (the loop that produces these learnings)
+- **Related RFCs**: `RFC-057` — the loop that produces these learnings (moved to the private eval repo as RFC-002)
 - **Related Documents**: `docs/guides/eval-reports/EVAL_FIXTURES_V3.md` (v2→v3 delta + failure-mode coverage), `scripts/build_v3_fixtures.py` (the generator)
 - **Anchors**: [#921](https://github.com/chipi/podcast_scraper/issues/921) (v3 fixtures rebuild), [#907](https://github.com/chipi/podcast_scraper/issues/907) (autoresearch programme)
 
