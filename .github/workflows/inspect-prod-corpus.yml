@@ -54,6 +54,17 @@ on:
           its length is the ASR bill.
         type: boolean
         default: false
+      write_pairing_worklist:
+        description: >-
+          With checks=transcript_pairing_audit, also write
+          <corpus>/pairing_repair_worklist.txt — the REPAIRABLE episode ids only, for
+          reprocess-prod's --reprocess-episode-ids. Without this the 42 recoverable episodes
+          cannot be scoped at all: the audit prints titles, not ids, and reprocess-prod's
+          default file is the PREPROCESSING work-list, a different population entirely.
+          The 105 that need a re-ingest are deliberately excluded so they cannot ride along
+          in a cheap relabel batch. Writes a work-list, never a corpus artifact.
+        type: boolean
+        default: false
       disk_usage:
         description: >-
           Report WHERE the corpus bytes are. Added 2026-08-18 after a backup produced a 16 GB
@@ -166,6 +177,7 @@ jobs:
           WRITE_WORKLIST: ${{ github.event.inputs.write_worklist }}
           VERIFY_RECENT: ${{ github.event.inputs.verify_recent_runs }}
           DISK_USAGE: ${{ github.event.inputs.disk_usage }}
+          WRITE_PAIRING_WORKLIST: ${{ github.event.inputs.write_pairing_worklist }}
         run: |
           set -euo pipefail
 
@@ -463,6 +475,10 @@ jobs:
             # coherence report are the same script with different flags.
             if [ "${CHECKS}" = "speaker_migration_preview" ]; then
               EXTRA='--migration-preview --roles'
+            fi
+            # /app/output IS the host bind mount, so the file persists for reprocess-prod to read.
+            if [ "${CHECKS}" = "transcript_pairing_audit" ] && [ "${WRITE_PAIRING_WORKLIST}" = "true" ]; then
+              EXTRA='--worklist /app/output/pairing_repair_worklist.txt'
             fi
             {
               echo "### ${CHECKS} (read-only)"
