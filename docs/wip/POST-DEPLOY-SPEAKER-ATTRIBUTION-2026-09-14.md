@@ -48,6 +48,39 @@ from `0001`, so a feed with fourteen run dirs has fourteen "episode 1"s, and `id
 state and output filenames — so they collided. Re-measured on `snapshot-prod-20260920`
 (2026-09-21), which is the number to quote:
 
+> **SUPERSEDED 2026-09-22 — RESOLVED ON PROD. THE GPU BILL WAS NEVER REAL.**
+>
+> The block below is kept because it is what the runbook was scoped against. It is no
+> longer true, and **`105 needing a re-download + re-ASR + re-diarize` is now `0`.** Two
+> counting defects, both fixed, both measured on prod AND reproduced independently on
+> `snapshot-prod-20260920`:
+>
+> 1. **The audit counted copies no repair could reach.** It globbed every `run_*` dir
+>    (2,312 files) while `relabel_only` resolves through `_on_disk_guid_index`, which
+>    keeps only the newest run (2,002). 310 superseded copies were permanently-unfixable
+>    findings. Fixed with `--newest-run-only` (default OFF = the migration's view, which
+>    IS undeduped — `m0007`/`m0009`/`m0010` `rglob` every copy).
+> 2. **A transcript can sit in the CORRECT run dir under an OLDER run's filename.**
+>    `names_the_same_episode` compares stems, the run stamps differ mid-string, so the
+>    episode was reported as pointing at another episode's transcript when it pointed at
+>    its own. Fixed in `304cc237` (`_same_episode_allowing_stale_stamp`). Proof: the
+>    "wrong" transcript for *AI Agents … with Alibaba's Kuo Zhang* says `Kuo Zhang` 22
+>    times — it was always the right file.
+>
+> ```
+>                                     before      after
+> serving view   findings               71          6 -> 0 after repair
+>                needs re-ingest        43          0
+> migration view findings              147         21
+>                needs re-ingest       105          1
+> ```
+>
+> Final prod state after the 36 repairs (30 + 6):
+> `transcript pairing: OK — 2002 metadata files, every one points at its own.`
+>
+> **Epic #2097 activity 5 — "the 105, a real GPU bill, size it deliberately" — is
+> CANCELLED, not deferred.** There is no GPU work.
+
 ```
 metadata files pointing at ANOTHER episode's transcript   147 of 2,297  (6.4%)
   of those, roster matches the WRONG transcript             119
@@ -94,9 +127,13 @@ names against transcript labels — so after Step 2 some episodes move toward `i
 anything having been repaired or broken. The *count of mismatched pointers* stays comparable; the
 verdict split does not.
 
-**`exits 0` is not reachable by repair alone.** The audit exits 1 on ANY finding, and the 105 that
-need a re-ingest stay findings until they are re-ingested. Treat "42 fewer findings after Step 1b"
-as the success criterion, not a clean exit.
+**`exits 0` is not reachable by repair alone.** ~~The audit exits 1 on ANY finding, and the 105
+that need a re-ingest stay findings until they are re-ingested.~~ **SUPERSEDED 2026-09-22:** it IS
+reachable, and was reached — after the 36 repairs the serving view prints
+`transcript pairing: OK — 2002 metadata files, every one points at its own.` The 105 were counting
+artifacts, not damage (see the SUPERSEDED box above). Use `--newest-run-only` for the
+repairable/served question; the default undeduped view still exits 1 on superseded copies no
+repair can reach, and that is correct — it is what the migrations read.
 
 Why this comes first:
 
@@ -107,10 +144,15 @@ Why this comes first:
    attribution deeper and makes the damage harder to see.
 3. **The 42 repairable ones are cheap** — a scoped `relabel_only`, no audio, no GPU. Do them before
    the migrations so the migrations see the corrected rows.
-4. **The 105 are not cheap** and are a separate decision: their transcript does not exist anywhere
-   in the corpus, because `relabel_only` overwrites the transcript it picks, so where episode A was
-   relabelled onto B's file, A's was never written and B's was overwritten with A's labels. Only a
-   full re-ingest recovers them. Size that GPU bill deliberately; do not let it start by accident.
+4. ~~**The 105 are not cheap**~~ **THERE IS NO GPU BILL (2026-09-22).** The reasoning below was
+   sound and the premise was false: those transcripts DO exist, in the right run dir, under an
+   older run's filename. The audit's stem comparison could not see that, so it reported them as
+   destroyed. Verified on prod and on `snapshot-prod-20260920`; needs-re-ingest went 105 -> 0 with
+   no re-transcription. The original reasoning, kept because the failure mode is real when a
+   transcript genuinely is gone: `relabel_only` overwrites the transcript it picks, so where
+   episode A was relabelled onto B's file, A's was never written and B's was overwritten with A's
+   labels. If that ever DOES happen, only a full re-ingest recovers it — size that bill
+   deliberately rather than letting it start by accident.
 
 The code fix (unique per-run `idx`, `Episode.on_disk_idx` kept only for the legacy search) is on
 `fix/duplicate-people-variant-resolution` and stops NEW damage. It repairs nothing already written.
@@ -190,8 +232,16 @@ are exactly this:
 | Brian Chesky (*"AI Founder Mode"*) | `Matthew Smith` | points at `0002 - Matthew Smith….txt` |
 | Bruce Lanphear (*Ground Truths*) | `Professor Bruce Lanphier` | not #2082 — a name-matching gap, fixed 2026-09-21 |
 
-Both #2082 cases are in the audit's findings, so step 0b removes them. Do the 42 first; the 105
-that need a re-ingest are a GPU decision (activity 5), not a blocker for the migrations.
+Both #2082 cases are in the audit's findings, so step 0b removes them. Do the 42 first; ~~the 105
+that need a re-ingest are a GPU decision (activity 5)~~ — **2026-09-22: there are none. The 105
+were counting artifacts (see the SUPERSEDED box at Step 0a); activity 5 is cancelled.**
+
+Krishna Rao above is worth re-reading after the repair, because he became the worked example for
+something else. His SERVED copy is now correct (`role=guest`, verified in the `.kg.json`), but the
+superseded `run_20260818` copy still carries the `Sam Altman` roster — and `m0009` globs
+undeduped, so it demoted him `guest -> mentioned` **there**. Harmless (nothing serves that copy),
+but see the residual-risk note in Step 1c: it is the one case where `[HAD A VOICE]` cannot protect
+a real person.
 
 
 ## Step 1c — Pre-flight (was "Step 0")
