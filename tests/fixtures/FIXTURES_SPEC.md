@@ -1,5 +1,12 @@
 # Fixture Specification (Authoritative)
 
+> **The tests that enforce this spec live in `tests/integration/fixtures/`**, not
+> here. `tests/fixtures/` is the data side and holds no `test_*.py`, because CI
+> selects tests by path (`pytest tests/unit/`, `pytest tests/integration/`) and a
+> test placed here would be collected by neither lane. See
+> `tests/integration/fixtures/README.md`.
+
+
 This document describes how the podcast fixtures were generated and
 serves as the single source of truth for regeneration.
 

@@ -25,7 +25,6 @@ import pytest
 import yaml
 
 from podcast_scraper import config as cfgmod
-from podcast_scraper.evaluation.eval_gi_kg_runtime import merge_eval_task_into_summarizer_config
 from podcast_scraper.providers import insight_salvage
 
 pytestmark = pytest.mark.unit
@@ -79,20 +78,11 @@ def test_pinning_insights_does_NOT_re_tune_summarisation_or_speaker_detection() 
     assert cfg.gemini_temperature == pytest.approx(0.3), "the insight pin leaked into other stages"
 
 
-def test_the_eval_forwards_the_pin_to_the_run() -> None:
-    """ALLOWLIST #1 — the eval's ``params:`` mapping.
-
-    This is the one that was missing. ``merge_eval_task_into_summarizer_config`` copies keys BY
-    HAND; an unmapped key does not raise, it just never arrives."""
-    cfg = merge_eval_task_into_summarizer_config(
-        _cfg(summary_provider="gemini"),
-        "grounded_insights",
-        {"gi_insight_temperature": 0.0},
-    )
-    assert insight_salvage.resolve_insight_temperature(cfg, "gemini") == 0.0, (
-        "the eval dropped gi_insight_temperature on the floor — an arm cannot pin its sampler, "
-        "which is precisely the bug: every scored run sampled at 0.3 while its YAML said 0.0."
-    )
+# ALLOWLIST #1 — the eval's ``params:`` mapping — moved to chipi/podcast-scraper-eval-data
+# (tests/unit/podcast_scraper_eval/test_eval_forwards_the_sampler_pin.py) with
+# the eval harness. The five tests that remain here assert APPLICATION
+# behaviour: provider resolution, the CLI, and that every config/profiles/*.yaml
+# pins a temperature. Those profiles live in this repo, so those tests do too.
 
 
 def test_the_cli_forwards_the_pin_from_a_profile() -> None:

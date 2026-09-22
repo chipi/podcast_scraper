@@ -68,9 +68,10 @@ python -m podcast_scraper.cli \
 ```
 
 All numbers and picks trace back to
-[`docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md`](../../docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md)
+`AI_PROVIDER_COMPARISON_GUIDE.md` (moved to the private eval repo) (moved to the private eval repo)
 → **Autoresearch-derived defaults** section and
-[`docs/guides/eval-reports/`](../../docs/guides/eval-reports/).
+the eval reports, which moved to `chipi/podcast-scraper-eval-data` in arc 2 (they quote real
+transcripts, so they are not published publicly).
 
 ## `config/profiles/audio/*.yaml` — audio preprocessing presets
 

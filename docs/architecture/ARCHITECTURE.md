@@ -199,7 +199,7 @@ The following architectural principles govern this system. For the full history 
 
 - **Summarization**: Hybrid MAP-REDUCE strategy ([ADR-010](../adr/ADR-010-hierarchical-summarization-pattern.md), [ADR-043](../adr/ADR-043-hybrid-map-reduce-summarization.md)) favoring local models ([ADR-009](../adr/ADR-009-privacy-first-local-summarization.md)).
 - **Audio**: Mandatory preprocessing ([ADR-036](../adr/ADR-036-standardized-pre-provider-audio-stage.md)) with content-hash caching ([ADR-037](../adr/ADR-037-content-hash-based-audio-caching.md)) using FFmpeg ([ADR-038](../adr/ADR-038-ffmpeg-first-audio-manipulation.md)) and Opus ([ADR-039](../adr/ADR-039-speech-optimized-codec-opus.md)).
-- **Governance**: Explicit benchmarking gates ([ADR-042](../adr/ADR-042-heuristic-based-quality-gates.md)) and golden dataset versioning ([ADR-040](../adr/ADR-040-explicit-golden-dataset-versioning.md)).
+- **Governance**: Explicit benchmarking gates (`ADR-042` (moved to the private eval repo as ADR-011)) and golden dataset versioning (`ADR-040` (moved to the private eval repo as ADR-009)).
 
 ### Development & CI
 
@@ -207,7 +207,7 @@ The following architectural principles govern this system. For the full history 
 - **Quality**: Three-tier test pyramid ([ADR-019](../adr/ADR-019-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](../adr/ADR-023-public-operational-metrics.md)). The viewer applies its own three-tier variant with production-shaped fixtures ([ADR-095](../adr/ADR-095-viewer-test-pyramid.md), [RFC-086](../rfc/RFC-086-viewer-test-pyramid-and-production-shaped-fixtures.md)) so cross-surface graph handoffs land in a contract test before any fix merges.
 - **Viewer graph handoff orchestrator (FSM)**: a single 8-state machine owns every cross-surface graph handoff — Library, Digest, Search, Dashboard, Episode panel, canvas, mini-map ([ADR-094](../adr/ADR-094-graph-handoff-orchestrator-fsm.md), [RFC-085](../rfc/RFC-085-graph-handoff-orchestrator-retrospective.md)). Generation tokens supersede stale work, a 5s wall-clock detector surfaces stuck handoffs via a visible error strip, and a `layoutstop`-driven invariant repairs filteredArtifact ↔ Cytoscape divergence in production. See [VIEWER_GRAPH_SPEC](VIEWER_GRAPH_SPEC.md) and [VIEWER_FRONTEND_ARCHITECTURE](VIEWER_FRONTEND_ARCHITECTURE.md) for the orchestrator wiring.
 - **Always-on hosting (VPS)**: [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md) through [ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) record OpenTofu, encrypted in-repo state, drill workspace and ACL ownership, GitHub Actions app GitOps after stack-test, and Tailscale-only ingress; [ADR-089](../adr/ADR-089-prod-failover-orchestrator-separate-from-drill.md)–[ADR-091](../adr/ADR-091-prod-failover-gha-triggers-and-gates.md) lock prod failover decisions ([RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md) **Completed** — orchestrator + 8 drill-* workflows shipped); [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) and [PROD_RUNBOOK](../guides/PROD_RUNBOOK.md) keep the full design and procedures.
-- **Compose, CI gates, CIL, autoresearch v2, macOS ML safety**: [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md) (full-stack Compose), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (ephemeral stack-test on `main`), [ADR-086](../adr/ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md) (CIL + `bridge.json`), [ADR-087](../adr/ADR-087-autoresearch-track-a-v2-dev-held-out-and-judging.md) (autoresearch Track A v2), [ADR-088](../adr/ADR-088-macos-local-ci-process-safety-for-ml-workloads.md) (local ML process safety); normative specs in [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md), [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md), [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md), [RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md), [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md).
+- **Compose, CI gates, CIL, autoresearch v2, macOS ML safety**: [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md) (full-stack Compose), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md) (ephemeral stack-test on `main`), [ADR-086](../adr/ADR-086-canonical-identity-layer-and-bridge-json-cross-layer-join.md) (CIL + `bridge.json`), `ADR-087` autoresearch Track A v2 (moved to the private eval repo as ADR-006), [ADR-088](../adr/ADR-088-macos-local-ci-process-safety-for-ml-workloads.md) (local ML process safety); normative specs in [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md), [RFC-078](../rfc/RFC-078-ephemeral-acceptance-smoke-test.md), [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md), `RFC-073` (moved to the private eval repo as RFC-003), [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md).
 - **Always-on hosting narrative:** [Hosting and infrastructure](HOSTING_AND_INFRASTRUCTURE.md) (diagrams and how the planes fit together; complements ADR-079–083 and RFC-082).
 - **Cross-surface stack contract (audit table, steady vs recovery):** [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md) ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)).
 - **Process Safety** ([RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md)): ML model loading (spaCy, Transformers, Whisper) triggers heavy APFS filesystem I/O that can cause macOS kernel lock contention. Mitigations: no ML imports at Makefile parse time, filesystem-only cache checks, pre-commit hook timeout (120s), `cleanup-processes` prerequisite on `ci`/`ci-fast`, offline-mode enforcement (`HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE`), and agent rules preventing overlapping `make ci` runs. Diagnostic targets: `make check-zombie` (detects unkillable UE-state processes) and `make check-spotlight` (verifies Spotlight indexing status).
@@ -1097,9 +1097,9 @@ aggregates), **KPIs** (wide table with ROUGE-L F1),
 `data/profiles/*.yaml` joined by release key;
 resource deltas, per-stage trends, quality-vs-cost
 scatter). See
-[RFC-047](../rfc/RFC-047-run-comparison-visual-tool.md)
+`RFC-047` (moved to the private eval repo as RFC-007)
 and
-[RFC-066](../rfc/RFC-066-run-compare-performance-tab.md).
+`RFC-066` (moved to the private eval repo as RFC-009).
 
 ### `scripts/` Directory
 
@@ -1109,12 +1109,11 @@ directly.
 
 | Folder | Purpose | Key scripts |
 | ------ | ------- | ----------- |
-| `acceptance/` | E2E acceptance test runners and analysis | `run_acceptance_tests.py`, `analyze_bulk_runs.py`, `generate_performance_benchmark.py` |
+| `acceptance/` | E2E acceptance test runners and analysis | `run_acceptance_tests.py`, `analyze_bulk_runs.py` |
 | `cache/` | ML model cache management | `preload_ml_models.py`, `backup_cache.py`, `restore_cache.py` |
 | `dashboard/` | CI/nightly metrics collection, dashboard generation, JSONL history | `generate_metrics.py`, `generate_dashboard.py`, `consolidate_dashboard_data.py`, `collect_pipeline_metrics.py` |
-| `eval/` | Experiment pipeline, benchmarks, dataset materialization, run promotion | `run_experiment.py`, `compare_runs.py`, `materialize_baseline.py`, `materialize_dataset.py`, `promote_run.py`, `freeze_profile.py`, `diff_profiles.py` |
-| `registry/` | Baseline promotion | `promote_baseline.py` |
-| `tools/` | Dev tooling: dependency analysis, markdown fix, test memory profiling, schema validation, testing policy enforcement | `analyze_dependencies.py`, `fix_markdown.py`, `check_unit_test_imports.py`, `check_test_policy.py`, `profile_e2e_test_memory.py` |
+| `eval/` | The two ranking scorers the viewer's Discover surface is graded by | `rank_discover_v1.py`, `rank_scenarios_v1.py` |
+| `tools/` | Dev tooling: dependency analysis, markdown fix, schema validation, testing policy enforcement | `analyze_dependencies.py`, `fix_markdown.py`, `check_unit_test_imports.py`, `check_test_policy.py` |
 
 See `scripts/README.md` for detailed usage and
 `make` target mappings.

@@ -16,13 +16,12 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.critical_path]
 
 # Dirs where generated artifacts live + are committed.
-_SCAN_DIRS = (
-    "tests/fixtures",
-    "data/eval/baselines",
-    "data/eval/references",
-    "data/perf",
-    "autoresearch",
-)
+# Was five dirs; four of them moved to chipi/podcast-scraper-eval-data with the research
+# (data/eval/baselines, data/eval/references, data/perf, autoresearch). The check
+# itself is still worth having — a committed absolute /Users/<name>/ path is a
+# leak of someone's username and makes a fixture unusable on any other machine —
+# so the equivalent scan now lives in that repo for the dirs that moved there.
+_SCAN_DIRS = ("tests/fixtures",)
 # A per-user home path, allowing the CI/runner + our placeholder usernames.
 _HOME_RE = re.compile(r"/(?:Users|home)/(?!runner\b|operator\b|user\b)[A-Za-z0-9_.-]+/")
 

@@ -1855,7 +1855,7 @@ function finishLayoutPass(core: Core): void {
     return
   }
   /* HD22 (2026-07-19) — always-on `flp:total` performance.measure so the
-   * capture-graph-lcp mjs can observe real settle time on the topDown
+   * capture-graph-lcp mjs (private eval repo) can observe real settle time on the topDown
    * expand-on-tap path (and everywhere else). Cost is a `performance.mark`
    * pair on entry/exit — sub-microsecond, no allocation, no side-effect.
    * Per-phase marks (`flp:bridgeRing`, `flp:themeClusterRegions`, …) were

@@ -13,7 +13,6 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-from podcast_scraper.evaluation.diarization_quality import _episode_metrics
 from podcast_scraper.mcp.context import CorpusContext
 from podcast_scraper.mcp.tools import enrichment
 
@@ -137,9 +136,7 @@ class TestTheRosterIsTheRecord:
         ]
 
 
-class TestTheDiarizationQualityEval:
-    def test_a_person_only_named_is_not_counted_as_a_speaker_name(self, tmp_path: Path) -> None:
-        gi = tmp_path / "ep.gi.json"
-        gi.write_text(json.dumps({"nodes": [], "edges": []}), encoding="utf-8")
-        em = _episode_metrics(gi, {"content": {"speakers": RECORD}})
-        assert em.content_speaker_names == ["Michael Barbaro", "Matina Stevis-Gridneff"]
+# TestTheDiarizationQualityEval moved to chipi/podcast-scraper-eval-data
+# (tests/unit/podcast_scraper_eval/test_diarization_quality_ignores_unplaced.py)
+# with diarization_quality.py itself. The #2075 fix it guards was ported there;
+# everything above stays here, because it asserts the MCP roster — runtime.

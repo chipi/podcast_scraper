@@ -54,5 +54,5 @@ deployment profile — explicit deployment profile fields still win on overlap.
 - Text preprocessing (separate axis, ML-only): see
   `ml_preprocessing_profile` on `Config` and the cleaning registry at
   `src/podcast_scraper/preprocessing/profiles.py`
-- Research backing: `docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md` →
+- Research backing: `AI_PROVIDER_COMPARISON_GUIDE.md` (moved to the private eval repo) →
   *Autoresearch-derived defaults (2026-04)*

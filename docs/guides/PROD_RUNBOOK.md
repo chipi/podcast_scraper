@@ -469,7 +469,7 @@ Observability).
 **Current incumbent:** `gemini-2.5-flash-lite` (set in `config/profiles/cloud_balanced.yaml` and
 `config/profiles/cloud_thin.yaml`).
 
-**Validated by:** [EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md](eval-reports/EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md) (#816, 2026-06-08).
+**Validated by:** `EVAL_SUMMARY_MODEL_RELIABILITY_2026_06_08.md` (#816, 2026-06-08).
 The autoresearch summary-model matrix now includes **reliability under sustained load** as a hard
 floor (default ≥95% success rate at the eval-scale operating point), not just quality + cost +
 single-call latency.
@@ -514,16 +514,16 @@ panel with `--calls N --concurrency C` scaled to the production operating point 
 | Transcription | `tailnet_dgx` whisper-openai | `dgx:8002` (`large-v3`) | WER 0.10 mean / 4.6× realtime — matches MPS within noise, ~3× faster. **Cloud Whisper API stays the configured fallback** (`transcription_fallback_provider: openai`). |
 | Diarization | `tailnet_dgx` pyannote | `dgx:8001` (`speaker-diarization-community-1`; 3.1 kept for rollback) | DGX ties Apple MPS within noise (~23s / 5-min episode, ~13× realtime). Same model + same numerics; falls back to local pyannote on circuit-open. |
 | Summary | Gemini | `gemini-2.5-flash-lite` | Cloud kept for the summary stage — Ollama qwen3.5:35b is the DGX-only alternative; Gemini is cheaper, faster, and reliability-floor validated (§ Provider model selection above). |
-| Speaker-detector | Gemini | `speaker_detector_provider: gemini` | Cloud kept — Ollama-on-DGX measured at 80s/call (vs Gemini 0.6s/call) at the same accuracy floor; the 133× latency penalty disqualifies DGX for this stage. spaCy is 17× worse on the production-relevant metric (faithful guest extraction from RSS metadata). See [EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md](eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md). |
+| Speaker-detector | Gemini | `speaker_detector_provider: gemini` | Cloud kept — Ollama-on-DGX measured at 80s/call (vs Gemini 0.6s/call) at the same accuracy floor; the 133× latency penalty disqualifies DGX for this stage. spaCy is 17× worse on the production-relevant metric (faithful guest extraction from RSS metadata). See `EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md`. |
 
 **Validated by:**
 
-- [EVAL_HYBRID_ROUTING_2026_06.md](eval-reports/EVAL_HYBRID_ROUTING_2026_06.md) — #931 synthesis, profile-defaults decision.
-- [EVAL_TRANSCRIPTION_3WAY_2026_06.md](eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md) — #929 transcription championship.
-- [EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md](eval-reports/EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md) — #930 diarization championship.
-- [EVAL_SUMMARY_DGX_LOCAL_2026_06.md](eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md) — #928 Cell C summary parity.
-- [EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md](eval-reports/EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md) — #997 speaker-detector bake-off (Gemini vs spaCy vs Ollama on DGX).
-- [EVAL_WHISPER_CONTENTION_2026_06.md](eval-reports/EVAL_WHISPER_CONTENTION_2026_06.md) — #963 contention re-tests (2026-06-11 + 2026-06-14).
+- `EVAL_HYBRID_ROUTING_2026_06.md` — #931 synthesis, profile-defaults decision.
+- `EVAL_TRANSCRIPTION_3WAY_2026_06.md` — #929 transcription championship.
+- `EVAL_DIARIZATION_DGX_VS_CLOUD_2026_06.md` — #930 diarization championship.
+- `EVAL_SUMMARY_DGX_LOCAL_2026_06.md` — #928 Cell C summary parity.
+- `EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md` — #997 speaker-detector bake-off (Gemini vs spaCy vs Ollama on DGX).
+- `EVAL_WHISPER_CONTENTION_2026_06.md` — #963 contention re-tests (2026-06-11 + 2026-06-14).
 
 **Operator-gated rule: do not overlap *any* active vLLM serving (coder-next,
 autoresearch sweeps, or any future stack on the GB10 GPU) with transcription

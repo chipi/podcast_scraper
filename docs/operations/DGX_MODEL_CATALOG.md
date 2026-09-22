@@ -85,8 +85,8 @@ instruct-tuned default; on `qwen2.5` the suffix is correct. Catalog reflects
 what was actually pulled.
 
 The autoresearch matrix (qwen3.x family, gpt-oss:20b, deepseek-r1 distills,
-qwen3-coder) was pulled across 2026-06-08 to support [#924's smoke v2
-refresh sweep](../guides/eval-reports/EVAL_SMOKE_V2_DGX_REFRESH_2026_06.md).
+qwen3-coder) was pulled across 2026-06-08 to support `#924's smoke v2
+refresh sweep`.
 The v2.1 sweep added gemma3:27b, phi4:14b, hermes3:8b, and mistral-small:24b
 on 2026-06-09; results in the same eval report (Addendum section). None
 produced a new champion contender; qwen3.5:35b stays prod and qwen3.6:latest

@@ -3,11 +3,17 @@
 #
 # Steps:
 #   1. ci-fast on the release commit (hard gate)
-#   2. AI experiment pipeline (workflow_call) — soft warnings
-#   3. ML benchmark smoke (workflow_call) — soft warnings
-#   4. Compare against the most recent data/baselines/ snapshot
-#   5. Build release notes draft with eval deltas embedded
-#   6. Create a DRAFT GitHub release with the notes attached
+#   2. Build release notes draft
+#   3. Create a DRAFT GitHub release with the notes attached
+#
+# The eval block is NO LONGER produced here. Steps 2-4 used to call
+# ai-experiment-pipeline.yml and ml-benchmark.yml and diff the result
+# against data/baselines/; all three moved to the private eval repo
+# (chipi/podcast-scraper-eval-data), which is where the research data
+# they read lives. The release notes now say so instead of embedding a
+# delta this repo cannot compute. Re-attaching it means running the
+# comparison there and pasting the block in, until someone wires a
+# cross-repo handoff.
 #
 # Operator publishes the draft manually after reviewing. Deploy is
 # intentionally NOT wired in — surfaced via a separate manual deploy
@@ -21,14 +27,6 @@ on:
       version:
         description: 'Release version (e.g. v2.7.0)'
         required: true
-      smoke_only:
-        description: 'Skip the full benchmark and use smoke dataset only'
-        required: false
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
 
 permissions:
   contents: write   # creates the draft GitHub release + tag
@@ -60,27 +58,9 @@ jobs:
       - name: Run make ci-fast
         run: make ci-fast
 
-  experiment:
-    name: AI experiment pipeline
-    needs: ci-fast
-    uses: ./.github/workflows/ai-experiment-pipeline.yml
-    with:
-      config: 'data/eval/configs/ml/baseline_ml_dev_authority_benchmark_v1.yaml'
-      baseline: ''
-      # force: default 'false' in the called workflow — omitted here so
-      # actionlint doesn't mis-coerce the YAML string literal to bool.
-
-  benchmark:
-    name: ML benchmark
-    needs: ci-fast
-    uses: ./.github/workflows/ml-benchmark.yml
-    with:
-      dataset_size: 'smoke'
-      config: 'data/eval/configs/ml/baseline_ml_dev_authority_benchmark_v1.yaml'
-
   draft-release:
     name: Compose draft release
-    needs: [experiment, benchmark]
+    needs: ci-fast
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -92,33 +72,6 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.11.8'
-
-      - name: Download experiment artifact
-        uses: actions/download-artifact@v8
-        with:
-          pattern: experiment-run-*
-          path: /tmp/artifacts/experiment
-          merge-multiple: true
-
-      - name: Download benchmark artifact
-        uses: actions/download-artifact@v8
-        with:
-          pattern: ml-benchmark-*
-          path: /tmp/artifacts/benchmark
-          merge-multiple: true
-
-      - name: Compare against latest baseline
-        run: |
-          # The downloaded artifacts dropped the data/eval/runs/<id>/...
-          # tree into /tmp/artifacts/{experiment,benchmark}/. Pick the
-          # newest run dir under each for the comparator.
-          EXP_RUN=$(find /tmp/artifacts/experiment -type d -name 'metrics.json' -prune -o -type d -mindepth 3 -print 2>/dev/null | sort | tail -n 1 || true)
-          BM_RUN=$(find /tmp/artifacts/benchmark -type d -name 'metrics.json' -prune -o -type d -mindepth 3 -print 2>/dev/null | sort | tail -n 1 || true)
-          python scripts/baselines/compare_against_baseline.py \
-              --experiment-run-dir "${EXP_RUN}" \
-              --benchmark-run-dir "${BM_RUN}" \
-              --output /tmp/eval-comparison.md
-          cat /tmp/eval-comparison.md >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Compose release notes
         env:
@@ -136,7 +89,12 @@ jobs:
               git log --pretty='- %h %s' -n 25 || true
             fi
             echo
-            cat /tmp/eval-comparison.md
+            echo "## Eval deltas"
+            echo
+            echo "Not computed here. The experiment runner, the benchmark and the"
+            echo "baselines they diff against live in the private eval repo"
+            echo "(chipi/podcast-scraper-eval-data). Run the comparison there and"
+            echo "paste the block in before publishing this draft."
           } > /tmp/release-notes.md
           echo "Composed /tmp/release-notes.md ($(wc -l </tmp/release-notes.md) lines)"
 

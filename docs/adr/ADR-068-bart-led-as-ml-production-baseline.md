@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md)
+- **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002)
 - **Supersedes**: `ml_prod_authority_v1` (Pegasus+LED) — see [ADR-067](ADR-067-pegasus-led-retirement-podcast-content.md)
 - **See Also**: [ADR-048](ADR-048-centralized-model-registry.md)
 
@@ -121,7 +121,7 @@ the hybrid ML architecture (ADR-069).
 
 ## References
 
-- [RFC-057: AutoResearch Optimization Loop](../rfc/RFC-057-autoresearch-optimization-loop.md)
+- RFC-057: AutoResearch Optimization Loop (moved to the private eval repo as RFC-002)
 - [ADR-067: Pegasus Retirement](ADR-067-pegasus-led-retirement-podcast-content.md)
 - [ADR-048: Centralized Model Registry](ADR-048-centralized-model-registry.md)
 - [ADR-069: Hybrid ML Pipeline as Production Direction](ADR-069-hybrid-ml-pipeline-as-production-direction.md)

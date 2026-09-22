@@ -11,7 +11,7 @@ import threading
 import warnings
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, cast, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, cast, Dict, List, Literal, Optional, Tuple
 from urllib.parse import urlparse
 
 import yaml
@@ -138,14 +138,6 @@ def _diarize_lax_env_enabled() -> bool:
     """
     v = os.environ.get("PODCAST_SCRAPER_DIARIZE_LAX", "")
     return str(v).strip().lower() in ("1", "true", "yes", "on")
-
-
-if TYPE_CHECKING:
-    from podcast_scraper.evaluation.experiment_config import GenerationParams, TokenizeConfig
-else:
-    # Lazy import to avoid circular dependency
-    GenerationParams = None
-    TokenizeConfig = None
 
 
 # Load .env file if it exists (OpenAI API key management)

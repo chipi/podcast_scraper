@@ -252,6 +252,10 @@ Standard vitest + pytest at:
 
 Mirrors `scripts/dev/capture-graph-lcp.{sh,mjs}` — same shape, same output contract, different targets.
 
+> The capture harness named in this section moved to the private eval repo
+> (`chipi/podcast-scraper-eval-data`) with the rest of the performance story.
+> The script paths below are where they live THERE, not here.
+
 ### §P1 Scripts
 
 - `scripts/dev/capture-search-perf.sh` — orchestrator (isolated api on `:8601`, viewer on `:5601`, no port collision with graph).
@@ -372,7 +376,7 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — semantic search (compact-launcher role)
 - [UXS-008](../uxs/UXS-008-enriched-search.md) — enriched search (heroified)
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (primary UX)
-- [GRAPH_PERF_TRACE_RUNBOOK.md](../guides/GRAPH_PERF_TRACE_RUNBOOK.md) — perf-capture template
+- `GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo) (moved to the private eval repo) — perf-capture template
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current operator-facing enrichment config surface (per-enricher reference + provider-types registry)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes + `--with-ml` CLI (RFC-088 chunk 6; separate from Search v3's `/api/search?enrich_results=`)
 - #1205 — LanceDB SIGSEGV incident + fix `0fe0854b`

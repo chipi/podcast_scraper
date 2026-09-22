@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from conftest import artifact_with_grounded_insights, grounded_quote
 
-from podcast_scraper.evaluation.gi_scorer import compute_gil_prediction_stats
 from podcast_scraper.gi import validate_artifact
 from podcast_scraper.gi.grounding import GroundedQuote
 from podcast_scraper.gi.pipeline import (
@@ -1133,19 +1132,12 @@ class TestTheGroundingScoresSURVIVEToTheMetric:
         assert "nli_score" not in props
         validate_artifact(out)
 
-    def test_the_reported_metric_is_the_score_we_actually_grounded_with(self):
-        """THE REGRESSION, at the surface the operator reads.
-
-        Not "a property exists somewhere" — the number that lands in ``metrics.json``. This is the
-        assertion that would have gone red on the real run, and the only one that proves the whole
-        chain (grounding -> edge -> scorer -> report) is connected."""
-        out = self._artifact(nli=0.9)
-        stats = compute_gil_prediction_stats([{"output": {"gil": out}}])
-        assert stats["mean_nli_score"] == pytest.approx(0.9), (
-            f"mean_nli_score={stats['mean_nli_score']} — the metric is dead. It reported 0.0 for a "
-            f"corpus whose every quote had passed an NLI threshold of 0.5."
-        )
-        assert stats["mean_nli_score"] > 0.0
+    # test_the_reported_metric_is_the_score_we_actually_grounded_with moved to
+    # chipi/podcast-scraper-eval-data (tests/unit/podcast_scraper_eval/
+    # test_grounding_scores_reach_the_metric.py) with gi_scorer. The two tests
+    # above stay here because they assert what the PIPELINE emits — the score
+    # rides the SUPPORTED_BY edge, and never the Quote node. If the edge shape
+    # changes these go red on the shape and the moved one goes red on the number.
 
 
 @pytest.mark.unit

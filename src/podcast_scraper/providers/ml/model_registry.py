@@ -39,7 +39,7 @@ The flow for any autoresearch finding that changes a default:
 
 See RFC-044 for the vision / migration path,
 ``docs/adr/ADR-048-centralized-model-registry.md`` for the
-amendment, and ``docs/guides/EXPERIMENT_GUIDE.md`` § Step 6 for the flow.
+amendment, and ``EXPERIMENT_GUIDE.md`` (private eval repo) § Step 6 for the flow.
 """
 
 from dataclasses import dataclass, replace as _dc_replace

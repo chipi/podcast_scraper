@@ -34,16 +34,16 @@ They are **not** the same as the **evaluation framework** in `scripts/eval/` (ex
   - Compares runs, summarizes pass/fail, timing, resource usage.
   - Use after a session or with `make analyze-acceptance SESSION_ID=...`.
 
-- **`generate_performance_benchmark.py`** – Generate performance benchmarking report from acceptance results
-  - Builds a report from session data (e.g. run times, memory).
-  - Useful for tracking performance across configs or over time.
+The performance-benchmark report (`generate_performance_benchmark.py`) moved to
+the private eval repo with the rest of the performance story. `--auto-benchmark`
+still accepts the flag and now says so rather than skipping in silence.
 
 ## How It Works
 
 1. **Configs**: You choose one or more pipeline YAML paths, or **`--from-fast-stems`** to materialize rows from **`config/acceptance/MAIN_ACCEPTANCE_CONFIG.yaml`**. Each file specifies feeds + **`profile:`** (or full inline operator keys) per `config/acceptance/README.md`.
 2. **Run**: `run_acceptance_tests.py` invokes **`python -m podcast_scraper.service --config …`** once per config (same pipeline as production). Outputs go to `--output-dir` with a session subfolder (timestamped).
 3. **Results**: Logs, exit codes, and optional metrics are stored. With `--compare-baseline` or `--save-as-baseline`, the runner can compare or save a baseline for simple regression checks.
-4. **Analysis**: After a run, `analyze_bulk_runs.py` (or the runner’s built-in analysis) can summarize results; `generate_performance_benchmark.py` can produce a performance report.
+4. **Analysis**: After a run, `analyze_bulk_runs.py` (or the runner’s built-in analysis) can summarize results.
 
 ## Usage
 
@@ -103,4 +103,4 @@ Run with a per-run timeout (e.g. 600 seconds) so long configs are killed and rep
 python scripts/acceptance/run_acceptance_tests.py --from-fast-stems --use-fixtures --timeout 600
 ```
 
-See `config/acceptance/README.md` for the fast matrix, fragments, and provider prerequisites. For the full experiment and evaluation workflow (datasets, baselines, metrics), see `docs/guides/EXPERIMENT_GUIDE.md` and `scripts/eval/README.md`.
+See `config/acceptance/README.md` for the fast matrix, fragments, and provider prerequisites. For the full experiment and evaluation workflow (datasets, baselines, metrics), see `EXPERIMENT_GUIDE.md` (moved to the private eval repo) and `scripts/eval/README.md`.

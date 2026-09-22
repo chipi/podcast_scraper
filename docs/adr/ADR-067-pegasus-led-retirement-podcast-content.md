@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md)
+- **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002)
 - **Supersedes**: —
 - **See Also**: [ADR-010](ADR-010-hierarchical-summarization-pattern.md), [ADR-043](ADR-043-hybrid-map-reduce-summarization.md)
 
@@ -111,7 +111,7 @@ modifications. Its architectural properties are correct for that domain.
 
 ## References
 
-- [RFC-057: AutoResearch Optimization Loop](../rfc/RFC-057-autoresearch-optimization-loop.md)
+- RFC-057: AutoResearch Optimization Loop (moved to the private eval repo as RFC-002)
 - [ADR-010: Hierarchical Summarization Pattern](ADR-010-hierarchical-summarization-pattern.md)
 - [ADR-043: Hybrid MAP-REDUCE Summarization](ADR-043-hybrid-map-reduce-summarization.md)
 - Tombstone: `data/eval/baselines/baseline_ml_pegasus_retirement_smoke_v1/RETIREMENT.md`

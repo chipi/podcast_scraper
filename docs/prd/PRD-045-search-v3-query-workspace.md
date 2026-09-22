@@ -27,7 +27,7 @@ Promote **Search** in the operator viewer from a 288 px left-column sidebar into
 - The left panel is a fixed `w-72` (288 px) column that shares its real estate with **Explore** via a slide mode-switch (`shell.leftPanelSurface`). Two overlapping query UIs, one column, one visible at a time — cognitive tax with no ergonomic upside.
 - Main tabs answer *browse* questions (Digest / Library / Graph / Dashboard). "What am I trying to find out?" is not a first-class question in the shell.
 - Result cards have handoffs OUT (`G` graph focus, `L` library episode, entity → rail) but almost no handoffs IN — Digest, Library, Graph, Dashboard, and the subject rails don't launch scoped searches. Search is a place, not a verb.
-- The graph program (v3, #1207) landed a shell redesign, a perf runbook (`GRAPH_PERF_TRACE_RUNBOOK.md`), and a three-tier test pyramid (ADR-095). This PRD adopts the same test-pyramid + perf-capture pattern for search.
+- The graph program (v3, #1207) landed a shell redesign, a perf runbook (`GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo)), and a three-tier test pyramid (ADR-095). This PRD adopts the same test-pyramid + perf-capture pattern for search.
 - #1205 (SIGSEGV in LanceDB native hybrid combine) is a live hazard: the fix bypassed the native combine and removed the process-wide query lock. Search v3 must inherit those guardrails and not silently regress them.
 
 ## Goals
@@ -157,6 +157,9 @@ Every rail launcher publishes the pre-filled scope to `activeSearchContext` (RFC
 
 ### FR11 — Perf baseline + regeneration harness
 
+> The capture scripts in FR11 moved to the private eval repo with the rest of
+> the performance story; the paths below are where they live there.
+
 - **FR11.1** New scripts `scripts/dev/capture-search-perf.{sh,mjs}` mirroring `capture-graph-lcp.{sh,mjs}`:
   - **API surface** — an HTTP capturer that records p50/p95/p99 for `/api/search`, `/api/app/search`, `/api/corpus/search` per intent class + per top_k, over the query set from FR10.
   - **UI surface** — Chrome DevTools/CDP trace of: Workspace-open (TTI), cmd-K-open latency, filter-apply, result-set operator ("Cluster", "Show on graph"), enriched-answer paint.
@@ -223,7 +226,7 @@ Slices missing any of these get rejected at review, not deferred.
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — extended (compact launcher role)
 - [UXS-008](../uxs/UXS-008-enriched-search.md) — heroified
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (this PRD's primary UX)
-- [GRAPH_PERF_TRACE_RUNBOOK.md](../guides/GRAPH_PERF_TRACE_RUNBOOK.md) — perf-capture template (mirrored)
+- `GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo) (moved to the private eval repo) — perf-capture template (mirrored)
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current normative operator-facing enrichment config surface (RFC-088 chunk 6)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes (independent of Search v3's `/api/search?enrich_results=`)
 - USERPREFS-1: `docs/rfc/RFC-107-search-v3-query-workspace.md`

@@ -145,7 +145,7 @@ skip_existing: true
 | **[Architecture Overview](architecture/ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](architecture/TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
 | **[Testing Guide](guides/TESTING_GUIDE.md)** | Detailed test execution, fixtures, and coverage information |
-| **[Experiment Guide](guides/EXPERIMENT_GUIDE.md)** | **Complete guide: datasets, baselines, experiments, and evaluation** |
+| **`Experiment Guide`** | **Complete guide: datasets, baselines, experiments, and evaluation** |
 | **[CI/CD Overview](ci/index.md)** | CI/CD pipeline documentation |
 | **[Engineering Process](guides/ENGINEERING_PROCESS.md)** | **The "Triad of Truth": PRDs, RFCs, and ADRs** |
 | **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** | Development environment setup and tooling |
@@ -158,7 +158,7 @@ skip_existing: true
 
 | Guide | Description |
 | :--- | :--- |
-| **[AI Provider Comparison Guide](guides/AI_PROVIDER_COMPARISON_GUIDE.md)** | Detailed comparison of all 8 supported AI providers |
+| **AI Provider Comparison Guide (moved to the private eval repo)** | Detailed comparison of all 8 supported AI providers |
 | **[ML Model Comparison Guide](guides/ML_MODEL_COMPARISON_GUIDE.md)** | **Compare ML models: Whisper, spaCy, Transformers (BART/LED)** |
 | **[Provider Configuration Quick Reference](guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md)** | **Quick guide for configuring providers via CLI, config files, and programmatically** |
 | **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Complete guide for implementing new providers |

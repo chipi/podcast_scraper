@@ -22,8 +22,8 @@ For comprehensive testing information, see the dedicated testing documentation:
 
 - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
-- **[Experiment Guide](EXPERIMENT_GUIDE.md)** — Complete guide: datasets, baselines, experiments, and evaluation
-- **[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)** — Frozen release profiles (RSS, CPU%, wall time per stage; RFC-064)
+- **`Experiment Guide`** — Complete guide: datasets, baselines, experiments, and evaluation
+- **Performance Profile Guide (moved to the private eval repo)** — Frozen release profiles (RSS, CPU%, wall time per stage; RFC-064)
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
 - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models
@@ -244,7 +244,7 @@ make experiment-run \
   REFERENCE=silver_gpt52_v1
 ```
 
-For details, see the **[Experiment Guide](EXPERIMENT_GUIDE.md)** (Step 4: Evaluate Results).
+For details, see the **`Experiment Guide`** (Step 4: Evaluate Results).
 
 ## Environment Setup
 
@@ -726,8 +726,8 @@ performance profiles. Lives in `tools/run_compare/`
   deltas, per-stage trends)
 - **Details:**
   [tools/run_compare/README.md](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md),
-  [RFC-047](../rfc/RFC-047-run-comparison-visual-tool.md),
-  [RFC-066](../rfc/RFC-066-run-compare-performance-tab.md)
+  `RFC-047` (moved to the private eval repo as RFC-007),
+  `RFC-066` (moved to the private eval repo as RFC-009)
 
 ## Evaluation artifacts (`data/eval/`)
 
@@ -776,7 +776,7 @@ make runs-list
 ```
 
 **Full guide:**
-[Experiment Guide](EXPERIMENT_GUIDE.md) and
+`Experiment Guide` and
 `data/eval/README.md`.
 
 ## Performance profiles (`data/profiles/`)
@@ -802,7 +802,7 @@ Pipeline capture configs live in
 `config/profiles/freeze/*.yaml`.
 
 **Full guide:**
-[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)
+Performance Profile Guide (moved to the private eval repo)
 and `data/profiles/README.md`.
 
 ## Validation gates: `ci-fast` vs `ci-ui-fast` vs `ci`
@@ -1935,7 +1935,7 @@ and summarization. When implementing new providers:
 **For complete implementation guide**, see [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md).
 
 **Choosing a provider:**
-[AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md)
+AI Provider Comparison (moved to the private eval repo)
 (decision-oriented: cost, quality, speed, privacy) and
 [Provider Deep Dives](PROVIDER_DEEP_DIVES.md)
 (per-provider reference cards, benchmarks, magic
@@ -1944,8 +1944,8 @@ quadrant).
 **Validating provider quality:** Run experiments
 against `data/eval/` baselines and capture
 performance profiles in `data/profiles/`. See
-[Experiment Guide](EXPERIMENT_GUIDE.md) and
-[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md).
+`Experiment Guide` and
+Performance Profile Guide (moved to the private eval repo).
 
 ## Third-Party Dependencies
 

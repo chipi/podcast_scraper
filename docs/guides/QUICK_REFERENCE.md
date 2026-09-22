@@ -170,7 +170,7 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 
 | Need | Guide |
 | ---- | ----- |
-| Compare providers (cost, quality, speed, privacy) | [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) |
+| Compare providers (cost, quality, speed, privacy) | AI Provider Comparison (moved to the private eval repo) |
 | Per-provider specs, benchmarks, magic quadrant | [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) |
 | Implement a new provider | [Provider Implementation](PROVIDER_IMPLEMENTATION_GUIDE.md) |
 | Quick provider config | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
@@ -200,8 +200,8 @@ make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
 ```
 
 **Docs:**
-[Experiment Guide](EXPERIMENT_GUIDE.md)
-· [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)
+`Experiment Guide`
+· Performance Profile Guide (moved to the private eval repo)
 · `data/eval/README.md`
 · `data/profiles/README.md`
 
@@ -369,10 +369,10 @@ On **`main`**, GitHub Actions runs **`stack-test.yml`** against the same topolog
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Full development workflow
 - [Testing Guide](TESTING_GUIDE.md) - Detailed test information
-- [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) - Provider decision guide
+- AI Provider Comparison (moved to the private eval repo) - Provider decision guide
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) - Per-provider benchmarks
-- [Experiment Guide](EXPERIMENT_GUIDE.md) - Eval datasets and baselines
-- [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) - Release timing snapshots
+- `Experiment Guide` - Eval datasets and baselines
+- Performance Profile Guide (moved to the private eval repo) - Release timing snapshots
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Docker usage and deployment
 - [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) - Always-on VPS, CI, Tailscale, OpenTofu narrative
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled

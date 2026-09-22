@@ -881,7 +881,7 @@ class GrokProvider:
         """Single-call mega-bundle: summary + bullets + insights + topics + entities (#643).
 
         #632 research flagged Grok as "not tier-1"; #646 real-episode
-        validation retests the claim. See AI_PROVIDER_COMPARISON_GUIDE.md.
+        validation retests the claim. See AI_PROVIDER_COMPARISON_GUIDE.md (private eval repo).
         """
         if not self._summarization_initialized:
             raise RuntimeError(

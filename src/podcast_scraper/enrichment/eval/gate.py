@@ -1,7 +1,7 @@
 """Accuracy gate — turns eval metrics into a promote/reject decision.
 
 The enricher-side analogue of the provider quality gate
-(``podcast_scraper.evaluation.regression.RegressionRule`` /
+(``podcast_scraper_eval.regression.RegressionRule``, now in chipi/podcast-scraper-eval-data /
 ``RegressionChecker``). A provider ``RegressionRule`` fires on a *delta vs
 baseline*; an :class:`AccuracyGateRule` (declared on the enricher's manifest)
 fires on an *absolute floor*. :func:`evaluate_gate` reads the latest

@@ -293,13 +293,13 @@ make run-compare
 | -------- | ------------ |
 | [Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md) | Browser-side loops (Playwright E2E, Chrome DevTools MCP, live co-development) |
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | `--monitor`, `.pipeline_status.json`, `.monitor.log` (RFC-065) |
-| [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Frozen release profiles, `freeze_profile.py` (RFC-064) |
+| Performance Profile Guide (moved to the private eval repo) | Frozen release profiles, `freeze_profile.py` (RFC-064) |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline stages, module roles, `metrics.json` |
 | [Testing Guide](TESTING_GUIDE.md) | `make ci-fast`, `make test`, test commands |
 | [Run Comparison Tool](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md) | Streamlit UI for comparing runs (RFC-047/066) |
 
 ### RFCs
 
-- [RFC-064: Performance Profiling and Release Freeze](../rfc/RFC-064-performance-profiling-release-freeze.md) — frozen profiles, `freeze_profile.py`
+- RFC-064: Performance Profiling and Release Freeze (moved to the private eval repo as RFC-008) — frozen profiles, `freeze_profile.py`
 - [RFC-065: Live Pipeline Monitor](../rfc/RFC-065-live-pipeline-monitor.md) — `--monitor`, status file, dashboard, py-spy/memray
-- [RFC-066: Run Comparison — Performance Tab](../rfc/RFC-066-run-compare-performance-tab.md) — Streamlit performance tab
+- RFC-066: Run Comparison — Performance Tab (moved to the private eval repo as RFC-009) — Streamlit performance tab

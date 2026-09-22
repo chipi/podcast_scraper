@@ -24,7 +24,6 @@ Scripts for running E2E acceptance tests, analyzing results, and generating perf
 
 - **`run_acceptance_tests.py`** - Run multiple config files sequentially and collect structured data
 - **`analyze_bulk_runs.py`** - Analyze acceptance test results and generate reports
-- **`generate_performance_benchmark.py`** - Generate performance benchmarking reports grouped by provider/model
 
 ### Acceptance Test Usage
 
@@ -39,8 +38,6 @@ make test-acceptance CONFIGS="config/examples/config.example.yaml"
 # Analyze results
 make analyze-acceptance SESSION_ID=20260208_101601
 
-# Generate performance benchmark
-make benchmark-acceptance SESSION_ID=20260208_101601
 ```
 
 ---
@@ -64,7 +61,7 @@ Evaluation scripts for the AI quality and experimentation platform:
 
 ### Usage
 
-See the **[Experiment Guide](../docs/guides/EXPERIMENT_GUIDE.md)** for complete usage instructions.
+See the **Experiment Guide (moved to the private eval repo)** for complete usage instructions.
 
 **Quick examples:**
 
@@ -146,7 +143,6 @@ git commit -m "your message"
 - **`analyze_dependencies.py`** - Analyze module dependencies and detect architectural issues (circular imports, import thresholds)
 - **`analyze_test_memory.py`** - Analyze test suite memory usage and resource consumption
 - **`check_unit_test_imports.py`** - Verify unit tests can import modules without ML dependencies
-- **`profile_e2e_test_memory.py`** - Profile individual E2E tests to identify memory-intensive tests
 
 **Hugging Face diagnostics** live under `cache/`: **`hf_hub_smoke_test.py`** ( **`make hf-hub-smoke-test`** ) — see the **Cache Management (`cache/`)** section below.
 

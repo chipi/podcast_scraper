@@ -13,7 +13,7 @@ than overloading this document.
 | Feed URL configuration, multi-feed layout | Whisper / LLM providers — [ML Provider Reference](ML_PROVIDER_REFERENCE.md), [Provider Implementation](PROVIDER_IMPLEMENTATION_GUIDE.md) |
 | HTTP fetch for **feed XML** and policy (retries, Issue #522) | **Transcript/media** byte download after episodes exist — [RFC-003: Transcript download processing](../rfc/RFC-003-transcript-downloads.md) |
 | Safe XML parsing, item selection, `Episode` construction | Full filesystem layout — [RFC-004](../rfc/RFC-004-filesystem-layout.md), [ADR-003](../adr/ADR-003-deterministic-feed-storage.md) |
-| Feed-level disk cache vs conditional GET cache | Eval materialization — [EXPERIMENT_GUIDE](EXPERIMENT_GUIDE.md) |
+| Feed-level disk cache vs conditional GET cache | Eval materialization — `EXPERIMENT_GUIDE` (private eval repo) |
 
 ## End-to-end flow (single feed)
 
@@ -164,7 +164,7 @@ RSS fetch semantics, only which episodes are skipped after selection.
 - **Logs:** Feed title and item counts after fetch/selection; cache hits log at INFO when using
   `PODCAST_SCRAPER_RSS_CACHE_DIR`.
 - **Metrics:** Stage timings **`scraping`** and **`parsing`**; download-resilience counters in
-  **`metrics.json`** (see [Experiment Guide](EXPERIMENT_GUIDE.md#pipeline-run-metrics-download-resilience)).
+  **`metrics.json`** (see `Experiment Guide`).
 - **Run artifacts:** **`failure_summary`** in **`run.json`** aggregates episode failures after the
   full pipeline; RSS fetch failure aborts before episode processing.
 

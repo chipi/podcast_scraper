@@ -2098,7 +2098,7 @@ class OpenAICompatibleProvider:
         #632 research flagged OpenAI as "not tier-1" because KG/entity quality
         regressed in mega-bundle mode on fixture transcripts. #646 real-episode
         validation revisits this claim. See
-        ``docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md`` for the tier table.
+        ``AI_PROVIDER_COMPARISON_GUIDE.md`` (private eval repo) for the tier table.
         """
         if not self._summarization_initialized:
             raise RuntimeError(
