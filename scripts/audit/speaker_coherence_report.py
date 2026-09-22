@@ -42,20 +42,48 @@ def _load(path: Path) -> Dict[str, Any]:
         return {}
 
 
-def _triples(root: Path) -> List[Tuple[str, Path, Path, Path]]:
-    """``(label, metadata, kg, gi)`` for every episode with a kg artifact."""
+def _triples(root: Path, newest_run_only: bool = False) -> List[Tuple[str, Path, Path, Path]]:
+    """``(label, metadata, kg, gi)`` for every episode with a kg artifact.
+
+    DEFAULT IS UNDEDUPED, AND THAT IS DELIBERATE: m0009/m0010 glob ``rglob("*.kg.json")``
+    the same way, so the default view is what the MIGRATION will actually read. Changing
+    it would make this report stop describing the thing it exists to predict.
+
+    ``newest_run_only=True`` restricts to the newest run per ``(feed_id, episode_id)`` —
+    the same central membership rule the serving layer and ``_on_disk_guid_index`` use.
+    That view answers a different and narrower question: *of the changes this migration
+    would make, which land on a copy anyone can actually see?*
+
+    BOTH ARE NEEDED, because a transition on a superseded copy is noise while the same
+    transition on a served copy is a regression. Worked example (2026-09-22): m0009 would
+    demote Krishna Rao guest -> mentioned on an Aug-18 copy whose roster wrongly names Sam
+    Altman, while the served Aug-26 copy — repaired — correctly has him as guest. Reading
+    only the undeduped view calls that a real-person demotion; reading only the deduped
+    view hides that the migration will write it. The gate belongs on the deduped view.
+    """
+    kg_paths = sorted(root.rglob("*.kg.json"))
+    if newest_run_only:
+        from podcast_scraper.search.corpus_scope import (
+            dedupe_metadata_paths_newest_run_per_episode,
+        )
+
+        # The dedupe rule keys on metadata paths; map kg -> metadata, filter, map back.
+        md_to_kg = {Path(str(p)[: -len(".kg.json")] + ".metadata.json"): p for p in kg_paths}
+        kept = dedupe_metadata_paths_newest_run_per_episode(root, list(md_to_kg))
+        kg_paths = sorted(md_to_kg[m] for m in kept if m in md_to_kg)
+
     out = []
-    for kg_path in sorted(root.rglob("*.kg.json")):
+    for kg_path in kg_paths:
         stem = str(kg_path)[: -len(".kg.json")]
         out.append((kg_path.name, Path(stem + ".metadata.json"), kg_path, Path(stem + ".gi.json")))
     return out
 
 
-def _coherence(root: Path) -> int:
+def _coherence(root: Path, newest_run_only: bool = False) -> int:
     from podcast_scraper.kg.speaker_coherence import check_corpus
 
     episodes = []
-    for label, md_path, kg_path, gi_path in _triples(root):
+    for label, md_path, kg_path, gi_path in _triples(root, newest_run_only):
         if not md_path.is_file():
             continue
         episodes.append((label, _load(md_path), _load(kg_path), _load(gi_path)))
@@ -72,7 +100,7 @@ def _coherence(root: Path) -> int:
     return 0
 
 
-def _migration_preview(root: Path, show_roles: bool) -> int:
+def _migration_preview(root: Path, show_roles: bool, newest_run_only: bool = False) -> int:
     from podcast_scraper.upgrade.migration import MigrationContext
     from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import (
         BackfillSpeakerRolesMigration,
@@ -102,7 +130,7 @@ def _migration_preview(root: Path, show_roles: bool) -> int:
 
     transitions: collections.Counter = collections.Counter()
     demotions: List[str] = []
-    for _label, md_path, kg_path, gi_path in _triples(root):
+    for _label, md_path, kg_path, gi_path in _triples(root, newest_run_only):
         if not md_path.is_file():
             continue
         kg, md, gi = _load(kg_path), _load(md_path), _load(gi_path)
@@ -162,6 +190,20 @@ def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--corpus-dir", required=True, type=Path)
     parser.add_argument(
+        "--newest-run-only",
+        action="store_true",
+        help="Restrict to the newest run per (feed_id, episode_id) — the SERVING view, the "
+        "copies users actually see. DEFAULT IS OFF so the report keeps describing the "
+        "MIGRATION view: m0007/m0009/m0010 glob every run copy, undeduped. A role "
+        "transition on a superseded copy is noise; the same transition under this flag is "
+        "a regression. "
+        "SCOPES ONLY THIS SCRIPT'S OWN PASSES — DEMOTIONS and ROLE TRANSITIONS. The "
+        "headline, SUSPECT and AMBIGUOUS sections come from m0009's own apply(dry_run=True) "
+        "and are UNAFFECTED BY DESIGN, because they must describe what the migration will "
+        "actually do across every copy. Measured on prod 2026-09-22: demotions read 205 "
+        "unflagged vs 174 flagged — 205 is what m0009 does; do not quote 174 as its output.",
+    )
+    parser.add_argument(
         "--migration-preview",
         action="store_true",
         help="Dry-run m0009 (bypasses the upgrade ledger) instead of checking coherence.",
@@ -177,8 +219,8 @@ def main(argv: List[str] | None = None) -> int:
         print(f"not a directory: {root}", file=sys.stderr)
         return 2
     if args.migration_preview:
-        return _migration_preview(root, args.roles)
-    return _coherence(root)
+        return _migration_preview(root, args.roles, args.newest_run_only)
+    return _coherence(root, args.newest_run_only)
 
 
 if __name__ == "__main__":  # pragma: no cover - thin CLI wrapper
