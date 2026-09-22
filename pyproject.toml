@@ -369,7 +369,7 @@ exclude = '''
     | build
     | dist
     | __pycache__
-      | eval-data
+    | eval-data
   )/
 )
 '''
