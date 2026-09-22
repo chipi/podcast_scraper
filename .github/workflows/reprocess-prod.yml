@@ -74,9 +74,17 @@ on:
         type: boolean
         default: false
       profile:
-        description: "Config profile"
+        description: >-
+          Config profile. `prod_dgx_full` is what prod runs and routes the GI/KG cascade at the
+          DGX's local vLLM — no per-token spend — which is the only sane profile for a repair
+          batch; the cloud ones bill per episode. It is added here because this workflow passes
+          `--config <profile>` EXPLICITLY and therefore never inherits the box default, so
+          without this option a scoped repair could only run against a paid gateway.
+          Deliberately NOT offered: `reprocess_dgx_turbo` / `reprocess_dgx_no_llm`, which set
+          `generate_metadata: false` and skip the very stage the speaker roster lives in.
         type: choice
         options:
+          - config/profiles/prod_dgx_full.yaml
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
         default: config/profiles/cloud_balanced.yaml
