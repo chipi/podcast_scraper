@@ -569,10 +569,10 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
 | [Server Guide](docs/guides/SERVER_GUIDE.md) | FastAPI viewer API, endpoints, development |
 | [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) | LanceDB indexing, search CLI, configuration |
-| [AI Provider Comparison](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all providers: cost, quality, speed, privacy |
+| AI Provider Comparison (moved to the private eval repo) | Compare all providers: cost, quality, speed, privacy |
 | [Provider Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) | Per-provider reference cards, benchmarks, and magic quadrant |
-| [Experiment Guide](docs/guides/EXPERIMENT_GUIDE.md) | Eval datasets, baselines, experiments (`data/eval/`) |
-| [Performance Profiles](docs/guides/PERFORMANCE_PROFILE_GUIDE.md) | Per-release stage timing snapshots (`data/profiles/`) |
+| Experiment Guide (moved to the private eval repo) | Eval datasets, baselines, experiments (`data/eval/`) |
+| Performance Profiles (moved to the private eval repo) | Per-release stage timing snapshots (`data/profiles/`) |
 | [Production Runbook](docs/guides/PROD_RUNBOOK.md) | Always-on VPS operator playbook (RFC-082) |
 | [VPS Multi-App Onboarding](docs/guides/VPS_MULTI_APP_ONBOARDING.md) | Hosting additional compose stacks on the same VPS (RFC-087) |
 | [Viewer Graph Spec](docs/architecture/VIEWER_GRAPH_SPEC.md) | Graph handoff orchestrator + canvas contract (ADR-094) |

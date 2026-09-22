@@ -62,7 +62,7 @@ pip install -e ".[llm]"
 
 **Related Documentation:**
 
-- [AI Provider Comparison Guide](../guides/AI_PROVIDER_COMPARISON_GUIDE.md) - Updated with all 7 providers
+- AI Provider Comparison Guide (moved to the private eval repo) - Updated with all 7 providers
 - [Provider Configuration Quick Reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Configuration examples
 - [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) - Implementation details
 

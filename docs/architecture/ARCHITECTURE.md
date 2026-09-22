@@ -1109,12 +1109,11 @@ directly.
 
 | Folder | Purpose | Key scripts |
 | ------ | ------- | ----------- |
-| `acceptance/` | E2E acceptance test runners and analysis | `run_acceptance_tests.py`, `analyze_bulk_runs.py`, `generate_performance_benchmark.py` |
+| `acceptance/` | E2E acceptance test runners and analysis | `run_acceptance_tests.py`, `analyze_bulk_runs.py` |
 | `cache/` | ML model cache management | `preload_ml_models.py`, `backup_cache.py`, `restore_cache.py` |
 | `dashboard/` | CI/nightly metrics collection, dashboard generation, JSONL history | `generate_metrics.py`, `generate_dashboard.py`, `consolidate_dashboard_data.py`, `collect_pipeline_metrics.py` |
-| `eval/` | Experiment pipeline, benchmarks, dataset materialization, run promotion | `run_experiment.py`, `compare_runs.py`, `materialize_baseline.py`, `materialize_dataset.py`, `promote_run.py`, `freeze_profile.py`, `diff_profiles.py` |
-| `registry/` | Baseline promotion | `promote_baseline.py` |
-| `tools/` | Dev tooling: dependency analysis, markdown fix, test memory profiling, schema validation, testing policy enforcement | `analyze_dependencies.py`, `fix_markdown.py`, `check_unit_test_imports.py`, `check_test_policy.py`, `profile_e2e_test_memory.py` |
+| `eval/` | The two ranking scorers the viewer's Discover surface is graded by | `rank_discover_v1.py`, `rank_scenarios_v1.py` |
+| `tools/` | Dev tooling: dependency analysis, markdown fix, schema validation, testing policy enforcement | `analyze_dependencies.py`, `fix_markdown.py`, `check_unit_test_imports.py`, `check_test_policy.py` |
 
 See `scripts/README.md` for detailed usage and
 `make` target mappings.

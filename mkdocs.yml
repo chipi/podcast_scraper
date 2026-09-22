@@ -61,7 +61,6 @@ nav:
       - Gemini E2E Testing: guides/GEMINI_E2E_TESTING.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - Validating corpus fixes fast: guides/VALIDATING_CORPUS_FIXES_FAST.md
-      - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
       - Provider Deep Dives: guides/PROVIDER_DEEP_DIVES.md
       # The eval reports, performance reports and perf traces moved to the
       # private research repo (chipi/podcast-scraper-eval-data). They quote real
@@ -86,10 +85,7 @@ nav:
       - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
       - Troubleshooting: guides/TROUBLESHOOTING.md
       - Segfault Mitigation: guides/SEGFAULT_MITIGATION.md
-      - Experiment Guide: guides/EXPERIMENT_GUIDE.md
       - Performance: guides/PERFORMANCE.md
-      - Performance Profile Guide: guides/PERFORMANCE_PROFILE_GUIDE.md
-      - Optimization Workflow: guides/OPTIMIZATION_WORKFLOW_GUIDE.md
       - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
       - Tufte Chart Critique: guides/TUFTE_CHART_CRITIQUE.md
       - SRE Book Infra Critique: guides/SRE_BOOK_INFRA_CRITIQUE.md
@@ -452,8 +448,6 @@ nav:
       - Overview: architecture/kg/README.md
       - KG Ontology (draft): architecture/kg/ontology.md
       - Graph visualization guide: guides/GRAPH_VISUALIZATION_GUIDE.md
-      - Graph performance trace runbook: guides/GRAPH_PERF_TRACE_RUNBOOK.md
-      - Search v3 performance trace runbook: guides/SEARCH_PERF_TRACE_RUNBOOK.md
   - Releases:
       - releases/index.md
       - Code/content compatibility matrix: COMPATIBILITY.md

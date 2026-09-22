@@ -1,12 +1,12 @@
 # Provider Deep Dives
 
-> **v2 authoritative data**: ``eval-reports/EVAL_HELDOUT_V2_2026_04.md`` is the latest (2026-04-16) 20-model held-out matrix. Per-provider quality numbers below are **v1-era** — preserved for continuity, superseded by v2 for any new decision. See also the top-of-page "Use these two" picks in the [AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md).
+> **v2 authoritative data**: ``eval-reports/EVAL_HELDOUT_V2_2026_04.md`` is the latest (2026-04-16) 20-model held-out matrix. Per-provider quality numbers below are **v1-era** — preserved for continuity, superseded by v2 for any new decision. See also the top-of-page "Use these two" picks in the AI Provider Comparison Guide (moved to the private eval repo).
 >
 > **Per-provider reference cards, magic quadrant analysis, and visual comparisons.**
 
 This page is the detailed reference for each provider's capabilities, pricing, models,
 and strategic positioning. For the decision-oriented summary, see the
-[AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md). For measured
+AI Provider Comparison Guide (moved to the private eval repo). For measured
 performance numbers, see the `Evaluation Reports`.
 
 ---
@@ -525,7 +525,7 @@ DeepSeek           │███████████████████�
 
 ## Related Documentation
 
-- [AI Provider Comparison Guide](AI_PROVIDER_COMPARISON_GUIDE.md) — decision matrix
+- AI Provider Comparison Guide (moved to the private eval repo) — decision matrix
   and recommended configurations
 - `Evaluation Reports` — methodology, metrics, and measured
   performance

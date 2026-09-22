@@ -51,8 +51,8 @@ layout (one dense clump, empty half of canvas — screenshot at
 - **Alternative layout algorithm.** Explore cola / dagre / other — unknown cost/quality trade-off; would need a full head-to-head evaluation.
   Estimated M.
 
-**Measurement path:** `scripts/dev/capture-graph-lcp.sh` +
-`docs/guides/GRAPH_PERF_TRACE_RUNBOOK.md` are the reusable measurement
+**Measurement path:** `scripts/dev/capture-graph-lcp.sh` (private eval repo) +
+`GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo) are the reusable measurement
 contract landed in PR #1207. Median-of-3 on prod-v2 is the metric.
 
 **Related:** #1211 (delivered narrow-scope fast path), #1207 (PR context), `docs/guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md` (diagnostic evidence + tuning session log).
@@ -98,8 +98,8 @@ coverage — not something to smuggle into the current PR.
   keeps the current `displayArtifact` shape, just moves the fetch
   off the critical path.
 
-**Measurement path:** `scripts/dev/capture-graph-lcp.sh --load-mode
-topDown`. See `docs/guides/GRAPH_PERF_TRACE_RUNBOOK.md`.
+**Measurement path:** (private eval repo) `scripts/dev/capture-graph-lcp.sh --load-mode
+topDown`. See `GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo).
 
 **Related:** #1207, `graph-tech-debt.md` wave-1 fcose item above,
 `docs/wip/graph-v3/SUMMARY.md § Tier 8`.
@@ -157,7 +157,7 @@ delta-add + preserved positions).
 
 Either variant needs playwright coverage of the wave-1 → wave-2 → fast-path handoff (production-shaped fixture).
 
-**Measurement path:** `scripts/dev/capture-graph-lcp.sh
+**Measurement path:** (private eval repo) `scripts/dev/capture-graph-lcp.sh
 --load-mode everything --wait-ms 10000`. Look for `flp:total` calls
 in the metrics — should drop from 2 → 1 when the fast path fires.
 

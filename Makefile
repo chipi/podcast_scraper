@@ -1639,13 +1639,6 @@ test-ui:
 	@echo "Vitest unit tests + coverage gate (gi-kg-viewer, #914)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:coverage
 
-# Perf-harness aggregation math (pure JS in scripts/dev/perf-agg.mjs). Node's
-# built-in runner, no deps. Guards the median / cold-exclusion / split math that
-# produces the report numbers.
-test-perf-agg:
-	@echo "Perf-harness aggregation unit tests (node --test)..."
-	node --test tests/unit/scripts/dev/perf-agg.test.mjs; echo "MAKE_EXIT=$$?"
-
 # Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
@@ -3092,32 +3085,6 @@ analyze-acceptance:
 		--output-format "$(or $(OUTPUT_FORMAT),both)" \
 		--log-level INFO
 	@echo ""
-	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/acceptance)/sessions/session_$(SESSION_ID)/"
-
-benchmark-acceptance:
-	@# Generate performance benchmarking report from acceptance test results
-	@if [ -z "$(SESSION_ID)" ]; then \
-		echo "❌ Error: SESSION_ID is required"; \
-		echo "Usage: make benchmark-acceptance SESSION_ID=<session_id> [COMPARE_BASELINE=...]"; \
-		echo ""; \
-		echo "Options:"; \
-		echo "  SESSION_ID=id            Session ID (required, e.g., '20260208_101601')"; \
-		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
-		echo "  COMPARE_BASELINE=id      Baseline ID to compare against (optional)"; \
-		echo ""; \
-		echo "Examples:"; \
-		echo "  make benchmark-acceptance SESSION_ID=20260208_101601"; \
-		echo "  make benchmark-acceptance SESSION_ID=20260208_101601 COMPARE_BASELINE=baseline_v1"; \
-		exit 1; \
-	fi
-	@$(PYTHON) scripts/acceptance/generate_performance_benchmark.py \
-		--session-id $(SESSION_ID) \
-		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
-		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
-		--output-format both \
-		--log-level INFO
-	@echo ""
-	@echo "✓ Performance benchmark report generated"
 	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/acceptance)/sessions/session_$(SESSION_ID)/"
 
 test-track:

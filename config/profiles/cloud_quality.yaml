@@ -64,7 +64,7 @@ auto_speakers: true
 #   deepseek_summary_model: deepseek-chat
 #   deepseek_timeout: 600
 # for high-volume corpus building where latency > quality. See
-# docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md for the full tradeoff.
+# AI_PROVIDER_COMPARISON_GUIDE.md (private eval repo) for the full tradeoff.
 summary_provider: anthropic
 anthropic_summary_model: claude-haiku-4-5
 

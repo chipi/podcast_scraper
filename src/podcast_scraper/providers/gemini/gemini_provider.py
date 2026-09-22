@@ -1452,7 +1452,7 @@ class GeminiProvider:
         validation revisits this claim against production audio. Exposed for
         users who want to trade some quality for ~3× lower cost and ~1.5 s/ep
         latency; tier status is documented in
-        ``docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md``.
+        ``AI_PROVIDER_COMPARISON_GUIDE.md`` (private eval repo).
         """
         if not self._summarization_initialized:
             raise RuntimeError(

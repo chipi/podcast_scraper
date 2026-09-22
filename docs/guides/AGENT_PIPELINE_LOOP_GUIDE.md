@@ -293,7 +293,7 @@ make run-compare
 | -------- | ------------ |
 | [Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md) | Browser-side loops (Playwright E2E, Chrome DevTools MCP, live co-development) |
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | `--monitor`, `.pipeline_status.json`, `.monitor.log` (RFC-065) |
-| [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Frozen release profiles, `freeze_profile.py` (RFC-064) |
+| Performance Profile Guide (moved to the private eval repo) | Frozen release profiles, `freeze_profile.py` (RFC-064) |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline stages, module roles, `metrics.json` |
 | [Testing Guide](TESTING_GUIDE.md) | `make ci-fast`, `make test`, test commands |
 | [Run Comparison Tool](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md) | Streamlit UI for comparing runs (RFC-047/066) |

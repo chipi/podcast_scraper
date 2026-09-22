@@ -50,7 +50,7 @@ defensible on **two** axes:
 
 1. **Evaluation (quality)** — `Experiment Guide`, baselines under `data/eval/`,
    `Evaluation reports`.
-2. **Performance (resource / wall time)** — [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md),
+2. **Performance (resource / wall time)** — Performance Profile Guide (moved to the private eval repo),
    `make profile-freeze` / `make profile-diff`, artifacts under `data/profiles/`, companion
    `*.stage_truth.json`, `Performance reports`.
 

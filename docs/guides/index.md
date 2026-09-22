@@ -62,7 +62,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
-| [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all 9 providers: cost, quality, speed, privacy |
+| AI Provider Comparison (moved to the private eval repo) | Compare all 9 providers: cost, quality, speed, privacy |
 | [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) | Per-provider reference cards, benchmarks, and magic quadrant |
 | [ML Model Comparison](ML_MODEL_COMPARISON_GUIDE.md) | Compare ML models: Whisper, spaCy, Transformers (BART/LED) |
 | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) | Quick provider configuration reference |
@@ -95,7 +95,7 @@ Practical guides for using and developing Podcast Scraper.
 | `Experiment Guide` | Datasets, baselines, experiments, promotion, metrics, and quality evaluation (RFC-041) |
 | `Evaluation Reports` | Quality sweeps: ROUGE, embeddings, report library |
 | [Performance Guide](PERFORMANCE.md) | Performance considerations, optimization, and troubleshooting |
-| [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Frozen release profiles: RSS, CPU%, wall time per stage (RFC-064) |
+| Performance Profile Guide (moved to the private eval repo) | Frozen release profiles: RSS, CPU%, wall time per stage (RFC-064) |
 | `Optimization Workflow` | Data-driven process for investigating and solving performance/cost problems |
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | Dev tooling: `--monitor`, RSS/CPU/stage dashboard or `.monitor.log`, `.pipeline_status.json`; optional `.[monitor]` memray + py-spy (RFC-065, #512) |
 | `Performance Reports` | Published profile snapshots (tables, caveats) |

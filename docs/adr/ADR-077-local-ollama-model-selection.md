@@ -98,5 +98,5 @@ borderline on insight count but functional).
 ## Related
 
 - EVAL_HELDOUT_V2_2026_04.md §Local models (full 11-model matrix)
-- AI_PROVIDER_COMPARISON_GUIDE.md §Local picks
+- `AI_PROVIDER_COMPARISON_GUIDE.md` §Local picks (moved to the private eval repo)
 - #591 (pipeline validation — uses Core 5)

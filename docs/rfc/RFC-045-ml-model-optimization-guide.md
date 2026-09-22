@@ -899,7 +899,7 @@ preprocessing:
 ### Documentation
 
 - [ ] Update `docs/guides/ML_MODEL_COMPARISON_GUIDE.md`
-- [ ] Update `docs/guides/EXPERIMENT_GUIDE.md`
+- [ ] Update `EXPERIMENT_GUIDE.md` (moved to the private eval repo)
 
 ## References
 

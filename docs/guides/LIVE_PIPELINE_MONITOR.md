@@ -55,7 +55,7 @@ See also: [CLI.md](../api/CLI.md), [CONFIGURATION.md](../api/CONFIGURATION.md#li
 always writes ticks to **`.monitor.log`** (same fields as the TTY dashboard), even if stderr is a
 TTY. **`scripts/eval/profile/freeze_profile.py`** sets this for the **measured** run when the monitor is on
 so **`make profile-freeze … MONITOR=1`** can archive **`<VERSION>.monitor.log`** next to the
-frozen YAML (see [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)).
+frozen YAML (see Performance Profile Guide (moved to the private eval repo)).
 
 ---
 
@@ -128,6 +128,6 @@ Pulls **`py-spy`** and **`memray`** (RFC-065 Phase 3). They are **not** required
 
 | Guide | Relationship |
 | ----- | ------------ |
-| [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | **Frozen** release YAML under `data/profiles/` (RFC-064) — complementary, not the same as live monitor. |
+| Performance Profile Guide (moved to the private eval repo) | **Frozen** release YAML under `data/profiles/` (RFC-064) — complementary, not the same as live monitor. |
 | [Performance](PERFORMANCE.md) | Runtime tuning (preprocessing cache, transcription, etc.). |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | End-to-end flow and module roles. |

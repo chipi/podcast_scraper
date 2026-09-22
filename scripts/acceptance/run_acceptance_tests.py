@@ -2709,7 +2709,18 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
 
                 # Also generate performance benchmark report (if enabled)
                 if args.auto_benchmark:
+                    # arc 2: generate_performance_benchmark.py moved to the private
+                    # eval repo with the rest of the performance story. The
+                    # ``exists()`` guard below predates the move and would now skip
+                    # SILENTLY on --auto-benchmark, so say what happened instead.
                     benchmark_script = Path(__file__).parent / "generate_performance_benchmark.py"
+                    if not benchmark_script.exists():
+                        logger.warning(
+                            "--auto-benchmark: generate_performance_benchmark.py is not "
+                            "in this repo. It moved to the private eval repo "
+                            "(chipi/podcast-scraper-eval-data) with the performance "
+                            "story; run it there against this session's output."
+                        )
                     if benchmark_script.exists():
                         logger.info("")
                         logger.info("Generating performance benchmark report...")

@@ -434,16 +434,16 @@ and `.cursor/rules/module-boundaries.mdc`.
 | Semantic search | `src/podcast_scraper/search/` | [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) |
 | Viewer API (FastAPI) | `src/podcast_scraper/server/` | [Server Guide](docs/guides/SERVER_GUIDE.md) |
 | Viewer UI (Vue) | `web/gi-kg-viewer/` | [Polyglot Guide](docs/guides/POLYGLOT_REPO_GUIDE.md) |
-| New providers | `src/podcast_scraper/providers/` | [Provider Implementation](docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md), [Comparison](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md), [Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) |
+| New providers | `src/podcast_scraper/providers/` | [Provider Implementation](docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md), Comparison (moved to the private eval repo), [Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) |
 | Run comparison | moved to `chipi/podcast-scraper-eval-data` | `tools/run_compare/` in that repo — ask for access |
 | Acceptance tests | `scripts/acceptance/`, `config/acceptance/` | [Testing Guide](docs/guides/TESTING_GUIDE.md) |
-| Eval & model validation | `data/eval/`, `data/eval/configs/` | [Experiment Guide](docs/guides/EXPERIMENT_GUIDE.md) |
-| Performance profiles | `config/profiles/` (frozen profiles moved with the research) | [Performance Profile Guide](docs/guides/PERFORMANCE_PROFILE_GUIDE.md) |
+| Eval & model validation | `data/eval/`, `data/eval/configs/` | Experiment Guide (moved to the private eval repo) |
+| Performance profiles | `config/profiles/` (frozen profiles moved with the research) | Performance Profile Guide (moved to the private eval repo) |
 
 ## Choosing and Validating Providers
 
 **Choosing a provider:** Start with the
-[AI Provider Comparison](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md)
+AI Provider Comparison (moved to the private eval repo)
 for a decision-oriented overview (cost, quality,
 speed, privacy). For detailed per-provider specs,
 benchmarks, and the magic quadrant, see
@@ -470,7 +470,7 @@ performance before merging.
    choice, set `research_ref` to the eval report path, and regenerate the
    downstream profile YAMLs in `config/profiles/` so they match. Without
    this step the runtime keeps running the old default. See
-   [Experiment Guide § Step 6](docs/guides/EXPERIMENT_GUIDE.md) and
+   Experiment Guide § Step 6 (moved to the private eval repo) and
    [AGENTS.md § "Materialize autoresearch decisions"](AGENTS.md) for the
    full flow.
 
@@ -522,9 +522,9 @@ sentinel.
 2. Compare against an existing profile:
    `make profile-diff FROM=v2.6-wip-openai TO=v2.6-your-provider`
 
-See [Experiment Guide](docs/guides/EXPERIMENT_GUIDE.md)
+See Experiment Guide (moved to the private eval repo)
 and
-[Performance Profile Guide](docs/guides/PERFORMANCE_PROFILE_GUIDE.md)
+Performance Profile Guide (moved to the private eval repo)
 for full details.
 
 ## Exit Codes (Issue #379)

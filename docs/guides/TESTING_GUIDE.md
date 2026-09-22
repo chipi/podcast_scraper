@@ -568,19 +568,10 @@ python scripts/acceptance/analyze_bulk_runs.py \
 
 Generate performance benchmarking reports that group runs by provider/model configuration:
 
-```bash
-# Generate benchmark report
-make benchmark-acceptance SESSION_ID=20260208_101601
-
-# Generate benchmark report with baseline comparison
-make benchmark-acceptance SESSION_ID=20260208_101601 COMPARE_BASELINE=baseline_v1
-
-# Or use the script directly
-python scripts/acceptance/generate_performance_benchmark.py \
-    --session-id 20260208_101601 \
-    --output-dir .test_outputs/acceptance \
-    --compare-baseline baseline_v1
-```
+The report generator moved to the private eval repo with the rest of the
+performance story, and `make benchmark-acceptance` went with it. Run the
+acceptance session here, then generate the report there against its output
+directory.
 
 The benchmark report includes:
 

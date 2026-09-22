@@ -32,7 +32,7 @@ Ask things like:
 - *"Is our eval plan honest for open-ended LLM outputs?"*
 - *"Quick ML-systems check — where’s the biggest architectural smell?"*
 
-**Repo anchors:** `Experiment Guide`, [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md), [Pipeline and Workflow](PIPELINE_AND_WORKFLOW.md), [Configuration API](../api/CONFIGURATION.md).
+**Repo anchors:** `Experiment Guide`, AI Provider Comparison (moved to the private eval repo), [Pipeline and Workflow](PIPELINE_AND_WORKFLOW.md), [Configuration API](../api/CONFIGURATION.md).
 
 ---
 
