@@ -512,7 +512,11 @@ jobs:
                  -e PYTHONPATH=/mnt/audit_pkg \
                  -v /tmp/audit_pkg:/mnt/audit_pkg:ro \
                  --entrypoint python api \
-                 /mnt/audit_pkg/${AUDIT_SCRIPT} --corpus-dir /app/output ${EXTRA} || true" \
+                 /mnt/audit_pkg/${AUDIT_SCRIPT} --corpus-dir /app/output ${EXTRA} || true; \
+               if [ \"${WRITE_PAIRING_WORKLIST}\" = 'true' ] && [ -f corpus/pairing_repair_worklist.txt ]; then \
+                 echo ''; echo '-- pairing_repair_worklist.txt (ids for reprocess-prod) --'; \
+                 cat corpus/pairing_repair_worklist.txt; \
+               fi" \
               2>&1 | tee -a "$SUMMARY"
 
             ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
