@@ -364,6 +364,9 @@ lint-search-v3:
 CORPUS ?= tests/fixtures/viewer-validation-corpus/v3
 QUERIES ?= tests/fixtures/viewer-validation-corpus/v3/search-queries.json
 OUT ?= data/eval/search-v3/eval/latest.json
+# `data/eval/**`: eval runs write their reports there. The `eval-data` ignores below point at
+# a directory that no longer exists (the path moved), so 320 generated reports were being
+# linted locally. CI never saw it — they are gitignored, so a fresh checkout has none.
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	".github/**/*.md" \
 	".cursor/**/*.md" \
@@ -379,6 +382,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore .build/site \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" --ignore "eval-data/**" --ignore eval-data \
+	--ignore "data/eval/**" --ignore data/eval \
 	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
 	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
 	--ignore "$(WEB_VIEWER_DIR)/validation-results/**" \
