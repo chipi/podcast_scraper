@@ -236,6 +236,12 @@ def test_relabel_feeds_episode_title_and_description_to_resolution_like_full(
         item=ET.Element("item"),
         transcript_urls=[],
         description="Kevin and Casey dig into AI agents.",
+        # Production resolves this from the episode's own metadata record before building the
+        # job; without it `_existing_transcript_for` now refuses rather than globbing `0001 - *`,
+        # which is what put 10 prod episodes on another episode's transcript on 2026-09-23.
+        on_disk_transcript=str(
+            base / f"run_{run_tag}" / "transcripts" / f"0001 - Ep_{run_tag}.txt"
+        ),
     )
     job = TranscriptionJob(
         idx=1,

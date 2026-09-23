@@ -145,6 +145,43 @@ def _mark_processed(processed_job_keys: Set[str], job: Any) -> None:
         pass
 
 
+#: Wall-clock ceiling for ONE episode's future before the loop stops waiting on it, in seconds.
+#: The longest legitimate metadata generation measured on prod is 1529s (Dwarkesh GI, #1894), so
+#: one hour is ~2.4x the worst real case. This is a per-EPISODE bound and is deliberately far
+#: tighter than DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS, which bounds the whole FEED: without it a
+#: single stuck episode holds its feed's loop open until the feed budget expires, so the other
+#: episodes' completed work sits unwritten behind it.
+DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS = 60 * 60
+
+
+def _processing_future_abandon_seconds(cfg: Any) -> Optional[float]:
+    """Per-episode ceiling before the loop abandons a future. ``None``/<=0 disables.
+
+    Mirrors :func:`_processing_loop_budget_seconds` so both bounds are configured the same way.
+    """
+    override = getattr(cfg, "processing_future_abandon_seconds", None)
+    if override is not None:
+        try:
+            value = float(override)
+        except (TypeError, ValueError):
+            return float(DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS)
+        return None if value <= 0 else value
+    return float(DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS)
+
+
+def _overrunning_futures(
+    started_at: Dict[Any, float], ceiling: Optional[float], now: float
+) -> List[Any]:
+    """Futures that have been running longer than *ceiling*.
+
+    Separated from the loop so the rule is testable without a ThreadPoolExecutor. An empty list
+    when the bound is disabled — never an exception, because this runs on the drain path.
+    """
+    if ceiling is None:
+        return []
+    return [fut for fut, start in started_at.items() if (now - start) > ceiling]
+
+
 def _all_jobs_processed(jobs: Any, processed_job_keys: Set[str]) -> bool:
     """Has every enqueued job been marked processed?
 
@@ -2376,6 +2413,15 @@ def process_processing_jobs_concurrent(  # noqa: C901
         #   2. a wall-clock budget   — nothing here may run unbounded
         loop_started_at = time.time()
         loop_budget_seconds = _processing_loop_budget_seconds(cfg, max_workers)
+        # Per-EPISODE bound, distinct from the per-FEED budget above. 2026-09-23, prod #2097:
+        # "Kubernetes and retiring at the top with Kelsey Hightower" finished summarisation
+        # (930s) then burned a full core for 90 minutes without emitting one line, and because
+        # nothing bounded the individual future, its seven healthy siblings' feed sat blocked
+        # behind it until the 4h feed budget fired. `timeout_context` around the episode's own
+        # work cannot help — it observes and cannot interrupt (see utils/timeout.py). The loop
+        # is the only place that can stop WAITING.
+        future_started_at: Dict[Any, float] = {}
+        future_abandon_seconds = _processing_future_abandon_seconds(cfg)
 
         def _supervision_exit_reason() -> Optional[str]:
             """Return a reason string when this loop must stop regardless of queue state."""
@@ -2423,7 +2469,35 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     )
                     return False
                 futures[future] = job.episode.idx
+                future_started_at[future] = time.monotonic()
                 return True
+
+            def _abandon_overrunning_futures() -> None:
+                """Stop WAITING on an episode that has blown its per-episode ceiling.
+
+                The worker thread keeps running — a running future cannot be cancelled in Python,
+                and `shutdown(cancel_futures=True)` only drops QUEUED ones. That is accepted: the
+                point is that the loop, its feed, and the episodes behind it stop being hostage to
+                one stuck episode. Counted as failed, and named, so it appears in the batch rollup
+                instead of looking like a feed that merely took four hours.
+                """
+                overrun = _overrunning_futures(
+                    future_started_at, future_abandon_seconds, time.monotonic()
+                )
+                for fut in overrun:
+                    idx = futures.pop(fut, None)
+                    started = future_started_at.pop(fut, None)
+                    elapsed = 0.0 if started is None else time.monotonic() - started
+                    abandoned_futures[0] += 1
+                    jobs_processed_failed[0] += 1
+                    logger.error(
+                        "Episode %s has been running %.0fs (ceiling %.0fs) with no result — "
+                        "ABANDONING the wait so this feed can finish. The worker thread cannot be "
+                        "cancelled and keeps running; the episode is counted as failed.",
+                        idx,
+                        elapsed,
+                        future_abandon_seconds or 0.0,
+                    )
 
             def _submit_new_jobs() -> None:
                 """Submit new jobs as they become available."""
@@ -2456,6 +2530,11 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 )
                 jobs_processed_ok[0] += ok_d
                 jobs_processed_failed[0] += failed_d
+                # Drop start-times for futures the drain removed. Without this the map grows for
+                # the life of the feed AND a long-but-COMPLETED episode stays eligible for
+                # abandonment, which would count a successful episode as failed.
+                for fut in [f for f in future_started_at if f not in futures]:
+                    future_started_at.pop(fut, None)
                 if stop:
                     stop_requested[0] = True
 
@@ -2558,6 +2637,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
             while True:
                 _submit_new_jobs()
                 _process_completed_futures()
+                # After the drain, so a future that finished in this iteration is never abandoned.
+                _abandon_overrunning_futures()
 
                 if not _should_continue_processing():
                     break

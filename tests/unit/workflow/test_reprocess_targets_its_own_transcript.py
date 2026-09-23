@@ -167,16 +167,95 @@ class TestAPointerAtAnotherEpisodeIsRefused:
         assert resolved is not None and Path(resolved).name == f"{stem_full}.txt", resolved
 
 
+def _job_without_episode(idx: int) -> TranscriptionJob:
+    """A job with NO Episode at all — the only caller the idx search is still for.
+
+    This distinction is the whole point of the class below, and it was NOT tested before:
+    ``_job()`` always builds an Episode, so the "fallback for jobs without an episode" tests
+    were passing a job WITH one and blessing the idx search on the reprocess path. That is how
+    the corruption shipped with green tests.
+    """
+    return TranscriptionJob(idx=idx, ep_title="t", ep_title_safe="t", temp_media="", episode=None)
+
+
 class TestTheFallbackStillWorksForJobsWithoutAnEpisode:
     def test_a_single_run_resolves_by_index_prefix(self, tmp_path: Path) -> None:
         run = tmp_path / "run_only_20260101-000000"
         _episode_on_disk(run, 2, "Only one run here", "guid-1")
-        chosen = _existing_transcript_for(_job(2, None), str(run), "relabel_only")
+        chosen = _existing_transcript_for(_job_without_episode(2), str(run), "relabel_only")
         assert chosen is not None
         assert "Only one run here" in chosen.name
 
     def test_nothing_on_disk_returns_none(self, tmp_path: Path) -> None:
-        assert _existing_transcript_for(_job(1, None), str(tmp_path), "relabel_only") is None
+        assert (
+            _existing_transcript_for(_job_without_episode(1), str(tmp_path), "relabel_only") is None
+        )
+
+    def test_an_ambiguous_idx_is_refused_not_guessed(self, tmp_path: Path) -> None:
+        """Two runs, same idx, different episodes, no Episode on the job: that is UNKNOWN.
+
+        The old code returned newest-mtime behind a WARNING. Measured on a16z as 33 of 48
+        episodes rewritten onto another episode's transcript.
+        """
+        old = tmp_path / "run_old_20260101-000000"
+        new = tmp_path / "run_new_20260201-000000"
+        _episode_on_disk(old, 4, "One candidate", "guid-a")
+        _episode_on_disk(new, 4, "Another candidate", "guid-b")
+
+        assert (
+            _existing_transcript_for(_job_without_episode(4), str(new), "relabel_only") is None
+        ), "an idx matching two different episodes must be refused, never resolved by mtime"
+
+
+class TestARefusalUpstreamIsNotOverridableDownstream:
+    """2026-09-23 prod #2097: `_transcript_beside_metadata` refused, the caller guessed anyway.
+
+    Its docstring already said returning None is "a REFUSAL, and refusing is the point: the
+    caller skips the episode and says so". `_existing_transcript_for` answered that refusal with
+    the idx glob, so 16 episodes fell through and 10 serving episodes ended up carrying another
+    episode's transcript, with gi.json and kg.json rewritten from the wrong words.
+    """
+
+    def test_an_episode_with_no_vouched_transcript_is_skipped_not_globbed(
+        self, tmp_path: Path
+    ) -> None:
+        # A sibling episode numbered 0010 exists and WOULD match the glob — it must not be used.
+        run = tmp_path / "run_only_20260101-000000"
+        _episode_on_disk(run, 10, "Re-engineering the Semiconductor", "guid-owner")
+        victim = (
+            run
+            / "transcripts"
+            / "0010 - Re-engineering the Semiconductor_run_only_20260101-000000.txt"
+        )
+        before = victim.read_bytes()
+
+        # The episode under test resolved to nothing: `_transcript_beside_metadata` refused it.
+        chosen = _existing_transcript_for(_job(10, None), str(run), "relabel_only")
+
+        assert chosen is None, f"must skip, not borrow another episode's transcript (got {chosen})"
+        assert victim.read_bytes() == before, "the other episode's transcript must be untouched"
+
+    def test_a_named_transcript_that_vanished_is_skipped_not_globbed(self, tmp_path: Path) -> None:
+        """The record named a file that is gone. Missing input, not a search prompt."""
+        run = tmp_path / "run_only_20260101-000000"
+        _episode_on_disk(run, 7, "Still here", "guid-other")
+        missing = str(run / "transcripts" / "0007 - Gone_run_only_20260101-000000.txt")
+
+        chosen = _existing_transcript_for(_job(7, missing), str(run), "relabel_only")
+
+        assert chosen is None
+        assert "Still here" not in str(chosen)
+
+    def test_a_vouched_transcript_is_still_returned(self, tmp_path: Path) -> None:
+        """The fix must not break the normal path — 172 episodes resolved correctly in that run."""
+        run = tmp_path / "run_only_20260101-000000"
+        meta = _episode_on_disk(run, 5, "My own episode", "guid-mine")
+        resolved = _transcript_beside_metadata(meta)
+        assert resolved is not None
+
+        chosen = _existing_transcript_for(_job(5, resolved), str(run), "relabel_only")
+
+        assert chosen is not None and "My own episode" in chosen.name
 
 
 class TestTheRunIndexIsUnique:

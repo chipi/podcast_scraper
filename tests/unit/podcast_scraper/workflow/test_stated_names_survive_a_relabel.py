@@ -187,6 +187,14 @@ def _relabel(base: Path, run_tag: str, new_tag: str) -> Tuple[bool, List[Dict[st
         title_safe="building-trails",
         item=ET.Element("item"),
         transcript_urls=[],
+        # Production ALWAYS sets this — `_reprocess_existing_episodes` resolves it via
+        # `_transcript_beside_metadata` before the job is built. Leaving it unset made this
+        # harness exercise the idx-prefix glob, which `_existing_transcript_for` now refuses
+        # for a job that carries an Episode (it resolved 10 prod episodes onto another
+        # episode's transcript on 2026-09-23). Set it so the test drives the real path.
+        on_disk_transcript=str(
+            base / f"run_{run_tag}" / "transcripts" / f"0001 - Ep_{run_tag}.txt"
+        ),
     )
     ok, _rel, _n = epx._relabel_existing_transcript(
         _job(episode), _cfg(pipeline_stage="relabel_only"), run_tag, str(new_run), None, None

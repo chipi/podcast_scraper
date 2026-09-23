@@ -2519,31 +2519,58 @@ def _existing_transcript_for(
     any path that reaches these stages outside ``reprocess_existing_only``), and it now says so in
     the log rather than looking like the normal case.
     """
-    known = getattr(getattr(job, "episode", None), "on_disk_transcript", None)
+    episode = getattr(job, "episode", None)
+    known = getattr(episode, "on_disk_transcript", None)
     if known:
         path = Path(str(known))
         if path.is_file():
             return path
+        # The record named a file that is gone. That is a missing input, not an invitation to
+        # find a different one.
         logger.warning(
-            "[%s] %s: the episode's own transcript %s is not on disk; falling back to the "
-            "index-prefix search, which cannot tell two runs' episode %d apart",
+            "[%s] %s: the episode's own transcript %s is not on disk — SKIPPING this episode. "
+            "The index-prefix search cannot tell two runs' episode %s apart, so guessing here "
+            "is how another episode's transcript gets overwritten.",
             job.idx,
             stage,
             path,
-            job.idx,
+            getattr(episode, "on_disk_idx", None) or job.idx,
         )
-    else:
-        # A SILENT FALLBACK IS HOW THIS HID. With no transcript of its own the search below runs
-        # with no warning at all, and its answer is indistinguishable in the logs from a correct
-        # resolution — which is the state a run reached while every component tested correct in
-        # isolation afterwards. Say it out loud.
+        return None
+
+    if episode is not None:
+        # A REFUSAL UPSTREAM MUST NOT BE OVERRIDABLE BY A GUESS DOWNSTREAM. This job was built
+        # from a specific metadata record, and `_transcript_beside_metadata` already decided that
+        # record has no transcript it can vouch for — returning None there is documented as "a
+        # REFUSAL, and refusing is the point: the caller skips the episode and says so". This
+        # branch used to answer it with the idx glob, which reinstated exactly the corruption the
+        # refusal exists to prevent.
+        #
+        # 2026-09-23, prod #2097 batch: the glob fired 16 times and left 10 serving episodes
+        # carrying another episode's transcript, with `gi.json` and `kg.json` rewritten from the
+        # wrong words — e.g. "Pax Silica: Inside the Trump Administration's Tech Strategy" was
+        # handed `0010 - Re-engineering the Semiconductor Supply Chain` and published Intel's CEO
+        # as its speaker. Nine of those ten HAD their own transcript elsewhere in the corpus; the
+        # glob did not look for it, it looked for the number.
+        #
+        # Skipping loses one episode from a batch and says which. Guessing corrupts two.
         logger.warning(
-            "[%s] %s: this job carries NO transcript path of its own; falling through to the "
-            "index-prefix search, whose answer may be a DIFFERENT episode",
+            "[%s] %s: no transcript could be vouched for from this episode's own metadata "
+            "record — SKIPPING. Not falling through to the index-prefix search: an on-disk idx "
+            "is unique only inside one run_* directory, so its answer may be a DIFFERENT episode.",
             job.idx,
             stage,
         )
+        return None
 
+    # Only a job with no Episode at all reaches the search — older tests, and any caller outside
+    # `reprocess_existing_only`. Kept because those callers have no record to consult, and
+    # narrowed below: an ambiguous match is refused rather than guessed.
+    logger.warning(
+        "[%s] %s: job carries no Episode; using the legacy index-prefix search",
+        job.idx,
+        stage,
+    )
     run_dir = Path(effective_output_dir)
     search_root = run_dir.parent if run_dir.name.startswith("run_") else run_dir
     # The ON-DISK number, not `job.idx`: `idx` is now unique within the run and bears no relation
@@ -2567,17 +2594,21 @@ def _existing_transcript_for(
         )
         return None
     if len(matches) > 1:
-        logger.warning(
-            "[%s] %s: this job carries no episode transcript path, and %d transcripts match idx "
-            "%r across the feed's runs — guessing newest-mtime %s (skipped %d). An episode idx is "
-            "not unique across runs, so this may be a DIFFERENT episode.",
+        # AMBIGUOUS IS UNKNOWN, NOT "NEWEST". Picking newest-mtime here is a coin toss dressed as
+        # a heuristic: an on-disk idx is unique only inside one run_* directory, so N matches means
+        # N candidate episodes and nothing on the filesystem distinguishes them. The old code
+        # returned matches[0] behind this warning — measured on a16z as 33 of 48 episodes rewritten
+        # onto another episode's transcript, and again on prod 2026-09-23.
+        logger.error(
+            "[%s] %s: %d transcripts match idx %r across the feed's runs and nothing here can "
+            "tell them apart — REFUSING rather than guessing. Candidates: %s",
             job.idx,
             stage,
             len(matches),
             idx_prefix,
-            matches[0],
-            len(matches) - 1,
+            ", ".join(p.name for p in matches[:4]),
         )
+        return None
     return matches[0]
 
 

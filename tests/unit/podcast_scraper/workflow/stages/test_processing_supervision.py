@@ -339,6 +339,71 @@ class TestTranscriptlessJobsAreStillCountable(unittest.TestCase):
         )
 
 
+class TestOneStuckEpisodeMustNotHoldItsFeedHostage(unittest.TestCase):
+    """2026-09-23, prod #2097: nothing bounded an individual episode's future.
+
+    "Kubernetes and retiring at the top with Kelsey Hightower" finished summarisation (930s) then
+    burned a full core for 90 minutes emitting nothing. Its feed's other seven episodes were done,
+    but the loop kept waiting, so the feed only closed when the 4h per-FEED budget fired. The
+    per-episode ``timeout_context`` cannot help — it observes and cannot interrupt (utils/timeout.py
+    documents that, and a 4h15m hang inside a 1200s one). The loop is the only place that can stop
+    WAITING, so the bound belongs here.
+    """
+
+    def test_a_future_past_the_ceiling_is_reported(self):
+        now = 10_000.0
+        started = {"slow": now - 3601.0, "fresh": now - 5.0}
+        self.assertEqual(processing._overrunning_futures(started, 3600.0, now), ["slow"])
+
+    def test_a_future_inside_the_ceiling_is_left_alone(self):
+        now = 10_000.0
+        started = {"a": now - 3599.0, "b": now - 0.0}
+        self.assertEqual(processing._overrunning_futures(started, 3600.0, now), [])
+
+    def test_the_bound_can_be_disabled(self):
+        """None disables it — an explicit opt-out, same contract as the feed budget."""
+        now = 10_000.0
+        self.assertEqual(processing._overrunning_futures({"x": 0.0}, None, now), [])
+
+    def test_an_empty_map_is_not_an_error(self):
+        self.assertEqual(processing._overrunning_futures({}, 60.0, 1.0), [])
+
+    def test_default_ceiling_clears_the_worst_real_episode(self):
+        """1529s is the longest legitimate metadata generation measured on prod (#1894).
+
+        Guards against a future tightening that would start abandoning healthy episodes.
+        """
+        self.assertGreater(processing.DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS, 1529)
+
+    def test_the_per_episode_bound_is_tighter_than_the_per_feed_budget(self):
+        """The whole point: a stuck episode must lose before its feed does, or it blocks it."""
+        self.assertLess(
+            processing.DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS,
+            processing.DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS,
+        )
+
+    def test_config_override_and_garbage_handling(self):
+        self.assertEqual(
+            processing._processing_future_abandon_seconds(
+                _Cfg(processing_future_abandon_seconds=90)
+            ),
+            90.0,
+        )
+        self.assertIsNone(
+            processing._processing_future_abandon_seconds(_Cfg(processing_future_abandon_seconds=0))
+        )
+        self.assertEqual(
+            processing._processing_future_abandon_seconds(
+                _Cfg(processing_future_abandon_seconds="nonsense")
+            ),
+            float(processing.DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS),
+        )
+        self.assertEqual(
+            processing._processing_future_abandon_seconds(_Cfg()),
+            float(processing.DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS),
+        )
+
+
 class TestQueueEmptyComparesMembershipNotCardinality(unittest.TestCase):
     """2026-09-23, prod #2097 batch: the third door, and the one no key change can shut.
 
