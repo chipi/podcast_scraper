@@ -337,3 +337,73 @@ class TestTranscriptlessJobsAreStillCountable(unittest.TestCase):
         self.assertEqual(
             processing._processing_job_key(j), "/out/run_A/transcripts/0005 - Alpha.txt"
         )
+
+
+class TestQueueEmptyComparesMembershipNotCardinality(unittest.TestCase):
+    """2026-09-23, prod #2097 batch: the third door, and the one no key change can shut.
+
+    Both earlier fixes made keys unique for one collision source (2026-08-25 ``idx``,
+    2026-09-18 empty path). This case has NO defective key: two work-list entries resolve
+    to the SAME transcript, so sharing one key is exactly right — dedup must do the work
+    once. It is the exit predicate that is wrong. Measured on prod: 35 jobs, 34 keys, 0
+    futures in flight, and the wedge report's own ``missing`` list EMPTY (every job
+    accounted for) while ``35 == 34`` stayed false. 481 spins across the batch.
+
+    So these tests assert the predicate, not the keys — the invariant the two prior test
+    classes could not express, because both phrase the wedge as a uniqueness failure.
+    """
+
+    @staticmethod
+    def _job(idx: int, transcript_path, guid=None):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            episode=SimpleNamespace(idx=idx, guid=guid), transcript_path=transcript_path
+        )
+
+    def test_two_jobs_sharing_one_transcript_still_conclude(self):
+        """The prod shape: N jobs, N-1 keys, everything done. Cardinality says never."""
+        shared = "/out/run_A/transcripts/0007 - Shared.txt"
+        jobs = [
+            self._job(i, f"/out/run_A/transcripts/{i:04d}.txt", guid=f"g{i}") for i in range(34)
+        ]
+        jobs.append(self._job(99, shared, guid="g-dup"))
+        jobs.append(self._job(7, shared, guid="g7"))
+
+        processed: set = set()
+        for j in jobs:
+            processing._mark_processed(processed, j)
+
+        self.assertEqual(len(jobs), 36)
+        self.assertEqual(len(processed), 35, "two jobs must share one dedup key here")
+        self.assertNotEqual(len(jobs), len(processed))
+        self.assertTrue(
+            processing._all_jobs_processed(jobs, processed),
+            "every job is marked processed, so the loop MUST be allowed to exit",
+        )
+
+    def test_it_is_false_while_any_job_is_outstanding(self):
+        """Guard against 'return True' passing the test above — the predicate must still block."""
+        jobs = [self._job(i, f"/out/t/{i:04d}.txt", guid=f"g{i}") for i in range(5)]
+        processed: set = set()
+        for j in jobs[:-1]:
+            processing._mark_processed(processed, j)
+        self.assertFalse(processing._all_jobs_processed(jobs, processed))
+
+    def test_an_empty_job_list_is_trivially_complete(self):
+        self.assertTrue(processing._all_jobs_processed([], set()))
+
+    def test_transcriptless_and_duplicate_jobs_together(self):
+        """Both doors open at once — the combination the batch actually hit."""
+        shared = "/out/t/dup.txt"
+        jobs = [
+            self._job(1, shared, guid="a"),
+            self._job(2, shared, guid="b"),
+            self._job(3, None, guid="c"),
+            self._job(4, None, guid="d"),
+        ]
+        processed: set = set()
+        for j in jobs:
+            processing._mark_processed(processed, j)
+        self.assertEqual(len(processed), 3)
+        self.assertTrue(processing._all_jobs_processed(jobs, processed))

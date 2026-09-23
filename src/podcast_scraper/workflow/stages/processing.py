@@ -145,6 +145,18 @@ def _mark_processed(processed_job_keys: Set[str], job: Any) -> None:
         pass
 
 
+def _all_jobs_processed(jobs: Any, processed_job_keys: Set[str]) -> bool:
+    """Has every enqueued job been marked processed?
+
+    The loop's exit predicate. Membership, never ``len(jobs) == len(processed_job_keys)``:
+    the key is a DEDUP identity, so jobs that legitimately share one (two work-list entries
+    resolving to the same transcript) collapse to a single key and the cardinalities never
+    converge — the loop spins forever with all the work finished. Counting distinct keys
+    answers "how many distinct artifacts did we touch", which is not the question.
+    """
+    return all(_processing_job_key(job) in processed_job_keys for job in jobs)
+
+
 from ...rss import extract_episode_description as rss_extract_episode_description
 
 
@@ -2305,18 +2317,35 @@ def process_processing_jobs_concurrent(  # noqa: C901
         return None
 
     def _check_queue_empty() -> bool:
-        """Check if processing queue is empty.
+        """True when no job remains whose key is unprocessed.
+
+        NOT ``len(jobs) == len(processed_keys)``. The key is a DEDUP identity
+        (:func:`_processing_job_key`, normally the transcript path), so two jobs that
+        legitimately share one transcript collapse to a single key and the two counts
+        can never converge — the loop then spins forever with every job finished.
+
+        Membership is what the rest of the loop already asks:
+        ``_find_next_unprocessed_job`` submits while a key is absent, and
+        ``_report_if_wedged`` computes exactly this predicate to name the stuck jobs.
+        The count comparison was the odd one out, and it is the one that wedges.
+
+        2026-09-23, prod #2097 batch: 35 jobs, 34 keys, 0 futures, and the wedge
+        report's own ``missing`` list EMPTY — every job accounted for, yet
+        ``35 == 34`` false forever. 481 such spins across the batch, each burning
+        ~2h. The two prior fixes (2026-08-25 ``idx``; 2026-09-18 empty path) each
+        made keys unique for ONE collision source; a third source found a third door.
+        Comparing membership instead of cardinality closes the corridor.
 
         Returns:
-            True if queue is empty, False otherwise
+            True if every enqueued job has been marked processed, False otherwise
         """
         with processed_job_indices_lock:
             if processing_resources.processing_jobs_lock:
                 with processing_resources.processing_jobs_lock:
-                    total_jobs = len(processing_resources.processing_jobs)
+                    jobs = list(processing_resources.processing_jobs)
             else:
-                total_jobs = len(processing_resources.processing_jobs)
-            return total_jobs == len(processed_job_indices)
+                jobs = list(processing_resources.processing_jobs)
+            return _all_jobs_processed(jobs, processed_job_indices)
 
     def _run_parallel_processing_loop(
         processing_resources: ProcessingResources,
