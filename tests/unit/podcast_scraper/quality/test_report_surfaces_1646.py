@@ -6,9 +6,10 @@ unreachable. Fixing the size gate closes that bug; it does nothing about the bli
 let it run from 2026-06-05 to 2026-08-14 unremarked.
 
 So this test does not assert anything about the size gate. It replays the **real pre-fix
-corpus** — all 678 episodes, captured in ``data/baselines/corpus-integrity-2026-08-14.json``
-by ``scripts/baselines/capture_corpus_integrity_baseline.py`` — through the quality report and
-asserts the report *says something is wrong*, using only what a reader would see.
+corpus** — all 678 episodes, captured in
+``eval-data/data/baselines/corpus-integrity-2026-08-14.json`` by
+``eval-data/scripts/baselines/capture_corpus_integrity_baseline.py`` — through the
+quality report and asserts the report *says something is wrong*, using only what a reader would see.
 
 If someone later "simplifies" the report and this test still passes, the report still works.
 If it fails, we have re-created the blindness, whatever the size gate is doing.

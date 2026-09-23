@@ -7,7 +7,9 @@
 # Do not set ``output_dir`` here: viewer jobs pass ``--output-dir`` = the corpus root.
 # Feeds belong in ``feeds.spec.yaml`` in the same directory (Feeds API / CLI --feeds-spec).
 #
-# Reference manual: ``config/manual/operator_defaults.yaml`` (CLI-oriented; may set output_dir).
+# Reference manual: ``config/examples/viewer_operator.docker.example.yaml`` (the Docker
+# variant of this file). The operator-defaults manual this line used to name was
+# removed; it has no replacement path.
 
 # Required for Docker job mode (api spawns ``pipeline-llm`` / ``pipeline``
 # via ``docker compose run``). Selects which compose service to spawn:

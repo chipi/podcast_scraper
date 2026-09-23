@@ -2,9 +2,9 @@
 """Generate v3 fixture transcripts + ground-truth labels + dataset manifest.
 
 This generator extends the v2 fixture model
-(``scripts/eval/data/generate_v2_transcripts.py``) with explicit knobs for the
+(``eval-data/scripts/eval/data/generate_v2_transcripts.py``) with explicit knobs for the
 **failure-mode catalogue** harvested from the autoresearch programme
-(`docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md` + `docs/guides/eval-reports/EVAL_FIXTURES_V3.md`):
+(`docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md` + `eval-data/docs/guides/eval-reports/EVAL_FIXTURES_V3.md`):
 
 * ASR garble class (Whisper-style speaker-name corruption — Bessent → Bessett,
   Weisenthal → Wassenthal, Geithner → Geidner, Hobart → Burne/Byrne Hobart).
@@ -42,11 +42,10 @@ Output:
   sponsor blocks, position-arc deltas).
 * ``tests/fixtures/ground-truth/v3/manifest.json`` — corpus-level manifest (podcast list,
   per-episode failure-mode tags, expected guest count, etc.).
-* ``data/eval/datasets/curated_5feeds_smoke_v3/manifest.yaml`` —
+* ``tests/fixtures/ground-truth/v3/dataset/manifest.yaml`` —
   autoresearch-ready dataset wrapping v3 with per-episode failure_modes tags.
-* ``data/eval/datasets/curated_5feeds_smoke_v3.json`` — same dataset in the
-  ``data/eval/datasets/*.json`` flat-file shape used by the existing
-  autoresearch harness.
+* ``tests/fixtures/ground-truth/v3/dataset/curated_5feeds_smoke_v3.json`` — same
+  dataset in the flat-file shape the autoresearch harness reads.
 
 Audio: a separate operator PR provides multi-voice TTS for v3. This generator
 does NOT emit audio; it exposes ``AUDIO_VOICE_HINTS`` (per-episode accent /
@@ -81,8 +80,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TRANSCRIPTS_OUT = PROJECT_ROOT / "tests" / "fixtures" / "transcripts" / "v3"
 FIXTURES_V3_ROOT = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3"
 LABELS_OUT = FIXTURES_V3_ROOT / "ground_truth"
-DATASET_DIR = PROJECT_ROOT / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v3"
-DATASET_FLAT_JSON = PROJECT_ROOT / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v3.json"
+# The dataset wrapper used to land in ``data/eval/datasets/``. Arc 2 (#2134) moved
+# the eval research surface to the private repo and deleted that tree, which left
+# this generator writing into a directory that no longer exists. Its output is a
+# TEST FIXTURE — synthetic, derived from the v3 spec in this file, and consumed by
+# tests/integration/fixtures/ — so it belongs with the rest of what this script
+# emits, not in a research tree that is no longer here.
+DATASET_DIR = FIXTURES_V3_ROOT / "dataset"
+DATASET_FLAT_JSON = DATASET_DIR / "curated_5feeds_smoke_v3.json"
 
 
 def _stable_seed(s: str) -> int:

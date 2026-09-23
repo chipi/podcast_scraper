@@ -13,7 +13,7 @@ Six routes total:
   manual recovery; mirrors ``podcast enrich --re-enable``.
 * ``GET  /api/enrichment/metrics`` — windowed metric snapshot
   (chunk-1 ships the route + empty payload; chunks 3–4 populate via
-  ``data/eval/enrichment/<id>/history.jsonl``; chunk 6 viewer panel
+  ``eval-data/data/eval/enrichment/<id>/history.jsonl``; chunk 6 viewer panel
   consumes).
 * ``GET  /api/enrichment/run-summary`` — most recent
   ``enrichments/run_summary.json`` (or ``{}`` when none yet).

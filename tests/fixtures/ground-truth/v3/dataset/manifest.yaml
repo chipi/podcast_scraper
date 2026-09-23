@@ -1,0 +1,55 @@
+dataset_id: curated_5feeds_smoke_v3
+version: "1.0"
+description: |
+  Smoke dataset over v3 sources: first episode per feed (5 episodes). Per-
+  episode failure_modes tag exposes the v3 knobs that each episode
+  exercises (asr_garble, native_ad, multi_accent, etc.).
+created_at: "2026-06-09T00:00:00.000000Z"
+content_regime: explainer
+num_episodes: 5
+episodes:
+  - episode_id: p01_e01
+    title: "Building Trails That Last (with Liam Verbeek)"
+    transcript_path: tests/fixtures/transcripts/v3/p01_e01.txt
+    transcript_hash: 8ea57dbde4483d5cbb72a80fd455a32024b24cb5e094d15549788ee39d5aeb8c
+    preprocessing_profile: cleaning_v3
+    duration_minutes: 8.73
+    failure_modes:
+      - asr_garble
+  - episode_id: p02_e01
+    title: "On-Call That Doesn't Break People (with Priya Nair)"
+    transcript_path: tests/fixtures/transcripts/v3/p02_e01.txt
+    transcript_hash: 89f7c332768d201877b98a4a8d140122d8fd3032d2419c81b7df8e98b814a7c4
+    preprocessing_profile: cleaning_v3
+    duration_minutes: 6.15
+    failure_modes:
+      - asr_garble
+      - recurring_guest
+      - position_arc_multi
+  - episode_id: p03_e01
+    title: "Wreck Diving Fundamentals (with Marco Silva)"
+    transcript_path: tests/fixtures/transcripts/v3/p03_e01.txt
+    transcript_hash: cbc4dae40910dc1fba95dd698bfcf5b91c6997899a1425dbb72e0208056d476d
+    preprocessing_profile: cleaning_v3
+    duration_minutes: 6.03
+    failure_modes:
+      - asr_garble
+      - same_first_distinct
+  - episode_id: p04_e01
+    title: "Underwater Images That Feel Alive (with Ava Lemoine)"
+    transcript_path: tests/fixtures/transcripts/v3/p04_e01.txt
+    transcript_hash: a4a1d475185e045d6042790e663cc14bf5e81e3b2eff616d6ebbe705ba0e8a0c
+    preprocessing_profile: cleaning_v3
+    duration_minutes: 6.42
+    failure_modes:
+      - multi_accent
+      - frame_topic_cross_domain
+  - episode_id: p05_e01
+    title: "Index Investing Without the Myths (with Daniel Cho)"
+    transcript_path: tests/fixtures/transcripts/v3/p05_e01.txt
+    transcript_hash: e1556d125bde8832b1302d89387e7a1b0b24d5f861f570eb566cfb86d5795382
+    preprocessing_profile: cleaning_v3
+    duration_minutes: 6.94
+    failure_modes:
+      - same_first_distinct
+      - frame_topic_cross_domain

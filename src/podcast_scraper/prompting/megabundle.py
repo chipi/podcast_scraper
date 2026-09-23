@@ -7,7 +7,8 @@ output with full-quality summary; OpenAI/Gemini/Mistral/Grok compress the
 summary too much — those use extraction_bundled instead).
 
 Prompt shape kept close to the experiment script
-(`scripts/eval/megabundle_experiment.py`) so pipeline and research paths
+(`scripts/eval/megabundle_experiment.py`, deleted in #648 — the harness it
+named no longer exists in either repo) so pipeline and research paths
 stay comparable; changes here should be reflected in the research script
 and re-benchmarked.
 """

@@ -6,7 +6,7 @@ production, gated). It deliberately does NOT restate things that already live in
 a central place:
 
 - **summary + evidence** model ids are the central ``ModelRegistry`` keys
-  (autoresearch-fed via ``scripts/registry/promote_baseline.py`` ->
+  (autoresearch-fed via ``eval-data/scripts/registry/promote_baseline.py`` ->
   ``ModeConfiguration``); their params/capabilities stay in the registry.
 - **whisper / spaCy** defaults come from ``config_constants``.
 - **pinned revisions** come from ``config_constants.get_pinned_revision_for_model``.

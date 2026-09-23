@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 # Conventional location of per-enricher gate metrics, relative to the eval root
 # (``data/eval`` by default). One file per enricher:
-#   data/eval/enrichment/<enricher_id>/gate_metrics.json
+#   eval-data/data/eval/enrichment/<enricher_id>/gate_metrics.json
 # shape: {"enricher_id": "...", "metrics": {"precision": 0.8, ...}, "run_id": ...}
 _ENRICHMENT_EVAL_SUBDIR = "enrichment"
 _GATE_METRICS_FILENAME = "gate_metrics.json"

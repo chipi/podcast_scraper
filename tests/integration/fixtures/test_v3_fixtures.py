@@ -5,7 +5,7 @@ These tests assert the v3 corpus produced by ``scripts/build_v3_fixtures.py``:
 1. Exercises every failure mode in ``FAILURE_MODES`` (≥ 1 episode each).
 2. Is deterministic: re-running the generator produces identical bytes.
 3. Wraps cleanly into the autoresearch dataset format
-   (``data/eval/datasets/curated_5feeds_smoke_v3.json``).
+   (``tests/fixtures/ground-truth/v3/dataset/curated_5feeds_smoke_v3.json``).
 4. Does NOT alter v2 paths (additive only).
 5. Ground-truth labels are consistent with the rendered transcripts
    (every recorded surface form appears verbatim in the transcript).
@@ -27,6 +27,7 @@ from typing import Any, cast
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DATASET_DIR = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "dataset"
 
 
 def _load_generator():
@@ -298,9 +299,12 @@ def test_fixtures_version_is_v3():
 
 def test_smoke_dataset_json_well_formed():
     """The flat-file dataset JSON loads cleanly and has 5 smoke episodes."""
-    p = PROJECT_ROOT / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v3.json"
-    if not p.exists():
-        pytest.skip("v3 smoke dataset not on disk; run the generator first")
+    p = DATASET_DIR / "curated_5feeds_smoke_v3.json"
+    # No skip. The dataset is a COMMITTED fixture, so absence is a failure, not a
+    # reason to pass quietly. It used to live under data/eval/, which arc 2 (#2134)
+    # deleted — and because this was a skip, both dataset tests went silently
+    # vacuous instead of going red.
+    assert p.exists(), f"{p} missing — run `python scripts/build_v3_fixtures.py`"
     data = json.loads(p.read_text(encoding="utf-8"))
     assert data["dataset_id"] == "curated_5feeds_smoke_v3"
     assert data["num_episodes"] == 5
@@ -311,9 +315,8 @@ def test_smoke_dataset_json_well_formed():
 
 
 def test_smoke_dataset_yaml_emitted():
-    p = PROJECT_ROOT / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v3" / "manifest.yaml"
-    if not p.exists():
-        pytest.skip("v3 dataset dir not on disk; run the generator first")
+    p = DATASET_DIR / "manifest.yaml"
+    assert p.exists(), f"{p} missing — run `python scripts/build_v3_fixtures.py`"
     text = p.read_text(encoding="utf-8")
     assert text.startswith("dataset_id: curated_5feeds_smoke_v3"), "yaml header malformed"
     # Each smoke episode should carry a transcript_hash.
@@ -332,10 +335,21 @@ def test_v3_smoke_has_v2_shape_compatible_fields():
     Compared against the live v2 smoke dataset; if v2's schema evolves, this
     test catches divergence.
     """
-    v2_path = PROJECT_ROOT / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v2.json"
-    v3_path = PROJECT_ROOT / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v3.json"
-    if not (v2_path.exists() and v3_path.exists()):
-        pytest.skip("v2 or v3 smoke dataset missing")
+    # v3 is a committed fixture here; v2 is research data that moved to the private
+    # eval repo in arc 2 (#2134), so this comparison is genuinely cross-repo. The v3
+    # half is asserted; the v2 half skips ONLY when the research is not mounted, and
+    # says so — the old "v2 or v3 smoke dataset missing" hid a real regression behind
+    # a reason that was true for the wrong half.
+    v3_path = DATASET_DIR / "curated_5feeds_smoke_v3.json"
+    assert v3_path.exists(), f"{v3_path} missing — run `python scripts/build_v3_fixtures.py`"
+    v2_path = (
+        PROJECT_ROOT / "eval-data" / "data" / "eval" / "datasets" / "curated_5feeds_smoke_v2.json"
+    )
+    if not v2_path.exists():
+        pytest.skip(
+            "v2 smoke dataset lives in the private eval repo; mount it at eval-data/ "
+            "(docs/guides/EVAL_RESEARCH_MOUNT.md) to run the v2/v3 shape comparison"
+        )
     v2 = json.loads(v2_path.read_text(encoding="utf-8"))
     v3 = json.loads(v3_path.read_text(encoding="utf-8"))
     v2_top_level = set(v2.keys())
