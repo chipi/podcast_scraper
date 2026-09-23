@@ -906,13 +906,9 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
             "pyannote on real audio, so pair with pyannote. 2.1-3.8x realtime (bare "
             "transformers, no speed win vs large-v3). English quality resolved: excellent."
         ),
-        # 2026-07-22: DEMOTED to fallback — on SPEED, not accuracy. (Corrected 2026-07-23: an
-        # earlier note here claimed MOSS was "near the bottom" on a delivered transcript; that
-        # "transcript" was our own old ASR, not human — retracted.) Against REAL human ground truth
-        # (80k Hours, n=10) MOSS is 2nd-best on accuracy (12.5% WER, beaten only by openai-whisper-1
-        # at 11.4%). But it is the SLOWEST option (2.9x realtime vs turbo 25x), so turbo is primary
-        # and MOSS is the accurate-but-slow DGX fallback. n=10 single-show — see
-        # EVAL_ASR_5MODEL_BAKEOFF_2026_07.md.
+        # 2026-07-22: DEMOTED to fallback on SPEED, not accuracy — 2nd-best WER (12.5%)
+        # but the slowest option (2.9x realtime vs turbo 25x).
+        # rationale: podcast-scraper-eval-data:data/eval/rationale/moss_demotion.md
         measured_at="2026-07-16",
         tier="fallback",
         resident_memory_gb=16.0,
@@ -968,22 +964,15 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
             "mean WER 0.0248 on v2 — best accuracy AND best latency (1.2s/ep) "
             "across all measured models. ≈$0.0043/min."
         ),
-        # 2026-07-22: DEMOTED to fallback for TRANSCRIPTION (corrected 2026-07-23). The 0.0248 above
-        # is on the v2 FIXTURES. Against REAL human ground truth (80k Hours, n=10) Deepgram is 13.9%
-        # WER — mid-pack (4th of 5), cheaper (~$0.0043/min) but less accurate than openai-whisper-1
-        # (11.4%, ~$0.006/min). Cloud transcription is openai_whisper_1. Deepgram stays PRIMARY for
-        # cloud DIARIZATION (separate option `deepgram_diarization_nova3`) — that is its role now.
-        # (An earlier note called Deepgram "worst of five" vs a delivered transcript; that
-        # transcript was our own old ASR, not human — retracted.)
-        # See EVAL_ASR_5MODEL_BAKEOFF_2026_07.md.
+        # 2026-07-22: DEMOTED to fallback for TRANSCRIPTION — 13.9% WER on real human
+        # ground truth (4th of 5). Stays PRIMARY for cloud DIARIZATION.
+        # rationale: podcast-scraper-eval-data:data/eval/rationale/deepgram_demotion.md
         measured_at="2026-06-13",
         tier="fallback",
     ),
-    # Dev / airgapped_thin floor — fastest local Whisper. Smoke_v2 numbers
-    # use the FU4 clean-reference preprocessing (markdown headers + speaker
-    # labels + timestamps stripped) so WER is comparable to the v2 fixture
-    # baseline in EVAL_WHISPER_SMALL_EN_2026_06_13.md. FU5 DGX figures pinned
-    # alongside for cross-device portability.
+    # Dev / airgapped_thin floor — fastest local Whisper. WER is comparable to the
+    # v2 fixture baseline only because of FU4 clean-reference preprocessing.
+    # rationale: podcast-scraper-eval-data:data/eval/rationale/whisper_small_en_wer.md
     "local_whisper_tiny_en": StageOption(
         stage="transcription",
         option_id="local_whisper_tiny_en",
@@ -1415,16 +1404,9 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
 # report that justifies the choice — the whole point of this registry is
 # that every default is backed by measured evidence, not opinion.
 
-# GI — summary-derived provider mode is the v2 winner (#978).
-#
-# `EVAL_GI_AUTORESEARCH_V2_2026_06_13.md` measured direct-from-transcript
-# extraction across n ∈ {6, 8, 10, 12, 16} against the v2 silver. Coverage
-# capped at 10% regardless of n; the summary-derived pipeline hits 72% on
-# the same provider in the same eval window. The "bypass summary" historic
-# claim is reversed on v2.
-#
-# Bundling (`bundled_ab`) is the cross-provider champion per #921
-# (EVAL_GIL_BUNDLING_2026_05). Grounding is treated as universal-on.
+# GI — summary-derived provider mode is the v2 winner (#978): 72% coverage
+# vs 10% for direct-from-transcript. Bundling is the cross-provider champion (#921).
+# rationale: podcast-scraper-eval-data:data/eval/rationale/gi_summary_derived.md
 _GI_OPTIONS: Dict[str, StageOption] = {
     # v2.5 finale GI config — identical to ``provider_chunked_gated_v3`` EXCEPT three knobs the
     # 2026-08 finale validated for the cloud flash summarisers (deepseek/qwen): max_insights 50->12
@@ -2257,13 +2239,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="litellm_speaker_detector",
         clustering="topic_clusters_corpus_0_70",
-        # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
-        # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
-        # measured; providers clamped to 10 regardless". v3 superseded it citing
-        # EVAL_GEMINI_VS_QWEN_10EP_2026_07 for every value. v25 reintroduced 12 inside the
-        # v2.5 finale, whose eval (EVAL_FINALE_METHODOLOGY) is about JUDGING MODEL ARMS and
-        # never tested insight counts — the GI params rode along as config, not as findings.
-        # These three profiles were the last still on it; the other thirteen already run v3.
+        # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
+        # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
+        # rationale: podcast-scraper-eval-data:data/eval/rationale/gi_v3_not_v25.md
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # Same primary as cloud_balanced (``cloud_or_deepseek_flash`` -> OpenRouter) and, until
@@ -2281,13 +2259,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="qwen_speaker_detector",
         clustering="topic_clusters_corpus_0_70",
-        # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
-        # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
-        # measured; providers clamped to 10 regardless". v3 superseded it citing
-        # EVAL_GEMINI_VS_QWEN_10EP_2026_07 for every value. v25 reintroduced 12 inside the
-        # v2.5 finale, whose eval (EVAL_FINALE_METHODOLOGY) is about JUDGING MODEL ARMS and
-        # never tested insight counts — the GI params rode along as config, not as findings.
-        # These three profiles were the last still on it; the other thirteen already run v3.
+        # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
+        # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
+        # rationale: podcast-scraper-eval-data:data/eval/rationale/gi_v3_not_v25.md
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # Native DashScope rather than OpenRouter, so it does not share that account's budget —
@@ -2310,13 +2284,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         kg="provider_n10_15",
         ner="litellm_speaker_detector",
         clustering="topic_clusters_corpus_0_70",
-        # v3, not v25 (2026-08-30): v25 carries max_insights=12 / min_tier=3, and 12 is the
-        # value provider_n12_grounded_bundled was DEPRECATED for on 2026-07-14 — "never
-        # measured; providers clamped to 10 regardless". v3 superseded it citing
-        # EVAL_GEMINI_VS_QWEN_10EP_2026_07 for every value. v25 reintroduced 12 inside the
-        # v2.5 finale, whose eval (EVAL_FINALE_METHODOLOGY) is about JUDGING MODEL ARMS and
-        # never tested insight counts — the GI params rode along as config, not as findings.
-        # These three profiles were the last still on it; the other thirteen already run v3.
+        # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
+        # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
+        # rationale: podcast-scraper-eval-data:data/eval/rationale/gi_v3_not_v25.md
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # RFC-111 (#1482): a homelab:4001 gateway CONNECTION outage must fail over to direct

@@ -17,6 +17,7 @@ Any two agreeing while the third quietly disagrees is exactly how this got shipp
 from __future__ import annotations
 
 import pathlib
+import re
 
 import pytest
 
@@ -91,6 +92,44 @@ class TestGroundingStageIsRegistered:
                     f"{opt.option_id}: research_ref {ref!r} is not a recognised citation. "
                     "Use podcast-scraper-eval-data:<path>, docs/<path>, or #<issue>."
                 )
+
+
+class TestRationalePointersAreWellFormed:
+    """A `rationale:` pointer is a citation too, and rots the same way.
+
+    Five research arguments moved to the private repo so they sit beside the
+    reports they cite — they were prose in `#` comments, one of them copied
+    verbatim into three presets. What stayed here is the operative fact plus a
+    pointer.
+
+    A comment is not importable, so the private repo's `registry-refs-check`
+    cannot resolve these until its pin advances. This asserts what CAN be
+    asserted here: that every pointer is repo-qualified and names a markdown
+    file. It is the same three-form rule `research_ref` follows, and it catches
+    the failure that actually happened — a citation left as a bare path.
+    """
+
+    def test_every_rationale_pointer_is_repo_qualified(self) -> None:
+        src = pathlib.Path("src/podcast_scraper/providers/ml/model_registry.py").read_text()
+        pointers = re.findall(r"#\s*rationale:\s*(\S+)", src)
+        assert pointers, "no rationale pointers found — did the comment form change?"
+        for ref in pointers:
+            assert ref.startswith("podcast-scraper-eval-data:"), (
+                f"rationale pointer {ref!r} is not repo-qualified. The rationale files "
+                "live in chipi/podcast-scraper-eval-data; cite them as "
+                "podcast-scraper-eval-data:<path>."
+            )
+            assert ref.endswith(".md"), f"rationale pointer {ref!r} names no document"
+
+    def test_the_duplicated_argument_is_cited_once_per_preset(self) -> None:
+        """The v3-not-v25 argument was copied into three presets verbatim.
+
+        Three copies meant correcting one left two stale. They now point at one
+        file; this keeps that true.
+        """
+        src = pathlib.Path("src/podcast_scraper/providers/ml/model_registry.py").read_text()
+        n = src.count("rationale/gi_v3_not_v25.md")
+        assert n == 3, f"expected the 3 cloud presets to cite the shared rationale, found {n}"
 
 
 class TestPresetGrounderMatchesItsSummariser:
