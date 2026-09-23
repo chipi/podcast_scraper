@@ -62,6 +62,8 @@ nav:
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - Validating corpus fixes fast: guides/VALIDATING_CORPUS_FIXES_FAST.md
       - Provider Deep Dives: guides/PROVIDER_DEEP_DIVES.md
+      - Splitting a surface into a private repo: guides/SPLITTING_A_SURFACE_INTO_A_PRIVATE_REPO.md
+      - Mounting the private eval research repo: guides/EVAL_RESEARCH_MOUNT.md
       # The eval reports, performance reports and perf traces moved to the
       # private research repo (chipi/podcast-scraper-eval-data). They quote real
       # episode transcripts and gold references, so they are not published
