@@ -50,10 +50,34 @@ class TestGroundingStageIsRegistered:
         assert get_grounding_option(ML_GROUNDER).tier == "fallback"
 
     def test_research_ref_points_at_a_real_report(self) -> None:
+        """A citation must name a report, and must resolve wherever it can be checked.
+
+        The reports moved to the private eval repo in arc 2 (#2134), so a
+        repo-relative path can no longer resolve here — that is exactly what broke:
+        the citation and the cited ended up in different repos and nothing noticed
+        for 19 refs. Refs now name the ``eval-data/`` mount
+        (docs/guides/EVAL_RESEARCH_MOUNT.md), which is gitignored and present only
+        for someone who has checked the research out.
+
+        So the invariant is two-part, and neither half is vacuous:
+          * ALWAYS — the ref exists and points into the research repo, which
+            catches a ref left as a bare repo-relative path (the arc-2 bug).
+          * WHEN MOUNTED — the file is really there, which catches a renamed or
+            deleted report for anyone who has the research checked out.
+        """
+        mount = pathlib.Path("eval-data")
         for opt in get_grounding_options().values():
             ref = opt.research_ref
             assert ref is not None, f"{opt.option_id} has no research_ref"
-            assert pathlib.Path(ref).is_file(), f"{ref} does not exist"
+            assert ref.startswith("eval-data/"), (
+                f"{opt.option_id}: research_ref {ref!r} is not in the research repo. "
+                "Reports live in chipi/podcast-scraper-eval-data; cite them via the "
+                "eval-data/ mount (docs/guides/EVAL_RESEARCH_MOUNT.md)."
+            )
+            if mount.is_dir():
+                assert pathlib.Path(
+                    ref
+                ).is_file(), f"{ref} does not exist in the mounted research repo"
 
 
 class TestPresetGrounderMatchesItsSummariser:
