@@ -204,7 +204,7 @@ Given deploy **reader** compatibility `[min,max]` and a list of backup candidate
 
 **Mapping to [GitHub #763](https://github.com/chipi/podcast_scraper/issues/763):** backup **writes** manifest + dual placement; restore **reads** manifests and **enforces** newest-compatible / fail closed; **scripts + Make + workflows** together cover the deliverable — not Actions-only logic with no local equivalent.
 
-**Operator map (all surfaces):** [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) — **Make** for local validation/restore loop; **Actions** for prod, pre-prod/codespace backup, and drill restore.
+**Operator map (all surfaces):** CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md — **Make** for local validation/restore loop; **Actions** for prod, pre-prod/codespace backup, and drill restore.
 
 ### 6. Backup workflows
 
@@ -237,7 +237,7 @@ scripts called by them, and **`restore-corpus`** / **`restore-corpus-prod`** in 
 ### 8. Documentation
 
 - DR and prod runbooks: **when newest-compatible default is wrong** (rollback, format bump,
-  mixed-age hosts) — see [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
+  mixed-age hosts) — see CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md.
 - Cross-link this RFC and [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md).
 - Document **`restore-corpus`**, **`restore-corpus-prod`**, and env vars (`PODCAST_BACKUP_TAG`,
   `PODCAST_BACKUP_REPO`) vs default selection behavior after implementation.

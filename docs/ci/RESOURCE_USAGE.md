@@ -169,4 +169,4 @@ build (parallel) ──┐
 - [GitHub Actions Usage Limits](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions)
 - [GitHub Actions Cache](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
 - [Pytest-xdist Documentation](https://pytest-xdist.readthedocs.io/)
-- [Workflows](WORKFLOWS.md) - Detailed workflow documentation
+- Workflows - Detailed workflow documentation
