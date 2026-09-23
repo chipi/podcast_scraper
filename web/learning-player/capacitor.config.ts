@@ -10,7 +10,7 @@ const CANVAS = '#0e0d10'
 
 const config: CapacitorConfig = {
   appId: 'app.closelistening.player',
-  appName: 'Learning Player',
+  appName: 'Close Listening',
   webDir: 'dist',
   server: {
     androidScheme: 'https', // stable WebView origin for history routing
