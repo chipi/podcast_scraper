@@ -200,7 +200,7 @@ with [ADR-089](../adr/ADR-089-prod-failover-orchestrator-separate-from-drill.md)
 implementation lands post-2.6. Optional public TLS edge + multi-app hosting is documented
 in [RFC-087](../rfc/RFC-087-vps-public-edge-multi-compose.md).
 
-Operator-facing playbooks: [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md), [PROD_OPERATOR_CHEAT_SHEET.md](../guides/PROD_OPERATOR_CHEAT_SHEET.md), [VPS_MULTI_APP_ONBOARDING.md](../guides/VPS_MULTI_APP_ONBOARDING.md).
+Operator-facing playbooks: PROD_RUNBOOK.md, PROD_OPERATOR_CHEAT_SHEET.md, VPS_MULTI_APP_ONBOARDING.md.
 
 ### Corpus snapshot backup manifest + version-aware restore (RFC-084, ADR-092)
 

@@ -8,7 +8,7 @@ including workflow details, local development guides, and metrics dashboards.
 | Document | Description |
 | --------- | ------------- |
 | [Overview](OVERVIEW.md) | Architecture, optimization strategies, and high-level concepts |
-| [Workflows](WORKFLOWS.md) | Detailed documentation for all GitHub Actions workflows |
+| Workflows | Detailed documentation for all GitHub Actions workflows |
 | [Resource Usage](RESOURCE_USAGE.md) | Resource usage strategy and limits |
 | [Snyk Setup](SNYK_SETUP.md) | Security scanning setup and configuration |
 | [Local Development](LOCAL_DEVELOPMENT.md) | Pre-commit hooks, local CI validation, and debugging |
@@ -40,7 +40,7 @@ The CI/CD pipeline consists of **six main workflows**:
 
 1. **New to CI/CD?** Start with [Overview](OVERVIEW.md) to understand the architecture
 2. **Setting up locally?** See [Local Development](LOCAL_DEVELOPMENT.md) for pre-commit hooks and validation
-3. **Understanding workflows?** Check [Workflows](WORKFLOWS.md) for detailed documentation
+3. **Understanding workflows?** Check Workflows for detailed documentation
 4. **Viewing metrics?** See [Test dashboard](METRICS.md) and [Code quality trends](CODE_QUALITY_TRENDS.md)
 
 ## Related Documentation

@@ -24,4 +24,4 @@ Operators need a **stable name** for prod traffic on the tailnet. Spare has a **
 ## References
 
 - [GitHub #764](https://github.com/chipi/podcast_scraper/issues/764)
-- [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md) (`tailscale serve`, MagicDNS)
+- PROD_RUNBOOK.md (`tailscale serve`, MagicDNS)

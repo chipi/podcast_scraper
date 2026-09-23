@@ -141,9 +141,9 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 | Doc | Use when |
 | --- | --- |
 | [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) | Big picture: Tailscale, OpenTofu, GitHub Actions, Compose on prod, CI gates vs deploy |
-| [Prod runbook](PROD_RUNBOOK.md) | Operator commands for prod |
-| [DR drill runbook](DR_DRILL_RUNBOOK.md) | Drill-only GitHub workflows |
-| [WORKFLOWS](../ci/WORKFLOWS.md) | Workflow file names and triggers |
+| Prod runbook | Operator commands for prod |
+| DR drill runbook | Drill-only GitHub workflows |
+| WORKFLOWS | Workflow file names and triggers |
 
 ---
 

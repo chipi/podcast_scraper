@@ -2,7 +2,7 @@
 
 This document covers the architecture, optimization strategies, and high-level concepts of the CI/CD pipeline.
 
-For detailed workflow documentation, see [Workflows](WORKFLOWS.md).
+For detailed workflow documentation, see Workflows.
 For local development setup, see [Local Development](LOCAL_DEVELOPMENT.md).
 
 ---

@@ -234,7 +234,7 @@ sets `transcription.primary: tailnet_dgx_whisper` with OpenAI fallback, plus `sc
 `diarize: true`. Diarization runs on the machine that holds the audio file after transcription
 (local pipeline host), not on the remote DGX Whisper HTTP service unless you colocate processing.
 
-See [DGX Runbook](DGX_RUNBOOK.md) for tailnet and validation steps.
+See DGX Runbook for tailnet and validation steps.
 
 ---
 
