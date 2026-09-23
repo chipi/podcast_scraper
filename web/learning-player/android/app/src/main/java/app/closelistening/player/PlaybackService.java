@@ -62,7 +62,7 @@ public class PlaybackService extends android.app.Service {
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Learning Player")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText("Playing in the background")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(contentIntent)
