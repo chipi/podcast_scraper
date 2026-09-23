@@ -242,7 +242,7 @@ for genuinely one-shot data-shape corrections that never repeat.
 ## See also
 
 - [API Migration Guide](../api/MIGRATION_GUIDE.md) — API surface changes per version.
-- [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) —
+- Corpus snapshot manifest and restore —
   SSOT for corpus backup / restore surfaces (each restore path pairs with
   `upgrade-check` — see [#1176](https://github.com/chipi/podcast_scraper/issues/1176)).
-- [Corpus airgap runbook](CORPUS_AIRGAP_RUNBOOK.md) — post-import upgrade recipe.
+- Corpus airgap runbook — post-import upgrade recipe.

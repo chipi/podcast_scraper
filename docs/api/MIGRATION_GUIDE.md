@@ -88,7 +88,7 @@ enriched retroactively via `make enrich CORPUS=<dir>`.
 `make export-corpus` + `make import-corpus` produce a portable snapshot (identical
 format to the CI backup path) and restore it locally — no `gh` dependency. Useful
 for laptop ↔ VPS moves, prod ↔ codespace transplants, and airgapped restores. See
-[Corpus airgap runbook](../guides/CORPUS_AIRGAP_RUNBOOK.md).
+Corpus airgap runbook.
 
 ### Deployment: `upgrade-check` gates on stale corpora (#1176)
 
@@ -98,13 +98,13 @@ for laptop ↔ VPS moves, prod ↔ codespace transplants, and airgapped restores
 restore that lands an older snapshot onto a newer code deploy migrates the corpus
 before the api boots. Local restores (`make restore-corpus` /
 `make import-corpus`) should be followed by the same `make upgrade-corpus` step;
-see [Corpus airgap runbook](../guides/CORPUS_AIRGAP_RUNBOOK.md#post-import-apply-pending-upgrade-migrations).
+see Corpus airgap runbook.
 
 ### Related
 
 - [Corpus upgrade framework (#862)](../guides/CORPUS_UPGRADE.md) — registered-migrations
   list, ledger model, adding a migration.
-- [Corpus snapshot manifest and restore](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) —
+- Corpus snapshot manifest and restore —
   SSOT for backup / restore surfaces.
 - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md), [ADR-099](../adr/ADR-099-lancedb-first-single-index-search.md),
   [RFC-097](../rfc/RFC-097-unified-kg-gi-ontology-v2.md), [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md).

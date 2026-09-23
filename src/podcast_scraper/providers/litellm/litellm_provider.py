@@ -141,7 +141,7 @@ class LiteLLMProvider(OpenAICompatibleProvider):
         if not _served_matches(expected, served):
             raise LiteLLMServedModelMismatch(
                 f"LiteLLM gateway at {base} advertises {sorted(served) or '<none>'} but this "
-                f"profile pins alias {expected!r}. Add the alias to infra/litellm/config.yaml "
+                f"profile pins alias {expected!r}. The gateway must advertise this alias "
                 f"(+ reload the gateway) or fix litellm_summary_model. Refusing to run."
             )
         logger.info("litellm: served-alias check OK (%s advertised at %s)", expected, base)

@@ -82,7 +82,7 @@ def test_from_yaml_multitarget_and_secret_env(tmp_path, monkeypatch: pytest.Monk
 def test_discover_default_config_finds_cwd_homelab_yaml(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Zero-config dev default: a committed ``config/observability.homelab.yaml`` under the cwd is
+    """Zero-config dev default: a placed ``config/observability.homelab.yaml`` under the cwd is
     auto-discovered so ``podcast_obs`` needs no ``PODCAST_OBS_CONFIG`` on a developer box."""
     (tmp_path / "config").mkdir()
     yaml = tmp_path / "config" / "observability.homelab.yaml"

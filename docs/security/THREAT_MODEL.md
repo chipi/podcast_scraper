@@ -13,7 +13,7 @@ of doing so and the controls that keep it acceptable. When the two disagree, one
 wrong — reconcile, do not paper over.
 
 Related: [ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) (tailnet
-admin plane), orrery **ADR-078** (first public tenant), [PROD_RUNBOOK](../guides/PROD_RUNBOOK.md),
+admin plane), orrery **ADR-078** (first public tenant), PROD_RUNBOOK,
 incident [2026-05-29 prod-rebuild cascade](../incidents/INCIDENT-2026-05-29-prod-rebuild-cascade.md).
 Tracking: hardening [#1160](https://github.com/chipi/podcast_scraper/issues/1160) (execution plan: `docs/wip/INFRA-HARDENING-PLAN.md`); shared edge [#1158](https://github.com/chipi/podcast_scraper/issues/1158) / [chipi/orrery#381](https://github.com/chipi/orrery/issues/381).
 

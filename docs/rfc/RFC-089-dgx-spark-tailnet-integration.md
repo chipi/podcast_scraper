@@ -1,6 +1,6 @@
 # RFC-089: DGX Spark — tailnet-integrated AI workhorse for dev, eval, and pre-prod
 
-- **Status**: Completed (v2.7) — Phases P0 / P1 / P2 shipped (DGX on tailnet; Ollama-then-vLLM serving Qwen3-30B-A3B-Instruct on `:8003`; `TailnetDgxProvider` + `local_dgx_balanced` / `local_dgx_full` profiles; autoresearch matrix pointed at DGX; AI comparison guide updated with real DGX measurements). [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md) (prod-primary-with-fallback) and [ADR-097](../adr/ADR-097-self-hosted-gha-runner-policy.md) (self-hosted runner allowlist policy) both Accepted. [`DGX_RUNBOOK.md`](../guides/DGX_RUNBOOK.md) covers day-2 ops. P3 (GHA self-hosted runner registration + pre-prod-uses-DGX-by-default) is the remaining sub-item, tracked as [#813](https://github.com/chipi/podcast_scraper/issues/813) — heavier infra change held until operator commits the runner host. Companion to RFC-082 + RFC-081.
+- **Status**: Completed (v2.7) — Phases P0 / P1 / P2 shipped (DGX on tailnet; Ollama-then-vLLM serving Qwen3-30B-A3B-Instruct on `:8003`; `TailnetDgxProvider` + `local_dgx_balanced` / `local_dgx_full` profiles; autoresearch matrix pointed at DGX; AI comparison guide updated with real DGX measurements). [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md) (prod-primary-with-fallback) and [ADR-097](../adr/ADR-097-self-hosted-gha-runner-policy.md) (self-hosted runner allowlist policy) both Accepted. `DGX_RUNBOOK.md` covers day-2 ops. P3 (GHA self-hosted runner registration + pre-prod-uses-DGX-by-default) is the remaining sub-item, tracked as [#813](https://github.com/chipi/podcast_scraper/issues/813) — heavier infra change held until operator commits the runner host. Companion to RFC-082 + RFC-081.
 
 ## Abstract
 
@@ -287,7 +287,7 @@ Hard rule for the next agent picking up any of these: **do not write code or doc
 - [RFC-082](RFC-082-always-on-pre-prod-and-prod-hosting.md) — prod hosting; this RFC explicitly excludes DGX from the prod path defined there
 - [RFC-083](RFC-083-prod-failover-orchestration-and-cutover.md) — failover; this RFC explicitly does not use DGX as a failover target
 - [RFC-081](RFC-081-pre-prod-environment-and-control-plane.md) — pre-prod control plane; this RFC provides the LLM backend for pre-prod once #800 ships
-- [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md) — operational baseline that `DGX_RUNBOOK.md` will mirror
+- PROD_RUNBOOK.md — operational baseline that `DGX_RUNBOOK.md` will mirror
 - Related v2.7 issues:
   - #800 — parkable pre-prod (will consume DGX as LLM backend per Tier 3)
   - #803 — deploy observability + MCP (could surface DGX health as an MCP tool)

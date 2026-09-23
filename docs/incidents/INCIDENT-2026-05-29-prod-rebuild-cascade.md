@@ -292,8 +292,8 @@ Net effect: every gap from Phase 3 except `#840` (external secrets manager, defe
 
 ### Runbook sections touched
 
-- [PROD_RUNBOOK § Disaster recovery](../guides/PROD_RUNBOOK.md#disaster-recovery)
-- [PROD_RUNBOOK § Co-tenant tailnet publish rules](../guides/PROD_RUNBOOK.md#co-tenant-tailscale-serve-rules)
+- PROD_RUNBOOK § Disaster recovery
+- PROD_RUNBOOK § Co-tenant tailnet publish rules
 - [RELEASE_PLAYBOOK § Phase 6 + 8](../guides/RELEASE_PLAYBOOK.md)
 - [AGENTS.md rules 11 + 12](https://github.com/chipi/podcast_scraper/blob/main/AGENTS.md)
 

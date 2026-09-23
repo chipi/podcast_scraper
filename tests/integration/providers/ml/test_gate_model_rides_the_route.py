@@ -149,21 +149,28 @@ def test_a_curated_route_does_not_self_grade(name: str) -> None:
         )
 
 
-def test_a_litellm_rater_alias_is_advertised_by_the_gateway() -> None:
-    """The gateway must serve the alias before a profile names it.
+def test_the_litellm_gate_alias_is_declared_for_the_gateway_to_serve() -> None:
+    """This repo declares the alias; whoever runs the gateway must advertise it.
 
     The pipeline runs with ``litellm_verify_served_model=true``: an alias the gateway does not
-    advertise fails the RUN, not the config load. That makes this a deploy-ORDERING constraint —
-    infra/litellm/config.yaml ships before the profiles that reference it — and a test is the only
-    place that ordering is written down where someone will trip over it.
+    advertise fails the RUN, not the config load. That is a deploy-ORDERING constraint — the
+    gateway config must ship before the profiles that name the alias.
+
+    This test used to read the gateway config directly and assert the alias appeared in it. It
+    can no longer do that: the gateway configuration is not in this repository. Rather than
+    delete the only place the ordering constraint is written down, the assertion is INVERTED —
+    this repo owns the alias NAME and asserts it is well-formed and reachable, and whoever
+    operates the gateway owns the matching test that its config advertises every declared alias.
+
+    Each side then tests what it owns, with no cross-repository read.
     """
     from podcast_scraper.providers.ml.model_registry import _PREFERRED_GATE_MODEL
 
     alias = _PREFERRED_GATE_MODEL.get("litellm")
-    gateway = (REPO / "infra" / "litellm" / "config.yaml").read_text(encoding="utf-8")
-    assert f"model_name: {alias}" in gateway, (
-        f"the litellm gate alias {alias!r} is not advertised in infra/litellm/config.yaml. With "
-        f"litellm_verify_served_model=true every GI run on a litellm profile would fail."
+    assert alias, "no litellm gate alias is declared in _PREFERRED_GATE_MODEL"
+    assert isinstance(alias, str) and alias.strip() == alias and " " not in alias, (
+        f"the litellm gate alias {alias!r} is not a usable model_name — the gateway config keys "
+        "on this string verbatim."
     )
 
 
