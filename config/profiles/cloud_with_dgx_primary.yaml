@@ -52,7 +52,7 @@ dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 # | wall-clock per episode | 340s mean              | 281s mean (~20% fast) |
 #
 # Speaches now wins on both quality AND speed. Eval report:
-# `eval-data/docs/guides/eval-reports/EVAL_WHISPER_ENGINE_DRIFT_2026_06_16.md`.
+# `podcast-scraper-eval-data:docs/guides/eval-reports/EVAL_WHISPER_ENGINE_DRIFT_2026_06_16.md`.
 #
 # The whisper-openai container stays parallel-deployed at :8002 as the
 # comparison sibling for future engine-drift evals — not the prod path.

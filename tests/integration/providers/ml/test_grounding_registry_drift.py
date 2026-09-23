@@ -50,34 +50,47 @@ class TestGroundingStageIsRegistered:
         assert get_grounding_option(ML_GROUNDER).tier == "fallback"
 
     def test_research_ref_points_at_a_real_report(self) -> None:
-        """A citation must name a report, and must resolve wherever it can be checked.
+        """A citation must be one of three honest forms, and public ones must resolve.
 
-        The reports moved to the private eval repo in arc 2 (#2134), so a
-        repo-relative path can no longer resolve here — that is exactly what broke:
-        the citation and the cited ended up in different repos and nothing noticed
-        for 19 refs. Refs now name the ``eval-data/`` mount
-        (docs/guides/EVAL_RESEARCH_MOUNT.md), which is gitignored and present only
-        for someone who has checked the research out.
+        Arc 2 (#2134) moved the eval reports to the private repo, and every
+        citation to them was left as a repo-relative path that no longer resolved.
+        19 rotted before one assertion noticed.
 
-        So the invariant is two-part, and neither half is vacuous:
-          * ALWAYS — the ref exists and points into the research repo, which
-            catches a ref left as a bare repo-relative path (the arc-2 bug).
-          * WHEN MOUNTED — the file is really there, which catches a renamed or
-            deleted report for anyone who has the research checked out.
+        The first fix pointed them at ``eval-data/``, which was worse than it
+        looked: that directory exists in maybe one working tree out of five, so
+        the existence check almost never ran, and the value read like a local
+        path that normally is not there.
+
+        So a ref must now declare which KIND of citation it is:
+
+          * ``podcast-scraper-eval-data:<path>`` — a report in the private research
+            repo. Unverifiable from here by construction; the check that resolves
+            it lives in that repo, which always has both the registry (installed
+            from the pin) and the reports.
+          * ``docs/...`` — a public decision doc. MUST resolve here, which is what
+            catches a bare ``docs/guides/eval-reports/...`` — the arc-2 bug.
+          * ``#1234`` — a GitHub issue.
+
+        Anything else is a typo or a path smuggled in without saying so.
         """
-        mount = pathlib.Path("eval-data")
         for opt in get_grounding_options().values():
             ref = opt.research_ref
             assert ref is not None, f"{opt.option_id} has no research_ref"
-            assert ref.startswith("eval-data/"), (
-                f"{opt.option_id}: research_ref {ref!r} is not in the research repo. "
-                "Reports live in chipi/podcast-scraper-eval-data; cite them via the "
-                "eval-data/ mount (docs/guides/EVAL_RESEARCH_MOUNT.md)."
-            )
-            if mount.is_dir():
-                assert pathlib.Path(
-                    ref
-                ).is_file(), f"{ref} does not exist in the mounted research repo"
+            if ref.startswith("podcast-scraper-eval-data:"):
+                tail = ref.split(":", 1)[1]
+                assert tail.endswith(".md"), f"{opt.option_id}: {ref!r} names no document"
+            elif ref.startswith("#"):
+                assert ref[1:].isdigit(), f"{opt.option_id}: {ref!r} is not an issue number"
+            elif ref.startswith("docs/"):
+                assert pathlib.Path(ref).is_file(), (
+                    f"{opt.option_id}: {ref} does not exist. If it moved to the research "
+                    "repo, cite it as podcast-scraper-eval-data:<path>."
+                )
+            else:
+                raise AssertionError(
+                    f"{opt.option_id}: research_ref {ref!r} is not a recognised citation. "
+                    "Use podcast-scraper-eval-data:<path>, docs/<path>, or #<issue>."
+                )
 
 
 class TestPresetGrounderMatchesItsSummariser:
