@@ -297,7 +297,7 @@ JSON reports `processing_overlap_ratio`, `processing_thread_busy_ratio`,
 `safety_net_processed_episodes_count`, and
 `handoff_latency_seconds_per_episode`. Cross-referenced in
 [Pipeline and workflow](PIPELINE_AND_WORKFLOW.md#parallelism-observability-1180)
-and [Performance](PERFORMANCE.md#tuning-parallelism-1180).
+and `PERFORMANCE.md` § Tuning parallelism (moved to the private eval repo).
 
 ## Related documents
 

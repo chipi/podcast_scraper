@@ -85,7 +85,6 @@ nav:
       - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
       - Troubleshooting: guides/TROUBLESHOOTING.md
       - Segfault Mitigation: guides/SEGFAULT_MITIGATION.md
-      - Performance: guides/PERFORMANCE.md
       - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
       - Tufte Chart Critique: guides/TUFTE_CHART_CRITIQUE.md
       - SRE Book Infra Critique: guides/SRE_BOOK_INFRA_CRITIQUE.md

@@ -378,7 +378,7 @@ tail has drained. Bigger change; separate RFC when we get there.
 `safety_net_processed_episodes_count`, and
 `handoff_latency_seconds_per_episode` on every run. Reader guides:
 [Pipeline and workflow](../guides/PIPELINE_AND_WORKFLOW.md#parallelism-observability-1180)
-and [Performance](../guides/PERFORMANCE.md#tuning-parallelism-1180).
+and `PERFORMANCE.md` § Tuning parallelism (moved to the private eval repo).
 
 ### B.7 Named queues vs pipeline *steps* — two tiers
 

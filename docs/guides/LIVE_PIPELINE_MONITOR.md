@@ -129,5 +129,5 @@ Pulls **`py-spy`** and **`memray`** (RFC-065 Phase 3). They are **not** required
 | Guide | Relationship |
 | ----- | ------------ |
 | Performance Profile Guide (moved to the private eval repo) | **Frozen** release YAML under `data/profiles/` (RFC-064) — complementary, not the same as live monitor. |
-| [Performance](PERFORMANCE.md) | Runtime tuning (preprocessing cache, transcription, etc.). |
+| `PERFORMANCE.md` (moved to the private eval repo) | Runtime tuning (preprocessing cache, transcription, etc.). |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | End-to-end flow and module roles. |
