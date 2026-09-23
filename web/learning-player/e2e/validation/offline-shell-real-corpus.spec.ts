@@ -38,7 +38,13 @@ test('operator offline: shell + deep-links survive network drop', async ({
 
   // Reload — the shell (index.html + precached JS/CSS) must still render.
   await page.reload()
-  await expect(page).toHaveTitle('Learning Player')
+  // Regex, not an exact string, and it matches the fast `offline.spec.ts`.
+  // Two different titles are BOTH correct here: `index.html` ships
+  // "Close Listening", and once the SPA hydrates the router's `afterEach`
+  // rewrites it to "Home · Close Listening" (`pageTitles.home` + `app.title`).
+  // Asserting either exact value races the hydration; asserting the brand
+  // covers both and still fails if the shell served nothing at all.
+  await expect(page).toHaveTitle(/Close Listening/)
   await expect(page.locator('#app')).toBeVisible()
   await page.screenshot({
     path: 'validation-results/offline-02-shell-reload.png',

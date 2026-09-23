@@ -90,8 +90,14 @@ export async function navTo(
     await tab.click()
     return
   }
-  const LABELS: Record<string, string> = {
-    home: 'Podcast Learning Player',
+  // `home` is a REGEX because the header's home link is the brand lockup: its
+  // accessible name is the tagline plus `app.title`, not a bare product name.
+  // It read 'Podcast Learning Player' until now — a name the #2118 rename left
+  // behind, and one `getByRole({ name })` could never match, since that option
+  // is an exact match on the normalised accessible name. Only reachable when
+  // the bottom nav is hidden, which is why it never went red.
+  const LABELS: Record<string, string | RegExp> = {
+    home: /Close Listening/,
     search: 'Search',
     library: 'Library',
     profile: 'Profile',
