@@ -64,7 +64,7 @@ PYTEST_WORKERS ?= 2
 .PHONY:ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
 .PHONY:test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
 .PHONY:ios-contact-sheet
-.PHONY:profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY:profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -232,8 +232,6 @@ help:
 	@echo "  make stack-test-down        Stack-test: tear down (STACK_TEST_DOWN_VOLUMES=1 to also drop corpus_data)"
 	@echo "  make stack-test-reap        Stack-test: reap ALL leftovers (stack + orphan build/Playwright), this repo only"
 	@echo "  make stack-test-export      Stack-test: copy corpus_data volume → .stack-test-corpus/ for debug inspection"
-	@echo "                                Usage: make export-corpus CORPUS_DIR=<path> OUT=<file.tgz> [LAYOUT=codespace|prod]"
-	@echo "                                Usage: make import-corpus FILE=<file.tgz> WORKSPACE_DIR=<parent> [LAYOUT=codespace|prod]"
 	@echo "  make upgrade-status         Show pending corpus-upgrade migrations (human-readable)"
 	@echo "                                Usage: make upgrade-status CORPUS_DIR=<path>"
 	@echo "  make upgrade-check          Same as upgrade-status but --json; exits 2 when migrations are pending (CI-gate)"
@@ -4055,35 +4053,6 @@ validate-files-unit:
 
 
 
-# --- Local DR-drill OpenTofu (workspace `drill`, isolated from prod) — #1027 ---
-# Source infra/.env.drill.local, map its secrets to the TF_VAR_* the config requires
-# (same names as the GHA drill-infra-* jobs), and run the wrapper in drill mode
-# (INFRA_WORKSPACE=drill → terraform.tfstate.enc.drill; the prod state is never touched).
-# plan is read-only; apply/destroy prompt y/n. Requires the drill state present at
-# infra/terraform/terraform.tfstate.enc.drill (from a drill apply run's
-# `terraform-state-after-apply-drill` artifact, or a prior local drill apply).
-drill-tofu-plan drill-tofu-apply drill-tofu-destroy: drill-tofu-%:
-	@if [ ! -f $(INFRA_DRILL_ENV_FILE) ]; then \
-		echo "ERROR: $(INFRA_DRILL_ENV_FILE) missing — run: make drill-env (and add TS_API_KEY, OPERATOR_SSH_PUBLIC_KEY, TAILNET_NAME)." >&2; \
-		exit 1; \
-	fi
-	@set -a && . ./$(INFRA_DRILL_ENV_FILE) && set +a; \
-	 : "$${HCLOUD_TOKEN_DRILL:?set HCLOUD_TOKEN_DRILL in $(INFRA_DRILL_ENV_FILE)}"; \
-	 : "$${TS_API_KEY:?set TS_API_KEY in $(INFRA_DRILL_ENV_FILE)}"; \
-	 : "$${OPERATOR_SSH_PUBLIC_KEY:?set OPERATOR_SSH_PUBLIC_KEY in $(INFRA_DRILL_ENV_FILE)}"; \
-	 : "$${TAILNET_NAME:?set TAILNET_NAME in $(INFRA_DRILL_ENV_FILE)}"; \
-	 export TF_VAR_hcloud_token="$$HCLOUD_TOKEN_DRILL"; \
-	 export TF_VAR_tailscale_api_key="$$TS_API_KEY"; \
-	 export TF_VAR_ssh_public_key="$$OPERATOR_SSH_PUBLIC_KEY"; \
-	 export TF_VAR_tailscale_tailnet="$$TAILNET_NAME"; \
-	 cd infra \
-	   && yes yes | INFRA_WORKSPACE=drill ./tofu init \
-	   && INFRA_WORKSPACE=drill ./tofu $* -var-file=terraform.drill.ci.tfvars
-	@# `yes yes |` answers the one-time "migrate workspaces to local" prompt that
-	@# tofu raises on a fresh checkout (the wrapper decrypts drill state into
-	@# terraform.tfstate.d/drill/ before init, so tofu offers to adopt it). The
-	@# prompt needs the literal word "yes"; -input=false would hard-error it.
-	@# On an already-initialized .terraform/ there is no prompt and stdin is ignored.
 
 dgx-smoke:
 	@# RFC-089: probe DGX Ollama via tailnet (non-fatal when DGX offline).
