@@ -269,7 +269,6 @@ logs/
 data/autoresearch_baselines/autoresearch-local-*.json
 
 # pyinfra deploy debug log (transient per `make dgx-deploy` run)
-infra/dgx/converge/pyinfra-debug.log
 
 # Claude Code local settings (per-clone permission overrides)
 .claude/settings.json

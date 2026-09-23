@@ -51,7 +51,7 @@ Agents: see `.cursor/rules/documentation.mdc` (load when editing markdown per pr
 
 ### Links
 
-- **Descriptive link text** - Use `[Link Text](url)` not `[url](url)`
+- **Descriptive link text** - Use `Link Text` not `url`
 - **Relative paths for internal links** - Use `rfc/RFC-019.md` not `docs/rfc/RFC-019.md`
 
 ### Paragraphs

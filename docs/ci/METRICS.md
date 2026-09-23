@@ -189,7 +189,7 @@ python -m pytest tests/unit/scripts/dashboard/test_generate_metrics_slowest.py \
 ```
 
 **Full preview** (charts + tables): after `reports/` or fetched JSONL is in place, run
-`make build-metrics-dashboard-preview` (or your usual preview target from [Workflows](WORKFLOWS.md)).
+`make build-metrics-dashboard-preview` (or your usual preview target from Workflows).
 
 **Important:** The preview only **displays** whatever is in `artifacts/dashboard-preview/` (built from
 `artifacts/ci-metrics-runs/run-*` and nightly runs). It does **not** re-execute `generate_metrics.py` on
@@ -212,4 +212,4 @@ Details: [RFC-025: Test metrics and health tracking](../rfc/RFC-025-test-metrics
 ## Related docs
 
 - [Code quality trends](CODE_QUALITY_TRENDS.md) — wily, radon, local trends vs dashboard snapshots.
-- [Workflows](WORKFLOWS.md) — when jobs run and what they produce.
+- Workflows — when jobs run and what they produce.

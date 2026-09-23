@@ -6,8 +6,8 @@ new corpus folder, and observe it live, with **zero bespoke setup**. Use this to
 a code change on real data before a full corpus run.
 
 Related: [Corpus reprocessing runbook](CORPUS_REPROCESSING.md) (rebuilding an *existing* corpus),
-[Observability control plane](OBSERVABILITY_CONTROL_PLANE.md) (`podcast_obs`),
-[DGX Spark runbook](DGX_RUNBOOK.md).
+Observability control plane (`podcast_obs`),
+DGX Spark runbook.
 
 ## Prerequisites (check these first)
 

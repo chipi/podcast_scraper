@@ -9,9 +9,9 @@ paragraph first.
 | Need | Start here | Go deeper with |
 | --- | --- | --- |
 | **Why** these choices exist (trade-offs, alternatives) | This document (summary) + **ADRs** below | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) |
-| **What to type** on prod or drill | Not this doc | [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md), [DR_DRILL_RUNBOOK.md](../guides/DR_DRILL_RUNBOOK.md) |
+| **What to type** on prod or drill | Not this doc | PROD_RUNBOOK.md, DR_DRILL_RUNBOOK.md |
 | **OpenTofu file layout and workflow table** | § IaC below | [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md) |
-| **Every workflow file and trigger** | § Control plane | [WORKFLOWS.md](../ci/WORKFLOWS.md) |
+| **Every workflow file and trigger** | § Control plane | WORKFLOWS.md |
 | **Compose stack for CI and prod-shaped runs** | § Runtime on the host | [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md), [DOCKER_SERVICE_GUIDE.md](../guides/DOCKER_SERVICE_GUIDE.md) |
 | **Cross-surface stack contract (audit table)** | Not this doc | [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md), [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) |
 | **Target-state platform** (multi-tenant, K8s graduation) | Out of scope for detail | [PLATFORM_ARCHITECTURE_BLUEPRINT.md](PLATFORM_ARCHITECTURE_BLUEPRINT.md) Part F |
@@ -143,7 +143,7 @@ and the old single-writer contention (ADR-081's `manage_tailscale_acl=false` on 
 OpenTofu still owns the VPS's own `tailscale_tailnet_key` (the join key) — not the ACL.
 
 For the **procedures** (grant host→host access, expose a service over HTTPS on the tailnet,
-add a device), see the [Tailnet & networking runbook](../guides/TAILNET_AND_NETWORKING.md) —
+add a device), see the Tailnet & networking runbook —
 the cross-project reference for any agent (this repo, homelab, orrery) touching the tailnet.
 
 ---
@@ -263,7 +263,7 @@ record; [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md) for the full desi
 `infra/deploy/deploy.sh` (called over SSH from **`deploy-prod.yml`**) is the **idempotent** host
 orchestrator: git fetch for the pinned workflow SHA context, **`docker compose pull`**, **`up -d`**,
 and health checks. It assumes the host already has Docker, the compose project directory, and a
-valid **`.env`**. Exact flags and probes live in the script and [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md).
+valid **`.env`**. Exact flags and probes live in the script and PROD_RUNBOOK.md.
 
 ---
 
@@ -315,7 +315,7 @@ before push when they run the full target ([`Makefile` at repo root](https://git
 For exercises that must **create and destroy** a throwaway footprint, **`drill-exercise.yml`**
 chains: plan → apply → **`drill-tfstate-bridge`** → **`drill-deploy`** → restore corpus snapshot →
 **`drill-e2e`** → **`drill-stack-playwright`** → finalize → **always destroy**.
-Typed confirms and environment approvals are documented in [DR_DRILL_RUNBOOK.md](../guides/DR_DRILL_RUNBOOK.md).
+Typed confirms and environment approvals are documented in DR_DRILL_RUNBOOK.md.
 
 ```mermaid
 flowchart LR
@@ -338,7 +338,7 @@ flowchart LR
 - **Stack-test** validates those same image layers in CI before **`main`** is trusted for release
   promotion.
 - **VPS** pulls by tag; **`PODCAST_RELEASE=sha-<short>`** in the host **`.env`** ties Sentry and
-  operator debugging to the running digest ([PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md)).
+  operator debugging to the running digest (PROD_RUNBOOK.md).
 
 ---
 
@@ -347,10 +347,10 @@ flowchart LR
 - **Prod corpus** is snapshotted to **`chipi/podcast_scraper-backup`** with tags **`snapshot-prod-*`**
   via **`backup-corpus-prod.yml`** (SSH over Tailscale as **`deploy@`**), with sibling
   **`snapshot.manifest.json`** when **`dry_run`** is false ([ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md)).
-- **Drill restore** pulls **`snapshot.tgz`** for rehearsal ([DR_DRILL_RUNBOOK.md](../guides/DR_DRILL_RUNBOOK.md)).
+- **Drill restore** pulls **`snapshot.tgz`** for rehearsal (DR_DRILL_RUNBOOK.md).
 - **Prod restore** is a separate workflow and confirm path (**`prod-restore-corpus.yml`**) documented
   in the prod runbook — different secrets and environment on purpose.
-- **Operator map (Make vs Actions, all surfaces):** [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md).
+- **Operator map (Make vs Actions, all surfaces):** CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md.
 
 Backups are **git-visible workflows**, not a hidden cron on the VPS only, so changes go through review
 ([RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) design intent).
@@ -361,7 +361,7 @@ Backups are **git-visible workflows**, not a hidden cron on the VPS only, so cha
 
 - **Alloy** ships metrics and logs to homelab VictoriaMetrics (`:8428`) and VictoriaLogs (`:9428`)
   using the same env contract as pre-prod, with **`env` labels** distinguishing prod vs drill vs
-  other **`PODCAST_ENV`** values ([PROD_RUNBOOK.md — Grafana env filter](../guides/PROD_RUNBOOK.md)).
+  other **`PODCAST_ENV`** values (PROD_RUNBOOK.md — Grafana env filter).
   Backend is fully self-hosted on the Mac mini (homelab, tailnet `homelab`).
 - **Sentry** in api and viewer builds groups releases using **`PODCAST_RELEASE`**.
 - **Logs** for pipeline jobs surface in Docker logs and workflow logs; there is no separate ELK stack
@@ -407,18 +407,18 @@ GitOps with Flux) becomes real, add a new ADR and extend this doc with a “grad
 2. [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) and [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) (immutable decisions: IaC ingress + stack contract discipline).
 3. [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md) (surface audit table; steady vs recovery playbooks).
 4. [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md) (hands-on OpenTofu and drill table).
-5. [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md) (commands, secrets staging, first boot).
-6. [WORKFLOWS.md](../ci/WORKFLOWS.md) when you need exact workflow names and filters.
+5. PROD_RUNBOOK.md (commands, secrets staging, first boot).
+6. WORKFLOWS.md when you need exact workflow names and filters.
 
 ---
 
 ## References
 
 - [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md) — cross-surface audit table ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md))
-- [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) — manifest + restore entry points ([ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md))
+- CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md — manifest + restore entry points ([ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md))
 - [RFC-082: Production hosting](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
 - [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md), [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)
 - [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md)
-- [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md)
-- [DR_DRILL_RUNBOOK.md](../guides/DR_DRILL_RUNBOOK.md)
-- [WORKFLOWS.md](../ci/WORKFLOWS.md)
+- PROD_RUNBOOK.md
+- DR_DRILL_RUNBOOK.md
+- WORKFLOWS.md

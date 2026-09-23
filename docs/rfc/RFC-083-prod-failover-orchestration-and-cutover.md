@@ -16,8 +16,8 @@
   - [GitHub #764](https://github.com/chipi/podcast_scraper/issues/764) — problem statement, DNS path, runbook intent
   - [GitHub #762](https://github.com/chipi/podcast_scraper/issues/762) — stack contract vs adapters ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md); operator hub under `docs/guides/STACK_CONTRACT.md`)
   - [ADR-081](../adr/ADR-081-drill-opentofu-workspace-tailscale-acl-ownership.md), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md), [ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md), [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md)
-  - [CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) — shared restore entry points
-  - [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md) — tailnet health, `tailscale serve` (dedicated failover chapter still open)
+  - CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md — shared restore entry points
+  - PROD_RUNBOOK.md — tailnet health, `tailscale serve` (dedicated failover chapter still open)
 
 ## Abstract
 
@@ -87,7 +87,7 @@ Today we lack:
 **Not landed (tracked by #764 / this RFC):**
 
 - **`prod-failover-*`** workflow family composing existing drill reusables **without** **`drill-exercise`** or automated destroy.
-- Dedicated **prod failover** chapter in [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md) and [WORKFLOWS.md](../ci/WORKFLOWS.md) index rows.
+- Dedicated **prod failover** chapter in PROD_RUNBOOK.md and WORKFLOWS.md index rows.
 - Optional `repository_dispatch` helpers for **stand-up / validate** only (**ADR-091**).
 
 ## Design & Implementation
@@ -113,7 +113,7 @@ Today we lack:
 ### 3. Cutover (DNS path)
 
 Full operator narrative (TTL where applicable, TLS on spare before flip, propagation checks, rollback) lives in **#764** and
-[PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md); normative **decision** is [ADR-090](../adr/ADR-090-prod-failover-dns-first-cutover.md).
+PROD_RUNBOOK.md; normative **decision** is [ADR-090](../adr/ADR-090-prod-failover-dns-first-cutover.md).
 
 **v1 operator path (matches #764 non-goals):** manual checklist and copy-paste checks for the hostname flip; automation **stops**
 after phase D with spare target, rollback notes, and cutover checklist — **no** unattended flip. **Optional later job:** DNS API token +
@@ -156,7 +156,7 @@ Normative list: [ADR-091](../adr/ADR-091-prod-failover-gha-triggers-and-gates.md
 ## Implementation checklist (engineering)
 
 - [ ] Parent `prod-failover-*.yml` composing drill reusables through validate; **never** call **`drill-exercise`** or **`drill-infra-destroy`** (**ADR-089**).
-- [ ] `docs/guides/PROD_RUNBOOK.md` failover chapter (phases, drill vs incident table, **ingestion freeze**, manual cutover/decommission, DNS/TLS checklist) + [WORKFLOWS.md](../ci/WORKFLOWS.md) + #764 cross-links to **RFC-083** and ADR-089–091.
+- [ ] `docs/guides/PROD_RUNBOOK.md` failover chapter (phases, drill vs incident table, **ingestion freeze**, manual cutover/decommission, DNS/TLS checklist) + WORKFLOWS.md + #764 cross-links to **RFC-083** and ADR-089–091.
 - [ ] Failover stand-up adapter: after restore, force **`scheduled_jobs`** **off** on spare before API serves traffic (workflow step or documented host edit).
 - [ ] **ADR-093** / stack contract audit row clarifying **incident spare** reuses the **drill VPS** row when stood up.
 - [ ] Optional `repository_dispatch` for **stand-up / validate** only (**ADR-091**).
