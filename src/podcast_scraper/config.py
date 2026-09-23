@@ -1771,6 +1771,28 @@ class Config(BaseModel):
             "(metadata/summarization) in parallel (default: 2)"
         ),
     )
+    # Both bounds below were read with getattr() and DOCUMENTED as config keys while being
+    # undeclared — and Config is extra="forbid", so setting either one was rejected outright
+    # ("Extra inputs are not permitted"). A documented escape hatch that raises on use is worse
+    # than none, because it is discovered only in the incident it was meant to defuse.
+    processing_loop_budget_seconds: Optional[float] = Field(
+        default=None,
+        alias="processing_loop_budget_seconds",
+        description=(
+            "Wall-clock ceiling for the whole per-FEED processing loop, in seconds. "
+            "Unset uses the built-in default (4h); 0 or negative disables the bound entirely."
+        ),
+    )
+    processing_future_abandon_seconds: Optional[float] = Field(
+        default=None,
+        alias="processing_future_abandon_seconds",
+        description=(
+            "Wall-clock ceiling for ONE episode, measured from when its future starts "
+            "EXECUTING, in seconds. Past it the loop stops waiting and counts the episode "
+            "failed; the worker thread keeps running (a running future cannot be cancelled). "
+            "Unset uses the built-in default (1h); 0 or negative disables the bound."
+        ),
+    )
     # OpenAI API configuration
     openai_api_key: Optional[str] = Field(
         default=None,

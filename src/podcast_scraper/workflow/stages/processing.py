@@ -2469,11 +2469,24 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     )
                     return False
                 futures[future] = job.episode.idx
-                future_started_at[future] = time.monotonic()
                 return True
 
             def _abandon_overrunning_futures() -> None:
                 """Stop WAITING on an episode that has blown its per-episode ceiling.
+
+                THE CLOCK STARTS WHEN THE FUTURE STARTS EXECUTING, NEVER WHEN IT IS SUBMITTED.
+                `_submit_new_jobs` submits every unprocessed job on the first iteration and the
+                executor queue is unbounded, while `processing_parallelism` defaults to 2 — so a
+                30-episode feed has 28 futures sitting QUEUED within seconds. Stamping at submit
+                time (which the first version of this did) made every queued episode trip the
+                ceiling without ever having run: they were popped, counted failed, and then
+                `len(futures)` reached 0, the loop exited, and `abandoned_futures` being non-zero
+                made the `finally` call `shutdown(cancel_futures=True)`, dropping the rest. A feed
+                would truncate itself at one hour and report episodes failed that were never
+                attempted — worse than the 90-minute stall this bounds.
+
+                Invariant: a future that has not consumed a worker slot cannot overrun. So the
+                stamp is taken lazily, the first time a future is observed `running()`.
 
                 The worker thread keeps running — a running future cannot be cancelled in Python,
                 and `shutdown(cancel_futures=True)` only drops QUEUED ones. That is accepted: the
@@ -2481,10 +2494,20 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 one stuck episode. Counted as failed, and named, so it appears in the batch rollup
                 instead of looking like a feed that merely took four hours.
                 """
+                for fut in list(futures.keys()):
+                    if fut not in future_started_at and fut.running():
+                        future_started_at[fut] = time.monotonic()
                 overrun = _overrunning_futures(
                     future_started_at, future_abandon_seconds, time.monotonic()
                 )
                 for fut in overrun:
+                    # It may have finished between the drain above and this check — a narrow
+                    # window, but after an hour of running it is a real one. Counting a SUCCEEDED
+                    # episode as failed, and discarding its result unread (so its cost-cap and
+                    # fail-fast evaluation never happen), is worse than waiting one more 0.05s
+                    # iteration for the next drain to collect it properly.
+                    if fut.done():
+                        continue
                     idx = futures.pop(fut, None)
                     started = future_started_at.pop(fut, None)
                     elapsed = 0.0 if started is None else time.monotonic() - started
@@ -2551,7 +2574,11 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 reason = _supervision_exit_reason()
                 if reason is not None:
                     if len(futures):
-                        abandoned_futures[0] = len(futures)
+                        # ACCUMULATE. Assignment here discarded every per-episode abandonment
+                        # already counted by `_abandon_overrunning_futures`, so a feed that timed
+                        # out two episodes and then hit the wall-clock bound under-reported the
+                        # first two — in the shutdown decision below and in the truncation event.
+                        abandoned_futures[0] += len(futures)
                         logger.error(
                             "Processing loop stopping: %s. Abandoning %d in-flight "
                             "episode(s); they are not marked complete and a resumed run "

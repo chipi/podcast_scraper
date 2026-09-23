@@ -2499,6 +2499,57 @@ def _rewrite_speaker_record_in_place(
     return True
 
 
+def _record_unresolved_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    pipeline_metrics: Any,
+    stage: str,
+) -> None:
+    """Make a refusal COUNTABLE. A skip must be at least as loud as the corruption it replaced.
+
+    Without this the refusal is invisible: the caller returns ``(False, None, 0)``, the
+    transcription stage's ``if success:`` guard skips both the counter and
+    ``update_episode_status``, so the episode lands in neither ``ok`` nor ``failed`` — it vanishes
+    between the selection log line and the run summary. The 2026-09-23 batch reported
+    ``episodes=N ok=N failed=0`` per feed while silently doing less than it was asked, and the run
+    index cannot recover it because a reprocess writes metadata back into the OLD run dir, leaving
+    the new one empty for every episode, successful or not.
+
+    THE KEY MUST BE THE CANONICAL EPISODE ID, and getting that wrong is worse than not writing at
+    all. ``Episode`` has NO ``guid`` and NO ``episode_id`` attribute — the guid lives inside
+    ``episode.item`` XML and is only reachable through ``get_episode_id_from_episode``. The first
+    version of this keyed on ``getattr(episode, "guid", ...)``, which always fell through to the
+    raw title; orchestration pre-creates every episode's row under the canonical id, so the write
+    would have missed, appended an ORPHAN row, and left the episode's real row reading "ok" — a
+    ledger showing the same episode both ok and failed. Verified by execution: ``guid`` and
+    ``episode_id`` are absent from the dataclass.
+
+    Never raises: this runs on a failure path and must not convert a skip into a crash.
+    """
+    try:
+        if pipeline_metrics is None or not _job_has_episode_for_metrics(job):
+            return
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        assert job.episode is not None
+        episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+        known = getattr(job.episode, "on_disk_transcript", None)
+        detail = (
+            f"named {known} which is not on disk"
+            if known
+            else "no transcript could be vouched for from this episode's own metadata record"
+        )
+        pipeline_metrics.update_episode_status(
+            episode_id=episode_id,
+            status="failed",
+            stage=stage,
+            error_type="TranscriptUnresolved",
+            error_message=detail,
+        )
+    except Exception:  # noqa: BLE001 — accounting must never break the run
+        logger.debug("could not record the unresolved-transcript status", exc_info=True)
+
+
 def _existing_transcript_for(
     job: TranscriptionJob,  # type: ignore[valid-type]
     effective_output_dir: str,
@@ -2538,7 +2589,14 @@ def _existing_transcript_for(
         )
         return None
 
-    if episode is not None:
+    # WAS A METADATA RECORD CONSULTED? That is the question, and "does the job carry an Episode"
+    # is NOT it. `on_disk_idx` is set in exactly one place — `_reprocess_existing_episodes`
+    # (stages/scraping.py) — alongside `on_disk_transcript`, so its presence means a specific
+    # on-disk record was read and `_transcript_beside_metadata` already ruled on it. A
+    # feed-driven job carries an Episode too, but no record was ever consulted for it, so
+    # discriminating on the Episode made the documented `relabel_only` invocation (which does not
+    # pass --reprocess-existing-only) a 100% skip with a zero exit.
+    if getattr(episode, "on_disk_idx", None) is not None:
         # A REFUSAL UPSTREAM MUST NOT BE OVERRIDABLE BY A GUESS DOWNSTREAM. This job was built
         # from a specific metadata record, and `_transcript_beside_metadata` already decided that
         # record has no transcript it can vouch for — returning None there is documented as "a
@@ -2563,11 +2621,12 @@ def _existing_transcript_for(
         )
         return None
 
-    # Only a job with no Episode at all reaches the search — older tests, and any caller outside
-    # `reprocess_existing_only`. Kept because those callers have no record to consult, and
-    # narrowed below: an ambiguous match is refused rather than guessed.
+    # A job with no on-disk record reaches the search: feed-driven runs, older tests, and any
+    # caller outside `reprocess_existing_only`. They have no record to consult, and the search is
+    # narrowed below — an ambiguous match is refused rather than guessed.
     logger.warning(
-        "[%s] %s: job carries no Episode; using the legacy index-prefix search",
+        "[%s] %s: no on-disk record was consulted for this job; using the index-prefix search, "
+        "narrowed to candidates whose filename names THIS episode",
         job.idx,
         stage,
     )
@@ -2583,6 +2642,31 @@ def _existing_transcript_for(
         if ".adfree." not in p.name
         and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
     ]
+    # ONE MATCH IS NOT THE SAME AS THE RIGHT MATCH. Refusing only on ambiguity leaves the
+    # single-wrong-match case open: feed enumeration drift means the only `0005 - *.txt` on disk
+    # can belong to a different episode, and this stage OVERWRITES whatever it returns. So the
+    # filename must also name THIS job's episode. `names_the_same_episode` is the shared rule and
+    # tolerates the 32-char metadata truncation that plain equality would reject.
+    wanted_title = str(getattr(job, "ep_title_safe", "") or "").strip()
+    if wanted_title:
+        titled = [
+            p
+            for p in matches
+            if filesystem.names_the_same_episode(
+                f"{idx_prefix}{wanted_title}", p.name[: -len(".txt")]
+            )
+        ]
+        if len(titled) != len(matches):
+            logger.warning(
+                "[%s] %s: %d of %d idx-%r candidate(s) do not name this episode (%r); dropped",
+                job.idx,
+                stage,
+                len(matches) - len(titled),
+                len(matches),
+                idx_prefix,
+                wanted_title,
+            )
+        matches = titled
     matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     if not matches:
         logger.warning(
@@ -2635,12 +2719,14 @@ def _relabel_existing_transcript(
     # `_existing_transcript_for` for why searching for it by index prefix was wrong.
     txt_path = _existing_transcript_for(job, effective_output_dir, "relabel_only")
     if txt_path is None:
+        _record_unresolved_transcript(job, cfg, pipeline_metrics, "relabel_only")
         return False, None, 0
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
     if not seg_path.exists():
         logger.warning(
             "[%s] relabel_only: transcript has no .segments.json; cannot relabel", job.idx
         )
+        _record_unresolved_transcript(job, cfg, pipeline_metrics, "relabel_only")
         return False, None, 0
 
     text = txt_path.read_text(encoding="utf-8")
@@ -3043,6 +3129,8 @@ def _rediarize_existing_transcript(
     # Locate the existing transcript — same discovery as relabel, from the episode's own record.
     txt_path = _existing_transcript_for(job, effective_output_dir, "rediarize_only")
     if txt_path is None:
+        # Same vanish-between-selection-and-summary hole the relabel path had.
+        _record_unresolved_transcript(job, cfg, pipeline_metrics, "rediarize_only")
         return False, None, 0
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
 
@@ -3140,6 +3228,7 @@ def _refetch_and_reparse_transcript(
 
     txt_path = _existing_transcript_for(job, effective_output_dir, "retranscript_only")
     if txt_path is None:
+        _record_unresolved_transcript(job, cfg, pipeline_metrics, "retranscript_only")
         return False, None, 0
 
     urls = list(getattr(getattr(job, "episode", None), "on_disk_transcript_urls", None) or [])

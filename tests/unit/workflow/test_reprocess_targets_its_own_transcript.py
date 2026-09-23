@@ -15,6 +15,7 @@ from pathlib import Path
 
 from podcast_scraper.models.entities import Episode, TranscriptionJob
 from podcast_scraper.workflow.episode_processor import _existing_transcript_for
+from podcast_scraper.workflow.stages import scraping
 from podcast_scraper.workflow.stages.scraping import (
     _on_disk_guid_index,
     _transcript_beside_metadata,
@@ -41,19 +42,25 @@ def _episode_on_disk(run: Path, idx: int, title: str, guid: str, *, segments: bo
     return meta
 
 
-def _job(idx: int, transcript: str | None) -> TranscriptionJob:
+def _job(idx: int, transcript: str | None, title: str = "t") -> TranscriptionJob:
     """A real job, not a stub: the function reads `job.episode.on_disk_transcript`, and a
-    SimpleNamespace standing in for the dataclass hid that from the type checker."""
+    SimpleNamespace standing in for the dataclass hid that from the type checker.
+
+    `title` matters: on-disk transcript names are built FROM `ep_title_safe`
+    (`filesystem.build_whisper_output_name`), and the idx-prefix search now drops candidates whose
+    filename does not name this episode. A fixture with a title that cannot match the file under
+    test exercises the refusal, not the resolution.
+    """
     episode = Episode(
         idx=idx,
-        title="t",
-        title_safe="t",
+        title=title,
+        title_safe=title,
         item=ET.Element("item"),
         transcript_urls=[],
         on_disk_transcript=transcript,
     )
     return TranscriptionJob(
-        idx=idx, ep_title="t", ep_title_safe="t", temp_media="", episode=episode
+        idx=idx, ep_title=title, ep_title_safe=title, temp_media="", episode=episode
     )
 
 
@@ -167,7 +174,7 @@ class TestAPointerAtAnotherEpisodeIsRefused:
         assert resolved is not None and Path(resolved).name == f"{stem_full}.txt", resolved
 
 
-def _job_without_episode(idx: int) -> TranscriptionJob:
+def _job_without_episode(idx: int, title: str = "t") -> TranscriptionJob:
     """A job with NO Episode at all — the only caller the idx search is still for.
 
     This distinction is the whole point of the class below, and it was NOT tested before:
@@ -175,14 +182,18 @@ def _job_without_episode(idx: int) -> TranscriptionJob:
     were passing a job WITH one and blessing the idx search on the reprocess path. That is how
     the corruption shipped with green tests.
     """
-    return TranscriptionJob(idx=idx, ep_title="t", ep_title_safe="t", temp_media="", episode=None)
+    return TranscriptionJob(
+        idx=idx, ep_title=title, ep_title_safe=title, temp_media="", episode=None
+    )
 
 
 class TestTheFallbackStillWorksForJobsWithoutAnEpisode:
     def test_a_single_run_resolves_by_index_prefix(self, tmp_path: Path) -> None:
         run = tmp_path / "run_only_20260101-000000"
         _episode_on_disk(run, 2, "Only one run here", "guid-1")
-        chosen = _existing_transcript_for(_job_without_episode(2), str(run), "relabel_only")
+        chosen = _existing_transcript_for(
+            _job_without_episode(2, "Only one run here"), str(run), "relabel_only"
+        )
         assert chosen is not None
         assert "Only one run here" in chosen.name
 
@@ -229,8 +240,15 @@ class TestARefusalUpstreamIsNotOverridableDownstream:
         )
         before = victim.read_bytes()
 
-        # The episode under test resolved to nothing: `_transcript_beside_metadata` refused it.
-        chosen = _existing_transcript_for(_job(10, None), str(run), "relabel_only")
+        # A REPROCESS job: `on_disk_idx` is the marker `_reprocess_existing_episodes` sets, and it
+        # means a metadata record was read and `_transcript_beside_metadata` already refused it.
+        # Without the marker this is a feed-driven job with no refusal to honour, which is a
+        # different case entirely (see TestTheFallbackStillWorksForJobsWithoutAnEpisode).
+        job = _job(10, None)
+        assert job.episode is not None
+        job.episode.on_disk_idx = 10
+
+        chosen = _existing_transcript_for(job, str(run), "relabel_only")
 
         assert chosen is None, f"must skip, not borrow another episode's transcript (got {chosen})"
         assert victim.read_bytes() == before, "the other episode's transcript must be untouched"
@@ -245,6 +263,127 @@ class TestARefusalUpstreamIsNotOverridableDownstream:
 
         assert chosen is None
         assert "Still here" not in str(chosen)
+
+    def test_a_feed_driven_job_is_NOT_treated_as_a_refusal(self, tmp_path: Path) -> None:
+        """Caught in review: discriminating on "has an Episode" broke the documented command.
+
+        `on_disk_transcript` is set in exactly one place — `_reprocess_existing_episodes`, which
+        also sets `on_disk_idx`. A FEED-driven job carries an Episode too, but no metadata record
+        was ever consulted for it, so `_transcript_beside_metadata` never ruled on it and there is
+        no refusal to honour. Discriminating on the Episode made
+        `--pipeline-stage relabel_only` without `--reprocess-existing-only` (the invocation in
+        docs/guides/CORPUS_REPROCESSING.md) a 100% skip with a zero exit — the silent-zero-exit
+        shape this whole arc keeps fighting.
+
+        The marker is `on_disk_idx`, which only the reprocess path sets.
+        """
+        run = tmp_path / "run_only_20260101-000000"
+        _episode_on_disk(run, 2, "Only one run here", "guid-1")
+
+        feed_driven = _job(2, None, "Only one run here")  # Episode present, on_disk_idx unset
+        assert feed_driven.episode is not None
+        assert getattr(feed_driven.episode, "on_disk_idx", None) is None
+
+        chosen = _existing_transcript_for(feed_driven, str(run), "relabel_only")
+
+        assert (
+            chosen is not None
+        ), "a feed-driven job must still resolve; it has no refusal to honour"
+        assert "Only one run here" in chosen.name
+
+    def test_a_reprocess_job_IS_treated_as_a_refusal(self, tmp_path: Path) -> None:
+        """The same setup, but with the reprocess marker set — now it must refuse."""
+        run = tmp_path / "run_only_20260101-000000"
+        _episode_on_disk(run, 2, "Only one run here", "guid-1")
+
+        reprocess_job = _job(2, None)
+        assert reprocess_job.episode is not None
+        reprocess_job.episode.on_disk_idx = 2  # what _reprocess_existing_episodes sets
+
+        assert _existing_transcript_for(reprocess_job, str(run), "relabel_only") is None
+
+    def test_a_refusal_is_recorded_as_a_failed_episode(self, tmp_path: Path) -> None:
+        """Caught in review: the skip was counted NOWHERE.
+
+        The caller returns (False, None, 0); the transcription stage's `if success:` guard then
+        skips both the counter and `update_episode_status`, so a refused episode is neither `ok`
+        nor `failed` — it vanishes between the selection log and the summary. The 2026-09-23 batch
+        reported `episodes=N ok=N failed=0` per feed while doing less than it was asked. A skip
+        must be at least as loud as the corruption it replaced.
+
+        THE KEY IS THE POINT, not that a call happened. The first version of this test asserted
+        only that `update_episode_status` was invoked, and passed while the implementation keyed on
+        `episode.guid` — an attribute `Episode` does not have. That write would have missed the
+        episode's real row entirely and appended an orphan keyed by raw title, leaving the ledger
+        showing the same episode both ok and failed. So this asserts the id MATCHES the canonical
+        one the rest of the pipeline uses.
+        """
+        from podcast_scraper import config as config_module
+        from podcast_scraper.workflow import episode_processor as epx
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        seen: list[dict] = []
+
+        class _Metrics:
+            def update_episode_status(self, **kwargs):
+                seen.append(kwargs)
+
+        cfg = config_module.Config(
+            rss="https://example.com/feed.xml", transcription_provider="whisper"
+        )
+        job = _job(10, None)
+        assert job.episode is not None
+        job.episode.on_disk_idx = 10
+        canonical, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+
+        epx._record_unresolved_transcript(job, cfg, _Metrics(), "relabel_only")
+
+        assert len(seen) == 1, f"the refusal recorded nothing: {seen}"
+        assert seen[0]["episode_id"] == canonical, (
+            "the status must be keyed by the canonical episode id the rest of the pipeline uses, "
+            f"not {seen[0]['episode_id']!r} — otherwise it appends an orphan row"
+        )
+        assert seen[0]["status"] == "failed"
+        assert seen[0]["error_type"] == "TranscriptUnresolved"
+        assert seen[0]["stage"] == "relabel_only"
+
+    def test_the_key_is_not_the_raw_title(self) -> None:
+        """Mutation guard: the defect it replaced fell through to `job.ep_title`."""
+        from podcast_scraper import config as config_module
+        from podcast_scraper.workflow import episode_processor as epx
+
+        seen: list[dict] = []
+
+        class _Metrics:
+            def update_episode_status(self, **kwargs):
+                seen.append(kwargs)
+
+        cfg = config_module.Config(
+            rss="https://example.com/feed.xml", transcription_provider="whisper"
+        )
+        job = _job(3, None)
+        assert job.episode is not None
+        job.episode.on_disk_idx = 3
+        epx._record_unresolved_transcript(job, cfg, _Metrics(), "relabel_only")
+
+        assert seen, "nothing recorded"
+        assert seen[0]["episode_id"] != job.ep_title
+
+    def test_recording_never_raises_even_with_a_broken_metrics_object(self) -> None:
+        """It runs on a failure path; it must not convert a skip into a crash."""
+        from podcast_scraper import config as config_module
+        from podcast_scraper.workflow import episode_processor as epx
+
+        cfg = config_module.Config(
+            rss="https://example.com/feed.xml", transcription_provider="whisper"
+        )
+
+        class _Exploding:
+            def update_episode_status(self, **kwargs):
+                raise RuntimeError("metrics backend down")
+
+        epx._record_unresolved_transcript(_job(1, None), cfg, _Exploding(), "relabel_only")
+        epx._record_unresolved_transcript(_job(1, None), cfg, None, "relabel_only")
 
     def test_a_vouched_transcript_is_still_returned(self, tmp_path: Path) -> None:
         """The fix must not break the normal path — 172 episodes resolved correctly in that run."""
@@ -285,3 +424,182 @@ class TestTheRunIndexIsUnique:
         # each still resolves to its OWN transcript — the pairing is sound, the NUMBER is not
         resolved = {Path(str(_transcript_beside_metadata(Path(v[2])))).name for v in idx.values()}
         assert len(resolved) == 3, "each episode must resolve to a different transcript"
+
+
+class TestTheCrossRunResolverIsIdentityAnchored:
+    """The repair path for the 9 of 10 episodes whose transcript lives in ANOTHER run dir.
+
+    A reprocess writes fresh metadata into its new run while the transcript it relabelled stays
+    put, so the newest record can sit alone in a run with an empty ``transcripts/``. Before this,
+    those episodes were corrupted (idx glob found a stranger); after the refusal fix they were
+    skipped but unrepairable. This resolves them by IDENTITY — same guid, same feed, strictly
+    vouched — which is the property the idx glob never had.
+
+    One test per invariant the review required.
+    """
+
+    @staticmethod
+    def _feed(tmp_path: Path) -> Path:
+        feed = tmp_path / "feeds" / "rss_example_abc123"
+        feed.mkdir(parents=True)
+        return feed
+
+    def test_I1_same_guid_in_a_sibling_run_is_found(self, tmp_path: Path) -> None:
+        feed = self._feed(tmp_path)
+        old = feed / "run_20260101-000000"
+        new = feed / "run_20260201-000000"
+        _episode_on_disk(old, 1, "My episode", "guid-mine")
+        newer = _episode_on_disk(new, 1, "My episode", "guid-mine")
+        # The newest record's own run loses its transcript — the real post-relabel shape.
+        for f in (new / "transcripts").iterdir():
+            f.unlink()
+
+        assert _transcript_beside_metadata(newer) is None, "precondition: own run refuses"
+        found = scraping._transcript_in_a_sibling_run(newer, "guid-mine")
+        assert found is not None and "My episode" in Path(found).name
+
+    def test_I1b_a_different_guid_is_never_eligible(self, tmp_path: Path) -> None:
+        """Same idx, same title, DIFFERENT episode — the exact thing the idx glob accepted."""
+        feed = self._feed(tmp_path)
+        old = feed / "run_20260101-000000"
+        new = feed / "run_20260201-000000"
+        _episode_on_disk(old, 1, "My episode", "guid-SOMEONE-ELSE")
+        newer = _episode_on_disk(new, 1, "My episode", "guid-mine")
+        for f in (new / "transcripts").iterdir():
+            f.unlink()
+
+        assert scraping._transcript_in_a_sibling_run(newer, "guid-mine") is None
+
+    def test_I1c_an_empty_guid_never_matches_an_empty_stored_guid(self, tmp_path: Path) -> None:
+        """Proved non-discriminating in review and rewritten.
+
+        The old version had NO sibling runs, so deleting the `if not guid: return None` guard
+        still returned None (nothing to scan) and it passed regardless. The guard only earns its
+        keep when a sibling record ALSO has an empty stored guid — without it, `"" == ""` matches
+        and an unrelated episode is adopted.
+        """
+        feed = self._feed(tmp_path)
+        old = feed / "run_20260101-000000"
+        new = feed / "run_20260201-000000"
+        guidless = _episode_on_disk(old, 1, "Some other episode", "")
+        assert scraping._metadata_guid(guidless) == "", "fixture must store an empty guid"
+        newer = _episode_on_disk(new, 1, "My episode", "")
+        for f in (new / "transcripts").iterdir():
+            f.unlink()
+
+        assert scraping._transcript_in_a_sibling_run(newer, "") is None
+
+    def test_A_a_record_outside_a_run_dir_has_no_sibling_runs(self, tmp_path: Path) -> None:
+        """Flat layout (`<root>/metadata/x.json`): deriving a feed root escapes the corpus.
+
+        `parent.parent.parent` would be the PARENT of the corpus root, so the search would scan
+        directories beside the output dir — another corpus in single-feed layout, eligible on guid
+        alone. Prod is entirely `feeds/<slug>/run_*`, so this is latent, not live.
+        """
+        root = tmp_path / "corpus"
+        (root / "metadata").mkdir(parents=True)
+        meta = root / "metadata" / "0001 - Flat.metadata.json"
+        meta.write_text(json.dumps({"episode": {"guid": "guid-mine"}}), encoding="utf-8")
+        decoy_run = tmp_path / "run_20260101-000000"
+        _episode_on_disk(decoy_run, 1, "Another corpus entirely", "guid-mine")
+
+        assert scraping._transcript_in_a_sibling_run(meta, "guid-mine") is None
+
+    def test_I2_another_feed_with_the_same_guid_is_never_eligible(self, tmp_path: Path) -> None:
+        """Publishers ship non-unique guids ('1', a reused URL). A cross-feed hit would pull
+        another podcast's transcript into a stage that overwrites what it is given."""
+        other = tmp_path / "feeds" / "rss_other_feed"
+        (other / "run_20260101-000000").mkdir(parents=True)
+        _episode_on_disk(other / "run_20260101-000000", 1, "Other podcast", "guid-mine")
+        feed = self._feed(tmp_path)
+        new = feed / "run_20260201-000000"
+        newer = _episode_on_disk(new, 1, "My episode", "guid-mine")
+        for f in (new / "transcripts").iterdir():
+            f.unlink()
+
+        assert scraping._transcript_in_a_sibling_run(newer, "guid-mine") is None
+
+    def test_I3_a_candidate_without_its_segments_sidecar_is_refused(self, tmp_path: Path) -> None:
+        feed = self._feed(tmp_path)
+        old = feed / "run_20260101-000000"
+        new = feed / "run_20260201-000000"
+        _episode_on_disk(old, 1, "My episode", "guid-mine", segments=False)
+        newer = _episode_on_disk(new, 1, "My episode", "guid-mine")
+        for f in (new / "transcripts").iterdir():
+            f.unlink()
+
+        assert scraping._transcript_in_a_sibling_run(newer, "guid-mine") is None
+
+    def test_I4_newest_run_wins_by_run_recency_not_mtime(self, tmp_path: Path) -> None:
+        """Ordered by the run-folder timestamp, the corpus's own supersession rule. mtime would
+        be wrong: `_on_disk_guid_index` records first-glob-wins once resolving to the OLDEST run."""
+        import os
+
+        feed = self._feed(tmp_path)
+        older = feed / "run_20260101-000000"
+        newer_run = feed / "run_20260601-000000"
+        current = feed / "run_20260901-000000"
+        _episode_on_disk(older, 1, "Old words", "guid-mine")
+        _episode_on_disk(newer_run, 1, "New words", "guid-mine")
+        meta = _episode_on_disk(current, 1, "Current", "guid-mine")
+        for f in (current / "transcripts").iterdir():
+            f.unlink()
+        # Make the OLD run newest by mtime — on BOTH the transcript and the METADATA file, since
+        # the ordering key is read from the metadata path. An earlier version of this test touched
+        # only transcripts/, so an mtime-ordering mutant survived it.
+        future = 2_000_000_000
+        for f in list((older / "transcripts").iterdir()) + list((older / "metadata").iterdir()):
+            os.utime(f, (future, future))
+
+        found = scraping._transcript_in_a_sibling_run(meta, "guid-mine")
+        assert found is not None
+        assert "New words" in Path(found).name, f"run recency must beat mtime, got {found}"
+
+    def test_I9_two_records_for_one_guid_in_a_run_refuses_that_run(self, tmp_path: Path) -> None:
+        """Ambiguous is unknown, not 'first glob hit'."""
+        feed = self._feed(tmp_path)
+        old = feed / "run_20260101-000000"
+        new = feed / "run_20260201-000000"
+        _episode_on_disk(old, 1, "Copy one", "guid-mine")
+        _episode_on_disk(old, 2, "Copy two", "guid-mine")
+        newer = _episode_on_disk(new, 5, "My episode", "guid-mine")
+        for f in (new / "transcripts").iterdir():
+            f.unlink()
+
+        assert scraping._transcript_in_a_sibling_run(newer, "guid-mine") is None
+
+    def test_I5_a_vouched_own_run_transcript_is_never_replaced_by_a_sibling(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Proved non-discriminating in review and rewritten.
+
+        The old version asserted only that `_transcript_beside_metadata` works — it never touched
+        the `if not episode.on_disk_transcript:` guard, so a mutant calling the sibling search
+        UNCONDITIONALLY (overwriting a good own-run resolution with an older run's copy) passed
+        every test. This asserts the guard: with a vouched own-run transcript the sibling search
+        must not be consulted at all.
+        """
+        feed = self._feed(tmp_path)
+        old = feed / "run_20260101-000000"
+        new = feed / "run_20260201-000000"
+        _episode_on_disk(old, 1, "Stale copy", "guid-mine")
+        newer = _episode_on_disk(new, 1, "Current copy", "guid-mine")
+
+        called: list = []
+
+        def _spy(meta_path, guid):
+            called.append((meta_path, guid))
+            return str(old / "transcripts" / "0001 - Stale copy_run_20260101-000000.txt")
+
+        monkeypatch.setattr(scraping, "_transcript_in_a_sibling_run", _spy)
+
+        own = _transcript_beside_metadata(newer)
+        assert own is not None and "Current copy" in Path(own).name
+
+        resolved: str | None = own
+        if not resolved:  # mirrors selection's guard at scraping.py
+            resolved = scraping._transcript_in_a_sibling_run(newer, "guid-mine")
+
+        assert called == [], "the sibling search must not run when the own run vouched a file"
+        assert resolved is not None
+        assert "Current copy" in Path(resolved).name

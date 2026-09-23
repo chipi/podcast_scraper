@@ -30,7 +30,10 @@ from ...rss import (
 # corpus_scope-first, cli entrypoint, indexer-first). An earlier version of this import sat
 # inline under a comment claiming a cycle through ``workflow.metadata_generation``; that claim
 # was wrong and is recorded here so nobody re-inlines it on the strength of it.
-from ...search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+from ...search.corpus_scope import (
+    dedupe_metadata_paths_newest_run_per_episode,
+    run_recency_epoch,
+)
 from ...utils import filesystem
 from ..types import FeedMetadata
 
@@ -495,6 +498,95 @@ def _transcript_beside_metadata(meta_path: Path) -> Optional[str]:
     return None
 
 
+def _transcript_in_a_sibling_run(meta_path: Path, guid: str) -> Optional[str]:
+    """This episode's transcript in ANOTHER run of the SAME feed, or ``None``.
+
+    THE NEWEST RECORD IS NOT ALWAYS THE ONE WITH THE TRANSCRIPT. A reprocess writes fresh metadata
+    into its new run directory while the transcript it relabelled stays where it was, so the newest
+    copy of an episode can sit alone in a run whose ``transcripts/`` is empty. Nine of the ten
+    episodes corrupted on 2026-09-23 were in exactly that state: their own transcript existed, two
+    directories away, and the idx glob "found" a different episode's instead.
+
+    Why this is safe where the idx glob was not — identity, not resemblance:
+
+    * **Anchored on guid.** A candidate is eligible only when its stored ``episode.guid`` EQUALS
+      this record's. Within a feed the corpus already stakes everything on guid uniqueness
+      (:func:`_on_disk_guid_index` collapses by it), so this adds no exposure it does not already
+      carry. No guid, or a guid shared by two records inside one candidate run, means UNKNOWN and
+      is refused — ambiguity is never resolved by picking one.
+    * **Feed-scoped by construction.** The search space is this record's own feed root
+      (``<feed>/run_*/metadata``), never a corpus-wide walk: publishers do ship non-unique guids
+      ("1", a reused URL), and a cross-feed hit would pull another podcast's transcript into a
+      stage that OVERWRITES what it is given.
+    * **Strictly vouched.** Each candidate is resolved through :func:`_transcript_beside_metadata`,
+      which requires the exact-stem ``.txt`` AND its ``.segments.json``. Never the lax
+      ``run_index._transcript_beside``, whose ``{base}.*`` fallback can hand back a
+      ``.segments.json`` or a ``.cleaned.txt`` as "the transcript".
+    * **Newest run first**, by :func:`run_recency_epoch` — the corpus's own supersession rule, not
+      mtime and not glob order. ``_on_disk_guid_index`` records that first-glob-wins once resolved
+      to the OLDEST run.
+
+    Residual, accepted: if a newer run re-transcribed the episode and that copy is missing or
+    unvouchable, an older run's copy can be used — superseded words of the SAME episode, a
+    degradation, never another episode's. The caller logs which run was used.
+    """
+    if not guid:
+        return None
+    own_run = meta_path.parent.parent
+    # A RECORD NOT INSIDE A `run_*` DIRECTORY HAS NO SIBLING-RUN CONCEPT, and deriving a search
+    # root for one escapes the corpus. `_on_disk_guid_index` also feeds selection from the FLAT
+    # layout (`<root>/metadata/*.json`, see its patterns); for such a record `parent.parent.parent`
+    # is the parent of the corpus root, so `glob("run_*")` would scan directories BESIDE the output
+    # dir — another corpus in single-feed layout, eligible on guid alone. Prod is entirely
+    # `feeds/<slug>/run_*` (measured: 2312 of 2312 records), so this is a latent trap rather than a
+    # live one, but the guard costs one line.
+    if not own_run.name.startswith("run_"):
+        return None
+    feed_root = own_run.parent
+    if not feed_root.is_dir():
+        return None
+    candidates: List[Tuple[float, Path]] = []
+    for run_dir in feed_root.glob("run_*"):
+        if run_dir == own_run or not run_dir.is_dir():
+            continue
+        same_guid = [
+            p
+            for p in run_dir.glob(f"{filesystem.METADATA_SUBDIR}/*.metadata.json")
+            if _metadata_guid(p) == guid
+        ]
+        if len(same_guid) != 1:
+            # 0 = this run does not hold the episode. >1 = two records claim one guid in a single
+            # run, which is exactly the ambiguity this function exists not to guess at.
+            if len(same_guid) > 1:
+                logger.warning(
+                    "reprocess: %s holds %d records for guid %s — skipping that run as ambiguous",
+                    run_dir.name,
+                    len(same_guid),
+                    guid,
+                )
+            continue
+        candidates.append((run_recency_epoch(same_guid[0], run_dir.name), same_guid[0]))
+
+    # Tie-break on the path, mirroring `corpus_scope`'s (epoch, run_seg, path) ordering: two
+    # timestamp-less `run_append_*` dirs can share an epoch, and glob order is not deterministic.
+    for _recency, cand_meta in sorted(
+        candidates, key=lambda kv: (kv[0], kv[1].as_posix()), reverse=True
+    ):
+        found = _transcript_beside_metadata(cand_meta)
+        if found:
+            return found
+    return None
+
+
+def _metadata_guid(meta_path: Path) -> str:
+    """The stored ``episode.guid`` for one metadata artifact, or ``""`` when unreadable."""
+    try:
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    return str(((data or {}).get("episode") or {}).get("guid") or "").strip()
+
+
 def _reprocess_existing_episodes(
     feed: RssFeed,  # type: ignore[valid-type]
     feed_items: List[Any],
@@ -622,21 +714,42 @@ def _reprocess_existing_episodes(
         except (OSError, json.JSONDecodeError):
             episode.on_disk_transcript_urls = None
         episode.on_disk_transcript = _transcript_beside_metadata(meta_path)
+        _from_sibling_run = None
+        if not episode.on_disk_transcript:
+            # The own-run record refused. Before giving up, look for THIS episode (by guid, inside
+            # THIS feed) in another run — see `_transcript_in_a_sibling_run` for why that is
+            # identity-safe where the idx glob was not. Resolving here, at selection, keeps
+            # `_existing_transcript_for` a pure lookup and preserves the invariant that nothing
+            # searches downstream of a refusal.
+            _from_sibling_run = _transcript_in_a_sibling_run(meta_path, guid)
+            episode.on_disk_transcript = _from_sibling_run
         # SAY WHICH FILE THIS EPISODE IS ABOUT, at the moment it is decided. A reprocess OVERWRITES
         # the transcript it picks, and when a run came back with six of seven episodes relabelled
         # onto another episode's transcript there was no way to tell from the logs whether the
         # resolution was wrong or the fallback had silently fired — the components all behaved
         # correctly when tested in isolation afterwards. One line per episode settles it.
+        if episode.on_disk_transcript and _from_sibling_run:
+            # ADOPTION MUST BE VISIBLE. The stem is identical across runs, so printing the filename
+            # alone cannot distinguish "resolved from its own record" from "adopted another run's
+            # copy" — and on a repair run this line IS the audit trail. Name the run.
+            _resolution = (
+                f"{Path(episode.on_disk_transcript).name} "
+                f"[ADOPTED from {Path(_from_sibling_run).parent.parent.name}: "
+                f"its own run held no vouchable transcript]"
+            )
+        elif episode.on_disk_transcript:
+            _resolution = Path(episode.on_disk_transcript).name
+        else:
+            # It no longer falls back to the idx search: `_existing_transcript_for` refuses for a
+            # job carrying an on-disk record. This is the one line per episode an operator reads,
+            # so it must not advertise behaviour that was removed.
+            _resolution = "NO OWN TRANSCRIPT and none in a sibling run — SKIPPED, not guessed at"
         logger.info(
             "reprocess: [%s] (on-disk %s) %r -> %s",
             seq,
             idx,
             str(episode_meta.get("title") or "")[:60],
-            (
-                Path(episode.on_disk_transcript).name
-                if episode.on_disk_transcript
-                else "NO OWN TRANSCRIPT — will fall back to the idx search"
-            ),
+            _resolution,
         )
         episodes.append(episode)
 

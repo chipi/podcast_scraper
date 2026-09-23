@@ -355,6 +355,52 @@ class TestOneStuckEpisodeMustNotHoldItsFeedHostage(unittest.TestCase):
         started = {"slow": now - 3601.0, "fresh": now - 5.0}
         self.assertEqual(processing._overrunning_futures(started, 3600.0, now), ["slow"])
 
+    def test_a_QUEUED_future_can_never_overrun(self):
+        """The defect the pure-function test above could not see, caught in review.
+
+        `_submit_new_jobs` submits EVERY unprocessed job on the first iteration and the executor
+        queue is unbounded, while `processing_parallelism` defaults to 2. The first version of
+        this bound stamped the clock in `_try_submit`, so on a 30-episode feed 28 futures sat
+        QUEUED with the clock already running. At T+1h every one of them tripped the ceiling
+        without having executed: popped, counted failed, and then `len(futures)` hit 0, the loop
+        exited, and `abandoned_futures` being non-zero made the shutdown use
+        `cancel_futures=True` — dropping the rest. A feed would truncate itself at one hour and
+        report episodes failed that were never attempted.
+
+        The invariant: only a future that has consumed a worker slot can overrun. The stamp is
+        taken lazily on first observing `running()`, so a queued future has no entry at all.
+        """
+        import concurrent.futures
+
+        release = threading.Event()
+        # One worker, two jobs: the second is unavoidably QUEUED while the first occupies the slot.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            running_now = pool.submit(release.wait)
+            queued = pool.submit(release.wait)
+            try:
+                # Give the pool a moment to actually start the first one.
+                for _ in range(200):
+                    if running_now.running():
+                        break
+                    time.sleep(0.01)
+                self.assertTrue(running_now.running(), "the first future never started")
+                self.assertFalse(queued.running(), "the second future should still be queued")
+
+                # Mirror the loop's lazy stamping: only futures observed running get a clock.
+                started: dict = {}
+                for fut in (running_now, queued):
+                    if fut not in started and fut.running():
+                        started[fut] = 0.0  # stamped long ago, so it is over any ceiling
+
+                self.assertIn(running_now, started)
+                self.assertNotIn(queued, started, "a QUEUED future must not carry a clock")
+
+                overrun = processing._overrunning_futures(started, 1.0, 10_000.0)
+                self.assertEqual(overrun, [running_now])
+                self.assertNotIn(queued, overrun, "a never-executed episode must never be failed")
+            finally:
+                release.set()
+
     def test_a_future_inside_the_ceiling_is_left_alone(self):
         now = 10_000.0
         started = {"a": now - 3599.0, "b": now - 0.0}
@@ -380,6 +426,44 @@ class TestOneStuckEpisodeMustNotHoldItsFeedHostage(unittest.TestCase):
         self.assertLess(
             processing.DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS,
             processing.DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS,
+        )
+
+    def test_both_bounds_are_actually_settable_in_config(self):
+        """The documented escape hatch must not raise when used.
+
+        `Config` is ``extra="forbid"``, and BOTH bounds were read with getattr() while being
+        undeclared — so setting either raised "Extra inputs are not permitted". A documented
+        opt-out that fails on use is worse than none: it is discovered in the incident it was
+        supposed to defuse.
+        """
+        from podcast_scraper import config as config_module
+
+        cfg = config_module.Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            processing_loop_budget_seconds=1800,
+            processing_future_abandon_seconds=900,
+        )
+        self.assertEqual(cfg.processing_loop_budget_seconds, 1800)
+        self.assertEqual(cfg.processing_future_abandon_seconds, 900)
+        # And the helpers read them back, so declaring the field actually wires it up.
+        self.assertEqual(processing._processing_future_abandon_seconds(cfg), 900.0)
+        self.assertEqual(processing._processing_loop_budget_seconds(cfg, max_workers=2), 1800.0)
+
+    def test_an_unset_config_still_gets_both_defaults(self):
+        """Declaring the fields with default=None must not disable the built-in bounds."""
+        from podcast_scraper import config as config_module
+
+        cfg = config_module.Config(
+            rss="https://example.com/feed.xml", transcription_provider="whisper"
+        )
+        self.assertEqual(
+            processing._processing_future_abandon_seconds(cfg),
+            float(processing.DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS),
+        )
+        self.assertEqual(
+            processing._processing_loop_budget_seconds(cfg, max_workers=2),
+            float(processing.DEFAULT_PROCESSING_LOOP_BUDGET_SECONDS),
         )
 
     def test_config_override_and_garbage_handling(self):
