@@ -83,7 +83,7 @@ workflow: reprocess-prod.yml
   pipeline_stage       = full          # NOT relabel_only; these need ASR
   use_transcript_cache = false
   profile              = config/profiles/prod_dgx_full.yaml
-  litellm_api_base     = http://100.124.111.115:4001/v1
+  litellm_api_base     = http://<DGX_IP>:4001/v1
   timeout_minutes      = 240
   cost_cap_usd         = (set a small cap; the selection gate prices before spending, and a
                           refusal costs nothing — scraping.py:764-771)
