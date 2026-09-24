@@ -110,7 +110,21 @@ export const useAuthStore = defineStore('auth', {
           const keysRotated = noteAuthEpoch(health?.auth_epoch)
           const serverAtFault =
             offlineReason() === 'server' || health?.auth_ready === false || keysRotated
-          if (!serverAtFault) await clearCached(CACHE_KEYS)
+          if (!serverAtFault) {
+            await clearCached(CACHE_KEYS)
+            // The bearer token is the OTHER HALF of the credential, and it was never dropped here.
+            //
+            // On native `hasSession` is `user !== null || (isNative() && token)`, so a surviving
+            // token kept the app looking signed in with NO identity: the router guard admitted
+            // every authed route, each call 401'd, and offline there was no snapshot to paint —
+            // a session that exists for the guard and for nobody else. Reachable in the field
+            // whenever the server rotates its signing key while the app is online.
+            //
+            // Cleared under the SAME `serverAtFault` guard as the cached content, and for the same
+            // reason: a 401 from an unwell server is not the user's credential going bad, and
+            // signing everyone out over an outage is the 2026-09-16 incident in a different shape.
+            if (isNative()) storeAuthToken(null)
+          }
         }
       } catch {
         // Transport or server failure — NOT an auth failure. Keep whatever identity we have, and
