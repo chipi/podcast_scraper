@@ -3668,7 +3668,13 @@ ci-ui-fast:
 # break main. ci-ui-full closes that gap locally without slowing down the
 # default per-commit gate.
 ci-ui-full:
-	# Note: ci-ui-full = ci-ui-fast + stack-test-ml-ci. Requires Docker
+	# Note: ci-ui-full = ci-ui-fast + stack-test-ml-ci + the DEVICE tier (`test-ios`,
+	# operator 2026-09-24). The device tier lives HERE and not in `ci-ui-fast` because it boots a
+	# simulator and stands up the containerised api — minutes, which is the opposite of what a fast
+	# gate is for. `test-ios` self-SKIPS off macOS and says out loud that nothing was verified; a
+	# SILENT skip is how that tier sat dead from 71fc75965 until 2026-09-24. On a Mac with Xcode but
+	# no simulator it fails instead — a broken setup is not an absent platform.
+	# Requires Docker
 	# (Buildx + Compose v2). Same airgapped_thin profile as the public CI
 	# Stack-test workflow.
 	@set -e; \
@@ -3692,6 +3698,7 @@ ci-ui-full:
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-app ==="; $(MAKE) test-app; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-app-e2e ==="; $(MAKE) test-app-e2e; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build-app ==="; $(MAKE) build-app; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-ios (device tier) ==="; $(MAKE) test-ios; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] stack-test-ml-ci ==="; $(MAKE) stack-test-ml-ci; \

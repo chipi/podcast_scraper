@@ -38,9 +38,15 @@ final class OfflineAutoAdvanceTests: UITestCase {
     // Asserted through AppSession so it survives the revalidation rather than passing on the
     // painted session: with the api DOWN the refresh cannot answer, and NOT signing out on a
     // transport failure is precisely what this line exists to prove.
+    // The message carries the evidence. `print` does NOT survive xcodebuild — that is why three
+    // investigations into this tier read a truncated log and blamed the app. "Fell back to
+    // signed-out" has three causes (signed out, signed in as someone ELSE, or the masthead entry
+    // not labelled with the display name), and only the labels on screen tell them apart.
+    let signedIn = AppSession.isSignedIn(app, as: accountIdentity)
     XCTAssertTrue(
-      AppSession.isSignedIn(app, as: accountIdentity),
-      "offline boot did not keep the session — the app fell back to signed-out"
+      signedIn,
+      "offline boot did not keep the session as '\(accountIdentity)'. "
+        + "On screen: \(Journey.labelledInventory(app, limit: 14))"
     )
 
     // 2. The Downloaded list renders from the device registry, with zero successful requests.
