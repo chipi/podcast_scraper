@@ -77,4 +77,4 @@ artifact** metadata on **`snapshot.tgz`**.
 
 - [GitHub #763](https://github.com/chipi/podcast_scraper/issues/763)
 - [RFC-084: Corpus snapshot backup manifest and version-aware restore](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)
-- [Corpus snapshot manifest and restore (all surfaces)](../guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md)
+- Corpus snapshot manifest and restore (all surfaces)

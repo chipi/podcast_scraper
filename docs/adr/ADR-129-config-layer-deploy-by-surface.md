@@ -100,4 +100,4 @@ only podcast_scraper's own surfaces (player, operator).
 ## References
 
 - `.github/workflows/deploy-config.yml` · `infra/caddy/*.caddy` · `infra/observability/*.alloy`
-- [EDGE_CONVERGENCE_RUNBOOK](../guides/EDGE_CONVERGENCE_RUNBOOK.md) (the base Caddyfile / host path)
+- EDGE_CONVERGENCE_RUNBOOK (the base Caddyfile / host path)

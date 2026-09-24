@@ -23,7 +23,7 @@ Ask things like:
 - *"Does our alerting match symptom-based paging?"*
 - *"Quick SRE check — what's the biggest gap in this runbook?"*
 
-**Repo anchors** (this checkout’s narrative, not part of the book): [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md), [Prod runbook](PROD_RUNBOOK.md), [CI workflows](../ci/WORKFLOWS.md), [DR drill runbook](DR_DRILL_RUNBOOK.md).
+**Repo anchors** (this checkout’s narrative, not part of the book): [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md), Prod runbook, CI workflows, DR drill runbook.
 
 ---
 
@@ -219,5 +219,5 @@ If the system is safe but operationally immature, say so: reliability is **both*
 - [Tufte Chart Critique](TUFTE_CHART_CRITIQUE.md) — visualization and dashboards
 - [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) — how this repo’s
   always-on stack is meant to fit together
-- [Prod runbook](PROD_RUNBOOK.md) — operator procedures
-- [CI workflows](../ci/WORKFLOWS.md) — what automation actually runs
+- Prod runbook — operator procedures
+- CI workflows — what automation actually runs

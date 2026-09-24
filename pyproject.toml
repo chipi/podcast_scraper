@@ -59,8 +59,9 @@ dependencies = [
 [project.optional-dependencies]
 # Canonical extras (no separate [gemini] / [openai] extras):
 #   dev       — tests, lint, typecheck, FastAPI/uvicorn (viewer API), text eval metrics; no torch/transformers
-#   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, lancedb,
-#               llama-cpp-python (GGUF hybrid REDUCE, RFC-042), etc.
+#   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers,
+#               llama-cpp-python (GGUF hybrid REDUCE, RFC-042), etc. NOT lancedb: that is
+#               search-only, as the note in [ml] itself says. This line claimed otherwise.
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
 #   search    — Minimum local ML for the vector index (sentence-transformers + lancedb + torch CPU).
 #               Pulled into the cloud-API pipeline image alongside [llm] so cloud_balanced can
@@ -217,6 +218,21 @@ search = [
   # UPGMA clustering for topic_clusters.py (C1 fix); transitive via sentence-transformers
   # in practice, but declared explicitly so the extra is self-contained.
   "scipy>=1.10.0,<2.0.0",
+  # MLQueryRouter (RFC-090 §3.6 / RFC-092): a LogisticRegression over the same 384-dim
+  # all-MiniLM-L6-v2 space the index uses, persisted with joblib. Same reasoning as scipy
+  # above — both arrive transitively via sentence-transformers today, and both are imported
+  # BY NAME in search/query_router.py, so the extra declares them rather than inheriting
+  # them. Undeclared, the only test that exercises the real joblib load
+  # (tests/integration/search/test_query_router_ml.py) silently stops running the day
+  # sentence-transformers drops either one: it opens with importorskip, so the suite would
+  # report a skip, not a failure.
+  # Floor is 1.5.0, not the 1.3.0 a "lowest plausible" guess would give: 1.3.x is affected by
+  # GHSA-jw8x-6495-233v / PYSEC-2024-110 (sensitive data leakage), and 1.5.0 is the first clean
+  # release per OSV. CI resolves 1.9.0 today, so this floor is a safety bound rather than the
+  # tested version — declaring a range we would refuse to install is how a pin becomes fiction.
+  "scikit-learn>=1.5.0,<2.0.0",
+  # joblib has no advisories at its floor (checked 1.3.0 and 1.4.0 against OSV); CI resolves 1.6.0.
+  "joblib>=1.3.0,<2.0.0",
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
@@ -399,7 +415,6 @@ exclude = [
     "^\\.venv/.*",  # Local venv (make type uses ``mypy .``)
     "^\\.venv-dev/.*",  # CI-parity venv (see Makefile VENVDEV)
     "^autoresearch/.*",  # Standalone autoresearch scripts (not part of src package)
-    "^infra/dgx/.*-server/app\\.py$",  # Docker-image app.py files (pyannote-server, whisper-server) — both named "app", not part of src package
 ]
 
 [[tool.mypy.overrides]]

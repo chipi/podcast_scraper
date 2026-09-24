@@ -2,7 +2,7 @@
 
 Authoritative map of **what the pipeline writes**, **what the API reads**, and **which viewer tabs depend on which routes**. Used by:
 
-- [PROD_RUNBOOK — Code/content compatibility](../guides/PROD_RUNBOOK.md#codecontent-compatibility) (operator decision tree)
+- PROD_RUNBOOK — Code/content compatibility (operator decision tree)
 - [GitHub #796](https://github.com/chipi/podcast_scraper/issues/796) (`produced_by`, `/api/health` preflight)
 - [GitHub #797](https://github.com/chipi/podcast_scraper/issues/797) (`scripts/ops/post_deploy_smoke.sh`)
 - [Code/content compatibility matrix](../COMPATIBILITY.md)

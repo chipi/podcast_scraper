@@ -5,7 +5,7 @@ Forward and backward compatibility between **running code** (GHCR image / git ta
 
 Related: [GitHub #796](https://github.com/chipi/podcast_scraper/issues/796) (system contract:
 `produced_by`, `/api/health` preflight), [GitHub #797](https://github.com/chipi/podcast_scraper/issues/797)
-(operator framework + smoke script), [PROD_RUNBOOK — Code/content compatibility](guides/PROD_RUNBOOK.md#codecontent-compatibility),
+(operator framework + smoke script), PROD_RUNBOOK — Code/content compatibility,
 [Corpus artifacts and viewer surfaces](architecture/CORPUS_ARTIFACTS_AND_SURFACES.md).
 
 | Code version | Min corpus version it can read | Max corpus version it can read | Notes |

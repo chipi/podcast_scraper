@@ -1498,7 +1498,7 @@ class Config(BaseModel):
             "faster-whisper-server port on DGX (default 8000, #814). Separate from "
             "dgx_ollama_port because Whisper is served by a different service "
             "(faster-whisper-server, OpenAI-compatible). See "
-            "infra/dgx/converge/deploy.py."
+            "the DGX converge tooling."
         ),
     )
     dgx_whisper_model: str = Field(
@@ -1562,7 +1562,7 @@ class Config(BaseModel):
         description=(
             "Port for the DGX-hosted pyannote diarization service (default 8001, "
             "#926). The legacy embedding-shim slot reclaimed for diarize. See "
-            "infra/dgx/converge/deploy.py."
+            "the DGX converge tooling."
         ),
     )
     dgx_diarize_model: str = Field(

@@ -368,6 +368,6 @@ enough to pin it.
 ## Related
 
 - [Corpus Reprocessing](CORPUS_REPROCESSING.md) — the reprocess stages these loops exercise
-- [DGX Runbook](DGX_RUNBOOK.md) — the GPU host tiers 3 and 4 depend on
+- DGX Runbook — the GPU host tiers 3 and 4 depend on
 - [Agent-Pipeline Feedback Loop Guide](AGENT_PIPELINE_LOOP_GUIDE.md) — structured run artifacts
 - [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) — where these tiers sit beside the test suite
