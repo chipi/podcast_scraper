@@ -3677,6 +3677,20 @@ def transcribe_media_to_text(
         logger.warning(
             "    Skipping transcription: Transcription provider not available",
         )
+        # Countable, like every other refusal. Found by the structural guard in
+        # test_refusals_are_countable.py rather than by inspection: this returns the same
+        # `(False, None, 0)` the reprocess refusals do, so the caller's `if success:` skips both
+        # the counter and `update_episode_status` and the episode lands in neither ok nor
+        # failed. Note this is the ORDINARY transcribe path, not a reprocess-only one — a run
+        # with a misconfigured provider could under-deliver silently on every episode.
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "transcription",
+            error_type="NoTranscriptionProvider",
+            detail="no transcription provider was available to transcribe this episode",
+        )
         _cleanup_temp_media(temp_media, cfg)
         return False, None, 0
 
