@@ -159,13 +159,45 @@ async function seekTo(page: Page, seconds: number): Promise<void> {
   }, seconds)
 }
 
+/** Mid-window of p05_e03's FIRST supporting quote (6s -> 12s). */
+const SEEK_SECONDS = 9
+
+/**
+ * Fail with the CAUSE when no insight is live at `seconds`, instead of waiting 30s for an
+ * element that was never going to appear. The windows are corpus data and they move.
+ */
+async function assertInsightCoversSeek(page: Page, seconds: number): Promise<void> {
+  const slug = page.url().split('/episode/')[1]?.split(/[?#]/)[0]
+  const resp = await page.request.get(`/api/app/episodes/${slug}/insights`)
+  const body = (await resp.json()) as {
+    insights?: { quotes?: { start_ms: number | null; end_ms: number | null }[] }[]
+  }
+  const windows = (body.insights ?? []).flatMap((i) => i.quotes ?? [])
+  const covering = windows.filter(
+    (q) => q.start_ms != null && q.end_ms != null && q.start_ms <= seconds * 1000 && seconds * 1000 <= q.end_ms,
+  )
+  expect(
+    covering.length,
+    `no insight is live at t=${seconds}s for ${slug}. Zone D's live band can only render ` +
+      `inside a supporting-quote window, so this is a fixture timing change, not a UI ` +
+      `regression. Windows (ms): ${windows.map((q) => `${q.start_ms}-${q.end_ms}`).join(', ')}`,
+  ).toBeGreaterThan(0)
+}
+
 /**
  * The artwork's Zone D intelligence band (#Zone-D rewrite) — the surface this exploration is
  * about, so it gets its own two shots rather than relying on whatever moment `player` above
  * happens to land on at t=0 (always the rest state, since nothing has played yet).
  *
- * Episode p05_e03 ("The Bessent Tape") has three timed, non-degenerate insights packed into its
- * first 36 seconds and nothing after — real corpus data, not a fixture built for this shot.
+ * Episode p05_e03 ("The Bessent Tape") has three timed, non-degenerate insights — real corpus
+ * data, not a fixture built for this shot. Their supporting-quote windows run 6s -> 48s.
+ *
+ * They used to start at 0s, and this file said "packed into its first 36 seconds". The opening
+ * quote was a greeting, and build_gi now drops greeting quotes (they were surfacing as insights
+ * and as topics), so the first surviving window starts at 6s and everything shifted one slot
+ * later. Seeking to 3s then landed in dead air and the shot failed 17 seconds later on a
+ * missing element — a fixture change reported as a UI fault. Hence SEEK_SECONDS below, and
+ * assertInsightCoversSeek, which says so directly if the windows move again.
  */
 test('player zoneD — live insight', async ({ page }) => {
   await signIn(page)
@@ -175,8 +207,8 @@ test('player zoneD — live insight', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible({
     timeout: 30_000,
   })
-  // 3s sits inside the first insight's [0, 6s] supporting-quote window.
-  await seekTo(page, 3)
+  await assertInsightCoversSeek(page, SEEK_SECONDS)
+  await seekTo(page, SEEK_SECONDS)
   await expect(page.getByTestId('player-zone-d-live')).toBeVisible()
   await shoot(page, 'zoneD-live')
 })
@@ -279,7 +311,8 @@ test('player zoneD — longest insight in the corpus', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible({
     timeout: 30_000,
   })
-  await seekTo(page, 3)
+  await assertInsightCoversSeek(page, SEEK_SECONDS)
+  await seekTo(page, SEEK_SECONDS)
   await expect(page.getByTestId('player-zone-d-live')).toBeVisible()
   await shoot(page, 'zoneD-longest')
 })
