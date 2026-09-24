@@ -126,13 +126,22 @@ def test_preloaded_pinned_summaries_are_in_the_manifest():
 
 
 def test_airgapped_thin_summary_is_the_trimmed_pair():
-    # preload_ml_models.py --airgapped-thin reads model_ids_for_tier("airgapped_thin",
-    # "summary"); it is the trimmed bart/led pair.
+    """``preload_ml_models.py --airgapped-thin`` preloads exactly this pair.
+
+    This used to also assert ``set(air) <= set(model_ids_for_tier("test", "summary"))``, which
+    stopped holding when LED left the test tier. The replacement written first was
+    ``set(air) <= {m.model_id for m in REQUIRED_ML_MODELS}`` — which CANNOT FAIL, because
+    ``models_for_tier`` is a filter OVER ``REQUIRED_ML_MODELS``. A tautology in the place a
+    dropped guard used to be is worse than no guard: it reads as coverage.
+
+    What is worth pinning here is the pair itself. The relationship to the test tier moved to
+    ``test_the_test_tier_is_the_loadable_subset_of_airgapped_thin``, where it is asserted in the
+    direction that now runs.
+    """
     air = mm.model_ids_for_tier("airgapped_thin", "summary")
     assert set(air) == {"facebook/bart-base", "allenai/led-base-16384"}
-    # Every one is in the manifest, so every one is pinned and known. That is the part that
-    # matters and it still holds.
-    assert set(air) <= {m.model_id for m in mm.REQUIRED_ML_MODELS}
+    for model_id in air:
+        assert cc.get_pinned_revision_for_model(model_id), f"{model_id} preloaded unpinned"
 
 
 def test_the_test_tier_is_the_loadable_subset_of_airgapped_thin():
