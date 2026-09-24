@@ -49,7 +49,11 @@ def corpus_lock_enabled() -> bool:
 
 
 def _is_pid_alive(pid: int) -> bool:
-    """Return True if a process with *pid* is running on this host."""
+    """Return True if a process with *pid* is running on THIS host.
+
+    Only meaningful for a holder recorded on this same hostname — callers should use
+    :func:`_holder_is_reclaimable`.
+    """
     try:
         os.kill(pid, 0)
         return True
@@ -60,6 +64,86 @@ def _is_pid_alive(pid: int) -> bool:
         return True
     except OSError:
         return False
+
+
+def _holder_is_reclaimable(holder: Dict[str, object]) -> bool:
+    """True only when we can PROVE the recorded holder is gone.
+
+    A PID is meaningful only on the host that recorded it. Every container's init is
+    PID 1, so a holder written as ``{"pid": 1, "hostname": "f0c5969c4647"}`` — exactly
+    what a ``docker compose run`` reprocess records — reads as ALIVE from any other
+    container, because that container has its own PID 1. The hostname was already being
+    recorded and simply never compared, so a hard-dead container's holder could never be
+    reclaimed automatically.
+
+    Unknown is not dead: a holder from a different hostname returns False rather than
+    guessing. That is the safe direction — a false "reclaimable" would admit two writers
+    to one corpus, the data-loss shape this lock exists to prevent. The OS ``flock``
+    stays the real mutual exclusion; this only decides whether a retry is worth trying.
+    """
+    pid = holder.get("pid")
+    if not isinstance(pid, int):
+        return False
+    recorded_host = str(holder.get("hostname") or "")
+    if recorded_host and recorded_host != socket.gethostname():
+        return False
+    return not _is_pid_alive(pid)
+
+
+def corpus_lock_state(corpus_parent: Union[str, Path]) -> Dict[str, object]:
+    """Answer "is anything holding this corpus right now?" — the ops-facing question.
+
+    THE LOCK FILE'S EXISTENCE MEANS NOTHING. ``filelock`` never unlinks it on release:
+    only the ``flock`` is dropped and the holder sidecar removed, so
+    ``.podcast_scraper.lock`` sits there, 0 bytes, after every run that has ever
+    succeeded. On 2026-09-22..24 its presence was read as "locked" repeatedly, concluded
+    to be a stale lock, and hand-removed — and one of those readings reached a runbook as
+    "the lock does NOT release on cancel — verified twice". It does release. Nothing was
+    stale. The removals were unnecessary.
+
+    ``held`` is decided by probing the ``flock``, which is the only authority. Returns
+    ``{held, holder, lock_path, lock_file_exists, reason}`` and never raises.
+    """
+    root = Path(corpus_parent).expanduser().resolve()
+    lock_path = root / LOCK_BASENAME
+    holder_path = root / _HOLDER_BASENAME
+    holder = _read_holder(holder_path)
+    out: Dict[str, object] = {
+        "lock_path": str(lock_path),
+        "lock_file_exists": lock_path.exists(),
+        "holder": holder,
+    }
+    if not corpus_lock_enabled():
+        out.update(held=False, reason="locking disabled via PODCAST_SCRAPER_CORPUS_LOCK")
+        return out
+    if not lock_path.exists():
+        out.update(held=False, reason="no lock file — this corpus has never been locked")
+        return out
+    try:
+        from filelock import FileLock, Timeout
+
+        probe = FileLock(str(lock_path), timeout=0)
+        try:
+            probe.acquire()
+        except Timeout:
+            out.update(
+                held=True,
+                reason="flock is held by a live process"
+                + (f" ({holder})" if holder else " (no holder file)"),
+            )
+            return out
+        probe.release()
+        out.update(
+            held=False,
+            reason=(
+                "lock file exists but the flock is FREE — the normal state after any "
+                "completed run; the file is never unlinked on release"
+            ),
+        )
+        return out
+    except Exception as exc:  # noqa: BLE001 — a status probe must never raise
+        out.update(held=False, reason=f"could not probe the flock: {type(exc).__name__}")
+        return out
 
 
 def _read_holder(holder_path: Path) -> Optional[Dict[str, object]]:
@@ -153,8 +237,11 @@ def corpus_parent_lock(
         # Check whether the holder is still alive; reclaim if dead.
         holder = _read_holder(holder_path)
         if holder:
-            pid = holder.get("pid")
-            if isinstance(pid, int) and not _is_pid_alive(pid):
+            # Hostname-aware: a PID from ANOTHER host tells us nothing, and every
+            # container's PID 1 exists, so the old bare `_is_pid_alive` never reclaimed a
+            # dead container's holder. See `_holder_is_reclaimable`.
+            if _holder_is_reclaimable(holder):
+                pid = holder.get("pid")
                 started = holder.get("started_at", "?")
                 hostname = holder.get("hostname", "?")
                 if logger is not None:

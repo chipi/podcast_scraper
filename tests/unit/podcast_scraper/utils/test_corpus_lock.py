@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 from pathlib import Path
 from unittest.mock import patch
 
@@ -217,9 +218,20 @@ def test_reclaim_path_forces_timeout_then_reacquires(tmp_path: Path, monkeypatch
     import podcast_scraper.utils.corpus_lock as mod
     from podcast_scraper.utils.corpus_lock import _HOLDER_BASENAME, corpus_parent_lock
 
+    # SAME host: a PID is only evidence on the machine that recorded it. This fixture used
+    # "ghost" (another host) and asserted a reclaim, which is the unsafe direction — a
+    # contended flock plus a holder from elsewhere means someone else really holds it, and
+    # reclaiming admits a second writer. `_holder_is_reclaimable` now refuses that case;
+    # `test_pid_1_on_another_host_is_NOT_treated_as_alive_and_ours` pins it.
     holder_path = tmp_path / _HOLDER_BASENAME
     holder_path.write_text(
-        json.dumps({"pid": 4242, "hostname": "ghost", "started_at": "2025-01-01T00:00:00+00:00"})
+        json.dumps(
+            {
+                "pid": 4242,
+                "hostname": socket.gethostname(),
+                "started_at": "2025-01-01T00:00:00+00:00",
+            }
+        )
     )
 
     calls = {"n": 0}
@@ -277,3 +289,94 @@ def test_reclaim_race_second_acquire_also_times_out_raises(tmp_path: Path, monke
     with pytest.raises(RuntimeError, match="locked"):
         with corpus_parent_lock(tmp_path):
             pass
+
+
+class TestTheLockFileIsNotTheLock:
+    """2026-09-22..24: the lock FILE's presence was read as "locked", three times.
+
+    `filelock` never unlinks the file on release — only the flock is dropped and the
+    holder sidecar removed — so `.podcast_scraper.lock` sits there, 0 bytes, after every
+    run that has ever succeeded. That was diagnosed as a stale lock, hand-removed on
+    prod, and written into a runbook as "the lock does NOT release on cancel — verified
+    twice". It does release. `corpus_lock_state` exists so nobody has to infer it.
+    """
+
+    def test_the_file_survives_release_and_that_is_not_held(self, tmp_path) -> None:
+        from podcast_scraper.utils import corpus_lock as cl
+
+        with cl.corpus_parent_lock(tmp_path):
+            inside = cl.corpus_lock_state(tmp_path)
+            assert inside["held"] is True
+            assert inside["lock_file_exists"] is True
+
+        after = cl.corpus_lock_state(tmp_path)
+        assert after["lock_file_exists"] is True, "filelock does not unlink on release"
+        assert after["held"] is False, (
+            "a leftover lock file is the NORMAL post-run state; reporting it as held is "
+            "what caused three unnecessary hand-removals on prod"
+        )
+
+    def test_never_locked_corpus_reports_not_held(self, tmp_path) -> None:
+        from podcast_scraper.utils import corpus_lock as cl
+
+        st = cl.corpus_lock_state(tmp_path)
+        assert st["held"] is False
+        assert st["lock_file_exists"] is False
+
+    def test_state_never_raises_on_a_junk_path(self) -> None:
+        from podcast_scraper.utils import corpus_lock as cl
+
+        st = cl.corpus_lock_state("/nonexistent/definitely/not/here")
+        assert st["held"] is False
+
+
+class TestAPidFromAnotherHostIsNotEvidence:
+    """Every container's init is PID 1, so a holder from a dead container read as ALIVE.
+
+    `docker compose run` records `{"pid": 1, "hostname": "<container id>"}`. The reclaim
+    path called `_is_pid_alive(1)` locally, which is always true in any container, so a
+    hard-dead container's holder could never be reclaimed. The hostname was recorded all
+    along and simply never compared.
+    """
+
+    def test_a_dead_pid_on_this_host_is_reclaimable(self) -> None:
+        import socket
+
+        from podcast_scraper.utils import corpus_lock as cl
+
+        assert cl._holder_is_reclaimable({"pid": 999999, "hostname": socket.gethostname()})
+
+    def test_a_foreign_hostname_makes_the_pid_irrelevant(self) -> None:
+        """The DISCRIMINATING case, and the first version of this test was not one.
+
+        It used pid 1 + a foreign hostname — but pid 1 is alive on the test machine too,
+        so a host-blind implementation returned the same answer by coincidence and the
+        mutant survived. A pid that is DEAD locally but recorded on another host is the
+        only shape that separates the two: host-blind says "dead, reclaim it"; host-aware
+        says "not my host, I cannot know".
+        """
+        from podcast_scraper.utils import corpus_lock as cl
+
+        assert cl._holder_is_reclaimable(
+            {"pid": 999999, "hostname": __import__("socket").gethostname()}
+        )
+        assert not cl._holder_is_reclaimable({"pid": 999999, "hostname": "f0c5969c4647"}), (
+            "a dead-looking pid from ANOTHER host must not be reclaimable — that is how a "
+            "second writer gets into one corpus"
+        )
+        # And the container shape that started this: pid 1 from a dead container.
+        assert not cl._holder_is_reclaimable({"pid": 1, "hostname": "f0c5969c4647"})
+
+    def test_a_live_pid_on_this_host_is_not_reclaimable(self) -> None:
+        import os
+        import socket
+
+        from podcast_scraper.utils import corpus_lock as cl
+
+        assert not cl._holder_is_reclaimable({"pid": os.getpid(), "hostname": socket.gethostname()})
+
+    def test_a_malformed_holder_is_not_reclaimable(self) -> None:
+        from podcast_scraper.utils import corpus_lock as cl
+
+        assert not cl._holder_is_reclaimable({})
+        assert not cl._holder_is_reclaimable({"pid": "not-an-int", "hostname": "x"})
