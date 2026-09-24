@@ -1,6 +1,8 @@
 # ADR-069: Hybrid ML Pipeline as Primary Production Summarization Direction
 
-- **Status**: Accepted
+> **Superseded by [ADR-154](ADR-154-hybrid-map-reduce-retirement.md)** — the held-out v2 evaluation found BART MAP helps a weak REDUCE and hurts a capable one; standalone `qwen3.5:9b` beat the hybrid built on the same model. Body kept as frozen history.
+
+- **Status**: Superseded by [ADR-154](ADR-154-hybrid-map-reduce-retirement.md)
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002),
