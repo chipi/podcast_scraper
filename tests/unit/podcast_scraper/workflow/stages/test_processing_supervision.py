@@ -326,6 +326,55 @@ class TestTranscriptlessJobsAreStillCountable(unittest.TestCase):
             processing._mark_processed(processed, j)
         self.assertEqual(len(processed), len(jobs))
 
+    def test_the_guid_branch_actually_fires_for_a_real_episode(self):
+        """2026-09-24: it never had. `Episode` has no `.guid` attribute.
+
+        The 2026-09-18 fix read `getattr(episode, "guid", "")`, which is always "", so every
+        transcript-less job fell through to `id(job)`. Keys stayed unique — that fallback
+        guarantees it — so the wedge stayed fixed, but by a different mechanism than the
+        docstring claimed, and `id()` is a memory address: unique, not stable. The guid lives
+        in `episode.item` XML and needs `run_index._episode_guid`.
+
+        Discriminating by construction: a SimpleNamespace stub with a `.guid` attribute would
+        pass against the old code, so this uses a real `Episode` with the guid only in its XML.
+        """
+        import xml.etree.ElementTree as ET
+        from types import SimpleNamespace
+
+        from podcast_scraper.models.entities import Episode
+
+        item = ET.Element("item")
+        g = ET.SubElement(item, "guid")
+        g.text = "guid-abc123"
+        ep = Episode(idx=1, title="t", title_safe="t", item=item, transcript_urls=[])
+        job = SimpleNamespace(transcript_path=None, episode=ep)
+
+        key = processing._processing_job_key(job)
+
+        assert "guid-abc123" in key, f"the guid branch is dead again: {key}"
+        assert not key.startswith(
+            "no-transcript:obj:"
+        ), "fell back to id(job), which is a memory address — unique but not stable across runs"
+
+    def test_two_transcriptless_episodes_keyed_by_their_real_guids(self):
+        """The property the guid branch exists for: distinct, and stable, not id()-derived."""
+        import xml.etree.ElementTree as ET
+        from types import SimpleNamespace
+
+        from podcast_scraper.models.entities import Episode
+
+        def _job(guid):
+            item = ET.Element("item")
+            g = ET.SubElement(item, "guid")
+            g.text = guid
+            ep = Episode(idx=1, title="t", title_safe="t", item=item, transcript_urls=[])
+            return SimpleNamespace(transcript_path=None, episode=ep)
+
+        k1 = processing._processing_job_key(_job("guid-one"))
+        k2 = processing._processing_job_key(_job("guid-two"))
+        assert k1 != k2
+        assert k1 == processing._processing_job_key(_job("guid-one")), "must be stable"
+
     def test_a_job_with_neither_path_nor_guid_is_still_unique(self):
         a = self._job(1, None)
         b = self._job(1, None)

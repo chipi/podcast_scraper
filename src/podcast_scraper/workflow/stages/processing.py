@@ -116,11 +116,28 @@ def _processing_job_key(job: Any) -> str:
     if path:
         return path
     episode = getattr(job, "episode", None)
-    guid = str(getattr(episode, "guid", "") or "").strip()
+    # `Episode` HAS NO `.guid` ATTRIBUTE — the guid lives in `episode.item` XML and is only
+    # reachable through `run_index._episode_guid`. The 2026-09-18 fix read `getattr(episode,
+    # "guid", "")`, which is always "", so this branch never once executed and every
+    # transcript-less job fell to `id(job)`. Proven 2026-09-24: an Episode carrying
+    # `<guid>guid-abc123</guid>` still keyed as `no-transcript:obj:4389087280`.
+    #
+    # Keys stayed unique, so the wedge that fix targeted did stay fixed — but by the id()
+    # fallback, not by the documented mechanism, and the docstring's claim that this "keeps
+    # such jobs distinct" via "the episode's stable identity" was false: id() is a memory
+    # address, reused after garbage collection and different on every run.
+    guid = ""
+    try:
+        from ..run_index import _episode_guid
+
+        guid = str(_episode_guid(episode) or "").strip()
+    except Exception:  # noqa: BLE001 — identity must never break the run
+        guid = ""
     if guid:
         return f"no-transcript:guid:{guid}"
-    # No path and no guid: id() is unique for the lifetime of this list, which is exactly the
-    # lifetime of the bookkeeping that uses it.
+    # Genuinely no guid (a job built without an Episode, or a feed item with no guid element):
+    # id() is unique for the lifetime of this list, which is the lifetime of the bookkeeping
+    # that uses it. Unique, but NOT stable across runs — which is why the guid is preferred.
     return f"no-transcript:obj:{id(job)}"
 
 
