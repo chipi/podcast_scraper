@@ -334,6 +334,36 @@ reindex-prod.yml  mode=rebuild  with_clusters=true
 `with_clusters` matters when GI was regenerated — `search/topic_clusters.json` derives
 from it. Shares the `prod-corpus` lock, so it cannot overlap a reprocess.
 
+**Check it, do not assume it in either direction.** This heading is the safe default, not a
+law: `maybe_index_corpus` is gated on `vector_search` / `skip_auto_vector_index` and NOT on
+`pipeline_stage`, so a `relabel_only` run is not excluded by its stage, and `_finalize_pipeline`
+does call it against the corpus finalize dir. Whether it actually runs for YOUR batch depends
+on the layout the run resolves (`_corpus_finalize_dir_for`) and on where finalize happens in a
+multi-feed spec. Measured on the 2026-09-24 284-episode multi-feed batch: three feeds closed
+with `vector_index_sec: 0.0` each, `topic-clusters: skipped (missing LanceDB index at
+<run-local path>)`, and the corpus index untouched since 09:11:16 — two minutes BEFORE that
+batch started. So for that shape, no.
+
+The two cheap measurements that settle it, rather than reasoning about the code:
+
+```bash
+# 1. has the serving index been written since the batch began?
+docker exec compose-api-1 stat -c %y /app/output/search/lance_index
+# 2. did any feed spend time indexing?
+docker logs <container> | grep -o '"vector_index_sec": [0-9.]*' | sort -u
+```
+
+The index has **no run-dir column**, so staleness cannot be tested by path. Test it by CONTENT
+— pull each episode's rows from the `segments` table and check the chunk text still appears in
+that episode's current on-disk transcript. A chunk the repair did not regenerate survives
+holding the wrong episode's words and will not be found there. Run it from `compose-api-1`
+(`/app/output/search/lance_index`, tables `aux` / `insights` / `segments`); the image has
+pyarrow but **no pandas**, so use `to_arrow()`, and do not install anything to answer this.
+
+Done that way on the 10 repaired episodes: 361 indexed chunks, 0 stale. Their index was
+refreshed — the general rule above did not apply to them, which is exactly why it gets
+measured rather than assumed.
+
 ### Enrichments are a separate pass
 
 `insight_sentiment` / `insight_density` come from the RFC-088 enricher executor, not the
