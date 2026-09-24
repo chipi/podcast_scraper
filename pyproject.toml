@@ -226,7 +226,12 @@ search = [
   # (tests/integration/search/test_query_router_ml.py) silently stops running the day
   # sentence-transformers drops either one: it opens with importorskip, so the suite would
   # report a skip, not a failure.
-  "scikit-learn>=1.3.0,<2.0.0",
+  # Floor is 1.5.0, not the 1.3.0 a "lowest plausible" guess would give: 1.3.x is affected by
+  # GHSA-jw8x-6495-233v / PYSEC-2024-110 (sensitive data leakage), and 1.5.0 is the first clean
+  # release per OSV. CI resolves 1.9.0 today, so this floor is a safety bound rather than the
+  # tested version — declaring a range we would refuse to install is how a pin becomes fiction.
+  "scikit-learn>=1.5.0,<2.0.0",
+  # joblib has no advisories at its floor (checked 1.3.0 and 1.4.0 against OSV); CI resolves 1.6.0.
   "joblib>=1.3.0,<2.0.0",
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
