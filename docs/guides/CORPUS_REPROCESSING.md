@@ -295,6 +295,25 @@ The remote container is launched with its own detached watchdog and **outlives a
 run**. So: a `completed/cancelled` run does not mean the work stopped, and killing the run
 does not release the corpus lock. Stop the container explicitly.
 
+The inverse misreads the same surface and is worse, because it reads as good news:
+`completed/success` on *a* reprocess run does not mean *your* batch finished. Successive
+batches are separate runs, and a watcher started against an earlier one keeps reporting that
+one's ending forever. On 2026-09-24 a watcher's `BATCH ENDED: completed/success` was taken
+as the 284-episode job finishing in three minutes; it belonged to a batch that had ended at
+06:31, while the real job was 40 minutes in and on its third feed.
+
+The container name carries the run id, so the check costs nothing — do it before believing
+any status line:
+
+```bash
+docker ps --filter name=podcast-reprocess --format '{{.Names}}  {{.Status}}'
+# podcast-reprocess-35979952564  Up 40 minutes (healthy)
+#                   ^^^^^^^^^^^ must be the run id you are reading about
+```
+
+A running container outranks every status surface. GitHub reports on the *runner*; only the
+container reports on the *work*.
+
 ### Prod questions go to the PROD MCP only
 
 `mcp__claude_ai_Close_Listening__*` reads the live corpus. The repo's `.mcp.json` server
