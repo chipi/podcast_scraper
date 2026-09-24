@@ -19,6 +19,15 @@ Learning Player e2e fixture and was realigned (RFC-097) so every read surface �
   insights, KG topics/people, **diarization diagnostics**, and per-episode + corpus-scope
   enrichments. Sorted keys, stable content-hash episode ids and fixed dates, so a rebuild from the
   same inputs yields the same tree.
+- **Why 36 and not 40:** there are 40 episodes on disk. `--max-episodes-per-feed` took the first
+  four of each show, so `p02_e05`, `p05_e05`, `p06_e05` and `p06_e06` have transcript, audio and
+  ground truth and are in no build — including the corpus's only single-speaker episode and its
+  only code-switching one. The 36 is that flag's output, not a property of the fixtures.
+- **A rebuild is not a no-op.** The committed tree was built with `--pipeline-run`, which supplies
+  real summaries and measured durations. Rebuilding without it silently substitutes the synthesized
+  stand-in: summaries revert to the transcript's opening line and every duration becomes 1800s —
+  the two defects `FIXTURES_SPEC.md` §3 and §9 record as fixed. The builder also exits non-zero on
+  its own content audit today, so "it failed" is not evidence that your change broke it.
 - **Summaries:** 35 of 36 are real pipeline output. **`p01_e02` is a known exception** and keeps a
   synthesized stand-in: its transcript was authored in nearly the summarization prompt's own
   style-example wording, so a faithful summary of it is indistinguishable from a copied one and the

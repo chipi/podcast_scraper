@@ -18,9 +18,14 @@ committed anywhere in this repo**, and nothing here needs the network.
 | **`v3/`** | **46** | **83 MB** | **current** — `../transcripts/v3/`, and the app corpus [`../app-validation-corpus/v3`](../app-validation-corpus/README.md) |
 
 `v3` is both larger in file count and smaller on disk than its predecessors: it covers more
-episodes (4 per show across `p01`–`p09`, plus multi-episode and fast variants) at a lower bitrate,
-because nothing downstream needs fidelity — only speech that a transcriber and diarizer can process
-deterministically.
+episodes at a lower bitrate, because nothing downstream needs fidelity — only speech that a
+transcriber and diarizer can process deterministically.
+
+The 46 files are **40 episodes** plus six that are not episodes. Episode counts per show are
+**not uniform** — `p01` 4, `p02` 5, `p03` 4, `p04` 4, `p05` 5, `p06` 6, `p07` 4, `p08` 4,
+`p09` 4 — and the six extras are `p01_e01_fast` (a 60-second cut of `p01_e01`) and
+`p01_multi_e01`–`e05` (multi-feed connectivity stubs). See
+[`../README.md`](../README.md) → "Files that are not episodes".
 
 ## Naming — the file name IS the mapping
 

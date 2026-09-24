@@ -24,8 +24,10 @@ schema changes.
   p03_scuba, p04_photo, p05_investing, p06_edge_cases,
   p07_sustainability, p08_solar, p09_biohacking). Variants (`_fast`,
   `_multi`, `_selection`, `_with_transcript`) are skipped.
-- **23 episodes** total (up to 3 per podcast, limited by available
-  transcripts).
+- **36 episodes** — exactly 4 per podcast. Not "up to 3, limited by available
+  transcripts": there are 40 episodes on disk (4–6 per show), and the builder
+  takes the first four of each. The number is the cap, not the corpus — see
+  `FIXTURES_SPEC.md`, "Four different episode counts".
 - **GI + KG artifacts** per episode with Episode / Topic / Insight /
   Quote / **Person** / Entity nodes. Episode nodes carry
   `metadata_relative_path` + `episode_id` properties so the viewer's
