@@ -2651,14 +2651,49 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     else:
                         key = "pending"
                     states[key] = states.get(key, 0) + 1
-                logger.warning(
-                    "Processing loop cannot finish: %d job(s) enqueued, %d marked processed, "
-                    "%d future(s) tracked %s. Unaccounted: %s",
+                # SAY WHICH STATE THIS IS, do not make the reader derive it. This line was read
+                # wrong in both directions during the 2026-09-23 incident: hours of ordinary
+                # waiting were reported as a wedge, and a genuine wedge was called healthy. The
+                # counts to tell them apart were all present and nobody combined them correctly
+                # under pressure — including the author, twice. So the line states its own verdict
+                # first, at a severity that matches, and keeps the raw counts after it as evidence.
+                longest = 0.0
+                if future_started_at:
+                    oldest = min(future_started_at.values())
+                    longest = max(0.0, time.monotonic() - oldest)
+                running = states.get("running", 0)
+                pending = states.get("pending", 0)
+                if running or pending:
+                    verdict = (
+                        f"WORKING — {running} running, {pending} queued; "
+                        f"longest in flight {longest:.0f}s. This is normal while episodes process."
+                    )
+                    log = logger.info
+                elif len(futures) == 0 and missing:
+                    verdict = (
+                        f"STUCK — nothing is in flight and {len(missing)} job(s) are unaccounted "
+                        "for. The loop cannot make progress on its own."
+                    )
+                    log = logger.error
+                elif len(futures) == 0:
+                    verdict = (
+                        "STUCK — every job is accounted for and nothing is in flight, yet the "
+                        "exit condition is unsatisfied. This is the cardinality wedge fixed in "
+                        "cd4c53857; seeing it again means that fix regressed."
+                    )
+                    log = logger.error
+                else:
+                    verdict = f"UNCLEAR — {len(futures)} future(s) tracked in states {states}."
+                    log = logger.warning
+                log(
+                    "Processing loop: %s [jobs=%d marked_processed=%d futures=%d states=%s "
+                    "unaccounted=%s]",
+                    verdict,
                     len(all_jobs),
                     len(done_keys),
                     len(futures),
                     states,
-                    missing[:5] if missing else "none — a tracked future was never drained",
+                    missing[:5] if missing else "none",
                 )
 
             while True:
