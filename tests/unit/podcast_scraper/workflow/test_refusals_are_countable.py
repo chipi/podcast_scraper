@@ -77,13 +77,21 @@ def _is_refusal_return(node: ast.AST) -> bool:
 
 
 def _calls_recorder(stmts) -> bool:
+    """True only for an UNCONDITIONAL, top-level recorder call among *stmts*.
+
+    Deliberately not ``ast.walk``. Walking would accept a recorder call nested under an inner
+    ``if`` earlier in the same block, which satisfies the guard while the runtime write stays
+    conditional — a false pass. Review confirmed no such shape exists in the file today (all 11
+    sites are direct ``ast.Expr`` siblings), so this costs nothing now and closes the hole for
+    future edits, which is the whole point of a structural guard.
+    """
     for stmt in stmts:
-        for sub in ast.walk(stmt):
-            if isinstance(sub, ast.Call):
-                fn = sub.func
-                name = getattr(fn, "id", None) or getattr(fn, "attr", None)
-                if name == RECORDER:
-                    return True
+        if not isinstance(stmt, ast.Expr) or not isinstance(stmt.value, ast.Call):
+            continue
+        fn = stmt.value.func
+        name = getattr(fn, "id", None) or getattr(fn, "attr", None)
+        if name == RECORDER:
+            return True
     return False
 
 
