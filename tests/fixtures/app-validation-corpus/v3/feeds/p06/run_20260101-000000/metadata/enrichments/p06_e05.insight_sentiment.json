@@ -1,0 +1,29 @@
+{
+  "circuit_state": null,
+  "computed_at": "2026-01-01T00:00:00Z",
+  "data": {
+    "counts": {
+      "negative": 0,
+      "neutral": 1,
+      "positive": 0
+    },
+    "episode_id": "ep-0c46a67a56b05689",
+    "insights": [
+      {
+        "compound": 0.0,
+        "insight_id": "insight:ae4361058ac53839",
+        "label": "neutral"
+      }
+    ],
+    "total_insights": 1
+  },
+  "duration_ms": 0,
+  "enricher_id": "insight_sentiment",
+  "enricher_version": "1.0",
+  "error": null,
+  "error_class": null,
+  "records_written": 19,
+  "retry_count": 0,
+  "schema_version": "1.0",
+  "status": "ok"
+}

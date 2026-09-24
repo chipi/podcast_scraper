@@ -1,0 +1,302 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:labor-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "insight:55e92f2750d46129",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "insight:0cade861cce564cd",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-919c77e84ad37664",
+      "to": "insight:0605b90752bdc08b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:5d066ab232589a5a",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:55e92f2750d46129",
+      "to": "quote:5d066ab232589a5a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:42776c2b4aefe716",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0cade861cce564cd",
+      "to": "quote:42776c2b4aefe716",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:87c2e61c467c2e71",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0605b90752bdc08b",
+      "to": "quote:87c2e61c467c2e71",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0c27b2a1b7f07eb4",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:55e92f2750d46129",
+      "to": "quote:0c27b2a1b7f07eb4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0ad420387b656203",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0cade861cce564cd",
+      "to": "quote:0ad420387b656203",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8d9b7d6e58d032a3",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0605b90752bdc08b",
+      "to": "quote:8d9b7d6e58d032a3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:55e92f2750d46129",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:0cade861cce564cd",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:0605b90752bdc08b",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-919c77e84ad37664",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-919c77e84ad37664",
+      "properties": {
+        "duration_ms": 212000,
+        "feed_id": "p09",
+        "podcast_id": "p09",
+        "publish_date": "2026-01-07T00:00:00",
+        "title": "When the Severe Garble Bites"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:labor-markets",
+      "properties": {
+        "label": "labor markets"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:55e92f2750d46129",
+      "properties": {
+        "episode_id": "ep-919c77e84ad37664",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Before we get into it \u2014 Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0cade861cce564cd",
+      "properties": {
+        "episode_id": "ep-919c77e84ad37664",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to flag something \u2014 Skanda Eminas mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0605b90752bdc08b",
+      "properties": {
+        "episode_id": "ep-919c77e84ad37664",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Two years ago I argued labor data was reliable at quarterly frequency. I now think only annual averages are trustworthy."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5d066ab232589a5a",
+      "properties": {
+        "char_end": 223,
+        "char_start": 193,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Sam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:sam",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:42776c2b4aefe716",
+      "properties": {
+        "char_end": 366,
+        "char_start": 229,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Try bloomberg.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:87c2e61c467c2e71",
+      "properties": {
+        "char_end": 470,
+        "char_start": 366,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Skanda Eminas was on episode 2 making this same point on Bloomberg-data caveats.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0c27b2a1b7f07eb4",
+      "properties": {
+        "char_end": 644,
+        "char_start": 552,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Skanda Eminas mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0ad420387b656203",
+      "properties": {
+        "char_end": 782,
+        "char_start": 662,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:speaker-02",
+        "text": "Two years ago I argued labor data was reliable at quarterly frequency. I now think only annual averages are trustworthy.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8d9b7d6e58d032a3",
+      "properties": {
+        "char_end": 826,
+        "char_start": 788,
+        "episode_id": "ep-919c77e84ad37664",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a real shift. Worth pulling on.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

@@ -1,0 +1,314 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:0f09b8a5a1d5f64c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:fce60b894030dd3e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-0d9100843ee555f8",
+      "to": "insight:7c938bbc88eadb7a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:9c8414b3fe8ec3c3",
+      "to": "person:noah-brier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "quote:9c8414b3fe8ec3c3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f3e3d8cf509c4bd5",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:fce60b894030dd3e",
+      "to": "quote:f3e3d8cf509c4bd5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:23cfbb052cd7d004",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7c938bbc88eadb7a",
+      "to": "quote:23cfbb052cd7d004",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a2902e17d27cdbc7",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "quote:a2902e17d27cdbc7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9cc31777cc5ce2bd",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:fce60b894030dd3e",
+      "to": "quote:9cc31777cc5ce2bd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b6ffc0d42752f5b2",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7c938bbc88eadb7a",
+      "to": "quote:b6ffc0d42752f5b2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:0f09b8a5a1d5f64c",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:fce60b894030dd3e",
+      "to": "person:noah-brier",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:7c938bbc88eadb7a",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-0d9100843ee555f8",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-0d9100843ee555f8",
+      "properties": {
+        "duration_ms": 348000,
+        "feed_id": "p01",
+        "podcast_id": "p01",
+        "publish_date": "2024-07-30T00:00:00",
+        "title": "The Mechanics of a Quiet, Fast Bike"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:0f09b8a5a1d5f64c",
+      "properties": {
+        "episode_id": "ep-0d9100843ee555f8",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:fce60b894030dd3e",
+      "properties": {
+        "episode_id": "ep-0d9100843ee555f8",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to flag something \u2014 Sophie Lorent mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7c938bbc88eadb7a",
+      "properties": {
+        "episode_id": "ep-0d9100843ee555f8",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "I want to flag something \u2014 Liam Vandermeer mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:noah-brier",
+      "properties": {
+        "name": "Noah Brier"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:9c8414b3fe8ec3c3",
+      "properties": {
+        "char_end": 228,
+        "char_start": 197,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f3e3d8cf509c4bd5",
+      "properties": {
+        "char_end": 353,
+        "char_start": 235,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:23cfbb052cd7d004",
+      "properties": {
+        "char_end": 477,
+        "char_start": 353,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Sophie Lorent was on last episode talking about tire pressure mattering more than suspension tweaks.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a2902e17d27cdbc7",
+      "properties": {
+        "char_end": 647,
+        "char_start": 555,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Sophie Lorent mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9cc31777cc5ce2bd",
+      "properties": {
+        "char_end": 741,
+        "char_start": 647,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Liam Vandermeer mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b6ffc0d42752f5b2",
+      "properties": {
+        "char_end": 834,
+        "char_start": 741,
+        "episode_id": "ep-0d9100843ee555f8",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

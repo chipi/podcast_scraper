@@ -44,16 +44,22 @@ def _canonical_episodes() -> list[str]:
 def _documented_counts() -> dict[int, str]:
     """The bolded counts from the spec's reconciliation table, in order."""
     body = _SPEC.read_text(encoding="utf-8")
-    start = body.index("Four different episode counts, all correct")
+    start = body.index("Three episode counts, all correct")
     end = body.index("The special episodes")
     rows = re.findall(r"^\|\s*\*\*(\d+)\*\*\s*\|\s*([^|]+)\|", body[start:end], re.M)
     return {int(n): desc.strip() for n, desc in rows}
 
 
-def test_spec_reconciles_exactly_four_counts() -> None:
+def test_spec_reconciles_exactly_three_counts() -> None:
+    """46 files / 40 episodes / 38 generated.
+
+    There used to be a fourth, 36, which was the built corpus under a default
+    ``--max-episodes-per-feed 4``. Removing that default collapsed it into 40, so a
+    table that still lists four counts is describing a flag that no longer exists.
+    """
     counts = _documented_counts()
-    assert sorted(counts) == [36, 38, 40, 46], (
-        "the spec's count table changed shape; it should reconcile 46/40/38/36 "
+    assert sorted(counts) == [38, 40, 46], (
+        "the spec's count table changed shape; it should reconcile 46/40/38 "
         f"and it now lists {sorted(counts)}"
     )
 
@@ -113,11 +119,16 @@ def test_built_corpus_matches_what_its_readme_claims() -> None:
     built = len(list(corpus.rglob("*.metadata.json")))
     readme = (corpus.parent / "README.md").read_text(encoding="utf-8")
     m = re.search(r"\*\*Why (\d+) and not (\d+):\*\*", readme)
-    assert m, "app-validation-corpus/README.md no longer states the built-vs-on-disk counts"
+    assert m, "app-validation-corpus/README.md no longer states its episode count"
     assert built == int(m.group(1)), (
         f"the committed corpus holds {built} episodes; its README says {m.group(1)}"
     )
-    assert len(_canonical_episodes()) == int(m.group(2))
+    # The built corpus and the episodes on disk are the same number now that the
+    # per-feed cap has no default. If these ever diverge again, something is
+    # dropping episodes silently — which is exactly how 36 happened.
+    assert built == len(_canonical_episodes()), (
+        f"{built} episodes built from {len(_canonical_episodes())} on disk"
+    )
 
 
 def test_readme_per_show_table_matches_disk() -> None:

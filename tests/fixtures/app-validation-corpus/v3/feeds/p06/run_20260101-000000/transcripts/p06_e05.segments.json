@@ -1,0 +1,30 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "This is an edge-case fixture used for parser and processor robustness tests."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Maya",
+    "start": 6.0,
+    "text": "Welcome back."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Maya",
+    "start": 12.0,
+    "text": "We are now back."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "End of edge-case episode e05."
+  }
+]

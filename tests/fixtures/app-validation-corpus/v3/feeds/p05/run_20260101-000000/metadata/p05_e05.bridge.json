@@ -1,0 +1,26 @@
+{
+  "episode_id": "ep-6351d18dc6f1ff70",
+  "identities": [
+    {
+      "display_name": "index investing",
+      "id": "topic:index-investing"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "personal finance",
+      "id": "topic:personal-finance"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

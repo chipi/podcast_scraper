@@ -1,0 +1,336 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:cultural-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:dialogue",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:cc2e4424701733c3",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "topic:dialogue",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:781d2f5960d956a0",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "topic:cultural-drift",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-a89e6a42509c9af0",
+      "to": "insight:b0ae727f8e37bb73",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:ea044a105ad4140c",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "quote:ea044a105ad4140c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:351bd5cd517c4d16",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "quote:351bd5cd517c4d16",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a826052165cbe239",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b0ae727f8e37bb73",
+      "to": "quote:a826052165cbe239",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:58718a9b9b6c0377",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "quote:58718a9b9b6c0377",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:028dd73f2ffd0676",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "quote:028dd73f2ffd0676",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:dbdb7843cf91c130",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b0ae727f8e37bb73",
+      "to": "quote:dbdb7843cf91c130",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:cc2e4424701733c3",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:781d2f5960d956a0",
+      "to": "person:jordan-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:b0ae727f8e37bb73",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-a89e6a42509c9af0",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-a89e6a42509c9af0",
+      "properties": {
+        "duration_ms": 329000,
+        "feed_id": "p06",
+        "podcast_id": "p06",
+        "publish_date": "2024-11-07T00:00:00",
+        "title": "On Drifting (a meandering conversation)"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:cultural-drift",
+      "properties": {
+        "label": "cultural drift"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue",
+      "properties": {
+        "label": "dialogue"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long form"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long-form"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:cc2e4424701733c3",
+      "properties": {
+        "episode_id": "ep-a89e6a42509c9af0",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:781d2f5960d956a0",
+      "properties": {
+        "episode_id": "ep-a89e6a42509c9af0",
+        "grounded": false,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to dig into that. What's the most underrated piece of cultural drift?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b0ae727f8e37bb73",
+      "properties": {
+        "episode_id": "ep-a89e6a42509c9af0",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Yeah, so \u2014 There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decis\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:jordan-park",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ea044a105ad4140c",
+      "properties": {
+        "char_end": 285,
+        "char_start": 171,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Cam. Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:cam",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:351bd5cd517c4d16",
+      "properties": {
+        "char_end": 409,
+        "char_start": 291,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a826052165cbe239",
+      "properties": {
+        "char_end": 485,
+        "char_start": 409,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the most underrated piece of cultural drift?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:58718a9b9b6c0377",
+      "properties": {
+        "char_end": 712,
+        "char_start": 499,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 There's something about the way conversations actually unfold that essays can't capture. We've seen this play out at teams using Patreon. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:028dd73f2ffd0676",
+      "properties": {
+        "char_end": 790,
+        "char_start": 718,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. Where do dialogue and cultural drift intersect?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:dbdb7843cf91c130",
+      "properties": {
+        "char_end": 919,
+        "char_start": 804,
+        "episode_id": "ep-a89e6a42509c9af0",
+        "speaker_id": "person:speaker-02",
+        "text": "Sure. The texture of dialogue is the work. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

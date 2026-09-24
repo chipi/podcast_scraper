@@ -1,0 +1,331 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:3e93cad03b16c3fd",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3e93cad03b16c3fd",
+      "to": "topic:index-investing",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:1860b98400777024",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-bccfce5798a83a6e",
+      "to": "insight:450b6aa41c4b371b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:1bcef9881ea6063e",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e93cad03b16c3fd",
+      "to": "quote:1bcef9881ea6063e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5e5ec0fc9c9ca6b7",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1860b98400777024",
+      "to": "quote:5e5ec0fc9c9ca6b7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5f91e7f75b0211af",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:450b6aa41c4b371b",
+      "to": "quote:5f91e7f75b0211af",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e7f46d03b3ca9b22",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3e93cad03b16c3fd",
+      "to": "quote:e7f46d03b3ca9b22",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bea8713f681c4102",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1860b98400777024",
+      "to": "quote:bea8713f681c4102",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ee1cc834f9118635",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:450b6aa41c4b371b",
+      "to": "quote:ee1cc834f9118635",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:3e93cad03b16c3fd",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1860b98400777024",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:450b6aa41c4b371b",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-bccfce5798a83a6e",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-bccfce5798a83a6e",
+      "properties": {
+        "duration_ms": 416000,
+        "feed_id": "p05",
+        "podcast_id": "p05",
+        "publish_date": "2024-09-06T00:00:00",
+        "title": "Index Investing Without the Myths"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:3e93cad03b16c3fd",
+      "properties": {
+        "episode_id": "ep-bccfce5798a83a6e",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1860b98400777024",
+      "properties": {
+        "episode_id": "ep-bccfce5798a83a6e",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "What does the failure mode look like? How does Vanguard fit into this picture?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:450b6aa41c4b371b",
+      "properties": {
+        "episode_id": "ep-bccfce5798a83a6e",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the par\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:daniel-cho",
+      "properties": {
+        "name": "Daniel Cho"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:1bcef9881ea6063e",
+      "properties": {
+        "char_end": 301,
+        "char_start": 204,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5e5ec0fc9c9ca6b7",
+      "properties": {
+        "char_end": 429,
+        "char_start": 308,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Vanguard. Vanguard pioneered low-cost index funds. Get started at vanguard.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5f91e7f75b0211af",
+      "properties": {
+        "char_end": 507,
+        "char_start": 429,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? How does Vanguard fit into this picture?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e7f46d03b3ca9b22",
+      "properties": {
+        "char_end": 736,
+        "char_start": 520,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bea8713f681c4102",
+      "properties": {
+        "char_end": 861,
+        "char_start": 743,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-01",
+        "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ee1cc834f9118635",
+      "properties": {
+        "char_end": 986,
+        "char_start": 874,
+        "episode_id": "ep-bccfce5798a83a6e",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Vanguard's structure pioneered low costs. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

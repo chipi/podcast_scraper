@@ -1,0 +1,309 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "insight:a637d1ddee1c4cdc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "insight:c11987a8cd7a8e4f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "insight:f818d436e535b5ee",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:8a8a1cb8ceadc8c7",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a637d1ddee1c4cdc",
+      "to": "quote:8a8a1cb8ceadc8c7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:cceaeb736ea303d0",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c11987a8cd7a8e4f",
+      "to": "quote:cceaeb736ea303d0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6859a95eee7bf0bc",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f818d436e535b5ee",
+      "to": "quote:6859a95eee7bf0bc",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5de4b388d6736c65",
+      "to": "person:nadia-sereni",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a637d1ddee1c4cdc",
+      "to": "quote:5de4b388d6736c65",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ae0e567a666dc285",
+      "to": "person:daniel-cho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c11987a8cd7a8e4f",
+      "to": "quote:ae0e567a666dc285",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e6f58025f1c01e14",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:f818d436e535b5ee",
+      "to": "quote:e6f58025f1c01e14",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:a637d1ddee1c4cdc",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:c11987a8cd7a8e4f",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:f818d436e535b5ee",
+      "to": "person:nadia-sereni",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-6351d18dc6f1ff70",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-6351d18dc6f1ff70",
+      "properties": {
+        "duration_ms": 69000,
+        "feed_id": "p05",
+        "podcast_id": "p05",
+        "publish_date": "2025-09-11T00:00:00",
+        "title": "From the Archive"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:a637d1ddee1c4cdc",
+      "properties": {
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring. Visit betterment.com/podcast."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:c11987a8cd7a8e4f",
+      "properties": {
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:f818d436e535b5ee",
+      "properties": {
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Leverage feels free until the day it isn't."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:daniel-cho",
+      "properties": {
+        "name": "Daniel Cho"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:8a8a1cb8ceadc8c7",
+      "properties": {
+        "char_end": 173,
+        "char_start": 143,
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Glad to be here.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:cceaeb736ea303d0",
+      "properties": {
+        "char_end": 321,
+        "char_start": 180,
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring. Visit betterment.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6859a95eee7bf0bc",
+      "properties": {
+        "char_end": 426,
+        "char_start": 321,
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:nadia-sereni",
+      "properties": {
+        "name": "Nadia Sereni"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5de4b388d6736c65",
+      "properties": {
+        "char_end": 484,
+        "char_start": 441,
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "speaker_id": "person:speaker-03",
+        "text": "Leverage feels free until the day it isn't.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ae0e567a666dc285",
+      "properties": {
+        "char_end": 602,
+        "char_start": 497,
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "speaker_id": "person:speaker-02",
+        "text": "That line held up. Most blow-ups I've seen weren't bad bets \u2014 they were fine bets financed the wrong way.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e6f58025f1c01e14",
+      "properties": {
+        "char_end": 668,
+        "char_start": 609,
+        "episode_id": "ep-6351d18dc6f1ff70",
+        "speaker_id": "person:speaker-01",
+        "text": "So the risk isn't the asset, it's the borrowing against it.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

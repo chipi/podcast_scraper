@@ -117,7 +117,7 @@ class TestTotalRemovalCeiling:
     # run past the end of the ad and into content.
     FIXTURE = (
         Path(__file__).resolve().parents[4]
-        / "fixtures/app-validation-corpus/v3/feeds/p09/run_20260101_000000"
+        / "fixtures/app-validation-corpus/v3/feeds/p09/run_20260101-000000"
         / "transcripts/p09_e03.txt"
     )
 

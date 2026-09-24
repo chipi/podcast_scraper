@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p05-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p05_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Rich Clarida",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 365,
+    "episode_id": "ep-1e526e495918fb27",
+    "published_date": "2024-10-21T00:00:00",
+    "title": "Nickname Variance: A Fed Vice Chair Reflects"
+  },
+  "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "language": "en-us",
+    "last_updated": "2025-09-11T00:00:00",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Forward guidance alone is just words without a credible balance-sheet signal — a revised view replacing an earlier belief that forward guidance was sufficient on its own.",
+      "Forward guidance only works if the market believes the central bank will follow through; credibility rather than the announcement itself determines whether guidance moves expectations.",
+      "Reliability of policy signal matters more than the policy itself — framed as the most underrated and contrarian piece of monetary policy, and the lens that cross-cuts every other trade-off.",
+      "Policy decisions look obvious in hindsight and impossible in real time; internalizing that asymmetry makes subsequent decisions easier rather than harder.",
+      "Risk management at the Fed is mostly about not breaking the institution — protecting institutional integrity rather than optimizing any single policy outcome, with second-order effects being the part most people miss.",
+      "Framing matters because it reveals which trade-offs are being made, turning implicit policy choices into explicit ones.",
+      "Iteration beats ambition as a starting point — pick one idea, run it for two weeks, and refine from there."
+    ],
+    "raw_text": "Forward guidance alone is just words without a credible balance-sheet signal — a revised view replacing an earlier belief that forward guidance was sufficient on its own. Forward guidance only works if the market believes the central bank will follow through; credibility rather than the announcement itself determines whether guidance moves expectations.",
+    "title": "Monetary Policy, Forward Guidance, and the Reliability of Policy Signals"
+  }
+}

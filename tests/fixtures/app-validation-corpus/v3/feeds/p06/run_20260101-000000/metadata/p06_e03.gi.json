@@ -1,0 +1,326 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "topic:dialogue",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "topic:cultural-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "insight:213c5627bf76ce4d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "insight:5787ea53983e25b0",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-034d8bc4204034df",
+      "to": "insight:95e6bff7ab4955fb",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:0daf9596975bacbf",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:213c5627bf76ce4d",
+      "to": "quote:0daf9596975bacbf",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ae8af71233a5f93b",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5787ea53983e25b0",
+      "to": "quote:ae8af71233a5f93b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:098c609e9e072d87",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:95e6bff7ab4955fb",
+      "to": "quote:098c609e9e072d87",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:dd8a6ac8306e3e39",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:213c5627bf76ce4d",
+      "to": "quote:dd8a6ac8306e3e39",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5f8e0fe6ae7bad75",
+      "to": "person:cam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5787ea53983e25b0",
+      "to": "quote:5f8e0fe6ae7bad75",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d8165cf46badc892",
+      "to": "person:jordan-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:95e6bff7ab4955fb",
+      "to": "quote:d8165cf46badc892",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:213c5627bf76ce4d",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:5787ea53983e25b0",
+      "to": "person:jordan-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:95e6bff7ab4955fb",
+      "to": "person:cam",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-034d8bc4204034df",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-034d8bc4204034df",
+      "properties": {
+        "duration_ms": 228000,
+        "feed_id": "p06",
+        "podcast_id": "p06",
+        "publish_date": "2025-07-05T00:00:00",
+        "title": "The Conversation About Conversations"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:dialogue",
+      "properties": {
+        "label": "dialogue"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cultural-drift",
+      "properties": {
+        "label": "cultural drift"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long form"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long-form"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:213c5627bf76ce4d",
+      "properties": {
+        "episode_id": "ep-034d8bc4204034df",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:5787ea53983e25b0",
+      "properties": {
+        "episode_id": "ep-034d8bc4204034df",
+        "grounded": false,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:95e6bff7ab4955fb",
+      "properties": {
+        "episode_id": "ep-034d8bc4204034df",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:jordan-park",
+      "properties": {
+        "name": "Jordan Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0daf9596975bacbf",
+      "properties": {
+        "char_end": 195,
+        "char_start": 165,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Cam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:cam",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ae8af71233a5f93b",
+      "properties": {
+        "char_end": 319,
+        "char_start": 201,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:098c609e9e072d87",
+      "properties": {
+        "char_end": 419,
+        "char_start": 319,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:dd8a6ac8306e3e39",
+      "properties": {
+        "char_end": 608,
+        "char_start": 433,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Meaning drifts faster than anyone admits. We've seen this play out at teams using Substack. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5f8e0fe6ae7bad75",
+      "properties": {
+        "char_end": 707,
+        "char_start": 614,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d8165cf46badc892",
+      "properties": {
+        "char_end": 871,
+        "char_start": 721,
+        "episode_id": "ep-034d8bc4204034df",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. The best conversations refuse to resolve. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

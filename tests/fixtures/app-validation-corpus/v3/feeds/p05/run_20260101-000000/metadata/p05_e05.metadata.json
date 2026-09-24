@@ -1,0 +1,57 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p05-e05",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p05_e05.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel Cho",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Nadia Sereni",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e05.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 69,
+    "episode_id": "ep-6351d18dc6f1ff70",
+    "published_date": "2025-09-11T00:00:00",
+    "title": "From the Archive"
+  },
+  "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "language": "en-us",
+    "last_updated": "2025-09-11T00:00:00",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Leverage feels free until the day it isn't — an insight from a 2016 economist talk that still holds up as a warning about hidden financing risk.",
+      "Most investment blow-ups stem from fine bets financed the wrong way rather than from bad bets — the failure lies in the borrowing, not the underlying asset.",
+      "An index fund owned outright is patient, able to ride out downturns; the same fund on margin can be forced to sell at the worst possible moment.",
+      "Risk sits in the borrowing against an asset rather than in the asset itself — identical holdings carry very different danger depending on how they are financed."
+    ],
+    "raw_text": "Leverage feels free until the day it isn't — an insight from a 2016 economist talk that still holds up as a warning about hidden financing risk. Most investment blow-ups stem from fine bets financed the wrong way rather than from bad bets — the failure lies in the borrowing, not the underlying asset.",
+    "title": "Leverage, Not the Asset, Drives Most Blow-Ups"
+  }
+}

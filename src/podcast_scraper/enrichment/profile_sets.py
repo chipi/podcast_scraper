@@ -103,6 +103,11 @@ _NO_ENRICHERS_PROFILES: frozenset[str] = frozenset(
     {
         "test_default",
         "eval_default",
+        # Builds the --pipeline-run tree the app-validation corpus borrows summaries and measured
+        # durations from. The corpus builder synthesizes every enrichment itself, deterministically,
+        # so running them here would cost LLM calls and change nothing downstream. Its YAML declares
+        # `enrichment.enabled: false`; listed so the empty set is a decision, not a default.
+        "fixture_validation",
         # profile_freeze.example is config-only — never a real run.
         "profile_freeze.example",
         # Pre-prod is for local Whisper testing — keep enrichment off so

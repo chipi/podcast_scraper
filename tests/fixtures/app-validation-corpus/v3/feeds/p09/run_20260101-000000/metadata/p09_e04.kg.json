@@ -1,0 +1,113 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "person:sam",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-4d94c63887afbd1a",
+  "extraction": {
+    "extracted_at": "2026-07-16T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p09_e04.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-4d94c63887afbd1a",
+      "properties": {
+        "podcast_id": "p09",
+        "publish_date": "2026-07-16T00:00:00",
+        "title": "Risk Is a Systems Property"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:sam",
+      "properties": {
+        "name": "Sam",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:dr-elena-fischer",
+      "properties": {
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

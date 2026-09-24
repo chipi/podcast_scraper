@@ -1,0 +1,126 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "person:nora",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "person:daniel-cho",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-6351d18dc6f1ff70",
+      "to": "person:nadia-sereni",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-6351d18dc6f1ff70",
+  "extraction": {
+    "extracted_at": "2025-09-11T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p05_e05.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-6351d18dc6f1ff70",
+      "properties": {
+        "podcast_id": "p05",
+        "publish_date": "2025-09-11T00:00:00",
+        "title": "From the Archive"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing",
+        "slug": "index-investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance",
+        "slug": "personal-finance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:daniel-cho",
+      "properties": {
+        "name": "Daniel Cho",
+        "role": "guest"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:nadia-sereni",
+      "properties": {
+        "name": "Nadia Sereni",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

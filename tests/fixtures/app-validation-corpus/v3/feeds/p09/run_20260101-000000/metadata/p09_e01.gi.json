@@ -1,0 +1,319 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "insight:1805640e7650c366",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "insight:56ffd3b93643f310",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1abf911df5bea2c3",
+      "to": "insight:a6b7816532e16429",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:c5ef2c7b3160317b",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "quote:c5ef2c7b3160317b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:627b053613adabfb",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "quote:627b053613adabfb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:10d153276fd71dd4",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a6b7816532e16429",
+      "to": "quote:10d153276fd71dd4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:43f5571e6bee735b",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "quote:43f5571e6bee735b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d5036bfea6b2d4fb",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "quote:d5036bfea6b2d4fb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1f56412d27cecf5f",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:a6b7816532e16429",
+      "to": "quote:1f56412d27cecf5f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:1805640e7650c366",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:56ffd3b93643f310",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:a6b7816532e16429",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-1abf911df5bea2c3",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-1abf911df5bea2c3",
+      "properties": {
+        "duration_ms": 214000,
+        "feed_id": "p09",
+        "podcast_id": "p09",
+        "publish_date": "2025-05-12T00:00:00",
+        "title": "Systems Thinking, Two Years Later"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sustainability",
+      "properties": {
+        "label": "sustainability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:1805640e7650c366",
+      "properties": {
+        "episode_id": "ep-1abf911df5bea2c3",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:56ffd3b93643f310",
+      "properties": {
+        "episode_id": "ep-1abf911df5bea2c3",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:a6b7816532e16429",
+      "properties": {
+        "episode_id": "ep-1abf911df5bea2c3",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "I want to dig into that. How does Bloomberg fit into this picture?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:dr-elena-fischer",
+      "properties": {
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c5ef2c7b3160317b",
+      "properties": {
+        "char_end": 299,
+        "char_start": 202,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:sam",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:627b053613adabfb",
+      "properties": {
+        "char_end": 423,
+        "char_start": 305,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:10d153276fd71dd4",
+      "properties": {
+        "char_end": 570,
+        "char_start": 443,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-02",
+        "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:43f5571e6bee735b",
+      "properties": {
+        "char_end": 614,
+        "char_start": 576,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a real shift. Worth pulling on.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d5036bfea6b2d4fb",
+      "properties": {
+        "char_end": 680,
+        "char_start": 614,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. How does Bloomberg fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1f56412d27cecf5f",
+      "properties": {
+        "char_end": 936,
+        "char_start": 700,
+        "episode_id": "ep-1abf911df5bea2c3",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

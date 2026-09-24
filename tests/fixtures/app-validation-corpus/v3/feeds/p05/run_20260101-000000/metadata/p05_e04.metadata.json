@@ -1,0 +1,59 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p05-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p05_e04.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel Cho",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Scott Bessent",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 251,
+    "episode_id": "ep-16ff698c1bd21087",
+    "published_date": "2025-07-03T00:00:00",
+    "title": "The Risk Panel: Diversify or Concentrate?"
+  },
+  "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "language": "en-us",
+    "last_updated": "2025-09-11T00:00:00",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Diversification functions as the closest thing to a free lunch for individual investors — little is given up while removing the biggest way people ruin themselves: one position going to zero at the worst possible time.",
+      "Risk management for individuals is mostly behavioral rather than mathematical; sitting still while a holding gets cut in half is the hard part, and diversification makes that survivable.",
+      "Concentration with deep understanding beats diversification, according to the opposing view — spreading across a hundred names means owning things you can't judge, which amounts to ignorance, evenly distributed rather than safety.",
+      "A portfolio is a system of correlated bets; a handful of deeply understood positions is argued to be more robust because their co-movement is visible, whereas diversifying without understanding hides the correlation until it's the only thing that matters.",
+      "Account data on retail investors showed concentrated accounts had far fatter tails — cited as measured evidence that concentration is how retail investors blow themselves up and diversification is the only real risk control.",
+      "The decisive question is whether an investor's edge survives contact with their own behavior rather than diversify-or-not — concentration compounds a durable edge, while no amount of diversification saves one that doesn't hold up."
+    ],
+    "raw_text": "Diversification functions as the closest thing to a free lunch for individual investors — little is given up while removing the biggest way people ruin themselves: one position going to zero at the worst possible time. Risk management for individuals is mostly behavioral rather than mathematical; sitting still while a holding gets cut in half is the hard part, and diversification makes that survivable.",
+    "title": "Diversification vs. Concentration: Free Lunch or Hiding From Decisions?"
+  }
+}

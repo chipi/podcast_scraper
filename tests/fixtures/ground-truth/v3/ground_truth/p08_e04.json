@@ -18,6 +18,7 @@
   "publish_date": "2026-01-05",
   "publish_offset_days": 735,
   "secondary_topics": [
+    "topic:corrections-policy",
     "topic:journalism",
     "topic:risk-management"
   ],

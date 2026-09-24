@@ -1,0 +1,46 @@
+{
+  "content": {
+    "diarization_num_speakers": 1,
+    "media_id": "sha256:p06-e05",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p06_e05.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e05.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 10,
+    "episode_id": "ep-0c46a67a56b05689",
+    "published_date": "2026-04-18T00:00:00",
+    "title": "Stage Directions"
+  },
+  "feed": {
+    "authors": [
+      "Test Author"
+    ],
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "language": "en-us",
+    "last_updated": "2026-06-20T00:00:00",
+    "title": "The Drift",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Single speaker throughout — the only such episode in the corpus.",
+      "Stage directions appear as prose rather than as speech.",
+      "No sponsor read and no guest introduction."
+    ],
+    "raw_text": "A solo segment carrying stage directions and no guest. It exists so the parser is exercised on bracketed cues, music stings and a single speaker, rather than on conversation.",
+    "title": "Stage Directions"
+  }
+}

@@ -1,0 +1,314 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:macroeconomics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "insight:1b3d89444a6f5fb7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "insight:58433146870b98cc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a1342cd495b1165b",
+      "to": "insight:08e21b1684255b5a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:da76cd59a6f1b22c",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1b3d89444a6f5fb7",
+      "to": "quote:da76cd59a6f1b22c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:be884d3b76454a2f",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:58433146870b98cc",
+      "to": "quote:be884d3b76454a2f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:33b5901028d9a51d",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:08e21b1684255b5a",
+      "to": "quote:33b5901028d9a51d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:775197587e7d26bc",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1b3d89444a6f5fb7",
+      "to": "quote:775197587e7d26bc",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e2ada08ab6a7cfee",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:58433146870b98cc",
+      "to": "quote:e2ada08ab6a7cfee",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c606b36656d7878e",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:08e21b1684255b5a",
+      "to": "quote:c606b36656d7878e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:1b3d89444a6f5fb7",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:58433146870b98cc",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:08e21b1684255b5a",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-a1342cd495b1165b",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-a1342cd495b1165b",
+      "properties": {
+        "duration_ms": 212000,
+        "feed_id": "p09",
+        "podcast_id": "p09",
+        "publish_date": "2025-09-19T00:00:00",
+        "title": "Macro Without the Theatrics"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:macroeconomics",
+      "properties": {
+        "label": "macroeconomics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:1b3d89444a6f5fb7",
+      "properties": {
+        "episode_id": "ep-a1342cd495b1165b",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:58433146870b98cc",
+      "properties": {
+        "episode_id": "ep-a1342cd495b1165b",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:08e21b1684255b5a",
+      "properties": {
+        "episode_id": "ep-a1342cd495b1165b",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Real talk: Bloomberg is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for market data."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:da76cd59a6f1b22c",
+      "properties": {
+        "char_end": 227,
+        "char_start": 197,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Sam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:sam",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:be884d3b76454a2f",
+      "properties": {
+        "char_end": 385,
+        "char_start": 233,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:33b5901028d9a51d",
+      "properties": {
+        "char_end": 472,
+        "char_start": 385,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:775197587e7d26bc",
+      "properties": {
+        "char_end": 650,
+        "char_start": 555,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e2ada08ab6a7cfee",
+      "properties": {
+        "char_end": 790,
+        "char_start": 650,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "Real talk: Bloomberg is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for market data.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c606b36656d7878e",
+      "properties": {
+        "char_end": 879,
+        "char_start": 790,
+        "episode_id": "ep-a1342cd495b1165b",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

@@ -1,0 +1,54 @@
+{
+  "content": {
+    "diarization_num_speakers": 2,
+    "media_id": "sha256:p01-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p01_e04.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Sophie Laurent",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p01_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 82,
+    "episode_id": "ep-de59d003651d9e5d",
+    "published_date": "2024-12-17T00:00:00",
+    "title": "The Risk You Didn't Name"
+  },
+  "feed": {
+    "authors": [
+      "Maya Koster"
+    ],
+    "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+    "feed_id": "p01",
+    "language": "en-us",
+    "last_updated": "2024-12-17T00:00:00",
+    "title": "Singletrack Sessions",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
+    "image_url": "http://localhost/images/p01.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Enduro racing is about risk management rather than nerve; a clear framing of risk matters more than bravado on the trail.",
+      "Season-ending crashes are almost never the scary-looking ones; they come from the boring risk you didn't name, which is why overlooked hazards deserve the most attention.",
+      "Naming the risk before it names you removes half the danger, because a risk you can describe is one you can design around.",
+      "A race run should be ridden as a whole system rather than a list of corners, since mistakes come from how one section sets up the next.",
+      "A full season of self-logged crashes showed the causes were always two turns upstream, meaning the root error happens well before the point of failure.",
+      "A race line and a portfolio share the same discipline; both are systems of correlated bets where the real work is managing the interactions rather than individual choices."
+    ],
+    "raw_text": "Enduro racing is about risk management rather than nerve; a clear framing of risk matters more than bravado on the trail. Season-ending crashes are almost never the scary-looking ones; they come from the boring risk you didn't name, which is why overlooked hazards deserve the most attention.",
+    "title": "Enduro Racing as Risk Management"
+  }
+}

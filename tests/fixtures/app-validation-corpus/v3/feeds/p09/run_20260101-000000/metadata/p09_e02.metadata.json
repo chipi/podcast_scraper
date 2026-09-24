@@ -1,0 +1,58 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p09-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p09_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Skanda Amarnauth",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 212,
+    "episode_id": "ep-a1342cd495b1165b",
+    "published_date": "2025-09-19T00:00:00",
+    "title": "Macro Without the Theatrics"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "language": "en-us",
+    "last_updated": "2026-07-16T00:00:00",
+    "title": "Cross-Show",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Macro forecasting is mostly humility plus a few dependable signals rather than elaborate prediction — a pattern observed at teams using BloombergNEF and IPCC and seen holding across three different teams.",
+      "Reliability of data trumps cleverness of model; the framing matters because it reveals which trade-offs a forecaster is actually making.",
+      "Second-order effects are the part of macroeconomics most people miss — first-order reasoning alone leaves the most consequential dynamics unexamined.",
+      "Trade-offs around reliability cross-cut every other aspect of risk management and macroeconomics rather than sitting in a single isolated domain.",
+      "Practical adoption starts small — pick one idea, run it for two weeks, and treat everything after that as iteration rather than a one-time overhaul."
+    ],
+    "raw_text": "Macro forecasting is mostly humility plus a few dependable signals rather than elaborate prediction — a pattern observed at teams using BloombergNEF and IPCC and seen holding across three different teams. Reliability of data trumps cleverness of model; the framing matters because it reveals which trade-offs a forecaster is actually making.",
+    "title": "Macro Forecasting: Humility, Dependable Signals, and Reliable Data"
+  }
+}

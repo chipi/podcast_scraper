@@ -1,0 +1,31 @@
+{
+  "callbacks": [],
+  "episode_id": "p06_e05",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Maya",
+  "podcast_id": "p06",
+  "position_arc": null,
+  "primary_guest_canonical_id": null,
+  "primary_guest_canonical_name": null,
+  "primary_guest_surface_in_transcript": null,
+  "primary_topic": "topic:edge-cases",
+  "publish_date": "2026-04-18",
+  "publish_offset_days": 838,
+  "secondary_topics": [
+    "topic:stage-directions"
+  ],
+  "sponsor_blocks": [],
+  "summary": {
+    "bullets": [
+      "Single speaker throughout \u2014 the only such episode in the corpus.",
+      "Stage directions appear as prose rather than as speech.",
+      "No sponsor read and no guest introduction."
+    ],
+    "raw_text": "A solo segment carrying stage directions and no guest. It exists so the parser is exercised on bracketed cues, music stings and a single speaker, rather than on conversation.",
+    "title": "Stage Directions"
+  },
+  "surface_forms": []
+}

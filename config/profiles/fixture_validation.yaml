@@ -1,0 +1,81 @@
+# Produce the --pipeline-run tree that `scripts/build_app_validation_corpus.py`
+# borrows summaries and measured durations from.
+#
+# Deliberately LEAN. The corpus builder synthesizes GI, KG, enrichments, quotes
+# and diarization itself, deterministically; from a pipeline run it reads exactly
+# two things per episode — `summary.{raw_text|short_summary,title,bullets}` and
+# `episode.duration_seconds`. Turning on GI/KG/enrichment here would multiply the
+# LLM calls and change nothing in the committed corpus.
+#
+# No ASR: the corpus feeds advertise the authored `.vtt` twin, so
+# `transcribe_missing: false` makes every episode take the transcript-download
+# path. The corpus is built from `transcripts/v3/*.txt` anyway — re-deriving those
+# with Whisper would measure the transcriber, not produce the fixture.
+#
+# No DGX: vLLM on :8003 answers 401 and ollama on :11434 is unreachable from here,
+# and neither is needed. All LLM work goes through the homelab LiteLLM gateway,
+# which holds the provider keys, so this profile carries no credential. The
+# virtual key is scoped to exactly the models named below.
+#
+# Registry: yaml-only by design — no `profile:` key, so the drift check skips it
+# (same opt-out as the bakeoff_litellm_* arms).
+
+transcription:
+  primary: whisper
+transcribe_missing: false
+prefer_types: ["text/vtt", ".vtt"]
+diarize: false
+screenplay: true
+
+# --- the only LLM stage this run needs ---
+summary_provider: litellm
+llm_pipeline_mode: staged
+litellm_api_base: http://127.0.0.1:4001/v1
+# Opus, not haiku: these summaries are committed into the fixture corpus and become the
+# reference every app surface renders, so the run is worth a few dollars once rather than
+# cheap and re-done. Haiku's pass was clean too (audit OK, 38/40) — this is about the
+# artifact's shelf life, not about haiku failing.
+litellm_summary_model: eval-claude-opus
+litellm_temperature: 0.0
+litellm_verify_served_model: true
+# LiteLLMProvider adds no reasoning-token headroom (unlike the deepseek/groq providers), so if the
+# alias ever resolves to a reasoning model the whole max_tokens budget is spent on
+# reasoning_content — measured as ZERO insights with finish_reason=length while the run exits 0.
+litellm_extra_body:
+  reasoning:
+    enabled: false
+
+generate_metadata: true
+generate_summaries: true
+
+# Off on purpose — see the header. Not "not yet wired".
+generate_gi: false
+generate_kg: false
+# Follows from generate_gi: false. Left at its default (true) the gate is ENABLED with an LLM
+# summariser and no rater on-route, so it self-grades with no log and no metric — a score nobody
+# produced, attached to insights this profile does not generate.
+gi_value_gate_enabled: false
+vector_search: false
+auto_speakers: false
+enrichment:
+  enabled: false
+  enrichers: {}
+
+# A stalled gateway call should fail and fail over, not hang for the default
+# 30 minutes (max of the base/summarization/transcription timeouts).
+summarization_timeout: 600
+transcription_timeout: 120
+
+# The default cap is 650 tokens, sized for LED-base. A cloud model's summary JSON
+# on a long episode exceeds it and truncates to finish_reason=length, which lands
+# as an invalid summary rather than a short one.
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+language: en
+log_level: INFO

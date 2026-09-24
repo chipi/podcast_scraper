@@ -22,6 +22,7 @@
   "publish_offset_days": 363,
   "scripted": true,
   "secondary_topics": [
+    "topic:incident-response",
     "topic:reliability",
     "topic:risk-management"
   ],

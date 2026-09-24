@@ -1,0 +1,326 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:macro-policy",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "insight:859a389940dcde54",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "insight:bedcae13375c310e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8aa4d883afa10fa4",
+      "to": "insight:1518c165982941b8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:ceb2e6a574b8ecf0",
+      "to": "person:scott-bessent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "quote:ceb2e6a574b8ecf0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5f02be4f2e35d062",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:bedcae13375c310e",
+      "to": "quote:5f02be4f2e35d062",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:db1b227e2ca5e2e5",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1518c165982941b8",
+      "to": "quote:db1b227e2ca5e2e5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:88b1f8faab1b86d5",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "quote:88b1f8faab1b86d5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8acf0a158a1996d2",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:bedcae13375c310e",
+      "to": "quote:8acf0a158a1996d2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0781475e705cd482",
+      "to": "person:scott-bessent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1518c165982941b8",
+      "to": "quote:0781475e705cd482",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:859a389940dcde54",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:bedcae13375c310e",
+      "to": "person:scott-bessent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1518c165982941b8",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-8aa4d883afa10fa4",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-8aa4d883afa10fa4",
+      "properties": {
+        "duration_ms": 364000,
+        "feed_id": "p05",
+        "podcast_id": "p05",
+        "publish_date": "2025-02-28T00:00:00",
+        "title": "The Bessent Tape"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:macro-policy",
+      "properties": {
+        "label": "macro policy"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:859a389940dcde54",
+      "properties": {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:bedcae13375c310e",
+      "properties": {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1518c165982941b8",
+      "properties": {
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "I want to flag something \u2014 Marco Biancchi mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:scott-bessent",
+      "properties": {
+        "name": "Scott Bessent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ceb2e6a574b8ecf0",
+      "properties": {
+        "char_end": 238,
+        "char_start": 207,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5f02be4f2e35d062",
+      "properties": {
+        "char_end": 397,
+        "char_start": 245,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:db1b227e2ca5e2e5",
+      "properties": {
+        "char_end": 499,
+        "char_start": 397,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:88b1f8faab1b86d5",
+      "properties": {
+        "char_end": 671,
+        "char_start": 580,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8acf0a158a1996d2",
+      "properties": {
+        "char_end": 764,
+        "char_start": 671,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Marco Biancchi mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0781475e705cd482",
+      "properties": {
+        "char_end": 954,
+        "char_start": 780,
+        "episode_id": "ep-8aa4d883afa10fa4",
+        "speaker_id": "person:speaker-02",
+        "text": "I used to think currency intervention was always counter-productive. After 2023 I changed my mind \u2014 selective intervention in thin overnight markets can be a legitimate tool.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

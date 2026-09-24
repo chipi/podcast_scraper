@@ -1,0 +1,61 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p05-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p05_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel Cho",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 416,
+    "episode_id": "ep-bccfce5798a83a6e",
+    "published_date": "2024-09-06T00:00:00",
+    "title": "Index Investing Without the Myths"
+  },
+  "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "language": "en-us",
+    "last_updated": "2025-09-11T00:00:00",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Index funds are not a strategy — they're the absence of one; the second-order effect of that framing is the part most people miss.",
+      "Vanguard's structure pioneered low costs, and ignoring that structural foundation means rebuilding it from scratch a year later.",
+      "Framing the market reaction first, then looking at fundamentals, reverses the order most decisions follow — internalizing this sequence makes the rest of the decisions easier.",
+      "Tools like Bloomberg and Morningstar make the framing-first trade-off visible when built into the decision flow rather than bolted on later.",
+      "Risk management for individual investors is mostly behavioral rather than technical — a pattern observed holding across three different teams.",
+      "Small-value tilts are a position that was revised over time, with the change of mind observed in practice at teams using Wealthfront and Vanguard.",
+      "Frame cross-cuts every other trade-off in index investing, which makes it the connective thread rather than a standalone topic.",
+      "Running one idea for two weeks is the recommended starting point — everything beyond that is iteration."
+    ],
+    "raw_text": "Index funds are not a strategy — they're the absence of one; the second-order effect of that framing is the part most people miss. Vanguard's structure pioneered low costs, and ignoring that structural foundation means rebuilding it from scratch a year later.",
+    "title": "Index Investing as the Absence of Strategy"
+  }
+}

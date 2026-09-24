@@ -56,7 +56,7 @@ def _flat(root: Path) -> None:
 
 def _multi_feed(root: Path) -> None:
     """Prod shape: <root>/feeds/<feed>/run_<id>/metadata/"""
-    _write_episode(root / "feeds" / "showx" / "run_20260101_000000" / "metadata", "0001-a", "ep-a")
+    _write_episode(root / "feeds" / "showx" / "run_20260101-000000" / "metadata", "0001-a", "ep-a")
 
 
 def _single_feed(root: Path) -> None:

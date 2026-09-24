@@ -26,7 +26,7 @@ Usage:
         [--rss-dir tests/fixtures/rss] \\
         [--transcripts-dir tests/fixtures/transcripts] \\
         [--output tests/fixtures/viewer-validation-corpus] \\
-        [--max-feeds 5] [--max-episodes-per-feed 3]
+        [--max-feeds 5] [--max-episodes-per-feed N]
 """
 
 from __future__ import annotations
@@ -316,6 +316,41 @@ def person_id_for(label: str, roster: list[dict[str, str]]) -> str:
     return f"person:speaker-{(len(roster) + 1):02d}"
 
 
+_GREETING_PREFIXES = (
+    "welcome back to",
+    "welcome to",
+    "hello and welcome",
+    "hi and welcome",
+    "thanks for joining",
+    "thanks for listening",
+    "you're listening to",
+    "i'm your host",
+    "before we get started",
+    "in today's episode",
+    "on today's episode",
+    "today we're talking about",
+)
+_FILLER_MARKERS = (
+    "yeah, exactly. and it ties into what we're covering today",
+    "that's a great question",
+    "let's dive in",
+    "more on that after the break",
+)
+
+
+def is_greeting_or_filler(text: str) -> bool:
+    """True when an utterance is an opening or connective filler rather than substance.
+
+    Used by the builder to keep greetings out of Insights/Quotes, and available to the fixture
+    guard so the rule the builder applies and the rule the tests assert are the SAME rule — the
+    greeting-summary bug survived because the two were never connected.
+    """
+    low = " ".join(str(text or "").split()).lower().lstrip("\"'“‘")
+    if any(low.startswith(p) for p in _GREETING_PREFIXES):
+        return True
+    return any(m in low for m in _FILLER_MARKERS)
+
+
 def build_gi(
     episode_id: str,
     podcast_id: str,
@@ -442,7 +477,14 @@ def build_gi(
     persons_emitted: set[str] = set()
     # Diarized Quotes grounded in the ad-free transcript. Cap at a handful so the
     # artifact stays small but each speaker is represented.
-    quote_budget = quote_segments[:6]
+    # Quotes must be grounded in real segments (they carry char offsets and
+    # timestamps), so they come from the diarized stream rather than the cleaned
+    # sentence list — and the diarized stream opens with the host's welcome every
+    # single time. Taking [:6] verbatim shipped "Welcome back to …" as a Quote in
+    # every episode: the greeting defect one layer below the summary, using the
+    # same rule the summary fix already had but never applied here.
+    usable = [q for q in quote_segments if not is_greeting_or_filler(str(q.get("text") or ""))]
+    quote_budget = (usable or quote_segments)[:6]
     for qi, seg in enumerate(quote_budget):
         label = str(seg.get("speaker_label") or "SPEAKER")
         pid = person_id_for(label, roster)
@@ -575,7 +617,13 @@ def main() -> int:
         default=Path("tests/fixtures/viewer-validation-corpus"),
     )
     p.add_argument("--max-feeds", type=int, default=9)
-    p.add_argument("--max-episodes-per-feed", type=int, default=4)
+    # No default cap. It used to default to 4, which was a silent no-op while every
+    # show had four episodes — and then silently started EXCLUDING when p02/p05 grew
+    # to five and p06 to six. Four episodes with transcript, audio and ground truth
+    # sat on disk in no build, including the corpus's only single-speaker episode and
+    # its only code-switching one. A cap you have to ask for cannot do that to you.
+    p.add_argument("--max-episodes-per-feed", type=int, default=None,
+                   help="cap episodes taken per show (default: every episode)")
     args = p.parse_args()
 
     if not args.rss_dir.is_dir():
@@ -641,7 +689,8 @@ def main() -> int:
         # Find transcripts named pNN_eM.txt for this feed.
         transcripts = sorted(args.transcripts_dir.glob(f"{feed_prefix}_e[0-9]*.txt"))
         transcripts = [t for t in transcripts if "_multi_" not in t.stem and "_fast" not in t.stem]
-        transcripts = transcripts[: args.max_episodes_per_feed]
+        if args.max_episodes_per_feed is not None:
+            transcripts = transcripts[: args.max_episodes_per_feed]
 
         feed_episode_count = 0
         for ei, transcript_path in enumerate(transcripts):

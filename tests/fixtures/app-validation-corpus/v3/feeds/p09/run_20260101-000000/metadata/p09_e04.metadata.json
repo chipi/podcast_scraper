@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p09-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p09_e04.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 217,
+    "episode_id": "ep-4d94c63887afbd1a",
+    "published_date": "2026-07-16T00:00:00",
+    "title": "Risk Is a Systems Property"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "language": "en-us",
+    "last_updated": "2026-07-16T00:00:00",
+    "title": "Cross-Show",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Risk lives in the couplings, not the components — the same principle that governs reliability, observed in practice at teams using IPCC.",
+      "The dangerous risks are the slow correlated ones you can name but discount, rather than sudden or unknown threats — a pattern observed holding across three different teams.",
+      "Framing a risk correctly matters because it reveals which trade-offs are being made rather than leaving them implicit.",
+      "Ignoring how risk concentrates in interactions leads to rebuilding the approach from scratch a year later rather than getting it right the first time.",
+      "Risk is a systems property that lives in the interactions, not the parts — a claim grounded in direct measurement rather than a hunch.",
+      "Systems thinking and risk management are one discipline in two vocabularies; the trade-offs around reliability cross-cut both.",
+      "Running one idea for two weeks is the recommended starting point, with everything beyond that treated as iteration."
+    ],
+    "raw_text": "Risk lives in the couplings, not the components — the same principle that governs reliability, observed in practice at teams using IPCC. The dangerous risks are the slow correlated ones you can name but discount, rather than sudden or unknown threats — a pattern observed holding across three different teams.",
+    "title": "Risk Management as a Systems Property"
+  }
+}

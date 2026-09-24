@@ -1,0 +1,139 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:documentary-photography",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:editing-workflow",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:visual-craft",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "person:leo",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-fb2bb5f0f4044f1d",
+      "to": "person:tariq-hassan",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-fb2bb5f0f4044f1d",
+  "extraction": {
+    "extracted_at": "2024-10-04T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p04_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-fb2bb5f0f4044f1d",
+      "properties": {
+        "podcast_id": "p04",
+        "publish_date": "2024-10-04T00:00:00",
+        "title": "Documentary Workflow in the Field"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:documentary-photography",
+      "properties": {
+        "label": "documentary photography",
+        "slug": "documentary-photography"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame",
+        "slug": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:editing-workflow",
+      "properties": {
+        "label": "editing workflow",
+        "slug": "editing-workflow"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:visual-craft",
+      "properties": {
+        "label": "visual craft",
+        "slug": "visual-craft"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:leo",
+      "properties": {
+        "name": "Leo",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:tariq-hassan",
+      "properties": {
+        "name": "Tariq Hassan",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

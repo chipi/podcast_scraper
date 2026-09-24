@@ -1,0 +1,126 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:edge-cases",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:code-switching",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "person:maya",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "person:liam",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-26eaa57651247221",
+  "extraction": {
+    "extracted_at": "2026-06-20T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e06.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-26eaa57651247221",
+      "properties": {
+        "podcast_id": "p06",
+        "publish_date": "2026-06-20T00:00:00",
+        "title": "Mixed Languages"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:edge-cases",
+      "properties": {
+        "label": "edge cases",
+        "slug": "edge-cases"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:code-switching",
+      "properties": {
+        "label": "code switching",
+        "slug": "code-switching"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long-form",
+        "slug": "long-form"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:liam",
+      "properties": {
+        "name": "Liam",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p03-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p03_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Rina",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Hanna Krebohticker",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p03_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 283,
+    "episode_id": "ep-a884b153355070f0",
+    "published_date": "2024-12-31T00:00:00",
+    "title": "Severe Surname Garbles: A Marine Biologist's Return"
+  },
+  "feed": {
+    "authors": [
+      "Rina Okafor"
+    ],
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "p03",
+    "language": "en-us",
+    "last_updated": "2025-07-09T00:00:00",
+    "title": "Below the Surface",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
+    "image_url": "http://localhost/images/p03.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Reef-conservation policy is a systems problem at planetary scale rather than a local fix — a pattern observed at teams using Suunto, where ignoring it means rebuilding from scratch a year later.",
+      "Most operational dive safety is about not pushing tired teams rather than about equipment or technique; this is presented as a revised view.",
+      "Risk management on extended dives is mostly about exit planning — a pattern seen at teams using GoPro and holding across three different teams.",
+      "Adopting tools like GoPro or Suunto into an existing flow makes the underlying trade-off visible; the second-order effect is the part most people miss.",
+      "Framing a problem correctly matters because it reveals which trade-offs are being made rather than leaving them implicit.",
+      "Trade-offs around risk management cut across reef conservation, team fatigue, and exit planning rather than standing as a separate concern.",
+      "Running one idea for two weeks is the recommended starting point — the rest is iteration."
+    ],
+    "raw_text": "Reef-conservation policy is a systems problem at planetary scale rather than a local fix — a pattern observed at teams using Suunto, where ignoring it means rebuilding from scratch a year later. Most operational dive safety is about not pushing tired teams rather than about equipment or technique; this is presented as a revised view.",
+    "title": "Surface: Reef Systems, Dive Safety, and Risk Management Trade-offs"
+  }
+}

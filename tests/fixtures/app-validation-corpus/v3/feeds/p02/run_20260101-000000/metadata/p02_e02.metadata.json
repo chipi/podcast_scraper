@@ -1,0 +1,61 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p02-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p02_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Joll Wisenthal",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 414,
+    "episode_id": "ep-35f04bce441bf827",
+    "published_date": "2024-04-18T00:00:00",
+    "title": "Staff-Engineer Communication Patterns"
+  },
+  "feed": {
+    "authors": [
+      "Ethan Park"
+    ],
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "p02",
+    "language": "en-us",
+    "last_updated": "2025-03-09T00:00:00",
+    "title": "Practical Systems",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "A great RFC starts with context and constraints, then options, rather than leading with a proposed solution; this pattern recurs at teams using Notion, PagerDuty, and Datadog.",
+      "Writing things down turns disagreement into collaboration, and skipping it means rebuilding the decision from scratch a year later — the second-order effect most people miss.",
+      "Postmortems that focus on individuals miss the system that made the mistake easy, a pattern observed at teams using Sentry, Notion, and Datadog.",
+      "Architecture decisions are mostly tradeoffs, and the framing matters because it reveals which trade-offs are actually being made rather than hiding them.",
+      "Risk management is a communication problem rather than a purely technical one; its trade-offs cross-cut every other engineering communication topic, as seen at teams using Linear and Notion.",
+      "Good on-call rotations are designed so waking up is rare, which ties reliability directly to how engineering teams communicate and plan.",
+      "These communication patterns held consistently across three different teams, and tools like Sentry and PagerDuty are where they show up most cleanly.",
+      "Adopting one covered idea and running it for two weeks is the recommended starting point — the rest is iteration rather than wholesale process change."
+    ],
+    "raw_text": "A great RFC starts with context and constraints, then options, rather than leading with a proposed solution; this pattern recurs at teams using Notion, PagerDuty, and Datadog. Writing things down turns disagreement into collaboration, and skipping it means rebuilding the decision from scratch a year later — the second-order effect most people miss.",
+    "title": "Engineering Communication: RFCs, Postmortems, and Risk Management"
+  }
+}

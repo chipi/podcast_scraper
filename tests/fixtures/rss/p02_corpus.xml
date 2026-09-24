@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>Practical Systems</title>
     <link>http://localhost/</link>
@@ -17,6 +18,7 @@
       <pubDate>Mon, 04 Mar 2024 00:00:00 +0000</pubDate>
       <description>SRE Priya Nair explains alert hygiene, error budgets, and how to make incidents boring.</description>
       <enclosure url="/audio/p02_e01.mp3" length="3143933" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p02_e01.vtt" type="text/vtt"/>
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:06:33</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -28,6 +30,7 @@
       <pubDate>Thu, 18 Apr 2024 00:00:00 +0000</pubDate>
       <description>How to write RFCs, run reviews, and align teams without turning everything into meetings.</description>
       <enclosure url="/audio/p02_e02.mp3" length="3315296" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p02_e02.vtt" type="text/vtt"/>
       <itunes:episode>2</itunes:episode>
       <itunes:duration>00:06:54</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -39,6 +42,7 @@
       <pubDate>Mon, 26 Aug 2024 00:00:00 +0000</pubDate>
       <description>Threat modeling, secure defaults, secrets handling, supply chain risks, and what “shift left” should actually mean.</description>
       <enclosure url="/audio/p02_e03.mp3" length="3975253" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p02_e03.vtt" type="text/vtt"/>
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:08:17</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -50,6 +54,7 @@
       <pubDate>Sun, 29 Dec 2024 00:00:00 +0000</pubDate>
       <description>Ethan talks with Priya Nair: Reliability Is a Systems Property.</description>
       <enclosure url="/audio/p02_e04.mp3" length="1054973" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p02_e04.vtt" type="text/vtt"/>
       <itunes:episode>4</itunes:episode>
       <itunes:duration>00:02:12</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -61,6 +66,7 @@
       <pubDate>Sun, 09 Mar 2025 00:00:00 +0000</pubDate>
       <description>Ethan talks with Priya Nair: Reliability, Live.</description>
       <enclosure url="/audio/p02_e05.mp3" length="635550" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p02_e05.vtt" type="text/vtt"/>
       <itunes:episode>5</itunes:episode>
       <itunes:duration>00:01:19</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

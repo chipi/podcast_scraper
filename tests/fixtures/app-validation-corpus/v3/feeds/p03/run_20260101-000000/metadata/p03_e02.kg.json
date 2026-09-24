@@ -1,0 +1,139 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:marine-biology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:reef-conservation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:safety-practices",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "person:rina",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "person:hanna-crebo-rediker",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-a0a7f86b34a4de26",
+  "extraction": {
+    "extracted_at": "2024-09-12T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p03_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-a0a7f86b34a4de26",
+      "properties": {
+        "podcast_id": "p03",
+        "publish_date": "2024-09-12T00:00:00",
+        "title": "Marine Biology for Divers"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:marine-biology",
+      "properties": {
+        "label": "marine biology",
+        "slug": "marine-biology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reef-conservation",
+      "properties": {
+        "label": "reef conservation",
+        "slug": "reef-conservation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion",
+        "slug": "soil-erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:safety-practices",
+      "properties": {
+        "label": "safety practices",
+        "slug": "safety-practices"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:rina",
+      "properties": {
+        "name": "Rina",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:hanna-crebo-rediker",
+      "properties": {
+        "name": "Hanna Crebo-Rediker",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

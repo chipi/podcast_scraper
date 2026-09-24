@@ -1,0 +1,59 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p08-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p08_e04.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Renee Montagne-Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p08_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 182,
+    "episode_id": "ep-d428e906f5affc60",
+    "published_date": "2026-01-05T00:00:00",
+    "title": "Corrections, Trust, and the Long Game"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "language": "en-us",
+    "last_updated": "2026-01-05T00:00:00",
+    "title": "Public Hour",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "A correction is a reliability signal rather than a failure — a pattern observed at teams using BBC and NPR.",
+      "Ignoring corrections as a reliability signal carries a delayed cost; teams that do so end up rebuilding it from scratch a year later.",
+      "Managing the risk of being wrong in public is its own discipline, a pattern observed holding across three different teams.",
+      "Framing reliability around the risk of being wrong in public matters because it reveals which trade-offs are actually being made.",
+      "Risk management cross-cuts every other reliability concern — its trade-offs touch everything else rather than sitting in a separate silo.",
+      "Adoption works best through small experiments rather than wholesale change — pick one idea, run it for two weeks, and treat the rest as iteration."
+    ],
+    "raw_text": "A correction is a reliability signal rather than a failure — a pattern observed at teams using BBC and NPR. Ignoring corrections as a reliability signal carries a delayed cost; teams that do so end up rebuilding it from scratch a year later.",
+    "title": "Reliability and the Risk of Being Wrong in Public"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p01-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p01_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Sophie Lorenz",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p01_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 361,
+    "episode_id": "ep-60d667843dc40fca",
+    "published_date": "2024-04-01T00:00:00",
+    "title": "Enduro Skills Without the Hype"
+  },
+  "feed": {
+    "authors": [
+      "Maya Koster"
+    ],
+    "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+    "feed_id": "p01",
+    "language": "en-us",
+    "last_updated": "2024-12-17T00:00:00",
+    "title": "Singletrack Sessions",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
+    "image_url": "http://localhost/images/p01.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Speed in enduro racing comes from braking earlier and smoother, not from taking bigger risks — a pattern observed at teams using RockShox and held across three different teams.",
+      "Tire pressure and casing choice often matter more than a minor suspension tweak; framing setup decisions this way clarifies which trade-offs are actually being made.",
+      "Risk management in racing isn't avoiding crashes — it's choosing which crashes are survivable; ignoring that principle means rebuilding the approach from scratch a year later.",
+      "Erosion patterns on race-tracks change line choice from practice to race day, making soil erosion a direct factor in enduro racing strategy rather than a background trail concern.",
+      "Drainage is framed as the single highest-leverage design choice — tying trail construction and soil erosion directly to how race lines evolve.",
+      "Cascadia Alliance is cited as a platform where these dynamics show up cleanly, with the second-order effects being the part most people miss.",
+      "Adopting Spoke & Wrench in the race-prep flow makes the risk trade-off visible — surfacing which decisions carry survivable versus unsurvivable consequences.",
+      "Practical next step: pick one idea covered — braking, tire setup, crash selection, or reading erosion — and run it for two weeks, treating the rest as iteration."
+    ],
+    "raw_text": "Speed in enduro racing comes from braking earlier and smoother, not from taking bigger risks — a pattern observed at teams using RockShox and held across three different teams. Tire pressure and casing choice often matter more than a minor suspension tweak; framing setup decisions this way clarifies which trade-offs are actually being made.",
+    "title": "Enduro Racing: Braking, Tire Setup, Survivable Crashes, and Erosion-Driven Line Choice"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p08-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p08_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Renee Montagne-Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p08_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 271,
+    "episode_id": "ep-efc13989b676df9d",
+    "published_date": "2025-03-11T00:00:00",
+    "title": "Public Radio Format Conventions"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "language": "en-us",
+    "last_updated": "2026-01-05T00:00:00",
+    "title": "Public Hour",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Public radio voice is a deliberate style rather than an accident — a pattern observed at teams using both BBC and NPR, and one that simplifies downstream decisions once internalized.",
+      "Reliability of pronunciation matters more than people think; its second-order effect is the part most people miss.",
+      "Listeners trust the format before they trust the content — the framing matters because it reveals which trade-offs are being made.",
+      "NPR is one of the platforms where the deliberate-style principle shows up cleanly, making it a useful reference case for how format shapes trust.",
+      "Outside of BBC-class tooling, the failure mode is harder to spot — weaker infrastructure obscures where reliability breaks down.",
+      "Reliability trade-offs cross-cut every other dimension of public-radio reporting rather than standing as an isolated concern.",
+      "Adopting one idea and running it for two weeks is the recommended starting point — the rest is iteration."
+    ],
+    "raw_text": "Public radio voice is a deliberate style rather than an accident — a pattern observed at teams using both BBC and NPR, and one that simplifies downstream decisions once internalized. Reliability of pronunciation matters more than people think; its second-order effect is the part most people miss.",
+    "title": "Public Radio Voice as a Deliberate Style"
+  }
+}

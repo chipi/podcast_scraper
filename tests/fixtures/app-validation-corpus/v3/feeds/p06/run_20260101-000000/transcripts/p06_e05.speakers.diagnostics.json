@@ -1,0 +1,28 @@
+{
+  "schema": "speakers.diagnostics/v1",
+  "summary": {
+    "by_voice_type": {
+      "named": 1
+    },
+    "exposed": [
+      {
+        "name": "Maya",
+        "named": true,
+        "role": "host",
+        "talk_share": 1.0,
+        "voice_type": "named"
+      }
+    ],
+    "named": 1,
+    "num_speakers": 1,
+    "unattributed_talk_share": 0.0,
+    "unresolved": 0,
+    "voice_census": {
+      "named": {
+        "count": 1,
+        "talk_s": 24.0,
+        "talk_share": 1.0
+      }
+    }
+  }
+}

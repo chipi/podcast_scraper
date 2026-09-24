@@ -1,0 +1,37 @@
+{
+  "callbacks": [],
+  "episode_id": "p06_e06",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "en-US",
+  "host_accent": "en-US",
+  "host_canonical_name": "Maya",
+  "podcast_id": "p06",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p06:Liam",
+  "primary_guest_canonical_name": "Liam",
+  "primary_guest_surface_in_transcript": "Liam",
+  "primary_topic": "topic:edge-cases",
+  "publish_date": "2026-06-20",
+  "publish_offset_days": 901,
+  "secondary_topics": [
+    "topic:code-switching"
+  ],
+  "sponsor_blocks": [],
+  "summary": {
+    "bullets": [
+      "Two speakers, one switching language mid-conversation.",
+      "Non-English speech appears without a language marker in the transcript.",
+      "Deliberately brief \u2014 the switch is the whole subject."
+    ],
+    "raw_text": "A short bilingual exchange. It exists so transcription and diarization are exercised on code-switching mid-turn, rather than on a single language per speaker.",
+    "title": "Mixed Languages"
+  },
+  "surface_forms": [
+    {
+      "canonical_id": "p06:Liam",
+      "kind": "canonical",
+      "surface": "Liam"
+    }
+  ]
+}

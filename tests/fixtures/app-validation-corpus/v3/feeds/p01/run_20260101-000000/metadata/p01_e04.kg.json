@@ -1,0 +1,126 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "person:maya",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-de59d003651d9e5d",
+  "extraction": {
+    "extracted_at": "2024-12-17T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p01_e04.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-de59d003651d9e5d",
+      "properties": {
+        "podcast_id": "p01",
+        "publish_date": "2024-12-17T00:00:00",
+        "title": "The Risk You Didn't Name"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:enduro-racing",
+      "properties": {
+        "label": "enduro racing",
+        "slug": "enduro-racing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:sophie-laurent",
+      "properties": {
+        "name": "Sophie Laurent",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

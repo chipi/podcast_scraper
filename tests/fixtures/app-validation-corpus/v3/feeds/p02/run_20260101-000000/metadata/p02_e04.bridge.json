@@ -1,0 +1,30 @@
+{
+  "episode_id": "ep-18ede6ffbd63f18f",
+  "identities": [
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "incident response",
+      "id": "topic:incident-response"
+    },
+    {
+      "display_name": "reliability",
+      "id": "topic:reliability"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

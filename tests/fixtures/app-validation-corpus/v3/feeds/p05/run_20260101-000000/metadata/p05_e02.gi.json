@@ -1,0 +1,314 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:monetary-policy",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:563dc22ce6a7cd56",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:1beb3f32691aced8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "insight:bedcae13375c310e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:6054681677d7727d",
+      "to": "person:richard-clarida",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:563dc22ce6a7cd56",
+      "to": "quote:6054681677d7727d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:eb432efce5a2f040",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1beb3f32691aced8",
+      "to": "quote:eb432efce5a2f040",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9b927f059e2ff725",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:bedcae13375c310e",
+      "to": "quote:9b927f059e2ff725",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:294d19d61d68808d",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:563dc22ce6a7cd56",
+      "to": "quote:294d19d61d68808d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d75b1beacd2409ba",
+      "to": "person:nora",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1beb3f32691aced8",
+      "to": "quote:d75b1beacd2409ba",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7af85b7a0012ce15",
+      "to": "person:richard-clarida",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:bedcae13375c310e",
+      "to": "quote:7af85b7a0012ce15",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:563dc22ce6a7cd56",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1beb3f32691aced8",
+      "to": "person:richard-clarida",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:bedcae13375c310e",
+      "to": "person:nora",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-1e526e495918fb27",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-1e526e495918fb27",
+      "properties": {
+        "duration_ms": 365000,
+        "feed_id": "p05",
+        "podcast_id": "p05",
+        "publish_date": "2024-10-21T00:00:00",
+        "title": "Nickname Variance: A Fed Vice Chair Reflects"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:monetary-policy",
+      "properties": {
+        "label": "monetary policy"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:563dc22ce6a7cd56",
+      "properties": {
+        "episode_id": "ep-1e526e495918fb27",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Before we get into it \u2014 Daniel Choh was on episode 1 making the case for behavioral discipline."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1beb3f32691aced8",
+      "properties": {
+        "episode_id": "ep-1e526e495918fb27",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to flag something \u2014 Daniel Choh mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:bedcae13375c310e",
+      "properties": {
+        "episode_id": "ep-1e526e495918fb27",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:richard-clarida",
+      "properties": {
+        "name": "Richard Clarida"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6054681677d7727d",
+      "properties": {
+        "char_end": 222,
+        "char_start": 191,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:eb432efce5a2f040",
+      "properties": {
+        "char_end": 381,
+        "char_start": 229,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Get started at bloomberg.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9b927f059e2ff725",
+      "properties": {
+        "char_end": 476,
+        "char_start": 381,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Daniel Choh was on episode 1 making the case for behavioral discipline.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:294d19d61d68808d",
+      "properties": {
+        "char_end": 646,
+        "char_start": 556,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Daniel Choh mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d75b1beacd2409ba",
+      "properties": {
+        "char_end": 737,
+        "char_start": 646,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7af85b7a0012ce15",
+      "properties": {
+        "char_end": 920,
+        "char_start": 752,
+        "episode_id": "ep-1e526e495918fb27",
+        "speaker_id": "person:speaker-02",
+        "text": "Earlier in my career I argued forward guidance was sufficient. Over time I revised that \u2014 without a credible balance-sheet signal, forward guidance alone is just words.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p05_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

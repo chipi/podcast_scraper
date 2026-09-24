@@ -5,6 +5,43 @@
     "content_series": {
       "persons": [
         {
+          "person_id": "person:maya",
+          "person_label": "maya",
+          "total": 6,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W14": 1,
+            "2024-W31": 1,
+            "2024-W51": 1,
+            "2026-W16": 1,
+            "2026-W25": 1
+          }
+        },
+        {
+          "person_id": "person:ethan",
+          "person_label": "ethan",
+          "total": 5,
+          "weekly_counts": {
+            "2024-W10": 1,
+            "2024-W16": 1,
+            "2024-W35": 1,
+            "2024-W52": 1,
+            "2025-W10": 1
+          }
+        },
+        {
+          "person_id": "person:nora",
+          "person_label": "nora",
+          "total": 5,
+          "weekly_counts": {
+            "2024-W36": 1,
+            "2024-W43": 1,
+            "2025-W09": 1,
+            "2025-W27": 1,
+            "2025-W37": 1
+          }
+        },
+        {
           "person_id": "person:a-correspondent",
           "person_label": "a correspondent",
           "total": 4,
@@ -49,17 +86,6 @@
           }
         },
         {
-          "person_id": "person:ethan",
-          "person_label": "ethan",
-          "total": 4,
-          "weekly_counts": {
-            "2024-W10": 1,
-            "2024-W16": 1,
-            "2024-W35": 1,
-            "2024-W52": 1
-          }
-        },
-        {
           "person_id": "person:jordan-park",
           "person_label": "jordan park",
           "total": 4,
@@ -82,25 +108,14 @@
           }
         },
         {
-          "person_id": "person:maya",
-          "person_label": "maya",
+          "person_id": "person:priya-nair",
+          "person_label": "priya nair",
           "total": 4,
           "weekly_counts": {
-            "2024-W01": 1,
-            "2024-W14": 1,
-            "2024-W31": 1,
-            "2024-W51": 1
-          }
-        },
-        {
-          "person_id": "person:nora",
-          "person_label": "nora",
-          "total": 4,
-          "weekly_counts": {
-            "2024-W36": 1,
-            "2024-W43": 1,
-            "2025-W09": 1,
-            "2025-W27": 1
+            "2024-W10": 1,
+            "2024-W35": 1,
+            "2024-W52": 1,
+            "2025-W10": 1
           }
         },
         {
@@ -148,13 +163,13 @@
           }
         },
         {
-          "person_id": "person:priya-nair",
-          "person_label": "priya nair",
+          "person_id": "person:daniel-cho",
+          "person_label": "daniel cho",
           "total": 3,
           "weekly_counts": {
-            "2024-W10": 1,
-            "2024-W35": 1,
-            "2024-W52": 1
+            "2024-W36": 1,
+            "2025-W27": 1,
+            "2025-W37": 1
           }
         },
         {
@@ -164,15 +179,6 @@
           "weekly_counts": {
             "2024-W27": 1,
             "2025-W25": 1
-          }
-        },
-        {
-          "person_id": "person:daniel-cho",
-          "person_label": "daniel cho",
-          "total": 2,
-          "weekly_counts": {
-            "2024-W36": 1,
-            "2025-W27": 1
           }
         },
         {
@@ -212,6 +218,14 @@
           }
         },
         {
+          "person_id": "person:caller",
+          "person_label": "caller",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W10": 1
+          }
+        },
+        {
           "person_id": "person:daniel-olufemi",
           "person_label": "daniel olufemi",
           "total": 1,
@@ -228,11 +242,27 @@
           }
         },
         {
+          "person_id": "person:liam",
+          "person_label": "liam",
+          "total": 1,
+          "weekly_counts": {
+            "2026-W25": 1
+          }
+        },
+        {
           "person_id": "person:liam-verbeek",
           "person_label": "liam verbeek",
           "total": 1,
           "weekly_counts": {
             "2024-W01": 1
+          }
+        },
+        {
+          "person_id": "person:nadia-sereni",
+          "person_label": "nadia sereni",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W37": 1
           }
         },
         {
@@ -264,7 +294,7 @@
         {
           "topic_id": "topic:expert-interviews",
           "topic_label": "expert interviews",
-          "total": 36,
+          "total": 40,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W10": 1,
@@ -285,6 +315,7 @@
             "2025-W02": 1,
             "2025-W05": 1,
             "2025-W09": 1,
+            "2025-W10": 1,
             "2025-W11": 1,
             "2025-W12": 1,
             "2025-W15": 1,
@@ -295,16 +326,19 @@
             "2025-W28": 1,
             "2025-W32": 1,
             "2025-W36": 1,
+            "2025-W37": 1,
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 3,
+            "2026-W16": 1,
+            "2026-W25": 1,
             "2026-W29": 1
           }
         },
         {
           "topic_id": "topic:lifelong-learning",
           "topic_label": "lifelong learning",
-          "total": 36,
+          "total": 40,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W10": 1,
@@ -325,6 +359,7 @@
             "2025-W02": 1,
             "2025-W05": 1,
             "2025-W09": 1,
+            "2025-W10": 1,
             "2025-W11": 1,
             "2025-W12": 1,
             "2025-W15": 1,
@@ -335,16 +370,19 @@
             "2025-W28": 1,
             "2025-W32": 1,
             "2025-W36": 1,
+            "2025-W37": 1,
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 3,
+            "2026-W16": 1,
+            "2026-W25": 1,
             "2026-W29": 1
           }
         },
         {
           "topic_id": "topic:risk-management",
           "topic_label": "risk management",
-          "total": 34,
+          "total": 30,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W10": 1,
@@ -361,6 +399,7 @@
             "2025-W01": 1,
             "2025-W02": 1,
             "2025-W09": 1,
+            "2025-W10": 1,
             "2025-W11": 1,
             "2025-W15": 1,
             "2025-W17": 1,
@@ -369,19 +408,17 @@
             "2025-W28": 1,
             "2025-W32": 1,
             "2025-W36": 1,
+            "2025-W37": 1,
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 2,
-            "2026-W29": 1,
-            "2026-W20": 2,
-            "2026-W24": 2,
-            "2026-W27": 2
+            "2026-W29": 1
           }
         },
         {
           "topic_id": "topic:systems-thinking",
           "topic_label": "systems thinking",
-          "total": 25,
+          "total": 27,
           "weekly_counts": {
             "2024-W10": 1,
             "2024-W16": 1,
@@ -389,22 +426,109 @@
             "2024-W35": 1,
             "2024-W40": 1,
             "2024-W45": 1,
+            "2024-W51": 1,
             "2024-W52": 1,
             "2025-W02": 1,
             "2025-W05": 1,
+            "2025-W09": 1,
+            "2025-W10": 1,
             "2025-W12": 1,
             "2025-W15": 1,
             "2025-W20": 1,
             "2025-W25": 1,
-            "2025-W27": 1,
+            "2025-W27": 2,
+            "2025-W28": 1,
             "2025-W32": 1,
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 2,
-            "2026-W29": 1,
-            "2026-W21": 2,
+            "2026-W16": 1,
             "2026-W25": 1,
-            "2026-W28": 2
+            "2026-W29": 1
+          }
+        },
+        {
+          "topic_id": "topic:reliability",
+          "topic_label": "reliability",
+          "total": 17,
+          "weekly_counts": {
+            "2024-W10": 1,
+            "2024-W16": 1,
+            "2024-W35": 1,
+            "2024-W36": 1,
+            "2024-W43": 1,
+            "2024-W52": 1,
+            "2025-W02": 1,
+            "2025-W09": 1,
+            "2025-W10": 1,
+            "2025-W11": 1,
+            "2025-W17": 1,
+            "2025-W20": 1,
+            "2025-W27": 1,
+            "2025-W36": 1,
+            "2025-W38": 1,
+            "2026-W02": 1,
+            "2026-W29": 1
+          }
+        },
+        {
+          "topic_id": "topic:long-form",
+          "topic_label": "long form",
+          "total": 9,
+          "weekly_counts": {
+            "2024-W45": 2,
+            "2025-W12": 2,
+            "2025-W27": 2,
+            "2026-W02": 1,
+            "2026-W16": 1,
+            "2026-W25": 1
+          }
+        },
+        {
+          "topic_id": "topic:frame",
+          "topic_label": "frame",
+          "total": 6,
+          "weekly_counts": {
+            "2024-W27": 1,
+            "2024-W35": 1,
+            "2024-W36": 1,
+            "2024-W40": 1,
+            "2025-W05": 1,
+            "2025-W25": 1
+          }
+        },
+        {
+          "topic_id": "topic:personal-finance",
+          "topic_label": "personal finance",
+          "total": 5,
+          "weekly_counts": {
+            "2024-W36": 1,
+            "2024-W43": 1,
+            "2025-W09": 1,
+            "2025-W27": 1,
+            "2025-W37": 1
+          }
+        },
+        {
+          "topic_id": "topic:cultural-drift",
+          "topic_label": "cultural drift",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W45": 1,
+            "2025-W12": 1,
+            "2025-W27": 1,
+            "2026-W02": 1
+          }
+        },
+        {
+          "topic_id": "topic:dialogue",
+          "topic_label": "dialogue",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W45": 1,
+            "2025-W12": 1,
+            "2025-W27": 1,
+            "2026-W02": 1
           }
         },
         {
@@ -419,25 +543,14 @@
           }
         },
         {
-          "topic_id": "topic:long-form",
-          "topic_label": "long form",
+          "topic_id": "topic:journalism",
+          "topic_label": "journalism",
           "total": 4,
           "weekly_counts": {
-            "2024-W45": 1,
-            "2025-W12": 1,
-            "2025-W27": 1,
+            "2025-W11": 1,
+            "2025-W17": 1,
+            "2025-W36": 1,
             "2026-W02": 1
-          }
-        },
-        {
-          "topic_id": "topic:personal-finance",
-          "topic_label": "personal finance",
-          "total": 4,
-          "weekly_counts": {
-            "2024-W36": 1,
-            "2024-W43": 1,
-            "2025-W09": 1,
-            "2025-W27": 1
           }
         },
         {
@@ -463,6 +576,17 @@
           }
         },
         {
+          "topic_id": "topic:soil-erosion",
+          "topic_label": "soil erosion",
+          "total": 4,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W14": 1,
+            "2024-W18": 1,
+            "2024-W37": 1
+          }
+        },
+        {
           "topic_id": "topic:visual-craft",
           "topic_label": "visual craft",
           "total": 4,
@@ -471,6 +595,292 @@
             "2024-W40": 1,
             "2025-W05": 1,
             "2025-W25": 1
+          }
+        },
+        {
+          "topic_id": "topic:index-investing",
+          "topic_label": "index investing",
+          "total": 3,
+          "weekly_counts": {
+            "2024-W36": 1,
+            "2025-W27": 1,
+            "2025-W37": 1
+          }
+        },
+        {
+          "topic_id": "topic:macroeconomics",
+          "topic_label": "macroeconomics",
+          "total": 3,
+          "weekly_counts": {
+            "2025-W15": 1,
+            "2025-W38": 1,
+            "2025-W52": 1
+          }
+        },
+        {
+          "topic_id": "topic:strobe-lighting",
+          "topic_label": "strobe lighting",
+          "total": 3,
+          "weekly_counts": {
+            "2024-W27": 1,
+            "2025-W05": 1,
+            "2025-W25": 1
+          }
+        },
+        {
+          "topic_id": "topic:sustainability",
+          "topic_label": "sustainability",
+          "total": 3,
+          "weekly_counts": {
+            "2025-W02": 1,
+            "2025-W20": 1,
+            "2025-W32": 1
+          }
+        },
+        {
+          "topic_id": "topic:dive-planning",
+          "topic_label": "dive planning",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W18": 1,
+            "2025-W28": 1
+          }
+        },
+        {
+          "topic_id": "topic:edge-cases",
+          "topic_label": "edge cases",
+          "total": 2,
+          "weekly_counts": {
+            "2026-W16": 1,
+            "2026-W25": 1
+          }
+        },
+        {
+          "topic_id": "topic:enduro-racing",
+          "topic_label": "enduro racing",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W14": 1,
+            "2024-W51": 1
+          }
+        },
+        {
+          "topic_id": "topic:incident-response",
+          "topic_label": "incident response",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W10": 1,
+            "2024-W52": 1
+          }
+        },
+        {
+          "topic_id": "topic:marine-biology",
+          "topic_label": "marine biology",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W37": 1,
+            "2025-W01": 1
+          }
+        },
+        {
+          "topic_id": "topic:reef-conservation",
+          "topic_label": "reef conservation",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W37": 1,
+            "2025-W01": 1
+          }
+        },
+        {
+          "topic_id": "topic:broadcast-format",
+          "topic_label": "broadcast format",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W11": 1
+          }
+        },
+        {
+          "topic_id": "topic:code-switching",
+          "topic_label": "code switching",
+          "total": 1,
+          "weekly_counts": {
+            "2026-W25": 1
+          }
+        },
+        {
+          "topic_id": "topic:corrections-policy",
+          "topic_label": "corrections policy",
+          "total": 1,
+          "weekly_counts": {
+            "2026-W02": 1
+          }
+        },
+        {
+          "topic_id": "topic:documentary-photography",
+          "topic_label": "documentary photography",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W40": 1
+          }
+        },
+        {
+          "topic_id": "topic:drivetrain-mechanics",
+          "topic_label": "drivetrain mechanics",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W31": 1
+          }
+        },
+        {
+          "topic_id": "topic:editing-workflow",
+          "topic_label": "editing workflow",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W40": 1
+          }
+        },
+        {
+          "topic_id": "topic:engineering-communication",
+          "topic_label": "engineering communication",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W16": 1
+          }
+        },
+        {
+          "topic_id": "topic:incident-postmortems",
+          "topic_label": "incident postmortems",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W16": 1
+          }
+        },
+        {
+          "topic_id": "topic:labor-markets",
+          "topic_label": "labor markets",
+          "total": 1,
+          "weekly_counts": {
+            "2026-W02": 1
+          }
+        },
+        {
+          "topic_id": "topic:land-stewardship",
+          "topic_label": "land stewardship",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W01": 1
+          }
+        },
+        {
+          "topic_id": "topic:lighting-design",
+          "topic_label": "lighting design",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W05": 1
+          }
+        },
+        {
+          "topic_id": "topic:macro-policy",
+          "topic_label": "macro policy",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W09": 1
+          }
+        },
+        {
+          "topic_id": "topic:maintenance",
+          "topic_label": "maintenance",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W31": 1
+          }
+        },
+        {
+          "topic_id": "topic:monetary-policy",
+          "topic_label": "monetary policy",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W43": 1
+          }
+        },
+        {
+          "topic_id": "topic:newsroom-operations",
+          "topic_label": "newsroom operations",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W36": 1
+          }
+        },
+        {
+          "topic_id": "topic:on-call",
+          "topic_label": "on call",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W10": 1
+          }
+        },
+        {
+          "topic_id": "topic:on-call-rotation",
+          "topic_label": "on call rotation",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W10": 1
+          }
+        },
+        {
+          "topic_id": "topic:pronunciation",
+          "topic_label": "pronunciation",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W17": 1
+          }
+        },
+        {
+          "topic_id": "topic:roundtable-photography",
+          "topic_label": "roundtable photography",
+          "total": 1,
+          "weekly_counts": {
+            "2025-W25": 1
+          }
+        },
+        {
+          "topic_id": "topic:security-design",
+          "topic_label": "security design",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W35": 1
+          }
+        },
+        {
+          "topic_id": "topic:stage-directions",
+          "topic_label": "stage directions",
+          "total": 1,
+          "weekly_counts": {
+            "2026-W16": 1
+          }
+        },
+        {
+          "topic_id": "topic:trail-building",
+          "topic_label": "trail building",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W01": 1
+          }
+        },
+        {
+          "topic_id": "topic:underwater-photography",
+          "topic_label": "underwater photography",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W27": 1
+          }
+        },
+        {
+          "topic_id": "topic:wreck-diving",
+          "topic_label": "wreck diving",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W18": 1
           }
         }
       ],
@@ -494,6 +904,7 @@
         "2025-W02",
         "2025-W05",
         "2025-W09",
+        "2025-W10",
         "2025-W11",
         "2025-W12",
         "2025-W15",
@@ -504,13 +915,80 @@
         "2025-W28",
         "2025-W32",
         "2025-W36",
+        "2025-W37",
         "2025-W38",
         "2025-W52",
         "2026-W02",
+        "2026-W16",
+        "2026-W25",
         "2026-W29"
       ]
     },
     "topics": [
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 1,
+          "2024-04": 1,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 1,
+          "2024-09": 1,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 1,
+          "2025-02": 1,
+          "2025-03": 2,
+          "2025-04": 1,
+          "2025-05": 1,
+          "2025-06": 0,
+          "2025-07": 1,
+          "2025-08": 0,
+          "2025-09": 2,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 1
+        },
+        "topic_id": "topic:reliability",
+        "topic_label": "reliability",
+        "total": 17,
+        "velocity_last_over_6mo": 1.5
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 1,
+          "2024-04": 2,
+          "2024-05": 1,
+          "2024-07": 1,
+          "2024-08": 1,
+          "2024-09": 2,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 3,
+          "2025-01": 1,
+          "2025-02": 1,
+          "2025-03": 2,
+          "2025-04": 2,
+          "2025-05": 1,
+          "2025-06": 0,
+          "2025-07": 2,
+          "2025-08": 1,
+          "2025-09": 3,
+          "2025-12": 1,
+          "2026-01": 2,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 1
+        },
+        "topic_id": "topic:risk-management",
+        "topic_label": "risk management",
+        "total": 30,
+        "velocity_last_over_6mo": 0.8571
+      },
       {
         "monthly_counts": {
           "2024-01": 0,
@@ -522,23 +1000,25 @@
           "2024-09": 0,
           "2024-10": 1,
           "2024-11": 1,
-          "2024-12": 1,
+          "2024-12": 2,
           "2025-01": 1,
-          "2025-02": 1,
-          "2025-03": 1,
+          "2025-02": 2,
+          "2025-03": 2,
           "2025-04": 1,
           "2025-05": 1,
           "2025-06": 1,
-          "2025-07": 1,
+          "2025-07": 3,
           "2025-08": 1,
           "2025-09": 1,
           "2025-12": 1,
           "2026-01": 2,
+          "2026-04": 1,
+          "2026-06": 1,
           "2026-07": 1
         },
         "topic_id": "topic:systems-thinking",
         "topic_label": "systems thinking",
-        "total": 20,
+        "total": 27,
         "velocity_last_over_6mo": 0.8571
       },
       {
@@ -547,36 +1027,6 @@
           "2024-03": 1,
           "2024-04": 2,
           "2024-05": 1,
-          "2024-07": 1,
-          "2024-08": 1,
-          "2024-09": 2,
-          "2024-10": 1,
-          "2024-11": 0,
-          "2024-12": 3,
-          "2025-01": 1,
-          "2025-02": 1,
-          "2025-03": 1,
-          "2025-04": 2,
-          "2025-05": 1,
-          "2025-06": 0,
-          "2025-07": 2,
-          "2025-08": 1,
-          "2025-09": 2,
-          "2025-12": 1,
-          "2026-01": 2,
-          "2026-07": 1
-        },
-        "topic_id": "topic:risk-management",
-        "topic_label": "risk management",
-        "total": 28,
-        "velocity_last_over_6mo": 0.6667
-      },
-      {
-        "monthly_counts": {
-          "2024-01": 1,
-          "2024-03": 1,
-          "2024-04": 2,
-          "2024-05": 1,
           "2024-07": 2,
           "2024-08": 1,
           "2024-09": 2,
@@ -585,21 +1035,23 @@
           "2024-12": 3,
           "2025-01": 1,
           "2025-02": 2,
-          "2025-03": 2,
+          "2025-03": 3,
           "2025-04": 2,
           "2025-05": 1,
           "2025-06": 1,
           "2025-07": 3,
           "2025-08": 1,
-          "2025-09": 2,
+          "2025-09": 3,
           "2025-12": 1,
           "2026-01": 3,
+          "2026-04": 1,
+          "2026-06": 1,
           "2026-07": 1
         },
         "topic_id": "topic:expert-interviews",
         "topic_label": "expert interviews",
-        "total": 36,
-        "velocity_last_over_6mo": 0.5455
+        "total": 40,
+        "velocity_last_over_6mo": 0.6
       },
       {
         "monthly_counts": {
@@ -615,51 +1067,23 @@
           "2024-12": 3,
           "2025-01": 1,
           "2025-02": 2,
-          "2025-03": 2,
+          "2025-03": 3,
           "2025-04": 2,
           "2025-05": 1,
           "2025-06": 1,
           "2025-07": 3,
           "2025-08": 1,
-          "2025-09": 2,
+          "2025-09": 3,
           "2025-12": 1,
           "2026-01": 3,
+          "2026-04": 1,
+          "2026-06": 1,
           "2026-07": 1
         },
         "topic_id": "topic:lifelong-learning",
         "topic_label": "lifelong learning",
-        "total": 36,
-        "velocity_last_over_6mo": 0.5455
-      },
-      {
-        "monthly_counts": {
-          "2024-01": 1,
-          "2024-03": 0,
-          "2024-04": 1,
-          "2024-05": 0,
-          "2024-07": 1,
-          "2024-08": 0,
-          "2024-09": 0,
-          "2024-10": 0,
-          "2024-11": 0,
-          "2024-12": 1,
-          "2025-01": 0,
-          "2025-02": 0,
-          "2025-03": 0,
-          "2025-04": 0,
-          "2025-05": 0,
-          "2025-06": 0,
-          "2025-07": 0,
-          "2025-08": 0,
-          "2025-09": 0,
-          "2025-12": 0,
-          "2026-01": 0,
-          "2026-07": 0
-        },
-        "topic_id": "topic:endurance-sport",
-        "topic_label": "endurance sport",
-        "total": 4,
-        "velocity_last_over_6mo": 0.0
+        "total": 40,
+        "velocity_last_over_6mo": 0.6
       },
       {
         "monthly_counts": {
@@ -671,24 +1095,58 @@
           "2024-08": 0,
           "2024-09": 0,
           "2024-10": 0,
-          "2024-11": 1,
+          "2024-11": 2,
           "2024-12": 0,
           "2025-01": 0,
           "2025-02": 0,
-          "2025-03": 1,
+          "2025-03": 2,
           "2025-04": 0,
           "2025-05": 0,
           "2025-06": 0,
-          "2025-07": 1,
+          "2025-07": 2,
           "2025-08": 0,
           "2025-09": 0,
           "2025-12": 0,
           "2026-01": 1,
+          "2026-04": 1,
+          "2026-06": 1,
           "2026-07": 0
         },
         "topic_id": "topic:long-form",
         "topic_label": "long form",
-        "total": 4,
+        "total": 9,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 1,
+          "2024-09": 1,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 1,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 1,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:frame",
+        "topic_label": "frame",
+        "total": 6,
         "velocity_last_over_6mo": 0.0
       },
       {
@@ -711,13 +1169,111 @@
           "2025-06": 0,
           "2025-07": 1,
           "2025-08": 0,
-          "2025-09": 0,
+          "2025-09": 1,
           "2025-12": 0,
           "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
           "2026-07": 0
         },
         "topic_id": "topic:personal-finance",
         "topic_label": "personal finance",
+        "total": 5,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 1,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 1,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 1,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:cultural-drift",
+        "topic_label": "cultural drift",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 1,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 1,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 1,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:dialogue",
+        "topic_label": "dialogue",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 1,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:endurance-sport",
+        "topic_label": "endurance sport",
         "total": 4,
         "velocity_last_over_6mo": 0.0
       },
@@ -744,6 +1300,40 @@
           "2025-09": 1,
           "2025-12": 0,
           "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:journalism",
+        "topic_label": "journalism",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 1,
+          "2025-04": 1,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 1,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
           "2026-07": 0
         },
         "topic_id": "topic:public-radio",
@@ -774,10 +1364,44 @@
           "2025-09": 0,
           "2025-12": 0,
           "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
           "2026-07": 0
         },
         "topic_id": "topic:safety-practices",
         "topic_label": "safety practices",
+        "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 1,
+          "2024-05": 1,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 1,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:soil-erosion",
+        "topic_label": "soil erosion",
         "total": 4,
         "velocity_last_over_6mo": 0.0
       },
@@ -804,11 +1428,1101 @@
           "2025-09": 0,
           "2025-12": 0,
           "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
           "2026-07": 0
         },
         "topic_id": "topic:visual-craft",
         "topic_label": "visual craft",
         "total": 4,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 1,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 1,
+          "2025-08": 0,
+          "2025-09": 1,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:index-investing",
+        "topic_label": "index investing",
+        "total": 3,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 1,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 1,
+          "2025-12": 1,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:macroeconomics",
+        "topic_label": "macroeconomics",
+        "total": 3,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 1,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 1,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:strobe-lighting",
+        "topic_label": "strobe lighting",
+        "total": 3,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 1,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 1,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 1,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:sustainability",
+        "topic_label": "sustainability",
+        "total": 3,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 1,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 1,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:dive-planning",
+        "topic_label": "dive planning",
+        "total": 2,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 1,
+          "2026-06": 1,
+          "2026-07": 0
+        },
+        "topic_id": "topic:edge-cases",
+        "topic_label": "edge cases",
+        "total": 2,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 1,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:enduro-racing",
+        "topic_label": "enduro racing",
+        "total": 2,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 1,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:incident-response",
+        "topic_label": "incident response",
+        "total": 2,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 1,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:marine-biology",
+        "topic_label": "marine biology",
+        "total": 2,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 1,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:reef-conservation",
+        "topic_label": "reef conservation",
+        "total": 2,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 1,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:broadcast-format",
+        "topic_label": "broadcast format",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 1,
+          "2026-07": 0
+        },
+        "topic_id": "topic:code-switching",
+        "topic_label": "code switching",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:corrections-policy",
+        "topic_label": "corrections policy",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:documentary-photography",
+        "topic_label": "documentary photography",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:drivetrain-mechanics",
+        "topic_label": "drivetrain mechanics",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:editing-workflow",
+        "topic_label": "editing workflow",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 1,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:engineering-communication",
+        "topic_label": "engineering communication",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 1,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:incident-postmortems",
+        "topic_label": "incident postmortems",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:labor-markets",
+        "topic_label": "labor markets",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:land-stewardship",
+        "topic_label": "land stewardship",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 1,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:lighting-design",
+        "topic_label": "lighting design",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 1,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:macro-policy",
+        "topic_label": "macro policy",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:maintenance",
+        "topic_label": "maintenance",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 1,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:monetary-policy",
+        "topic_label": "monetary policy",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 1,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:newsroom-operations",
+        "topic_label": "newsroom operations",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 1,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:on-call",
+        "topic_label": "on call",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 1,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:on-call-rotation",
+        "topic_label": "on call rotation",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 1,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:pronunciation",
+        "topic_label": "pronunciation",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 1,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:roundtable-photography",
+        "topic_label": "roundtable photography",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 1,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:security-design",
+        "topic_label": "security design",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 1,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:stage-directions",
+        "topic_label": "stage directions",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:trail-building",
+        "topic_label": "trail building",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:underwater-photography",
+        "topic_label": "underwater photography",
+        "total": 1,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 0,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 1,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 0,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:wreck-diving",
+        "topic_label": "wreck diving",
+        "total": 1,
         "velocity_last_over_6mo": 0.0
       }
     ],
@@ -834,6 +2548,8 @@
       "2025-09",
       "2025-12",
       "2026-01",
+      "2026-04",
+      "2026-06",
       "2026-07"
     ]
   },
@@ -842,7 +2558,7 @@
   "enricher_version": "1.0",
   "error": null,
   "error_class": null,
-  "records_written": 22,
+  "records_written": 24,
   "retry_count": 0,
   "schema_version": "1.0",
   "status": "ok"

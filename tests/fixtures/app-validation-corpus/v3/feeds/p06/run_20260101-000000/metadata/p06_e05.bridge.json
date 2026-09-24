@@ -1,0 +1,30 @@
+{
+  "episode_id": "ep-0c46a67a56b05689",
+  "identities": [
+    {
+      "display_name": "edge cases",
+      "id": "topic:edge-cases"
+    },
+    {
+      "display_name": "stage directions",
+      "id": "topic:stage-directions"
+    },
+    {
+      "display_name": "long-form",
+      "id": "topic:long-form"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

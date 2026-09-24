@@ -1,0 +1,331 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:corrections-policy",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "insight:b4d1b05b601509cf",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "insight:edbfab0054c27324",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d428e906f5affc60",
+      "to": "insight:76efa51983cb01ba",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:76efa51983cb01ba",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "quote:f43ece3e537a3179",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "quote:f43ece3e537a3179",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bd2318cdc034aa87",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:edbfab0054c27324",
+      "to": "quote:bd2318cdc034aa87",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f32490c48c4e08e8",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:76efa51983cb01ba",
+      "to": "quote:f32490c48c4e08e8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0da3d316385a111f",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "quote:0da3d316385a111f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:02c37565824b8dfb",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:edbfab0054c27324",
+      "to": "quote:02c37565824b8dfb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ee9071efb3e18484",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:76efa51983cb01ba",
+      "to": "quote:ee9071efb3e18484",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:edbfab0054c27324",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:76efa51983cb01ba",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-d428e906f5affc60",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-d428e906f5affc60",
+      "properties": {
+        "duration_ms": 182000,
+        "feed_id": "p08",
+        "podcast_id": "p08",
+        "publish_date": "2026-01-05T00:00:00",
+        "title": "Corrections, Trust, and the Long Game"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:corrections-policy",
+      "properties": {
+        "label": "corrections policy"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:b4d1b05b601509cf",
+      "properties": {
+        "episode_id": "ep-d428e906f5affc60",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, A. correspondent. Great to be back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:edbfab0054c27324",
+      "properties": {
+        "episode_id": "ep-d428e906f5affc60",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:76efa51983cb01ba",
+      "properties": {
+        "episode_id": "ep-d428e906f5affc60",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f43ece3e537a3179",
+      "properties": {
+        "char_end": 245,
+        "char_start": 202,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:bd2318cdc034aa87",
+      "properties": {
+        "char_end": 397,
+        "char_start": 264,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Notion. Notion replaces the dozen tools your team is half-using. Get started at notion.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f32490c48c4e08e8",
+      "properties": {
+        "char_end": 499,
+        "char_start": 397,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-01",
+        "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0da3d316385a111f",
+      "properties": {
+        "char_end": 700,
+        "char_start": 521,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:02c37565824b8dfb",
+      "properties": {
+        "char_end": 814,
+        "char_start": 719,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ee9071efb3e18484",
+      "properties": {
+        "char_end": 1010,
+        "char_start": 836,
+        "episode_id": "ep-d428e906f5affc60",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Managing the risk of being wrong in public is its own discipline. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p08_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

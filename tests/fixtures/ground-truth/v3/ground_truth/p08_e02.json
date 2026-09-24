@@ -21,6 +21,7 @@
   "publish_offset_days": 480,
   "secondary_topics": [
     "topic:journalism",
+    "topic:pronunciation",
     "topic:reliability"
   ],
   "sponsor_blocks": [

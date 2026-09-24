@@ -1,0 +1,331 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "insight:26f018c921d9ba0d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "topic:trail-building",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "insight:62e96736fe305ae9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-db8f44d2e07a22bd",
+      "to": "insight:0bc0138cbf4d6eb4",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:d83cf664be83c808",
+      "to": "person:liam-verbeek",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "quote:d83cf664be83c808",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9d0590ed10770456",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "quote:9d0590ed10770456",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5cd89055936d564e",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0bc0138cbf4d6eb4",
+      "to": "quote:5cd89055936d564e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:56bcd9448a3ad1fd",
+      "to": "person:liam-verbeek",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "quote:56bcd9448a3ad1fd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:14dc21d7ab0629b7",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "quote:14dc21d7ab0629b7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a909ddb58f8a038e",
+      "to": "person:liam-verbeek",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0bc0138cbf4d6eb4",
+      "to": "quote:a909ddb58f8a038e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:26f018c921d9ba0d",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:62e96736fe305ae9",
+      "to": "person:liam-verbeek",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:0bc0138cbf4d6eb4",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-db8f44d2e07a22bd",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-db8f44d2e07a22bd",
+      "properties": {
+        "duration_ms": 488000,
+        "feed_id": "p01",
+        "podcast_id": "p01",
+        "publish_date": "2024-01-02T00:00:00",
+        "title": "Building Trails That Last"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:trail-building",
+      "properties": {
+        "label": "trail building"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-stewardship",
+      "properties": {
+        "label": "land stewardship"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:26f018c921d9ba0d",
+      "properties": {
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:62e96736fe305ae9",
+      "properties": {
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Take me through the decision. How does RockShox fit into this picture?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0bc0138cbf4d6eb4",
+      "properties": {
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Honestly, Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using Cascadia Alliance. I've watched this pattern hold across three different teams."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:liam-verbeek",
+      "properties": {
+        "name": "Liam Verbeek"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d83cf664be83c808",
+      "properties": {
+        "char_end": 306,
+        "char_start": 210,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Excited for this one \u2014 trail building is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:9d0590ed10770456",
+      "properties": {
+        "char_end": 422,
+        "char_start": 313,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Strava. Strava is the home for athletes. Get started at strava.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5cd89055936d564e",
+      "properties": {
+        "char_end": 492,
+        "char_start": 422,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. How does RockShox fit into this picture?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:56bcd9448a3ad1fd",
+      "properties": {
+        "char_end": 704,
+        "char_start": 507,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Drainage is the single highest-leverage design choice on any trail. We've seen this play out at teams using Cascadia Alliance. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:14dc21d7ab0629b7",
+      "properties": {
+        "char_end": 798,
+        "char_start": 711,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a909ddb58f8a038e",
+      "properties": {
+        "char_end": 959,
+        "char_start": 813,
+        "episode_id": "ep-db8f44d2e07a22bd",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 The most common mistake new builders make is grading too aggressively. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

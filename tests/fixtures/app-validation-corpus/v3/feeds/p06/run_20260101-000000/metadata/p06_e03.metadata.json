@@ -1,0 +1,57 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p06-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p06_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Cam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Jordan Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 228,
+    "episode_id": "ep-034d8bc4204034df",
+    "published_date": "2025-07-05T00:00:00",
+    "title": "The Conversation About Conversations"
+  },
+  "feed": {
+    "authors": [
+      "Test Author"
+    ],
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "language": "en-us",
+    "last_updated": "2026-06-20T00:00:00",
+    "title": "The Drift",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Meaning drifts faster than anyone admits — a pattern observed at teams using Patreon, where the second-order effect is the part most people miss.",
+      "The best conversations refuse to resolve rather than landing on neat conclusions; internalizing that principle makes the rest of the decisions easier.",
+      "Long form is where the trade-offs cross-cut everything else — the dynamics of cultural drift and dialogue converge there rather than staying separate concerns.",
+      "Practical adoption favors a small experiment over wholesale change — pick one idea, run it for two weeks, and treat the rest as iteration."
+    ],
+    "raw_text": "Meaning drifts faster than anyone admits — a pattern observed at teams using Patreon, where the second-order effect is the part most people miss. The best conversations refuse to resolve rather than landing on neat conclusions; internalizing that principle makes the rest of the decisions easier.",
+    "title": "Cultural Drift, Dialogue, and Long Form"
+  }
+}

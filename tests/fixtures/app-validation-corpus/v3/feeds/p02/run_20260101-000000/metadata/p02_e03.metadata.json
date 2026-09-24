@@ -1,0 +1,61 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p02-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p02_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Priya Nair",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 497,
+    "episode_id": "ep-d8cc458a5f0049a8",
+    "published_date": "2024-08-26T00:00:00",
+    "title": "Frame the Decision: Pragmatic Threat Models"
+  },
+  "feed": {
+    "authors": [
+      "Ethan Park"
+    ],
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "p02",
+    "language": "en-us",
+    "last_updated": "2025-03-09T00:00:00",
+    "title": "Practical Systems",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Embedded security ownership beats a central security gatekeeper — a position reversed after the 2024 webhook incident, having previously argued for a single central security team.",
+      "Threat modeling is a framing exercise rather than a checklist; frame the decision wrong and you build the wrong defenses, but once internalized the rest of the decisions get easier.",
+      "Authn/authz separation matters more than people think — a pattern observed holding across three different teams.",
+      "Security incidents are reliability incidents; ignoring that overlap means rebuilding the approach from scratch a year later, and the second-order effects are the part most people miss.",
+      "Vanta-style compliance work and real security work overlap only about 60% — passing compliance is not the same as being secure.",
+      "The frame for a security review is 'what could go wrong if this assumption is wrong' — the framing matters because it reveals which trade-offs you're making.",
+      "Tooling like PagerDuty, Datadog, and Sentry makes security trade-offs visible; outside of Sentry-class tooling, the failure mode is harder to spot.",
+      "Risk management cross-cuts every security design trade-off; the practical starting point is picking one idea and running it for two weeks, then iterating."
+    ],
+    "raw_text": "Embedded security ownership beats a central security gatekeeper — a position reversed after the 2024 webhook incident, having previously argued for a single central security team. Threat modeling is a framing exercise rather than a checklist; frame the decision wrong and you build the wrong defenses, but once internalized the rest of the decisions get easier.",
+    "title": "Security Design: Framing, Ownership, and the Reliability Overlap"
+  }
+}

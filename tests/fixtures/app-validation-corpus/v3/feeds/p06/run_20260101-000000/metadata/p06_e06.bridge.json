@@ -1,0 +1,30 @@
+{
+  "episode_id": "ep-26eaa57651247221",
+  "identities": [
+    {
+      "display_name": "edge cases",
+      "id": "topic:edge-cases"
+    },
+    {
+      "display_name": "code switching",
+      "id": "topic:code-switching"
+    },
+    {
+      "display_name": "long-form",
+      "id": "topic:long-form"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

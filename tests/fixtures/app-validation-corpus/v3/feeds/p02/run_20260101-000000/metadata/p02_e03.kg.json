@@ -1,0 +1,139 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:security-design",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "person:ethan",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d8cc458a5f0049a8",
+      "to": "person:priya-nair",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-d8cc458a5f0049a8",
+  "extraction": {
+    "extracted_at": "2024-08-26T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-d8cc458a5f0049a8",
+      "properties": {
+        "podcast_id": "p02",
+        "publish_date": "2024-08-26T00:00:00",
+        "title": "Frame the Decision: Pragmatic Threat Models"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:security-design",
+      "properties": {
+        "label": "security design",
+        "slug": "security-design"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame",
+        "slug": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:ethan",
+      "properties": {
+        "name": "Ethan",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:priya-nair",
+      "properties": {
+        "name": "Priya Nair",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

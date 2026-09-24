@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>Below the Surface</title>
     <link>http://localhost/</link>
@@ -17,6 +18,7 @@
       <pubDate>Sun, 05 May 2024 00:00:00 +0000</pubDate>
       <description>Marco Silva shares planning, lines, lights, and how to avoid “task loading” when the visibility drops.</description>
       <enclosure url="/audio/p03_e01.mp3" length="2654293" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p03_e01.vtt" type="text/vtt"/>
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:05:32</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -28,6 +30,7 @@
       <pubDate>Thu, 12 Sep 2024 00:00:00 +0000</pubDate>
       <description>What divers often misidentify, how reefs recover, and how to be a better observer without touching anything.</description>
       <enclosure url="/audio/p03_e02.mp3" length="2453464" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p03_e02.vtt" type="text/vtt"/>
       <itunes:episode>2</itunes:episode>
       <itunes:duration>00:05:07</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -39,6 +42,7 @@
       <pubDate>Tue, 31 Dec 2024 00:00:00 +0000</pubDate>
       <description>A longer training-style chat: gas planning, buoyancy drills, navigation, and decision-making when a dive doesn’t go to plan.</description>
       <enclosure url="/audio/p03_e03.mp3" length="2265591" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p03_e03.vtt" type="text/vtt"/>
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:04:43</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -50,6 +54,7 @@
       <pubDate>Wed, 09 Jul 2025 00:00:00 +0000</pubDate>
       <description>Rina talks with Marco Silva: Plan the Dive, Manage the Risk.</description>
       <enclosure url="/audio/p03_e04.mp3" length="659792" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p03_e04.vtt" type="text/vtt"/>
       <itunes:episode>4</itunes:episode>
       <itunes:duration>00:01:22</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

@@ -1,0 +1,61 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p07-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p07_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Alex Morgan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p07_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 344,
+    "episode_id": "ep-1979e93514355ea6",
+    "published_date": "2025-01-08T00:00:00",
+    "title": "What Sustainability Really Means"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
+    "feed_id": "p07",
+    "language": "en-us",
+    "last_updated": "2025-12-24T00:00:00",
+    "title": "The Long View",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p07.webp",
+    "image_url": "http://localhost/images/p07.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Sustainability is a systems-thinking problem before it's an environmental problem — internalizing this makes downstream decisions easier, while ignoring it means rebuilding the approach from scratch a year later.",
+      "The most expensive thing about climate is the optionality lost by delaying rather than the direct cost of acting; the second-order effect of that delay is the part most people miss.",
+      "Risk management at planetary scale looks like reliability engineering at company scale — a pattern observed holding across three different teams using Carbon Trust.",
+      "Carbon accounting needs the rigor that double-entry bookkeeping brought to finance, rather than looser estimation practices.",
+      "Adopting Carbon Trust within a workflow makes trade-offs visible; the framing matters because it reveals which trade-offs are actually being made.",
+      "Project Drawdown is one of the platforms where the systems-thinking pattern shows up cleanly, alongside Carbon Trust and IEA as reference points for teams.",
+      "Reliability trade-offs cross-cut every other sustainability decision, making reliability a unifying lens rather than a separate concern.",
+      "Running one idea for two weeks is the recommended starting point — progress comes from iteration rather than comprehensive upfront adoption."
+    ],
+    "raw_text": "Sustainability is a systems-thinking problem before it's an environmental problem — internalizing this makes downstream decisions easier, while ignoring it means rebuilding the approach from scratch a year later. The most expensive thing about climate is the optionality lost by delaying rather than the direct cost of acting; the second-order effect of that delay is the part most people miss.",
+    "title": "Sustainability as a Systems-Thinking Problem"
+  }
+}

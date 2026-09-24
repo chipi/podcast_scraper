@@ -1,0 +1,34 @@
+{
+  "episode_id": "ep-9f97daef33906cf6",
+  "identities": [
+    {
+      "display_name": "lighting design",
+      "id": "topic:lighting-design"
+    },
+    {
+      "display_name": "strobe lighting",
+      "id": "topic:strobe-lighting"
+    },
+    {
+      "display_name": "frame",
+      "id": "topic:frame"
+    },
+    {
+      "display_name": "visual craft",
+      "id": "topic:visual-craft"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

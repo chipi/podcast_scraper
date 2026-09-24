@@ -1,0 +1,113 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:macroeconomics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-2cd5c6d11325a312",
+  "extraction": {
+    "extracted_at": "2025-04-08T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p07_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-2cd5c6d11325a312",
+      "properties": {
+        "podcast_id": "p07",
+        "publish_date": "2025-04-08T00:00:00",
+        "title": "Severe Garbles: A Macro Discussion"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:macroeconomics",
+      "properties": {
+        "label": "macroeconomics",
+        "slug": "macroeconomics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:alex-morgan",
+      "properties": {
+        "name": "Alex Morgan",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

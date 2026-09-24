@@ -246,7 +246,8 @@ def _render_feed(
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<rss version="2.0"',
-        '     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">',
+        '     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"',
+        '     xmlns:podcast="https://podcastindex.org/namespace/1.0">',
         "  <channel>",
         f"    <title>{_esc(title)}</title>",
         "    <link>http://localhost/</link>",
@@ -288,6 +289,14 @@ def _render_feed(
             f"      <description>{_esc(description)}</description>",
             f'      <enclosure url="/audio/{episode_id}.mp3" '
             f'length="{audio.stat().st_size}" type="audio/mpeg"/>',
+            # Advertise the .vtt twin that sits next to the audio. Without it a run
+            # over these feeds takes the ASR path or, with transcribe_missing=false,
+            # logs "no transcript for: <title>" and produces NOTHING — which is how
+            # a 40-episode pipeline run came back with summary:0 and exit 0.
+            # FIXTURES_SPEC already claimed "the feeds advertise the .vtt"; it was
+            # true of three hand-authored p01 feeds and of no generated feed.
+            f'      <podcast:transcript url="/transcripts/{episode_id}.vtt" '
+            f'type="text/vtt"/>',
             f"      <itunes:episode>{index}</itunes:episode>",
             f"      <itunes:duration>{duration}</itunes:duration>",
             "      <itunes:episodeType>full</itunes:episodeType>",

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>Singletrack Sessions</title>
     <link>http://localhost/</link>
@@ -17,6 +18,7 @@
       <pubDate>Tue, 02 Jan 2024 00:00:00 +0000</pubDate>
       <description>Maya talks with trail builder Liam Verbeek about drainage, line choice, and keeping trails rideable through winter.</description>
       <enclosure url="/audio/p01_e01.mp3" length="3905036" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_e01.vtt" type="text/vtt"/>
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:08:08</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -28,6 +30,7 @@
       <pubDate>Mon, 01 Apr 2024 00:00:00 +0000</pubDate>
       <description>Coach Sophie van Dalen breaks down cornering, braking, and confidence—what to practice and what to ignore.</description>
       <enclosure url="/audio/p01_e02.mp3" length="2886470" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_e02.vtt" type="text/vtt"/>
       <itunes:episode>2</itunes:episode>
       <itunes:duration>00:06:01</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -39,6 +42,7 @@
       <pubDate>Tue, 30 Jul 2024 00:00:00 +0000</pubDate>
       <description>A longer shop-floor conversation: suspension setup, drivetrain wear, brake bleed myths, and diagnosing clicks that only happen on climbs.</description>
       <enclosure url="/audio/p01_e03.mp3" length="2783652" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_e03.vtt" type="text/vtt"/>
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:05:48</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -50,6 +54,7 @@
       <pubDate>Tue, 17 Dec 2024 00:00:00 +0000</pubDate>
       <description>Maya talks with Sophie Laurent: The Risk You Didn't Name.</description>
       <enclosure url="/audio/p01_e04.mp3" length="657702" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_e04.vtt" type="text/vtt"/>
       <itunes:episode>4</itunes:episode>
       <itunes:duration>00:01:22</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

@@ -1,0 +1,326 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:marine-biology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:reef-conservation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:safety-practices",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "insight:b5a40e3cf44d149d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "insight:ce7f3a554ed3e347",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-a0a7f86b34a4de26",
+      "to": "insight:3a9fc65782086662",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:7f5926e6c5ed4bb4",
+      "to": "person:hanna-crebo-rediker",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b5a40e3cf44d149d",
+      "to": "quote:7f5926e6c5ed4bb4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5a9a07d724ff5e47",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ce7f3a554ed3e347",
+      "to": "quote:5a9a07d724ff5e47",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a7f926b7be76c220",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3a9fc65782086662",
+      "to": "quote:a7f926b7be76c220",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8b7a5062f3d658e0",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b5a40e3cf44d149d",
+      "to": "quote:8b7a5062f3d658e0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:302438c63e4f3d56",
+      "to": "person:rina",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ce7f3a554ed3e347",
+      "to": "quote:302438c63e4f3d56",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:19f5aa7eeb80abf9",
+      "to": "person:hanna-crebo-rediker",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3a9fc65782086662",
+      "to": "quote:19f5aa7eeb80abf9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b5a40e3cf44d149d",
+      "to": "person:rina",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ce7f3a554ed3e347",
+      "to": "person:hanna-crebo-rediker",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3a9fc65782086662",
+      "to": "person:rina",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-a0a7f86b34a4de26",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-a0a7f86b34a4de26",
+      "properties": {
+        "duration_ms": 307000,
+        "feed_id": "p03",
+        "podcast_id": "p03",
+        "publish_date": "2024-09-12T00:00:00",
+        "title": "Marine Biology for Divers"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:marine-biology",
+      "properties": {
+        "label": "marine biology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reef-conservation",
+      "properties": {
+        "label": "reef conservation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:safety-practices",
+      "properties": {
+        "label": "safety practices"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:b5a40e3cf44d149d",
+      "properties": {
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Before we get into it \u2014 Marco Sylva was on last week talking about wreck planning."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ce7f3a554ed3e347",
+      "properties": {
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to flag something \u2014 Marco Sylva mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3a9fc65782086662",
+      "properties": {
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Let's start there. What's the version of the question that actually matters?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:hanna-crebo-rediker",
+      "properties": {
+        "name": "Hanna Crebo-Rediker"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:7f5926e6c5ed4bb4",
+      "properties": {
+        "char_end": 260,
+        "char_start": 229,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Rina. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:rina",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5a9a07d724ff5e47",
+      "properties": {
+        "char_end": 372,
+        "char_start": 267,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by PADI. PADI is the global standard for dive education. Try padi.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a7f926b7be76c220",
+      "properties": {
+        "char_end": 454,
+        "char_start": 372,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Marco Sylva was on last week talking about wreck planning.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8b7a5062f3d658e0",
+      "properties": {
+        "char_end": 631,
+        "char_start": 541,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Marco Sylva mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:302438c63e4f3d56",
+      "properties": {
+        "char_end": 707,
+        "char_start": 631,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-01",
+        "text": "Let's start there. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:19f5aa7eeb80abf9",
+      "properties": {
+        "char_end": 893,
+        "char_start": 729,
+        "episode_id": "ep-a0a7f86b34a4de26",
+        "speaker_id": "person:speaker-02",
+        "text": "Sure. Coral bleaching events are not random. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

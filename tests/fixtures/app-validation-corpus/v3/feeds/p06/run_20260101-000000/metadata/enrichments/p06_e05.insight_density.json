@@ -1,0 +1,31 @@
+{
+  "circuit_state": null,
+  "computed_at": "2026-01-01T00:00:00Z",
+  "data": {
+    "counts": {
+      "early": 1,
+      "late": 0,
+      "mid": 0,
+      "unknown": 0
+    },
+    "duration_seconds": 10.0,
+    "episode_id": "ep-0c46a67a56b05689",
+    "has_timing": false,
+    "insight_segments": [
+      {
+        "insight_id": "insight:ae4361058ac53839",
+        "segment": "early"
+      }
+    ],
+    "total_insights": 1
+  },
+  "duration_ms": 0,
+  "enricher_id": "insight_density",
+  "enricher_version": "1.0",
+  "error": null,
+  "error_class": null,
+  "records_written": 1,
+  "retry_count": 0,
+  "schema_version": "1.0",
+  "status": "ok"
+}
