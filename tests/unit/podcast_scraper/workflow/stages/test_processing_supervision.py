@@ -605,3 +605,106 @@ class TestQueueEmptyComparesMembershipNotCardinality(unittest.TestCase):
             processing._mark_processed(processed, j)
         self.assertEqual(len(processed), 3)
         self.assertTrue(processing._all_jobs_processed(jobs, processed))
+
+
+class TestTheVerdictIsExecutedNotReconstructed(unittest.TestCase):
+    """`processing_loop_verdict` is module-level so these call the REAL implementation.
+
+    Every other test of this loop's behaviour mirrors the logic, because it lives in a closure
+    inside `_run_parallel_processing_loop`. A mirror cannot catch a defect in the original, and
+    two defects shipped through that gap: a clock stamped at submit instead of execution, and
+    an abandoned episode counted as finished. Both were "tested".
+    """
+
+    def test_ordinary_waiting_is_info_not_alarming(self):
+        level, text = processing.processing_loop_verdict(
+            jobs=6,
+            submitted=6,
+            in_flight=2,
+            abandoned=0,
+            states={"running": 2},
+            unaccounted=0,
+            longest_in_flight_sec=412.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "info", "366 lines of healthy waiting were once tallied as wedges")
+        self.assertIn("WORKING", text)
+        self.assertIn("4/6 episodes done", text)
+
+    def test_an_abandoned_episode_is_NOT_counted_done(self):
+        """The defect that shipped inside the line written to end misreadings.
+
+        `_abandon_overrunning_futures` pops the future while its key stays in the submitted set,
+        so submitted-minus-in_flight promoted a still-burning episode to "done".
+        """
+        level, text = processing.processing_loop_verdict(
+            jobs=8,
+            submitted=8,
+            in_flight=1,
+            abandoned=2,
+            states={"running": 1},
+            unaccounted=0,
+            longest_in_flight_sec=90.0,
+            max_workers=2,
+        )
+        self.assertIn("5/8 episodes done", text, f"abandoned counted as done: {text}")
+        self.assertNotIn("7/8", text)
+
+    def test_abandoned_slots_are_named_and_raise_severity(self):
+        """F5 visibility: the starvation is stated rather than silently burning to the budget."""
+        level, text = processing.processing_loop_verdict(
+            jobs=8,
+            submitted=8,
+            in_flight=0,
+            abandoned=2,
+            states={"pending": 3},
+            unaccounted=0,
+            longest_in_flight_sec=0.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "warning")
+        self.assertIn("abandoned", text)
+        self.assertIn("starved", text)
+
+    def test_the_cardinality_wedge_is_an_error_naming_its_fix(self):
+        level, text = processing.processing_loop_verdict(
+            jobs=35,
+            submitted=34,
+            in_flight=0,
+            abandoned=0,
+            states={},
+            unaccounted=0,
+            longest_in_flight_sec=0.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "error")
+        self.assertIn("STUCK", text)
+        self.assertIn("cd4c53857", text)
+
+    def test_unaccounted_jobs_with_nothing_in_flight_is_an_error(self):
+        level, text = processing.processing_loop_verdict(
+            jobs=10,
+            submitted=9,
+            in_flight=0,
+            abandoned=0,
+            states={},
+            unaccounted=1,
+            longest_in_flight_sec=0.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "error")
+        self.assertIn("unaccounted", text)
+
+    def test_running_work_wins_over_an_unaccounted_job(self):
+        """Ordering guard: work in flight means WORKING, even with a job still unsubmitted."""
+        level, _ = processing.processing_loop_verdict(
+            jobs=10,
+            submitted=9,
+            in_flight=1,
+            abandoned=0,
+            states={"running": 1},
+            unaccounted=1,
+            longest_in_flight_sec=5.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "info")

@@ -186,6 +186,71 @@ def _processing_future_abandon_seconds(cfg: Any) -> Optional[float]:
     return float(DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS)
 
 
+def processing_loop_verdict(
+    *,
+    jobs: int,
+    submitted: int,
+    in_flight: int,
+    abandoned: int,
+    states: Dict[str, int],
+    unaccounted: int,
+    longest_in_flight_sec: float,
+    max_workers: int,
+) -> Tuple[str, str]:
+    """Classify the loop's state and say so. Returns ``(level, text)``.
+
+    MODULE-LEVEL AND PURE so a test can EXECUTE it. The previous version lived inside
+    ``_run_parallel_processing_loop``'s closure, where nothing could reach it, so its tests
+    reconstructed the arithmetic instead — and a reconstruction cannot catch a defect in the
+    original. Two defects reached prod behind exactly that gap: a per-episode clock stamped at
+    submit rather than execution, and an abandoned episode counted as finished. Both were
+    "tested".
+
+    The counting rules the callers kept getting wrong, stated once here:
+
+    * ``submitted`` is NOT a completion count. ``_mark_processed`` fires when a job is handed to
+      a worker, as the double-submit guard.
+    * an ABANDONED episode is not finished. Its future is popped from tracking while its worker
+      thread keeps running — a running future cannot be cancelled in Python — so it must be
+      subtracted, not counted done.
+    * ``in_flight > 0`` with work ``running``/``pending`` is ORDINARY. Logging it as alarming is
+      how 366 lines of healthy waiting were once tallied as wedges.
+    """
+    running = states.get("running", 0)
+    pending = states.get("pending", 0)
+    if running or pending:
+        finished = max(0, submitted - in_flight - abandoned)
+        tail = ""
+        level = "info"
+        if abandoned:
+            # F5 is NAMED, not fixed: abandoned-but-running episodes hold worker slots, so
+            # queued work cannot start and the feed burns to its wall-clock budget. A capacity
+            # fix needs either a private `_max_workers` poke or an executor swap-and-resubmit —
+            # real complexity for an event requiring two simultaneous wedges. Saying it beats a
+            # silent four hours.
+            tail = (
+                f" {abandoned} abandoned episode(s) still hold worker slot(s) of {max_workers}; "
+                "queued work is starved until the feed budget fires."
+            )
+            level = "warning"
+        return level, (
+            f"WORKING — {finished}/{jobs} episodes done, {running} running, {pending} queued; "
+            f"longest in flight {longest_in_flight_sec:.0f}s. Normal.{tail}"
+        )
+    if in_flight == 0 and unaccounted:
+        return "error", (
+            f"STUCK — nothing is in flight and {unaccounted} job(s) are unaccounted for. "
+            "The loop cannot make progress on its own."
+        )
+    if in_flight == 0:
+        return "error", (
+            "STUCK — every job is accounted for and nothing is in flight, yet the exit "
+            "condition is unsatisfied. This is the cardinality wedge fixed in cd4c53857; "
+            "seeing it again means that fix regressed."
+        )
+    return "warning", f"UNCLEAR — {in_flight} future(s) tracked in states {states}."
+
+
 def _overrunning_futures(
     started_at: Dict[Any, float], ceiling: Optional[float], now: float
 ) -> List[Any]:
@@ -2668,62 +2733,24 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     else:
                         key = "pending"
                     states[key] = states.get(key, 0) + 1
-                # SAY WHICH STATE THIS IS, do not make the reader derive it. This line was read
-                # wrong in both directions during the 2026-09-23 incident: hours of ordinary
-                # waiting were reported as a wedge, and a genuine wedge was called healthy. The
-                # counts to tell them apart were all present and nobody combined them correctly
-                # under pressure — including the author, twice. So the line states its own verdict
-                # first, at a severity that matches, and keeps the raw counts after it as evidence.
+                # The verdict itself lives at module scope (`processing_loop_verdict`) so a
+                # test can EXECUTE it. It used to be inline here, unreachable, and its tests
+                # reconstructed the arithmetic — which is how an abandoned-counts-as-done defect
+                # shipped inside the very line written to end misreadings.
                 longest = 0.0
                 if future_started_at:
-                    oldest = min(future_started_at.values())
-                    longest = max(0.0, time.monotonic() - oldest)
-                running = states.get("running", 0)
-                pending = states.get("pending", 0)
-                if running or pending:
-                    # Say how many are DONE, which is what a reader wants and what the raw counts
-                    # do not give them. `done_keys` counts SUBMITTED jobs, not finished ones
-                    # (`_mark_processed` fires at submit as the double-submit guard), so "N marked
-                    # processed" reads as a completion count and is not one.
-                    #
-                    # ABANDONED EPISODES MUST NOT COUNT AS DONE. `_abandon_overrunning_futures`
-                    # pops the future out of `futures` while its key STAYS in
-                    # `processed_job_indices`, so `submitted - in_flight` silently promoted every
-                    # abandoned episode to "done" — while its worker thread is still burning a
-                    # core, because a running future cannot be cancelled. A line written to end
-                    # misreadings was itself misreporting the one state it exists for.
-                    finished = max(0, len(done_keys) - len(futures) - abandoned_futures[0])
-                    tail = ""
-                    if abandoned_futures[0]:
-                        # Name the starvation rather than fix it (F5): with N of max_workers slots
-                        # held by abandoned-but-running episodes, queued work cannot start and the
-                        # feed burns to its wall-clock budget. Saying so beats a silent 4h.
-                        tail = (
-                            f" {abandoned_futures[0]} abandoned episode(s) still hold worker "
-                            f"slot(s) of {max_workers}; queued work is starved until the feed "
-                            "budget fires."
-                        )
-                    verdict = (
-                        f"WORKING — {finished}/{len(all_jobs)} episodes done, {running} running, "
-                        f"{pending} queued; longest in flight {longest:.0f}s. Normal.{tail}"
-                    )
-                    log = logger.warning if abandoned_futures[0] else logger.info
-                elif len(futures) == 0 and missing:
-                    verdict = (
-                        f"STUCK — nothing is in flight and {len(missing)} job(s) are unaccounted "
-                        "for. The loop cannot make progress on its own."
-                    )
-                    log = logger.error
-                elif len(futures) == 0:
-                    verdict = (
-                        "STUCK — every job is accounted for and nothing is in flight, yet the "
-                        "exit condition is unsatisfied. This is the cardinality wedge fixed in "
-                        "cd4c53857; seeing it again means that fix regressed."
-                    )
-                    log = logger.error
-                else:
-                    verdict = f"UNCLEAR — {len(futures)} future(s) tracked in states {states}."
-                    log = logger.warning
+                    longest = max(0.0, time.monotonic() - min(future_started_at.values()))
+                level, verdict = processing_loop_verdict(
+                    jobs=len(all_jobs),
+                    submitted=len(done_keys),
+                    in_flight=len(futures),
+                    abandoned=abandoned_futures[0],
+                    states=states,
+                    unaccounted=len(missing),
+                    longest_in_flight_sec=longest,
+                    max_workers=max_workers,
+                )
+                log = {"info": logger.info, "warning": logger.warning}.get(level, logger.error)
                 log(
                     # `submitted`, not `marked_processed`: the set is populated at submit time,
                     # so naming it after processing invites reading it as a completion count.
