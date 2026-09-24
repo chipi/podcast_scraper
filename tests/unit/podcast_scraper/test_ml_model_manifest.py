@@ -125,12 +125,40 @@ def test_preloaded_pinned_summaries_are_in_the_manifest():
         assert model_id in manifest_ids, f"pinned {model_id} not in manifest"
 
 
-def test_airgapped_thin_summary_is_the_trimmed_manifest_subset():
+def test_airgapped_thin_summary_is_the_trimmed_pair():
     # preload_ml_models.py --airgapped-thin reads model_ids_for_tier("airgapped_thin",
-    # "summary"); it must be the trimmed bart/led pair and a subset of the test tier.
+    # "summary"); it is the trimmed bart/led pair.
     air = mm.model_ids_for_tier("airgapped_thin", "summary")
     assert set(air) == {"facebook/bart-base", "allenai/led-base-16384"}
-    assert set(air) <= set(mm.model_ids_for_tier("test", "summary"))
+    # Every one is in the manifest, so every one is pinned and known. That is the part that
+    # matters and it still holds.
+    assert set(air) <= {m.model_id for m in mm.REQUIRED_ML_MODELS}
+
+
+def test_the_test_tier_is_the_loadable_subset_of_airgapped_thin():
+    """airgapped-thin is NO LONGER a subset of the test tier, and that is deliberate.
+
+    It used to be, which was convenient: preloading `test` on a laptop also gave you what
+    `--airgapped-thin` needs. It stopped being possible. `allenai/led-base-16384` ships only
+    `pytorch_model.bin`, so loading it unpickles through ``torch.load``, and
+    ``transformers >= 4.56`` refuses that below torch 2.6 (PYSEC-2025-41). On x86_64 macOS the
+    newest torch wheel that exists is 2.2.2 — so keeping LED in `test` meant
+    ``make preload-ml-models`` could not complete on that host at all, and neither could
+    ``make ci``.
+
+    The `test` tier is what a developer machine preloads, so it is the LOADABLE subset:
+    safetensors only. airgapped-thin keeps LED because it genuinely needs a long-context local
+    REDUCE and no safetensors checkpoint exists for those weights — it runs where torch is
+    current.
+
+    This asserts the direction that now holds, so the relationship is still guarded rather than
+    merely abandoned.
+    """
+    air = set(mm.model_ids_for_tier("airgapped_thin", "summary"))
+    test_tier = set(mm.model_ids_for_tier("test", "summary"))
+    assert air & test_tier == {"facebook/bart-base"}
+    assert "allenai/led-base-16384" not in test_tier
+    assert "google/long-t5-tglobal-base" not in test_tier
 
 
 def test_preload_evidence_defaults_are_manifest_ids():

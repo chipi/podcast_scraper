@@ -459,14 +459,45 @@ security-bandit:
 #                    deferred to a COORDINATED upgrade: it risks the diarization/whisper stack, the
 #                    torchcodec<0.15 cap, and divergence from the baked stack-test image. Do it as a
 #                    deliberate ML-stack pass, not a drive-by here.
+# Blocking on CI, advisory locally — decided by $CI, which every CI provider sets.
+#
+# The findings are identical either way; what differs is whether they halt the run. On CI they
+# must: that is the gate. Locally they must not, because of one situation this repo actually has.
+#
+# x86_64 macOS is it. The newest torch wheel published for that platform is 2.2.2, which carries
+# 22 known vulnerabilities, and EVERY version the advisories name as fixed (2.5, 2.6, 2.7, 2.8,
+# 2.9) has no macOS x86_64 build. There is no pin that is both installable and clean. A gate that
+# cannot go green on a supported dev machine stops the other 20 stages of `make ci` from running
+# at all, and "I never run the full build locally" is a worse security outcome than a warning.
+#
+# Override either way:
+#   SECURITY_AUDIT_STRICT=1     fail even locally (check before you push)
+#   SECURITY_AUDIT_ADVISORY=1   report-only even on CI (do not)
 security-audit:
 	@$(PYTHON) -m pip install --quiet --upgrade pip setuptools
-	$(PYTHON) -m pip_audit --progress-spinner off \
+	@$(PYTHON) -m pip_audit --progress-spinner off \
 		--ignore-vuln PYSEC-2026-3740 \
 		--ignore-vuln CVE-2026-69112 \
 		--ignore-vuln PYSEC-2026-2447 \
 		--ignore-vuln PYSEC-2026-3624 \
-		--ignore-vuln PYSEC-2025-194
+		--ignore-vuln PYSEC-2025-194; \
+	rc=$$?; \
+	[ $$rc -eq 0 ] && exit 0; \
+	blocking=1; \
+	[ -z "$${CI:-}" ] && blocking=0; \
+	[ -n "$${SECURITY_AUDIT_STRICT:-}" ] && blocking=1; \
+	[ -n "$${SECURITY_AUDIT_ADVISORY:-}" ] && blocking=0; \
+	if [ $$blocking -eq 0 ]; then \
+		echo ""; \
+		echo "  ================================================================"; \
+		echo "  SECURITY AUDIT FAILED - reported, NOT blocking (local run)"; \
+		echo "  The findings above are real. CI blocks on them."; \
+		echo "  Run SECURITY_AUDIT_STRICT=1 make security-audit to fail here too."; \
+		echo "  ================================================================"; \
+		echo ""; \
+		exit 0; \
+	fi; \
+	exit $$rc
 
 # Code quality analysis (radon)
 # Note: Use $(PYTHON) -m to ensure tools run from venv, not system PATH
