@@ -346,9 +346,10 @@ def _classify_intent(layer: Any, text: str) -> Optional[str]:
     if not callable(classify):
         return None
     try:
-        return classify(text)
+        predicted = classify(text)
     except Exception:  # noqa: BLE001 - a router failure is not a measurement failure
         return None
+    return str(predicted) if predicted is not None else None
 
 
 def enforce_rfc107_thresholds(

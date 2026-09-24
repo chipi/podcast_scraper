@@ -13,6 +13,7 @@ a corpus it could not score.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -99,7 +100,7 @@ def test_compound_lift_detected_from_either_shape() -> None:
 
 # -- consensus pairs -------------------------------------------------------------------
 def test_consensus_pairs_count_only_those_touching_top_k() -> None:
-    pairs = [
+    pairs: list[dict[str, Any]] = [
         {"insight_a_id": "a", "insight_b_id": "z"},
         {"insight_a_id": "q", "insight_b_id": "r"},
         {"insight_a_id": "b", "insight_b_id": "z", "grounded": False},
