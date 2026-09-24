@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG-ONLY manifest overlay for the Android device tier (#2139).
+
+  The tier builds the app against the fixture origin on `http://127.0.0.1:4174` — the same base the
+  iOS tier uses, reached from the emulator through `adb reverse`. That is cleartext, and since
+  targetSdk 28 cleartext is blocked by default, so every request failed and the app rendered
+  "Can't reach the server — showing saved" (measured 2026-09-24, WebViewA11yProbe). Every ported
+  suite would have failed for a reason that has nothing to do with the app.
+
+  It lives in `src/debug/` rather than in the main manifest or behind a config flag ON PURPOSE:
+  Android merges this source set into debug builds only, so a release APK CANNOT carry it. A flag
+  can be set wrong; a source set cannot be set wrong. Production talks https to the real api and
+  must keep cleartext blocked.
+
+  Scoped to the loopback hosts the tier actually uses — not a blanket `usesCleartextTraffic`, so
+  even a debug build cannot silently send plaintext to an arbitrary host.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:networkSecurityConfig="@xml/network_security_config_debug" />
+</manifest>
