@@ -267,8 +267,10 @@ class TestPoolIsInterestAware:
         index = interest_episode_index(CORPUS)
         assert index, "no interest index — is search/metadata.json missing?"
         # Same id space as interests, and coverage matches an independent count.
-        assert len(index["topic:personal-finance"]) == 4
-        assert len(index["topic:expert-interviews"]) == 36
+        # p05 carries five episodes since the per-feed cap lost its default, and
+        # expert-interviews is a SHARED_UMBRELLA so it is on every episode in the corpus.
+        assert len(index["topic:personal-finance"]) == 5
+        assert len(index["topic:expert-interviews"]) == 40
         assert all(t.startswith(("topic:", "person:")) for t in index)
 
     def test_a_matching_episode_outside_the_window_joins_the_pool(
@@ -284,10 +286,20 @@ class TestPoolIsInterestAware:
         union = build_discover_pool(rows, limit=1, interests=[topic], root=CORPUS)
         in_union = sum(1 for r in union if r.metadata_relative_path in matching)
 
-        assert in_union >= in_window
-        assert in_union == len(matching), (
-            f"the union pool carries {in_union}/{len(matching)} matching episodes — an interest's "
-            "episodes are still being starved out by recency"
+        # Both legs are bounded at 4 * limit by design (see build_discover_pool). This used to
+        # assert in_union == len(matching), which held only while the interest happened to have
+        # exactly four episodes — the bound at limit=1. p05 has five now, so one is correctly
+        # excluded and the old assertion failed on working code. Assert the two things the test
+        # is actually for: the interest leg RESCUES episodes recency missed, and it respects the
+        # bound rather than carrying the whole interest.
+        rescued = min(len(matching), 4 * 1)
+        assert in_union > in_window, (
+            f"the union pool carries {in_union} matching episodes and recency alone carried "
+            f"{in_window} — the interest leg rescued nothing"
+        )
+        assert in_union == rescued, (
+            f"the union pool carries {in_union}/{len(matching)} matching episodes; the relevance "
+            f"leg is bounded at 4 * limit = {4 * 1}, so it should carry {rescued}"
         )
 
     def test_the_union_actually_changes_what_is_surfaced(
