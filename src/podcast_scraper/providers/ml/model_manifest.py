@@ -159,3 +159,37 @@ def ci_artifact_model_ids(kind: str | None = None) -> list[str]:
     in duplicated bash arrays.
     """
     return model_ids_for_tier("ci_artifact", kind=kind)
+
+
+def torch_refuses_pickle_weights() -> bool:
+    """Whether this runtime's transformers will refuse a pickle-only checkpoint.
+
+    ``transformers >= 4.56`` will not call ``torch.load`` below torch 2.6, citing
+    PYSEC-2025-41 / CVE-2025-32434. It raises rather than degrading, so on such a runtime a
+    checkpoint in :data:`PICKLE_ONLY_CHECKPOINTS` cannot be loaded at all — not slowly, not
+    with a warning: not at all.
+
+    Returns False when torch is absent, because then no summariser is running anyway and
+    the caller's model choice is moot.
+    """
+    try:
+        import torch
+    except ImportError:
+        return False
+    try:
+        major, minor = (int(p) for p in str(torch.__version__).split(".")[:2])
+    except (TypeError, ValueError):
+        return False
+    return (major, minor) < (2, 6)
+
+
+def checkpoint_is_loadable_here(model_id: str) -> bool:
+    """Whether ``model_id`` can actually be loaded by this runtime.
+
+    ``PICKLE_ONLY_CHECKPOINTS`` existed as data that nothing consulted: the manifest used it
+    to decide what to PRELOAD, and the model selectors went on naming those same checkpoints
+    as defaults. A model excluded from one path and still chosen by another is excluded from
+    neither — on an x86_64 Mac (torch caps at 2.2.2) that produced a hard ValueError deep in
+    ``from_pretrained``, which is a crash where a substitution would do.
+    """
+    return not (model_id in PICKLE_ONLY_CHECKPOINTS and torch_refuses_pickle_weights())

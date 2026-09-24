@@ -597,13 +597,15 @@ def select_reduce_model(cfg, _default_model_name: str) -> str:
     mode_precedence = getattr(cfg, "summary_mode_precedence", "mode")
     if mode_precedence == "config" and reduce_key:
         reduce_key = cast(str, reduce_key)
-        return resolve_model_name(reduce_key)
+        return _loadable_or_map_model(resolve_model_name(reduce_key), _default_model_name)
 
     mode_id = getattr(cfg, "summary_mode_id", None)
     if mode_id:
         try:
             mode = ModelRegistry.get_mode_configuration(str(mode_id))
-            return resolve_model_name(mode.reduce_model)
+            return _loadable_or_map_model(
+                resolve_model_name(mode.reduce_model), _default_model_name
+            )
         except ValueError as exc:
             logger.warning(
                 "summary_mode_id '%s' not found in registry, falling back to default reduce "
@@ -615,13 +617,49 @@ def select_reduce_model(cfg, _default_model_name: str) -> str:
     if reduce_key:
         reduce_key = cast(str, reduce_key)
         # Use resolve_model_name for consistent alias resolution and raw HF ID passthrough
-        return resolve_model_name(reduce_key)
+        return _loadable_or_map_model(resolve_model_name(reduce_key), _default_model_name)
 
     # Default to LED-base for reduce phase (production baseline: baseline_ml_prod_authority_v1)
     default_model = DEFAULT_SUMMARY_MODELS.get("long-fast")
     if not default_model:
         raise ValueError("DEFAULT_SUMMARY_MODELS['long-fast'] is not defined")
-    return default_model
+    return _loadable_or_map_model(default_model, _default_model_name)
+
+
+def _loadable_or_map_model(reduce_model: str, map_model: str) -> str:
+    """``reduce_model``, unless this runtime cannot load it — then the map model.
+
+    LED-base ships only pickle weights, and ``transformers >= 4.56`` refuses ``torch.load``
+    below torch 2.6 (CVE-2025-32434). torch has no x86_64 macOS wheel above 2.2.2, so on an
+    Intel Mac the production default reduce model cannot be loaded at all, and the failure
+    was a ValueError from inside ``from_pretrained`` — a crash, several layers below anyone
+    who could act on it.
+
+    Degrading is strictly better than that: the map model is already loaded and can reduce,
+    so the summary is shorter-context rather than absent. The warning names the cause,
+    because a silent substitution would make a quality change look like a model regression.
+
+    This does not change behaviour anywhere torch >= 2.6 is available, which is every
+    supported production target. It changes a crash into a summary on the platforms where
+    the pinned checkpoint is unloadable.
+
+    Applied to EVERY way a reduce model gets chosen — explicit config, a registry mode, or
+    the default — because "can this runtime load it" is a property of the runtime, not of
+    how the name arrived. Guarding only the default is what left three e2e tests failing
+    after the first pass: they resolve a mode, and the modes name long-fast directly.
+    """
+    from .model_manifest import checkpoint_is_loadable_here
+
+    if checkpoint_is_loadable_here(reduce_model):
+        return reduce_model
+    logger.warning(
+        "reduce model %s cannot be loaded on this runtime (pickle-only weights and "
+        "transformers refuses torch.load below torch 2.6, CVE-2025-32434); reducing with "
+        "the map model %s instead. Summaries will use its shorter context.",
+        reduce_model,
+        map_model,
+    )
+    return map_model
 
 
 def _resolve_summarize_generation_params(

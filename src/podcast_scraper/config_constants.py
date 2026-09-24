@@ -263,7 +263,24 @@ SUMMARY_MODEL_LED_BASE_16384 = "allenai/led-base-16384"
 TEST_DEFAULT_WHISPER_MODEL = "tiny.en"  # Smallest, fastest English-only model
 # Test defaults use aliases (not direct model IDs) since summarizer.py only accepts aliases
 TEST_DEFAULT_SUMMARY_MODEL = "bart-small"  # Maps to facebook/bart-base (~500MB, fast)
-TEST_DEFAULT_SUMMARY_REDUCE_MODEL = "long-fast"  # Maps to allenai/led-base-16384 (fast)
+# Was "long-fast" (allenai/led-base-16384) for its 16k context. That checkpoint ships ONLY
+# pickle weights, at every revision — it is in PICKLE_ONLY_CHECKPOINTS for that reason — and
+# transformers >= 4.56 refuses torch.load below torch 2.6 (CVE-2025-32434). torch has no
+# x86_64 macOS wheel above 2.2.2, so on an Intel Mac this default made 38 e2e tests
+# unrunnable: every one of them failed on "Loading REDUCE model: allenai/led-base-16384".
+#
+# Tiering LED to ci_artifact fixed `make preload-ml-models` and not this, because the e2e
+# tests do not preload — they run the real pipeline and reach for the reduce model at
+# runtime. A model excluded from one path and still named as a default in another is
+# excluded from neither.
+#
+# bart-base is safetensors at its pin and is already the MAP default, so the test profile
+# now loads one checkpoint instead of two. The cost is context: 1024 tokens against LED's
+# 16384. That is a real reduction and it is acceptable HERE ONLY — these are e2e fixtures
+# whose transcripts are short, and the assertions are that the pipeline produces a summary,
+# never that the summary is good. Production defaults are untouched; so are the research
+# modes in model_registry.py that name long-fast explicitly.
+TEST_DEFAULT_SUMMARY_REDUCE_MODEL = "bart-small"  # Maps to facebook/bart-base (safetensors)
 # spaCy NER model defaults (dev/prod distinction)
 # Dev: Small, fast model for CI/local dev (~50MB, ~200ms/episode)
 # Prod: Transformer-based, higher quality for production (~500MB, ~450ms/episode)
