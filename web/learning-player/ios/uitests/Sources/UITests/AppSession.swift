@@ -94,9 +94,26 @@ enum AppSession {
 
     // Dev picker: a TextField placeholdered "or a custom name…"; its Sign in button stays
     // Disabled until the field has text.
+    //
+    // RETRY the navigation, do not just wait longer. On a cold simulator the first tap can land
+    // before the router is ready and is simply swallowed — waiting 20s then 40s on a page that was
+    // never navigated to is waiting for the wrong thing. This failed as "no dev identity input" on
+    // a fresh simulator and passed on the next run, and because every later suite depends on this
+    // sign-in, the flake did not stay local: it left the app SIGNED OUT and downstream suites then
+    // reported missing controls that were correctly absent (2026-09-24).
+    //
+    // The picker also needs `/auth/dev-users` to answer, so a cold API adds to the same window.
     let input = app.textFields.firstMatch
-    guard input.waitForExistence(timeout: 20) else {
-      XCTFail("no dev identity input")
+    var picker = input.waitForExistence(timeout: 20)
+    if !picker {
+      _ = Journey.tap(app, labels: ["Sign in"], contains: false, timeout: 10)
+      picker = input.waitForExistence(timeout: 20)
+    }
+    guard picker else {
+      XCTFail(
+        "no dev identity input after two attempts to reach the login page. "
+          + "On screen: \(Journey.labelledInventory(app, limit: 10))"
+      )
       return false
     }
     input.tap()

@@ -46,7 +46,10 @@ final class OfflineAutoAdvanceTests: UITestCase {
     XCTAssertTrue(
       signedIn,
       "offline boot did not keep the session as '\(accountIdentity)'. "
-        + "On screen: \(Journey.labelledInventory(app, limit: 14))"
+        + "On screen: \(Journey.labelledInventory(app, limit: 14)). "
+        // The masthead's right-hand third, where the avatar and bell sit. Identified by POSITION
+        // because their NAME is the thing in question.
+        + "Masthead right: \(Journey.inventoryInRegion(app, CGRect(x: app.frame.width * 0.6, y: 0, width: app.frame.width * 0.4, height: 120)))"
     )
 
     // 2. The Downloaded list renders from the device registry, with zero successful requests.

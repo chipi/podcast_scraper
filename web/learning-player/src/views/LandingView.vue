@@ -105,7 +105,11 @@ onMounted(async () => {
         class="mt-4 inline-block text-sm font-bold text-accent no-underline hover:opacity-80"
         data-testid="landing-offline-downloads"
       >
-        {{ t('offlineDownloads.link') }} →
+        {{ t('offlineDownloads.link') }}
+        <!-- Decorative: the arrow is direction, not information, and it lands in the accessible
+             NAME otherwise — a screen reader announcing "Play what's downloaded right arrow", and
+             any test matching the real label failing on a glyph. -->
+        <span aria-hidden="true">→</span>
       </RouterLink>
     </section>
 

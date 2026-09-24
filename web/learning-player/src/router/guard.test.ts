@@ -65,3 +65,49 @@ describe('login-first guard — native token hardening', () => {
     expect(router.currentRoute.value.name).toBe('landing')
   })
 })
+
+
+describe('a token without an identity must never lock you out (2026-09-24)', () => {
+  /*
+   * The lockout, found on device. `hasSession` is true on a stored token ALONE, so a token the
+   * server no longer honours produced a session that could not name its own user: every authed
+   * call 401'd, the app showed nothing, and `/login` — the one screen that could fix it —
+   * redirected to Home. The dev picker "never rendered" across a dozen runs for this reason.
+   *
+   * The rule: a token may ADMIT you to authed routes, but only a RESOLVED identity may block you
+   * from signing in.
+   */
+  it('lets a token-only session reach /login instead of bouncing it to Home', async () => {
+    asMock(isNative).mockReturnValue(true)
+    setAuthToken('stale-token-the-server-no-longer-honours')
+
+    await router.replace('/login')
+
+    expect(router.currentRoute.value.name).toBe('login')
+  })
+
+  it('still bounces a RESOLVED identity away from /login', async () => {
+    // The original behaviour, which is correct and must survive: someone genuinely signed in has
+    // no business on the login page.
+    asMock(isNative).mockReturnValue(true)
+    setAuthToken('any')
+    const { useAuthStore } = await import('../stores/auth')
+    useAuthStore().user = { user_id: 'u_1', email: 'a@b.c', name: 'A' } as never
+
+    await router.replace('/login')
+
+    expect(router.currentRoute.value.name).toBe('home')
+  })
+
+  it('a token-only session is still ADMITTED to authed routes', async () => {
+    // The 2026-09-15 desync fix must not regress: a transport failure cannot strand a returning
+    // user on the landing.
+    asMock(isNative).mockReturnValue(true)
+    setAuthToken('token')
+
+    await router.replace('/library')
+
+    expect(router.currentRoute.value.name).toBe('library')
+  })
+})
+

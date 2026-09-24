@@ -148,13 +148,60 @@ enum Journey {
       guard n > 0 else { continue }
       for i in 0..<n where taken < limit {
         let label = query.element(boundBy: i).label
-        if !label.isEmpty {
-          out.append("\(label)[\(kind)]")
-          taken += 1
-        }
+        // UNLABELLED elements are reported, not skipped. Filtering them out was a blind spot in
+        // exactly the case this helper exists for: an interactive element that IS in the tree but
+        // carries no accessible name is invisible both here and to `find` (which matches on label),
+        // so "absent from the inventory" was being read as "absent from the tree" — two very
+        // different bugs with opposite fixes.
+        out.append(label.isEmpty ? "<UNLABELLED>[\(kind)]" : "\(label)[\(kind)]")
+        taken += 1
       }
     }
     return out.isEmpty ? "<nothing labelled>" : out.joined(separator: " | ")
+  }
+
+  /**
+   * Everything in a REGION of the screen, identified by FRAME rather than by label.
+   *
+   * The masthead avatar could not be found by name, and that is precisely why name-based evidence
+   * was useless: if an element is present but unnamed, a label query cannot see it, so "absent from
+   * my list" never meant "absent from the tree". Position does not have that problem — the avatar
+   * is top-right at ~32pt whatever it is called.
+   *
+   * Reports type, label (or <UNLABELLED>) and frame for every element intersecting `region`, so the
+   * two hypotheses separate cleanly: something at that frame means exposed-but-unnamed; nothing
+   * there means not rendered at all. Those need opposite fixes.
+   */
+  static func inventoryInRegion(_ app: XCUIApplication, _ region: CGRect, limit: Int = 14) -> String {
+    // ATOMIC capture. Walking a query with `element(boundBy:)` and reading `.frame` raised
+    // "Failed to get matching snapshot: No matches found for Element at index 25" — the tree
+    // mutates while you iterate it, and an XCUITest snapshot failure is an XCTest failure, not a
+    // Swift error, so it cannot be caught. It replaces the real failure with its own, which is the
+    // second time a diagnostic of mine has done that.
+    //
+    // `debugDescription` is one snapshot of the whole tree, taken at once, and it carries the
+    // element TYPE, its frame and its label — everything this needs, with nothing to go stale.
+    let dump = app.debugDescription
+    var out: [String] = []
+    // Lines look like: "    Button, 0x…, {{338.0, 47.0}, {32.0, 32.0}}, label: 'Queue'"
+    let frameRe = try? NSRegularExpression(pattern: #"\{\{([-\d.]+), ([-\d.]+)\}, \{([-\d.]+), ([-\d.]+)\}\}"#)
+    for raw in dump.split(separator: "\n") {
+      let line = String(raw).trimmingCharacters(in: .whitespaces)
+      guard let re = frameRe,
+        let m = re.firstMatch(in: line, range: NSRange(line.startIndex..., in: line))
+      else { continue }
+      func num(_ i: Int) -> CGFloat {
+        guard let r = Range(m.range(at: i), in: line) else { return 0 }
+        return CGFloat(Double(line[r]) ?? 0)
+      }
+      let f = CGRect(x: num(1), y: num(2), width: num(3), height: num(4))
+      guard f.intersects(region), f.width > 0, f.height > 0 else { continue }
+      // Keep the whole line: it already names the type and the label (or shows none at all, which
+      // is exactly the case that matters here).
+      out.append(line.replacingOccurrences(of: ", 0x", with: " 0x"))
+      if out.count >= limit { break }
+    }
+    return out.isEmpty ? "<NOTHING intersecting \(region)>" : out.joined(separator: " || ")
   }
 
   /// Find and tap, scrolling the element clear of the bottom tab bar first (the transport/tab-bar
@@ -390,16 +437,25 @@ enum Journey {
     }
     // Web checkboxes surface their checked state as "0"/"1" in `value`.
     let isOn = String(describing: control.value).contains("1")
-    print("=====OFFLINE_SET current=\(isOn) wanted=\(wanted)=====")
     if isOn == wanted { return true }
+    // RE-CHECK before touching `.frame`. Every property access re-resolves the query, and resolving
+    // a query that now matches nothing is an XCTest FAILURE, not a nil — so it cannot be caught and
+    // it aborts the test outright. `startClean` deliberately ignores this helper's return value,
+    // which only works if the helper actually RETURNS on trouble: the caller's tolerance was being
+    // defeated by a hard failure underneath it.
+    //
+    // It really can vanish between the two lines. On a fresh simulator the app is signed out,
+    // Settings is unreachable, and the control the existence check saw belonged to a page the app
+    // was already leaving (2026-09-24).
+    guard control.exists else { return false }
     var tries = 0
-    while control.frame.maxY > app.frame.height - 90 && tries < 6 {
+    while control.exists && control.frame.maxY > app.frame.height - 90 && tries < 6 {
       app.swipeUp(); usleep(700_000); tries += 1
     }
+    guard control.exists, control.isHittable else { return false }
     control.tap()
     sleep(2)
-    let now = String(describing: control.value).contains("1")
-    print("=====OFFLINE_SET now=\(now)=====")
-    return now == wanted
+    guard control.exists else { return false }
+    return String(describing: control.value).contains("1") == wanted
   }
 }

@@ -2126,7 +2126,14 @@ test-app-ios-native:
 # ORDER IS LOAD-BEARING, and not obvious from the names:
 #   1. download  — signs in as the SHARED `simtest` account and downloads two episodes through the
 #                  UI. It SEEDS what the offline suites consume, so it cannot move.
-#   2. offline   — auto-advance from the seeded queue, with the api DOWN. Needs 1.
+#   2. offline   — auto-advance from the seeded queue, with the api DOWN. Needs 1, AND needs
+#                  `ios-journey-signin` first: it mints a session through the mock provider's
+#                  native flow and writes it to the app's DURABLE store. Step 1's in-app sign-in
+#                  does not survive the cold boot this step performs — verified 2026-09-24, the
+#                  device had neither `lp_native_token` nor `auth.me` afterwards — so without the
+#                  seed the app boots SIGNED OUT and every assertion here fails as a consequence
+#                  rather than on its own merits. `test-app-ios-native-full` always did this; the
+#                  consolidated target omitted it.
 #   3. journey   — the signed-in walk, personalisation, offline cache.
 #   4. native    — native-shell capabilities, config toggle, stack depth, host links, boards,
 #                  and the native-only surfaces (inline download + /offline).
@@ -2166,6 +2173,8 @@ test-ios:
 	@set -e; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/4 download (seeds the offline suites) ==="; \
 	$(MAKE) test-app-ios-sim-download; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] seed a DURABLE native session ==="; \
+	$(MAKE) ios-journey-signin; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 2/4 offline auto-advance ==="; \
 	$(MAKE) test-app-ios-sim-offline; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 3/4 journey + personalisation + cache ==="; \
