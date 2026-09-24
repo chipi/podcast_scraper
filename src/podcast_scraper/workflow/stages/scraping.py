@@ -739,11 +739,19 @@ def _reprocess_existing_episodes(
             )
         elif episode.on_disk_transcript:
             _resolution = Path(episode.on_disk_transcript).name
-        else:
-            # It no longer falls back to the idx search: `_existing_transcript_for` refuses for a
-            # job carrying an on-disk record. This is the one line per episode an operator reads,
-            # so it must not advertise behaviour that was removed.
+        elif str(getattr(cfg, "pipeline_stage", "") or "") in config.STAGES_THAT_NEVER_TRANSCRIBE:
+            # Only these stages NEED an existing transcript, so only for them is "no transcript"
+            # a skip. `_existing_transcript_for` refuses rather than falling back to the idx
+            # search, and this is the one line per episode an operator reads, so it must not
+            # advertise behaviour that was removed.
             _resolution = "NO OWN TRANSCRIPT and none in a sibling run — SKIPPED, not guessed at"
+        else:
+            # A FULL (or rederive) run does not need one — it is about to create it. Printing
+            # "SKIPPED" here was wrong and observed on 2026-09-24: the repair probe logged
+            # SKIPPED for "What's Going On With Lettuce?" and then downloaded media, ran ASR and
+            # wrote a correct transcript. A line that says the opposite of what the run does is
+            # how an operator stops trusting the log — the exact failure this line exists to fix.
+            _resolution = "no transcript on disk — will be transcribed by this run"
         logger.info(
             "reprocess: [%s] (on-disk %s) %r -> %s",
             seq,
