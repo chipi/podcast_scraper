@@ -1,8 +1,20 @@
 # search-queries.json — Search v3 labelled query set
 
 **Owner:** Search v3 arc (epic #1229 · RFC-107-search-v3-query-workspace §S0)
-**Consumed by:** `scripts/eval/search_quality.py` (driven by `make eval-search`)
+**Consumed by:** `podcast_scraper.search.quality_metrics`, via
+`scripts/tools/search_quality_metrics.py` — `make search-quality-metrics`.
 **Target corpus:** this directory (`tests/fixtures/viewer-validation-corpus/v3/`)
+
+The measurement is product code, the sibling of `gi/quality_metrics.py` and
+`kg/quality_metrics.py`. Those two measure what extraction wrote; this measures what
+retrieval returns. Stored baselines and comparisons between runs are research and live
+with the research; the tool that produces the numbers lives here, with the stack it
+measures.
+
+It did not always. While it lived outside the repo, regenerating the corpus invalidated
+94% of the anchors below with nothing here able to re-freeze them (#2147). Note that
+nothing in `make ci` reads this file, so a stale query set still fails no build — the
+first thing that notices is a human running the tool.
 
 ## What it is
 
@@ -26,15 +38,29 @@
 - `hint` — optional; a short note about why the query is here / what it targets
   in the fixture.
 
-## Current state (2026-07-20, S0 stabilization ship)
+## Current state (re-seeded 2026-09-24, #2147)
 
 **Every query is `regression-anchor` — `expected_top_k_doc_ids` filled from
-the harness's top-K on the seed-run commit.** Detects drift; NOT correctness.
+the harness's top-K on the seed run.** Detects drift; NOT correctness.
 
-Seeding was produced by `--seed-labels` (see below); the run that produced
-the anchors trivially scored `nDCG@10 = 1.000` by construction. Any subsequent
-`make eval-search` run whose top-K differs from these anchors will report a
-lower nDCG@10 — that is the regression signal.
+Seeding is produced by `--seed-labels` (see below); the run that produces the
+anchors trivially scores `nDCG@10 = 1.000` by construction. Any later run whose
+top-K differs from these anchors reports a lower nDCG@10 — that is the
+regression signal.
+
+### Why they were re-seeded
+
+The v3 corpus was regenerated in #2147: it grew 36 -> 40 episodes and every
+episode's topics changed. A doc id embeds a content hash
+(`<kind>:sha256_<feed>__<episode>:<n>`), so **234 of the 250 frozen ids (94%)
+no longer existed in the index.**
+
+An anchor pointing at documents the index does not contain does not detect
+drift — it reports a permanent, uninformative miss, and it reports it whether
+or not search actually regressed. So every query went back to `unlabeled-seed`
+and was re-frozen against the rebuilt corpus, which is exactly the lifecycle
+below. The anchors describe the corpus as of #2147 and say nothing about
+whether search is *correct* on it; that still needs the human audit.
 
 **A human audit still hasn't happened.** Regression-anchor labels can hide
 bugs present the day they were frozen. When that audit lands, flip queries
@@ -43,7 +69,7 @@ respects both.
 
 ## Seeding labels (`--seed-labels` mode)
 
-`scripts/eval/search_quality.py --seed-labels` freezes the current top-K
+`make search-quality-reseed` (the tool's `--seed-labels` mode) freezes the current top-K
 of every `unlabeled-seed` query into that query's
 `expected_top_k_doc_ids` and flips `label_status` to `regression-anchor`.
 
@@ -63,8 +89,12 @@ The metrics that don't depend on labels still baseline today:
 - compound-lift rate (measurable — count of `lifted` blocks on transcript
   hits).
 - enriched-answer groundedness (measurable when a provider is configured).
-- `topic_consensus` precision (measurable when consensus enricher output
-  exists on the fixture — currently doesn't, so this metric is null).
+- `topic_consensus` precision — still null, but no longer for the reason this
+  line used to give. `enrichments/topic_consensus.json` now exists on the
+  fixture; it is empty (`pairs_scored: 0`,
+  `partial_reason: "no_scoreable_pairs"`) because the viewer corpus's KGs
+  carry no `Person` nodes at all, so nothing can agree or disagree. Tracked as
+  #2150.
 
 ## Lifecycle
 

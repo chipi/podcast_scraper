@@ -174,10 +174,19 @@ def episode_topics_for(ep_label: str, gt_dir: Path) -> list[str]:
 
     Every episode carried only ``CROSS_CUTTING_TOPICS[show] + SHARED_UMBRELLAS`` —
     feed-wide labels, identical for every episode of a show. So the whole corpus
-    collapsed to one theme cluster, the super-theme rollup never fired, and
-    ``topic_consensus`` had nothing to disagree about. A fixture that cannot
-    discriminate is not a small fixture; it is a fixture that answers yes to
-    everything.
+    collapsed to one theme cluster and the super-theme rollup never fired. A fixture
+    that cannot discriminate is not a small fixture; it is a fixture that answers yes
+    to everything.
+
+    Measured after the fix: 40 distinct topic sets across 40 episodes, 27 distinct lead
+    topics, ``search/topic_clusters.json`` 4 clusters -> 16.
+
+    This does NOT fix ``topic_consensus``, which an earlier draft of this docstring
+    claimed. Measured before and after: ``pairs_scored: 0``, now with
+    ``partial_reason: "no_scoreable_pairs"``. The cause is a different divergence — the
+    viewer KGs emit ``Episode`` and ``Topic`` nodes and no ``Person`` at all (the app
+    corpus emits 82), so ``topic_consensus`` and ``guest_coappearance`` have no people
+    whose positions could agree or disagree. Tracked separately; not a topic problem.
 
     The discriminating data was already authored and simply never read:
     ``primary_topic`` + ``secondary_topics`` are 27 distinct values across the 40

@@ -273,7 +273,7 @@ class TestBasicLibraryAPIE2E:
                 generate_summaries=True,  # Enable summarization - uses local ML (transformers)
                 summary_provider="transformers",  # Use transformers ML provider - default
                 summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # MAP: bart-base
-                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # REDUCE (see constant)
+                summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # REDUCE
                 summary_chunk_size=350,  # Force chunking: fast transcript > chunk_size
                 generate_metadata=True,  # Enable metadata generation
                 metadata_format="json",
