@@ -3941,8 +3941,15 @@ def _resolve_existing_transcript_for_rederive(
         candidate = built if os.path.exists(built) else None
     if candidate is None:
         return None, None
-    # Reject the metadata presence-marker; only a real transcript file will do.
-    if candidate.endswith((".metadata.json", ".metadata.yaml", ".metadata.yml")):
+    # Reject anything that is not real transcript TEXT. The metadata presence-marker is the
+    # documented case, but the resolver could also hand back `.adfree.admap.json` (a JSON
+    # ad-map), `.segments.json` (diarization) or a `.cleaned.txt`/`.adfree.txt` derivative —
+    # all of which would be fed to the GI/KG cascade with a success exit. `_transcript_beside`
+    # is now exact-stem `.txt` only; this stays as the belt, since this caller is the one that
+    # needs actual words.
+    if not candidate.endswith((".txt", ".vtt", ".srt")) or candidate.endswith(
+        (".adfree.txt", ".cleaned.txt")
+    ):
         logger.warning(
             "[%s] rederive_only: found metadata but no transcript file at %s — the episode is "
             "recorded as processed yet has nothing to re-derive from.",
