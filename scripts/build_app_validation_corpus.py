@@ -1315,8 +1315,12 @@ def main() -> int:
     # to five and p06 to six. Four episodes with transcript, audio and ground truth
     # sat on disk in no build, including the corpus's only single-speaker episode and
     # its only code-switching one. A cap you have to ask for cannot do that to you.
-    p.add_argument("--max-episodes-per-feed", type=int, default=None,
-                   help="cap episodes taken per show (default: every episode)")
+    p.add_argument(
+        "--max-episodes-per-feed",
+        type=int,
+        default=None,
+        help="cap episodes taken per show (default: every episode)",
+    )
     p.add_argument(
         "--pipeline-run",
         type=Path,

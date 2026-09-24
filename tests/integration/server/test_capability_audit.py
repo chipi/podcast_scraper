@@ -1107,9 +1107,9 @@ class TestRankingCalibration:
     def test_significance_normalisation_numbers(self, report) -> None:
         sig = report.sections["ranking_calibration"]["significance"]
         assert sig["feeds"] == 9
-        assert sig["sparse_feeds"] == 6, (
-            "6 of 9 feeds hold fewer than 5 episodes — a mean over 4 is still noise"
-        )
+        assert (
+            sig["sparse_feeds"] == 6
+        ), "6 of 9 feeds hold fewer than 5 episodes — a mean over 4 is still noise"
         assert sig["feed_mean_min"] <= sig["feed_mean_median"] <= sig["feed_mean_max"]
         # The over-reward question is answered by comparing where sparse feeds land vs their size.
         assert 0.0 <= sig["sparse_top_share"] <= 1.0

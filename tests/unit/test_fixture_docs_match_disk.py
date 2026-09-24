@@ -69,24 +69,24 @@ def test_documented_file_count_matches_disk() -> None:
     counts = _documented_counts()
     files = len(list(_V3.glob("*.txt")))
     documented = next(n for n, desc in counts.items() if ".txt" in desc)
-    assert files == documented, (
-        f"transcripts/v3 holds {files} .txt files; FIXTURES_SPEC.md says {documented}"
-    )
-    assert f"{files} files" in _README.read_text("utf-8"), (
-        f"README.md's '46 files - these 6 = 40 episodes' line disagrees with disk ({files})"
-    )
+    assert (
+        files == documented
+    ), f"transcripts/v3 holds {files} .txt files; FIXTURES_SPEC.md says {documented}"
+    assert f"{files} files" in _README.read_text(
+        "utf-8"
+    ), f"README.md's '46 files - these 6 = 40 episodes' line disagrees with disk ({files})"
 
 
 def test_documented_episode_count_matches_disk() -> None:
     counts = _documented_counts()
     episodes = len(_canonical_episodes())
     documented = next(n for n, desc in counts.items() if "real episodes" in desc)
-    assert episodes == documented, (
-        f"disk has {episodes} canonical pNN_eNN episodes; FIXTURES_SPEC.md says {documented}"
-    )
-    assert f"**{episodes} episodes across 9 shows.**" in _README.read_text("utf-8"), (
-        f"README.md's headline episode count disagrees with disk ({episodes})"
-    )
+    assert (
+        episodes == documented
+    ), f"disk has {episodes} canonical pNN_eNN episodes; FIXTURES_SPEC.md says {documented}"
+    assert f"**{episodes} episodes across 9 shows.**" in _README.read_text(
+        "utf-8"
+    ), f"README.md's headline episode count disagrees with disk ({episodes})"
 
 
 def test_generator_defines_the_documented_number_of_episodes() -> None:
@@ -120,21 +120,23 @@ def test_built_corpus_matches_what_its_readme_claims() -> None:
     readme = (corpus.parent / "README.md").read_text(encoding="utf-8")
     m = re.search(r"\*\*Why (\d+) and not (\d+):\*\*", readme)
     assert m, "app-validation-corpus/README.md no longer states its episode count"
-    assert built == int(m.group(1)), (
-        f"the committed corpus holds {built} episodes; its README says {m.group(1)}"
-    )
+    assert built == int(
+        m.group(1)
+    ), f"the committed corpus holds {built} episodes; its README says {m.group(1)}"
     # The built corpus and the episodes on disk are the same number now that the
     # per-feed cap has no default. If these ever diverge again, something is
     # dropping episodes silently — which is exactly how 36 happened.
-    assert built == len(_canonical_episodes()), (
-        f"{built} episodes built from {len(_canonical_episodes())} on disk"
-    )
+    assert built == len(
+        _canonical_episodes()
+    ), f"{built} episodes built from {len(_canonical_episodes())} on disk"
 
 
 def test_readme_per_show_table_matches_disk() -> None:
     """The per-show episode ranges in README.md, row by row."""
     rows = re.findall(
-        r"^\|\s*`(p\d{2})`\s*\|[^|]*\|\s*e(\d{2})[-–]e(\d{2})\s*\|", _README.read_text("utf-8"), re.M
+        r"^\|\s*`(p\d{2})`\s*\|[^|]*\|\s*e(\d{2})[-–]e(\d{2})\s*\|",
+        _README.read_text("utf-8"),
+        re.M,
     )
     assert len(rows) == 9, f"expected 9 show rows in README.md, found {len(rows)}"
     on_disk: dict[str, list[str]] = {}

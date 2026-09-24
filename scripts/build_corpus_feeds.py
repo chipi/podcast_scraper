@@ -295,8 +295,7 @@ def _render_feed(
             # a 40-episode pipeline run came back with summary:0 and exit 0.
             # FIXTURES_SPEC already claimed "the feeds advertise the .vtt"; it was
             # true of three hand-authored p01 feeds and of no generated feed.
-            f'      <podcast:transcript url="/transcripts/{episode_id}.vtt" '
-            f'type="text/vtt"/>',
+            f'      <podcast:transcript url="/transcripts/{episode_id}.vtt" ' f'type="text/vtt"/>',
             f"      <itunes:episode>{index}</itunes:episode>",
             f"      <itunes:duration>{duration}</itunes:duration>",
             "      <itunes:episodeType>full</itunes:episodeType>",
