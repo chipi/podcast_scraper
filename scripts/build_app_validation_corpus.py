@@ -1115,6 +1115,7 @@ def _topic_consensus_data(
         contradiction = round((h % 137) / 137.0 * 0.15, 6)  # low (< contra_threshold 0.5)
         consensus.append(
             {
+                "person_count": len(persons),  # ordering only; stripped before the payload
                 "topic_id": tid,
                 "person_a_id": pid_a,
                 "person_a_name": name_a,
@@ -1131,8 +1132,19 @@ def _topic_consensus_data(
                 "model_version": "v2",
             }
         )
-    consensus.sort(key=lambda r: (-r["consensus_score"], r["topic_id"]))
+    # Breadth first, THEN score. `consensus_score` is a stable hash, so ordering by it alone
+    # made the cap an arbitrary lottery — fine while the corpus had ~10 topics and everything
+    # fit, wrong the moment episodes carried their own topics and there were 50. The topics that
+    # lost were the broad ones a person actually searches for: `topic:systems-thinking` has 22
+    # distinct people across the corpus and no pair, while a single-episode topic kept one.
+    #
+    # Corroboration between many people on a shared topic is also the more interesting claim —
+    # which is what the Consensus surface is for — so this ordering is truer to the feature, not
+    # just convenient for the tests that caught it.
+    consensus.sort(key=lambda r: (-int(r["person_count"]), -r["consensus_score"], r["topic_id"]))
     consensus = consensus[:max_rows]
+    for row in consensus:
+        row.pop("person_count", None)  # ordering input, not part of the enricher's shape
     return {
         "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
         "model_version": "v2",

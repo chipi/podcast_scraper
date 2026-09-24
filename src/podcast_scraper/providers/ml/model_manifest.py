@@ -62,7 +62,28 @@ class MLModelSpec(NamedTuple):
 _T = frozenset({"test", "ci_artifact", "production"})  # core: everywhere
 _T_AIR = _T | {"airgapped_thin"}  # core + the trimmed airgapped-thin summarizers
 _CI = frozenset({"ci_artifact", "production"})  # artifact + nightly
+_CI_AIR = _CI | {"airgapped_thin"}  # artifact + nightly + airgapped-thin, but NOT local test
 _PROD = frozenset({"production"})  # nightly / full bake only
+
+# WHY TWO OF THE SUMMARISERS ARE NOT IN THE ``test`` TIER (2026-09-24)
+#
+# ``allenai/led-base-16384`` and ``google/long-t5-tglobal-base`` ship ONLY
+# ``pytorch_model.bin`` — no safetensors — so loading either one unpickles through
+# ``torch.load``. ``transformers >= 4.56`` refuses that below torch 2.6, citing
+# PYSEC-2025-41 / CVE-2025-32434, and it is right to: ``weights_only=True`` does not
+# close that hole.
+#
+# On x86_64 macOS the newest torch wheel that exists is 2.2.2, so ``make
+# preload-ml-models`` — and therefore ``make ci`` — could not complete on that host at
+# all. Not a skipped stage: a hard failure on a cached model.
+#
+# The ``test`` tier is what a DEVELOPER MACHINE preloads. It is now safetensors-only, so
+# it loads anywhere. CI, nightly and airgapped-thin keep both models: they run on Linux
+# where torch is current and the guard never fires. Nothing about the airgapped profile
+# changes — it still needs a long-context local REDUCE and LED is still the only one.
+#
+# Removing them from ``test`` does not make them unpinned or unreachable: both carry a
+# SHA (ADR-155) and both stay in ``REQUIRED_ML_MODELS``.
 
 REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     # Whisper (ids from config_constants whisper defaults)
@@ -81,8 +102,9 @@ REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     # ALLOWED-known and revision-pinned but are NOT preloaded by default, so they
     # are intentionally absent from this preload manifest.
     MLModelSpec("facebook/bart-base", "summary", _T_AIR),  # airgapped-thin bart-small
-    MLModelSpec("allenai/led-base-16384", "summary", _T_AIR),  # airgapped-thin long-fast
-    MLModelSpec("google/long-t5-tglobal-base", "summary", _T),
+    # pickle-only -> not in `test`; see the note above the tier constants
+    MLModelSpec("allenai/led-base-16384", "summary", _CI_AIR),  # airgapped-thin long-fast
+    MLModelSpec("google/long-t5-tglobal-base", "summary", _CI),
     MLModelSpec("google/flan-t5-base", "summary", _T),
     # Evidence stack -- ids from config_constants DEFAULT_* (also registry keys).
     # MiniLM is corpus-wide core -> ci_artifact (the model missing from the #897 CI).
