@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "wreck diving",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:wreck-diving"
+    },
+    {
       "in_topic_cluster": true,
       "label": "outdoor activities",
       "topic_cluster_compound_id": "tc:outdoor-activities-cluster",
       "topic_id": "topic:outdoor-activities"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "gear",
-      "topic_cluster_compound_id": "tc:gear-cluster",
-      "topic_id": "topic:gear"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
-    "published_date": "2026-08-01",
+    "published_date": "2026-09-22",
     "title": "Below the Surface \u2014 Episode 1"
   },
   "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
   "episode_title": "Below the Surface \u2014 Episode 1",
   "feed": {
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
-    "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+    "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
     "title": "Below the Surface",
     "url": "http://localhost/"
   },
   "feed_display_title": "Below the Surface",
-  "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+  "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
   "gi_relative_path": "feeds/p03/metadata/p03_e01.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p03/metadata/p03_e01.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p03/metadata/p03_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-08-01",
+  "publish_date": "2026-09-22",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,6 +75,9 @@
     "title": "Below the Surface \u2014 Episode 1 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:wreck-diving",
+    "topic:dive-planning",
+    "topic:soil-erosion",
     "topic:outdoor-activities",
     "topic:gear",
     "topic:science-research"
@@ -88,6 +91,9 @@
   "summary_text": "Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist.\nMarco Sylva, thanks for being here.\nExcited for this one \u2014 wreck-diving fundamentals is something I've been thinking about a lot.",
   "summary_title": "Below the Surface \u2014 Episode 1 \u2014 synthetic",
   "topics": [
+    "wreck diving",
+    "dive planning",
+    "soil erosion",
     "outdoor activities",
     "gear",
     "Science & research"

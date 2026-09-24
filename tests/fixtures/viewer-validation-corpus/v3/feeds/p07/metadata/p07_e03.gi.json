@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+      "to": "topic:sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
       "to": "topic:environment",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:b7a61e52be922c8a",
+      "to": "topic:sustainability",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
       "to": "insight:24fe8b9d030c34f2",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:1baa51795244e024",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b7a61e52be922c8a",
-      "to": "quote:1baa51795244e024",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c69559fc62ce3d1b",
+      "from": "quote:7236200cb903f5a4",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:24fe8b9d030c34f2",
-      "to": "quote:c69559fc62ce3d1b",
+      "from": "insight:b7a61e52be922c8a",
+      "to": "quote:7236200cb903f5a4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:b635333c920fb100",
+      "from": "quote:288343c306815859",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:24fe8b9d030c34f2",
+      "to": "quote:288343c306815859",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:14f7bb1eae812b7c",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7cc4cbf5f2e79fce",
-      "to": "quote:b635333c920fb100",
+      "to": "quote:14f7bb1eae812b7c",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d33c5379ff9b96f8",
-      "to": "person:speaker-01",
+      "from": "quote:ac952e889183ce95",
+      "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:b7a61e52be922c8a",
-      "to": "quote:d33c5379ff9b96f8",
+      "to": "quote:ac952e889183ce95",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:4bcf1a283d651be6",
+      "from": "quote:bbeb69cfb72ddc38",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:24fe8b9d030c34f2",
-      "to": "quote:4bcf1a283d651be6",
+      "to": "quote:bbeb69cfb72ddc38",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d392ea797c5fd961",
-      "to": "person:speaker-02",
+      "from": "quote:26638d7903a6d254",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7cc4cbf5f2e79fce",
-      "to": "quote:d392ea797c5fd961",
+      "to": "quote:26638d7903a6d254",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
-        "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
-        "publish_date": "2026-07-30T12:00:00",
+        "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
+        "podcast_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "The Long View \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sustainability",
+      "properties": {
+        "label": "sustainability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:environment",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Alex Morgan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:1baa51795244e024",
-      "properties": {
-        "char_end": 160,
-        "char_start": 13,
-        "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to The Long View. I'm Alex Morgan, and my guest is Dr. Elena Fischer, a sustainability researcher and systems thinker. Elena, welcome.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p07_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Dr. Elena Fischer"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:c69559fc62ce3d1b",
+      "id": "quote:7236200cb903f5a4",
       "properties": {
         "char_end": 208,
         "char_start": 180,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b635333c920fb100",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:288343c306815859",
       "properties": {
         "char_end": 355,
         "char_start": 222,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d33c5379ff9b96f8",
+      "id": "quote:14f7bb1eae812b7c",
       "properties": {
         "char_end": 397,
         "char_start": 355,
@@ -245,7 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:4bcf1a283d651be6",
+      "id": "quote:ac952e889183ce95",
       "properties": {
         "char_end": 660,
         "char_start": 417,
@@ -259,7 +286,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d392ea797c5fd961",
+      "id": "quote:bbeb69cfb72ddc38",
       "properties": {
         "char_end": 868,
         "char_start": 660,
@@ -268,6 +295,20 @@
         "text": "So it is systems thinking, first and last: manage the couplings, not the components. When we modeled a decade of interventions, the ones that failed failed because someone treated a system as a list of parts.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:26638d7903a6d254",
+      "properties": {
+        "char_end": 920,
+        "char_start": 882,
+        "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+        "speaker_id": "person:speaker-01",
+        "text": "And risk sits inside that picture how?",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p07_e03.txt"
       },
       "type": "Quote"

@@ -2,6 +2,18 @@
   "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
   "identities": [
     {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "enduro racing",
+      "id": "topic:enduro-racing"
+    },
+    {
       "display_name": "outdoor activities",
       "id": "topic:outdoor-activities"
     },

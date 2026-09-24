@@ -3641,7 +3641,7 @@ serve-for-app-validation:
 
 APP_TIER3_CORPUS ?= tests/fixtures/app-validation-corpus/v3
 
-.PHONY: serve-app-validation-api serve-app-validation-media serve-app-validation-ui
+.PHONY: serve-app-validation-api serve-app-validation-media serve-app-validation-ui build-app-validation-index build-validation-index build-validation-topic-clusters
 serve-app-validation-api:
 	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=tier3-app-secret \
 	 APP_SIGNUP_MODE=open APP_DATA_DIR=$(CURDIR)/.tier3-app-data \
@@ -3657,33 +3657,79 @@ serve-app-validation-ui:
 	 VITE_API_TARGET=http://127.0.0.1:8000 \
 	 npm run preview -- --port 5175 --strictPort --host 127.0.0.1
 
+# Corpus this target indexes. Its own variable, NOT `$(if $(CORPUS),...)`: CORPUS is globally
+# defaulted to the viewer corpus at the top of this file, so it is never empty and that
+# conditional could never choose the app corpus.
+APP_IDX_CORPUS ?= $(APP_TIER3_CORPUS)
+
+build-app-validation-index:
+	# Builds ONLY the LanceDB index for the app tier-3 corpus. It stays a separate verb from
+	# build-validation-index because it also clears the incremental ledger first and then COUNTS
+	# what landed; build-validation-index does neither.
+	#
+	# The app corpus's search/topic_clusters.json is TRACKED and authored deterministically by
+	# build_app_validation_corpus.py with no ML (synthetic, threshold 0.75, 2 clusters).
+	# `cli topic-clusters --threshold 0.35` replaces it with embedding-derived output (14
+	# clusters, 16 singletons, keyed to all-MiniLM-L6-v2), which is a different artifact with a
+	# different meaning — and six tests in test_capability_audit.py assert the deterministic one.
+	# Measured: regenerating it turns 80 passed into 6 failed.
+	#
+	# Clearing search/episode_fingerprints.json first is the load-bearing step. That ledger
+	# records which episodes are already indexed, so with it in place the indexer treats a GROWN
+	# corpus as fully covered, writes nothing, and exits 0. The corpus went 36 -> 40, so a build
+	# without this yields a 40-episode corpus with a 36-episode index and no complaint.
+	#
+	# Then it COUNTS, because `index-two-tier` exits 0 either way and the exit code is not
+	# evidence.
+	@echo "=== 1/3 Clearing the incremental ledger at $(APP_IDX_CORPUS)/search ==="
+	@rm -f "$(APP_IDX_CORPUS)/search/episode_fingerprints.json"
+	@echo "=== 2/3 Building the LanceDB two-tier index at $(APP_IDX_CORPUS)/search/lance_index ==="
+	@$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$(APP_IDX_CORPUS)"
+	@echo ""
+	@echo "=== 3/3 Verifying the index covers the corpus ==="
+	@$(PYTHON) scripts/tools/count_indexed_episodes.py "$(APP_IDX_CORPUS)"
+
+# ONE threshold for both corpora. It lived only inside the recipe below, so the number that
+# produced a COMMITTED fixture was visible only to whoever read the recipe.
+VALIDATION_TOPIC_CLUSTER_THRESHOLD ?= 0.35
+
 build-validation-index:
-	# Build ALL search artifacts the Tier-3 walk needs, against the in-repo
-	# synthetic validation corpus. Run this BEFORE ``make serve-for-validation``.
-	# Unlocks the index-dependent specs (V1/V5 — Library/Digest handoffs — do NOT
-	# need any of this; they pass on the path fix alone):
-	#   1. LanceDB two-tier index (search/lance_index/) — the single search layer
-	#      (native BM25 + dense + hybrid RRF). Required for V3 (semantic search →
-	#      Show on graph); without it V3 is SKIPPED (test.skip on
-	#      ``!indexJson.available``).
-	#   2. topic_clusters.json — required for V2 (digest topic-band) and V4
-	#      (dashboard topic-cluster chip). Without it the Intelligence tab shows
-	#      "Topic clusters not yet built" → no chips → V4 fails.
-	# Both live under <corpus>/search/ and are gitignored (binary,
-	# embedding-model-hash-keyed, regenerable) — never committed.
+	# Builds the LanceDB two-tier index ONLY — the ignored, regenerable half.
+	#
+	# It used to also run ``cli topic-clusters``, back when the whole of <corpus>/search/
+	# was gitignored and nothing under it could be clobbered. topic_clusters.json is now a
+	# COMMITTED fixture for both corpora, so "build me an index" silently rewriting it is
+	# the same hazard that turned 80 passed into 6 failed on the app corpus. Regenerating a
+	# tracked fixture is a deliberate act with its own verb: build-validation-topic-clusters.
+	#
+	# Run this BEFORE ``make serve-for-validation``. It unlocks V3 (semantic search → Show
+	# on graph); without an index V3 is SKIPPED (test.skip on ``!indexJson.available``).
+	# V1/V5 (Library/Digest handoffs) need none of it. V2/V4 need topic_clusters.json, which
+	# is committed — so a clean clone has it already and needs no ML to run them.
 	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== 1/2 Building LanceDB two-tier index at $$CORPUS/search/lance_index ==="; \
+	echo "=== Building LanceDB two-tier index at $$CORPUS/search/lance_index ==="; \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier \
 		--output-dir $$CORPUS
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== 2/2 Building topic_clusters.json at $$CORPUS/search ==="; \
-	$(PYTHON) -m podcast_scraper.cli topic-clusters \
-		--output-dir $$CORPUS \
-		--threshold 0.35
 	@echo ""
-	@echo "Done — LanceDB two-tier + topic_clusters built. Now run:"
+	@echo "Done — LanceDB two-tier index built. Now run:"
 	@echo "  make serve-for-validation       (terminal 1)"
 	@echo "  make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)  (terminal 2)"
+
+build-validation-topic-clusters:
+	# Regenerate the COMMITTED topic_clusters.json for a validation corpus. Deliberate:
+	# the output is a tracked fixture and several tests assert its cluster ids, so the
+	# diff this produces is the thing to review, not a side effect to skim past.
+	#
+	# Needs the ML extras — the clusters are embedding-derived (all-MiniLM-L6-v2). That is
+	# also why it is committed: a clean clone must be able to run V2/V4 without them.
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
+	echo "=== Building topic_clusters.json at $$CORPUS/search (threshold $(VALIDATION_TOPIC_CLUSTER_THRESHOLD)) ==="; \
+	$(PYTHON) -m podcast_scraper.cli topic-clusters \
+		--output-dir $$CORPUS \
+		--threshold $(VALIDATION_TOPIC_CLUSTER_THRESHOLD)
+	@echo ""
+	@echo "Done. Review the diff before committing it:"
+	@echo "  git diff --stat $(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS))/search/topic_clusters.json"
 
 ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 

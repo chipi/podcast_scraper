@@ -2,6 +2,22 @@
   "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
   "identities": [
     {
+      "display_name": "public radio",
+      "id": "topic:public-radio"
+    },
+    {
+      "display_name": "broadcast format",
+      "id": "topic:broadcast-format"
+    },
+    {
+      "display_name": "journalism",
+      "id": "topic:journalism"
+    },
+    {
+      "display_name": "reliability",
+      "id": "topic:reliability"
+    },
+    {
       "display_name": "environment",
       "id": "topic:environment"
     },

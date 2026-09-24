@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:documentary-photography",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:editing-workflow",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:9956c5227d57471e",
+      "to": "topic:documentary-photography",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "to": "insight:9a33f17e2dc2a4ea",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:b1fc5b82f86faa5f",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:9956c5227d57471e",
-      "to": "quote:b1fc5b82f86faa5f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:357f5ac2ad8e3ada",
+      "from": "quote:3128e04b265d614f",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:9a33f17e2dc2a4ea",
-      "to": "quote:357f5ac2ad8e3ada",
+      "from": "insight:9956c5227d57471e",
+      "to": "quote:3128e04b265d614f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ec27b0b0e1c3e703",
+      "from": "quote:4870b19d7dbc9d45",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9a33f17e2dc2a4ea",
+      "to": "quote:4870b19d7dbc9d45",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4507f4eb8d409acf",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:5dc2253d421449be",
-      "to": "quote:ec27b0b0e1c3e703",
+      "to": "quote:4507f4eb8d409acf",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:258f6ccb25e223b6",
+      "from": "quote:54b81baea8f68434",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:9956c5227d57471e",
-      "to": "quote:258f6ccb25e223b6",
+      "to": "quote:54b81baea8f68434",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:0219d3c1795e8ca5",
-      "to": "person:speaker-02",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:9a33f17e2dc2a4ea",
-      "to": "quote:0219d3c1795e8ca5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d4e445a0d0a3202f",
+      "from": "quote:ff1189542e36ec13",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:9a33f17e2dc2a4ea",
+      "to": "quote:ff1189542e36ec13",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b86590c952552dbf",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:5dc2253d421449be",
-      "to": "quote:d4e445a0d0a3202f",
+      "to": "quote:b86590c952552dbf",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-07-29T12:00:00",
+        "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "podcast_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "publish_date": "2026-09-19T12:00:00",
         "title": "Frame & Light \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:documentary-photography",
+      "properties": {
+        "label": "documentary photography"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:editing-workflow",
+      "properties": {
+        "label": "editing workflow"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Leo"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:b1fc5b82f86faa5f",
-      "properties": {
-        "char_end": 181,
-        "char_start": 5,
-        "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Frame & Light. Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer. Tarek Hassan, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p04_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Tarek Hassan"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:357f5ac2ad8e3ada",
+      "id": "quote:3128e04b265d614f",
       "properties": {
         "char_end": 226,
         "char_start": 196,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ec27b0b0e1c3e703",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4870b19d7dbc9d45",
       "properties": {
         "char_end": 369,
         "char_start": 232,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:258f6ccb25e223b6",
+      "id": "quote:4507f4eb8d409acf",
       "properties": {
         "char_end": 466,
         "char_start": 369,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:0219d3c1795e8ca5",
-      "properties": {
-        "char_end": 539,
-        "char_start": 481,
-        "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p04_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d4e445a0d0a3202f",
+      "id": "quote:54b81baea8f68434",
       "properties": {
         "char_end": 635,
         "char_start": 545,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Ava Lemoyne mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ff1189542e36ec13",
+      "properties": {
+        "char_end": 742,
+        "char_start": 635,
+        "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+        "speaker_id": "person:speaker-01",
+        "text": "What's the one heuristic you keep coming back to? What's the version of the question that actually matters?",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p04_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b86590c952552dbf",
+      "properties": {
+        "char_end": 990,
+        "char_start": 757,
+        "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Documentary frames carry the most weight when the photographer is closer than feels comfortable. We've seen this play out at teams using Capture One. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p04_e02.txt"
       },
       "type": "Quote"

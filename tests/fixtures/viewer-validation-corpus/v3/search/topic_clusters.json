@@ -1,0 +1,591 @@
+{
+  "cluster_count": 16,
+  "clusters": [
+    {
+      "canonical_label": "public radio",
+      "cil_alias_target_topic_id": "topic:public-radio",
+      "graph_compound_parent_id": "tc:public-radio",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "15a1cbea-1449-50ac-bb1c-11784d7421c3"
+          ],
+          "label": "broadcast format",
+          "similarity_to_centroid": 0.871831,
+          "topic_id": "topic:broadcast-format"
+        },
+        {
+          "episode_ids": [
+            "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+            "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+            "5250652d-f8da-5799-91da-8b1ce4991232"
+          ],
+          "label": "public radio",
+          "similarity_to_centroid": 0.871831,
+          "topic_id": "topic:public-radio"
+        }
+      ]
+    },
+    {
+      "canonical_label": "macroeconomics",
+      "cil_alias_target_topic_id": "topic:macroeconomics",
+      "graph_compound_parent_id": "tc:macroeconomics",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "01835c28-431e-5b5a-adbb-5ec01411a299",
+            "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+            "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+            "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+            "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+            "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+            "ae754f41-0909-500a-bcb4-14199e04f20d",
+            "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+            "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+            "f6f1df34-2251-5301-b1c7-68ee8468bf65"
+          ],
+          "label": "Business & markets",
+          "similarity_to_centroid": 0.716329,
+          "topic_id": "topic:business-markets"
+        },
+        {
+          "episode_ids": [
+            "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d"
+          ],
+          "label": "labor markets",
+          "similarity_to_centroid": 0.748272,
+          "topic_id": "topic:labor-markets"
+        },
+        {
+          "episode_ids": [
+            "7f877683-ea36-55d1-94f7-a5cc051ff3d0"
+          ],
+          "label": "macro policy",
+          "similarity_to_centroid": 0.694039,
+          "topic_id": "topic:macro-policy"
+        },
+        {
+          "episode_ids": [
+            "32b9679a-1a2d-5cce-b673-b489694ef798",
+            "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+            "d24c1620-8d16-54dd-b681-2f2e06c0b579"
+          ],
+          "label": "macroeconomics",
+          "similarity_to_centroid": 0.866498,
+          "topic_id": "topic:macroeconomics"
+        },
+        {
+          "episode_ids": [
+            "78741d49-00ad-5f5f-b127-8fd1c1b6844c"
+          ],
+          "label": "monetary policy",
+          "similarity_to_centroid": 0.756417,
+          "topic_id": "topic:monetary-policy"
+        }
+      ]
+    },
+    {
+      "canonical_label": "incident response",
+      "cil_alias_target_topic_id": "topic:incident-response",
+      "graph_compound_parent_id": "tc:incident-response",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130"
+          ],
+          "label": "corrections policy",
+          "similarity_to_centroid": 0.738988,
+          "topic_id": "topic:corrections-policy"
+        },
+        {
+          "episode_ids": [
+            "096240a2-e115-5a3c-98b4-2d852b096eda"
+          ],
+          "label": "incident postmortems",
+          "similarity_to_centroid": 0.795853,
+          "topic_id": "topic:incident-postmortems"
+        },
+        {
+          "episode_ids": [
+            "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+            "8f88b1fc-4adc-5b98-8539-af5f32fef5a4"
+          ],
+          "label": "incident response",
+          "similarity_to_centroid": 0.804989,
+          "topic_id": "topic:incident-response"
+        }
+      ]
+    },
+    {
+      "canonical_label": "frame",
+      "cil_alias_target_topic_id": "topic:frame",
+      "graph_compound_parent_id": "tc:frame",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "01835c28-431e-5b5a-adbb-5ec01411a299",
+            "55e302e4-3319-59f2-8c17-fde08bffd658",
+            "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+            "e741f35a-8dd9-5c40-9d5c-905f4dca4122"
+          ],
+          "label": "dialogue",
+          "similarity_to_centroid": 0.827192,
+          "topic_id": "topic:dialogue"
+        },
+        {
+          "episode_ids": [
+            "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+            "47fbed20-6172-5fec-a904-656de37b88ec",
+            "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+            "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+            "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+            "e1743bda-76ff-5586-9e39-3fa45e41ef9a"
+          ],
+          "label": "frame",
+          "similarity_to_centroid": 0.827192,
+          "topic_id": "topic:frame"
+        }
+      ]
+    },
+    {
+      "canonical_label": "dive planning",
+      "cil_alias_target_topic_id": "topic:dive-planning",
+      "graph_compound_parent_id": "tc:dive-planning",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "2922a74e-5598-537f-a2d1-1ac08059e49d",
+            "a283fe88-fdec-51b4-8014-431b4a7ce670"
+          ],
+          "label": "dive planning",
+          "similarity_to_centroid": 0.915224,
+          "topic_id": "topic:dive-planning"
+        },
+        {
+          "episode_ids": [
+            "a283fe88-fdec-51b4-8014-431b4a7ce670"
+          ],
+          "label": "wreck diving",
+          "similarity_to_centroid": 0.915224,
+          "topic_id": "topic:wreck-diving"
+        }
+      ]
+    },
+    {
+      "canonical_label": "documentary photography",
+      "cil_alias_target_topic_id": "topic:documentary-photography",
+      "graph_compound_parent_id": "tc:documentary-photography",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "9833b47e-0cc8-50b9-a6da-65dc0f6d053f"
+          ],
+          "label": "documentary photography",
+          "similarity_to_centroid": 0.833034,
+          "topic_id": "topic:documentary-photography"
+        },
+        {
+          "episode_ids": [
+            "47fbed20-6172-5fec-a904-656de37b88ec"
+          ],
+          "label": "roundtable photography",
+          "similarity_to_centroid": 0.775073,
+          "topic_id": "topic:roundtable-photography"
+        },
+        {
+          "episode_ids": [
+            "09ead36d-954f-5cbb-ae3f-6f0d5985233d"
+          ],
+          "label": "underwater photography",
+          "similarity_to_centroid": 0.800284,
+          "topic_id": "topic:underwater-photography"
+        }
+      ]
+    },
+    {
+      "canonical_label": "gear",
+      "cil_alias_target_topic_id": "topic:gear",
+      "graph_compound_parent_id": "tc:gear",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "f6f1df34-2251-5301-b1c7-68ee8468bf65"
+          ],
+          "label": "drivetrain mechanics",
+          "similarity_to_centroid": 0.831307,
+          "topic_id": "topic:drivetrain-mechanics"
+        },
+        {
+          "episode_ids": [
+            "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+            "254fe2be-b570-592e-84cd-c22cb9e271e9",
+            "2922a74e-5598-537f-a2d1-1ac08059e49d",
+            "47fbed20-6172-5fec-a904-656de37b88ec",
+            "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+            "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+            "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+            "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+            "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+            "a283fe88-fdec-51b4-8014-431b4a7ce670",
+            "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+            "f6f1df34-2251-5301-b1c7-68ee8468bf65"
+          ],
+          "label": "gear",
+          "similarity_to_centroid": 0.831307,
+          "topic_id": "topic:gear"
+        }
+      ]
+    },
+    {
+      "canonical_label": "technology",
+      "cil_alias_target_topic_id": "topic:technology",
+      "graph_compound_parent_id": "tc:technology",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "096240a2-e115-5a3c-98b4-2d852b096eda"
+          ],
+          "label": "engineering communication",
+          "similarity_to_centroid": 0.741565,
+          "topic_id": "topic:engineering-communication"
+        },
+        {
+          "episode_ids": [
+            "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+            "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+            "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
+            "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+            "2922a74e-5598-537f-a2d1-1ac08059e49d",
+            "32b9679a-1a2d-5cce-b673-b489694ef798",
+            "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+            "47fbed20-6172-5fec-a904-656de37b88ec",
+            "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+            "55e302e4-3319-59f2-8c17-fde08bffd658",
+            "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+            "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+            "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+            "a283fe88-fdec-51b4-8014-431b4a7ce670",
+            "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+            "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+            "e5f72053-f000-519e-95cb-204c957f7ab3",
+            "e741f35a-8dd9-5c40-9d5c-905f4dca4122"
+          ],
+          "label": "Science & research",
+          "similarity_to_centroid": 0.774528,
+          "topic_id": "topic:science-research"
+        },
+        {
+          "episode_ids": [
+            "096240a2-e115-5a3c-98b4-2d852b096eda",
+            "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+            "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+            "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
+            "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+            "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+            "254fe2be-b570-592e-84cd-c22cb9e271e9",
+            "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+            "47fbed20-6172-5fec-a904-656de37b88ec",
+            "5250652d-f8da-5799-91da-8b1ce4991232",
+            "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+            "70b6d4cd-5f59-5606-a432-48ecc739bb4f",
+            "77ae2478-6495-5707-a35f-04ab67e5386a",
+            "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+            "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+            "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+            "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+            "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+            "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+            "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+            "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+            "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+            "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
+            "e5f72053-f000-519e-95cb-204c957f7ab3"
+          ],
+          "label": "technology",
+          "similarity_to_centroid": 0.851849,
+          "topic_id": "topic:technology"
+        }
+      ]
+    },
+    {
+      "canonical_label": "environment",
+      "cil_alias_target_topic_id": "topic:environment",
+      "graph_compound_parent_id": "tc:environment",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+            "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
+            "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+            "32b9679a-1a2d-5cce-b673-b489694ef798",
+            "5250652d-f8da-5799-91da-8b1ce4991232",
+            "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+            "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+            "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207"
+          ],
+          "label": "environment",
+          "similarity_to_centroid": 0.834496,
+          "topic_id": "topic:environment"
+        },
+        {
+          "episode_ids": [
+            "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+            "32b9679a-1a2d-5cce-b673-b489694ef798",
+            "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+            "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+            "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+            "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+            "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+            "e5f72053-f000-519e-95cb-204c957f7ab3"
+          ],
+          "label": "health",
+          "similarity_to_centroid": 0.733982,
+          "topic_id": "topic:health"
+        },
+        {
+          "episode_ids": [
+            "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+            "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+            "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207"
+          ],
+          "label": "sustainability",
+          "similarity_to_centroid": 0.817297,
+          "topic_id": "topic:sustainability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "journalism",
+      "cil_alias_target_topic_id": "topic:journalism",
+      "graph_compound_parent_id": "tc:journalism",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+            "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
+            "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+            "5250652d-f8da-5799-91da-8b1ce4991232"
+          ],
+          "label": "journalism",
+          "similarity_to_centroid": 0.860577,
+          "topic_id": "topic:journalism"
+        },
+        {
+          "episode_ids": [
+            "1c0614c2-9f65-5fd5-9340-ab8c6059d014"
+          ],
+          "label": "newsroom operations",
+          "similarity_to_centroid": 0.860577,
+          "topic_id": "topic:newsroom-operations"
+        }
+      ]
+    },
+    {
+      "canonical_label": "lighting design",
+      "cil_alias_target_topic_id": "topic:lighting-design",
+      "graph_compound_parent_id": "tc:lighting-design",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "e1743bda-76ff-5586-9e39-3fa45e41ef9a"
+          ],
+          "label": "lighting design",
+          "similarity_to_centroid": 0.892449,
+          "topic_id": "topic:lighting-design"
+        },
+        {
+          "episode_ids": [
+            "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+            "47fbed20-6172-5fec-a904-656de37b88ec",
+            "e1743bda-76ff-5586-9e39-3fa45e41ef9a"
+          ],
+          "label": "strobe lighting",
+          "similarity_to_centroid": 0.892449,
+          "topic_id": "topic:strobe-lighting"
+        }
+      ]
+    },
+    {
+      "canonical_label": "maintenance",
+      "cil_alias_target_topic_id": "topic:maintenance",
+      "graph_compound_parent_id": "tc:maintenance",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "f6f1df34-2251-5301-b1c7-68ee8468bf65"
+          ],
+          "label": "maintenance",
+          "similarity_to_centroid": 0.84896,
+          "topic_id": "topic:maintenance"
+        },
+        {
+          "episode_ids": [
+            "096240a2-e115-5a3c-98b4-2d852b096eda",
+            "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+            "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
+            "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+            "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+            "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+            "5250652d-f8da-5799-91da-8b1ce4991232",
+            "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+            "77ae2478-6495-5707-a35f-04ab67e5386a",
+            "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+            "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+            "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+            "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+            "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+            "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+            "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+            "e5f72053-f000-519e-95cb-204c957f7ab3"
+          ],
+          "label": "reliability",
+          "similarity_to_centroid": 0.84896,
+          "topic_id": "topic:reliability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "marine biology",
+      "cil_alias_target_topic_id": "topic:marine-biology",
+      "graph_compound_parent_id": "tc:marine-biology",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "254fe2be-b570-592e-84cd-c22cb9e271e9",
+            "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9"
+          ],
+          "label": "marine biology",
+          "similarity_to_centroid": 0.854612,
+          "topic_id": "topic:marine-biology"
+        },
+        {
+          "episode_ids": [
+            "254fe2be-b570-592e-84cd-c22cb9e271e9",
+            "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9"
+          ],
+          "label": "reef conservation",
+          "similarity_to_centroid": 0.854612,
+          "topic_id": "topic:reef-conservation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "on call rotation",
+      "cil_alias_target_topic_id": "topic:on-call-rotation",
+      "graph_compound_parent_id": "tc:on-call-rotation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "77ae2478-6495-5707-a35f-04ab67e5386a"
+          ],
+          "label": "on call",
+          "similarity_to_centroid": 0.890152,
+          "topic_id": "topic:on-call"
+        },
+        {
+          "episode_ids": [
+            "3d0ec494-98ba-5f71-b2bd-c8559c779786"
+          ],
+          "label": "on call rotation",
+          "similarity_to_centroid": 0.890153,
+          "topic_id": "topic:on-call-rotation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "trail building",
+      "cil_alias_target_topic_id": "topic:trail-building",
+      "graph_compound_parent_id": "tc:trail-building",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "254fe2be-b570-592e-84cd-c22cb9e271e9",
+            "2922a74e-5598-537f-a2d1-1ac08059e49d",
+            "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+            "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+            "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+            "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+            "a283fe88-fdec-51b4-8014-431b4a7ce670",
+            "f6f1df34-2251-5301-b1c7-68ee8468bf65"
+          ],
+          "label": "outdoor activities",
+          "similarity_to_centroid": 0.863226,
+          "topic_id": "topic:outdoor-activities"
+        },
+        {
+          "episode_ids": [
+            "5b39965f-22a2-54c9-9c42-e7a19d8da2da"
+          ],
+          "label": "trail building",
+          "similarity_to_centroid": 0.863226,
+          "topic_id": "topic:trail-building"
+        }
+      ]
+    },
+    {
+      "canonical_label": "security design",
+      "cil_alias_target_topic_id": "topic:security-design",
+      "graph_compound_parent_id": "tc:security-design",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "096240a2-e115-5a3c-98b4-2d852b096eda",
+            "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
+            "2922a74e-5598-537f-a2d1-1ac08059e49d",
+            "32b9679a-1a2d-5cce-b673-b489694ef798",
+            "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+            "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+            "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+            "78741d49-00ad-5f5f-b127-8fd1c1b6844c",
+            "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+            "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+            "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+            "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+            "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+            "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
+            "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+            "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+            "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+            "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+            "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+            "e5f72053-f000-519e-95cb-204c957f7ab3",
+            "f6f1df34-2251-5301-b1c7-68ee8468bf65"
+          ],
+          "label": "risk management",
+          "similarity_to_centroid": 0.822516,
+          "topic_id": "topic:risk-management"
+        },
+        {
+          "episode_ids": [
+            "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27"
+          ],
+          "label": "security design",
+          "similarity_to_centroid": 0.822516,
+          "topic_id": "topic:security-design"
+        }
+      ]
+    }
+  ],
+  "fingerprint": "8cdac3ba432811fd72c0eacdc32d01ec334d4367c1d24f2b7408e68f38b18558",
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "schema_version": "2",
+  "singletons": 12,
+  "threshold": 0.35,
+  "topic_count": 51
+}

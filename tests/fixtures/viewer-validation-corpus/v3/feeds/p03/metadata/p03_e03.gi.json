@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:marine-biology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:reef-conservation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:e2ea14821f904f6e",
+      "to": "topic:marine-biology",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
       "to": "insight:9e800db626f513b9",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:4b8a43949ed72903",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:e2ea14821f904f6e",
-      "to": "quote:4b8a43949ed72903",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8dc6cd407918b91c",
+      "from": "quote:5b99f278b20b91d6",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:9e800db626f513b9",
-      "to": "quote:8dc6cd407918b91c",
+      "from": "insight:e2ea14821f904f6e",
+      "to": "quote:5b99f278b20b91d6",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:e774fd4c74633159",
+      "from": "quote:4ac1b71b014d8db4",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9e800db626f513b9",
+      "to": "quote:4ac1b71b014d8db4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:13b3eea3f50fc572",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:e9c7625096a4818e",
-      "to": "quote:e774fd4c74633159",
+      "to": "quote:13b3eea3f50fc572",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:1ad3f4bc418680b0",
+      "from": "quote:0a995714f674076a",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:e2ea14821f904f6e",
-      "to": "quote:1ad3f4bc418680b0",
+      "to": "quote:0a995714f674076a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:1bd236aa45c85c80",
-      "to": "person:speaker-02",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:9e800db626f513b9",
-      "to": "quote:1bd236aa45c85c80",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d07a9be2cf661cb2",
+      "from": "quote:be6f47b6afbba7b4",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:9e800db626f513b9",
+      "to": "quote:be6f47b6afbba7b4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a82fee3e7f1af245",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:e9c7625096a4818e",
-      "to": "quote:d07a9be2cf661cb2",
+      "to": "quote:a82fee3e7f1af245",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-08-03T12:00:00",
+        "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "podcast_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "publish_date": "2026-09-24T12:00:00",
         "title": "Below the Surface \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:marine-biology",
+      "properties": {
+        "label": "marine biology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reef-conservation",
+      "properties": {
+        "label": "reef conservation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Rina"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:4b8a43949ed72903",
-      "properties": {
-        "char_end": 205,
-        "char_start": 6,
-        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems. Hanna Krebohticker, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Hanna Krebohticker"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:8dc6cd407918b91c",
+      "id": "quote:5b99f278b20b91d6",
       "properties": {
         "char_end": 257,
         "char_start": 226,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e774fd4c74633159",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4ac1b71b014d8db4",
       "properties": {
         "char_end": 390,
         "char_start": 264,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:1ad3f4bc418680b0",
+      "id": "quote:13b3eea3f50fc572",
       "properties": {
         "char_end": 514,
         "char_start": 390,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:1bd236aa45c85c80",
-      "properties": {
-        "char_end": 593,
-        "char_start": 535,
-        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p03_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d07a9be2cf661cb2",
+      "id": "quote:0a995714f674076a",
       "properties": {
         "char_end": 684,
         "char_start": 600,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Marco mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:be6f47b6afbba7b4",
+      "properties": {
+        "char_end": 760,
+        "char_start": 684,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the most underrated piece of marine biology?",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p03_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a82fee3e7f1af245",
+      "properties": {
+        "char_end": 977,
+        "char_start": 781,
+        "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Reef-conservation policy is a systems problem at planetary scale. We've seen this play out at teams using GoPro. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p03_e03.txt"
       },
       "type": "Quote"

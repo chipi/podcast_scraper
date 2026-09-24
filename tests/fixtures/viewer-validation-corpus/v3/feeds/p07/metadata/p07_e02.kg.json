@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+      "to": "topic:macroeconomics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
       "to": "topic:environment",
       "type": "MENTIONS"
     },
@@ -18,7 +33,7 @@
   ],
   "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
   "extraction": {
-    "extracted_at": "2026-08-01T12:00:00",
+    "extracted_at": "2026-09-22T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p07_e02.txt"
   },
@@ -26,11 +41,35 @@
     {
       "id": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
       "properties": {
-        "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
-        "publish_date": "2026-08-01T12:00:00",
+        "podcast_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "The Long View \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:macroeconomics",
+      "properties": {
+        "label": "macroeconomics",
+        "slug": "macroeconomics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:environment",

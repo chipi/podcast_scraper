@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:macroeconomics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:cd8fad2cc97d5375",
+      "to": "topic:macroeconomics",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "to": "insight:ff1874aa7449f3fc",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:38c1d2b97ff69131",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cd8fad2cc97d5375",
-      "to": "quote:38c1d2b97ff69131",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2680b8419c616328",
+      "from": "quote:34163f64f579f2c5",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:ff1874aa7449f3fc",
-      "to": "quote:2680b8419c616328",
+      "from": "insight:cd8fad2cc97d5375",
+      "to": "quote:34163f64f579f2c5",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:fcb3c644e0859558",
+      "from": "quote:6e1f78e8278f9293",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ff1874aa7449f3fc",
+      "to": "quote:6e1f78e8278f9293",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1e330aaa5f5667c1",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:5292734b89031e6e",
-      "to": "quote:fcb3c644e0859558",
+      "to": "quote:1e330aaa5f5667c1",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:5e66654af3abcd3a",
+      "from": "quote:32cc6cae156eb365",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:cd8fad2cc97d5375",
-      "to": "quote:5e66654af3abcd3a",
+      "to": "quote:32cc6cae156eb365",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:a543d4b1ed5b919c",
-      "to": "person:speaker-02",
+      "from": "quote:ba1fa62a74446f05",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ff1874aa7449f3fc",
-      "to": "quote:a543d4b1ed5b919c",
+      "to": "quote:ba1fa62a74446f05",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:2c9ee67b988837bf",
+      "from": "quote:48206d181e83fae8",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:5292734b89031e6e",
-      "to": "quote:2c9ee67b988837bf",
+      "to": "quote:48206d181e83fae8",
       "type": "SUPPORTED_BY"
     },
     {
@@ -115,10 +135,31 @@
         "duration_ms": 1800000,
         "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-        "publish_date": "2026-07-30T12:00:00",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:macroeconomics",
+      "properties": {
+        "label": "macroeconomics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Sam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:38c1d2b97ff69131",
-      "properties": {
-        "char_end": 178,
-        "char_start": 5,
-        "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Cross-Show. Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist. Skanda Amarnauth, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Skanda Amarnauth"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:2680b8419c616328",
+      "id": "quote:34163f64f579f2c5",
       "properties": {
         "char_end": 227,
         "char_start": 197,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:fcb3c644e0859558",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6e1f78e8278f9293",
       "properties": {
         "char_end": 385,
         "char_start": 233,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:5e66654af3abcd3a",
+      "id": "quote:1e330aaa5f5667c1",
       "properties": {
         "char_end": 472,
         "char_start": 385,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:a543d4b1ed5b919c",
-      "properties": {
-        "char_end": 549,
-        "char_start": 491,
-        "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p09_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:2c9ee67b988837bf",
+      "id": "quote:32cc6cae156eb365",
       "properties": {
         "char_end": 650,
         "char_start": 555,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ba1fa62a74446f05",
+      "properties": {
+        "char_end": 790,
+        "char_start": 650,
+        "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+        "speaker_id": "person:speaker-01",
+        "text": "Real talk: Bloomberg is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for market data.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p09_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:48206d181e83fae8",
+      "properties": {
+        "char_end": 879,
+        "char_start": 790,
+        "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p09_e02.txt"
       },
       "type": "Quote"

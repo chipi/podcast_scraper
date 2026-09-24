@@ -2,6 +2,18 @@
   "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
   "identities": [
     {
+      "display_name": "marine biology",
+      "id": "topic:marine-biology"
+    },
+    {
+      "display_name": "reef conservation",
+      "id": "topic:reef-conservation"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
       "display_name": "outdoor activities",
       "id": "topic:outdoor-activities"
     },

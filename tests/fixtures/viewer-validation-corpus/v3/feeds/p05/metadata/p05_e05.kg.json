@@ -1,0 +1,61 @@
+{
+  "edges": [
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+  "extraction": {
+    "extracted_at": "2026-09-24T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p05_e05.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "properties": {
+        "podcast_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "publish_date": "2026-09-24T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 5"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing",
+        "slug": "index-investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "slug": "technology"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

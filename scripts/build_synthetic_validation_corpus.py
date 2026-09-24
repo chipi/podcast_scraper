@@ -130,6 +130,83 @@ def parse_rss_feed_metadata(rss_path: Path) -> dict[str, Any]:
     }
 
 
+def _repo_relative(path: Path) -> Path:
+    """``path`` relative to the current working directory when it sits under it.
+
+    Falls back to the last three components, which for a corpus directory is still a
+    recognisable label and still carries no username.
+    """
+    try:
+        return path.relative_to(Path.cwd())
+    except ValueError:
+        return Path(*path.parts[-3:]) if len(path.parts) >= 3 else path
+
+
+def _digest_pill_topics(topics: list[str], umbrellas: list[str]) -> list[str]:
+    """The two CIL digest pills: the episode's lead topic, then a cluster one.
+
+    This was ``topics[:2]``, which only ever produced a clustered pill because the
+    umbrellas happened to sort first in the topic list. Once the episode's own topics
+    took the lead positions (#2147) that slice returned two unclustered labels and the
+    V4 topic-cluster chip had nothing to render — a positional dependency that was
+    never stated and broke silently when the order changed.
+
+    So it now ASKS for what the surface needs: one discriminating topic and one
+    cross-show one. A show with no umbrella (p05, p06) falls back to its second own
+    topic, which is what it already effectively got.
+    """
+    lead = topics[:1]
+    clustered = [t for t in umbrellas if t not in lead][:1]
+    if clustered:
+        return lead + clustered
+    return lead + [t for t in topics[1:] if t not in lead][:1]
+
+
+def episode_topics_for(ep_label: str, gt_dir: Path) -> list[str]:
+    """The episode's OWN topics from the v3 ground truth (SPEC §14).
+
+    SHARED by both validation corpora on purpose. The app and viewer are two UI surfaces
+    over the same v3 transcripts, so "what is this episode about" has to mean the same
+    thing in both. It did not: the viewer derived topics with a regex for capitalised
+    phrases, which promoted "Welcome back to" to a topic and then to a topic CLUSTER
+    (tc:welcome-back-to), while the app used curated labels and filtered greetings.
+    One source, one answer.
+
+    Every episode carried only ``CROSS_CUTTING_TOPICS[show] + SHARED_UMBRELLAS`` —
+    feed-wide labels, identical for every episode of a show. So the whole corpus
+    collapsed to one theme cluster, the super-theme rollup never fired, and
+    ``topic_consensus`` had nothing to disagree about. A fixture that cannot
+    discriminate is not a small fixture; it is a fixture that answers yes to
+    everything.
+
+    The discriminating data was already authored and simply never read:
+    ``primary_topic`` + ``secondary_topics`` are 27 distinct values across the 40
+    episodes, 3-5 per show. Episode-specific first, umbrellas after, so the lead
+    topic is the episode's own while the cross-show overlap the interests picker
+    needs survives.
+    """
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return []
+    try:
+        doc = json.loads(gt.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    # The ground truth stores IDS (``topic:trail-building``); everything downstream
+    # takes human LABELS and slugifies them itself. Passing the id straight through
+    # produced ``topic:topic-trail-building`` — a doubled prefix that reached the
+    # storyline card as its visible blurb. Normalise to the label shape the existing
+    # CROSS_CUTTING_TOPICS entries use ("trail building").
+    out: list[str] = []
+    for value in (doc.get("primary_topic"), *(doc.get("secondary_topics") or [])):
+        if not isinstance(value, str) or not value:
+            continue
+        label = value.split(":", 1)[-1].replace("-", " ").replace("_", " ").strip()
+        if label and label not in out:
+            out.append(label)
+    return out
+
+
 def read_transcript_excerpts(
     transcript_path: Path, n_topics: int = 3, n_insights: int = 3, n_quotes: int = 3
 ) -> dict[str, list[str]]:
@@ -638,7 +715,25 @@ def main() -> int:
     # Version the output under <output>/<version> (like the app corpus) so the
     # viewer corpus follows the <category>/<version> pattern — not a root dump.
     version = Path("tests/fixtures/FIXTURES_VERSION").read_text(encoding="utf-8").strip()
+    # Same ground truth the app corpus reads, derived the same way. Both
+    # surfaces are UI over one fixture set, so a topic that exists for one
+    # must exist for the other — see episode_topics_for.
+    gt_dir = args.transcripts_dir.parent.parent / "ground-truth" / version / "ground_truth"
     out = (args.output / version).resolve()
+    # What the committed manifests record as their ``path``. NOT ``str(out)``.
+    #
+    # ``out`` is absolute and resolved, so every corpus/*.json recorded whoever's working
+    # directory happened to build it: the committed fixture carried
+    # ``/workspace/Projects/podcast_scraper-FUTURE/...`` for a year. Rebuilt on a Mac the same
+    # line writes ``/Users/<name>/...``, which is an OS-username leak in a public repo —
+    # tests/unit/test_no_home_paths_in_fixtures.py exists to catch exactly that. It never
+    # fired here because its regex matches ``/Users/`` and ``/home/``, and the old value
+    # started with ``/workspace/``: the same bug, wearing a prefix the guard did not know.
+    #
+    # The server computes this field per request from the corpus it was pointed at, and no
+    # test compares it to the baked value, so a repo-relative label is both portable and
+    # more honest about what the fixture is.
+    corpus_path_label = str(_repo_relative(out))
     out.mkdir(parents=True, exist_ok=True)
     (out / "corpus").mkdir(exist_ok=True)
     (out / "artifacts").mkdir(exist_ok=True)
@@ -713,21 +808,45 @@ def main() -> int:
             kg_rel = f"feeds/{feed_prefix}/metadata/{ep_label}.kg.json"
 
             excerpts = read_transcript_excerpts(transcript_path)
-            # #774a — inject cross-cutting umbrella topics so multiple
-            # podcasts share topic ids. Without these, topic-bands and
-            # topic-clusters are all singletons (no cross-episode hits)
-            # and V2 / V4 validation rows fail. Umbrella topics go FIRST
-            # in the list so they appear in summary_bullet_graph_topic_ids
-            # (the digest topic-band hits are derived from these).
+            # ALIGNMENT with the app corpus (#2147). `read_transcript_excerpts` derives topics
+            # with a regex for capitalised phrases, which on these chatty fixtures produced
+            # "welcome back to" as a topic — and `cli topic-clusters` then promoted it to
+            # tc:welcome-back-to, a greeting rendered as a theme on the viewer's topic surfaces.
+            #
+            # The app corpus never had this because it reads the AUTHORED topics from the v3
+            # ground truth. These are two UI surfaces over the same transcripts, so they now
+            # read the same source. The regex output stays as the fallback for an episode with
+            # no authored topics, filtered so a greeting can never become one again.
+            authored = episode_topics_for(ep_label, gt_dir)
+            if authored:
+                excerpts["topics"] = authored
+            else:
+                excerpts["topics"] = [t for t in excerpts["topics"] if not is_greeting_or_filler(t)]
+            # #774a — cross-cutting umbrella topics so multiple podcasts share
+            # topic ids. Without these, topic-bands and topic-clusters are all
+            # singletons (no cross-episode hits) and V2 / V4 validation rows fail.
             umbrellas = CROSS_CUTTING_TOPICS.get(feed_prefix, [])
             # Inject one rotating digest-headline topic per episode so that
             # at least one episode in each feed carries each headline label.
             # The cycle (ei % len) gives every episode index a different
             # headline; across 23 episodes every headline appears 7-8x.
             headline_topic = DIGEST_HEADLINE_TOPICS[ei % len(DIGEST_HEADLINE_TOPICS)]
-            excerpts["topics"] = (
-                umbrellas + [headline_topic] + excerpts["topics"][: max(0, 3 - len(umbrellas) - 1)]
-            )
+            # ORDER AND LENGTH, both load-bearing, both previously wrong (#2147).
+            #
+            # This used to be ``umbrellas + [headline] + topics[: 3 - len(umbrellas) - 1]``.
+            # For p01 that slice is ``[:0]``: the episode's OWN topics were computed and
+            # then thrown away, so every episode of a show carried the identical two or
+            # three feed-wide labels. The whole corpus collapsed to one theme cluster and
+            # topic_consensus had nothing to disagree about.
+            #
+            # Now it matches build_app_validation_corpus exactly — episode-specific first,
+            # umbrellas appended for the cross-show overlap, nothing truncated. Both
+            # corpora are UI over the same transcripts; "what is this episode about" has
+            # to have one answer. The headline stays in the list because build_kg emits a
+            # kg_topic node per topic and the digest handoff needs that exact node id.
+            excerpts["topics"] = excerpts["topics"] + [
+                t for t in umbrellas + [headline_topic] if t not in excerpts["topics"]
+            ]
             # #876/#974 — synthesize a diarized two-artifact transcript so the
             # corpus resembles a real reprocessed one: raw screenplay + ad-free
             # sidecars, indexed transcript segments, and diarized graph quotes.
@@ -821,7 +940,10 @@ def main() -> int:
             # corpus-library computations have ``cil_digest_topics``,
             # ``summary_*`` etc. to work with. Minimal versions caused
             # the digest endpoint to return empty bands.
-            ep_topics_for_metadata = excerpts["topics"][:3]
+            # No [:3]. The cap kept the umbrellas (which sorted first) and dropped the
+            # episode's own topics from metadata.json — the file topic_clusters and the
+            # search index read. See the composition note above.
+            ep_topics_for_metadata = excerpts["topics"]
             ep_summary_for_metadata = (
                 excerpts["insights"][0]
                 if excerpts["insights"]
@@ -905,7 +1027,7 @@ def main() -> int:
                                     f"tc:{slug(t)}-cluster" if t in umbrellas else None
                                 ),
                             }
-                            for t in ep_topics_for_metadata[:2]
+                            for t in _digest_pill_topics(ep_topics_for_metadata, umbrellas)
                         ],
                         "gi_relative_path": gi_rel,
                         "kg_relative_path": kg_rel,
@@ -952,11 +1074,11 @@ def main() -> int:
                     "feed_display_title": feed_meta["display_title"],
                     "feed_rss_url": feed_meta["rss_url"],
                     "feed_description": feed_meta["description"],
-                    "topics": excerpts["topics"][:3],
+                    "topics": excerpts["topics"],
                     "summary_title": f"{title} — synthetic",
                     "summary_bullets_preview": ep_bullets,
                     "summary_bullet_graph_topic_ids": [
-                        f"topic:{slug(t)}" for t in excerpts["topics"][:3]
+                        f"topic:{slug(t)}" for t in excerpts["topics"]
                     ],
                     "summary_preview": (
                         (ep_summary[:140] + "…") if len(ep_summary) > 140 else ep_summary
@@ -984,7 +1106,7 @@ def main() -> int:
             )
 
             episode_details[metadata_rel] = {
-                "path": str(out),
+                "path": corpus_path_label,
                 "metadata_relative_path": metadata_rel,
                 "feed_id": podcast_id,
                 "episode_id": ep_uuid,
@@ -1015,10 +1137,10 @@ def main() -> int:
     def write(rel: str, payload: Any) -> None:
         (out / rel).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
-    write("corpus/feeds.json", {"path": str(out), "feeds": feeds})
+    write("corpus/feeds.json", {"path": corpus_path_label, "feeds": feeds})
     write(
         "corpus/episodes.json",
-        {"path": str(out), "feed_id": None, "items": episodes, "next_cursor": None},
+        {"path": corpus_path_label, "feed_id": None, "items": episodes, "next_cursor": None},
     )
     write("corpus/episode-details.json", episode_details)
 
@@ -1110,7 +1232,7 @@ def main() -> int:
     write(
         "corpus/digest.json",
         {
-            "path": str(out),
+            "path": corpus_path_label,
             "window": "all",
             "window_start_utc": "2025-01-01T00:00:00Z",
             "window_end_utc": "2027-01-01T00:00:00Z",
@@ -1126,16 +1248,16 @@ def main() -> int:
     write(
         "corpus/stats.json",
         {
-            "path": str(out),
+            "path": corpus_path_label,
             "publish_month_histogram": {"2026-05": len(episodes)},
             "catalog_episode_count": len(episodes),
             "catalog_feed_count": len(feeds),
             "digest_topics_configured": 0,
         },
     )
-    write("corpus/coverage.json", {"path": str(out), "items": []})
-    write("corpus/persons-top.json", {"path": str(out), "persons": [], "total_persons": 0})
-    write("corpus/runs-summary.json", {"path": str(out), "items": []})
+    write("corpus/coverage.json", {"path": corpus_path_label, "items": []})
+    write("corpus/persons-top.json", {"path": corpus_path_label, "persons": [], "total_persons": 0})
+    write("corpus/runs-summary.json", {"path": corpus_path_label, "items": []})
     write(
         "corpus/index-stats.json",
         {
@@ -1145,7 +1267,7 @@ def main() -> int:
             "reindex_recommended": False,
         },
     )
-    write("corpus/artifacts.json", {"path": str(out), "artifacts": artifact_index})
+    write("corpus/artifacts.json", {"path": corpus_path_label, "artifacts": artifact_index})
 
     # Manifest.
     total_size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())

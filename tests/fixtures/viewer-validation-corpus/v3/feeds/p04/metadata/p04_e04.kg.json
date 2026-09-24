@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:roundtable-photography",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:strobe-lighting",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -18,7 +33,7 @@
   ],
   "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
   "extraction": {
-    "extracted_at": "2026-07-31T12:00:00",
+    "extracted_at": "2026-09-21T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p04_e04.txt"
   },
@@ -26,11 +41,35 @@
     {
       "id": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
       "properties": {
-        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-07-31T12:00:00",
+        "podcast_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "publish_date": "2026-09-21T12:00:00",
         "title": "Frame & Light \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:roundtable-photography",
+      "properties": {
+        "label": "roundtable photography",
+        "slug": "roundtable-photography"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame",
+        "slug": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-lighting",
+      "properties": {
+        "label": "strobe lighting",
+        "slug": "strobe-lighting"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",

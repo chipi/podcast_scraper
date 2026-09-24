@@ -1,0 +1,61 @@
+{
+  "edges": [
+    {
+      "from": "episode:77ae2478-6495-5707-a35f-04ab67e5386a",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:77ae2478-6495-5707-a35f-04ab67e5386a",
+      "to": "topic:on-call",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:77ae2478-6495-5707-a35f-04ab67e5386a",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "77ae2478-6495-5707-a35f-04ab67e5386a",
+  "extraction": {
+    "extracted_at": "2026-09-21T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e05.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:77ae2478-6495-5707-a35f-04ab67e5386a",
+      "properties": {
+        "podcast_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "publish_date": "2026-09-21T12:00:00",
+        "title": "Practical Systems \u2014 Episode 5"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:on-call",
+      "properties": {
+        "label": "on call",
+        "slug": "on-call"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "technology",
+        "slug": "technology"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

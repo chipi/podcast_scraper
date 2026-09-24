@@ -2,17 +2,27 @@
   "edges": [
     {
       "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
       "to": "topic:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
-      "to": "topic:diversify-or",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
-      "to": "topic:welcome-back-to",
       "type": "MENTIONS"
     },
     {
@@ -21,19 +31,9 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "insight:f7788fdbd1a6a930",
-      "to": "topic:diversify-or",
-      "type": "ABOUT"
-    },
-    {
       "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
       "to": "insight:f29f852b16200f08",
       "type": "HAS_INSIGHT"
-    },
-    {
-      "from": "insight:f29f852b16200f08",
-      "to": "topic:welcome-back-to",
-      "type": "ABOUT"
     },
     {
       "from": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
@@ -41,63 +41,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:8728b1a6cf6337c9",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:f7788fdbd1a6a930",
-      "to": "quote:8728b1a6cf6337c9",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:cab4fef8c70ce51a",
+      "from": "quote:b4a3348580d47717",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:f29f852b16200f08",
-      "to": "quote:cab4fef8c70ce51a",
+      "from": "insight:f7788fdbd1a6a930",
+      "to": "quote:b4a3348580d47717",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:37b18715b7236c72",
+      "from": "quote:8467a46b370ce921",
       "to": "person:speaker-03",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:7788c7979bba9b23",
-      "to": "quote:37b18715b7236c72",
+      "from": "insight:f29f852b16200f08",
+      "to": "quote:8467a46b370ce921",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:5ea7b427accdb7cd",
+      "from": "quote:3c56d1adb77cb607",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7788c7979bba9b23",
+      "to": "quote:3c56d1adb77cb607",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:082598cd9f540a86",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:f7788fdbd1a6a930",
-      "to": "quote:5ea7b427accdb7cd",
+      "to": "quote:082598cd9f540a86",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c134f56cfc92185d",
-      "to": "person:speaker-01",
+      "from": "quote:c3e97ccced37924f",
+      "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:f29f852b16200f08",
-      "to": "quote:c134f56cfc92185d",
+      "to": "quote:c3e97ccced37924f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:a8c86960afd73962",
+      "from": "quote:8b32593268db1d75",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7788c7979bba9b23",
-      "to": "quote:a8c86960afd73962",
+      "to": "quote:8b32593268db1d75",
       "type": "SUPPORTED_BY"
     },
     {
@@ -123,31 +123,45 @@
       "id": "episode:d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-07-30T12:00:00",
+        "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "podcast_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 4"
       },
       "type": "Episode"
     },
     {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:science-research",
       "properties": {
         "label": "Science & research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:diversify-or",
-      "properties": {
-        "label": "diversify or"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
       },
       "type": "Topic"
     },
@@ -185,27 +199,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Nora"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:8728b1a6cf6337c9",
-      "properties": {
-        "char_end": 272,
-        "char_start": 6,
-        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Long Horizon Notes. Today is a debate \u2014 one question, two people who genuinely disagree. I'm joined by Daniel Cho, who runs a low-cost index practice, and Scott Bessent, a hedge fund manager who's built his career on concentrated bets. Welcome, both.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p05_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Daniel Cho"
@@ -213,7 +206,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:cab4fef8c70ce51a",
+      "id": "quote:b4a3348580d47717",
       "properties": {
         "char_end": 332,
         "char_start": 285,
@@ -234,7 +227,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:37b18715b7236c72",
+      "id": "quote:8467a46b370ce921",
       "properties": {
         "char_end": 389,
         "char_start": 348,
@@ -248,7 +241,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:5ea7b427accdb7cd",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3c56d1adb77cb607",
       "properties": {
         "char_end": 521,
         "char_start": 396,
@@ -262,7 +262,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:c134f56cfc92185d",
+      "id": "quote:082598cd9f540a86",
       "properties": {
         "char_end": 675,
         "char_start": 521,
@@ -276,7 +276,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:a8c86960afd73962",
+      "id": "quote:c3e97ccced37924f",
       "properties": {
         "char_end": 927,
         "char_start": 688,
@@ -285,6 +285,20 @@
         "text": "For an individual investor, diversification is the closest thing to a free lunch that exists. You give up almost nothing, and you remove the single biggest way people ruin themselves \u2014 one position going to zero at the worst possible time.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8b32593268db1d75",
+      "properties": {
+        "char_end": 1139,
+        "char_start": 927,
+        "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
+        "speaker_id": "person:speaker-02",
+        "text": "And I want to be precise: risk management for individuals is mostly behavioral. The math is easy. Sitting still while a holding gets cut in half is the hard part \u2014 and diversification is what makes it survivable.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p05_e04.txt"
       },
       "type": "Quote"

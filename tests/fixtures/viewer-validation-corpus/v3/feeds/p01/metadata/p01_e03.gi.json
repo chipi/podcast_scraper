@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:75528dd34e88bedc",
+      "to": "topic:drivetrain-mechanics",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "to": "insight:c4d1e8940d7ed9a3",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:308e126122dc6c2b",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:75528dd34e88bedc",
-      "to": "quote:308e126122dc6c2b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:10cc4d3d3a67609b",
+      "from": "quote:c0beffbec8b29635",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:c4d1e8940d7ed9a3",
-      "to": "quote:10cc4d3d3a67609b",
+      "from": "insight:75528dd34e88bedc",
+      "to": "quote:c0beffbec8b29635",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:afece98b267a124c",
+      "from": "quote:6f417d25e1f9919f",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c4d1e8940d7ed9a3",
+      "to": "quote:6f417d25e1f9919f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bff0c993bf8b636a",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:3e91ef621d0c5cbf",
-      "to": "quote:afece98b267a124c",
+      "to": "quote:bff0c993bf8b636a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:224f6e39fc5667a2",
+      "from": "quote:94192018efaecddf",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:75528dd34e88bedc",
-      "to": "quote:224f6e39fc5667a2",
+      "to": "quote:94192018efaecddf",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ea4a04163cf76f01",
-      "to": "person:speaker-02",
+      "from": "quote:e79bcc540ac375dd",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:c4d1e8940d7ed9a3",
-      "to": "quote:ea4a04163cf76f01",
+      "to": "quote:e79bcc540ac375dd",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:db176270413f3c7e",
+      "from": "quote:920110045d4a2197",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:3e91ef621d0c5cbf",
-      "to": "quote:db176270413f3c7e",
+      "to": "quote:920110045d4a2197",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-07-30T12:00:00",
+        "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "podcast_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Maya"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:308e126122dc6c2b",
-      "properties": {
-        "char_end": 184,
-        "char_start": 6,
-        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Singletrack Sessions. Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench. Noah Bryer, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p01_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Noah Bryer"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:10cc4d3d3a67609b",
+      "id": "quote:c0beffbec8b29635",
       "properties": {
         "char_end": 228,
         "char_start": 197,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:afece98b267a124c",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6f417d25e1f9919f",
       "properties": {
         "char_end": 353,
         "char_start": 235,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:224f6e39fc5667a2",
+      "id": "quote:bff0c993bf8b636a",
       "properties": {
         "char_end": 477,
         "char_start": 353,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ea4a04163cf76f01",
-      "properties": {
-        "char_end": 548,
-        "char_start": 490,
-        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p01_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:db176270413f3c7e",
+      "id": "quote:94192018efaecddf",
       "properties": {
         "char_end": 647,
         "char_start": 555,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Sophie Lorent mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e79bcc540ac375dd",
+      "properties": {
+        "char_end": 741,
+        "char_start": 647,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Liam Vandermeer mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p01_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:920110045d4a2197",
+      "properties": {
+        "char_end": 834,
+        "char_start": 741,
+        "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p01_e03.txt"
       },
       "type": "Quote"

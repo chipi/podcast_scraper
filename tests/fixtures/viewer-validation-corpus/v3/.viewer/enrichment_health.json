@@ -8,8 +8,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     },
     "guest_coappearance": {
@@ -20,8 +20,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     },
     "insight_density": {
@@ -32,8 +32,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     },
     "insight_sentiment": {
@@ -44,8 +44,32 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
+      "last_status": "ok"
+    },
+    "org_web": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
+      "last_status": "ok"
+    },
+    "person_web": {
+      "auto_disabled": false,
+      "auto_disabled_at": null,
+      "auto_disabled_reason": null,
+      "circuit_opened_at": null,
+      "circuit_state": "closed",
+      "consecutive_failures": 0,
+      "cooldown_until": null,
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     },
     "temporal_velocity": {
@@ -56,8 +80,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     },
     "topic_consensus": {
@@ -68,8 +92,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     },
     "topic_cooccurrence_corpus": {
@@ -80,8 +104,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     },
     "topic_similarity": {
@@ -92,8 +116,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     },
     "topic_theme_clusters": {
@@ -104,8 +128,8 @@
       "circuit_state": "closed",
       "consecutive_failures": 0,
       "cooldown_until": null,
-      "last_run_at": "2026-07-17T13:58:54Z",
-      "last_run_id": "6ab1e259-e474-4f45-a75f-6bcea7f50426",
+      "last_run_at": "2026-09-24T14:39:05Z",
+      "last_run_id": "1edb4a79-d3e1-41b3-bd09-201412e175d1",
       "last_status": "ok"
     }
   },

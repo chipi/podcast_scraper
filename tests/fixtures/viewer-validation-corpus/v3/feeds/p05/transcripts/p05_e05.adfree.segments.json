@@ -1,0 +1,90 @@
+[
+  {
+    "char_end": 130,
+    "char_start": 6,
+    "end": 6.0,
+    "speaker_label": "Nora",
+    "start": 0.0,
+    "text": "Welcome to Long Horizon Notes. My guest today is Daniel Cho, former bond trader turned index advocate. Daniel, welcome back."
+  },
+  {
+    "char_end": 173,
+    "char_start": 143,
+    "end": 12.0,
+    "speaker_label": "Daniel Cho",
+    "start": 6.0,
+    "text": "Thanks, Nora. Glad to be here."
+  },
+  {
+    "char_end": 321,
+    "char_start": 180,
+    "end": 18.0,
+    "speaker_label": "Nora",
+    "start": 12.0,
+    "text": "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring. Visit betterment.com/podcast."
+  },
+  {
+    "char_end": 426,
+    "char_start": 321,
+    "end": 24.0,
+    "speaker_label": "Nora",
+    "start": 18.0,
+    "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016."
+  },
+  {
+    "char_end": 484,
+    "char_start": 441,
+    "end": 30.0,
+    "speaker_label": "Nadia Sereni",
+    "start": 24.0,
+    "text": "Leverage feels free until the day it isn't."
+  },
+  {
+    "char_end": 602,
+    "char_start": 497,
+    "end": 36.0,
+    "speaker_label": "Daniel Cho",
+    "start": 30.0,
+    "text": "That line held up. Most blow-ups I've seen weren't bad bets \u2014 they were fine bets financed the wrong way."
+  },
+  {
+    "char_end": 668,
+    "char_start": 609,
+    "end": 42.0,
+    "speaker_label": "Nora",
+    "start": 36.0,
+    "text": "So the risk isn't the asset, it's the borrowing against it."
+  },
+  {
+    "char_end": 806,
+    "char_start": 681,
+    "end": 48.0,
+    "speaker_label": "Daniel Cho",
+    "start": 42.0,
+    "text": "Right. An index fund you own outright is patient. The same fund on margin can be forced to sell at the worst possible moment."
+  },
+  {
+    "char_end": 878,
+    "char_start": 813,
+    "end": 54.0,
+    "speaker_label": "Nora",
+    "start": 48.0,
+    "text": "We'll leave the archive there. Daniel, thanks for coming back on."
+  },
+  {
+    "char_end": 909,
+    "char_start": 891,
+    "end": 60.0,
+    "speaker_label": "Daniel Cho",
+    "start": 54.0,
+    "text": "My pleasure, Nora."
+  },
+  {
+    "char_end": 967,
+    "char_start": 916,
+    "end": 66.0,
+    "speaker_label": "Nora",
+    "start": 60.0,
+    "text": "That's Long Horizon Notes for this week. Take care."
+  }
+]

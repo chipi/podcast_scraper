@@ -70,16 +70,25 @@ make ci-ui-validation CORPUS=$PWD/tests/fixtures/viewer-validation-corpus
 
 For the full set (V1–V6, including **V3 search** now that the corpus has
 diarized transcripts that index into real segments), build the LanceDB
-index + topic clusters first:
+index first:
 
 ```bash
 # One-time prereq (downloads ~80MB MiniLM model on first run):
 make preload-ml-models
 
-# Build the in-corpus LanceDB index + topic_clusters.json
+# Build the in-corpus LanceDB index
 make build-validation-index
 
 # Then terminal 1 + terminal 2 as above.
+```
+
+`topic_clusters.json` is **committed**, so V2 and V4 need none of this — a
+clean clone can run them with no ML extras installed. Regenerating it is a
+separate, deliberate verb, because the output is a tracked fixture whose
+cluster ids several tests assert:
+
+```bash
+make build-validation-topic-clusters     # then review the diff before committing
 ```
 
 ## What works against the synthetic corpus
@@ -94,11 +103,17 @@ make build-validation-index
   `make build-validation-index`) — the LanceDB index lets semantic search
   return focusable hits with a "Show on graph" affordance; the FSM
   resolves them like any other handoff.
-- **V4 — Dashboard topic-cluster chip** ✓ (after
-  `make build-validation-index`) — `topic_clusters.json` is built at
-  threshold 0.35, calibrated for this corpus's umbrella-topic structure
-  (typically yields 2 multi-member clusters — e.g. "outdoor activities"
-  with "environment", "technology" with variants).
+- **V4 — Dashboard topic-cluster chip** ✓ (no prereq — `topic_clusters.json`
+  is committed) — built at threshold 0.35. It yields **16 multi-member
+  clusters** ("macroeconomics" with 5 members, "incident response" and
+  "documentary photography" with 3 each, …).
+
+  It used to yield 2, both of them umbrella labels covering the whole corpus,
+  because every episode of a show carried the identical feed-wide topics — the
+  builder computed each episode's own topics and then truncated them away. Since
+  #2147 the corpus reads its topics from `tests/fixtures/ground-truth/v3/`, the
+  same source the app corpus reads, so the clusters describe what episodes are
+  actually about. See #2149 for the app corpus's remaining divergence here.
 - **V5 — Hot-state Library → Library** ✓ (FIXED in #775 via
   `EpisodeDetailPanel.openInGraph` microtask retry).
 
@@ -106,7 +121,12 @@ make build-validation-index
 
 The `lance_index/` directory contents are binary / hash-keyed by embedding
 model id, so they would churn on every model-version bump and bloat
-the repo. Building the index at CI step 0 (or via
+the repo. `topic_clusters.json` is not in that category — it is small,
+diffable JSON — so it is committed, and `.gitignore` names the derived files
+one by one rather than ignoring the whole `search/` directory. The two
+validation corpora now follow the same rule.
+
+Building the index at CI step 0 (or via
 `make build-validation-index` locally) is ~30s on a warm runner and
 exercises the same indexer code that runs against operator corpora —
 making the Tier-3 walk a real end-to-end probe of the indexing path,

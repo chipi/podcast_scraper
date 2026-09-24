@@ -2,6 +2,26 @@
   "edges": [
     {
       "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:newsroom-operations",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
       "to": "topic:environment",
       "type": "MENTIONS"
     },
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:0700aa1b4ee9e9d6",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:43448d7f5f7fe6eb",
-      "to": "quote:0700aa1b4ee9e9d6",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:0e825b91fd93944b",
+      "from": "quote:f0a191d76d140c07",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e55eab16ac96317b",
-      "to": "quote:0e825b91fd93944b",
+      "from": "insight:43448d7f5f7fe6eb",
+      "to": "quote:f0a191d76d140c07",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:6377c520bfd81a61",
+      "from": "quote:e163c71c1a70969e",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e55eab16ac96317b",
+      "to": "quote:e163c71c1a70969e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:743c6436bb89ef63",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:db9acd5ee7759839",
-      "to": "quote:6377c520bfd81a61",
+      "to": "quote:743c6436bb89ef63",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ad35e04581fb838f",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:43448d7f5f7fe6eb",
-      "to": "quote:ad35e04581fb838f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f103a987b4483dcd",
+      "from": "quote:6e2159612a72541b",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e55eab16ac96317b",
-      "to": "quote:f103a987b4483dcd",
+      "from": "insight:43448d7f5f7fe6eb",
+      "to": "quote:6e2159612a72541b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:8a3a65f24d8b6a17",
+      "from": "quote:d9ee007eb2b376f0",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:e55eab16ac96317b",
+      "to": "quote:d9ee007eb2b376f0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:51787e75cd8126b1",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:db9acd5ee7759839",
-      "to": "quote:8a3a65f24d8b6a17",
+      "to": "quote:51787e75cd8126b1",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,40 @@
       "id": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-        "publish_date": "2026-07-29T12:00:00",
-        "title": "The Long View \u2014 Episode 3"
+        "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
+        "podcast_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
+        "publish_date": "2026-09-19T12:00:00",
+        "title": "Public Hour \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:newsroom-operations",
+      "properties": {
+        "label": "newsroom operations"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:environment",
@@ -175,27 +223,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "A. correspondent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:0700aa1b4ee9e9d6",
-      "properties": {
-        "char_end": 179,
-        "char_start": 18,
-        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Public Hour. Today we're talking about journalism, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p08_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Renee Montagne-Park"
@@ -203,7 +230,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:0e825b91fd93944b",
+      "id": "quote:f0a191d76d140c07",
       "properties": {
         "char_end": 244,
         "char_start": 201,
@@ -217,7 +244,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:6377c520bfd81a61",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e163c71c1a70969e",
       "properties": {
         "char_end": 409,
         "char_start": 263,
@@ -231,7 +265,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ad35e04581fb838f",
+      "id": "quote:743c6436bb89ef63",
       "properties": {
         "char_end": 511,
         "char_start": 409,
@@ -245,7 +279,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:f103a987b4483dcd",
+      "id": "quote:6e2159612a72541b",
       "properties": {
         "char_end": 713,
         "char_start": 533,
@@ -259,7 +293,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:8a3a65f24d8b6a17",
+      "id": "quote:d9ee007eb2b376f0",
       "properties": {
         "char_end": 803,
         "char_start": 732,
@@ -268,6 +302,20 @@
         "text": "Walk me through a concrete example. How does BBC fit into this picture?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:51787e75cd8126b1",
+      "properties": {
+        "char_end": 985,
+        "char_start": 825,
+        "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Trust is the only asset a public broadcaster actually owns. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p08_e03.txt"
       },
       "type": "Quote"

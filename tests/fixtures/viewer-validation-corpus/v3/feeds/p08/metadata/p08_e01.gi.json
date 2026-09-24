@@ -2,6 +2,26 @@
   "edges": [
     {
       "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:broadcast-format",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
       "to": "topic:environment",
       "type": "MENTIONS"
     },
@@ -21,6 +41,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:323c644d76b7c614",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
       "to": "insight:e55eab16ac96317b",
       "type": "HAS_INSIGHT"
@@ -31,63 +56,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:2c04af9010267734",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:323c644d76b7c614",
-      "to": "quote:2c04af9010267734",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d2da2497eeb3919b",
+      "from": "quote:7455d23b21876103",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e55eab16ac96317b",
-      "to": "quote:d2da2497eeb3919b",
+      "from": "insight:323c644d76b7c614",
+      "to": "quote:7455d23b21876103",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:62273cf1ac2fe494",
+      "from": "quote:366bf0cd6eea2ea3",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e55eab16ac96317b",
+      "to": "quote:366bf0cd6eea2ea3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5ff1ae8109e4860a",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:db9acd5ee7759839",
-      "to": "quote:62273cf1ac2fe494",
+      "to": "quote:5ff1ae8109e4860a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:aaf712ec09ce77dc",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:323c644d76b7c614",
-      "to": "quote:aaf712ec09ce77dc",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:1e38115bb042863b",
+      "from": "quote:8b430fb3131e50e8",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e55eab16ac96317b",
-      "to": "quote:1e38115bb042863b",
+      "from": "insight:323c644d76b7c614",
+      "to": "quote:8b430fb3131e50e8",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:cb569c783031f8e3",
+      "from": "quote:d30c5652a08b5158",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:e55eab16ac96317b",
+      "to": "quote:d30c5652a08b5158",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b098c01b84e7606b",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:db9acd5ee7759839",
-      "to": "quote:cb569c783031f8e3",
+      "to": "quote:b098c01b84e7606b",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +138,40 @@
       "id": "episode:15a1cbea-1449-50ac-bb1c-11784d7421c3",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-        "publish_date": "2026-08-02T12:00:00",
-        "title": "The Long View \u2014 Episode 1"
+        "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
+        "podcast_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
+        "publish_date": "2026-09-23T12:00:00",
+        "title": "Public Hour \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:broadcast-format",
+      "properties": {
+        "label": "broadcast format"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:environment",
@@ -175,27 +228,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "A. correspondent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:2c04af9010267734",
-      "properties": {
-        "char_end": 181,
-        "char_start": 18,
-        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montagne-Park, journalist. Renee Montagne-Park, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p08_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Renee Montagne-Park"
@@ -203,7 +235,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:d2da2497eeb3919b",
+      "id": "quote:7455d23b21876103",
       "properties": {
         "char_end": 319,
         "char_start": 203,
@@ -217,7 +249,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:62273cf1ac2fe494",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:366bf0cd6eea2ea3",
       "properties": {
         "char_end": 499,
         "char_start": 338,
@@ -231,7 +270,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:aaf712ec09ce77dc",
+      "id": "quote:5ff1ae8109e4860a",
       "properties": {
         "char_end": 592,
         "char_start": 499,
@@ -245,7 +284,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:1e38115bb042863b",
+      "id": "quote:8b430fb3131e50e8",
       "properties": {
         "char_end": 789,
         "char_start": 614,
@@ -259,7 +298,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:cb569c783031f8e3",
+      "id": "quote:d30c5652a08b5158",
       "properties": {
         "char_end": 873,
         "char_start": 808,
@@ -268,6 +307,20 @@
         "text": "Take me through the decision. How does NPR fit into this picture?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b098c01b84e7606b",
+      "properties": {
+        "char_end": 1049,
+        "char_start": 895,
+        "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Reliability of pronunciation matters more than people think. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p08_e01.txt"
       },
       "type": "Quote"

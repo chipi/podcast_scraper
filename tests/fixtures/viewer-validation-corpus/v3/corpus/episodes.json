@@ -5,15 +5,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "outdoor activities",
+          "label": "trail building",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:outdoor-activities"
+          "topic_id": "topic:trail-building"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "soil erosion",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:soil-erosion"
         }
       ],
       "duration_seconds": 1800,
@@ -22,7 +22,7 @@
       "episode_title": "Singletrack Sessions \u2014 Episode 1",
       "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
       "feed_display_title": "Singletrack Sessions",
-      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p01/metadata/p01_e01.gi.json",
@@ -30,8 +30,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e01.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e01.metadata.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "summary_bullet_graph_topic_ids": [
+        "topic:trail-building",
+        "topic:soil-erosion",
+        "topic:land-stewardship",
         "topic:outdoor-activities",
         "topic:gear",
         "topic:science-research"
@@ -44,6 +47,9 @@
       "summary_preview": "Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance.",
       "summary_title": "Singletrack Sessions \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "trail building",
+        "soil erosion",
+        "land stewardship",
         "outdoor activities",
         "gear",
         "Science & research"
@@ -53,15 +59,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "outdoor activities",
+          "label": "enduro racing",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:outdoor-activities"
+          "topic_id": "topic:enduro-racing"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "soil erosion",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:soil-erosion"
         }
       ],
       "duration_seconds": 1800,
@@ -70,7 +76,7 @@
       "episode_title": "Singletrack Sessions \u2014 Episode 2",
       "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
       "feed_display_title": "Singletrack Sessions",
-      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p01/metadata/p01_e02.gi.json",
@@ -78,8 +84,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e02.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e02.metadata.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "summary_bullet_graph_topic_ids": [
+        "topic:enduro-racing",
+        "topic:soil-erosion",
+        "topic:risk-management",
         "topic:outdoor-activities",
         "topic:gear",
         "topic:technology"
@@ -92,6 +101,9 @@
       "summary_preview": "Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach.",
       "summary_title": "Singletrack Sessions \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "enduro racing",
+        "soil erosion",
+        "risk management",
         "outdoor activities",
         "gear",
         "Technology"
@@ -101,15 +113,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "outdoor activities",
+          "label": "drivetrain mechanics",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:outdoor-activities"
+          "topic_id": "topic:drivetrain-mechanics"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "maintenance",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:maintenance"
         }
       ],
       "duration_seconds": 1800,
@@ -118,7 +130,7 @@
       "episode_title": "Singletrack Sessions \u2014 Episode 3",
       "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
       "feed_display_title": "Singletrack Sessions",
-      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p01/metadata/p01_e03.gi.json",
@@ -126,8 +138,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e03.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e03.metadata.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "summary_bullet_graph_topic_ids": [
+        "topic:drivetrain-mechanics",
+        "topic:maintenance",
+        "topic:risk-management",
         "topic:outdoor-activities",
         "topic:gear",
         "topic:business-markets"
@@ -140,6 +155,9 @@
       "summary_preview": "Today we're talking about drivetrain mechanics, and I'm joined by Noah Bryer, mechanic at Spoke & Wrench.",
       "summary_title": "Singletrack Sessions \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "drivetrain mechanics",
+        "maintenance",
+        "risk management",
         "outdoor activities",
         "gear",
         "Business & markets"
@@ -149,15 +167,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "outdoor activities",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:outdoor-activities"
+          "topic_id": "topic:risk-management"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "systems thinking",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:systems-thinking"
         }
       ],
       "duration_seconds": 1800,
@@ -166,7 +184,7 @@
       "episode_title": "Singletrack Sessions \u2014 Episode 4",
       "feed_description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
       "feed_display_title": "Singletrack Sessions",
-      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p01/metadata/p01_e04.gi.json",
@@ -174,8 +192,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p01/metadata/p01_e04.kg.json",
       "metadata_relative_path": "feeds/p01/metadata/p01_e04.metadata.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "summary_bullet_graph_topic_ids": [
+        "topic:risk-management",
+        "topic:systems-thinking",
+        "topic:enduro-racing",
         "topic:outdoor-activities",
         "topic:gear",
         "topic:science-research"
@@ -188,6 +209,9 @@
       "summary_preview": "# Singletrack Sessions \u2014 Episode\n## The Risk You Didn't Name\nHost: Maya\nGuest: Sophie Laurent\n#fixture-v3: voice=en-US host_voice=en-US\nMaya\u2026",
       "summary_title": "Singletrack Sessions \u2014 Episode 4 \u2014 synthetic",
       "topics": [
+        "risk management",
+        "systems thinking",
+        "enduro racing",
         "outdoor activities",
         "gear",
         "Science & research"
@@ -197,15 +221,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "on call rotation",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:on-call-rotation"
         },
         {
           "in_topic_cluster": false,
-          "label": "Science & research",
+          "label": "reliability",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:science-research"
+          "topic_id": "topic:reliability"
         }
       ],
       "duration_seconds": 1800,
@@ -214,7 +238,7 @@
       "episode_title": "Practical Systems \u2014 Episode 1",
       "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
       "feed_display_title": "Practical Systems",
-      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p02/metadata/p02_e01.gi.json",
@@ -222,11 +246,14 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e01.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e01.metadata.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "summary_bullet_graph_topic_ids": [
+        "topic:on-call-rotation",
+        "topic:reliability",
+        "topic:incident-response",
+        "topic:systems-thinking",
         "topic:technology",
-        "topic:science-research",
-        "topic:welcome-back-to"
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform.",
@@ -236,24 +263,27 @@
       "summary_preview": "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform.",
       "summary_title": "Practical Systems \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "on call rotation",
+        "reliability",
+        "incident response",
+        "systems thinking",
         "technology",
-        "Science & research",
-        "welcome back to"
+        "Science & research"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "engineering communication",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:engineering-communication"
         },
         {
           "in_topic_cluster": false,
-          "label": "Technology",
+          "label": "reliability",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:reliability"
         }
       ],
       "duration_seconds": 1800,
@@ -262,7 +292,7 @@
       "episode_title": "Practical Systems \u2014 Episode 2",
       "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
       "feed_display_title": "Practical Systems",
-      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p02/metadata/p02_e02.gi.json",
@@ -270,11 +300,14 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e02.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e02.metadata.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "summary_bullet_graph_topic_ids": [
+        "topic:engineering-communication",
+        "topic:reliability",
+        "topic:incident-postmortems",
+        "topic:risk-management",
         "topic:technology",
-        "topic:technology",
-        "topic:welcome-back-to"
+        "topic:technology"
       ],
       "summary_bullets_preview": [
         "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
@@ -284,24 +317,27 @@
       "summary_preview": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
       "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "engineering communication",
+        "reliability",
+        "incident postmortems",
+        "risk management",
         "technology",
-        "Technology",
-        "welcome back to"
+        "Technology"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "security design",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:security-design"
         },
         {
           "in_topic_cluster": false,
-          "label": "Business & markets",
+          "label": "reliability",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:business-markets"
+          "topic_id": "topic:reliability"
         }
       ],
       "duration_seconds": 1800,
@@ -310,7 +346,7 @@
       "episode_title": "Practical Systems \u2014 Episode 3",
       "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
       "feed_display_title": "Practical Systems",
-      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p02/metadata/p02_e03.gi.json",
@@ -318,11 +354,14 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e03.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e03.metadata.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "summary_bullet_graph_topic_ids": [
+        "topic:security-design",
+        "topic:reliability",
+        "topic:frame",
+        "topic:risk-management",
         "topic:technology",
-        "topic:business-markets",
-        "topic:welcome-back-to"
+        "topic:business-markets"
       ],
       "summary_bullets_preview": [
         "Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform.",
@@ -332,24 +371,27 @@
       "summary_preview": "Today we're talking about security design, and I'm joined by Priya Nair, principal SRE at a payments platform.",
       "summary_title": "Practical Systems \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "security design",
+        "reliability",
+        "frame",
+        "risk management",
         "technology",
-        "Business & markets",
-        "welcome back to"
+        "Business & markets"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "systems thinking",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:systems-thinking"
         },
         {
           "in_topic_cluster": false,
-          "label": "Science & research",
+          "label": "incident response",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:science-research"
+          "topic_id": "topic:incident-response"
         }
       ],
       "duration_seconds": 1800,
@@ -358,7 +400,7 @@
       "episode_title": "Practical Systems \u2014 Episode 4",
       "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
       "feed_display_title": "Practical Systems",
-      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p02/metadata/p02_e04.gi.json",
@@ -366,11 +408,14 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p02/metadata/p02_e04.kg.json",
       "metadata_relative_path": "feeds/p02/metadata/p02_e04.metadata.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "summary_bullet_graph_topic_ids": [
+        "topic:systems-thinking",
+        "topic:incident-response",
+        "topic:reliability",
+        "topic:risk-management",
         "topic:technology",
-        "topic:science-research",
-        "topic:welcome-back-to"
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.",
@@ -380,24 +425,77 @@
       "summary_preview": "# Practical Systems \u2014 Episode\n## Reliability Is a Systems Property\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: voice=en-IN host_voice=en-US\nE\u2026",
       "summary_title": "Practical Systems \u2014 Episode 4 \u2014 synthetic",
       "topics": [
+        "systems thinking",
+        "incident response",
+        "reliability",
+        "risk management",
         "technology",
-        "Science & research",
-        "welcome back to"
+        "Science & research"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "outdoor activities",
+          "label": "reliability",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:outdoor-activities"
+          "topic_id": "topic:reliability"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "on call",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:on-call"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "77ae2478-6495-5707-a35f-04ab67e5386a",
+      "episode_image_url": null,
+      "episode_title": "Practical Systems \u2014 Episode 5",
+      "feed_description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+      "feed_display_title": "Practical Systems",
+      "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p02/metadata/p02_e05.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p02/metadata/p02_e05.kg.json",
+      "metadata_relative_path": "feeds/p02/metadata/p02_e05.metadata.json",
+      "publish_date": "2026-09-21",
+      "summary_bullet_graph_topic_ids": [
+        "topic:reliability",
+        "topic:on-call",
+        "topic:technology",
+        "topic:technology"
+      ],
+      "summary_bullets_preview": [
+        "# Practical Systems \u2014 Episode\n## Reliability, Live\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-IN host_voice=en-US\nEthan: Welcome back to Practical Systems.",
+        "I'm joined again by Priya Nair, who spends her days keeping large systems upright.",
+        "Priya Nair: Good to be back, Ethan."
+      ],
+      "summary_preview": "# Practical Systems \u2014 Episode\n## Reliability, Live\nHost: Ethan\nGuest: Priya Nair\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-IN h\u2026",
+      "summary_title": "Practical Systems \u2014 Episode 5 \u2014 synthetic",
+      "topics": [
+        "reliability",
+        "on call",
+        "technology",
+        "Technology"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "wreck diving",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:wreck-diving"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "dive planning",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:dive-planning"
         }
       ],
       "duration_seconds": 1800,
@@ -406,7 +504,7 @@
       "episode_title": "Below the Surface \u2014 Episode 1",
       "feed_description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
       "feed_display_title": "Below the Surface",
-      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p03/metadata/p03_e01.gi.json",
@@ -414,8 +512,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p03/metadata/p03_e01.kg.json",
       "metadata_relative_path": "feeds/p03/metadata/p03_e01.metadata.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "summary_bullet_graph_topic_ids": [
+        "topic:wreck-diving",
+        "topic:dive-planning",
+        "topic:soil-erosion",
         "topic:outdoor-activities",
         "topic:gear",
         "topic:science-research"
@@ -428,6 +529,9 @@
       "summary_preview": "Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist.",
       "summary_title": "Below the Surface \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "wreck diving",
+        "dive planning",
+        "soil erosion",
         "outdoor activities",
         "gear",
         "Science & research"
@@ -437,15 +541,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "outdoor activities",
+          "label": "marine biology",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:outdoor-activities"
+          "topic_id": "topic:marine-biology"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "reef conservation",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:reef-conservation"
         }
       ],
       "duration_seconds": 1800,
@@ -454,7 +558,7 @@
       "episode_title": "Below the Surface \u2014 Episode 2",
       "feed_description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
       "feed_display_title": "Below the Surface",
-      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p03/metadata/p03_e02.gi.json",
@@ -462,8 +566,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p03/metadata/p03_e02.kg.json",
       "metadata_relative_path": "feeds/p03/metadata/p03_e02.metadata.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "summary_bullet_graph_topic_ids": [
+        "topic:marine-biology",
+        "topic:reef-conservation",
+        "topic:soil-erosion",
         "topic:outdoor-activities",
         "topic:gear",
         "topic:technology"
@@ -476,6 +583,9 @@
       "summary_preview": "Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems.",
       "summary_title": "Below the Surface \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "marine biology",
+        "reef conservation",
+        "soil erosion",
         "outdoor activities",
         "gear",
         "Technology"
@@ -485,15 +595,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "outdoor activities",
+          "label": "marine biology",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:outdoor-activities"
+          "topic_id": "topic:marine-biology"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "reef conservation",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:reef-conservation"
         }
       ],
       "duration_seconds": 1800,
@@ -502,7 +612,7 @@
       "episode_title": "Below the Surface \u2014 Episode 3",
       "feed_description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
       "feed_display_title": "Below the Surface",
-      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p03/metadata/p03_e03.gi.json",
@@ -510,8 +620,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p03/metadata/p03_e03.kg.json",
       "metadata_relative_path": "feeds/p03/metadata/p03_e03.metadata.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "summary_bullet_graph_topic_ids": [
+        "topic:marine-biology",
+        "topic:reef-conservation",
+        "topic:risk-management",
         "topic:outdoor-activities",
         "topic:gear",
         "topic:business-markets"
@@ -524,6 +637,9 @@
       "summary_preview": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.",
       "summary_title": "Below the Surface \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "marine biology",
+        "reef conservation",
+        "risk management",
         "outdoor activities",
         "gear",
         "Business & markets"
@@ -533,15 +649,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "outdoor activities",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:outdoor-activities"
+          "topic_id": "topic:risk-management"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "systems thinking",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:systems-thinking"
         }
       ],
       "duration_seconds": 1800,
@@ -550,7 +666,7 @@
       "episode_title": "Below the Surface \u2014 Episode 4",
       "feed_description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
       "feed_display_title": "Below the Surface",
-      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p03/metadata/p03_e04.gi.json",
@@ -558,8 +674,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p03/metadata/p03_e04.kg.json",
       "metadata_relative_path": "feeds/p03/metadata/p03_e04.metadata.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "summary_bullet_graph_topic_ids": [
+        "topic:risk-management",
+        "topic:systems-thinking",
+        "topic:dive-planning",
         "topic:outdoor-activities",
         "topic:gear",
         "topic:science-research"
@@ -572,6 +691,9 @@
       "summary_preview": "# Below the Surface \u2014 Episode\n## Plan the Dive, Manage the Risk\nHost: Rina\nGuest: Marco Silva\n#fixture-v3: voice=pt-BR host_voice=en-US\nRina\u2026",
       "summary_title": "Below the Surface \u2014 Episode 4 \u2014 synthetic",
       "topics": [
+        "risk management",
+        "systems thinking",
+        "dive planning",
         "outdoor activities",
         "gear",
         "Science & research"
@@ -581,15 +703,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "underwater photography",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:underwater-photography"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "frame",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:frame"
         }
       ],
       "duration_seconds": 1800,
@@ -598,7 +720,7 @@
       "episode_title": "Frame & Light \u2014 Episode 1",
       "feed_description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
       "feed_display_title": "Frame & Light",
-      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p04/metadata/p04_e01.gi.json",
@@ -606,8 +728,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p04/metadata/p04_e01.kg.json",
       "metadata_relative_path": "feeds/p04/metadata/p04_e01.metadata.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "summary_bullet_graph_topic_ids": [
+        "topic:underwater-photography",
+        "topic:frame",
+        "topic:strobe-lighting",
         "topic:technology",
         "topic:gear",
         "topic:science-research"
@@ -620,6 +745,9 @@
       "summary_preview": "Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer.",
       "summary_title": "Frame & Light \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "underwater photography",
+        "frame",
+        "strobe lighting",
         "technology",
         "gear",
         "Science & research"
@@ -629,15 +757,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "documentary photography",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:documentary-photography"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "frame",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:frame"
         }
       ],
       "duration_seconds": 1800,
@@ -646,7 +774,7 @@
       "episode_title": "Frame & Light \u2014 Episode 2",
       "feed_description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
       "feed_display_title": "Frame & Light",
-      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p04/metadata/p04_e02.gi.json",
@@ -654,8 +782,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p04/metadata/p04_e02.kg.json",
       "metadata_relative_path": "feeds/p04/metadata/p04_e02.metadata.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "summary_bullet_graph_topic_ids": [
+        "topic:documentary-photography",
+        "topic:frame",
+        "topic:editing-workflow",
         "topic:technology",
         "topic:gear",
         "topic:technology"
@@ -668,6 +799,9 @@
       "summary_preview": "Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer.",
       "summary_title": "Frame & Light \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "documentary photography",
+        "frame",
+        "editing workflow",
         "technology",
         "gear",
         "Technology"
@@ -677,15 +811,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "lighting design",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:lighting-design"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "strobe lighting",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:strobe-lighting"
         }
       ],
       "duration_seconds": 1800,
@@ -694,7 +828,7 @@
       "episode_title": "Frame & Light \u2014 Episode 3",
       "feed_description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
       "feed_display_title": "Frame & Light",
-      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p04/metadata/p04_e03.gi.json",
@@ -702,8 +836,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p04/metadata/p04_e03.kg.json",
       "metadata_relative_path": "feeds/p04/metadata/p04_e03.metadata.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "summary_bullet_graph_topic_ids": [
+        "topic:lighting-design",
+        "topic:strobe-lighting",
+        "topic:frame",
         "topic:technology",
         "topic:gear",
         "topic:business-markets"
@@ -716,6 +853,9 @@
       "summary_preview": "Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director.",
       "summary_title": "Frame & Light \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "lighting design",
+        "strobe lighting",
+        "frame",
         "technology",
         "gear",
         "Business & markets"
@@ -725,15 +865,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "roundtable photography",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:roundtable-photography"
         },
         {
           "in_topic_cluster": false,
-          "label": "gear",
+          "label": "frame",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:gear"
+          "topic_id": "topic:frame"
         }
       ],
       "duration_seconds": 1800,
@@ -742,7 +882,7 @@
       "episode_title": "Frame & Light \u2014 Episode 4",
       "feed_description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
       "feed_display_title": "Frame & Light",
-      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p04/metadata/p04_e04.gi.json",
@@ -750,8 +890,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p04/metadata/p04_e04.kg.json",
       "metadata_relative_path": "feeds/p04/metadata/p04_e04.metadata.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "summary_bullet_graph_topic_ids": [
+        "topic:roundtable-photography",
+        "topic:frame",
+        "topic:strobe-lighting",
         "topic:technology",
         "topic:gear",
         "topic:science-research"
@@ -764,6 +907,9 @@
       "summary_preview": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.",
       "summary_title": "Frame & Light \u2014 Episode 4 \u2014 synthetic",
       "topics": [
+        "roundtable photography",
+        "frame",
+        "strobe lighting",
         "technology",
         "gear",
         "Science & research"
@@ -773,15 +919,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "Science & research",
+          "label": "index investing",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:science-research"
+          "topic_id": "topic:index-investing"
         },
         {
           "in_topic_cluster": false,
-          "label": "without the",
+          "label": "reliability",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:without-the"
+          "topic_id": "topic:reliability"
         }
       ],
       "duration_seconds": 1800,
@@ -790,7 +936,7 @@
       "episode_title": "Long Horizon Notes \u2014 Episode 1",
       "feed_description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
       "feed_display_title": "Long Horizon Notes",
-      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p05/metadata/p05_e01.gi.json",
@@ -798,11 +944,13 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p05/metadata/p05_e01.kg.json",
       "metadata_relative_path": "feeds/p05/metadata/p05_e01.metadata.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "summary_bullet_graph_topic_ids": [
-        "topic:science-research",
-        "topic:without-the",
-        "topic:welcome-back-to"
+        "topic:index-investing",
+        "topic:reliability",
+        "topic:risk-management",
+        "topic:frame",
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate.",
@@ -812,24 +960,26 @@
       "summary_preview": "Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate.",
       "summary_title": "Long Horizon Notes \u2014 Episode 1 \u2014 synthetic",
       "topics": [
-        "Science & research",
-        "without the",
-        "welcome back to"
+        "index investing",
+        "reliability",
+        "risk management",
+        "frame",
+        "Science & research"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "Technology",
+          "label": "monetary policy",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:monetary-policy"
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:risk-management"
         }
       ],
       "duration_seconds": 1800,
@@ -838,7 +988,7 @@
       "episode_title": "Long Horizon Notes \u2014 Episode 2",
       "feed_description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
       "feed_display_title": "Long Horizon Notes",
-      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p05/metadata/p05_e02.gi.json",
@@ -846,11 +996,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p05/metadata/p05_e02.kg.json",
       "metadata_relative_path": "feeds/p05/metadata/p05_e02.metadata.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "summary_bullet_graph_topic_ids": [
-        "topic:technology",
-        "topic:welcome-back-to",
-        "topic:fed-vice-chair"
+        "topic:monetary-policy",
+        "topic:risk-management",
+        "topic:reliability",
+        "topic:technology"
       ],
       "summary_bullets_preview": [
         "Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair.",
@@ -860,24 +1011,25 @@
       "summary_preview": "Today we're talking about monetary policy, and I'm joined by Rich Clarida, former Fed vice chair.",
       "summary_title": "Long Horizon Notes \u2014 Episode 2 \u2014 synthetic",
       "topics": [
-        "Technology",
-        "welcome back to",
-        "fed vice chair"
+        "monetary policy",
+        "risk management",
+        "reliability",
+        "Technology"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "Business & markets",
+          "label": "macro policy",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:business-markets"
+          "topic_id": "topic:macro-policy"
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:risk-management"
         }
       ],
       "duration_seconds": 1800,
@@ -886,7 +1038,7 @@
       "episode_title": "Long Horizon Notes \u2014 Episode 3",
       "feed_description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
       "feed_display_title": "Long Horizon Notes",
-      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p05/metadata/p05_e03.gi.json",
@@ -894,11 +1046,13 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p05/metadata/p05_e03.kg.json",
       "metadata_relative_path": "feeds/p05/metadata/p05_e03.metadata.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "summary_bullet_graph_topic_ids": [
-        "topic:business-markets",
-        "topic:welcome-back-to",
-        "topic:great-to-be-back"
+        "topic:macro-policy",
+        "topic:risk-management",
+        "topic:reliability",
+        "topic:systems-thinking",
+        "topic:business-markets"
       ],
       "summary_bullets_preview": [
         "Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser.",
@@ -908,24 +1062,26 @@
       "summary_preview": "Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser.",
       "summary_title": "Long Horizon Notes \u2014 Episode 3 \u2014 synthetic",
       "topics": [
-        "Business & markets",
-        "welcome back to",
-        "great to be back"
+        "macro policy",
+        "risk management",
+        "reliability",
+        "systems thinking",
+        "Business & markets"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "Science & research",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:science-research"
+          "topic_id": "topic:risk-management"
         },
         {
           "in_topic_cluster": false,
-          "label": "diversify or",
+          "label": "index investing",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:diversify-or"
+          "topic_id": "topic:index-investing"
         }
       ],
       "duration_seconds": 1800,
@@ -934,7 +1090,7 @@
       "episode_title": "Long Horizon Notes \u2014 Episode 4",
       "feed_description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
       "feed_display_title": "Long Horizon Notes",
-      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p05/metadata/p05_e04.gi.json",
@@ -942,11 +1098,13 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p05/metadata/p05_e04.kg.json",
       "metadata_relative_path": "feeds/p05/metadata/p05_e04.metadata.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "summary_bullet_graph_topic_ids": [
-        "topic:science-research",
-        "topic:diversify-or",
-        "topic:welcome-back-to"
+        "topic:risk-management",
+        "topic:index-investing",
+        "topic:systems-thinking",
+        "topic:reliability",
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?",
@@ -956,33 +1114,83 @@
       "summary_preview": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?",
       "summary_title": "Long Horizon Notes \u2014 Episode 4 \u2014 synthetic",
       "topics": [
-        "Science & research",
-        "diversify or",
-        "welcome back to"
+        "risk management",
+        "index investing",
+        "systems thinking",
+        "reliability",
+        "Science & research"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "Science & research",
+          "label": "index investing",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:science-research"
+          "topic_id": "topic:index-investing"
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:risk-management"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "episode_image_url": null,
+      "episode_title": "Long Horizon Notes \u2014 Episode 5",
+      "feed_description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+      "feed_display_title": "Long Horizon Notes",
+      "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p05/metadata/p05_e05.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p05/metadata/p05_e05.kg.json",
+      "metadata_relative_path": "feeds/p05/metadata/p05_e05.metadata.json",
+      "publish_date": "2026-09-24",
+      "summary_bullet_graph_topic_ids": [
+        "topic:index-investing",
+        "topic:risk-management",
+        "topic:technology"
+      ],
+      "summary_bullets_preview": [
+        "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome to Long Horizon Notes.",
+        "My guest today is Daniel Cho, former bond trader turned index advocate.",
+        "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring."
+      ],
+      "summary_preview": "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US ho\u2026",
+      "summary_title": "Long Horizon Notes \u2014 Episode 5 \u2014 synthetic",
+      "topics": [
+        "index investing",
+        "risk management",
+        "Technology"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "cultural drift",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:cultural-drift"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "dialogue",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:dialogue"
         }
       ],
       "duration_seconds": 1800,
       "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "episode_image_url": null,
-      "episode_title": "Edge Cases Podcast \u2014 Episode 1",
-      "feed_description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
-      "feed_display_title": "Edge Cases Podcast",
-      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "episode_title": "The Drift \u2014 Episode 1",
+      "feed_description": "Dialogue-heavy, meandering long-form interviews.",
+      "feed_display_title": "The Drift",
+      "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p06/metadata/p06_e01.gi.json",
@@ -990,11 +1198,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p06/metadata/p06_e01.kg.json",
       "metadata_relative_path": "feeds/p06/metadata/p06_e01.metadata.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "summary_bullet_graph_topic_ids": [
-        "topic:science-research",
-        "topic:welcome-back-to",
-        "topic:excited-for-this-one"
+        "topic:cultural-drift",
+        "topic:dialogue",
+        "topic:long-form",
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
@@ -1002,35 +1211,36 @@
         "Excited for this one \u2014 dialogue and conversational drift is something I've been thinking about a lot."
       ],
       "summary_preview": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
-      "summary_title": "Edge Cases Podcast \u2014 Episode 1 \u2014 synthetic",
+      "summary_title": "The Drift \u2014 Episode 1 \u2014 synthetic",
       "topics": [
-        "Science & research",
-        "welcome back to",
-        "excited for this one"
+        "cultural drift",
+        "dialogue",
+        "long form",
+        "Science & research"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "Technology",
+          "label": "long form",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:long-form"
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "dialogue",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:dialogue"
         }
       ],
       "duration_seconds": 1800,
       "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
       "episode_image_url": null,
-      "episode_title": "Edge Cases Podcast \u2014 Episode 2",
-      "feed_description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
-      "feed_display_title": "Edge Cases Podcast",
-      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "episode_title": "The Drift \u2014 Episode 2",
+      "feed_description": "Dialogue-heavy, meandering long-form interviews.",
+      "feed_display_title": "The Drift",
+      "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p06/metadata/p06_e02.gi.json",
@@ -1038,11 +1248,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p06/metadata/p06_e02.kg.json",
       "metadata_relative_path": "feeds/p06/metadata/p06_e02.metadata.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "summary_bullet_graph_topic_ids": [
-        "topic:technology",
-        "topic:welcome-back-to",
-        "topic:great-to-be-back"
+        "topic:long-form",
+        "topic:dialogue",
+        "topic:cultural-drift",
+        "topic:technology"
       ],
       "summary_bullets_preview": [
         "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.",
@@ -1050,35 +1261,36 @@
         "This episode is brought to you by Squarespace."
       ],
       "summary_preview": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.",
-      "summary_title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic",
+      "summary_title": "The Drift \u2014 Episode 2 \u2014 synthetic",
       "topics": [
-        "Technology",
-        "welcome back to",
-        "great to be back"
+        "long form",
+        "dialogue",
+        "cultural drift",
+        "Technology"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "Business & markets",
+          "label": "dialogue",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:business-markets"
+          "topic_id": "topic:dialogue"
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "cultural drift",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:cultural-drift"
         }
       ],
       "duration_seconds": 1800,
       "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
       "episode_image_url": null,
-      "episode_title": "Edge Cases Podcast \u2014 Episode 3",
-      "feed_description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
-      "feed_display_title": "Edge Cases Podcast",
-      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "episode_title": "The Drift \u2014 Episode 3",
+      "feed_description": "Dialogue-heavy, meandering long-form interviews.",
+      "feed_display_title": "The Drift",
+      "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p06/metadata/p06_e03.gi.json",
@@ -1086,11 +1298,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p06/metadata/p06_e03.kg.json",
       "metadata_relative_path": "feeds/p06/metadata/p06_e03.metadata.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "summary_bullet_graph_topic_ids": [
-        "topic:business-markets",
-        "topic:welcome-back-to",
-        "topic:great-to-be-back"
+        "topic:dialogue",
+        "topic:cultural-drift",
+        "topic:long-form",
+        "topic:business-markets"
       ],
       "summary_bullets_preview": [
         "Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic.",
@@ -1098,35 +1311,36 @@
         "Today's episode is sponsored by Notion."
       ],
       "summary_preview": "Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic.",
-      "summary_title": "Edge Cases Podcast \u2014 Episode 3 \u2014 synthetic",
+      "summary_title": "The Drift \u2014 Episode 3 \u2014 synthetic",
       "topics": [
-        "Business & markets",
-        "welcome back to",
-        "great to be back"
+        "dialogue",
+        "cultural drift",
+        "long form",
+        "Business & markets"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "Science & research",
+          "label": "cultural drift",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:science-research"
+          "topic_id": "topic:cultural-drift"
         },
         {
           "in_topic_cluster": false,
-          "label": "welcome back to",
+          "label": "dialogue",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:welcome-back-to"
+          "topic_id": "topic:dialogue"
         }
       ],
       "duration_seconds": 1800,
       "episode_id": "55e302e4-3319-59f2-8c17-fde08bffd658",
       "episode_image_url": null,
-      "episode_title": "Edge Cases Podcast \u2014 Episode 4",
-      "feed_description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
-      "feed_display_title": "Edge Cases Podcast",
-      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "episode_title": "The Drift \u2014 Episode 4",
+      "feed_description": "Dialogue-heavy, meandering long-form interviews.",
+      "feed_display_title": "The Drift",
+      "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p06/metadata/p06_e04.gi.json",
@@ -1134,11 +1348,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p06/metadata/p06_e04.kg.json",
       "metadata_relative_path": "feeds/p06/metadata/p06_e04.metadata.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "summary_bullet_graph_topic_ids": [
-        "topic:science-research",
-        "topic:welcome-back-to",
-        "topic:great-to-be-back"
+        "topic:cultural-drift",
+        "topic:dialogue",
+        "topic:systems-thinking",
+        "topic:science-research"
       ],
       "summary_bullets_preview": [
         "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
@@ -1146,26 +1361,122 @@
         "This episode is brought to you by Squarespace."
       ],
       "summary_preview": "Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic.",
-      "summary_title": "Edge Cases Podcast \u2014 Episode 4 \u2014 synthetic",
+      "summary_title": "The Drift \u2014 Episode 4 \u2014 synthetic",
       "topics": [
-        "Science & research",
-        "welcome back to",
-        "great to be back"
+        "cultural drift",
+        "dialogue",
+        "systems thinking",
+        "Science & research"
       ]
     },
     {
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "environment",
+          "label": "edge cases",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:environment"
+          "topic_id": "topic:edge-cases"
         },
         {
           "in_topic_cluster": false,
-          "label": "health",
+          "label": "stage directions",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:health"
+          "topic_id": "topic:stage-directions"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "70b6d4cd-5f59-5606-a432-48ecc739bb4f",
+      "episode_image_url": null,
+      "episode_title": "The Drift \u2014 Episode 5",
+      "feed_description": "Dialogue-heavy, meandering long-form interviews.",
+      "feed_display_title": "The Drift",
+      "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p06/metadata/p06_e05.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p06/metadata/p06_e05.kg.json",
+      "metadata_relative_path": "feeds/p06/metadata/p06_e05.metadata.json",
+      "publish_date": "2026-09-23",
+      "summary_bullet_graph_topic_ids": [
+        "topic:edge-cases",
+        "topic:stage-directions",
+        "topic:technology"
+      ],
+      "summary_bullets_preview": [
+        "# Edge Cases \u2014 Episode e05\n## Stage Directions\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+        "End of edge-case episode e05."
+      ],
+      "summary_preview": "# Edge Cases \u2014 Episode e05\n## Stage Directions\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+      "summary_title": "The Drift \u2014 Episode 5 \u2014 synthetic",
+      "topics": [
+        "edge cases",
+        "stage directions",
+        "Technology"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "edge cases",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:edge-cases"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "code switching",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:code-switching"
+        }
+      ],
+      "duration_seconds": 1800,
+      "episode_id": "ae754f41-0909-500a-bcb4-14199e04f20d",
+      "episode_image_url": null,
+      "episode_title": "The Drift \u2014 Episode 6",
+      "feed_description": "Dialogue-heavy, meandering long-form interviews.",
+      "feed_display_title": "The Drift",
+      "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+      "feed_image_url": null,
+      "feed_rss_url": "http://localhost/",
+      "gi_relative_path": "feeds/p06/metadata/p06_e06.gi.json",
+      "has_gi": true,
+      "has_kg": true,
+      "kg_relative_path": "feeds/p06/metadata/p06_e06.kg.json",
+      "metadata_relative_path": "feeds/p06/metadata/p06_e06.metadata.json",
+      "publish_date": "2026-09-21",
+      "summary_bullet_graph_topic_ids": [
+        "topic:edge-cases",
+        "topic:code-switching",
+        "topic:business-markets"
+      ],
+      "summary_bullets_preview": [
+        "# Edge Cases \u2014 Episode e06\n## Mixed Languages\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+        "A bit of code-switching to test transcription robustness.",
+        "End of edge-case episode e06."
+      ],
+      "summary_preview": "# Edge Cases \u2014 Episode e06\n## Mixed Languages\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+      "summary_title": "The Drift \u2014 Episode 6 \u2014 synthetic",
+      "topics": [
+        "edge cases",
+        "code switching",
+        "Business & markets"
+      ]
+    },
+    {
+      "cil_digest_topics": [
+        {
+          "in_topic_cluster": false,
+          "label": "sustainability",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:sustainability"
+        },
+        {
+          "in_topic_cluster": false,
+          "label": "systems thinking",
+          "topic_cluster_compound_id": null,
+          "topic_id": "topic:systems-thinking"
         }
       ],
       "duration_seconds": 1800,
@@ -1174,7 +1485,7 @@
       "episode_title": "The Long View \u2014 Episode 1",
       "feed_description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
       "feed_display_title": "The Long View",
-      "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+      "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p07/metadata/p07_e01.gi.json",
@@ -1182,8 +1493,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p07/metadata/p07_e01.kg.json",
       "metadata_relative_path": "feeds/p07/metadata/p07_e01.metadata.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "summary_bullet_graph_topic_ids": [
+        "topic:sustainability",
+        "topic:systems-thinking",
+        "topic:risk-management",
+        "topic:reliability",
         "topic:environment",
         "topic:health",
         "topic:science-research"
@@ -1196,6 +1511,10 @@
       "summary_preview": "# The Long View \u2014 Sustainability \u2014 Episode\n## What Sustainability Really Means\nHost: Alex Morgan\nGuest: Dr.",
       "summary_title": "The Long View \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "sustainability",
+        "systems thinking",
+        "risk management",
+        "reliability",
         "environment",
         "health",
         "Science & research"
@@ -1205,15 +1524,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "environment",
+          "label": "macroeconomics",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:environment"
+          "topic_id": "topic:macroeconomics"
         },
         {
           "in_topic_cluster": false,
-          "label": "health",
+          "label": "systems thinking",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:health"
+          "topic_id": "topic:systems-thinking"
         }
       ],
       "duration_seconds": 1800,
@@ -1222,7 +1541,7 @@
       "episode_title": "The Long View \u2014 Episode 2",
       "feed_description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
       "feed_display_title": "The Long View",
-      "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+      "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p07/metadata/p07_e02.gi.json",
@@ -1230,8 +1549,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p07/metadata/p07_e02.kg.json",
       "metadata_relative_path": "feeds/p07/metadata/p07_e02.metadata.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "summary_bullet_graph_topic_ids": [
+        "topic:macroeconomics",
+        "topic:systems-thinking",
+        "topic:risk-management",
         "topic:environment",
         "topic:health",
         "topic:technology"
@@ -1244,6 +1566,9 @@
       "summary_preview": "Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist.",
       "summary_title": "The Long View \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "macroeconomics",
+        "systems thinking",
+        "risk management",
         "environment",
         "health",
         "Technology"
@@ -1253,15 +1578,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "environment",
+          "label": "systems thinking",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:environment"
+          "topic_id": "topic:systems-thinking"
         },
         {
           "in_topic_cluster": false,
-          "label": "health",
+          "label": "sustainability",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:health"
+          "topic_id": "topic:sustainability"
         }
       ],
       "duration_seconds": 1800,
@@ -1270,7 +1595,7 @@
       "episode_title": "The Long View \u2014 Episode 3",
       "feed_description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
       "feed_display_title": "The Long View",
-      "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+      "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p07/metadata/p07_e03.gi.json",
@@ -1278,8 +1603,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p07/metadata/p07_e03.kg.json",
       "metadata_relative_path": "feeds/p07/metadata/p07_e03.metadata.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "summary_bullet_graph_topic_ids": [
+        "topic:systems-thinking",
+        "topic:sustainability",
+        "topic:risk-management",
         "topic:environment",
         "topic:health",
         "topic:business-markets"
@@ -1292,6 +1620,9 @@
       "summary_preview": "# The Long View \u2014 Sustainability \u2014 Episode\n## Sustainability Is a Systems Problem\nHost: Alex Morgan\nGuest: Dr.",
       "summary_title": "The Long View \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "systems thinking",
+        "sustainability",
+        "risk management",
         "environment",
         "health",
         "Business & markets"
@@ -1301,15 +1632,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "environment",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:environment"
+          "topic_id": "topic:risk-management"
         },
         {
           "in_topic_cluster": false,
-          "label": "health",
+          "label": "systems thinking",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:health"
+          "topic_id": "topic:systems-thinking"
         }
       ],
       "duration_seconds": 1800,
@@ -1318,7 +1649,7 @@
       "episode_title": "The Long View \u2014 Episode 4",
       "feed_description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
       "feed_display_title": "The Long View",
-      "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+      "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p07/metadata/p07_e04.gi.json",
@@ -1326,8 +1657,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p07/metadata/p07_e04.kg.json",
       "metadata_relative_path": "feeds/p07/metadata/p07_e04.metadata.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "summary_bullet_graph_topic_ids": [
+        "topic:risk-management",
+        "topic:systems-thinking",
+        "topic:macroeconomics",
         "topic:environment",
         "topic:health",
         "topic:science-research"
@@ -1340,6 +1674,9 @@
       "summary_preview": "# The Long View \u2014 Sustainability \u2014 Episode\n## Macro as Risk Management\nHost: Alex Morgan\nGuest: Skanda Amarnath\n#fixture-v3: voice=en-IN hos\u2026",
       "summary_title": "The Long View \u2014 Episode 4 \u2014 synthetic",
       "topics": [
+        "risk management",
+        "systems thinking",
+        "macroeconomics",
         "environment",
         "health",
         "Science & research"
@@ -1349,24 +1686,24 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "environment",
+          "label": "public radio",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:environment"
+          "topic_id": "topic:public-radio"
         },
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "broadcast format",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:broadcast-format"
         }
       ],
       "duration_seconds": 1800,
       "episode_id": "15a1cbea-1449-50ac-bb1c-11784d7421c3",
       "episode_image_url": null,
-      "episode_title": "The Long View \u2014 Episode 1",
-      "feed_description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
-      "feed_display_title": "The Long View",
-      "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+      "episode_title": "Public Hour \u2014 Episode 1",
+      "feed_description": "NPR-shape public-radio conversations.",
+      "feed_display_title": "Public Hour",
+      "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p08/metadata/p08_e01.gi.json",
@@ -1374,8 +1711,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p08/metadata/p08_e01.kg.json",
       "metadata_relative_path": "feeds/p08/metadata/p08_e01.metadata.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "summary_bullet_graph_topic_ids": [
+        "topic:public-radio",
+        "topic:broadcast-format",
+        "topic:journalism",
+        "topic:reliability",
         "topic:environment",
         "topic:technology",
         "topic:science-research"
@@ -1386,8 +1727,12 @@
         "correspondent: Welcome back to Public Hour."
       ],
       "summary_preview": "# Public Hour \u2014 Episode\n## Public Radio Format Conventions\nHost: A.",
-      "summary_title": "The Long View \u2014 Episode 1 \u2014 synthetic",
+      "summary_title": "Public Hour \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "public radio",
+        "broadcast format",
+        "journalism",
+        "reliability",
         "environment",
         "technology",
         "Science & research"
@@ -1397,24 +1742,24 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "environment",
+          "label": "public radio",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:environment"
+          "topic_id": "topic:public-radio"
         },
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "journalism",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:journalism"
         }
       ],
       "duration_seconds": 1800,
       "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
       "episode_image_url": null,
-      "episode_title": "The Long View \u2014 Episode 2",
-      "feed_description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
-      "feed_display_title": "The Long View",
-      "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+      "episode_title": "Public Hour \u2014 Episode 2",
+      "feed_description": "NPR-shape public-radio conversations.",
+      "feed_display_title": "Public Hour",
+      "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p08/metadata/p08_e02.gi.json",
@@ -1422,8 +1767,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p08/metadata/p08_e02.kg.json",
       "metadata_relative_path": "feeds/p08/metadata/p08_e02.metadata.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "summary_bullet_graph_topic_ids": [
+        "topic:public-radio",
+        "topic:journalism",
+        "topic:pronunciation",
+        "topic:reliability",
         "topic:environment",
         "topic:technology",
         "topic:technology"
@@ -1434,8 +1783,12 @@
         "correspondent: Welcome back to Public Hour."
       ],
       "summary_preview": "# Public Hour \u2014 Episode\n## Pronunciation as a Reliability Signal\nHost: A.",
-      "summary_title": "The Long View \u2014 Episode 2 \u2014 synthetic",
+      "summary_title": "Public Hour \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "public radio",
+        "journalism",
+        "pronunciation",
+        "reliability",
         "environment",
         "technology",
         "Technology"
@@ -1445,24 +1798,24 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "environment",
+          "label": "journalism",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:environment"
+          "topic_id": "topic:journalism"
         },
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "newsroom operations",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:newsroom-operations"
         }
       ],
       "duration_seconds": 1800,
       "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
       "episode_image_url": null,
-      "episode_title": "The Long View \u2014 Episode 3",
-      "feed_description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
-      "feed_display_title": "The Long View",
-      "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+      "episode_title": "Public Hour \u2014 Episode 3",
+      "feed_description": "NPR-shape public-radio conversations.",
+      "feed_display_title": "Public Hour",
+      "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p08/metadata/p08_e03.gi.json",
@@ -1470,8 +1823,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p08/metadata/p08_e03.kg.json",
       "metadata_relative_path": "feeds/p08/metadata/p08_e03.metadata.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "summary_bullet_graph_topic_ids": [
+        "topic:journalism",
+        "topic:newsroom-operations",
+        "topic:public-radio",
+        "topic:reliability",
         "topic:environment",
         "topic:technology",
         "topic:business-markets"
@@ -1482,8 +1839,12 @@
         "correspondent: Welcome back to Public Hour."
       ],
       "summary_preview": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.",
-      "summary_title": "The Long View \u2014 Episode 3 \u2014 synthetic",
+      "summary_title": "Public Hour \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "journalism",
+        "newsroom operations",
+        "public radio",
+        "reliability",
         "environment",
         "technology",
         "Business & markets"
@@ -1493,24 +1854,24 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "environment",
+          "label": "reliability",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:environment"
+          "topic_id": "topic:reliability"
         },
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "corrections policy",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:corrections-policy"
         }
       ],
       "duration_seconds": 1800,
       "episode_id": "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
       "episode_image_url": null,
-      "episode_title": "The Long View \u2014 Episode 4",
-      "feed_description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
-      "feed_display_title": "The Long View",
-      "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+      "episode_title": "Public Hour \u2014 Episode 4",
+      "feed_description": "NPR-shape public-radio conversations.",
+      "feed_display_title": "Public Hour",
+      "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
       "feed_image_url": null,
       "feed_rss_url": "http://localhost/",
       "gi_relative_path": "feeds/p08/metadata/p08_e04.gi.json",
@@ -1518,8 +1879,12 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p08/metadata/p08_e04.kg.json",
       "metadata_relative_path": "feeds/p08/metadata/p08_e04.metadata.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "summary_bullet_graph_topic_ids": [
+        "topic:reliability",
+        "topic:corrections-policy",
+        "topic:journalism",
+        "topic:risk-management",
         "topic:environment",
         "topic:technology",
         "topic:science-research"
@@ -1530,8 +1895,12 @@
         "correspondent: Welcome back to Public Hour."
       ],
       "summary_preview": "# Public Hour \u2014 Episode\n## Corrections, Trust, and the Long Game\nHost: A.",
-      "summary_title": "The Long View \u2014 Episode 4 \u2014 synthetic",
+      "summary_title": "Public Hour \u2014 Episode 4 \u2014 synthetic",
       "topics": [
+        "reliability",
+        "corrections policy",
+        "journalism",
+        "risk management",
         "environment",
         "technology",
         "Science & research"
@@ -1541,15 +1910,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "systems thinking",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:systems-thinking"
         },
         {
           "in_topic_cluster": false,
-          "label": "health",
+          "label": "sustainability",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:health"
+          "topic_id": "topic:sustainability"
         }
       ],
       "duration_seconds": 1800,
@@ -1566,8 +1935,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p09/metadata/p09_e01.kg.json",
       "metadata_relative_path": "feeds/p09/metadata/p09_e01.metadata.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "summary_bullet_graph_topic_ids": [
+        "topic:systems-thinking",
+        "topic:sustainability",
+        "topic:reliability",
         "topic:technology",
         "topic:health",
         "topic:science-research"
@@ -1580,6 +1952,9 @@
       "summary_preview": "# Cross-Show \u2014 Episode\n## Systems Thinking, Two Years Later\nHost: Sam\nGuest: Dr.",
       "summary_title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic",
       "topics": [
+        "systems thinking",
+        "sustainability",
+        "reliability",
         "technology",
         "health",
         "Science & research"
@@ -1589,15 +1964,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "macroeconomics",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:macroeconomics"
         },
         {
           "in_topic_cluster": false,
-          "label": "health",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:health"
+          "topic_id": "topic:risk-management"
         }
       ],
       "duration_seconds": 1800,
@@ -1614,8 +1989,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p09/metadata/p09_e02.kg.json",
       "metadata_relative_path": "feeds/p09/metadata/p09_e02.metadata.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "summary_bullet_graph_topic_ids": [
+        "topic:macroeconomics",
+        "topic:risk-management",
+        "topic:reliability",
         "topic:technology",
         "topic:health",
         "topic:technology"
@@ -1628,6 +2006,9 @@
       "summary_preview": "Today we're talking about macroeconomics, and I'm joined by Skanda Amarnauth, returning macro economist.",
       "summary_title": "The Long View: Biohacking \u2014 Episode 2 \u2014 synthetic",
       "topics": [
+        "macroeconomics",
+        "risk management",
+        "reliability",
         "technology",
         "health",
         "Technology"
@@ -1637,15 +2018,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "labor markets",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:labor-markets"
         },
         {
           "in_topic_cluster": false,
-          "label": "health",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:health"
+          "topic_id": "topic:risk-management"
         }
       ],
       "duration_seconds": 1800,
@@ -1662,8 +2043,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p09/metadata/p09_e03.kg.json",
       "metadata_relative_path": "feeds/p09/metadata/p09_e03.metadata.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "summary_bullet_graph_topic_ids": [
+        "topic:labor-markets",
+        "topic:risk-management",
+        "topic:systems-thinking",
         "topic:technology",
         "topic:health",
         "topic:business-markets"
@@ -1676,6 +2060,9 @@
       "summary_preview": "Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist.",
       "summary_title": "The Long View: Biohacking \u2014 Episode 3 \u2014 synthetic",
       "topics": [
+        "labor markets",
+        "risk management",
+        "systems thinking",
         "technology",
         "health",
         "Business & markets"
@@ -1685,15 +2072,15 @@
       "cil_digest_topics": [
         {
           "in_topic_cluster": false,
-          "label": "technology",
+          "label": "risk management",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:technology"
+          "topic_id": "topic:risk-management"
         },
         {
           "in_topic_cluster": false,
-          "label": "health",
+          "label": "systems thinking",
           "topic_cluster_compound_id": null,
-          "topic_id": "topic:health"
+          "topic_id": "topic:systems-thinking"
         }
       ],
       "duration_seconds": 1800,
@@ -1710,8 +2097,11 @@
       "has_kg": true,
       "kg_relative_path": "feeds/p09/metadata/p09_e04.kg.json",
       "metadata_relative_path": "feeds/p09/metadata/p09_e04.metadata.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "summary_bullet_graph_topic_ids": [
+        "topic:risk-management",
+        "topic:systems-thinking",
+        "topic:reliability",
         "topic:technology",
         "topic:health",
         "topic:science-research"
@@ -1724,6 +2114,9 @@
       "summary_preview": "# Cross-Show \u2014 Episode\n## Risk Is a Systems Property\nHost: Sam\nGuest: Dr.",
       "summary_title": "The Long View: Biohacking \u2014 Episode 4 \u2014 synthetic",
       "topics": [
+        "risk management",
+        "systems thinking",
+        "reliability",
         "technology",
         "health",
         "Science & research"
@@ -1731,5 +2124,5 @@
     }
   ],
   "next_cursor": null,
-  "path": "/workspace/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v3"
+  "path": "tests/fixtures/viewer-validation-corpus/v3"
 }

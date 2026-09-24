@@ -1,23 +1,69 @@
 {
   "derived": true,
-  "computed_at": "2026-07-17T13:58:54Z",
+  "computed_at": "2026-09-24T14:39:05Z",
   "enricher_id": "topic_similarity",
-  "enricher_version": "1.0.0",
+  "enricher_version": "1.2.0",
   "schema_version": "1.0",
   "status": "ok",
   "data": {
-    "topic_count": 13,
+    "topic_count": 51,
     "top_k": 7,
     "missing_topic_ids": [],
     "topics": [
+      {
+        "topic_id": "topic:broadcast-format",
+        "topic_label": "broadcast format",
+        "top_k": [
+          {
+            "topic_id": "topic:public-radio",
+            "topic_label": "public radio",
+            "similarity": 0.520177
+          },
+          {
+            "topic_id": "topic:engineering-communication",
+            "topic_label": "engineering communication",
+            "similarity": 0.364552
+          },
+          {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.32965
+          },
+          {
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.280428
+          },
+          {
+            "topic_id": "topic:newsroom-operations",
+            "topic_label": "newsroom operations",
+            "similarity": 0.262855
+          },
+          {
+            "topic_id": "topic:long-form",
+            "topic_label": "long form",
+            "similarity": 0.196643
+          },
+          {
+            "topic_id": "topic:stage-directions",
+            "topic_label": "stage directions",
+            "similarity": 0.192856
+          }
+        ]
+      },
       {
         "topic_id": "topic:business-markets",
         "topic_label": "Business & markets",
         "top_k": [
           {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.419352
+            "topic_id": "topic:labor-markets",
+            "topic_label": "labor markets",
+            "similarity": 0.609119
+          },
+          {
+            "topic_id": "topic:macroeconomics",
+            "topic_label": "macroeconomics",
+            "similarity": 0.531258
           },
           {
             "topic_id": "topic:science-research",
@@ -30,65 +76,470 @@
             "similarity": 0.39121
           },
           {
-            "topic_id": "topic:environment",
-            "topic_label": "environment",
-            "similarity": 0.336527
+            "topic_id": "topic:index-investing",
+            "topic_label": "index investing",
+            "similarity": 0.369649
           },
           {
-            "topic_id": "topic:health",
-            "topic_label": "health",
-            "similarity": 0.213495
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.349711
           },
           {
-            "topic_id": "topic:gear",
-            "topic_label": "gear",
-            "similarity": 0.183529
-          },
-          {
-            "topic_id": "topic:fed-vice-chair",
-            "topic_label": "fed vice chair",
-            "similarity": 0.131657
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.345181
           }
         ]
       },
       {
-        "topic_id": "topic:diversify-or",
-        "topic_label": "diversify or",
+        "topic_id": "topic:code-switching",
+        "topic_label": "code switching",
         "top_k": [
           {
-            "topic_id": "topic:business-markets",
-            "topic_label": "Business & markets",
-            "similarity": 0.419352
+            "topic_id": "topic:on-call-rotation",
+            "topic_label": "on call rotation",
+            "similarity": 0.285458
           },
           {
-            "topic_id": "topic:environment",
-            "topic_label": "environment",
-            "similarity": 0.376986
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking",
+            "similarity": 0.259391
           },
           {
-            "topic_id": "topic:science-research",
-            "topic_label": "Science & research",
-            "similarity": 0.285209
+            "topic_id": "topic:editing-workflow",
+            "topic_label": "editing workflow",
+            "similarity": 0.23966
+          },
+          {
+            "topic_id": "topic:macro-policy",
+            "topic_label": "macro policy",
+            "similarity": 0.233482
+          },
+          {
+            "topic_id": "topic:security-design",
+            "topic_label": "security design",
+            "similarity": 0.190659
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.182961
           },
           {
             "topic_id": "topic:technology",
             "topic_label": "technology",
-            "similarity": 0.233729
+            "similarity": 0.180189
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:corrections-policy",
+        "topic_label": "corrections policy",
+        "top_k": [
+          {
+            "topic_id": "topic:incident-response",
+            "topic_label": "incident response",
+            "similarity": 0.375241
           },
           {
-            "topic_id": "topic:health",
-            "topic_label": "health",
-            "similarity": 0.193583
+            "topic_id": "topic:monetary-policy",
+            "topic_label": "monetary policy",
+            "similarity": 0.354581
           },
           {
-            "topic_id": "topic:outdoor-activities",
-            "topic_label": "outdoor activities",
-            "similarity": 0.186376
+            "topic_id": "topic:incident-postmortems",
+            "topic_label": "incident postmortems",
+            "similarity": 0.353864
+          },
+          {
+            "topic_id": "topic:macro-policy",
+            "topic_label": "macro policy",
+            "similarity": 0.301071
+          },
+          {
+            "topic_id": "topic:reliability",
+            "topic_label": "reliability",
+            "similarity": 0.281295
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.276632
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.255986
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:cultural-drift",
+        "topic_label": "cultural drift",
+        "top_k": [
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.341817
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.31563
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.276937
+          },
+          {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.227873
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.219665
+          },
+          {
+            "topic_id": "topic:labor-markets",
+            "topic_label": "labor markets",
+            "similarity": 0.21492
+          },
+          {
+            "topic_id": "topic:macroeconomics",
+            "topic_label": "macroeconomics",
+            "similarity": 0.212932
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:dialogue",
+        "topic_label": "dialogue",
+        "top_k": [
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.38177
+          },
+          {
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.368493
+          },
+          {
+            "topic_id": "topic:on-call",
+            "topic_label": "on call",
+            "similarity": 0.332285
           },
           {
             "topic_id": "topic:gear",
             "topic_label": "gear",
-            "similarity": 0.180279
+            "similarity": 0.309863
+          },
+          {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.300921
+          },
+          {
+            "topic_id": "topic:incident-response",
+            "topic_label": "incident response",
+            "similarity": 0.292883
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.289628
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:dive-planning",
+        "topic_label": "dive planning",
+        "top_k": [
+          {
+            "topic_id": "topic:wreck-diving",
+            "topic_label": "wreck diving",
+            "similarity": 0.675269
+          },
+          {
+            "topic_id": "topic:underwater-photography",
+            "topic_label": "underwater photography",
+            "similarity": 0.532235
+          },
+          {
+            "topic_id": "topic:reef-conservation",
+            "topic_label": "reef conservation",
+            "similarity": 0.390353
+          },
+          {
+            "topic_id": "topic:outdoor-activities",
+            "topic_label": "outdoor activities",
+            "similarity": 0.388133
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.294633
+          },
+          {
+            "topic_id": "topic:marine-biology",
+            "topic_label": "marine biology",
+            "similarity": 0.293178
+          },
+          {
+            "topic_id": "topic:land-stewardship",
+            "topic_label": "land stewardship",
+            "similarity": 0.287199
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:documentary-photography",
+        "topic_label": "documentary photography",
+        "top_k": [
+          {
+            "topic_id": "topic:underwater-photography",
+            "topic_label": "underwater photography",
+            "similarity": 0.533495
+          },
+          {
+            "topic_id": "topic:roundtable-photography",
+            "topic_label": "roundtable photography",
+            "similarity": 0.472777
+          },
+          {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.429905
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.32723
+          },
+          {
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.312957
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.293555
+          },
+          {
+            "topic_id": "topic:broadcast-format",
+            "topic_label": "broadcast format",
+            "similarity": 0.280428
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:drivetrain-mechanics",
+        "topic_label": "drivetrain mechanics",
+        "top_k": [
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.382142
+          },
+          {
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing",
+            "similarity": 0.345539
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.195687
+          },
+          {
+            "topic_id": "topic:engineering-communication",
+            "topic_label": "engineering communication",
+            "similarity": 0.191258
+          },
+          {
+            "topic_id": "topic:stage-directions",
+            "topic_label": "stage directions",
+            "similarity": 0.184593
+          },
+          {
+            "topic_id": "topic:trail-building",
+            "topic_label": "trail building",
+            "similarity": 0.177858
+          },
+          {
+            "topic_id": "topic:wreck-diving",
+            "topic_label": "wreck diving",
+            "similarity": 0.177049
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:edge-cases",
+        "topic_label": "edge cases",
+        "top_k": [
+          {
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.313356
+          },
+          {
+            "topic_id": "topic:security-design",
+            "topic_label": "security design",
+            "similarity": 0.273876
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.273511
+          },
+          {
+            "topic_id": "topic:labor-markets",
+            "topic_label": "labor markets",
+            "similarity": 0.255304
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.23447
+          },
+          {
+            "topic_id": "topic:incident-postmortems",
+            "topic_label": "incident postmortems",
+            "similarity": 0.222226
+          },
+          {
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking",
+            "similarity": 0.219075
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:editing-workflow",
+        "topic_label": "editing workflow",
+        "top_k": [
+          {
+            "topic_id": "topic:code-switching",
+            "topic_label": "code switching",
+            "similarity": 0.23966
+          },
+          {
+            "topic_id": "topic:newsroom-operations",
+            "topic_label": "newsroom operations",
+            "similarity": 0.233431
+          },
+          {
+            "topic_id": "topic:corrections-policy",
+            "topic_label": "corrections policy",
+            "similarity": 0.223586
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.206258
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.167019
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.157463
+          },
+          {
+            "topic_id": "topic:monetary-policy",
+            "topic_label": "monetary policy",
+            "similarity": 0.141101
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:enduro-racing",
+        "topic_label": "enduro racing",
+        "top_k": [
+          {
+            "topic_id": "topic:drivetrain-mechanics",
+            "topic_label": "drivetrain mechanics",
+            "similarity": 0.345539
+          },
+          {
+            "topic_id": "topic:wreck-diving",
+            "topic_label": "wreck diving",
+            "similarity": 0.339799
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.270114
+          },
+          {
+            "topic_id": "topic:long-form",
+            "topic_label": "long form",
+            "similarity": 0.258965
+          },
+          {
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.257281
+          },
+          {
+            "topic_id": "topic:trail-building",
+            "topic_label": "trail building",
+            "similarity": 0.239084
+          },
+          {
+            "topic_id": "topic:stage-directions",
+            "topic_label": "stage directions",
+            "similarity": 0.209532
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:engineering-communication",
+        "topic_label": "engineering communication",
+        "top_k": [
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.469538
+          },
+          {
+            "topic_id": "topic:broadcast-format",
+            "topic_label": "broadcast format",
+            "similarity": 0.364552
+          },
+          {
+            "topic_id": "topic:security-design",
+            "topic_label": "security design",
+            "similarity": 0.338442
+          },
+          {
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking",
+            "similarity": 0.320405
+          },
+          {
+            "topic_id": "topic:public-radio",
+            "topic_label": "public radio",
+            "similarity": 0.289969
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.287456
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.286447
           }
         ]
       },
@@ -96,6 +547,16 @@
         "topic_id": "topic:environment",
         "topic_label": "environment",
         "top_k": [
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.594845
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.434014
+          },
           {
             "topic_id": "topic:outdoor-activities",
             "topic_label": "outdoor activities",
@@ -107,9 +568,9 @@
             "similarity": 0.396075
           },
           {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.376986
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.38177
           },
           {
             "topic_id": "topic:technology",
@@ -117,101 +578,50 @@
             "similarity": 0.367424
           },
           {
-            "topic_id": "topic:science-research",
-            "topic_label": "Science & research",
-            "similarity": 0.344133
-          },
-          {
-            "topic_id": "topic:business-markets",
-            "topic_label": "Business & markets",
-            "similarity": 0.336527
-          },
-          {
-            "topic_id": "topic:gear",
-            "topic_label": "gear",
-            "similarity": 0.321826
+            "topic_id": "topic:land-stewardship",
+            "topic_label": "land stewardship",
+            "similarity": 0.365903
           }
         ]
       },
       {
-        "topic_id": "topic:excited-for-this-one",
-        "topic_label": "excited for this one",
+        "topic_id": "topic:frame",
+        "topic_label": "frame",
         "top_k": [
           {
-            "topic_id": "topic:welcome-back-to",
-            "topic_label": "welcome back to",
-            "similarity": 0.240543
-          },
-          {
-            "topic_id": "topic:great-to-be-back",
-            "topic_label": "great to be back",
-            "similarity": 0.216311
-          },
-          {
-            "topic_id": "topic:gear",
-            "topic_label": "gear",
-            "similarity": 0.182137
-          },
-          {
-            "topic_id": "topic:science-research",
-            "topic_label": "Science & research",
-            "similarity": 0.181413
-          },
-          {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.172876
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.368493
           },
           {
             "topic_id": "topic:technology",
             "topic_label": "technology",
-            "similarity": 0.143979
-          },
-          {
-            "topic_id": "topic:environment",
-            "topic_label": "environment",
-            "similarity": 0.141673
-          }
-        ]
-      },
-      {
-        "topic_id": "topic:fed-vice-chair",
-        "topic_label": "fed vice chair",
-        "top_k": [
-          {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.166066
+            "similarity": 0.318537
           },
           {
             "topic_id": "topic:gear",
             "topic_label": "gear",
-            "similarity": 0.156756
+            "similarity": 0.317322
           },
           {
-            "topic_id": "topic:without-the",
-            "topic_label": "without the",
-            "similarity": 0.151655
+            "topic_id": "topic:edge-cases",
+            "topic_label": "edge cases",
+            "similarity": 0.313356
           },
           {
-            "topic_id": "topic:business-markets",
-            "topic_label": "Business & markets",
-            "similarity": 0.131657
-          },
-          {
-            "topic_id": "topic:excited-for-this-one",
-            "topic_label": "excited for this one",
-            "similarity": 0.131548
-          },
-          {
-            "topic_id": "topic:great-to-be-back",
-            "topic_label": "great to be back",
-            "similarity": 0.117126
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.312957
           },
           {
             "topic_id": "topic:environment",
             "topic_label": "environment",
-            "similarity": 0.117031
+            "similarity": 0.283685
+          },
+          {
+            "topic_id": "topic:stage-directions",
+            "topic_label": "stage directions",
+            "similarity": 0.256107
           }
         ]
       },
@@ -219,6 +629,16 @@
         "topic_id": "topic:gear",
         "topic_label": "gear",
         "top_k": [
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.424405
+          },
+          {
+            "topic_id": "topic:drivetrain-mechanics",
+            "topic_label": "drivetrain mechanics",
+            "similarity": 0.382142
+          },
           {
             "topic_id": "topic:technology",
             "topic_label": "technology",
@@ -235,65 +655,14 @@
             "similarity": 0.321826
           },
           {
-            "topic_id": "topic:outdoor-activities",
-            "topic_label": "outdoor activities",
-            "similarity": 0.209174
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.317322
           },
           {
-            "topic_id": "topic:without-the",
-            "topic_label": "without the",
-            "similarity": 0.208927
-          },
-          {
-            "topic_id": "topic:welcome-back-to",
-            "topic_label": "welcome back to",
-            "similarity": 0.186382
-          },
-          {
-            "topic_id": "topic:business-markets",
-            "topic_label": "Business & markets",
-            "similarity": 0.183529
-          }
-        ]
-      },
-      {
-        "topic_id": "topic:great-to-be-back",
-        "topic_label": "great to be back",
-        "top_k": [
-          {
-            "topic_id": "topic:welcome-back-to",
-            "topic_label": "welcome back to",
-            "similarity": 0.620573
-          },
-          {
-            "topic_id": "topic:excited-for-this-one",
-            "topic_label": "excited for this one",
-            "similarity": 0.216311
-          },
-          {
-            "topic_id": "topic:environment",
-            "topic_label": "environment",
-            "similarity": 0.193891
-          },
-          {
-            "topic_id": "topic:health",
-            "topic_label": "health",
-            "similarity": 0.152699
-          },
-          {
-            "topic_id": "topic:gear",
-            "topic_label": "gear",
-            "similarity": 0.140993
-          },
-          {
-            "topic_id": "topic:fed-vice-chair",
-            "topic_label": "fed vice chair",
-            "similarity": 0.117126
-          },
-          {
-            "topic_id": "topic:science-research",
-            "topic_label": "Science & research",
-            "similarity": 0.11036
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.309863
           }
         ]
       },
@@ -302,9 +671,19 @@
         "topic_label": "health",
         "top_k": [
           {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.408336
+          },
+          {
             "topic_id": "topic:environment",
             "topic_label": "environment",
             "similarity": 0.396075
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.355042
           },
           {
             "topic_id": "topic:technology",
@@ -322,19 +701,665 @@
             "similarity": 0.325448
           },
           {
-            "topic_id": "topic:without-the",
-            "topic_label": "without the",
-            "similarity": 0.222001
+            "topic_id": "topic:reliability",
+            "topic_label": "reliability",
+            "similarity": 0.315022
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:incident-postmortems",
+        "topic_label": "incident postmortems",
+        "top_k": [
+          {
+            "topic_id": "topic:incident-response",
+            "topic_label": "incident response",
+            "similarity": 0.508295
+          },
+          {
+            "topic_id": "topic:corrections-policy",
+            "topic_label": "corrections policy",
+            "similarity": 0.353864
+          },
+          {
+            "topic_id": "topic:wreck-diving",
+            "topic_label": "wreck diving",
+            "similarity": 0.332824
+          },
+          {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.258555
+          },
+          {
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.24253
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.236012
+          },
+          {
+            "topic_id": "topic:edge-cases",
+            "topic_label": "edge cases",
+            "similarity": 0.222226
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:incident-response",
+        "topic_label": "incident response",
+        "top_k": [
+          {
+            "topic_id": "topic:incident-postmortems",
+            "topic_label": "incident postmortems",
+            "similarity": 0.508295
+          },
+          {
+            "topic_id": "topic:corrections-policy",
+            "topic_label": "corrections policy",
+            "similarity": 0.375241
+          },
+          {
+            "topic_id": "topic:reliability",
+            "topic_label": "reliability",
+            "similarity": 0.310794
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.292883
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.257735
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.242662
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.236733
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:index-investing",
+        "topic_label": "index investing",
+        "top_k": [
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.369649
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.314914
+          },
+          {
+            "topic_id": "topic:macroeconomics",
+            "topic_label": "macroeconomics",
+            "similarity": 0.27948
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.271391
+          },
+          {
+            "topic_id": "topic:labor-markets",
+            "topic_label": "labor markets",
+            "similarity": 0.249973
+          },
+          {
+            "topic_id": "topic:monetary-policy",
+            "topic_label": "monetary policy",
+            "similarity": 0.218042
+          },
+          {
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.214198
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:journalism",
+        "topic_label": "journalism",
+        "top_k": [
+          {
+            "topic_id": "topic:newsroom-operations",
+            "topic_label": "newsroom operations",
+            "similarity": 0.481186
+          },
+          {
+            "topic_id": "topic:public-radio",
+            "topic_label": "public radio",
+            "similarity": 0.44245
+          },
+          {
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.429905
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.41621
           },
           {
             "topic_id": "topic:business-markets",
             "topic_label": "Business & markets",
-            "similarity": 0.213495
+            "similarity": 0.349711
           },
           {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.193583
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.344515
+          },
+          {
+            "topic_id": "topic:broadcast-format",
+            "topic_label": "broadcast format",
+            "similarity": 0.32965
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:labor-markets",
+        "topic_label": "labor markets",
+        "top_k": [
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.609119
+          },
+          {
+            "topic_id": "topic:macroeconomics",
+            "topic_label": "macroeconomics",
+            "similarity": 0.563513
+          },
+          {
+            "topic_id": "topic:monetary-policy",
+            "topic_label": "monetary policy",
+            "similarity": 0.418405
+          },
+          {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.296805
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.268484
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.25561
+          },
+          {
+            "topic_id": "topic:edge-cases",
+            "topic_label": "edge cases",
+            "similarity": 0.255304
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:land-stewardship",
+        "topic_label": "land stewardship",
+        "top_k": [
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.365903
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.333997
+          },
+          {
+            "topic_id": "topic:reef-conservation",
+            "topic_label": "reef conservation",
+            "similarity": 0.307258
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.294547
+          },
+          {
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.287199
+          },
+          {
+            "topic_id": "topic:soil-erosion",
+            "topic_label": "soil erosion",
+            "similarity": 0.26424
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.253779
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:lighting-design",
+        "topic_label": "lighting design",
+        "top_k": [
+          {
+            "topic_id": "topic:strobe-lighting",
+            "topic_label": "strobe lighting",
+            "similarity": 0.59293
+          },
+          {
+            "topic_id": "topic:security-design",
+            "topic_label": "security design",
+            "similarity": 0.324561
+          },
+          {
+            "topic_id": "topic:underwater-photography",
+            "topic_label": "underwater photography",
+            "similarity": 0.313773
+          },
+          {
+            "topic_id": "topic:roundtable-photography",
+            "topic_label": "roundtable photography",
+            "similarity": 0.308837
+          },
+          {
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.253404
+          },
+          {
+            "topic_id": "topic:outdoor-activities",
+            "topic_label": "outdoor activities",
+            "similarity": 0.21462
+          },
+          {
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.213336
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:long-form",
+        "topic_label": "long form",
+        "top_k": [
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.282198
+          },
+          {
+            "topic_id": "topic:wreck-diving",
+            "topic_label": "wreck diving",
+            "similarity": 0.27095
+          },
+          {
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing",
+            "similarity": 0.258965
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.255303
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.251431
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.247556
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.246123
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:macro-policy",
+        "topic_label": "macro policy",
+        "top_k": [
+          {
+            "topic_id": "topic:macroeconomics",
+            "topic_label": "macroeconomics",
+            "similarity": 0.595191
+          },
+          {
+            "topic_id": "topic:monetary-policy",
+            "topic_label": "monetary policy",
+            "similarity": 0.538791
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.340315
+          },
+          {
+            "topic_id": "topic:corrections-policy",
+            "topic_label": "corrections policy",
+            "similarity": 0.301071
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.2888
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.256343
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.253637
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:macroeconomics",
+        "topic_label": "macroeconomics",
+        "top_k": [
+          {
+            "topic_id": "topic:macro-policy",
+            "topic_label": "macro policy",
+            "similarity": 0.595191
+          },
+          {
+            "topic_id": "topic:monetary-policy",
+            "topic_label": "monetary policy",
+            "similarity": 0.586746
+          },
+          {
+            "topic_id": "topic:labor-markets",
+            "topic_label": "labor markets",
+            "similarity": 0.563513
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.531258
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.300837
+          },
+          {
+            "topic_id": "topic:index-investing",
+            "topic_label": "index investing",
+            "similarity": 0.27948
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.271577
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:maintenance",
+        "topic_label": "maintenance",
+        "top_k": [
+          {
+            "topic_id": "topic:reliability",
+            "topic_label": "reliability",
+            "similarity": 0.441466
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.434014
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.424405
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.408336
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.397629
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.388507
+          },
+          {
+            "topic_id": "topic:newsroom-operations",
+            "topic_label": "newsroom operations",
+            "similarity": 0.344624
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:marine-biology",
+        "topic_label": "marine biology",
+        "top_k": [
+          {
+            "topic_id": "topic:reef-conservation",
+            "topic_label": "reef conservation",
+            "similarity": 0.460724
+          },
+          {
+            "topic_id": "topic:underwater-photography",
+            "topic_label": "underwater photography",
+            "similarity": 0.394426
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.334991
+          },
+          {
+            "topic_id": "topic:wreck-diving",
+            "topic_label": "wreck diving",
+            "similarity": 0.314793
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.313601
+          },
+          {
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.293178
+          },
+          {
+            "topic_id": "topic:land-stewardship",
+            "topic_label": "land stewardship",
+            "similarity": 0.216438
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:monetary-policy",
+        "topic_label": "monetary policy",
+        "top_k": [
+          {
+            "topic_id": "topic:macroeconomics",
+            "topic_label": "macroeconomics",
+            "similarity": 0.586746
+          },
+          {
+            "topic_id": "topic:macro-policy",
+            "topic_label": "macro policy",
+            "similarity": 0.538791
+          },
+          {
+            "topic_id": "topic:labor-markets",
+            "topic_label": "labor markets",
+            "similarity": 0.418405
+          },
+          {
+            "topic_id": "topic:corrections-policy",
+            "topic_label": "corrections policy",
+            "similarity": 0.354581
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.337949
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.31649
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.291965
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:newsroom-operations",
+        "topic_label": "newsroom operations",
+        "top_k": [
+          {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.481186
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.344624
+          },
+          {
+            "topic_id": "topic:business-markets",
+            "topic_label": "Business & markets",
+            "similarity": 0.324024
+          },
+          {
+            "topic_id": "topic:public-radio",
+            "topic_label": "public radio",
+            "similarity": 0.284469
+          },
+          {
+            "topic_id": "topic:broadcast-format",
+            "topic_label": "broadcast format",
+            "similarity": 0.262855
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.243287
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.242278
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:on-call",
+        "topic_label": "on call",
+        "top_k": [
+          {
+            "topic_id": "topic:on-call-rotation",
+            "topic_label": "on call rotation",
+            "similarity": 0.584743
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.332285
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.272903
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.267443
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.238261
+          },
+          {
+            "topic_id": "topic:public-radio",
+            "topic_label": "public radio",
+            "similarity": 0.238174
+          },
+          {
+            "topic_id": "topic:long-form",
+            "topic_label": "long form",
+            "similarity": 0.234979
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:on-call-rotation",
+        "topic_label": "on call rotation",
+        "top_k": [
+          {
+            "topic_id": "topic:on-call",
+            "topic_label": "on call",
+            "similarity": 0.584743
+          },
+          {
+            "topic_id": "topic:code-switching",
+            "topic_label": "code switching",
+            "similarity": 0.285458
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.264788
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.250348
+          },
+          {
+            "topic_id": "topic:roundtable-photography",
+            "topic_label": "roundtable photography",
+            "similarity": 0.217495
+          },
+          {
+            "topic_id": "topic:pronunciation",
+            "topic_label": "pronunciation",
+            "similarity": 0.214785
+          },
+          {
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.207458
           }
         ]
       },
@@ -343,39 +1368,285 @@
         "topic_label": "outdoor activities",
         "top_k": [
           {
+            "topic_id": "topic:trail-building",
+            "topic_label": "trail building",
+            "similarity": 0.490318
+          },
+          {
             "topic_id": "topic:environment",
             "topic_label": "environment",
             "similarity": 0.40504
           },
           {
-            "topic_id": "topic:gear",
-            "topic_label": "gear",
-            "similarity": 0.209174
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.388133
           },
           {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.186376
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.269564
           },
           {
-            "topic_id": "topic:health",
-            "topic_label": "health",
-            "similarity": 0.169552
+            "topic_id": "topic:public-radio",
+            "topic_label": "public radio",
+            "similarity": 0.261311
+          },
+          {
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.258881
+          },
+          {
+            "topic_id": "topic:reef-conservation",
+            "topic_label": "reef conservation",
+            "similarity": 0.253669
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:pronunciation",
+        "topic_label": "pronunciation",
+        "top_k": [
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.26976
+          },
+          {
+            "topic_id": "topic:public-radio",
+            "topic_label": "public radio",
+            "similarity": 0.26935
           },
           {
             "topic_id": "topic:technology",
             "topic_label": "technology",
-            "similarity": 0.135793
+            "similarity": 0.235701
+          },
+          {
+            "topic_id": "topic:on-call-rotation",
+            "topic_label": "on call rotation",
+            "similarity": 0.214785
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.207076
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.205482
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.198913
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:public-radio",
+        "topic_label": "public radio",
+        "top_k": [
+          {
+            "topic_id": "topic:broadcast-format",
+            "topic_label": "broadcast format",
+            "similarity": 0.520177
+          },
+          {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.44245
+          },
+          {
+            "topic_id": "topic:engineering-communication",
+            "topic_label": "engineering communication",
+            "similarity": 0.289969
+          },
+          {
+            "topic_id": "topic:newsroom-operations",
+            "topic_label": "newsroom operations",
+            "similarity": 0.284469
+          },
+          {
+            "topic_id": "topic:pronunciation",
+            "topic_label": "pronunciation",
+            "similarity": 0.26935
+          },
+          {
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.267754
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.264995
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:reef-conservation",
+        "topic_label": "reef conservation",
+        "top_k": [
+          {
+            "topic_id": "topic:marine-biology",
+            "topic_label": "marine biology",
+            "similarity": 0.460724
+          },
+          {
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.390353
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.383815
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.334303
+          },
+          {
+            "topic_id": "topic:wreck-diving",
+            "topic_label": "wreck diving",
+            "similarity": 0.316403
+          },
+          {
+            "topic_id": "topic:land-stewardship",
+            "topic_label": "land stewardship",
+            "similarity": 0.307258
+          },
+          {
+            "topic_id": "topic:underwater-photography",
+            "topic_label": "underwater photography",
+            "similarity": 0.297286
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:reliability",
+        "topic_label": "reliability",
+        "top_k": [
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.441466
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.341551
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.331609
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.315022
+          },
+          {
+            "topic_id": "topic:incident-response",
+            "topic_label": "incident response",
+            "similarity": 0.310794
+          },
+          {
+            "topic_id": "topic:security-design",
+            "topic_label": "security design",
+            "similarity": 0.303058
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.288592
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:risk-management",
+        "topic_label": "risk management",
+        "top_k": [
+          {
+            "topic_id": "topic:security-design",
+            "topic_label": "security design",
+            "similarity": 0.353066
           },
           {
             "topic_id": "topic:business-markets",
             "topic_label": "Business & markets",
-            "similarity": 0.128583
+            "similarity": 0.345181
           },
           {
-            "topic_id": "topic:without-the",
-            "topic_label": "without the",
-            "similarity": 0.089795
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.341649
+          },
+          {
+            "topic_id": "topic:reliability",
+            "topic_label": "reliability",
+            "similarity": 0.341551
+          },
+          {
+            "topic_id": "topic:macro-policy",
+            "topic_label": "macro policy",
+            "similarity": 0.340315
+          },
+          {
+            "topic_id": "topic:monetary-policy",
+            "topic_label": "monetary policy",
+            "similarity": 0.337949
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.331592
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:roundtable-photography",
+        "topic_label": "roundtable photography",
+        "top_k": [
+          {
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.472777
+          },
+          {
+            "topic_id": "topic:underwater-photography",
+            "topic_label": "underwater photography",
+            "similarity": 0.393903
+          },
+          {
+            "topic_id": "topic:lighting-design",
+            "topic_label": "lighting design",
+            "similarity": 0.308837
+          },
+          {
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.221896
+          },
+          {
+            "topic_id": "topic:on-call-rotation",
+            "topic_label": "on call rotation",
+            "similarity": 0.217495
+          },
+          {
+            "topic_id": "topic:stage-directions",
+            "topic_label": "stage directions",
+            "similarity": 0.209686
+          },
+          {
+            "topic_id": "topic:edge-cases",
+            "topic_label": "edge cases",
+            "similarity": 0.204058
           }
         ]
       },
@@ -389,6 +1660,11 @@
             "similarity": 0.547592
           },
           {
+            "topic_id": "topic:journalism",
+            "topic_label": "journalism",
+            "similarity": 0.41621
+          },
+          {
             "topic_id": "topic:business-markets",
             "topic_label": "Business & markets",
             "similarity": 0.406126
@@ -399,24 +1675,265 @@
             "similarity": 0.344133
           },
           {
+            "topic_id": "topic:marine-biology",
+            "topic_label": "marine biology",
+            "similarity": 0.334991
+          },
+          {
             "topic_id": "topic:health",
             "topic_label": "health",
             "similarity": 0.326264
           },
           {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.285209
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.313341
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:security-design",
+        "topic_label": "security design",
+        "top_k": [
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.353066
           },
           {
-            "topic_id": "topic:excited-for-this-one",
-            "topic_label": "excited for this one",
-            "similarity": 0.181413
+            "topic_id": "topic:engineering-communication",
+            "topic_label": "engineering communication",
+            "similarity": 0.338442
           },
           {
-            "topic_id": "topic:welcome-back-to",
-            "topic_label": "welcome back to",
-            "similarity": 0.176629
+            "topic_id": "topic:lighting-design",
+            "topic_label": "lighting design",
+            "similarity": 0.324561
+          },
+          {
+            "topic_id": "topic:reliability",
+            "topic_label": "reliability",
+            "similarity": 0.303058
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.291499
+          },
+          {
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking",
+            "similarity": 0.284568
+          },
+          {
+            "topic_id": "topic:edge-cases",
+            "topic_label": "edge cases",
+            "similarity": 0.273876
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:soil-erosion",
+        "topic_label": "soil erosion",
+        "top_k": [
+          {
+            "topic_id": "topic:land-stewardship",
+            "topic_label": "land stewardship",
+            "similarity": 0.26424
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.256873
+          },
+          {
+            "topic_id": "topic:outdoor-activities",
+            "topic_label": "outdoor activities",
+            "similarity": 0.242187
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.21213
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.178546
+          },
+          {
+            "topic_id": "topic:reef-conservation",
+            "topic_label": "reef conservation",
+            "similarity": 0.177735
+          },
+          {
+            "topic_id": "topic:cultural-drift",
+            "topic_label": "cultural drift",
+            "similarity": 0.162539
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:stage-directions",
+        "topic_label": "stage directions",
+        "top_k": [
+          {
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.279872
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.263446
+          },
+          {
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.256107
+          },
+          {
+            "topic_id": "topic:trail-building",
+            "topic_label": "trail building",
+            "similarity": 0.228973
+          },
+          {
+            "topic_id": "topic:roundtable-photography",
+            "topic_label": "roundtable photography",
+            "similarity": 0.209686
+          },
+          {
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing",
+            "similarity": 0.209532
+          },
+          {
+            "topic_id": "topic:long-form",
+            "topic_label": "long form",
+            "similarity": 0.205541
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:strobe-lighting",
+        "topic_label": "strobe lighting",
+        "top_k": [
+          {
+            "topic_id": "topic:lighting-design",
+            "topic_label": "lighting design",
+            "similarity": 0.59293
+          },
+          {
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.168299
+          },
+          {
+            "topic_id": "topic:underwater-photography",
+            "topic_label": "underwater photography",
+            "similarity": 0.149642
+          },
+          {
+            "topic_id": "topic:outdoor-activities",
+            "topic_label": "outdoor activities",
+            "similarity": 0.149387
+          },
+          {
+            "topic_id": "topic:gear",
+            "topic_label": "gear",
+            "similarity": 0.148786
+          },
+          {
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.145071
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.144238
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:sustainability",
+        "topic_label": "sustainability",
+        "top_k": [
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.594845
+          },
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.403283
+          },
+          {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.397629
+          },
+          {
+            "topic_id": "topic:reef-conservation",
+            "topic_label": "reef conservation",
+            "similarity": 0.383815
+          },
+          {
+            "topic_id": "topic:health",
+            "topic_label": "health",
+            "similarity": 0.355042
+          },
+          {
+            "topic_id": "topic:land-stewardship",
+            "topic_label": "land stewardship",
+            "similarity": 0.333997
+          },
+          {
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management",
+            "similarity": 0.331592
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:systems-thinking",
+        "topic_label": "systems thinking",
+        "top_k": [
+          {
+            "topic_id": "topic:technology",
+            "topic_label": "technology",
+            "similarity": 0.428175
+          },
+          {
+            "topic_id": "topic:engineering-communication",
+            "topic_label": "engineering communication",
+            "similarity": 0.320405
+          },
+          {
+            "topic_id": "topic:environment",
+            "topic_label": "environment",
+            "similarity": 0.303166
+          },
+          {
+            "topic_id": "topic:security-design",
+            "topic_label": "security design",
+            "similarity": 0.284568
+          },
+          {
+            "topic_id": "topic:dialogue",
+            "topic_label": "dialogue",
+            "similarity": 0.280223
+          },
+          {
+            "topic_id": "topic:science-research",
+            "topic_label": "Science & research",
+            "similarity": 0.27428
+          },
+          {
+            "topic_id": "topic:code-switching",
+            "topic_label": "code switching",
+            "similarity": 0.259391
           }
         ]
       },
@@ -430,116 +1947,157 @@
             "similarity": 0.547592
           },
           {
+            "topic_id": "topic:engineering-communication",
+            "topic_label": "engineering communication",
+            "similarity": 0.469538
+          },
+          {
+            "topic_id": "topic:systems-thinking",
+            "topic_label": "systems thinking",
+            "similarity": 0.428175
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.403283
+          },
+          {
             "topic_id": "topic:business-markets",
             "topic_label": "Business & markets",
             "similarity": 0.39121
           },
           {
+            "topic_id": "topic:maintenance",
+            "topic_label": "maintenance",
+            "similarity": 0.388507
+          },
+          {
             "topic_id": "topic:environment",
             "topic_label": "environment",
             "similarity": 0.367424
-          },
-          {
-            "topic_id": "topic:health",
-            "topic_label": "health",
-            "similarity": 0.349359
-          },
-          {
-            "topic_id": "topic:gear",
-            "topic_label": "gear",
-            "similarity": 0.334716
-          },
-          {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.233729
-          },
-          {
-            "topic_id": "topic:without-the",
-            "topic_label": "without the",
-            "similarity": 0.1873
           }
         ]
       },
       {
-        "topic_id": "topic:welcome-back-to",
-        "topic_label": "welcome back to",
+        "topic_id": "topic:trail-building",
+        "topic_label": "trail building",
         "top_k": [
           {
-            "topic_id": "topic:great-to-be-back",
-            "topic_label": "great to be back",
-            "similarity": 0.620573
-          },
-          {
-            "topic_id": "topic:excited-for-this-one",
-            "topic_label": "excited for this one",
-            "similarity": 0.240543
+            "topic_id": "topic:outdoor-activities",
+            "topic_label": "outdoor activities",
+            "similarity": 0.490318
           },
           {
             "topic_id": "topic:environment",
             "topic_label": "environment",
-            "similarity": 0.229688
+            "similarity": 0.274944
           },
           {
-            "topic_id": "topic:gear",
-            "topic_label": "gear",
-            "similarity": 0.186382
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.265339
           },
           {
-            "topic_id": "topic:science-research",
-            "topic_label": "Science & research",
-            "similarity": 0.176629
+            "topic_id": "topic:frame",
+            "topic_label": "frame",
+            "similarity": 0.252878
           },
           {
-            "topic_id": "topic:health",
-            "topic_label": "health",
-            "similarity": 0.167616
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing",
+            "similarity": 0.239084
           },
           {
-            "topic_id": "topic:without-the",
-            "topic_label": "without the",
-            "similarity": 0.154283
+            "topic_id": "topic:stage-directions",
+            "topic_label": "stage directions",
+            "similarity": 0.228973
+          },
+          {
+            "topic_id": "topic:sustainability",
+            "topic_label": "sustainability",
+            "similarity": 0.226976
           }
         ]
       },
       {
-        "topic_id": "topic:without-the",
-        "topic_label": "without the",
+        "topic_id": "topic:underwater-photography",
+        "topic_label": "underwater photography",
         "top_k": [
           {
-            "topic_id": "topic:health",
-            "topic_label": "health",
-            "similarity": 0.222001
+            "topic_id": "topic:documentary-photography",
+            "topic_label": "documentary photography",
+            "similarity": 0.533495
           },
           {
-            "topic_id": "topic:gear",
-            "topic_label": "gear",
-            "similarity": 0.208927
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.532235
+          },
+          {
+            "topic_id": "topic:wreck-diving",
+            "topic_label": "wreck diving",
+            "similarity": 0.440844
+          },
+          {
+            "topic_id": "topic:marine-biology",
+            "topic_label": "marine biology",
+            "similarity": 0.394426
+          },
+          {
+            "topic_id": "topic:roundtable-photography",
+            "topic_label": "roundtable photography",
+            "similarity": 0.393903
+          },
+          {
+            "topic_id": "topic:lighting-design",
+            "topic_label": "lighting design",
+            "similarity": 0.313773
+          },
+          {
+            "topic_id": "topic:reef-conservation",
+            "topic_label": "reef conservation",
+            "similarity": 0.297286
+          }
+        ]
+      },
+      {
+        "topic_id": "topic:wreck-diving",
+        "topic_label": "wreck diving",
+        "top_k": [
+          {
+            "topic_id": "topic:dive-planning",
+            "topic_label": "dive planning",
+            "similarity": 0.675269
+          },
+          {
+            "topic_id": "topic:underwater-photography",
+            "topic_label": "underwater photography",
+            "similarity": 0.440844
+          },
+          {
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing",
+            "similarity": 0.339799
+          },
+          {
+            "topic_id": "topic:incident-postmortems",
+            "topic_label": "incident postmortems",
+            "similarity": 0.332824
+          },
+          {
+            "topic_id": "topic:reef-conservation",
+            "topic_label": "reef conservation",
+            "similarity": 0.316403
+          },
+          {
+            "topic_id": "topic:marine-biology",
+            "topic_label": "marine biology",
+            "similarity": 0.314793
           },
           {
             "topic_id": "topic:environment",
             "topic_label": "environment",
-            "similarity": 0.207354
-          },
-          {
-            "topic_id": "topic:technology",
-            "topic_label": "technology",
-            "similarity": 0.1873
-          },
-          {
-            "topic_id": "topic:welcome-back-to",
-            "topic_label": "welcome back to",
-            "similarity": 0.154283
-          },
-          {
-            "topic_id": "topic:fed-vice-chair",
-            "topic_label": "fed vice chair",
-            "similarity": 0.151655
-          },
-          {
-            "topic_id": "topic:diversify-or",
-            "topic_label": "diversify or",
-            "similarity": 0.135661
+            "similarity": 0.284688
           }
         ]
       }
@@ -550,5 +2108,5 @@
   "retry_count": 0,
   "circuit_state": null,
   "duration_ms": 0,
-  "records_written": 13
+  "records_written": 51
 }

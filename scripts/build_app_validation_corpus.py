@@ -69,6 +69,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 from build_synthetic_validation_corpus import (  # noqa: E402
     build_gi,
     build_kg,
+    episode_topics_for,
     format_screenplay_with_offsets,
     is_greeting_or_filler,
     parse_diarized_segments,
@@ -212,44 +213,6 @@ def _measured_duration_for(ep_label: str, rss_dir: Path) -> int | None:
         if len(parts) == 1:
             return parts[0]
     return None
-
-
-def _episode_topics_for(ep_label: str, gt_dir: Path) -> list[str]:
-    """The episode's OWN topics from the v3 ground truth (SPEC §14).
-
-    Every episode carried only ``CROSS_CUTTING_TOPICS[show] + SHARED_UMBRELLAS`` —
-    feed-wide labels, identical for every episode of a show. So the whole corpus
-    collapsed to one theme cluster, the super-theme rollup never fired, and
-    ``topic_consensus`` had nothing to disagree about. A fixture that cannot
-    discriminate is not a small fixture; it is a fixture that answers yes to
-    everything.
-
-    The discriminating data was already authored and simply never read:
-    ``primary_topic`` + ``secondary_topics`` are 27 distinct values across the 40
-    episodes, 3-5 per show. Episode-specific first, umbrellas after, so the lead
-    topic is the episode's own while the cross-show overlap the interests picker
-    needs survives.
-    """
-    gt = gt_dir / f"{ep_label}.json"
-    if not gt.is_file():
-        return []
-    try:
-        doc = json.loads(gt.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return []
-    # The ground truth stores IDS (``topic:trail-building``); everything downstream
-    # takes human LABELS and slugifies them itself. Passing the id straight through
-    # produced ``topic:topic-trail-building`` — a doubled prefix that reached the
-    # storyline card as its visible blurb. Normalise to the label shape the existing
-    # CROSS_CUTTING_TOPICS entries use ("trail building").
-    out: list[str] = []
-    for value in (doc.get("primary_topic"), *(doc.get("secondary_topics") or [])):
-        if not isinstance(value, str) or not value:
-            continue
-        label = value.split(":", 1)[-1].replace("-", " ").replace("_", " ").strip()
-        if label and label not in out:
-            out.append(label)
-    return out
 
 
 def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
@@ -1439,10 +1402,11 @@ def main() -> int:
             # yields conversational junk like "welcome back to" on these chatty fixtures,
             # which would look broken on the entity/topic surfaces), and they give the
             # topic_clusters the cross-show overlap the interests picker needs.
-            topics = _episode_topics_for(ep_label, gt_dir) + [
+            authored = episode_topics_for(ep_label, gt_dir)
+            topics = authored + [
                 t
                 for t in CROSS_CUTTING_TOPICS.get(show_dir, []) + SHARED_UMBRELLAS
-                if t not in _episode_topics_for(ep_label, gt_dir)
+                if t not in authored
             ]
             # Insights/quotes from CLEAN diarized utterances (not the raw header block).
             excerpts = _clean_insight_quote_excerpts(diar_segments, topics)

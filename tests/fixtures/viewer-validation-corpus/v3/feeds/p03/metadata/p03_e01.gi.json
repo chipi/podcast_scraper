@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:wreck-diving",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:dive-planning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:4190e4d5a6f631a2",
+      "to": "topic:wreck-diving",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
       "to": "insight:59968c55d935f3ce",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,68 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:a6913a351c8e3d9f",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
+      "from": "insight:235ac690e3034ff4",
+      "to": "topic:wreck-diving",
+      "type": "ABOUT"
     },
     {
-      "from": "insight:4190e4d5a6f631a2",
-      "to": "quote:a6913a351c8e3d9f",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:585882210026efa4",
+      "from": "quote:7cbc9613a90aedb9",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:59968c55d935f3ce",
-      "to": "quote:585882210026efa4",
+      "from": "insight:4190e4d5a6f631a2",
+      "to": "quote:7cbc9613a90aedb9",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ef555cbac8dc83c0",
+      "from": "quote:ab8e94af6a64c7e8",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:59968c55d935f3ce",
+      "to": "quote:ab8e94af6a64c7e8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7abe82758771a250",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:235ac690e3034ff4",
-      "to": "quote:ef555cbac8dc83c0",
+      "to": "quote:7abe82758771a250",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:3c3a167d2fbfd814",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:4190e4d5a6f631a2",
-      "to": "quote:3c3a167d2fbfd814",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b71bb2f84cab536f",
+      "from": "quote:fb85d8eb5fca6091",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:59968c55d935f3ce",
-      "to": "quote:b71bb2f84cab536f",
+      "from": "insight:4190e4d5a6f631a2",
+      "to": "quote:fb85d8eb5fca6091",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:74ef8179a2e7e2fa",
+      "from": "quote:8bd9e682f5eca10c",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:59968c55d935f3ce",
+      "to": "quote:8bd9e682f5eca10c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d5590413650122dd",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:235ac690e3034ff4",
-      "to": "quote:74ef8179a2e7e2fa",
+      "to": "quote:d5590413650122dd",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +138,33 @@
       "id": "episode:a283fe88-fdec-51b4-8014-431b4a7ce670",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-08-01T12:00:00",
+        "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "podcast_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "Below the Surface \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:wreck-diving",
+      "properties": {
+        "label": "wreck diving"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dive-planning",
+      "properties": {
+        "label": "dive planning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",
@@ -175,27 +221,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Rina"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:a6913a351c8e3d9f",
-      "properties": {
-        "char_end": 193,
-        "char_start": 6,
-        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Below the Surface. Today we're talking about wreck diving, and I'm joined by Marco Sylva, technical diver and underwater archaeologist. Marco Sylva, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p03_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Marco Sylva"
@@ -203,7 +228,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:585882210026efa4",
+      "id": "quote:7cbc9613a90aedb9",
       "properties": {
         "char_end": 314,
         "char_start": 207,
@@ -217,7 +242,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ef555cbac8dc83c0",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ab8e94af6a64c7e8",
       "properties": {
         "char_end": 447,
         "char_start": 321,
@@ -231,7 +263,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:3c3a167d2fbfd814",
+      "id": "quote:7abe82758771a250",
       "properties": {
         "char_end": 553,
         "char_start": 447,
@@ -245,7 +277,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b71bb2f84cab536f",
+      "id": "quote:fb85d8eb5fca6091",
       "properties": {
         "char_end": 796,
         "char_start": 567,
@@ -259,7 +291,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:74ef8179a2e7e2fa",
+      "id": "quote:8bd9e682f5eca10c",
       "properties": {
         "char_end": 878,
         "char_start": 803,
@@ -268,6 +300,20 @@
         "text": "I want to dig into that. Where do dive planning and wreck diving intersect?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d5590413650122dd",
+      "properties": {
+        "char_end": 1056,
+        "char_start": 892,
+        "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Silt-out from poor finning technique kills more divers in wrecks than equipment failures. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p03_e01.txt"
       },
       "type": "Quote"

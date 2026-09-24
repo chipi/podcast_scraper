@@ -2,23 +2,33 @@
   "edges": [
     {
       "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "to": "topic:cultural-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "to": "topic:dialogue",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
       "to": "topic:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
-      "to": "topic:great-to-be-back",
       "type": "MENTIONS"
     },
     {
       "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
       "to": "insight:738c0d8597e80be9",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:738c0d8597e80be9",
+      "to": "topic:cultural-drift",
+      "type": "ABOUT"
     },
     {
       "from": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
@@ -31,63 +41,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:db8b320c9ee81c99",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:738c0d8597e80be9",
-      "to": "quote:db8b320c9ee81c99",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a6402c764ac25bd8",
+      "from": "quote:bb4cc4aecd2fc7a5",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:49ceee537c0fbff7",
-      "to": "quote:a6402c764ac25bd8",
+      "from": "insight:738c0d8597e80be9",
+      "to": "quote:bb4cc4aecd2fc7a5",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:e0b30fff0577cc0f",
+      "from": "quote:2029b4058a6b204c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:2029b4058a6b204c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:668c72247c795115",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:9dae8f69e31392ca",
-      "to": "quote:e0b30fff0577cc0f",
+      "to": "quote:668c72247c795115",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:468d7e5679a9ef44",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:738c0d8597e80be9",
-      "to": "quote:468d7e5679a9ef44",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:34dd7b355c18582f",
+      "from": "quote:cdf875c6f5c208bf",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:49ceee537c0fbff7",
-      "to": "quote:34dd7b355c18582f",
+      "from": "insight:738c0d8597e80be9",
+      "to": "quote:cdf875c6f5c208bf",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d22170d77e6d0020",
+      "from": "quote:a624e1ef6da1be3a",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:a624e1ef6da1be3a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:92c24d90fe8d2b57",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:9dae8f69e31392ca",
-      "to": "quote:d22170d77e6d0020",
+      "to": "quote:92c24d90fe8d2b57",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,31 +123,38 @@
       "id": "episode:55e302e4-3319-59f2-8c17-fde08bffd658",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "publish_date": "2026-07-29T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 4"
+        "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "podcast_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "publish_date": "2026-09-19T12:00:00",
+        "title": "The Drift \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:cultural-drift",
+      "properties": {
+        "label": "cultural drift"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue",
+      "properties": {
+        "label": "dialogue"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
         "label": "Science & research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:great-to-be-back",
-      "properties": {
-        "label": "great to be back"
       },
       "type": "Topic"
     },
@@ -175,27 +192,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Cam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:db8b320c9ee81c99",
-      "properties": {
-        "char_end": 157,
-        "char_start": 5,
-        "episode_id": "55e302e4-3319-59f2-8c17-fde08bffd658",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p06_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Jordan Park"
@@ -203,7 +199,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:a6402c764ac25bd8",
+      "id": "quote:bb4cc4aecd2fc7a5",
       "properties": {
         "char_end": 201,
         "char_start": 171,
@@ -217,7 +213,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e0b30fff0577cc0f",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2029b4058a6b204c",
       "properties": {
         "char_end": 368,
         "char_start": 207,
@@ -231,7 +234,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:468d7e5679a9ef44",
+      "id": "quote:668c72247c795115",
       "properties": {
         "char_end": 445,
         "char_start": 368,
@@ -245,7 +248,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:34dd7b355c18582f",
+      "id": "quote:cdf875c6f5c208bf",
       "properties": {
         "char_end": 634,
         "char_start": 459,
@@ -259,7 +262,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d22170d77e6d0020",
+      "id": "quote:a624e1ef6da1be3a",
       "properties": {
         "char_end": 740,
         "char_start": 640,
@@ -268,6 +271,20 @@
         "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:92c24d90fe8d2b57",
+      "properties": {
+        "char_end": 908,
+        "char_start": 754,
+        "episode_id": "55e302e4-3319-59f2-8c17-fde08bffd658",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. You can't grip drift; you can only notice it. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p06_e04.txt"
       },
       "type": "Quote"

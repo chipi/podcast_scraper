@@ -2,6 +2,26 @@
   "edges": [
     {
       "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "topic:pronunciation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
       "to": "topic:environment",
       "type": "MENTIONS"
     },
@@ -21,6 +41,16 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:6a77e36d51b1d25d",
+      "to": "topic:pronunciation",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:6a77e36d51b1d25d",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
       "to": "insight:e84a13fb6e0bae28",
       "type": "HAS_INSIGHT"
@@ -31,63 +61,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:06a57d64ea080070",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6a77e36d51b1d25d",
-      "to": "quote:06a57d64ea080070",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e1f377c60dc95af3",
+      "from": "quote:bcdda3112267f8ad",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:e84a13fb6e0bae28",
-      "to": "quote:e1f377c60dc95af3",
+      "from": "insight:6a77e36d51b1d25d",
+      "to": "quote:bcdda3112267f8ad",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:33c35de12097aad4",
+      "from": "quote:7b6a126e7c761dfa",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e84a13fb6e0bae28",
+      "to": "quote:7b6a126e7c761dfa",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d087ca560a046037",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:db9acd5ee7759839",
-      "to": "quote:33c35de12097aad4",
+      "to": "quote:d087ca560a046037",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:afe5d5c4409e5eac",
+      "from": "quote:237866e6b2b9486d",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:6a77e36d51b1d25d",
-      "to": "quote:afe5d5c4409e5eac",
+      "to": "quote:237866e6b2b9486d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:20324a1c1da608a6",
+      "from": "quote:51fc246f0cb104b9",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:e84a13fb6e0bae28",
-      "to": "quote:20324a1c1da608a6",
+      "to": "quote:51fc246f0cb104b9",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:f96ff5725894f2fb",
+      "from": "quote:9b5975507018202d",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:db9acd5ee7759839",
-      "to": "quote:f96ff5725894f2fb",
+      "to": "quote:9b5975507018202d",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +143,40 @@
       "id": "episode:5250652d-f8da-5799-91da-8b1ce4991232",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-        "publish_date": "2026-07-31T12:00:00",
-        "title": "The Long View \u2014 Episode 2"
+        "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
+        "podcast_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
+        "publish_date": "2026-09-21T12:00:00",
+        "title": "Public Hour \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:pronunciation",
+      "properties": {
+        "label": "pronunciation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:environment",
@@ -175,27 +233,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "A. correspondent"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:06a57d64ea080070",
-      "properties": {
-        "char_end": 181,
-        "char_start": 18,
-        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Public Hour. Today we're talking about public radio, and I'm joined by Renee Montague-Park, journalist. Renee Montague-Park, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p08_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Renee Montague-Park"
@@ -203,7 +240,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:e1f377c60dc95af3",
+      "id": "quote:bcdda3112267f8ad",
       "properties": {
         "char_end": 246,
         "char_start": 203,
@@ -217,7 +254,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:33c35de12097aad4",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:7b6a126e7c761dfa",
       "properties": {
         "char_end": 426,
         "char_start": 265,
@@ -231,7 +275,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:afe5d5c4409e5eac",
+      "id": "quote:d087ca560a046037",
       "properties": {
         "char_end": 520,
         "char_start": 426,
@@ -245,21 +289,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:20324a1c1da608a6",
-      "properties": {
-        "char_end": 600,
-        "char_start": 542,
-        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p08_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:f96ff5725894f2fb",
+      "id": "quote:237866e6b2b9486d",
       "properties": {
         "char_end": 714,
         "char_start": 619,
@@ -268,6 +298,34 @@
         "text": "What does the failure mode look like? What's the version of the question that actually matters?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:51fc246f0cb104b9",
+      "properties": {
+        "char_end": 977,
+        "char_start": 736,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "speaker_id": "person:speaker-02",
+        "text": "It comes down to this: Mispronunciation is a high-signal mistake \u2014 it tells listeners 'this person isn't paying attention'. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p08_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9b5975507018202d",
+      "properties": {
+        "char_end": 1109,
+        "char_start": 996,
+        "episode_id": "5250652d-f8da-5799-91da-8b1ce4991232",
+        "speaker_id": "person:speaker-01",
+        "text": "Push back on the conventional wisdom for me. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p08_e02.txt"
       },
       "type": "Quote"

@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:lighting-design",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:strobe-lighting",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:4c10d2d79f5222d3",
+      "to": "topic:lighting-design",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
       "to": "insight:772e9d7736e683de",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:c69b21db844e5d03",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:4c10d2d79f5222d3",
-      "to": "quote:c69b21db844e5d03",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:2c0efcfbe2283edc",
+      "from": "quote:a832e074c5b4630e",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:772e9d7736e683de",
-      "to": "quote:2c0efcfbe2283edc",
+      "from": "insight:4c10d2d79f5222d3",
+      "to": "quote:a832e074c5b4630e",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:af783b261fdc953d",
+      "from": "quote:e2f31026d8533440",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:772e9d7736e683de",
+      "to": "quote:e2f31026d8533440",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c5ce477ee6758691",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:1f363af5c9b5d0ec",
-      "to": "quote:af783b261fdc953d",
+      "to": "quote:c5ce477ee6758691",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:f61ed165429330ce",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:4c10d2d79f5222d3",
-      "to": "quote:f61ed165429330ce",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:18217a213026edcb",
+      "from": "quote:0b3260573971416e",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:772e9d7736e683de",
-      "to": "quote:18217a213026edcb",
+      "from": "insight:4c10d2d79f5222d3",
+      "to": "quote:0b3260573971416e",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:a77ea824848f5d67",
+      "from": "quote:c0d50be565a2b1d2",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:772e9d7736e683de",
+      "to": "quote:c0d50be565a2b1d2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a5e93f2ba680e172",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:1f363af5c9b5d0ec",
-      "to": "quote:a77ea824848f5d67",
+      "to": "quote:a5e93f2ba680e172",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:e1743bda-76ff-5586-9e39-3fa45e41ef9a",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-08-02T12:00:00",
+        "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "podcast_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "publish_date": "2026-09-23T12:00:00",
         "title": "Frame & Light \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:lighting-design",
+      "properties": {
+        "label": "lighting design"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-lighting",
+      "properties": {
+        "label": "strobe lighting"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Leo"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:c69b21db844e5d03",
-      "properties": {
-        "char_end": 181,
-        "char_start": 5,
-        "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Frame & Light. Today we're talking about lighting design, and I'm joined by Daniel Olufemi, commercial lighting director. Daniel Olufemi, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p04_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Daniel Olufemi"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:2c0efcfbe2283edc",
+      "id": "quote:a832e074c5b4630e",
       "properties": {
         "char_end": 228,
         "char_start": 198,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:af783b261fdc953d",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e2f31026d8533440",
       "properties": {
         "char_end": 386,
         "char_start": 234,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:f61ed165429330ce",
+      "id": "quote:c5ce477ee6758691",
       "properties": {
         "char_end": 490,
         "char_start": 386,
@@ -245,7 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:18217a213026edcb",
+      "id": "quote:0b3260573971416e",
       "properties": {
         "char_end": 723,
         "char_start": 507,
@@ -259,7 +286,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:a77ea824848f5d67",
+      "id": "quote:c0d50be565a2b1d2",
       "properties": {
         "char_end": 793,
         "char_start": 729,
@@ -268,6 +295,20 @@
         "text": "That's a useful framing. How does Profoto fit into this picture?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a5e93f2ba680e172",
+      "properties": {
+        "char_end": 929,
+        "char_start": 810,
+        "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Two-light setups solve 80% of commercial problems. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p04_e03.txt"
       },
       "type": "Quote"

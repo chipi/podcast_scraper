@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "roundtable photography",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:roundtable-photography"
+    },
+    {
       "in_topic_cluster": true,
       "label": "technology",
       "topic_cluster_compound_id": "tc:technology-cluster",
       "topic_id": "topic:technology"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "gear",
-      "topic_cluster_compound_id": "tc:gear-cluster",
-      "topic_id": "topic:gear"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
-    "published_date": "2026-07-31",
+    "published_date": "2026-09-21",
     "title": "Frame & Light \u2014 Episode 4"
   },
   "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
   "episode_title": "Frame & Light \u2014 Episode 4",
   "feed": {
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
-    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
     "title": "Frame & Light",
     "url": "http://localhost/"
   },
   "feed_display_title": "Frame & Light",
-  "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+  "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
   "gi_relative_path": "feeds/p04/metadata/p04_e04.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p04/metadata/p04_e04.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p04/metadata/p04_e04.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-31",
+  "publish_date": "2026-09-21",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,6 +75,9 @@
     "title": "Frame & Light \u2014 Episode 4 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:roundtable-photography",
+    "topic:frame",
+    "topic:strobe-lighting",
     "topic:technology",
     "topic:gear",
     "topic:science-research"
@@ -88,6 +91,9 @@
   "summary_text": "Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer.\nAva Lemoine, thanks for being here.\nToday's episode is sponsored by Adobe.",
   "summary_title": "Frame & Light \u2014 Episode 4 \u2014 synthetic",
   "topics": [
+    "roundtable photography",
+    "frame",
+    "strobe lighting",
     "technology",
     "gear",
     "Science & research"

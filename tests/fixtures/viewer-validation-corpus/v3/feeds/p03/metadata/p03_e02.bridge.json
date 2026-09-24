@@ -2,6 +2,18 @@
   "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
   "identities": [
     {
+      "display_name": "marine biology",
+      "id": "topic:marine-biology"
+    },
+    {
+      "display_name": "reef conservation",
+      "id": "topic:reef-conservation"
+    },
+    {
+      "display_name": "soil erosion",
+      "id": "topic:soil-erosion"
+    },
+    {
       "display_name": "outdoor activities",
       "id": "topic:outdoor-activities"
     },

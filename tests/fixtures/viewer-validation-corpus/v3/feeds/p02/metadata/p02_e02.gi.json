@@ -2,7 +2,22 @@
   "edges": [
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "topic:technology",
+      "to": "topic:engineering-communication",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:incident-postmortems",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:risk-management",
       "type": "MENTIONS"
     },
     {
@@ -12,13 +27,18 @@
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "topic:welcome-back-to",
+      "to": "topic:technology",
       "type": "MENTIONS"
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
       "to": "insight:dd91019976ad2564",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:dd91019976ad2564",
+      "to": "topic:engineering-communication",
+      "type": "ABOUT"
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:a01d27055501ed09",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:dd91019976ad2564",
-      "to": "quote:a01d27055501ed09",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e9540cb5dd447f6c",
+      "from": "quote:e3c8d9d14aab6ce2",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:488859efff6942d0",
-      "to": "quote:e9540cb5dd447f6c",
+      "from": "insight:dd91019976ad2564",
+      "to": "quote:e3c8d9d14aab6ce2",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:6a0cb0620f4bf2f8",
+      "from": "quote:fd276b5e0e0f9855",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:488859efff6942d0",
+      "to": "quote:fd276b5e0e0f9855",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9541841b0d74dc24",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ce53f46a0943a486",
-      "to": "quote:6a0cb0620f4bf2f8",
+      "to": "quote:9541841b0d74dc24",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ec51d8b126faa9b2",
+      "from": "quote:b69c4c015c583ecf",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:dd91019976ad2564",
-      "to": "quote:ec51d8b126faa9b2",
+      "to": "quote:b69c4c015c583ecf",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d9d159dd603e9ea2",
-      "to": "person:speaker-02",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:488859efff6942d0",
-      "to": "quote:d9d159dd603e9ea2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:bc4717e863090833",
+      "from": "quote:696efb63695f2635",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:488859efff6942d0",
+      "to": "quote:696efb63695f2635",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:78689b07f21f0c90",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:ce53f46a0943a486",
-      "to": "quote:bc4717e863090833",
+      "to": "quote:78689b07f21f0c90",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,40 @@
       "id": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-07-31T12:00:00",
+        "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "podcast_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "publish_date": "2026-09-21T12:00:00",
         "title": "Practical Systems \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:engineering-communication",
+      "properties": {
+        "label": "engineering communication"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-postmortems",
+      "properties": {
+        "label": "incident postmortems"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -131,13 +179,6 @@
       "id": "topic:technology",
       "properties": {
         "label": "Technology"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
       },
       "type": "Topic"
     },
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Ethan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:a01d27055501ed09",
-      "properties": {
-        "char_end": 209,
-        "char_start": 7,
-        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Practical Systems. Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams. Joll Wisenthal, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p02_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Joll Wisenthal"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:e9540cb5dd447f6c",
+      "id": "quote:e3c8d9d14aab6ce2",
       "properties": {
         "char_end": 258,
         "char_start": 226,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:6a0cb0620f4bf2f8",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:fd276b5e0e0f9855",
       "properties": {
         "char_end": 399,
         "char_start": 266,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ec51d8b126faa9b2",
+      "id": "quote:9541841b0d74dc24",
       "properties": {
         "char_end": 530,
         "char_start": 399,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d9d159dd603e9ea2",
-      "properties": {
-        "char_end": 605,
-        "char_start": 547,
-        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p02_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:bc4717e863090833",
+      "id": "quote:b69c4c015c583ecf",
       "properties": {
         "char_end": 703,
         "char_start": 613,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Priya Nayar mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:696efb63695f2635",
+      "properties": {
+        "char_end": 785,
+        "char_start": 703,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p02_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:78689b07f21f0c90",
+      "properties": {
+        "char_end": 987,
+        "char_start": 802,
+        "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, A great RFC starts with context and constraints, then options. We've seen this play out at teams using Notion. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p02_e02.txt"
       },
       "type": "Quote"

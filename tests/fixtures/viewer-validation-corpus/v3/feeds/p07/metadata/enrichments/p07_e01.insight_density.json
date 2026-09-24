@@ -1,6 +1,6 @@
 {
   "derived": true,
-  "computed_at": "2026-07-17T13:58:48Z",
+  "computed_at": "2026-09-24T14:39:00Z",
   "enricher_id": "insight_density",
   "enricher_version": "1.0.0",
   "schema_version": "1.0",
@@ -36,5 +36,6 @@
   "retry_count": 0,
   "circuit_state": null,
   "duration_ms": 0,
-  "records_written": 3
+  "records_written": 3,
+  "input_fingerprint": "f20b9ec49c4cc30d384d739ae92d6a7eaf2308e309068a95bce9bba365adca1c"
 }

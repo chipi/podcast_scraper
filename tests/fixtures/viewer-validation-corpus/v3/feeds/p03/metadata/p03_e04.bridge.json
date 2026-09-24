@@ -2,6 +2,18 @@
   "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
   "identities": [
     {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "dive planning",
+      "id": "topic:dive-planning"
+    },
+    {
       "display_name": "outdoor activities",
       "id": "topic:outdoor-activities"
     },

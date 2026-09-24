@@ -1,0 +1,95 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "index investing",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:index-investing"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "risk management",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:risk-management"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 3,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Daniel Cho",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Nadia Sereni",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e05.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+    "published_date": "2026-09-24",
+    "title": "Long Horizon Notes \u2014 Episode 5"
+  },
+  "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+  "episode_title": "Long Horizon Notes \u2014 Episode 5",
+  "feed": {
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "Long Horizon Notes",
+  "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+  "gi_relative_path": "feeds/p05/metadata/p05_e05.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p05/metadata/p05_e05.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p05/metadata/p05_e05.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p05/metadata/p05_e05.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-09-24",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome to Long Horizon Notes.",
+      "My guest today is Daniel Cho, former bond trader turned index advocate.",
+      "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring."
+    ],
+    "preview": "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US ho\u2026",
+    "text": "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome to Long Horizon Notes.\nMy guest today is Daniel Cho, former bond trader turned index advocate.\nToday's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring.",
+    "title": "Long Horizon Notes \u2014 Episode 5 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:index-investing",
+    "topic:risk-management",
+    "topic:technology"
+  ],
+  "summary_bullets": [
+    "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome to Long Horizon Notes.",
+    "My guest today is Daniel Cho, former bond trader turned index advocate.",
+    "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring."
+  ],
+  "summary_preview": "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US ho\u2026",
+  "summary_text": "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome to Long Horizon Notes.\nMy guest today is Daniel Cho, former bond trader turned index advocate.\nToday's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring.",
+  "summary_title": "Long Horizon Notes \u2014 Episode 5 \u2014 synthetic",
+  "topics": [
+    "index investing",
+    "risk management",
+    "Technology"
+  ]
+}

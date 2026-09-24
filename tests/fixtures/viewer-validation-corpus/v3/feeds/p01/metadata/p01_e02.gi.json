@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:7eb4aef5d719f5c8",
+      "to": "topic:enduro-racing",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
       "to": "insight:ed902be0b7b87d7e",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:f7d8a819c36c4190",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7eb4aef5d719f5c8",
-      "to": "quote:f7d8a819c36c4190",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:3617bfd9322ba3a7",
+      "from": "quote:fe2382ec2a678a23",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:ed902be0b7b87d7e",
-      "to": "quote:3617bfd9322ba3a7",
+      "from": "insight:7eb4aef5d719f5c8",
+      "to": "quote:fe2382ec2a678a23",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:82f95dfde0f1510d",
+      "from": "quote:8bd321c005598fcb",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ed902be0b7b87d7e",
+      "to": "quote:8bd321c005598fcb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b0df330647573c5d",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:c518a18d27687d5d",
-      "to": "quote:82f95dfde0f1510d",
+      "to": "quote:b0df330647573c5d",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:8046f2ade8453e27",
+      "from": "quote:32a9cbcddb400b51",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:7eb4aef5d719f5c8",
-      "to": "quote:8046f2ade8453e27",
+      "to": "quote:32a9cbcddb400b51",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:24391f70935cca56",
-      "to": "person:speaker-02",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:ed902be0b7b87d7e",
-      "to": "quote:24391f70935cca56",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:22abbda494e85081",
+      "from": "quote:ac34f9ae6b9d87ae",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:ed902be0b7b87d7e",
+      "to": "quote:ac34f9ae6b9d87ae",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a1d7808e9a032c10",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:c518a18d27687d5d",
-      "to": "quote:22abbda494e85081",
+      "to": "quote:a1d7808e9a032c10",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-08-01T12:00:00",
+        "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "podcast_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:enduro-racing",
+      "properties": {
+        "label": "enduro racing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Maya"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:f7d8a819c36c4190",
-      "properties": {
-        "char_end": 179,
-        "char_start": 6,
-        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Singletrack Sessions. Today we're talking about enduro racing, and I'm joined by Sophie Lorenz, enduro racer and coach. Sophie Lorenz, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p01_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Sophie Lorenz"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:3617bfd9322ba3a7",
+      "id": "quote:fe2382ec2a678a23",
       "properties": {
         "char_end": 226,
         "char_start": 195,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:82f95dfde0f1510d",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:8bd321c005598fcb",
       "properties": {
         "char_end": 356,
         "char_start": 233,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:8046f2ade8453e27",
+      "id": "quote:b0df330647573c5d",
       "properties": {
         "char_end": 481,
         "char_start": 356,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:24391f70935cca56",
-      "properties": {
-        "char_end": 555,
-        "char_start": 497,
-        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p01_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:22abbda494e85081",
+      "id": "quote:32a9cbcddb400b51",
       "properties": {
         "char_end": 653,
         "char_start": 562,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Liam Verbeck mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ac34f9ae6b9d87ae",
+      "properties": {
+        "char_end": 739,
+        "char_start": 653,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. Where do soil erosion and enduro racing intersect?",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p01_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a1d7808e9a032c10",
+      "properties": {
+        "char_end": 952,
+        "char_start": 755,
+        "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Speed comes from braking earlier and smoother, not from taking bigger risks. We've seen this play out at teams using RockShox. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p01_e02.txt"
       },
       "type": "Quote"

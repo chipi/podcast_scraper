@@ -2,23 +2,33 @@
   "edges": [
     {
       "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:macro-policy",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
       "to": "topic:business-markets",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-      "to": "topic:great-to-be-back",
       "type": "MENTIONS"
     }
   ],
   "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
   "extraction": {
-    "extracted_at": "2026-08-01T12:00:00",
+    "extracted_at": "2026-09-22T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p05_e03.txt"
   },
@@ -26,33 +36,49 @@
     {
       "id": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
       "properties": {
-        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-08-01T12:00:00",
+        "podcast_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:macro-policy",
+      "properties": {
+        "label": "macro policy",
+        "slug": "macro-policy"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:business-markets",
       "properties": {
         "label": "Business & markets",
         "slug": "business-markets"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to",
-        "slug": "welcome-back-to"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:great-to-be-back",
-      "properties": {
-        "label": "great to be back",
-        "slug": "great-to-be-back"
       },
       "type": "Topic"
     }
