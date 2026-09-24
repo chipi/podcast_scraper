@@ -191,7 +191,7 @@ final class DownloadThroughUITests: UITestCase {
     // The transfer is real: a few MB of fixture audio over the loopback proxy, plus artwork and
     // the transcript. "Downloaded" is the app's OWN report that the bytes are on disk and the
     // registry says so — the assertion the seed could never make.
-    let done = page.buttons["Downloaded — tap to remove"].firstMatch
+    let done = app.buttons["Downloaded — tap to remove"].firstMatch
     if !done.waitForExistence(timeout: 90) {
       print("=====DOWNLOAD_TREE_START====="); print(app.debugDescription); print("=====DOWNLOAD_TREE_END=====")
       XCTFail("\(title) never reached the downloaded state")
@@ -199,7 +199,7 @@ final class DownloadThroughUITests: UITestCase {
     }
 
     // Queue it, so the offline auto-advance run has somewhere to advance TO.
-    let queue = page.buttons["Add to queue"].firstMatch
+    let queue = app.buttons["Add to queue"].firstMatch
     if queue.waitForExistence(timeout: 10) { queue.tap() }
 
   }

@@ -2108,6 +2108,7 @@ test-app-ios-native:
 			-only-testing:OfflineSpikeUITests/StackDepthProbeTests \
 			-only-testing:OfflineSpikeUITests/HostShowLinkTests \
 			-only-testing:OfflineSpikeUITests/BoardsShotTests \
+			-only-testing:OfflineSpikeUITests/NativeOnlySurfacesTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_NATIVE_EXIT=$$rc"; exit $$rc
 

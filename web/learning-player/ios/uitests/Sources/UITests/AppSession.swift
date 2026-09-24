@@ -146,6 +146,27 @@ enum AppSession {
    * unreachable — the app is already signed in, so there is no "Sign in" link to tap — and the
    * suite would silently keep the previous suite's account.
    */
+  /**
+   * Sign out and stay out — the precondition for `/offline`, which only renders when signed out.
+   *
+   * `ensureSignedIn` already knew how to do this, but only as a step on the way BACK IN, so a suite
+   * that wants the signed-out state had no way to ask for it. Extracted rather than copied: the
+   * scroll-to-Sign-out dance has already broken twice when Profile grew (2026-09-18), and a second
+   * copy would have to be fixed twice next time.
+   */
+  @discardableResult
+  static func signOut(_ app: XCUIApplication) -> Bool {
+    guard isSignedIn(app) else { return true } // already out; the caller's precondition holds
+    _ = Journey.openProfile(app)
+    guard let out = Journey.scrollTo(app, labels: ["Sign out"], contains: false) else {
+      print("=====SIGNOUT_TREE_START====="); print(app.debugDescription); print("=====SIGNOUT_TREE_END=====")
+      return false
+    }
+    out.tap()
+    sleep(3)
+    return !isSignedIn(app)
+  }
+
   @discardableResult
   static func ensureSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
     if isSignedIn(app, as: identity) { return true }
