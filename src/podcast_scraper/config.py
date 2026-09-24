@@ -6463,8 +6463,19 @@ class Config(BaseModel):
         with ``skip_existing`` and no ``reprocess_source`` every matched episode would
         simply be skipped (a no-op). Warn rather than error — the combination is legal
         and may be intentional (e.g. a dry-run preview of the matched set).
+
+        NOT when a work-list is given. ``reprocess_episode_ids`` forces each listed episode
+        past ``skip_existing`` on its own (``_force_reprocess_for_source``), so the "will be
+        skipped (no-op)" claim is false for exactly the invocation the repair runbook uses —
+        and it was printed, twice, during the 2026-09-24 repair of an episode that then
+        downloaded media and re-transcribed. A warning that contradicts what the run is
+        visibly doing teaches operators to ignore warnings.
         """
-        if self.reprocess_existing_only and not self.reprocess_source:
+        if (
+            self.reprocess_existing_only
+            and not self.reprocess_source
+            and not self.reprocess_episode_ids
+        ):
             logger.warning(
                 "reprocess_existing_only is set without reprocess_source; matched "
                 "on-disk episodes will be skipped under skip_existing (no-op). Pair it "

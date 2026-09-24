@@ -198,3 +198,48 @@ def test_existing_transcript_metadata_only_fallback(tmp_path: Path):
 def test_existing_transcript_none_when_absent(tmp_path: Path):
     feed_dir = Path(str(_corpus_layout_cfg(tmp_path).output_dir))
     assert run_index.existing_transcript_path_in_corpus(_episode("gNONE", 1), str(feed_dir)) is None
+
+
+def test_existing_transcript_refuses_an_admap_as_the_transcript(tmp_path: Path):
+    """A full sidecar set with NO `.txt` must not resolve to `.adfree.admap.json`.
+
+    `_transcript_beside` used to fall back to `glob(f"{base}.*")` and return the
+    lexicographically FIRST hit — which for a complete sidecar set is the ad-map JSON. That
+    was handed to `rederive_only` as "the transcript" and fed into the GI/KG cascade with a
+    success exit. Pre-fix this returns the admap, so the assertion fails.
+    """
+    feed_dir = Path(str(_corpus_layout_cfg(tmp_path).output_dir))
+    run = _seed_metadata_only(feed_dir, "run_20260101-000000_admap000", "gA")
+    tdir = run / "transcripts"
+    tdir.mkdir(parents=True, exist_ok=True)
+    for name in (
+        "0001 - Ep A.adfree.admap.json",
+        "0001 - Ep A.segments.json",
+        "0001 - Ep A.adfree.txt",
+        "0001 - Ep A.cleaned.txt",
+    ):
+        (tdir / name).write_text("x", encoding="utf-8")
+
+    p = run_index.existing_transcript_path_in_corpus(_episode("gA", 1), str(feed_dir))
+
+    assert p is not None, "presence must still be reported via the metadata marker"
+    assert p.endswith(
+        ".metadata.json"
+    ), f"resolved to a derivative/non-text artifact instead of refusing: {p}"
+
+
+def test_existing_transcript_still_accepts_a_published_srt(tmp_path: Path):
+    """Guard the over-correction: a first attempt restricted this to `.txt` alone.
+
+    `.vtt` and `.srt` are the two publisher formats this pipeline ingests
+    (config.py:4062), so a downloaded-transcript episode must still resolve. Narrowing to
+    `.txt` broke `test_existing_transcript_globs_non_txt` — that test was right.
+    """
+    feed_dir = Path(str(_corpus_layout_cfg(tmp_path).output_dir))
+    run = _seed_metadata_only(feed_dir, "run_20260101-000000_srt00000", "gA")
+    (run / "transcripts").mkdir(parents=True, exist_ok=True)
+    (run / "transcripts" / "0001 - Ep A.srt").write_text("1\n", encoding="utf-8")
+
+    p = run_index.existing_transcript_path_in_corpus(_episode("gA", 1), str(feed_dir))
+
+    assert p is not None and p.endswith("0001 - Ep A.srt")

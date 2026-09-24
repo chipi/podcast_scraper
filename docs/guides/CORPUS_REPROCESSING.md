@@ -200,3 +200,187 @@ make enrich-relational-edges CORPUS_DIR=<corpus>   # re-derive SPOKEN_BY
 - If the corpus feeds eval, record quality-vs-baseline before/after.
 - Profiles: DGX diarization → `cloud_with_dgx_primary.yaml`; cloud-only → `cloud_balanced.yaml`
   (Deepgram diarization, Gemini everything-else, `gemini-2.5-flash-lite`).
+
+## Reading a running reprocess — what the signals actually mean
+
+Added 2026-09-24 after a repair where every one of these was misread at least once,
+costing hours. Each entry is a thing that looks like evidence and is not.
+
+### The corpus lock file's existence means NOTHING
+
+`filelock` never unlinks `.podcast_scraper.lock` on release — it drops the `flock` and
+removes the `.holder` sidecar. So the file is present, 0 bytes, after **every run that has
+ever succeeded**. It was read as "locked" three times over 2026-09-22..24, diagnosed as
+stale, and hand-removed on prod. It was never stale.
+
+```bash
+# WRONG — always true after the first run, tells you nothing
+[ -e corpus/.podcast_scraper.lock ] && echo "locked"
+
+# RIGHT — probes the flock, which is the only authority
+docker exec compose-api-1 python3 -c "
+from podcast_scraper.utils.corpus_lock import corpus_lock_state
+import json; print(json.dumps(corpus_lock_state('/app/output'), indent=2))"
+```
+
+`held: true` means a live process holds it; the `holder` names pid/hostname/start. A
+genuinely contended lock is normal — wait, don't delete.
+
+### A work-list OVERRIDES `--skip-existing`; you do not need to delete anything
+
+`--reprocess-episode-ids` forces each listed episode past `skip_existing` on its own
+(`_force_reprocess_for_source`). A plan to "delete the artifacts so the re-ingest sees
+them as new" is both unnecessary **and self-defeating**: on the
+`--reprocess-existing-only` path (which `--reprocess-episode-ids` implies) the episode set
+is built FROM on-disk metadata, so deleting a guid's metadata removes it from the
+selectable universe and the run logs *"none of the N listed episode(s) are in this feed's
+corpus"* and exits 0.
+
+Confirm the override fired — this line per episode is the proof:
+
+```text
+[1] [#925] forcing re-transcription + diarization (reprocess-source=None): <path>
+```
+
+If it is absent, skip-existing won and the run is a no-op regardless of exit code.
+
+### A `full` run writes a NEW run dir; `relabel_only` writes back into the old one
+
+`_existing_metadata_path_for_reprocess` returns a path only for the
+never-transcribe stages (`relabel_only`, `rediarize_only`, `retranscript_only`) and
+`rederive_only`. A `full` run creates `run_<ts>/` fresh, and newest-run-per-episode makes
+it win for every reader — which is why repair-first / cleanup-after is safe and you never
+need to mutate the damaged records in place.
+
+### Per-episode resolution: one line decides whether the run is doing what you asked
+
+```text
+reprocess: [N] (on-disk M) 'Title' -> <file>.txt                     resolved from its own record
+reprocess: [N] (on-disk M) 'Title' -> <file>.txt [ADOPTED from run_X] its own run had none
+reprocess: [N] (on-disk M) 'Title' -> no transcript on disk — will be transcribed by this run
+reprocess: [N] (on-disk M) 'Title' -> NO OWN TRANSCRIPT ... SKIPPED   only for relabel/rediarize/retranscript
+```
+
+A reprocess OVERWRITES the transcript it picks. Before 2026-09-23 a missing transcript
+fell through to a `{idx} - *.txt` glob, and since an on-disk idx is unique only inside one
+`run_*` dir, that handed 10 serving episodes **another episode's** transcript with GI/KG
+rebuilt from the wrong words. It now refuses instead.
+
+### The processing-loop line states its own verdict — believe it, not the raw counts
+
+```text
+INFO  Processing loop: WORKING — 4/6 episodes settled (ok or failed), 2 running, 3 queued ...
+ERROR Processing loop: STUCK? — every job is accounted for and nothing is in flight ...
+```
+
+`WORKING` at INFO is ordinary waiting and is **not** a problem, however long it runs. The
+pre-2026-09-24 version printed raw counts and was misread in both directions — 366 lines of
+normal waiting counted as wedges (producing a "17.3h of dead time" figure that was wrong by
+>2x), and a real wedge called healthy for an hour.
+
+Read the wording precisely, because two parts of it are deliberately weaker than they look:
+
+- **`STUCK?` with a question mark, and only a REPEAT is a wedge.** The counts are sampled, not
+  synchronised, so a job landing between the exit check and the report produces one
+  STUCK-shaped line that the next iteration clears. One occurrence is inconclusive; the same
+  line again 60s later is the real thing.
+- **`settled (ok or failed)`, not "done".** A drained FAILURE is in that count. It previously
+  read "N/M episodes done", so a feed with three failures reported "6/6 episodes done. Normal."
+- **`may still hold worker slot(s)`.** `abandoned` never decrements, so hours later those
+  workers may well have finished. The loop stopped waiting on them and genuinely cannot tell.
+
+Two error types distinguish *why* an episode is incomplete, and they want different follow-ups:
+`ProcessingAbandoned` means that episode overran its own per-episode ceiling (look at it);
+`RunTruncated` means the loop itself stopped while the episode was still in flight (just re-run
+it). Both appear in the per-episode ledger, which is what a mop-up batch should be built from.
+
+### `docker logs`, never the `logs/reprocess-*.log` file
+
+The file is written through the GitHub runner's ssh session. Cancel the run (or hit the
+6h cap) and the file stops growing **while the container keeps working**. A frozen file is
+not a stalled job.
+
+```bash
+docker logs --since 10m podcast-reprocess-<run-id> | tail -40
+```
+
+### The GitHub runner is an observer, not the job
+
+`ubuntu-latest` is hard-capped at 6h of job execution; `timeout_minutes` cannot raise it.
+The remote container is launched with its own detached watchdog and **outlives a cancelled
+run**. So: a `completed/cancelled` run does not mean the work stopped, and killing the run
+does not release the corpus lock. Stop the container explicitly.
+
+The inverse misreads the same surface and is worse, because it reads as good news:
+`completed/success` on *a* reprocess run does not mean *your* batch finished. Successive
+batches are separate runs, and a watcher started against an earlier one keeps reporting that
+one's ending forever. On 2026-09-24 a watcher's `BATCH ENDED: completed/success` was taken
+as the 284-episode job finishing in three minutes; it belonged to a batch that had ended at
+06:31, while the real job was 40 minutes in and on its third feed.
+
+The container name carries the run id, so the check costs nothing — do it before believing
+any status line:
+
+```bash
+docker ps --filter name=podcast-reprocess --format '{{.Names}}  {{.Status}}'
+# podcast-reprocess-35979952564  Up 40 minutes (healthy)
+#                   ^^^^^^^^^^^ must be the run id you are reading about
+```
+
+A running container outranks every status surface. GitHub reports on the *runner*; only the
+container reports on the *work*.
+
+### Prod questions go to the PROD MCP only
+
+`mcp__claude_ai_Close_Listening__*` reads the live corpus. The repo's `.mcp.json` server
+(`make serve-mcp`) reads your **local working tree** and will answer `feeds: []` /
+`not_found` / `ImportError` about a prod episode — an empty answer that looks like a
+finding. See AGENTS.md § "MCP servers — PROD vs DEV".
+
+### The search index is NOT rebuilt by a reprocess
+
+LanceDB writes by merge-upsert and never deletes, and the pipeline does not drop stale
+chunks. New content is indexed, but superseded chunks from the old (wrong) artifacts
+survive until a rebuild:
+
+```text
+reindex-prod.yml  mode=rebuild  with_clusters=true
+```
+
+`with_clusters` matters when GI was regenerated — `search/topic_clusters.json` derives
+from it. Shares the `prod-corpus` lock, so it cannot overlap a reprocess.
+
+**Check it, do not assume it in either direction.** This heading is the safe default, not a
+law: `maybe_index_corpus` is gated on `vector_search` / `skip_auto_vector_index` and NOT on
+`pipeline_stage`, so a `relabel_only` run is not excluded by its stage, and `_finalize_pipeline`
+does call it against the corpus finalize dir. Whether it actually runs for YOUR batch depends
+on the layout the run resolves (`_corpus_finalize_dir_for`) and on where finalize happens in a
+multi-feed spec. Measured on the 2026-09-24 284-episode multi-feed batch: three feeds closed
+with `vector_index_sec: 0.0` each, `topic-clusters: skipped (missing LanceDB index at
+<run-local path>)`, and the corpus index untouched since 09:11:16 — two minutes BEFORE that
+batch started. So for that shape, no.
+
+The two cheap measurements that settle it, rather than reasoning about the code:
+
+```bash
+# 1. has the serving index been written since the batch began?
+docker exec compose-api-1 stat -c %y /app/output/search/lance_index
+# 2. did any feed spend time indexing?
+docker logs <container> | grep -o '"vector_index_sec": [0-9.]*' | sort -u
+```
+
+The index has **no run-dir column**, so staleness cannot be tested by path. Test it by CONTENT
+— pull each episode's rows from the `segments` table and check the chunk text still appears in
+that episode's current on-disk transcript. A chunk the repair did not regenerate survives
+holding the wrong episode's words and will not be found there. Run it from `compose-api-1`
+(`/app/output/search/lance_index`, tables `aux` / `insights` / `segments`); the image has
+pyarrow but **no pandas**, so use `to_arrow()`, and do not install anything to answer this.
+
+Done that way on the 10 repaired episodes: 361 indexed chunks, 0 stale. Their index was
+refreshed — the general rule above did not apply to them, which is exactly why it gets
+measured rather than assumed.
+
+### Enrichments are a separate pass
+
+`insight_sentiment` / `insight_density` come from the RFC-088 enricher executor, not the
+pipeline. A fresh run dir has none until a re-enrich runs.

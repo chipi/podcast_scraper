@@ -652,6 +652,20 @@ Tests alone are not a substitute. See `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`.
 
 ### MCP servers — PROD vs DEV (know which corpus you're reading)
 
+**BOTH ARE WANTED. Choose per question, every time:**
+
+| The question you are answering | Use |
+| --- | --- |
+| "Does this capability work?", "how does my change behave?" — against the **local corpus you are developing on** | `mcp__local-dev-content__*` / `mcp__local-dev-observability__*` |
+| **Anything about production** — is this episode repaired, what does the app serve, is prod healthy | `mcp__claude_ai_Close_Listening__*` |
+
+Never answer a prod question with the local server. **The tell you are about to get
+burned: an empty result.** The local server replies `feeds: []`, `not_found`, or
+`ImportError` for a prod entity — an answer shaped exactly like a finding. On 2026-09-24
+an agent asked it whether a repaired prod episode existed, got `not_found`, and nearly
+reported the repair as failed. `list_feeds` returning `[]` is the fastest way to tell you
+are on the local one against an unbuilt corpus.
+
 There are two Close-Listening-shaped MCP surfaces. **They look identical and
 return the same tool names — the only difference is which corpus backs them.**
 Confusing them has burned a whole session; verify before you trust a reading.
@@ -666,13 +680,16 @@ Confusing them has burned a whole session; verify before you trust a reading.
   stale wip doc says `ops.`, which has no DNS record. Needs a bearer token
   minted from the player UI (`POST /api/app/mcp/tokens`, user session; the
   operator key returns 401 and there is no ops-side mint route).
-- **DEV** — the repo's `.mcp.json` server **`podcast-content`** (tools
-  `mcp__podcast-content__*`), served over `make serve` against your **local dev
-  corpus**. Sibling `podcast-observability` runs `make serve-obs` over **stdio**;
-  it is a local process, not the deployed obs MCP above. **Both are DISABLED**
-  in `.claude/settings.local.json` (`disabledMcpjsonServers`) so they can't be
-  mistaken for prod — re-enable deliberately if you actually want the local dev
-  corpus.
+- **DEV** — the repo's `.mcp.json` servers **`local-dev-content`** and
+  **`local-dev-observability`** (tools `mcp__local-dev-*__*`), run via `make serve-mcp` /
+  `make serve-obs` over **stdio** against your **local working-tree corpus**. These are
+  deliberately kept: they are the right tool for developing a capability locally. They
+  are named `local-dev-*` because the old names (`podcast-content`,
+  `podcast-observability`) were indistinguishable from the prod connectors at the point
+  of use. **Do not trust an earlier version of this file that says they are DISABLED via
+  `disabledMcpjsonServers`** — that setting lives in `.claude/settings.local.json`, which
+  is GITIGNORED, and was found flipped to `enabledMcpjsonServers` on 2026-09-24. An
+  untracked file cannot be a guard; the NAMING is the guard.
 
 **Before asking for an MCP token, check whether you already have the tools.** The
 PROD content MCP arrives as a claude.ai connector, so `mcp__claude_ai_Close_Listening__*`

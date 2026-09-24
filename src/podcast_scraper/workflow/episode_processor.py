@@ -2504,6 +2504,9 @@ def _record_unresolved_transcript(
     cfg: config.Config,
     pipeline_metrics: Any,
     stage: str,
+    *,
+    error_type: str = "TranscriptUnresolved",
+    detail: Optional[str] = None,
 ) -> None:
     """Make a refusal COUNTABLE. A skip must be at least as loud as the corruption it replaced.
 
@@ -2534,7 +2537,7 @@ def _record_unresolved_transcript(
         assert job.episode is not None
         episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
         known = getattr(job.episode, "on_disk_transcript", None)
-        detail = (
+        detail = detail or (
             f"named {known} which is not on disk"
             if known
             else "no transcript could be vouched for from this episode's own metadata record"
@@ -2543,7 +2546,7 @@ def _record_unresolved_transcript(
             episode_id=episode_id,
             status="failed",
             stage=stage,
-            error_type="TranscriptUnresolved",
+            error_type=error_type,
             error_message=detail,
         )
     except Exception:  # noqa: BLE001 — accounting must never break the run
@@ -2763,6 +2766,14 @@ def _relabel_existing_transcript(
     if not dsegs:
         logger.warning(
             "[%s] relabel_only: segments carry no speaker identity; nothing to relabel", job.idx
+        )
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "relabel_only",
+            error_type="NoSpeakerIdentity",
+            detail="segments carry no speaker identity; nothing to relabel",
         )
         return False, None, 0
     diar = DiarizationResult(segments=dsegs, num_speakers=len(_cluster_ids))
@@ -3124,6 +3135,14 @@ def _rediarize_existing_transcript(
     audio_path = job.temp_media
     if not audio_path or not os.path.exists(audio_path):
         logger.warning("[%s] rediarize_only: no downloaded audio; cannot re-diarize", job.idx)
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "rediarize_only",
+            error_type="NoAudio",
+            detail="no downloaded audio; cannot re-diarize",
+        )
         return False, None, 0
 
     # Locate the existing transcript — same discovery as relabel, from the episode's own record.
@@ -3147,6 +3166,14 @@ def _rediarize_existing_transcript(
     }
     if not result["segments"]:
         logger.warning("[%s] rediarize_only: transcript has no segments to align", job.idx)
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "rediarize_only",
+            error_type="NoSegments",
+            detail="transcript has no segments to align",
+        )
         return False, None, 0
 
     feed_hosts = _feed_hosts_from_sibling_metadata(txt_path)
@@ -3238,6 +3265,14 @@ def _refetch_and_reparse_transcript(
             "nothing to re-fetch. This episode needs rediarize_only or a re-ingest.",
             job.idx,
         )
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "retranscript_only",
+            error_type="NoTranscriptUrl",
+            detail="the stored metadata records no transcript URL to re-fetch",
+        )
         return False, None, 0
 
     best: Optional[tuple[int, str, list]] = None
@@ -3276,6 +3311,14 @@ def _refetch_and_reparse_transcript(
 
     if best is None:
         logger.warning("[%s] retranscript_only: no candidate transcript parsed", job.idx)
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "retranscript_only",
+            error_type="NoCandidateParsed",
+            detail="no candidate transcript could be parsed from the published URLs",
+        )
         return False, None, 0
     voices, plain, segments = best
     if voices < 2:
@@ -3287,6 +3330,14 @@ def _refetch_and_reparse_transcript(
             "episode cannot be repaired from its published transcript — use rediarize_only",
             job.idx,
             voices,
+        )
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "retranscript_only",
+            error_type="TooFewVoices",
+            detail="best candidate carries too few speakers; needs rediarize_only",
         )
         return False, None, 0
 
@@ -3626,6 +3677,20 @@ def transcribe_media_to_text(
         logger.warning(
             "    Skipping transcription: Transcription provider not available",
         )
+        # Countable, like every other refusal. Found by the structural guard in
+        # test_refusals_are_countable.py rather than by inspection: this returns the same
+        # `(False, None, 0)` the reprocess refusals do, so the caller's `if success:` skips both
+        # the counter and `update_episode_status` and the episode lands in neither ok nor
+        # failed. Note this is the ORDINARY transcribe path, not a reprocess-only one — a run
+        # with a misconfigured provider could under-deliver silently on every episode.
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "transcription",
+            error_type="NoTranscriptionProvider",
+            detail="no transcription provider was available to transcribe this episode",
+        )
         _cleanup_temp_media(temp_media, cfg)
         return False, None, 0
 
@@ -3890,8 +3955,15 @@ def _resolve_existing_transcript_for_rederive(
         candidate = built if os.path.exists(built) else None
     if candidate is None:
         return None, None
-    # Reject the metadata presence-marker; only a real transcript file will do.
-    if candidate.endswith((".metadata.json", ".metadata.yaml", ".metadata.yml")):
+    # Reject anything that is not real transcript TEXT. The metadata presence-marker is the
+    # documented case, but the resolver could also hand back `.adfree.admap.json` (a JSON
+    # ad-map), `.segments.json` (diarization) or a `.cleaned.txt`/`.adfree.txt` derivative —
+    # all of which would be fed to the GI/KG cascade with a success exit. `_transcript_beside`
+    # is now exact-stem `.txt` only; this stays as the belt, since this caller is the one that
+    # needs actual words.
+    if not candidate.endswith((".txt", ".vtt", ".srt")) or candidate.endswith(
+        (".adfree.txt", ".cleaned.txt")
+    ):
         logger.warning(
             "[%s] rederive_only: found metadata but no transcript file at %s — the episode is "
             "recorded as processed yet has nothing to re-derive from.",

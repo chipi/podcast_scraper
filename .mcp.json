@@ -1,11 +1,11 @@
 {
-  "_comment": "Local MCP servers for this repo (#56). Claude Code auto-discovers this file and, after you approve the project servers once, connects to BOTH — the content MCP (Close Listening, over your make-serve corpus) and the observability MCP (prod/homelab health) — with zero config. Both run over stdio (local trust, no auth). Run `make serve` first so the content MCP has a live api/corpus. For Claude Desktop/Cursor, copy these command/args into that client's own MCP config (see docs/guides/LOCAL_MCP_SERVERS.md).",
+  "_comment": "WHICH ONE DO I USE? Developing a capability against your LOCAL corpus -> these servers (mcp__local-dev-*__*). ANYTHING ABOUT PRODUCTION -> the claude.ai connector mcp__claude_ai_Close_Listening__* (https://mcp.closelistening.app/mcp), already in your tool list, no setup. THE TELL YOU PICKED WRONG IS AN EMPTY ANSWER: these reply `feeds: []` / `not_found` / `ImportError` for a prod entity, which is shaped exactly like a finding and is not one — on 2026-09-24 an agent asked these whether a repaired prod episode existed, got not_found, and nearly reported the repair as failed. Renamed from `podcast-content` / `podcast-observability` because those names were indistinguishable from the prod connectors at the point of use. Run `make serve` first or the content server answers about an empty corpus. Both stdio (local trust, no auth). Rule: AGENTS.md section 'MCP servers - PROD vs DEV'. Claude Desktop/Cursor: docs/guides/LOCAL_MCP_SERVERS.md.",
   "mcpServers": {
-    "podcast-content": {
+    "local-dev-content": {
       "command": "make",
       "args": ["serve-mcp"]
     },
-    "podcast-observability": {
+    "local-dev-observability": {
       "command": "make",
       "args": ["serve-obs"]
     }

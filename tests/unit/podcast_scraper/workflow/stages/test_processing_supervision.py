@@ -20,6 +20,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 PACKAGE_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -326,6 +327,55 @@ class TestTranscriptlessJobsAreStillCountable(unittest.TestCase):
             processing._mark_processed(processed, j)
         self.assertEqual(len(processed), len(jobs))
 
+    def test_the_guid_branch_actually_fires_for_a_real_episode(self):
+        """2026-09-24: it never had. `Episode` has no `.guid` attribute.
+
+        The 2026-09-18 fix read `getattr(episode, "guid", "")`, which is always "", so every
+        transcript-less job fell through to `id(job)`. Keys stayed unique — that fallback
+        guarantees it — so the wedge stayed fixed, but by a different mechanism than the
+        docstring claimed, and `id()` is a memory address: unique, not stable. The guid lives
+        in `episode.item` XML and needs `run_index._episode_guid`.
+
+        Discriminating by construction: a SimpleNamespace stub with a `.guid` attribute would
+        pass against the old code, so this uses a real `Episode` with the guid only in its XML.
+        """
+        import xml.etree.ElementTree as ET
+        from types import SimpleNamespace
+
+        from podcast_scraper.models.entities import Episode
+
+        item = ET.Element("item")
+        g = ET.SubElement(item, "guid")
+        g.text = "guid-abc123"
+        ep = Episode(idx=1, title="t", title_safe="t", item=item, transcript_urls=[])
+        job = SimpleNamespace(transcript_path=None, episode=ep)
+
+        key = processing._processing_job_key(job)
+
+        assert "guid-abc123" in key, f"the guid branch is dead again: {key}"
+        assert not key.startswith(
+            "no-transcript:obj:"
+        ), "fell back to id(job), which is a memory address — unique but not stable across runs"
+
+    def test_two_transcriptless_episodes_keyed_by_their_real_guids(self):
+        """The property the guid branch exists for: distinct, and stable, not id()-derived."""
+        import xml.etree.ElementTree as ET
+        from types import SimpleNamespace
+
+        from podcast_scraper.models.entities import Episode
+
+        def _job(guid):
+            item = ET.Element("item")
+            g = ET.SubElement(item, "guid")
+            g.text = guid
+            ep = Episode(idx=1, title="t", title_safe="t", item=item, transcript_urls=[])
+            return SimpleNamespace(transcript_path=None, episode=ep)
+
+        k1 = processing._processing_job_key(_job("guid-one"))
+        k2 = processing._processing_job_key(_job("guid-two"))
+        assert k1 != k2
+        assert k1 == processing._processing_job_key(_job("guid-one")), "must be stable"
+
     def test_a_job_with_neither_path_nor_guid_is_still_unique(self):
         a = self._job(1, None)
         b = self._job(1, None)
@@ -556,3 +606,726 @@ class TestQueueEmptyComparesMembershipNotCardinality(unittest.TestCase):
             processing._mark_processed(processed, j)
         self.assertEqual(len(processed), 3)
         self.assertTrue(processing._all_jobs_processed(jobs, processed))
+
+
+class TestTheVerdictIsExecutedNotReconstructed(unittest.TestCase):
+    """`processing_loop_verdict` is module-level so these call the REAL implementation.
+
+    Every other test of this loop's behaviour mirrors the logic, because it lives in a closure
+    inside `_run_parallel_processing_loop`. A mirror cannot catch a defect in the original, and
+    two defects shipped through that gap: a clock stamped at submit instead of execution, and
+    an abandoned episode counted as finished. Both were "tested".
+    """
+
+    def test_ordinary_waiting_is_info_not_alarming(self):
+        level, text = processing.processing_loop_verdict(
+            jobs=6,
+            submitted=6,
+            in_flight=2,
+            abandoned=0,
+            states={"running": 2},
+            unaccounted=0,
+            longest_in_flight_sec=412.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "info", "366 lines of healthy waiting were once tallied as wedges")
+        self.assertIn("WORKING", text)
+        # "settled", not "done": a drained FAILURE is in this count too, so "done" read as
+        # "succeeded" and flattered a feed with failures in it (review finding L5).
+        self.assertIn("4/6 episodes settled", text)
+        self.assertNotIn("episodes done", text)
+
+    def test_an_abandoned_episode_is_NOT_counted_done(self):
+        """The defect that shipped inside the line written to end misreadings.
+
+        `_abandon_overrunning_futures` pops the future while its key stays in the submitted set,
+        so submitted-minus-in_flight promoted a still-burning episode to "done".
+        """
+        level, text = processing.processing_loop_verdict(
+            jobs=8,
+            submitted=8,
+            in_flight=1,
+            abandoned=2,
+            states={"running": 1},
+            unaccounted=0,
+            longest_in_flight_sec=90.0,
+            max_workers=2,
+        )
+        self.assertIn("5/8 episodes settled", text, f"abandoned counted as settled: {text}")
+        self.assertNotIn("7/8", text)
+
+    def test_abandoned_slots_are_named_and_raise_severity(self):
+        """F5 visibility: the capacity loss is stated rather than silently burning to the budget.
+
+        ``in_flight=3`` with ``pending=3``, not the old ``in_flight=0``: ``states`` is DERIVED
+        from the futures dict, so ``pending`` can never exceed ``in_flight`` and the old fixture
+        pinned real behavior through an unreachable input (review finding L3).
+        """
+        level, text = processing.processing_loop_verdict(
+            jobs=8,
+            submitted=8,
+            in_flight=3,
+            abandoned=2,
+            states={"pending": 3},
+            unaccounted=0,
+            longest_in_flight_sec=0.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "warning")
+        self.assertIn("abandoned", text)
+        self.assertIn("caps throughput", text)
+        # MAY hold, not DOES: `abandoned` never decrements, so hours later the worker may have
+        # finished and freed the slot. The loop stopped waiting and cannot know (finding M3).
+        self.assertIn("may still hold", text)
+
+    def test_no_starvation_is_claimed_when_nothing_is_queued(self):
+        """The overstatement: "queued work is starved" fired with pending == 0.
+
+        Reached on every feed whose tail is one slow episode — nothing is queued, so there is
+        nothing to starve, and the warning asserted a consequence that could not happen.
+        """
+        level, text = processing.processing_loop_verdict(
+            jobs=8,
+            submitted=8,
+            in_flight=1,
+            abandoned=2,
+            states={"running": 1},
+            unaccounted=0,
+            longest_in_flight_sec=7300.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "warning", "capacity loss still deserves a warning")
+        self.assertIn("nothing is queued behind them", text)
+        self.assertNotIn("starved", text)
+        self.assertNotIn("caps throughput", text)
+
+    def test_the_cardinality_wedge_is_an_error_naming_its_fix(self):
+        level, text = processing.processing_loop_verdict(
+            jobs=35,
+            submitted=34,
+            in_flight=0,
+            abandoned=0,
+            states={},
+            unaccounted=0,
+            longest_in_flight_sec=0.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "error")
+        self.assertIn("STUCK", text)
+        self.assertIn("cd4c53857", text)
+
+    def test_unaccounted_jobs_with_nothing_in_flight_is_an_error(self):
+        level, text = processing.processing_loop_verdict(
+            jobs=10,
+            submitted=9,
+            in_flight=0,
+            abandoned=0,
+            states={},
+            unaccounted=1,
+            longest_in_flight_sec=0.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "error")
+        self.assertIn("unaccounted", text)
+
+    def test_running_work_wins_over_an_unaccounted_job(self):
+        """Ordering guard: work in flight means WORKING, even with a job still unsubmitted."""
+        level, _ = processing.processing_loop_verdict(
+            jobs=10,
+            submitted=9,
+            in_flight=1,
+            abandoned=0,
+            states={"running": 1},
+            unaccounted=1,
+            longest_in_flight_sec=5.0,
+            max_workers=2,
+        )
+        self.assertEqual(level, "info")
+
+
+class TestRecordAbandonedEpisode(unittest.TestCase):
+    """``record_abandoned_episode`` — the ledger row for an episode whose wait was abandoned.
+
+    The bound stops the loop waiting and bumps the FEED counter. Before this, the EPISODE
+    ledger was untouched, so on a reprocess the abandoned episode kept the previous run's
+    ``ok`` and was indistinguishable from the ones that really finished — the one surface an
+    operator queries to find what needs redoing did not know.
+    """
+
+    @staticmethod
+    def _episode(guid, idx):
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper import models
+
+        item = ET.Element("item")
+        ET.SubElement(item, "title").text = "Ep A"
+        ET.SubElement(item, "guid").text = guid
+        return models.Episode(
+            idx=idx, title="Ep A", title_safe="Ep A", item=item, transcript_urls=[]
+        )
+
+    @staticmethod
+    def _job(episode):
+        from podcast_scraper.workflow.types import ProcessingJob
+
+        return ProcessingJob(
+            episode=episode,
+            transcript_path="/tmp/x.txt",
+            transcript_source="whisper_transcription",
+            detected_names=None,
+            whisper_model=None,
+        )
+
+    class _Metrics:
+        def __init__(self):
+            self.calls = []
+
+        def update_episode_status(self, **kwargs):
+            self.calls.append(kwargs)
+
+    def test_writes_the_row_under_the_CANONICAL_id_never_idx(self):
+        """The key is the discriminating assertion, not that a call happened.
+
+        A previous accounting fix keyed on ``episode.guid`` — an attribute ``Episode`` does
+        not have — so it appended an ORPHAN row while the episode's real row still read
+        ``ok``: one episode recorded both ok and failed. Its test asserted only that
+        ``update_episode_status`` was called, so it passed. This asserts the id EQUALS the
+        canonical one and is NOT the idx.
+        """
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        rss = "https://example.com/podcast.xml"
+        episode = self._episode("guid-abc123", 7)
+        expected_id, _ = get_episode_id_from_episode(episode, rss)
+        metrics = self._Metrics()
+
+        wrote = processing.record_abandoned_episode(
+            self._job(episode),
+            _Cfg(rss_url=rss),
+            metrics,
+            elapsed_seconds=3720.0,
+            ceiling_seconds=3600.0,
+        )
+
+        self.assertTrue(wrote)
+        self.assertEqual(len(metrics.calls), 1, "exactly one ledger row per abandoned episode")
+        call = metrics.calls[0]
+        self.assertEqual(call["episode_id"], expected_id)
+        self.assertNotEqual(
+            call["episode_id"], "7", "keyed on idx — idx is not unique across a work-list"
+        )
+        self.assertNotEqual(call["episode_id"], "", "an empty key appends an orphan row")
+        self.assertEqual(call["status"], "failed")
+        self.assertEqual(call["error_type"], "ProcessingAbandoned")
+        self.assertIn("3720", call["error_message"])
+        self.assertIn("re-run", call["error_message"])
+
+    def test_says_the_worker_was_not_cancelled_so_artifacts_may_be_partial(self):
+        """The message has to carry it: a running future cannot be cancelled in Python."""
+        metrics = self._Metrics()
+        processing.record_abandoned_episode(
+            self._job(self._episode("g1", 1)),
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            metrics,
+            elapsed_seconds=4000.0,
+            ceiling_seconds=3600.0,
+        )
+        self.assertIn("NOT", metrics.calls[0]["error_message"])
+        self.assertIn("partial artifacts", metrics.calls[0]["error_message"])
+
+    def test_returns_False_and_never_raises_when_accounting_is_unavailable(self):
+        """Runs on an already-degraded path; must not convert an abandoned wait into a crash."""
+        cfg = _Cfg(rss_url="https://example.com/podcast.xml")
+        episode = self._episode("g1", 1)
+
+        self.assertFalse(
+            processing.record_abandoned_episode(
+                self._job(episode), cfg, None, elapsed_seconds=1.0, ceiling_seconds=2.0
+            )
+        )
+
+        class _Exploding:
+            def update_episode_status(self, **kwargs):
+                raise RuntimeError("ledger backend is down")
+
+        self.assertFalse(
+            processing.record_abandoned_episode(
+                self._job(episode), cfg, _Exploding(), elapsed_seconds=1.0, ceiling_seconds=2.0
+            )
+        )
+        # A job with no episode at all (defensive: the futures map is Any-valued).
+        self.assertFalse(
+            processing.record_abandoned_episode(
+                object(), cfg, self._Metrics(), elapsed_seconds=1.0, ceiling_seconds=2.0
+            )
+        )
+
+    def test_ceiling_None_is_rendered_not_crashed(self):
+        """``ceiling_seconds`` is Optional — the bound can be disabled by config."""
+        metrics = self._Metrics()
+        wrote = processing.record_abandoned_episode(
+            self._job(self._episode("g1", 1)),
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            metrics,
+            elapsed_seconds=10.0,
+            ceiling_seconds=None,
+        )
+        self.assertTrue(wrote)
+        self.assertIn("unset", metrics.calls[0]["error_message"])
+
+
+class TestAbandonEpisodeAccounting(unittest.TestCase):
+    """``abandon_episode_accounting`` — the write and the sentence reporting it, as one unit.
+
+    This exists because the loop's call site is inside a closure that cannot be imported.
+    Deleting the ledger write from that closure passed all 50 tests in this file (mutation,
+    2026-09-24). Pairing the write with the log tail out here is what makes the deletion
+    detectable.
+    """
+
+    class _Metrics:
+        def __init__(self):
+            self.calls = []
+
+        def update_episode_status(self, **kwargs):
+            self.calls.append(kwargs)
+
+    def _job(self, idx=3):
+        return TestRecordAbandonedEpisode._job(TestRecordAbandonedEpisode._episode("g-xyz", idx))
+
+    def test_writes_the_row_and_says_so(self):
+        metrics = self._Metrics()
+        idx, tail = processing.abandon_episode_accounting(
+            self._job(idx=3),
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            metrics,
+            elapsed_seconds=3700.0,
+            ceiling_seconds=3600.0,
+        )
+        self.assertEqual(idx, 3, "the log must still identify the episode by idx")
+        self.assertEqual(len(metrics.calls), 1, "the ledger row is the point of this function")
+        self.assertEqual(metrics.calls[0]["error_type"], "ProcessingAbandoned")
+        self.assertIn("ledger", tail)
+        self.assertIn("ProcessingAbandoned", tail)
+        self.assertNotIn("NOT be written", tail)
+
+    def test_a_failed_write_is_reported_as_failed_not_as_success(self):
+        """A silent accounting failure is the blind spot this whole fix exists to remove.
+
+        If the row cannot be written the log must say the per-episode surface is stale, so
+        nobody reads a missing row as "this episode was fine".
+        """
+
+        class _Exploding:
+            def update_episode_status(self, **kwargs):
+                raise RuntimeError("ledger backend down")
+
+        idx, tail = processing.abandon_episode_accounting(
+            self._job(idx=9),
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            _Exploding(),
+            elapsed_seconds=3700.0,
+            ceiling_seconds=3600.0,
+        )
+        self.assertEqual(idx, 9)
+        self.assertIn("NOT be written", tail)
+        self.assertIn("trust the feed counters", tail)
+
+    def test_survives_a_job_that_is_not_a_job(self):
+        """``futures`` is Any-valued; this runs on the degraded path and must not raise."""
+        idx, tail = processing.abandon_episode_accounting(
+            None,
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            self._Metrics(),
+            elapsed_seconds=1.0,
+            ceiling_seconds=1.0,
+        )
+        self.assertIsNone(idx)
+        self.assertIn("NOT be written", tail)
+
+
+class TestTheClosureSeamIsActuallyExecuted(unittest.TestCase):
+    """Drive the REAL loop. Coverage said lines 2489-3236 were never executed by any test.
+
+    The pure helpers around this loop are well covered, and that was not enough: BOTH defects
+    that reached prod on this arc were WIRING defects, not helper defects — a clock stamped at
+    submit instead of first-run, and an abandoned episode counted as finished. A reviewer proved
+    the gap survived my refactor by mutation: replacing the `abandon_episode_accounting` call
+    with `idx, ledger_note = None, ""` passed the entire file. The helper's own docstring claimed
+    the extraction "makes that deletion fail a test", which was true only for deleting the write
+    INSIDE the helper, not for deleting the CALL.
+
+    So this executes `process_processing_jobs_concurrent` with a real `Metrics`, a 0.2s abandon
+    ceiling and a worker that sleeps past it, and asserts the ledger row exists.
+    """
+
+    # `worker_sleep` must clear SEVERAL drain cycles, not just the ceiling: the drain calls
+    # `as_completed(..., timeout=1.0)` and the abandon check runs after it, with the clock
+    # stamped lazily on the first iteration that observes `running()`. At 2.0s the drain
+    # collected the result before the second check and the abandon never fired.
+    #
+    # 20.0, not the 4.0 that works locally. The abandon fires at ~2.1s, so 4.0 left only ~1.9s
+    # of scheduling slack; on the loaded-CI shape this repo has documented (load ~40 on 14
+    # cores) a 2x stall over two drain cycles lets the worker COMPLETE first, the future drains
+    # as success, and the test false-FAILS. Costs nothing in the happy path — the loop exits on
+    # the abandon, not on worker completion (measured 2.06s) — and only a real regression pays
+    # the longer wait. Review finding L-1.
+    def _drive(self, *, abandon_seconds=0.2, worker_sleep=20.0):
+        import threading
+
+        from podcast_scraper.workflow import metrics as metrics_mod
+        from podcast_scraper.workflow.types import ProcessingJob, ProcessingResources
+
+        episode = TestRecordAbandonedEpisode._episode("guid-seam-1", 4)
+        job = ProcessingJob(
+            episode=episode,
+            transcript_path="/tmp/seam.txt",
+            transcript_source="whisper_transcription",
+            detected_names=None,
+            whisper_model=None,
+        )
+        resources = ProcessingResources(
+            processing_jobs=[job],
+            processing_jobs_lock=threading.Lock(),
+            processing_complete_event=threading.Event(),
+        )
+        cfg = _Cfg(
+            rss_url="https://example.com/podcast.xml",
+            processing_parallelism=2,  # > 1 to take the PARALLEL path
+            processing_future_abandon_seconds=abandon_seconds,
+            processing_loop_budget_seconds=60.0,
+            fail_fast=False,
+            max_failures=None,
+            workers=1,
+            transcription_parallelism=1,
+        )
+        pm = metrics_mod.Metrics()
+        done = threading.Event()
+
+        # `_process_single_processing_job` is NESTED inside the function under test and cannot
+        # be patched. `_time_processing_job` is the module-level wrapper every call goes
+        # through (both the sequential and parallel sites), so that is the seam.
+        def _slow_job(_pm, _job, _run):
+            done.wait(timeout=worker_sleep)
+            return True
+
+        ev = threading.Event()
+        ev.set()  # no more jobs are coming, so the loop may exit once accounted for
+        try:
+            with patch.object(processing, "_time_processing_job", _slow_job):
+                processing.process_processing_jobs_concurrent(
+                    resources,
+                    None,
+                    cfg,
+                    "/tmp",
+                    None,
+                    None,
+                    None,
+                    pm,
+                    summary_provider=None,
+                    transcription_complete_event=ev,
+                )
+        finally:
+            done.set()  # never leave the worker thread parked
+        return pm, episode, cfg
+
+    def test_an_abandoned_episode_gets_its_ledger_row_through_the_REAL_loop(self):
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        with self.assertLogs("podcast_scraper.workflow.stages.processing", level="ERROR") as logs:
+            pm, episode, cfg = self._drive()
+
+        expected_id, _ = get_episode_id_from_episode(episode, cfg.rss_url)
+        rows = [s for s in pm.episode_statuses if s.episode_id == expected_id]
+        self.assertEqual(len(rows), 1, f"expected exactly one row; got {pm.episode_statuses}")
+        self.assertEqual(rows[0].status, "failed")
+        self.assertEqual(rows[0].error_type, "ProcessingAbandoned")
+        self.assertTrue(
+            any("ABANDONING" in m for m in logs.output),
+            f"the abandon was not logged: {logs.output}",
+        )
+        self.assertTrue(
+            any("ProcessingAbandoned" in m for m in logs.output),
+            f"the log did not report that the ledger row landed: {logs.output}",
+        )
+
+    def test_a_job_that_finishes_inside_the_ceiling_gets_no_abandon_row(self):
+        """The other half: the bound must not manufacture failures for healthy episodes.
+
+        The first version of this per-episode bound stamped its clock at SUBMIT, so queued
+        episodes tripped a ceiling they had never run against — it would have truncated every
+        feed at one hour and reported episodes failed that were never attempted.
+        """
+        pm, episode, cfg = self._drive(abandon_seconds=30.0, worker_sleep=0.01)
+        abandoned = [s for s in pm.episode_statuses if s.error_type == "ProcessingAbandoned"]
+        self.assertEqual(abandoned, [], "a healthy episode was marked ProcessingAbandoned")
+
+
+class TestTheSeamWithMORETHANONEJOB(unittest.TestCase):
+    """Multi-job seam coverage. One job cannot discriminate either historical defect.
+
+    With a single job `submitted == in_flight` and the submit instant equals the run instant,
+    so two mutations survived the single-job seam test (both predicted by review):
+
+    * stamping the abandon clock at SUBMIT instead of first-observed-run — the defect that
+      would have truncated every feed at one hour and reported never-attempted episodes as
+      failed. Indistinguishable until some job is QUEUED rather than running.
+    * swapping `submitted=` and `in_flight=` at the `processing_loop_verdict` call site.
+      Indistinguishable until those two counts differ.
+    """
+
+    def _jobs(self, n):
+        from podcast_scraper.workflow.types import ProcessingJob
+
+        out = []
+        for i in range(n):
+            ep = TestRecordAbandonedEpisode._episode(f"guid-multi-{i}", i + 1)
+            out.append(
+                ProcessingJob(
+                    episode=ep,
+                    transcript_path=f"/tmp/multi-{i}.txt",
+                    transcript_source="whisper_transcription",
+                    detected_names=None,
+                    whisper_model=None,
+                )
+            )
+        return out
+
+    def _drive(self, jobs, *, parallelism, abandon_seconds, runner, loop_budget=60.0):
+        from podcast_scraper.workflow import metrics as metrics_mod
+        from podcast_scraper.workflow.types import ProcessingResources
+
+        resources = ProcessingResources(
+            processing_jobs=list(jobs),
+            processing_jobs_lock=threading.Lock(),
+            processing_complete_event=threading.Event(),
+        )
+        cfg = _Cfg(
+            rss_url="https://example.com/podcast.xml",
+            processing_parallelism=parallelism,
+            processing_future_abandon_seconds=abandon_seconds,
+            processing_loop_budget_seconds=loop_budget,
+            fail_fast=False,
+            max_failures=None,
+            workers=1,
+            transcription_parallelism=1,
+        )
+        pm = metrics_mod.Metrics()
+        ev = threading.Event()
+        ev.set()
+        with patch.object(processing, "_time_processing_job", runner):
+            processing.process_processing_jobs_concurrent(
+                resources,
+                None,
+                cfg,
+                "/tmp",
+                None,
+                None,
+                None,
+                pm,
+                summary_provider=None,
+                transcription_complete_event=ev,
+            )
+        return pm, cfg
+
+    def test_a_QUEUED_episode_is_never_abandoned_for_time_it_never_spent_running(self):
+        """The clock starts when a future RUNS, never when it is submitted.
+
+        The loop's WALL-CLOCK BUDGET is what makes this observable, and getting there took a
+        wrong turn worth recording. A first version ran 4 jobs through 2 workers and asserted
+        "at most 2 abandoned". It failed against CORRECT code, and the code was right: an
+        abandoned worker thread is not cancelled, so it finishes, frees its slot, and jobs 3
+        and 4 then run and legitimately overrun as well. All four abandoned was the truth.
+
+        So the budget stops the loop while jobs 3 and 4 are still QUEUED. Correct code can only
+        abandon what it observed running (2). Stamping at submit charges all four for time they
+        never spent running and marks two episodes failed that no worker ever touched.
+        """
+        release = threading.Event()
+
+        def _runner(_pm, _job, _run):
+            release.wait(timeout=30.0)  # outlives the loop budget on purpose
+            return True
+
+        try:
+            pm, cfg = self._drive(
+                self._jobs(4),
+                parallelism=2,
+                abandon_seconds=0.2,
+                runner=_runner,
+                loop_budget=2.0,
+            )
+        finally:
+            release.set()
+
+        abandoned = sorted(
+            str(s.episode_id) for s in pm.episode_statuses if s.error_type == "ProcessingAbandoned"
+        )
+        self.assertLessEqual(
+            len(abandoned),
+            2,
+            f"abandoned {len(abandoned)} episodes though only 2 ever got a worker — a queued "
+            f"episode was charged for time it never spent running: {abandoned}",
+        )
+
+        # The sibling gap: episodes still in flight when the LOOP stops must also be recorded.
+        # Before this, the budget-exit path counted them, logged, emitted `pipeline_truncated`
+        # and called `record_truncation` — all run-level — while each EPISODE kept whatever row
+        # it had. On a reprocess that is the previous run's `ok`, so a mop-up batch could not
+        # tell "finished" from "the run died before reaching it".
+        truncated = [s for s in pm.episode_statuses if s.error_type == "RunTruncated"]
+        self.assertTrue(
+            truncated,
+            "the loop stopped with episodes in flight and recorded no RunTruncated row: "
+            f"{[(s.episode_id, s.status, s.error_type) for s in pm.episode_statuses]}",
+        )
+        for row in truncated:
+            self.assertEqual(row.status, "failed")
+            self.assertIn("Re-run it", str(row.error_message))
+        # RunTruncated and ProcessingAbandoned must stay DISTINCT: the first needs only a
+        # re-run, the second is an episode that overran its own ceiling and may need looking at.
+        self.assertFalse(
+            set(a for a in abandoned) & set(str(r.episode_id) for r in truncated),
+            "an episode is recorded as both abandoned and truncated",
+        )
+
+    def test_the_verdict_line_is_INTERNALLY_CONSISTENT_with_its_own_bracket(self):
+        """Catches a swapped argument at the call site, which no pure-function test can.
+
+        The log line carries both the verdict sentence and the raw counts that produced it, so
+        the sentence must be derivable from the bracket. `settled = submitted - in_flight` when
+        nothing was abandoned; swapping the two arguments makes it 0 instead.
+
+        Two jobs finish instantly and two overrun, so `submitted` and `in_flight` genuinely
+        differ by the time the report fires — without that they are equal and any swap is
+        invisible.
+        """
+        import re
+
+        release = threading.Event()
+        calls = [0]
+        lock = threading.Lock()
+
+        def _runner(_pm, _job, _run):
+            with lock:
+                calls[0] += 1
+                mine = calls[0]
+            if mine > 2:
+                release.wait(timeout=4.0)
+            return True
+
+        try:
+            with self.assertLogs(
+                "podcast_scraper.workflow.stages.processing", level="INFO"
+            ) as logs:
+                pm, cfg = self._drive(
+                    self._jobs(4), parallelism=4, abandon_seconds=30.0, runner=_runner
+                )
+        finally:
+            release.set()
+
+        checked = 0
+        for line in logs.output:
+            if "Processing loop:" not in line:
+                continue
+            br = re.search(r"jobs=(\d+) submitted=(\d+) in_flight=(\d+)", line)
+            sentence = re.search(r"(\d+)/(\d+) episodes settled", line)
+            if not (br and sentence):
+                continue
+            jobs, submitted, in_flight = (int(br.group(i)) for i in (1, 2, 3))
+            settled, of = int(sentence.group(1)), int(sentence.group(2))
+            self.assertEqual(of, jobs, f"denominator is not the job count: {line}")
+            if "abandoned" not in line:
+                self.assertEqual(
+                    settled,
+                    max(0, submitted - in_flight),
+                    f"sentence contradicts its own bracket (swapped args?): {line}",
+                )
+            checked += 1
+        self.assertGreater(checked, 0, f"no verdict line was emitted to check: {logs.output}")
+
+
+class TestRecordTruncatedEpisodes(unittest.TestCase):
+    """``record_truncated_episodes`` — rows for episodes in flight when the LOOP stops.
+
+    Distinct from ProcessingAbandoned on purpose. That one means "this episode overran its own
+    ceiling", a property of the EPISODE that often wants investigating. This means "the run
+    stopped; nothing is known about this episode", a property of the RUN that needs only a
+    re-run. Collapsing them loses the distinction that decides what to do next.
+    """
+
+    class _Metrics:
+        def __init__(self):
+            self.calls = []
+
+        def update_episode_status(self, **kwargs):
+            self.calls.append(kwargs)
+
+    def _job(self, i):
+        from podcast_scraper.workflow.types import ProcessingJob
+
+        return ProcessingJob(
+            episode=TestRecordAbandonedEpisode._episode(f"guid-trunc-{i}", i),
+            transcript_path=f"/tmp/t{i}.txt",
+            transcript_source="whisper_transcription",
+            detected_names=None,
+            whisper_model=None,
+        )
+
+    def test_one_row_per_in_flight_episode_under_the_canonical_id(self):
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        rss = "https://example.com/podcast.xml"
+        jobs = [self._job(1), self._job(2), self._job(3)]
+        metrics = self._Metrics()
+
+        n = processing.record_truncated_episodes(
+            jobs, _Cfg(rss_url=rss), metrics, reason="wall-clock budget exceeded (7200s > 3600s)"
+        )
+
+        self.assertEqual(n, 3)
+        self.assertEqual(len(metrics.calls), 3)
+        expected = {get_episode_id_from_episode(j.episode, rss)[0] for j in jobs}
+        self.assertEqual({c["episode_id"] for c in metrics.calls}, expected)
+        for c in metrics.calls:
+            self.assertEqual(c["status"], "failed")
+            self.assertEqual(c["error_type"], "RunTruncated")
+            self.assertIn("wall-clock budget", c["error_message"])
+            self.assertIn("Re-run it", c["error_message"])
+
+    def test_it_reports_how_many_rows_it_actually_wrote(self):
+        """The count is used in the log line, so it must be the truth, not the input length.
+
+        A silent shortfall here would put a confident number in the ERROR line describing the
+        truncation — the same defect class as the verdict overstating what it knows.
+        """
+
+        class _HalfBroken:
+            def __init__(self):
+                self.n = 0
+
+            def update_episode_status(self, **kwargs):
+                self.n += 1
+                if self.n == 2:
+                    raise RuntimeError("ledger backend blipped")
+
+        n = processing.record_truncated_episodes(
+            [self._job(1), self._job(2), self._job(3)],
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            _HalfBroken(),
+            reason="main thread exited",
+        )
+        self.assertEqual(n, 2, "reported a row it did not write")
+
+    def test_no_metrics_and_junk_jobs_are_survived(self):
+        cfg = _Cfg(rss_url="https://example.com/podcast.xml")
+        self.assertEqual(
+            processing.record_truncated_episodes([self._job(1)], cfg, None, reason="x"), 0
+        )
+        self.assertEqual(
+            processing.record_truncated_episodes(
+                [object(), None], cfg, self._Metrics(), reason="x"
+            ),
+            0,
+        )

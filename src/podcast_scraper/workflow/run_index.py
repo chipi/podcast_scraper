@@ -490,7 +490,46 @@ def existing_transcript_path_in_corpus(episode: Any, corpus_root: str) -> Option
 
 
 def _transcript_beside(meta_abs: Path) -> Optional[str]:
-    """The transcript stored alongside one metadata artifact, or ``None``."""
+    """The transcript stored alongside one metadata artifact, or ``None``.
+
+    ACCEPT-LIST, not a glob. The previous version fell back to ``glob(f"{base}.*")`` and
+    returned the lexicographically first hit — which, for a complete sidecar set, is
+    ``{base}.adfree.admap.json``: a JSON ad-map handed back as "the transcript", to a caller
+    that feeds it into the GI/KG cascade and exits 0. ``.cleaned.txt``, ``.segments.json`` and
+    ``.adfree.txt`` were equally reachable.
+
+    Accepted: ``.txt`` (ASR output) plus ``.vtt`` / ``.srt`` — "the two formats this pipeline"
+    ingests from publishers (config.py:4062), so a downloaded-transcript episode still
+    resolves. Rejected: ``.adfree`` and ``.cleaned`` (post-processed variants — resolving to
+    one silently changes what the stage operates on) and anything ``.json``
+    (``.segments.json`` is diarization, ``.adfree.admap.json`` is an ad-map).
+
+    A first attempt at this restricted to ``.txt`` alone and broke
+    ``test_existing_transcript_globs_non_txt``, which seeds a ``.vtt`` — the test was right and
+    the restriction was wrong. Worth recording: that test's name reads like it is protecting
+    the very glob being removed, and it is not.
+
+    The caller that needs real TEXT (rederive, episode_processor.py:3935) stops being handed an
+    ad-map. `skip_existing` (episode_processor.py:481) still sees the episode, because
+    ``existing_transcript_path_in_corpus`` falls through to the metadata path as its presence
+    marker.
+
+    ONE BEHAVIOR DELTA, in a state this narrow: a run dir holding ``{base}.cleaned.txt`` and no
+    plain ``.txt``. The skip_existing caller is not purely presence-based — it feeds the
+    resolved path to ``_should_retranscribe_for_gi_segments`` (:508). The old glob returned the
+    ``.cleaned.txt``, which ends ``.txt``, so ``transcript_txt_missing_segments`` looked for
+    ``{base}.cleaned.segments.json``, did not find it, and scheduled a healing
+    re-transcription. Now the path resolves to the metadata marker, which does not end ``.txt``,
+    so that check returns False and the episode is skipped instead.
+
+    Deliberately left as-is: the old trigger fired off a sidecar name that is not the
+    convention — segments are written as ``{base}.segments.json``, never
+    ``{base}.cleaned.segments.json`` — so it healed by accident, and an episode with no plain
+    ``.txt`` at all is a broken artifact set that a backfill re-transcription would not repair.
+    Recorded because an earlier version of this docstring claimed presence callers were
+    "unaffected" and that both call sites had been "verified", and neither was true: review
+    found this by reading :508, which I had not followed.
+    """
     stem = meta_abs.name
     base = stem
     for suffix in (".metadata.json", ".metadata.yaml", ".metadata.yml"):
@@ -503,7 +542,8 @@ def _transcript_beside(meta_abs: Path) -> Optional[str]:
     preferred = transcripts_dir / f"{base}.txt"
     if preferred.is_file():
         return str(preferred)
-    for candidate in sorted(transcripts_dir.glob(f"{base}.*")):
+    for ext in (".vtt", ".srt"):
+        candidate = transcripts_dir / f"{base}{ext}"
         if candidate.is_file():
             return str(candidate)
     return None

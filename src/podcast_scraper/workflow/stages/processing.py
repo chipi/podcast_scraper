@@ -116,11 +116,28 @@ def _processing_job_key(job: Any) -> str:
     if path:
         return path
     episode = getattr(job, "episode", None)
-    guid = str(getattr(episode, "guid", "") or "").strip()
+    # `Episode` HAS NO `.guid` ATTRIBUTE — the guid lives in `episode.item` XML and is only
+    # reachable through `run_index._episode_guid`. The 2026-09-18 fix read `getattr(episode,
+    # "guid", "")`, which is always "", so this branch never once executed and every
+    # transcript-less job fell to `id(job)`. Proven 2026-09-24: an Episode carrying
+    # `<guid>guid-abc123</guid>` still keyed as `no-transcript:obj:4389087280`.
+    #
+    # Keys stayed unique, so the wedge that fix targeted did stay fixed — but by the id()
+    # fallback, not by the documented mechanism, and the docstring's claim that this "keeps
+    # such jobs distinct" via "the episode's stable identity" was false: id() is a memory
+    # address, reused after garbage collection and different on every run.
+    guid = ""
+    try:
+        from ..run_index import _episode_guid
+
+        guid = str(_episode_guid(episode) or "").strip()
+    except Exception:  # noqa: BLE001 — identity must never break the run
+        guid = ""
     if guid:
         return f"no-transcript:guid:{guid}"
-    # No path and no guid: id() is unique for the lifetime of this list, which is exactly the
-    # lifetime of the bookkeeping that uses it.
+    # Genuinely no guid (a job built without an Episode, or a feed item with no guid element):
+    # id() is unique for the lifetime of this list, which is the lifetime of the bookkeeping
+    # that uses it. Unique, but NOT stable across runs — which is why the guid is preferred.
     return f"no-transcript:obj:{id(job)}"
 
 
@@ -169,6 +186,93 @@ def _processing_future_abandon_seconds(cfg: Any) -> Optional[float]:
     return float(DEFAULT_PROCESSING_FUTURE_ABANDON_SECONDS)
 
 
+def processing_loop_verdict(
+    *,
+    jobs: int,
+    submitted: int,
+    in_flight: int,
+    abandoned: int,
+    states: Dict[str, int],
+    unaccounted: int,
+    longest_in_flight_sec: float,
+    max_workers: int,
+) -> Tuple[str, str]:
+    """Classify the loop's state and say so. Returns ``(level, text)``.
+
+    MODULE-LEVEL AND PURE so a test can EXECUTE it. The previous version lived inside
+    ``_run_parallel_processing_loop``'s closure, where nothing could reach it, so its tests
+    reconstructed the arithmetic instead — and a reconstruction cannot catch a defect in the
+    original. Two defects reached prod behind exactly that gap: a per-episode clock stamped at
+    submit rather than execution, and an abandoned episode counted as finished. Both were
+    "tested".
+
+    The counting rules the callers kept getting wrong, stated once here:
+
+    * ``submitted`` is NOT a completion count. ``_mark_processed`` fires when a job is handed to
+      a worker, as the double-submit guard.
+    * an ABANDONED episode is not finished. Its future is popped from tracking while its worker
+      thread keeps running — a running future cannot be cancelled in Python — so it must be
+      subtracted, not counted done.
+    * ``in_flight > 0`` with work ``running``/``pending`` is ORDINARY. Logging it as alarming is
+      how 366 lines of healthy waiting were once tallied as wedges.
+    """
+    running = states.get("running", 0)
+    pending = states.get("pending", 0)
+    if running or pending:
+        # "settled", not "done": a drained FAILURE is subtracted from neither term, so this
+        # counts episodes that are no longer pending, not episodes that succeeded. Calling it
+        # "done" invited precisely the misreading the line exists to prevent — "6/6 episodes
+        # done. Normal." with three failures among them is indefensible as reassurance.
+        settled = max(0, submitted - in_flight - abandoned)
+        tail = ""
+        level = "info"
+        if abandoned:
+            # F5 is NAMED, not fixed: an abandoned-but-running episode holds a worker slot, so
+            # queued work cannot start and the feed burns to its wall-clock budget. A capacity
+            # fix needs either a private `_max_workers` poke or an executor swap-and-resubmit —
+            # real complexity for an event requiring two simultaneous wedges. Saying it beats a
+            # silent four hours.
+            #
+            # MAY, not DOES, and only claimed when something is actually queued. `abandoned`
+            # never decrements, so hours later its worker may well have finished and freed the
+            # slot — the loop stopped waiting and therefore cannot know either way. And with
+            # `pending == 0` there is nothing to starve, so asserting starvation would be
+            # false in a state reached on every feed whose tail is one slow episode.
+            held = (
+                f" {abandoned} abandoned episode(s) may still hold worker slot(s) of "
+                f"{max_workers} — the loop stopped waiting on them and cannot tell"
+            )
+            tail = held + (
+                f"; with {pending} still queued that caps throughput until the feed budget fires."
+                if pending
+                else "; nothing is queued behind them."
+            )
+            level = "warning"
+        return level, (
+            f"WORKING — {settled}/{jobs} episodes settled (ok or failed), {running} running, "
+            f"{pending} queued; longest in flight {longest_in_flight_sec:.0f}s. Normal.{tail}"
+        )
+    # Both branches below are sampled, not synchronised: a job can be submitted between the
+    # caller's own snapshot and this call, so a single observation can be a race artifact that
+    # the next iteration clears. The reports are still ERROR — a genuine wedge looks exactly
+    # like this and lasts forever — but they no longer state a conclusion the sample cannot
+    # support, and in particular no longer accuse a named commit of regressing on one sample.
+    if in_flight == 0 and unaccounted:
+        return "error", (
+            f"STUCK? — nothing is in flight and {unaccounted} job(s) are unaccounted for, so "
+            "the loop has no way to make progress on its own. If this line does not repeat on "
+            "the next report, it was a submit landing mid-sample and the loop recovered."
+        )
+    if in_flight == 0:
+        return "error", (
+            "STUCK? — every job is accounted for and nothing is in flight, yet the exit "
+            "condition is unsatisfied. REPEATED, this is the cardinality wedge fixed in "
+            "cd4c53857 and means that fix regressed; ONCE, it can be a job landing between "
+            "the exit check and this sample."
+        )
+    return "warning", f"UNCLEAR — {in_flight} future(s) tracked in states {states}."
+
+
 def _overrunning_futures(
     started_at: Dict[Any, float], ceiling: Optional[float], now: float
 ) -> List[Any]:
@@ -192,6 +296,155 @@ def _all_jobs_processed(jobs: Any, processed_job_keys: Set[str]) -> bool:
     answers "how many distinct artifacts did we touch", which is not the question.
     """
     return all(_processing_job_key(job) in processed_job_keys for job in jobs)
+
+
+def record_abandoned_episode(
+    job: Any,
+    cfg: "config.Config",
+    pipeline_metrics: Any,
+    *,
+    elapsed_seconds: float,
+    ceiling_seconds: Optional[float],
+) -> bool:
+    """Write the ledger row for an episode whose wait was abandoned. True when a row landed.
+
+    The per-episode ceiling stops the loop waiting and bumps the failed counter, so the FEED
+    rollup is right. The EPISODE ledger was not touched, and that is the surface an operator
+    queries when asking which episodes need redoing — so an abandoned episode kept whatever
+    row it already had. For a reprocess that row reads the PREVIOUS run's ``ok``: the episode
+    looks done, is not, and nothing distinguishes it from the episodes that genuinely
+    finished. The worker thread cannot be cancelled and may still be writing artifacts after
+    this row is written; ``failed`` is the honest state at the moment the run stops waiting,
+    and a later mop-up pass re-running the episode is cheap, whereas never learning it needs
+    one is not.
+
+    Keyed through ``get_episode_id_from_episode``, never ``episode.guid``/``episode.idx``.
+    ``Episode`` has NO ``guid`` and NO ``episode_id`` attribute (the guid is inside
+    ``episode.item`` XML), and ``idx`` is not unique across a multi-run work-list — the
+    2026-08-25 incident. Writing under the wrong key APPENDS AN ORPHAN ROW and leaves the
+    episode's real row reading ``ok``, i.e. a ledger showing one episode both ok and failed,
+    which is strictly worse than the silence this replaces.
+
+    Returns False rather than raising, on every failure path: this runs while the run is
+    already degraded and must not convert an abandoned wait into a crashed feed.
+    """
+    try:
+        episode = getattr(job, "episode", None)
+        if pipeline_metrics is None or episode is None:
+            return False
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        episode_id, _ = get_episode_id_from_episode(episode, getattr(cfg, "rss_url", "") or "")
+        if not episode_id:
+            return False
+        ceiling_txt = "unset" if ceiling_seconds is None else f"{ceiling_seconds:.0f}s"
+        pipeline_metrics.update_episode_status(
+            episode_id=episode_id,
+            status="failed",
+            stage="processing",
+            error_type="ProcessingAbandoned",
+            error_message=(
+                f"ran {elapsed_seconds:.0f}s with no result (ceiling {ceiling_txt}); the run "
+                "stopped waiting so the feed could finish. The worker thread was NOT "
+                "cancelled, so partial artifacts may exist — re-run this episode."
+            ),
+        )
+        return True
+    except Exception:  # noqa: BLE001 — accounting must never break the run
+        logger.debug("could not record the abandoned-episode status", exc_info=True)
+        return False
+
+
+def abandon_episode_accounting(
+    job: Any,
+    cfg: "config.Config",
+    pipeline_metrics: Any,
+    *,
+    elapsed_seconds: float,
+    ceiling_seconds: Optional[float],
+) -> Tuple[Any, str]:
+    """Everything an abandoned episode needs recorded. Returns ``(idx_for_log, log_tail)``.
+
+    The ledger write and the sentence describing whether it landed are ONE unit on purpose.
+    The loop that calls this is nested inside ``process_processing_jobs_concurrent`` and cannot
+    be imported, so whatever stays in the closure is untestable in practice: deleting the
+    ledger write from the closure passed the entire suite (verified by mutation 2026-09-24) —
+    the same weakness this module already flags on the mirrored exit-predicate tests. Moving
+    the pair out here makes that deletion fail a test.
+
+    The closure keeps only genuine loop state: the counters and the logger call.
+    """
+    idx = getattr(getattr(job, "episode", None), "idx", job)
+    recorded = record_abandoned_episode(
+        job,
+        cfg,
+        pipeline_metrics,
+        elapsed_seconds=elapsed_seconds,
+        ceiling_seconds=ceiling_seconds,
+    )
+    tail = (
+        " and its episode-ledger row set to ProcessingAbandoned"
+        if recorded
+        else " but its episode-ledger row could NOT be written, so the per-episode surface "
+        "still shows its previous status — trust the feed counters over the ledger for "
+        "this episode"
+    )
+    return idx, tail
+
+
+def record_truncated_episodes(
+    jobs: List[Any],
+    cfg: "config.Config",
+    pipeline_metrics: Any,
+    *,
+    reason: str,
+) -> int:
+    """Ledger rows for episodes still in flight when the loop itself stops. Returns rows written.
+
+    The sibling gap to ``record_abandoned_episode``, and the same shape of blind spot. When a
+    supervision bound fires (wall-clock budget, or the main thread going away) the loop counts
+    the remaining in-flight episodes as abandoned, logs an ERROR, emits ``pipeline_truncated``
+    and calls ``record_truncation`` — all of which describe the RUN. Nothing described the
+    EPISODES, so each one kept whatever row it already had; on a reprocess that is the previous
+    run's ``ok``, and the one surface an operator queries to build a mop-up batch could not
+    distinguish "this episode's reprocess finished" from "the run died before reaching it".
+
+    A distinct ``RunTruncated`` rather than reusing ``ProcessingAbandoned``: that one means "this
+    episode overran its own ceiling", which is a property of the episode and often means it needs
+    investigating. This means "the run stopped; nothing is known about this episode", which is a
+    property of the run and needs only a re-run. Collapsing them would lose exactly the
+    distinction that decides what to do next.
+
+    ``failed`` is right even for an episode that never started: the claim is about the run not
+    completing for it, the serving artifact is untouched, and ``skip_existing`` makes the re-run
+    idempotent. Never raises — this is already the degraded path.
+    """
+    written = 0
+    for job in jobs:
+        try:
+            episode = getattr(job, "episode", None)
+            if pipeline_metrics is None or episode is None:
+                continue
+            from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+            episode_id, _ = get_episode_id_from_episode(episode, getattr(cfg, "rss_url", "") or "")
+            if not episode_id:
+                continue
+            pipeline_metrics.update_episode_status(
+                episode_id=episode_id,
+                status="failed",
+                stage="processing",
+                error_type="RunTruncated",
+                error_message=(
+                    f"the processing loop stopped before this episode finished ({reason}); it was "
+                    "still in flight and is NOT complete. Re-run it — skip_existing keeps that "
+                    "idempotent."
+                ),
+            )
+            written += 1
+        except Exception:  # noqa: BLE001 — accounting must never break the run
+            logger.debug("could not record a truncated-episode status", exc_info=True)
+    return written
 
 
 from ...rss import extract_episode_description as rss_extract_episode_description
@@ -2192,11 +2445,15 @@ def process_episodes(  # noqa: C901
 
 
 def _drain_completed_processing_futures(
-    futures: Dict[Any, int],
+    futures: Dict[Any, Any],
     cfg: config.Config,
     pipeline_metrics: Optional[metrics.Metrics],
 ) -> Tuple[int, int, bool]:
     """Drain completed futures from the executor, update counts, and detect stop request.
+
+    The mapped value is the ProcessingJob (the abandon path needs the Episode to address the
+    ledger). Only used for log identity here, so a bare idx from an older caller still reads
+    correctly rather than printing a repr.
 
     Returns:
         Tuple of (ok_delta, failed_delta, stop_requested).
@@ -2205,7 +2462,8 @@ def _drain_completed_processing_futures(
     stop_requested = False
     try:
         for future in as_completed(list(futures.keys()), timeout=1.0):
-            episode_idx = futures.pop(future)
+            mapped = futures.pop(future)
+            episode_idx = getattr(getattr(mapped, "episode", None), "idx", mapped)
             try:
                 success = future.result()
                 if success:
@@ -2438,9 +2696,12 @@ def process_processing_jobs_concurrent(  # noqa: C901
         # exact hang the bounds above exist to break. Shutdown mode is chosen in `finally`.
         executor = ThreadPoolExecutor(max_workers=max_workers)
         try:
-            # Future -> episode idx, so a submit failure can report how many are still
-            # in flight (see ``_try_submit``) without holding the jobs themselves.
-            futures: Dict[Future, int] = {}
+            # Future -> the job itself, not just ``episode.idx``. The abandon path has to
+            # write an episode-ledger row, and the canonical episode id is only reachable
+            # from the Episode (idx is not unique across a multi-run work-list); holding the
+            # job is what makes that row addressable. The jobs are alive in the work-list
+            # regardless, so this pins nothing that was not already retained.
+            futures: Dict[Future, Any] = {}
 
             def _try_submit(job: Any) -> bool:
                 """Submit one job, tolerating a pool that can no longer accept work.
@@ -2468,7 +2729,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                         len(futures),
                     )
                     return False
-                futures[future] = job.episode.idx
+                futures[future] = job
                 return True
 
             def _abandon_overrunning_futures() -> None:
@@ -2508,18 +2769,33 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     # iteration for the next drain to collect it properly.
                     if fut.done():
                         continue
-                    idx = futures.pop(fut, None)
+                    abandoned_job = futures.pop(fut, None)
                     started = future_started_at.pop(fut, None)
                     elapsed = 0.0 if started is None else time.monotonic() - started
                     abandoned_futures[0] += 1
                     jobs_processed_failed[0] += 1
+                    # The feed counter alone left this episode's ledger row reading the previous
+                    # run's `ok`, so the one surface that says which episodes to redo did not
+                    # know. The write and the sentence reporting it live together in
+                    # `abandon_episode_accounting` — see its docstring for why not here.
+                    idx, ledger_note = abandon_episode_accounting(
+                        abandoned_job,
+                        cfg,
+                        pipeline_metrics,
+                        elapsed_seconds=elapsed,
+                        ceiling_seconds=future_abandon_seconds,
+                    )
                     logger.error(
-                        "Episode %s has been running %.0fs (ceiling %.0fs) with no result — "
+                        "Episode %s has been running %.0fs (ceiling %s) with no result — "
                         "ABANDONING the wait so this feed can finish. The worker thread cannot be "
-                        "cancelled and keeps running; the episode is counted as failed.",
+                        "cancelled and keeps running; the episode is counted as failed%s.",
                         idx,
                         elapsed,
-                        future_abandon_seconds or 0.0,
+                        # `%.3g`, not `%.0f`: a sub-second ceiling rendered as "ceiling 0s",
+                        # which reads as "the bound is zero, that is why it fired" — the
+                        # opposite of a diagnosis. Surfaced by the multi-job seam test.
+                        f"{future_abandon_seconds:.3g}s" if future_abandon_seconds else "unset",
+                        ledger_note,
                     )
 
             def _submit_new_jobs() -> None:
@@ -2579,12 +2855,29 @@ def process_processing_jobs_concurrent(  # noqa: C901
                         # out two episodes and then hit the wall-clock bound under-reported the
                         # first two — in the shutdown decision below and in the truncation event.
                         abandoned_futures[0] += len(futures)
+                        # Per-EPISODE rows, not just the run-level counters/event below. Without
+                        # these each truncated episode kept whatever row it already had — on a
+                        # reprocess, the PREVIOUS run's `ok` — so the surface used to build a
+                        # mop-up batch could not tell "finished" from "the run died before
+                        # reaching it". Run-level truncation facts do not answer a per-episode
+                        # question.
+                        truncated_rows = record_truncated_episodes(
+                            list(futures.values()), cfg, pipeline_metrics, reason=reason
+                        )
                         logger.error(
                             "Processing loop stopping: %s. Abandoning %d in-flight "
                             "episode(s); they are not marked complete and a resumed run "
-                            "will reprocess them (skip_existing keeps this idempotent).",
+                            "will reprocess them (skip_existing keeps this idempotent). "
+                            "%d episode-ledger row(s) marked RunTruncated%s.",
                             reason,
                             len(futures),
+                            truncated_rows,
+                            (
+                                ""
+                                if truncated_rows == len(futures)
+                                else " — FEWER THAN ABANDONED, so the per-episode surface is "
+                                "incomplete for this truncation; trust the count in this line"
+                            ),
                         )
                         # #1981: make the shortfall queryable, not just greppable — the job
                         # result reports success either way. Best-effort; never raises.
@@ -2651,14 +2944,35 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     else:
                         key = "pending"
                     states[key] = states.get(key, 0) + 1
-                logger.warning(
-                    "Processing loop cannot finish: %d job(s) enqueued, %d marked processed, "
-                    "%d future(s) tracked %s. Unaccounted: %s",
+                # The verdict itself lives at module scope (`processing_loop_verdict`) so a
+                # test can EXECUTE it. It used to be inline here, unreachable, and its tests
+                # reconstructed the arithmetic — which is how an abandoned-counts-as-done defect
+                # shipped inside the very line written to end misreadings.
+                longest = 0.0
+                if future_started_at:
+                    longest = max(0.0, time.monotonic() - min(future_started_at.values()))
+                level, verdict = processing_loop_verdict(
+                    jobs=len(all_jobs),
+                    submitted=len(done_keys),
+                    in_flight=len(futures),
+                    abandoned=abandoned_futures[0],
+                    states=states,
+                    unaccounted=len(missing),
+                    longest_in_flight_sec=longest,
+                    max_workers=max_workers,
+                )
+                log = {"info": logger.info, "warning": logger.warning}.get(level, logger.error)
+                log(
+                    # `submitted`, not `marked_processed`: the set is populated at submit time,
+                    # so naming it after processing invites reading it as a completion count.
+                    "Processing loop: %s [jobs=%d submitted=%d in_flight=%d states=%s "
+                    "unaccounted=%s]",
+                    verdict,
                     len(all_jobs),
                     len(done_keys),
                     len(futures),
                     states,
-                    missing[:5] if missing else "none — a tracked future was never drained",
+                    missing[:5] if missing else "none",
                 )
 
             while True:
