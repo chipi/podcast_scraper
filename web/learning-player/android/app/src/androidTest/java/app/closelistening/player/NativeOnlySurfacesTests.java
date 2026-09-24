@@ -87,6 +87,20 @@ public class NativeOnlySurfacesTests extends UITestCase {
         AppSession.openEpisode(SEEDED_SLUG);
         assertTrue("no ⋯ on the player, so the queue control cannot be reached. On screen: "
                 + Journey.labelledInventory(20), Journey.tap("More actions", false, 20_000));
+        Journey.sleep(1_500);
+        // Say what the menu actually contains. "neither queue control was reachable" is true of a
+        // menu that never opened AND of one that opened without the item, and those need opposite
+        // fixes — the first time this failed, the inventory showed the action row with no menu
+        // items at all and that was the whole diagnosis (2026-09-24).
+        // Ask the DIRECT question. A capped inventory cannot answer it: the panel teleports to
+        // `<body>`, so its items sit at the END of the tree and a limit of 30 cut them off — which
+        // made an open menu look like a closed one.
+        System.out.println("=====UPNEXT add=" + (Journey.find("Add to queue", false, 3_000) != null)
+                + " remove=" + (Journey.find("Remove from queue", false, 3_000) != null)
+                + " markPlayed=" + (Journey.find("Mark as played", false, 2_000) != null)
+                + " download=" + (Journey.find("Download for offline", false, 2_000) != null)
+                + " downloaded=" + (Journey.find("Downloaded — tap to remove", false, 2_000) != null)
+                + "=====");
         if (!Journey.tap("Add to queue", false, 10_000)) {
             // Already queued by an earlier suite on the shared account — that is the state we want,
             // but say so by asserting the OTHER control rather than assuming it.

@@ -231,17 +231,48 @@ final class Journey {
         UiObject2 el = find(names, contains, timeoutMs);
         if (el == null) return false;
         int floor = device().getDisplayHeight() - 220;
+        Rect lastGood = attr(el, UiObject2::getVisibleBounds);
         for (int i = 0; i < 6; i++) {
             Rect b = attr(el, UiObject2::getVisibleBounds);
-            if (b == null || b.bottom <= floor) break;
+            if (b == null) break;
+            lastGood = b;
+            if (b.bottom <= floor) break;
             swipeUp();
-            el = find(names, contains, 3_000);
-            if (el == null) return false;
+            UiObject2 again = find(names, contains, 3_000);
+            if (again == null) {
+                // THE SWIPE LOST IT, and giving up here was wrong twice over (2026-09-24).
+                //
+                // Two different things produce this and both are recoverable: the swipe scrolled
+                // the control out of view, or the swipe DISMISSED the surface carrying it — an
+                // open overflow menu goes away when you scroll the page behind it. The old code
+                // returned false, so it reported "the landing offered no route to the downloaded
+                // episodes" about a page whose own inventory listed `Play what's downloaded`.
+                //
+                // Put the page back, look again, and if it is there take it WITHOUT scrolling
+                // further. Clicking under the bottom nav is a worse outcome than not clicking, but
+                // never clicking a control that is plainly present is worse than both.
+                swipeDown();
+                again = find(names, contains, 3_000);
+                if (again == null) break;
+                el = again;
+                lastGood = attr(el, UiObject2::getVisibleBounds);
+                break;
+            }
+            el = again;
         }
         try {
             el.click();
             return true;
         } catch (Throwable t) {
+            // The node went stale between the last lookup and the click. Its position did not.
+            if (lastGood != null) {
+                try {
+                    device().click(lastGood.centerX(), lastGood.centerY());
+                    return true;
+                } catch (Throwable ignored) {
+                    return false;
+                }
+            }
             return false;
         }
     }
