@@ -85,6 +85,32 @@ _PROD = frozenset({"production"})  # nightly / full bake only
 # Removing them from ``test`` does not make them unpinned or unreachable: both carry a
 # SHA (ADR-155) and both stay in ``REQUIRED_ML_MODELS``.
 
+#: Checkpoints that publish ONLY ``pytorch_model.bin`` — no ``model.safetensors`` at the
+#: revision we pin. Loading one unpickles through ``torch.load``, which ``transformers >= 4.56``
+#: refuses below torch 2.6 (PYSEC-2025-41 / CVE-2025-32434). Stated here because it is a fact
+#: about the checkpoints, not about any one machine: the same refusal fires anywhere torch is
+#: older than 2.6, and x86_64 macOS is simply where it fires today (newest wheel: 2.2.2).
+#:
+#: Checked against the Hub on 2026-09-24. No safetensors build of these WEIGHTS exists — the
+#: community copies are pickle too, and near-name repos like ``led-base-16384-ms2`` are
+#: fine-tunes. So this is a durable property, not a "pending upstream" note.
+#:
+#: The ``test`` tier must not contain any of these: it is what a developer machine preloads, and
+#: a model it cannot load turns ``make preload-ml-models`` — and therefore ``make ci`` — into a
+#: hard failure. ``test_the_test_tier_holds_only_loadable_checkpoints`` enforces that.
+PICKLE_ONLY_CHECKPOINTS: frozenset[str] = frozenset(
+    {
+        "google/pegasus-large",
+        "google/pegasus-cnn_dailymail",
+        "google/pegasus-xsum",
+        "google/long-t5-tglobal-base",
+        "google/long-t5-tglobal-large",
+        "allenai/led-base-16384",
+        "allenai/led-large-16384",
+        "sshleifer/distilbart-cnn-12-6",
+    }
+)
+
 REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     # Whisper (ids from config_constants whisper defaults)
     MLModelSpec(cc.TEST_DEFAULT_WHISPER_MODEL, "whisper", _T),  # tiny.en

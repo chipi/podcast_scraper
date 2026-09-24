@@ -144,30 +144,26 @@ def test_airgapped_thin_summary_is_the_trimmed_pair():
         assert cc.get_pinned_revision_for_model(model_id), f"{model_id} preloaded unpinned"
 
 
-def test_the_test_tier_is_the_loadable_subset_of_airgapped_thin():
-    """airgapped-thin is NO LONGER a subset of the test tier, and that is deliberate.
+def test_the_test_tier_holds_only_loadable_checkpoints():
+    """Nothing in the ``test`` tier needs torch >= 2.6 to load.
 
-    It used to be, which was convenient: preloading `test` on a laptop also gave you what
-    `--airgapped-thin` needs. It stopped being possible. `allenai/led-base-16384` ships only
-    `pytorch_model.bin`, so loading it unpickles through ``torch.load``, and
-    ``transformers >= 4.56`` refuses that below torch 2.6 (PYSEC-2025-41). On x86_64 macOS the
-    newest torch wheel that exists is 2.2.2 — so keeping LED in `test` meant
-    ``make preload-ml-models`` could not complete on that host at all, and neither could
-    ``make ci``.
+    The ``test`` tier is what a developer machine preloads, so every entry has to be loadable on
+    whatever torch that machine can install. ``transformers >= 4.56`` refuses ``torch.load``
+    below torch 2.6 (PYSEC-2025-41), and the checkpoints in ``PICKLE_ONLY_CHECKPOINTS`` have no
+    safetensors build, so they cannot be loaded any other way.
 
-    The `test` tier is what a developer machine preloads, so it is the LOADABLE subset:
-    safetensors only. airgapped-thin keeps LED because it genuinely needs a long-context local
-    REDUCE and no safetensors checkpoint exists for those weights — it runs where torch is
-    current.
-
-    This asserts the direction that now holds, so the relationship is still guarded rather than
-    merely abandoned.
+    This is a property of the TIER, stated on its own terms — not a relationship to some other
+    tier that happens to share models with it. A pickle-only entry here makes
+    ``make preload-ml-models`` a hard failure rather than a slow one, and takes ``make ci`` with
+    it.
     """
-    air = set(mm.model_ids_for_tier("airgapped_thin", "summary"))
-    test_tier = set(mm.model_ids_for_tier("test", "summary"))
-    assert air & test_tier == {"facebook/bart-base"}
-    assert "allenai/led-base-16384" not in test_tier
-    assert "google/long-t5-tglobal-base" not in test_tier
+    for kind in ("summary", "embedding", "qa", "nli"):
+        for model_id in mm.model_ids_for_tier("test", kind):
+            assert model_id not in mm.PICKLE_ONLY_CHECKPOINTS, (
+                f"{model_id} is pickle-only and cannot load below torch 2.6, so it must not be "
+                "in the `test` tier — move it to ci_artifact/production, which run on hosts "
+                "where torch is current"
+            )
 
 
 def test_preload_evidence_defaults_are_manifest_ids():
