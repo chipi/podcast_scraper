@@ -45,21 +45,23 @@ def _load(path: Path) -> Dict[str, Any]:
 def _triples(root: Path, newest_run_only: bool = False) -> List[Tuple[str, Path, Path, Path]]:
     """``(label, metadata, kg, gi)`` for every episode with a kg artifact.
 
-    DEFAULT IS UNDEDUPED, AND THAT IS DELIBERATE: m0009/m0010 glob ``rglob("*.kg.json")``
-    the same way, so the default view is what the MIGRATION will actually read. Changing
-    it would make this report stop describing the thing it exists to predict.
+    THE MIRROR RULE IS UNCHANGED; WHAT CHANGED IS THE MIGRATION. This docstring used to say the
+    undeduped default was deliberate because "m0009/m0010 glob rglob() the same way", on the
+    principle that an instrument modelling the migration differently from the migration reports a
+    run that is not the one about to happen. That principle still holds — but m0007/m0009/m0010
+    now select through ``upgrade.corpus_selection.select_served_artifacts`` (the central
+    membership rule), so KEEPING the old default is what would break the mirror. The default is
+    now deduped for exactly the reason it was previously undeduped.
 
-    ``newest_run_only=True`` restricts to the newest run per ``(feed_id, episode_id)`` —
-    the same central membership rule the serving layer and ``_on_disk_guid_index`` use.
-    That view answers a different and narrower question: *of the changes this migration
-    would make, which land on a copy anyone can actually see?*
+    ``newest_run_only`` is therefore no longer the interesting switch for predicting the
+    migration; both views now agree about what it will write. The undeduped view is still worth
+    reaching for to answer "what is on disk", which is how the superseded-copy damage was found.
 
-    BOTH ARE NEEDED, because a transition on a superseded copy is noise while the same
-    transition on a served copy is a regression. Worked example (2026-09-22): m0009 would
-    demote Krishna Rao guest -> mentioned on an Aug-18 copy whose roster wrongly names Sam
-    Altman, while the served Aug-26 copy — repaired — correctly has him as guest. Reading
-    only the undeduped view calls that a real-person demotion; reading only the deduped
-    view hides that the migration will write it. The gate belongs on the deduped view.
+    Worked example (2026-09-22), the reason the migrations changed: m0009 would have demoted
+    Krishna Rao guest -> mentioned on an Aug-18 copy whose roster wrongly names Sam Altman, while
+    the served Aug-26 copy — repaired — correctly has him as guest. The undeduped view called
+    that a real-person demotion; the deduped view showed the served corpus was fine. The
+    migration now never opens the Aug-18 copy at all.
     """
     kg_paths = sorted(root.rglob("*.kg.json"))
     if newest_run_only:

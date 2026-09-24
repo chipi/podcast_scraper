@@ -43,13 +43,18 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from ..identity.bare_name_scope import is_bare_person_id, scoped_person_id
+from .corpus_selection import select_served_artifacts
 
 _PERSON = "person:"
 
 
 def _iter_bridges(root: Path) -> Iterable[Path]:
-    """All ``*.bridge.json`` under *root* (recursive). Stable order."""
-    return sorted(root.rglob("*.bridge.json"))
+    """The SERVED ``*.bridge.json`` copies under *root*. Stable order.
+
+    Not a bare ``rglob`` — see ``upgrade.corpus_selection``.
+    """
+    served, _superseded = select_served_artifacts(root, ".bridge.json")
+    return served
 
 
 def _graph_person_ids(bridge_path: Path) -> Set[str]:

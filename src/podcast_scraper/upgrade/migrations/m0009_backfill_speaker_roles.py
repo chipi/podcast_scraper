@@ -91,6 +91,7 @@ from ...identity.roster_provenance import roster_provenance
 from ...identity.slugify import person_id as _person_id
 from ...kg.speaker_coherence import same_person
 from ...speaker_detectors.hosts import looks_like_publisher, names_the_show
+from ..corpus_selection import select_served_artifacts
 from ..migration import Migration, MigrationContext, MigrationResult
 from ..role_ledger import append_ledger, file_sha, new_run_id, read_ledger, RoleChange
 
@@ -126,8 +127,14 @@ _PROMOTABLE = frozenset({"", "mentioned"})
 
 
 def _iter_kg_files(root: Path) -> Iterable[Path]:
-    """All ``*.kg.json`` files under *root* (recursive). Stable order."""
-    return sorted(root.rglob("*.kg.json"))
+    """The SERVED ``*.kg.json`` copies under *root*. Stable order.
+
+    Not a bare ``rglob``: that returned superseded run copies too, and a superseded copy can carry
+    a roster from before a repair — which is how this migration demoted a real guest (Krishna Rao)
+    on a copy nobody reads. See ``upgrade.corpus_selection``.
+    """
+    served, _superseded = select_served_artifacts(root, ".kg.json")
+    return served
 
 
 def _load(path: Path) -> Tuple[dict | None, str | None]:
@@ -242,6 +249,50 @@ def roster_roles(metadata_payload: dict) -> Dict[str, str]:
         # First voice wins, matching the roster builder's own first-appearance precedence.
         out.setdefault(pid, role)
     return out
+
+
+def transcript_pairing_is_vouched(metadata_path: Path, content: dict) -> bool:
+    """Does this metadata record point at a transcript that NAMES THIS EPISODE?
+
+    The guard behind the guard. ``suspect_demotions`` flags a demotion for hand-read when the node
+    also carried a voice — but "carried a voice" is read from the episode's own GI/KG graph, and if
+    the roster is wrong that graph was built from ANOTHER episode's transcript. Then the voices
+    belong to the other episode's people, the person being demoted has none, and the one safety net
+    that would put a real human in front of a reviewer stays silent. The corruption disables its
+    own alarm. Krishna Rao, a real guest, carried no ``[HAD A VOICE]`` marker for exactly this
+    reason and never reached the 59-entry hand-read list.
+
+    So severity must not rest on the graph alone. This keys on the corruption SIGNATURE instead —
+    a recorded ``transcript_file_path`` that does not name this episode — which is observable from
+    the filenames and cannot be poisoned by whatever the graph ended up containing.
+
+    ``names_the_same_episode``, never string equality: the metadata filename truncates the title
+    and the transcript filename does not, so equality called 128 correctly-paired episodes
+    mispaired, which is how #2082's headline read 275 instead of 147.
+
+    True when there is nothing to doubt — including when NO transcript is recorded, because then
+    there is no mispairing to report and the ordinary roster rules already cover a transcript-less
+    episode. False means specifically: a transcript is named and it is somebody else's.
+    """
+    rel = str((content or {}).get("transcript_file_path") or "").strip()
+    if not rel:
+        return True
+    meta_stem = metadata_path.name
+    for suffix in (".metadata.json", ".metadata.yaml", ".metadata.yml"):
+        if meta_stem.endswith(suffix):
+            meta_stem = meta_stem[: -len(suffix)]
+            break
+    transcript_stem = Path(rel).name
+    for suffix in (".txt", ".vtt", ".srt"):
+        if transcript_stem.endswith(suffix):
+            transcript_stem = transcript_stem[: -len(suffix)]
+            break
+    try:
+        from ...utils.filesystem import names_the_same_episode
+
+        return bool(names_the_same_episode(meta_stem, transcript_stem))
+    except Exception:  # noqa: BLE001 — an unanswerable check must not fail the migration
+        return True
 
 
 def _segments_sidecar(metadata_path: Path, content: dict) -> Optional[Path]:
@@ -709,6 +760,15 @@ class BackfillSpeakerRolesMigration(Migration):
             # SPOKEN_BY lives in the GI layer, not the KG layer — see `voices_in_episode`.
             gi_payload, _gi_err = _load(_gi_sibling(path))
             voices = voices_in_episode(gi_payload or {}, payload)
+            # Does this episode's own record point at its own transcript? When it does not, every
+            # role signal below was derived from SOMEBODY ELSE'S words, so the voice-based
+            # hand-read guard cannot be trusted to fire — it reads the same poisoned graph. Count
+            # the episode's demotions as suspect on that basis alone. See
+            # `transcript_pairing_is_vouched`.
+            pairing_vouched = transcript_pairing_is_vouched(
+                meta_path, meta_payload.get("content") or {}
+            )
+            suspect_before_episode = len(suspect_demotions)
 
             # Route 1 — the node is not a human. Needs no roster, so it runs on EVERY episode,
             # including the ones whose roster `roster_roles` discards entirely (usually because
@@ -748,6 +808,20 @@ class BackfillSpeakerRolesMigration(Migration):
                 unmatched.extend(f"{path.name}: {pid}" for pid in missing)
             else:
                 no_roster += 1
+
+            # A MISPAIRED EPISODE CANNOT PRODUCE A SILENT DEMOTION. The voice-based rule above may
+            # have added nothing for this episode precisely because the graph came from another
+            # episode's transcript, so anything demoted here is flagged regardless of voices. The
+            # marker names the cause so a reviewer is not left inferring it, and the episode is
+            # named once rather than per node — the file is the unit to re-derive.
+            if not pairing_vouched and (demoted or non_person):
+                if len(suspect_demotions) == suspect_before_episode:
+                    suspect_demotions.append(
+                        f"{path.name}: {demoted + non_person} demotion(s) on an episode whose "
+                        "recorded transcript names a DIFFERENT episode — the roles were derived "
+                        "from the wrong words, so the voice check above cannot be trusted here "
+                        "[MISPAIRED TRANSCRIPT]"
+                    )
 
             if not promoted and not demoted and not non_person:
                 # A skipped guess is not "already correct" — it was never checked (#2075).

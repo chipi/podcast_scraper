@@ -56,14 +56,20 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from ...identity.bare_name_scope import is_scoped_person_id, rewrite_ids
 from ...identity.slugify import canonical_person_name, person_id, slugify
+from ..corpus_selection import select_served_artifacts
 from ..migration import Migration, MigrationContext, MigrationResult
 
 _PERSON = "person:"
 
 
 def _iter_gi_files(root: Path) -> Iterable[Path]:
-    """All ``*.gi.json`` files under *root* (recursive). Stable order."""
-    return sorted(root.rglob("*.gi.json"))
+    """The SERVED ``*.gi.json`` copies under *root*. Stable order.
+
+    Not a bare ``rglob`` — see ``upgrade.corpus_selection`` for why superseded copies are not
+    merely wasted work.
+    """
+    served, _superseded = select_served_artifacts(root, ".gi.json")
+    return served
 
 
 def _sibling(gi_path: Path, suffix: str) -> Path:
