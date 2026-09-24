@@ -35,6 +35,7 @@ import StaleNotice from "../components/StaleNotice.vue"
 import { useUserPreferencesStore } from "../stores/userPreferences"
 import { useInterestsStore } from "../stores/interests"
 import { useCompletedStore } from "../stores/completed"
+import { usePlayed } from "../composables/usePlayed"
 import EntityCard from "../components/EntityCard.vue"
 import InterestsPicker from "../components/InterestsPicker.vue"
 import KeyVoicesRail from "../components/KeyVoicesRail.vue"
@@ -62,6 +63,7 @@ const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
 const interests = useInterestsStore()
 const completed = useCompletedStore()
+const { isPlayed } = usePlayed()
 
 // #2030 — the app-level trending lens (Corpus ⇄ My listening). Home owns the toggle; every
 // trending surface reads the same stored preference, so one choice governs the rails and the
@@ -104,10 +106,13 @@ const visibleRecommended = computed(() => recommended.value.slice(0, recommended
 watch(recommended, () => {
   recommendedShown.value = RECOMMENDED_PAGE
 })
-// An episode the user marked played is finished — it drops out of Continue (PL.6). Reactive: it
-// disappears the moment mark-as-played toggles, no refetch.
+// A played episode is finished — it drops out of Continue (PL.6). Reactive: it disappears the
+// moment mark-as-played toggles, no refetch.
+// `isPlayed`, not `completed.has`: the server rail still offers an episode whose last position was
+// the end of it, and reading the hand-marked list alone left it sitting in "Jump back in" with
+// nothing left to jump back into.
 const continueItems = computed(() =>
-  continueSection.data.value.filter((x) => !completed.has(x.detail.slug))
+  continueSection.data.value.filter((x) => !isPlayed(x.detail.slug))
 )
 const query = ref("")
 

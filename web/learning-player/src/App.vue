@@ -578,6 +578,27 @@ const mainBottomPadding = computed(() =>
           </NavIconLink>
         </template>
         </span>
+        <!-- Queue, at EVERY width (operator 2026-09-23).
+             `/queue` had no nav entry at all: the only ways in were the player's queue button and
+             Home's resume hero — and that hero renders only while something is IN PROGRESS. Finish
+             everything you were listening to and the queue you had been filling became unreachable
+             without first starting an episode you did not want to play. Which is also the state you
+             are most likely to be in offline, on a plane, wanting the thing you queued.
+             Not inside the `sm:` group with Browse/Library: the whole point is that it survives at
+             phone width. The badge is the queue's own length, so the control answers "is there
+             anything in there" without being opened. -->
+        <NavIconLink
+          v-if="auth.hasSession"
+          :to="{ name: 'queue' }"
+          :label="t('queue.title')"
+          :badge="queue.items.length"
+          owns="queue"
+          data-testid="masthead-queue"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+            <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3z" />
+          </svg>
+        </NavIconLink>
         <!-- Notification bell, at EVERY width (wave-I): the in-app inbox surface. Authenticated
              only — a signed-out visitor has no inbox. Sits left of the profile avatar. -->
         <NotificationsBell v-if="auth.hasSession" />

@@ -90,9 +90,15 @@ describe("affordances survive on touch", () => {
   it("the queue reorder arrows carry it too", () => {
     // These were 28px — the smallest targets in the app, and the ones most likely to be used in
     // motion, since reordering a queue is something you do while walking.
+    // Matched on the EXACT i18n keys, closing quote included. A bare `includes("queue.up")` also
+    // matched `queue.upNext` — the page's section heading, added 2026-09-23 — and counted the text
+    // before the first `<button` as a third arrow. The guard was right about the app and wrong
+    // about the string, which is the failure mode a substring matcher invites.
+    // `slice(1)`: split()'s first chunk is whatever precedes the first `<button`, never a button.
     const arrows = queueViewSrc
       .split("<button")
-      .filter((b) => b.includes("queue.up") || b.includes("queue.down"))
+      .slice(1)
+      .filter((b) => b.includes("'queue.up'") || b.includes("'queue.down'"))
     expect(arrows, "expected the up/down reorder buttons").toHaveLength(2)
     for (const a of arrows) expect(a).toContain("lp-tap")
   })

@@ -35,7 +35,8 @@
  * identity to `opacity-0`, and the text is always in the a11y tree. The rule of thumb is refined: a
  * list card shows a bounded preview by default and reveals the rest on an explicit, reversible tap.
  */
-import { computed, onBeforeUnmount, ref, watch } from "vue"
+import { computed, ref } from "vue"
+import { useClampedProse } from "../composables/useClampedProse"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import type { EpisodeSummary } from "../services/types"
@@ -43,6 +44,7 @@ import { formatDuration, formatPublishDate } from "../utils/format"
 import { borderClass } from "../utils/highlightColors"
 import { episodeArtwork } from "../utils/episode"
 import EpisodeActions from "./EpisodeActions.vue"
+import PlayedBadge from "./PlayedBadge.vue"
 
 const props = defineProps<{
   episode: EpisodeSummary
@@ -59,6 +61,19 @@ const props = defineProps<{
    * Set by the Saved list, where every row is favourited by definition — see EpisodeActions.
    */
   hideFavorite?: boolean
+  /** Forwarded to `EpisodeActions`: demote the queue toggle into the ⋯ (Recently played). */
+  hideQueue?: boolean
+  /** Forwarded to `EpisodeActions`: promote download into the visible row (Up next). */
+  showDownload?: boolean
+  /**
+   * Drop the played marker.
+   *
+   * For a list that is played BY CONSTRUCTION — the queue panel's Recently played — where the badge
+   * only restates the section heading while costing a line under the artwork (operator 2026-09-23).
+   * The same rule as `hideFavorite` on Saved: a surface does not label every row with the thing the
+   * surface already is.
+   */
+  hidePlayed?: boolean
   /**
    * Drop the action row entirely — the card is an IDENTITY HEADER, not something to act on.
    *
@@ -95,45 +110,10 @@ const summaryEl = ref<HTMLElement | null>(null)
 const summaryFull = computed(
   () => props.episode.summary_text?.trim() || props.episode.summary_preview || ""
 )
-const summaryClipped = ref(true)
 
-function measureSummary(): void {
-  const el = summaryEl.value
-  if (!el || summaryExpanded.value) return // expanded: the window no longer constrains anything
-  const prose = el.firstElementChild
-  if (!prose || el.clientHeight === 0) return // not laid out yet — keep the safe default
-  // The PROSE against the WINDOW. Measuring the window against itself was the old bug: it stretched
-  // to fit, so the two heights always matched and nothing ever read as clipped.
-  summaryClipped.value = prose.scrollHeight - el.clientHeight > 1
-}
-
-// Observe the window WHENEVER IT APPEARS, not once at mount. The window is behind
-// `v-if="summaryFull"`, so a card whose text arrives in a SECOND render — after the element the
-// mount-time guard looked for was absent — got no observer at all, and then only the `watch` below
-// as a single chance to measure. That chance is lost if the row is in a hidden tab panel at that
-// instant, leaving the safe `true` default stuck and a "Read more" on prose that fits.
-//
-// EpisodeCard's own data happens to arrive complete today, so this was latent here and live in
-// ShowRow (operator 2026-09-17). Both carry the identical measurement, so both carry the identical
-// fix — mirroring the accident instead is what produced a wrong diagnosis. `immediate: true` makes
-// this a strict superset of `onMounted`; `flush: 'post'` guarantees the DOM exists; ResizeObserver's
-// initial callback delivers the first size and it fires again across `display: none` → visible.
-//
-// `onBeforeUnmount` stays at setup top level — Vue does not set `currentInstance` for watcher
-// callbacks, so registering it inside would warn and not bind.
-let ro: ResizeObserver | null = null
-watch(
-  summaryEl,
-  (el) => {
-    ro?.disconnect()
-    ro = null
-    if (!el || typeof ResizeObserver === "undefined") return
-    ro = new ResizeObserver(() => measureSummary())
-    ro.observe(el)
-  },
-  { flush: "post", immediate: true }
-)
-onBeforeUnmount(() => ro?.disconnect())
+// The measurement lives in `useClampedProse` — shared with ShowRow, PersonCardContent and
+// PodcastView, which all had hand-copied versions that drifted apart (see the composable).
+const { clipped: summaryClipped } = useClampedProse(summaryEl, summaryExpanded)
 
 // "Read more" only when the text is ACTUALLY cut off — the summary now fills the artwork column
 // rather than a fixed line count, so on a short summary nothing is clipped and the toggle would be
@@ -200,6 +180,10 @@ const canExpandSummary = computed(
       >
         {{ t("status.pending") }}
       </span>
+      <!-- Shown in COMPACT too, unlike the date/duration row above it. Compact is what the queue's
+           "recently played" renders, and a list of things you have heard is the one place the
+           marker is load-bearing rather than incidental. -->
+      <PlayedBadge v-if="!hidePlayed" :slug="episode.slug" />
       <!-- Surface-specific fact under the artwork, beside the date — Search puts its match count
            here. Empty everywhere else, so no other caller changes. -->
       <div v-if="$slots.aside" class="text-xs font-semibold text-muted">
@@ -219,6 +203,8 @@ const canExpandSummary = computed(
         v-if="!hideActions"
         :slug="episode.slug"
         :hide-favorite="hideFavorite"
+        :hide-queue="hideQueue"
+        :show-download="showDownload"
         :class="compact ? 'relative z-30 mt-2 w-20' : 'relative z-30 w-32'"
       >
         <template #lead><slot name="lead-action" /></template>
@@ -280,8 +266,11 @@ const canExpandSummary = computed(
         <p class="text-sm leading-relaxed text-muted">{{ summaryFull }}</p>
       </div>
       <!-- `relative z-30` so the toggle sits above the title's stretched card-link overlay. -->
+      <!-- Offered on COMPACT too (operator 2026-09-23). Recently played renders compact cards, and
+           withholding the toggle there left prose visibly cut off with no way to reach the rest —
+           the same complaint that put "Read more" on the full card in the first place. -->
       <button
-        v-if="!compact && canExpandSummary"
+        v-if="canExpandSummary"
         type="button"
         class="lp-media-foot relative z-30 mt-1 w-fit text-xs font-bold text-accent transition hover:opacity-80"
         data-testid="card-read-more"

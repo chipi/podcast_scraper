@@ -1,6 +1,11 @@
 <script setup lang="ts">
 /**
- * "Worth revisiting" — a few due captures on Home (operator 2026-09-18).
+ * "Highlights to revisit" — a few due captures on Home (operator 2026-09-18).
+ *
+ * Called "Worth revisiting" until 2026-09-23. Beside Your Week and "New in your follows" that read
+ * as a list of episodes played this week, which is what the operator went looking for; what it
+ * holds is due saved HIGHLIGHTS on a spaced-repetition schedule. The kicker below already said
+ * "{kept} highlights · {reviewed} revisited" — the title was the part that lied.
  *
  * ## Why Home, and why this is the intervention rather than more email
  *

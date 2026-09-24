@@ -15,6 +15,7 @@ import SectionStatus from "../components/SectionStatus.vue"
 import { getPodcasts, listEpisodes } from "../services/api"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useCompletedStore } from "../stores/completed"
+import { usePlayed } from "../composables/usePlayed"
 import { useDownloadsStore } from "../stores/downloads"
 import { useAuthStore } from "../stores/auth"
 import { isNative } from "../services/native"
@@ -36,6 +37,7 @@ const loading = ref(false)
 const error = ref(false)
 
 const completed = useCompletedStore()
+const { isPlayed } = usePlayed()
 const downloads = useDownloadsStore()
 const auth = useAuthStore()
 
@@ -127,8 +129,11 @@ const visible = computed<EpisodeSummary[]>(() => {
     )
   }
   if (filter.value === "insights") list = list.filter((e) => e.has_gi)
-  else if (filter.value === "unplayed") list = list.filter((e) => !completed.has(e.slug))
-  else if (filter.value === "played") list = list.filter((e) => completed.has(e.slug))
+  // Played means played, however you got there: marked from the menu OR listened to the end.
+  // These read `completed.has` directly, which is the hand-marked half alone -- so filtering
+  // Played returned "no episodes match" for a listener who had finished plenty (2026-09-23).
+  else if (filter.value === "unplayed") list = list.filter((e) => !isPlayed(e.slug))
+  else if (filter.value === "played") list = list.filter((e) => isPlayed(e.slug))
   else if (filter.value === "downloaded") list = list.filter((e) => downloads.isDownloaded(e.slug))
   if (show.value) list = list.filter((e) => e.feed_id === show.value)
   const byDate = (e: EpisodeSummary) => e.publish_date ?? ""

@@ -48,7 +48,15 @@ test('the storyline overlay can be followed, when it carries a theme cluster', a
   await signInIsolated(page, 'storyline-follow', testInfo)
   await page.goto('/')
   await page.getByTestId('discovery-tab-storyline').click()
-  await page.getByTestId('discovery-row').first().click()
+  // Wait for the STORYLINE list before taking `.first()` — the sibling test above already does
+  // this and this one did not. The kind-tabs share one `discovery-row` testid, so between the tap
+  // and the re-render the previous tab's rows are still in the DOM: `.first()` then resolves to a
+  // TOPIC row, opens a topic card, and `storyline-card` never appears. Under load that window is
+  // wide enough to lose, which is exactly how this failed once per full run and passed on retry.
+  await expect(page.getByTestId('discovery-list-storyline')).toBeVisible()
+  const row = page.getByTestId('discovery-row').first()
+  await expect(row).toBeVisible()
+  await row.click()
   const card = page.getByTestId('storyline-card')
   await expect(card).toBeVisible()
   await expect(card.getByTestId('storyline-view')).toBeVisible()

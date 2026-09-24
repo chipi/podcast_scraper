@@ -160,6 +160,11 @@ export const CACHE_KEYS = [
   'home.storylines',
   'home.trendingtopics',
   'home.trendingshows',
+  // The queue panel's Recently-played half (operator 2026-09-23). Up next already survived
+  // offline via the queue store's cache; this list was built straight from `GET /playback` with no
+  // cache at all, so opening the panel on a plane showed a queue and an empty history — on the one
+  // surface the operator wants to use precisely BECAUSE they are offline.
+  'queue.recent',
   // The player's per-episode snapshots (#16/#1909). Per-account content like any other:
   // leaving them behind would paint the previous user's episode page for the next one.
   'player.snapshots',

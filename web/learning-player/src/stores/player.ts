@@ -14,6 +14,17 @@ export interface NextUp {
   slug: string
   url: string
   title?: string | null
+  /**
+   * The SHOW this episode belongs to (operator 2026-09-23).
+   *
+   * The mini-player used to be a single truncated line of episode title, so a long one ended in an
+   * ellipsis with nothing to say whose show it was. It now reads as a compact row — show above,
+   * episode below — which is the same shape every list in the app uses, and it needs the show name
+   * to do it. Optional: the offline path rebuilds from the download registry, which has carried
+   * `showTitle` since #1905, and a caller that genuinely does not know omits it rather than
+   * inventing one.
+   */
+  showTitle?: string | null
   artwork?: string | null
   /**
    * The episode's known length, from metadata (operator 2026-09-19).
@@ -54,6 +65,17 @@ export const usePlayerStore = defineStore('player', () => {
   /** The episode currently loaded into the element — drives the mini-player and queue-advance. */
   const currentSlug = ref<string | null>(null)
   const currentTitle = ref<string | null>(null)
+  const currentShowTitle = ref<string | null>(null)
+  /**
+   * Is there anywhere else to send this audio, and are we already sending it there?
+   *
+   * Both come from the platform, never from us: neither iOS nor Android lets a page ENUMERATE
+   * AirPlay / Cast / Bluetooth targets, so the app can know that routes exist and which one is
+   * active in the abstract, and nothing more. The device list is the OS's sheet. (Spotify's custom
+   * list is Spotify Connect — their own protocol, their own servers — not system audio routes.)
+   */
+  const routeAvailable = ref(false)
+  const playingRemotely = ref(false)
   const currentArtwork = ref<string | null>(null)
   const playing = ref(false)
   const currentTime = ref(0)
@@ -128,6 +150,7 @@ export const usePlayerStore = defineStore('player', () => {
     audio.addEventListener('loadedmetadata', onDurationChange)
     audio.addEventListener('error', onError)
     audio.addEventListener('ended', onEnded)
+    wireRouteAvailability(audio)
     el.value = audio
     wireMediaHandlers() // headphone / BT transport works as soon as an element exists
     // Closing the tab is not an unmount: onBeforeUnmount fires on SPA navigation only, so a tab
@@ -135,6 +158,85 @@ export const usePlayerStore = defineStore('player', () => {
     // that actually covers tab close, back/forward cache and mobile app-switch.
     if (typeof window !== 'undefined') window.addEventListener('pagehide', () => savePosition())
     return audio
+  }
+
+  /** WebKit's route hooks, absent from lib.dom — declared here rather than loosening the element's type. */
+  interface WebKitRoutableMedia extends HTMLMediaElement {
+    webkitShowPlaybackTargetPicker?: () => void
+    webkitCurrentPlaybackTargetIsWireless?: boolean
+  }
+
+  /**
+   * Watch for somewhere to send the audio, on whichever platform we are.
+   *
+   * Two APIs, same shape, and the button renders only if one of them answers:
+   *
+   *  - **iOS / WKWebView** — `webkitplaybacktargetavailabilitychanged` fires once on subscribe with
+   *    the current state and again on every change, which is exactly the signal needed to show or
+   *    hide the control. `webkitCurrentPlaybackTargetIsWireless` says whether audio is leaving the
+   *    phone right now. Capacitor already sets `allowsAirPlayForMediaPlayback = true`, so no native
+   *    change was needed.
+   *  - **Android / Chromium** — the Remote Playback API: `remote.watchAvailability()` and
+   *    `remote.prompt()`. MDN marks it "limited availability", and does not say whether the Android
+   *    System WebView carries it as opposed to Chrome — hence feature detection rather than a
+   *    platform check. Android users have a second route regardless: the system output switcher on
+   *    the media notification, which MediaSession already populates.
+   *
+   * Everything is wrapped: these are optional APIs on a detached element, and a throw here would
+   * cost the listener their player over a control they may not even be able to use.
+   */
+  function wireRouteAvailability(audio: HTMLMediaElement): void {
+    const wk = audio as WebKitRoutableMedia
+    try {
+      if (typeof wk.webkitShowPlaybackTargetPicker === 'function') {
+        audio.addEventListener('webkitplaybacktargetavailabilitychanged', (e: Event) => {
+          routeAvailable.value = (e as Event & { availability?: string }).availability === 'available'
+        })
+        audio.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', () => {
+          playingRemotely.value = wk.webkitCurrentPlaybackTargetIsWireless === true
+        })
+        playingRemotely.value = wk.webkitCurrentPlaybackTargetIsWireless === true
+        return
+      }
+    } catch {
+      /* optional API; fall through to the standard one */
+    }
+    try {
+      const remote = (audio as HTMLMediaElement & { remote?: RemotePlayback }).remote
+      if (!remote) return
+      void remote.watchAvailability((available: boolean) => {
+        routeAvailable.value = available
+      })
+      remote.addEventListener('connect', () => {
+        playingRemotely.value = true
+      })
+      remote.addEventListener('disconnect', () => {
+        playingRemotely.value = false
+      })
+    } catch {
+      /* no remote playback here — the control stays hidden, which is the honest state */
+    }
+  }
+
+  /**
+   * Hand off to the SYSTEM picker.
+   *
+   * We own the button and the "playing on another device" state; Apple and Google own the list.
+   * There is no API on either platform to render our own — which is worth stating, because a
+   * hand-rolled device list is exactly the thing a reader of this file might reach for next.
+   */
+  function showRoutePicker(): void {
+    const audio = el.value as WebKitRoutableMedia | null
+    if (!audio) return
+    try {
+      if (typeof audio.webkitShowPlaybackTargetPicker === 'function') {
+        audio.webkitShowPlaybackTargetPicker()
+        return
+      }
+      void (audio as HTMLMediaElement & { remote?: RemotePlayback }).remote?.prompt()?.catch(() => {})
+    } catch {
+      /* the user dismissed it, or the platform refused — neither is ours to report */
+    }
   }
 
   /**
@@ -146,6 +248,7 @@ export const usePlayerStore = defineStore('player', () => {
     const audio = ensureElement()
     if (currentSlug.value === opts.slug && audio.src) {
       currentTitle.value = opts.title ?? currentTitle.value
+      currentShowTitle.value = opts.showTitle ?? currentShowTitle.value
       currentArtwork.value = opts.artwork ?? currentArtwork.value
       // The re-entrant path matters for the hint: PlayerView calls load() again once the episode
       // detail arrives, and that second call is usually the FIRST one carrying a duration.
@@ -158,6 +261,7 @@ export const usePlayerStore = defineStore('player', () => {
     resetForLoad()
     currentSlug.value = opts.slug
     currentTitle.value = opts.title ?? null
+    currentShowTitle.value = opts.showTitle ?? null
     currentArtwork.value = opts.artwork ?? null
     durationHint.value = opts.durationSeconds && opts.durationSeconds > 0 ? opts.durationSeconds : 0
     // A locally downloaded copy wins over the origin URL (#1905). The resolver is INJECTED by the
@@ -188,6 +292,7 @@ export const usePlayerStore = defineStore('player', () => {
     if (el.value) el.value.removeAttribute('src')
     currentSlug.value = null
     currentTitle.value = null
+    currentShowTitle.value = null
     currentArtwork.value = null
     resetForLoad()
   }
@@ -533,8 +638,12 @@ export const usePlayerStore = defineStore('player', () => {
     rate,
     volumeLevel,
     audioError,
+    routeAvailable,
+    playingRemotely,
+    showRoutePicker,
     currentSlug,
     currentTitle,
+    currentShowTitle,
     currentArtwork,
     justFinished,
     load,

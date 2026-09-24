@@ -4,7 +4,8 @@
  * Header derives the show title + total from the first page (no separate feed endpoint in
  * the MVP). Cards reuse EpisodeCard.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useClampedProse } from '../composables/useClampedProse'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
@@ -24,6 +25,7 @@ import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
 import { useCompletedStore } from '../stores/completed'
+import { usePlayed } from '../composables/usePlayed'
 import { useFavoritesStore } from '../stores/favorites'
 import { useSignInGate } from '../composables/useSignInGate'
 import { showArtwork } from '../utils/episode'
@@ -54,52 +56,33 @@ const descExpanded = ref(false)
 // "Show more" appears whenever the description is ACTUALLY clamped, measured from the DOM — not a
 // character-count guess. The old `> 400 chars` heuristic missed medium descriptions that overflow
 // the (now narrower) text column but fall under the threshold, leaving them cut with no way to
-// expand (operator, IMG_7091). Measured while collapsed; re-measured when the show changes.
+// expand (operator, IMG_7091).
+//
+// `useClampedProse` is that measurement, shared with EpisodeCard / ShowRow / PersonCardContent.
+// This file's copy had drifted to a `> 2` threshold against their `> 1`, and — the visible part —
+// never snapped the cut to a whole line, so the show description ended in a strip of half-glyphs
+// exactly like the lists below it did (operator 2026-09-23).
 const descEl = ref<HTMLElement | null>(null)
-const descClamped = ref(false)
-function measureDesc(): void {
-  const el = descEl.value
-  if (!el || descExpanded.value) return // expanded: the window no longer constrains anything
-  // The PROSE against the WINDOW — measuring the window against itself always matched, because it
-  // stretched to fit, so nothing ever read as cut off (operator 2026-09-17).
-  const prose = el.firstElementChild
-  descClamped.value = !!prose && prose.scrollHeight - el.clientHeight > 2
-}
-// A single post-nextTick read is fooled by deferred layout: on a cold navigation the fonts may not
-// have settled, scrollHeight/clientHeight both read 0, and "Show more" would stay hidden on a long
-// description. Observing the element re-measures once real layout lands (and on later reflows).
-let descRO: ResizeObserver | null = null
-function observeDesc(): void {
-  descRO?.disconnect()
-  const el = descEl.value
-  if (el && typeof ResizeObserver !== 'undefined') {
-    descRO = new ResizeObserver(() => measureDesc())
-    descRO.observe(el)
-  }
-}
+const { clipped: descClamped, measure: measureDesc } = useClampedProse(descEl, descExpanded)
+// The observer follows the ELEMENT, so a show swapped in place only needs the collapse reset.
 watch(
   () => show.value?.description,
   () => {
     descExpanded.value = false
-    void nextTick(() => {
-      measureDesc()
-      observeDesc()
-    })
+    void nextTick(() => measureDesc())
   }
 )
 function toggleDesc(): void {
-  // Collapsing: the text was long enough to expand, so it stays clamped — assert it now so the
-  // toggle doesn't blink out for a frame before the ResizeObserver re-measures the clamped height.
-  if (descExpanded.value) descClamped.value = true
   descExpanded.value = !descExpanded.value
 }
-onBeforeUnmount(() => descRO?.disconnect())
-// Hide-played toggle (SD.9) — reads the completed set from PL.6.
+// Hide-played toggle (SD.9) — reads the PLAYED state, which since 2026-09-23 means marked by
+// hand OR listened to the end. Reading the hand-marked list alone, this hid almost nothing.
 const completed = useCompletedStore()
+const { isPlayed } = usePlayed()
 const favorites = useFavoritesStore()
 const hidePlayed = ref(false)
 const visibleEpisodes = computed(() =>
-  hidePlayed.value ? episodes.value.filter((e) => !completed.has(e.slug)) : episodes.value,
+  hidePlayed.value ? episodes.value.filter((e) => !isPlayed(e.slug)) : episodes.value,
 )
 
 // Update cadence (SD.6) — the median gap between the loaded (recent) episodes' publish dates,
@@ -408,7 +391,7 @@ watch(() => props.feedId, reset)
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t('catalog.empty') }}</p>
 
     <div v-else>
-      <!-- Hide-played toggle (SD.9): reads the completed set (mark-as-played). -->
+      <!-- Hide-played toggle (SD.9): reads the played state — marked OR finished. -->
       <label class="mb-3 flex w-fit items-center gap-2 text-sm font-semibold text-muted">
         <input v-model="hidePlayed" type="checkbox" data-testid="hide-played" class="lp-check" />
         {{ t('podcast.hidePlayed') }}

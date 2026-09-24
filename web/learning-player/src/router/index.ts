@@ -85,6 +85,20 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/LoginView.vue'),
     meta: { public: true },
   },
+  {
+    /*
+     * "On this device" — downloads, offline, signed out (operator 2026-09-23).
+     *
+     * PUBLIC by necessity, not by preference: the whole point is that it is reachable when there is
+     * no network to sign in over, and every non-public route bounces to the landing. The view
+     * itself is the real gate — it redirects unless BOTH offline and signed out — so `public` here
+     * buys reachability, not openness.
+     */
+    path: '/offline',
+    name: 'offline-downloads',
+    component: () => import('../views/OfflineDownloadsView.vue'),
+    meta: { public: true },
+  },
   // #1261-6: subject deep-link + browse routes — full-page equivalents of the
   // modal EntityCard for topic / person ids, plus trending-backed index pages.
   {

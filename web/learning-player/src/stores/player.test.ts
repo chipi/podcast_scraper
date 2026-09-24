@@ -771,3 +771,86 @@ describe('listen logging', () => {
     expect(p.currentSlug).toBe('ep-2')
   })
 })
+
+
+describe('output routing — the system picker, never our own device list (operator 2026-09-23)', () => {
+  /*
+   * Two platform APIs of the same shape sit behind one control, and the store picks between them by
+   * FEATURE, not by platform string — MDN marks Remote Playback "limited availability" and does not
+   * say whether the Android System WebView carries it as opposed to Chrome.
+   *
+   * What is NOT tested, because it cannot be: the device list. Neither iOS nor Android exposes an
+   * API for a page to enumerate AirPlay / Cast / Bluetooth targets, so the sheet is the platform's
+   * and its contents are outside the app entirely.
+   */
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('starts with no route, so the control is hidden until a platform says otherwise', () => {
+    const p = usePlayerStore()
+    loaded(p, stubAudio())
+    expect(p.routeAvailable).toBe(false)
+    expect(p.playingRemotely).toBe(false)
+  })
+
+  it('iOS: availability follows the webkit event', () => {
+    const el = stubAudio({ webkitShowPlaybackTargetPicker: vi.fn() } as never)
+    const p = usePlayerStore()
+    loaded(p, el)
+
+    // The event carries `availability`, and WebKit fires it once on subscribe with the current
+    // state — which is what lets the button appear without polling.
+    const handler = (el as never as { addEventListener: { mock: { calls: [string, (e: unknown) => void][] } } })
+      .addEventListener.mock.calls.find(([k]) => k === 'webkitplaybacktargetavailabilitychanged')?.[1]
+    expect(handler, 'the store never subscribed to the webkit availability event').toBeTruthy()
+
+    handler!({ availability: 'available' })
+    expect(p.routeAvailable).toBe(true)
+    handler!({ availability: 'not-available' })
+    expect(p.routeAvailable).toBe(false)
+  })
+
+  it('iOS: the picker call is delegated to the element, not reimplemented', () => {
+    const show = vi.fn()
+    const el = stubAudio({ webkitShowPlaybackTargetPicker: show } as never)
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.showRoutePicker()
+    expect(show).toHaveBeenCalled()
+  })
+
+  it('Android: falls through to the Remote Playback API when webkit is absent', () => {
+    const prompt = vi.fn(() => Promise.resolve())
+    let availabilityCb: ((a: boolean) => void) | null = null
+    const remote = {
+      watchAvailability: vi.fn((cb: (a: boolean) => void) => {
+        availabilityCb = cb
+        return Promise.resolve(1)
+      }),
+      prompt,
+      addEventListener: vi.fn(),
+    }
+    const el = stubAudio({ remote } as never)
+    const p = usePlayerStore()
+    loaded(p, el)
+
+    expect(remote.watchAvailability).toHaveBeenCalled()
+    availabilityCb!(true)
+    expect(p.routeAvailable).toBe(true)
+
+    p.showRoutePicker()
+    expect(prompt).toHaveBeenCalled()
+  })
+
+  it('a platform with neither API is silent, not broken', () => {
+    // A desktop browser, or an Android WebView without Remote Playback. The store must not throw —
+    // these are optional APIs on a detached element, and a throw here costs the listener their
+    // player over a control they cannot use anyway.
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    expect(() => p.showRoutePicker()).not.toThrow()
+    expect(p.routeAvailable).toBe(false)
+  })
+})
+

@@ -54,7 +54,7 @@
   "home": {
     "askTagline": "Search across every episode — answers that jump you straight to the moment.",
     "continue": "Continue listening",
-    "revisitTitle": "Worth revisiting",
+    "revisitTitle": "Highlights to revisit",
     "revisitSeeAll": "See all",
     "revisitLoop": "{kept} highlights · {reviewed} revisited",
     "collectionsTitle": "Your boards",
@@ -69,7 +69,7 @@
     "yourWeekShowMore": "Show more",
     "yourWeekShowLess": "Show less",
     "yourWeekSection": {
-      "revisit": "Worth revisiting",
+      "revisit": "Highlights to revisit",
       "new_in_follows": "New in your follows",
       "new_in_interests": "New in topics & people you follow",
       "trending_in_your_corpus": "Trending in what you've heard"
@@ -889,7 +889,18 @@
     "opens": "1 open | {count} opens"
   },
   "status": {
-    "pending": "Pending"
+    "pending": "Pending",
+    "played": "Played"
+  },
+  "route": {
+    "choose": "Play on another device",
+    "playingElsewhere": "Playing on another device"
+  },
+  "offlineDownloads": {
+    "title": "On this device",
+    "subtitle": "You're offline and signed out. These episodes are already downloaded, so you can still play them.",
+    "empty": "Nothing is downloaded on this device yet.",
+    "link": "Play what's downloaded"
   },
   "section": {
     "loading": "Loading…",

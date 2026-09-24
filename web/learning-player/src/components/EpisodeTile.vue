@@ -37,6 +37,7 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import EpisodeActions from './EpisodeActions.vue'
+import PlayedBadge from './PlayedBadge.vue'
 import type { EpisodeSummary } from '../services/types'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
@@ -75,6 +76,9 @@ const artwork = computed(
       class="block no-underline"
     >
       <span v-if="episode.podcast_title" class="lp-kicker block">{{ episode.podcast_title }}</span>
+      <!-- Above the title, not below it: the title is clamped to three lines and a marker after it
+           would sit at a different height on every tile in the row. -->
+      <PlayedBadge :slug="episode.slug" class="mt-1" />
       <!--
         The title gets the tile's FULL width and up to three lines. It was getting ~100px beside the
         artwork, which is what turned one long name into eight lines. Clamped rather than truncated

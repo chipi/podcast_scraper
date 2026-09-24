@@ -33,6 +33,9 @@ export const OWNED_ROUTES: Record<string, readonly string[]> = {
     'browse-people',
   ],
   library: ['library'],
+  // The masthead's queue control (operator 2026-09-23). One route, no gathering: the queue is a
+  // destination, not a hub.
+  queue: ['queue'],
 }
 
 /** True when `routeName` belongs to the nav destination `owner`. */

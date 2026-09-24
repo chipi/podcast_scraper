@@ -12,6 +12,7 @@ import { useQueueStore } from '../stores/queue'
 import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import SectionStatus from '../components/SectionStatus.vue'
+import RecentlyPlayedList from '../components/RecentlyPlayedList.vue'
 
 // `hideTitle` lets the Library hub embed this as the "Queue" tab without a duplicate heading.
 defineProps<{ hideTitle?: boolean }>()
@@ -77,6 +78,12 @@ watch(() => queue.items.slice(), hydrateSafely)
 <template>
   <section>
     <h1 v-if="!hideTitle" class="mb-5 font-display text-3xl font-extrabold tracking-tight">{{ t('queue.title') }}</h1>
+    <!-- "Up next" labels the list only on the PAGE, and only since it gained a second section
+         below it (2026-09-23): an unlabelled list followed by a labelled one reads as though the
+         first belongs to the page title and the second is an afterthought. The panel has always
+         carried both labels; this makes the two surfaces symmetric.
+         Not in the embedded (`hideTitle`) case, where the Library tab strip already names it. -->
+    <h2 v-if="!hideTitle" class="lp-kicker mb-2">{{ t('queue.upNext') }}</h2>
 
     <!-- `stale` = the cached copy, never revalidated. Adding and removing still work (item-level,
          replayed from the outbox); REORDERING does not, because it goes through a whole-list PUT
@@ -96,7 +103,10 @@ watch(() => queue.items.slice(), hydrateSafely)
          row (via its #actions slot), consistent small rounded buttons — no layout-shifting side rail. -->
     <div v-else class="flex flex-col">
       <template v-for="(slug, i) in queue.items" :key="slug">
-        <EpisodeCard v-if="details[slug]" :episode="summaryFromDetail(details[slug])">
+        <!-- `show-download`: in Up next the question you are asking is "is this on the device?",
+             usually right before losing signal. It was behind the ⋯, so the answer was invisible
+             (operator 2026-09-23). Native-only — DownloadButton self-hides on web. -->
+        <EpisodeCard v-if="details[slug]" show-download :episode="summaryFromDetail(details[slug])">
           <template #actions>
             <button
               type="button"
@@ -123,5 +133,12 @@ watch(() => queue.items.slice(), hydrateSafely)
         <div v-else class="border-b border-border py-5 text-sm text-muted">…</div>
       </template>
     </div>
+    <!-- Recently played, on the PAGE as well as in the panel (operator 2026-09-23).
+         The masthead's queue control lands here, so this is now the queue's primary destination —
+         and a destination that shows Up next alone, while the panel reached from the player shows
+         both, would make the queue mean two different things depending on how you arrived.
+         Suppressed in the embedded case (`hideTitle`), where this is one tab inside a hub that has
+         its own idea of what belongs on the page. -->
+    <RecentlyPlayedList v-if="!hideTitle" class="mt-8" />
   </section>
 </template>

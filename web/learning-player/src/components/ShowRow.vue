@@ -20,7 +20,8 @@
  * fills it and clips, rather than a fixed `line-clamp-N` that leaves dead space beside the artwork on
  * one row and overshoots on the next.
  */
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
+import { useClampedProse } from '../composables/useClampedProse'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import type { Podcast } from '../services/types'
@@ -54,56 +55,12 @@ const identity = computed<string[]>(() => {
   return out
 })
 
-// Read more/less — the same measurement EpisodeCard makes, line for line: the PROSE against the
-// WINDOW (measuring the window against itself always matches, because it stretches to fit), a safe
-// `true` default so a needed toggle is never hidden before layout, and a ResizeObserver to re-read
-// when the column changes.
+// Read more/less. The measurement is `useClampedProse`, shared with EpisodeCard,
+// PersonCardContent and PodcastView — this file used to carry its own copy, which is how the
+// half-cut last line survived here after being fixed elsewhere (operator 2026-09-23, Browse › Shows).
 const descExpanded = ref(false)
 const descEl = ref<HTMLElement | null>(null)
-const descClipped = ref(true)
-
-function measureDesc(): void {
-  const el = descEl.value
-  if (!el || descExpanded.value) return
-  const prose = el.firstElementChild
-  if (!prose || el.clientHeight === 0) return
-  descClipped.value = prose.scrollHeight - el.clientHeight > 1
-}
-
-/**
- * Observe the window WHENEVER IT APPEARS, not once at mount.
- *
- * `onMounted` was wrong here, and subtly: the `show` prop arrives in two phases. `useFollowedShows`
- * maps `library.items` through a fallback record with `description: null` whenever the catalogue join
- * has not landed, and `library.items` is assigned inside `library.load()` while `catalogue` is
- * assigned only after the `Promise.all`. Vue's flush is queued at the first assignment and wins the
- * microtask race, so the first render has the show but no description — `v-if="description"` is
- * false, the window element does not exist, and the mount-time guard skipped observer creation
- * entirely. For the life of that instance there was then NO observer, and the single `watch` on the
- * description was the only re-measure: fine if the row was visible at that instant, permanently
- * stuck at the `true` default if it was in a hidden tab panel.
- *
- * Watching the ref covers both cases — `immediate: true` makes it a strict superset of `onMounted`,
- * `flush: 'post'` guarantees the DOM exists. ResizeObserver's own initial callback delivers the first
- * size, so no explicit measure on attach is needed, and it fires again across
- * `display: none` → visible (verified in-browser), which is what makes a hidden mount harmless.
- *
- * `onBeforeUnmount` stays at setup top level: Vue does not set `currentInstance` for watcher
- * callbacks, so registering it inside would warn and not bind.
- */
-let ro: ResizeObserver | null = null
-watch(
-  descEl,
-  (el) => {
-    ro?.disconnect()
-    ro = null
-    if (!el || typeof ResizeObserver === 'undefined') return
-    ro = new ResizeObserver(() => measureDesc())
-    ro.observe(el)
-  },
-  { flush: 'post', immediate: true },
-)
-onBeforeUnmount(() => ro?.disconnect())
+const { clipped: descClipped } = useClampedProse(descEl, descExpanded)
 
 const canExpand = computed(() => !!description.value && (descClipped.value || descExpanded.value))
 </script>

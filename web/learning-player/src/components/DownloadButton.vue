@@ -103,6 +103,10 @@ function onActivate(): void {
 </script>
 
 <template>
+  <!-- Downloaded takes the ACCENT border+glyph, the same language QueueButton uses for "already
+       queued" (operator 2026-09-23). A muted glyph on a muted border said "downloaded" only to
+       someone already looking for it — and in Up next, where this control is now inline, the whole
+       point is to see which episodes are on the device without opening the ⋯. -->
   <button
     v-if="native"
     type="button"
@@ -116,7 +120,7 @@ function onActivate(): void {
         : [
             'lp-tap z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border',
             state === 'downloaded'
-              ? 'border-border text-canvas-foreground'
+              ? 'border-accent text-accent'
               : state === 'failed'
                 ? 'border-border text-muted'
                 : 'border-border text-muted hover:text-canvas-foreground',
@@ -137,10 +141,8 @@ function onActivate(): void {
       class="h-4 w-4 shrink-0"
       aria-hidden="true"
     >
-      <!-- downloaded: a check on a disc -->
-      <template v-if="state === 'downloaded'"><path d="M20 6 9 17l-5-5" /></template>
       <!-- downloading: a partial ring, so motion is implied without animating a spinner -->
-      <template v-else-if="state === 'downloading'">
+      <template v-if="state === 'downloading'">
         <path d="M12 3a9 9 0 1 1-9 9" />
       </template>
       <!-- queued: a clock, distinct from "nothing is happening" -->
@@ -151,7 +153,12 @@ function onActivate(): void {
       <template v-else-if="state === 'failed'">
         <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 16h.01" />
       </template>
-      <!-- default: download arrow into a tray -->
+      <!-- Default AND downloaded: the same download arrow, with colour carrying the state
+           (operator 2026-09-23). It used to swap to a bare check when downloaded, which made the
+           control change IDENTITY — scanning a list, a tick reads as "selected" or "done", not as
+           "this one is on your device", and it no longer matched the thing beside it. The glyph now
+           says what the control IS and the accent says whether it is on, exactly as the queue
+           toggle does one slot to the left. -->
       <template v-else>
         <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
       </template>

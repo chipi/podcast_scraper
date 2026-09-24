@@ -21,6 +21,8 @@ import { useSignInGate } from '../composables/useSignInGate'
 import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
 import { useCompletedStore } from '../stores/completed'
+import RouteButton from '../components/RouteButton.vue'
+import { usePlayed } from '../composables/usePlayed'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
@@ -104,9 +106,16 @@ const auth = useAuthStore()
 const { isGated, gated } = useSignInGate()
 const capture = useCaptureStore()
 const completed = useCompletedStore()
-/** Mark-as-played toggle (PL.6) — auth-gated like the other per-user actions. */
+const { isPlayed, togglePlayed } = usePlayed()
+/**
+ * Mark-as-played toggle (PL.6) — auth-gated like the other per-user actions.
+ *
+ * `togglePlayed`, not `completed.toggle`: the menu has to act on the same state it reads. It read
+ * the hand-marked list alone, so an episode you had just listened to the end of offered you "Mark
+ * as played" — and marking it changed nothing visible, because it already was.
+ */
 const toggleCompleted = gated(async () => {
-  await completed.toggle(props.slug)
+  await togglePlayed(props.slug)
 })
 const userPrefs = useUserPreferencesStore()
 
@@ -735,6 +744,7 @@ async function load(slug: string): Promise<void> {
         slug,
         url: diskSrc,
         title: diskDetail.title,
+        showTitle: diskDetail.podcast_title ?? null,
         artwork: episodeArtwork(diskDetail) ?? null,
         // The offline path is exactly the one where the element reports no duration, and the
         // registry kept this when the episode was downloaded.
@@ -865,6 +875,7 @@ async function load(slug: string): Promise<void> {
         slug: props.slug,
         url: audio?.url ?? localSrc ?? '',
         title: episode.value?.title ?? null,
+        showTitle: episode.value?.podcast_title ?? null,
         artwork: artwork.value ?? null,
         durationSeconds: episode.value?.duration_seconds ?? null,
       })
@@ -1335,7 +1346,7 @@ onBeforeUnmount(() => {
                   class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-canvas-foreground transition hover:bg-overlay"
                   @click="toggleCompleted(); close()"
                 >
-                  {{ completed.has(props.slug) ? t('player.markUnplayed') : t('player.markPlayed') }}
+                  {{ isPlayed(props.slug) ? t('player.markUnplayed') : t('player.markPlayed') }}
                 </button>
               </template>
             </OverflowMenu>
@@ -1679,6 +1690,11 @@ onBeforeUnmount(() => {
             <!-- Queue & recently-played — a transport affordance next to the speed pill, where it's
                  reachable while playing (was misplaced at the top of the page). -->
             <template #corner-right>
+              <!-- Output routing, on the FULL player too (operator 2026-09-23: "we need such a
+                   control somewhere else, not only when the player is small"). The mini-player is
+                   where you notice audio went astray; this is where you go to do something about
+                   it. Self-hides when the platform reports no route available. -->
+              <RouteButton class="mr-2 h-11 w-11" />
               <button
                 type="button"
                 class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border text-canvas-foreground transition"

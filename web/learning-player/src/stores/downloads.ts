@@ -119,6 +119,23 @@ export function registryKeyFor(namespace: string): string {
   return `${REGISTRY_KEY_PREFIX}.${namespace}`
 }
 
+/**
+ * Which account last owned a registry on this device (operator 2026-09-23).
+ *
+ * Downloads are namespaced per account so a shared phone cannot surface one person's listening
+ * history to the next. That rule has one consequence nobody had walked: a listener who is OFFLINE
+ * and signed out cannot sign in — there is no network to sign in over — so the episodes they
+ * already downloaded are unreachable on the one device holding them, at the one moment they
+ * matter. "Offline mode is useless for playing things I anyway downloaded."
+ *
+ * This records the last signed-in namespace so `/offline` can adopt it. It deliberately does NOT
+ * relax the rule elsewhere: `setNamespace` still isolates, and the only reader is a route that
+ * refuses to render while online or while signed in. The exposure is real and accepted — offline,
+ * someone holding the unlocked phone can see what the last account downloaded — and it is bounded
+ * to a read-only list with no account data, no library, and no writes.
+ */
+export const LAST_NAMESPACE_KEY = 'downloads.lastNamespace'
+
 // Module-scoped (the store is an app singleton): coalesces concurrent loads onto one read, so
 // N components mounting at once cannot clobber each other. Same shape as `queue.ts`.
 let inflightLoad: Promise<void> | null = null
@@ -231,7 +248,24 @@ export const useDownloadsStore = defineStore('downloads', {
       this.progress = {}
       this.loaded = false
       inflightLoad = null
+      // Remembered only for a REAL account — `anon` would overwrite the pointer the offline view
+      // depends on the moment a session lapses, which is exactly when it is needed.
+      if (next !== ANON_NAMESPACE) await setDeviceJson(LAST_NAMESPACE_KEY, next).catch(() => {})
       await this.load()
+    },
+
+    /**
+     * Adopt the last signed-in account's registry, for the offline signed-out list.
+     *
+     * Read-only by contract: the caller (`OfflineDownloadsView`) renders play affordances and
+     * nothing that writes. Returns whether a registry was found, so the view can say "nothing is
+     * downloaded" rather than rendering an empty page that looks broken.
+     */
+    async adoptLastAccount(): Promise<boolean> {
+      const last = await getDeviceJson<string>(LAST_NAMESPACE_KEY).catch(() => null)
+      if (!last || last === ANON_NAMESPACE) return false
+      await this.setNamespace(last)
+      return Object.keys(this.entries).length > 0
     },
 
     async _persist(): Promise<void> {

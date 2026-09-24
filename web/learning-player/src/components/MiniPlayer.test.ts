@@ -71,3 +71,47 @@ describe('MiniPlayer audio failure (Player #3)', () => {
     expect(w.find('[data-testid="mini-player-open"]').exists()).toBe(true)
   })
 })
+
+
+describe('MiniPlayer line composition (operator 2026-09-23)', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('no longer carries a queue button — the masthead does, at every width', async () => {
+    // Asserted as an ABSENCE. Two routes to one place, on the most space-constrained strip in the
+    // app, on a screen already showing the other one.
+    nowPlaying()
+    const w = await mountMini()
+    expect(w.find('[data-testid="mini-player-queue"]').exists()).toBe(false)
+  })
+
+  it('carries save and add-to-collection for the playing episode', async () => {
+    // The slots the queue button gave up. Asserted by IDENTITY, not by label: signed out — which is
+    // what a bare mount is — both controls correctly render the same sign-in gate label, so a
+    // label-matching test would be unable to tell one from the other or from nothing.
+    nowPlaying('ep-42')
+    const w = await mountMini()
+    expect(w.find('.lp-fav').exists()).toBe(true)
+    expect(w.find('[data-testid="add-to-collection"]').exists()).toBe(true)
+    // Transport still last, and still the only thing that acts on playback.
+    expect(w.find('[data-testid="mini-player-toggle"]').exists()).toBe(true)
+  })
+
+  it('reads as a compact ROW — show above, episode below', async () => {
+    const player = nowPlaying()
+    player.currentShowTitle = 'The Show'
+    const w = await mountMini()
+    expect(w.text()).toContain('The Show')
+    expect(w.text()).toContain('An Episode')
+    // The kicker is the show, not the episode — the ordering is the point, not mere presence.
+    expect(w.find('.lp-kicker').text()).toBe('The Show')
+  })
+
+  it('omits the kicker rather than faking one when the show is unknown', async () => {
+    // The offline path rebuilds from the download registry and a caller that does not know the
+    // show omits it. A blank kicker line would leave a gap that reads as a loading failure.
+    nowPlaying()
+    const w = await mountMini()
+    expect(w.find('.lp-kicker').exists()).toBe(false)
+  })
+})
+

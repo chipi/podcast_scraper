@@ -7,7 +7,8 @@
  * `PersonCard`. Graph navigation (tapping a related chip / a signal) emits `open`; `close` dismisses
  * the whole card (the shell re-emits it upward).
  */
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, ref } from "vue"
+import { useClampedProse } from "../composables/useClampedProse"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, PersonCard, PersonShow, Topic } from "../services/types"
@@ -32,25 +33,11 @@ const personWeb = computed(() => props.person.web ?? null)
 // never hidden before layout has happened.
 const bioEl = ref<HTMLElement | null>(null)
 const bioExpanded = ref(false)
-const bioClipped = ref(true)
 
-function measureBio(): void {
-  const el = bioEl.value
-  if (!el || bioExpanded.value) return // expanded: the window no longer constrains anything
-  const prose = el.firstElementChild
-  if (!prose || el.clientHeight === 0) return
-  // The PROSE against the WINDOW — see EpisodeCard.measureSummary for why the reverse never fired.
-  bioClipped.value = prose.scrollHeight - el.clientHeight > 1
-}
-
-onMounted(() => {
-  measureBio()
-  if (typeof ResizeObserver !== "undefined" && bioEl.value) {
-    const ro = new ResizeObserver(() => measureBio())
-    ro.observe(bioEl.value)
-    onBeforeUnmount(() => ro.disconnect())
-  }
-})
+// Shared measurement — see `useClampedProse`. This file's copy observed via `onMounted`, which
+// misses a window that only appears in a second render, so the bio could sit stuck on its safe
+// "clipped" default forever.
+const { clipped: bioClipped } = useClampedProse(bioEl, bioExpanded)
 
 const photoArtist = computed(() =>
   (personWeb.value?.image_artist ?? "")

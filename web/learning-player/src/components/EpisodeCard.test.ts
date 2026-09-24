@@ -1,6 +1,14 @@
 import { mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+// `DownloadButton` is `v-if="native"`, so off-native it renders nothing and every assertion about
+// where it SITS would pass vacuously. Mocked true for this file so the row composition is testable
+// at all — the browser-tier e2e cannot cover it for exactly the same reason.
+vi.mock("../services/native", async (orig) => ({
+  ...(await orig<typeof import("../services/native")>()),
+  isNative: () => true,
+}))
 import { createI18n } from "vue-i18n"
 import { createRouter, createMemoryHistory } from "vue-router"
 import en from "../i18n/locales/en.json"
@@ -269,3 +277,76 @@ describe("the card shows the summary title, not the bullets (#2004 follow-up)", 
     expect(w.text()).not.toContain("key point")
   })
 })
+
+
+// --- the queue's two lists (operator 2026-09-23) ------------------------------------------------
+//
+// Both are EpisodeCard. Up next wants download visible (it is about to play, possibly off-signal);
+// Recently played wants the queue toggle out of the way (it is about resuming, not re-queueing) and
+// the 80px column only holds two targets anyway.
+
+describe("action-row composition per surface", () => {
+  /** The aria-labels of the buttons actually IN the visible row (the ⋯ panel is teleported). */
+  function rowLabels(props: Record<string, unknown>): (string | undefined)[] {
+    const w = mount(EpisodeCard, {
+      props: { episode: makeEpisode(), ...props },
+      global: { plugins: [i18n, router] },
+    })
+    return w
+      .find('[data-testid="episode-actions"]')
+      .findAll("button")
+      .map((b) => b.attributes("aria-label"))
+  }
+
+  it("keeps download in the ⋯ by default", () => {
+    // Four inline controls is 176px of 44px targets and wraps under the artwork-width column, which
+    // is why the ⋯ exists (operator 2026-09-13). Default stays favourite · queue · ⋯.
+    expect(rowLabels({}).some((l) => /download/i.test(l ?? ""))).toBe(false)
+  })
+
+  it("promotes download INTO the row for Up next, and out of the menu", () => {
+    // "Is this on the device?" is the question Up next answers, usually right before losing signal,
+    // and it was two taps behind a menu (operator 2026-09-23).
+    const w = mount(EpisodeCard, {
+      props: { episode: makeEpisode(), showDownload: true },
+      global: { plugins: [i18n, router] },
+    })
+    const row = w.find('[data-testid="episode-actions"]')
+    expect(row.find('[data-testid="download-button"]').exists()).toBe(true)
+    // Exactly once in the whole card: promoted, not duplicated into the ⋯ as well.
+    expect(w.findAll('[data-testid="download-button"]').length).toBe(1)
+  })
+
+  it("keeps queue in the row by default", () => {
+    expect(rowLabels({}).some((l) => /queue/i.test(l ?? ""))).toBe(true)
+  })
+
+  it("demotes the queue toggle out of the row for Recently played", () => {
+    // Demoted, NOT deleted — it moves into the ⋯, because it is still the only way to queue
+    // something you just heard. The panel is teleported and renders on open, so what is asserted
+    // here is its ABSENCE from the row; the menu half is covered end-to-end.
+    const labels = rowLabels({ hideQueue: true })
+    expect(labels.some((l) => /queue/i.test(l ?? ""))).toBe(false)
+    expect(labels.some((l) => /more actions/i.test(l ?? ""))).toBe(true)
+  })
+
+  it("leaves the row two-wide when the queue toggle is demoted", () => {
+    // The point of demoting it: an 80px compact column holds two 32px targets, so three wrapped the
+    // ⋯ onto its own line under the artwork.
+    expect(rowLabels({ hideQueue: true }).length).toBe(2)
+  })
+})
+
+describe("Read more on a compact card", () => {
+  it("is offered — compact is what Recently played renders", async () => {
+    // It was suppressed on compact outright, so that list showed prose cut off with no way to reach
+    // the rest (operator 2026-09-23). `summaryClipped` defaults true before layout, which is the
+    // state a jsdom mount is in, so the toggle must be present here.
+    const w = mount(EpisodeCard, {
+      props: { episode: makeEpisode({ summary_text: "A long summary. ".repeat(40) }), compact: true },
+      global: { plugins: [i18n, router] },
+    })
+    expect(w.find('[data-testid="card-read-more"]').exists()).toBe(true)
+  })
+})
+

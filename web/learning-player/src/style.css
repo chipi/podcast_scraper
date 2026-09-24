@@ -250,12 +250,25 @@
     overflow: hidden;
   }
 
+  /* `-webkit-box` is what makes `-webkit-line-clamp` apply — EpisodeCard sets the line COUNT from
+     the measured window height, so the prose ends on a whole line with an ellipsis instead of being
+     sliced through the middle of the glyphs by the window's `overflow: hidden` (operator
+     2026-09-23). Absolutely positioned, so the clamp changes what is drawn and never a height. */
   .lp-media-clip > * {
     position: absolute;
     top: 0;
     right: 0;
     left: 0;
     margin: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Expanded: no box, no clamp — the prose flows and grows the row. */
+  .lp-media-clip--open > * {
+    display: block;
+    overflow: visible;
   }
 
   /* Expanded: the window stops constraining and the prose flows, growing the row as it should. */
