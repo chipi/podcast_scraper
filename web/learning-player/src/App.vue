@@ -614,6 +614,15 @@ const mainBottomPadding = computed(() =>
           data-testid="header-profile"
         >
           <ProfileAvatar :name="auth.user?.name" :email="auth.user?.email" :src="auth.user?.image" :size="32" />
+          <!-- A real, non-hidden accessible name INSIDE the link (2026-09-24).
+               `ProfileAvatar`'s root is `aria-hidden="true"` — correct, it is decorative — but it
+               was this anchor's ONLY child, so the whole subtree was hidden and WebKit dropped the
+               LINK from the accessibility tree despite its `aria-label`. On device the control was
+               visibly on screen and unreachable to assistive tech, and to XCUITest, which is how it
+               was found: `app.links` listed the sibling Queue icon (whose tooltip span carries real
+               text) and not this one.
+               `aria-label` alone is not enough when everything inside is hidden. -->
+          <span class="sr-only">{{ auth.user?.name || t('profile.title') }}</span>
         </RouterLink>
         <!-- Sign out lives in Profile now (#1962), not here. The top-right of a mobile app is
              where the most-used action belongs, and this was the least-used one — styled as a

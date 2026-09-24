@@ -150,6 +150,8 @@ final class NativeOnlySurfacesTests: UITestCase {
     XCTAssertTrue(
       app.staticTexts[seeded.title].firstMatch.waitForExistence(timeout: 15),
       "signed out + offline, the downloaded episode is still unreachable — the gap is not closed")
+    // The operator reviews this surface by eye; it is the one screen they cannot reach in a browser.
+    Journey.shot(self, "offline-on-this-device")
   }
 
   func testTheOfflinePageRefusesToRenderWhileONLINE() throws {
