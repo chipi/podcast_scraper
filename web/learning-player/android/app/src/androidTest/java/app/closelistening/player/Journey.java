@@ -263,18 +263,27 @@ final class Journey {
         return false;
     }
 
+    /**
+     * `steps` is a DURATION, not a smoothness knob: UiAutomator spends ~5ms per step, so the 12
+     * this started with was a 60ms flick that the WebView treated as a fling and often ignored
+     * entirely. Settings then reported "no Offline mode row" while sitting on the Settings page
+     * with the row three sections below the fold, because nothing had actually scrolled
+     * (2026-09-24). 40 steps is ~200ms, which is what a deliberate drag looks like.
+     */
+    private static final int SWIPE_STEPS = 40;
+
     static void swipeUp() {
         UiDevice d = device();
-        d.swipe(d.getDisplayWidth() / 2, (int) (d.getDisplayHeight() * 0.72),
-                d.getDisplayWidth() / 2, (int) (d.getDisplayHeight() * 0.28), 12);
-        sleep(700);
+        d.swipe(d.getDisplayWidth() / 2, (int) (d.getDisplayHeight() * 0.75),
+                d.getDisplayWidth() / 2, (int) (d.getDisplayHeight() * 0.30), SWIPE_STEPS);
+        sleep(900);
     }
 
     static void swipeDown() {
         UiDevice d = device();
-        d.swipe(d.getDisplayWidth() / 2, (int) (d.getDisplayHeight() * 0.28),
-                d.getDisplayWidth() / 2, (int) (d.getDisplayHeight() * 0.72), 12);
-        sleep(500);
+        d.swipe(d.getDisplayWidth() / 2, (int) (d.getDisplayHeight() * 0.30),
+                d.getDisplayWidth() / 2, (int) (d.getDisplayHeight() * 0.75), SWIPE_STEPS);
+        sleep(700);
     }
 
     /**
@@ -316,21 +325,32 @@ final class Journey {
     }
 
     /**
-     * Name AND vertical position of the first handful of nodes.
+     * Name AND vertical position of the nodes BELOW the sticky chrome.
      *
-     * Names alone would assume the visible set changes as you scroll. That is true of these
-     * surfaces today but written down nowhere, so a sticky header would make every page look
-     * stalled after two swipes. Positions move whenever the page does, which is the thing actually
-     * being detected.
+     * Position as well as name, because names alone would assume the visible set changes as you
+     * scroll — true of these surfaces today but written down nowhere, so it would rot silently.
+     *
+     * Below the chrome, because the masthead and the bottom nav are FIXED. Taking the first twelve
+     * nodes in tree order takes the masthead every time, so the signature never changed, every page
+     * read as stalled after two swipes, and `scrollTo` gave up long before reaching anything below
+     * the fold. That is how Settings reported "no Offline mode row" while sitting on the Settings
+     * page with the row three sections down (2026-09-24). The iOS twin's comment warns about a
+     * sticky header doing exactly this; I ported the warning and then wrote the bug it describes.
      */
     private static String signature() {
         StringBuilder sb = new StringBuilder();
         try {
+            int top = (int) (device().getDisplayHeight() * 0.12);
+            int bottom = (int) (device().getDisplayHeight() * 0.88);
             int n = 0;
             for (UiObject2 o : device().findObjects(By.pkg(PKG))) {
-                if (n++ >= 12) break;
+                if (n >= 12) break;
                 Rect b = attr(o, UiObject2::getVisibleBounds);
-                sb.append(nameOf(o)).append('@').append(b == null ? -1 : b.top).append('|');
+                if (b == null || b.centerY() < top || b.centerY() > bottom) continue;
+                String name = nameOf(o);
+                if (name.isEmpty()) continue;
+                sb.append(name).append('@').append(b.top).append('|');
+                n++;
             }
         } catch (Throwable ignored) {
             // A stale signature just means "changed", which costs one extra swipe.
@@ -403,13 +423,30 @@ final class Journey {
         }
     }
 
-    /** Profile → Settings. */
+    /**
+     * Profile → Settings, verified by ARRIVING rather than by the tap returning true.
+     *
+     * A tap that lands on a label with no clickable ancestor reports success and navigates
+     * nowhere. `setOfflineMode` then hunted "Offline mode" on the Profile page and reported the row
+     * missing — a failure that names the wrong screen, and the second time in this port that a
+     * successful-looking tap did nothing (2026-09-24). So the postcondition is the presence of a
+     * control that exists ONLY on Settings, and the navigation is retried before it is believed.
+     */
     static boolean openSettings(List<String> profileLabels) {
-        if (!openProfile(profileLabels)) return false;
-        sleep(2_000);
-        if (!tap("Settings", true, 20_000)) return false;
-        sleep(2_000);
-        return true;
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            boolean profile = openProfile(profileLabels);
+            sleep(2_000);
+            boolean onProfile = find(Arrays.asList("Sign out"), false, 3_000) != null
+                    || find(Arrays.asList("Settings"), true, 3_000) != null;
+            boolean settingsTap = tap("Settings", true, 15_000);
+            sleep(2_000);
+            if (scrollTo(Arrays.asList(OFFLINE_ROW), false, 12) != null) return true;
+            System.out.println("=====SETTINGS_NAV attempt " + attempt
+                    + " profileTap=" + profile + " reachedProfile=" + onProfile
+                    + " settingsTap=" + settingsTap
+                    + " :: " + labelledInventory(16) + "=====");
+        }
+        return false;
     }
 
     /**
@@ -423,45 +460,101 @@ final class Journey {
      *
      * The state persists to `localStorage`, which the host cannot reach, so driving the UI is the
      * only way to set it.
+     *
+     * ## Read the BANNER, never the checkbox
+     *
+     * Chromium reports the input as `checkable=false`, so `isChecked()` is pinned to false and
+     * cannot describe the state. Believing it cost a long detour: three interactions each reported
+     * "nothing changed" while every one of them HAD flipped the switch — and the run that finally
+     * proved it did so by leaving forced-offline ON, which wedged the next run at sign-in with the
+     * banner "Offline mode is on — showing saved" plainly on screen. The tier's own first
+     * cross-suite leak, caused by the helper written to prevent them.
      */
+    /**
+     * The Settings row's label, matched EXACTLY.
+     *
+     * A substring match on "Offline mode" also matches the BANNER — "Offline mode is on — showing
+     * saved" — which is present precisely when the switch is on. So the OFF direction walked up
+     * from the banner, found the nearest checkbox, and drove the VOICE INPUT setting instead, three
+     * times, reporting success each round (2026-09-24). The evidence was one line:
+     * `rowName='Offline mode is on — showing saved'`.
+     *
+     * The lesson generalises past this row: a `contains` match is a guess that no other copy on the
+     * page shares the words, and a status message about a setting almost always shares them.
+     */
+    private static final String OFFLINE_ROW = "Offline mode";
+
     static boolean setOfflineMode(boolean wanted, List<String> profileLabels) {
-        if (!openSettings(profileLabels)) {
-            System.out.println("=====OFFLINE_SET settings unreachable :: " + labelledInventory(12) + "=====");
-            return false;
+        for (int round = 1; round <= 3; round++) {
+            boolean observed = isForcedOffline();
+            System.out.println("=====OFFLINE_SET round " + round + " observed=" + observed
+                    + " wanted=" + wanted + "=====");
+            if (observed == wanted) return true;
+
+            if (!openSettings(profileLabels)) {
+                System.out.println("=====OFFLINE_SET settings unreachable :: "
+                        + labelledInventory(12) + "=====");
+                return false;
+            }
+            UiObject2 row = scrollTo(Arrays.asList(OFFLINE_ROW), false, 20);
+            if (row == null) {
+                System.out.println("=====OFFLINE_SET no 'Offline mode' row :: "
+                        + labelledInventory(16) + "=====");
+                return false;
+            }
+            UiObject2 box = nearestCheckable(row);
+            if (box == null) {
+                System.out.println("=====OFFLINE_SET nothing checkable for the row :: "
+                        + labelledInventory(16) + "=====");
+                return false;
+            }
+
+            // EXACTLY ONE interaction per round, then go and look.
+            //
+            // The first version fired three interactions back to back because it could not observe
+            // the result of any of them from Settings. Each one that LANDED flipped the switch, so
+            // an even number returned it to where it started: driving it ON worked and driving it
+            // OFF silently did not — the worst kind of half-working. A control whose state you
+            // cannot read must be driven one step at a time, verifying after each.
+            //
+            // The ACCESSIBILITY click, not a coordinate tap. Measured one interaction at a time
+            // (2026-09-24): the a11y click flipped it every time; coordinate taps on the same
+            // element flipped nothing. The reason is in the numbers — the checkbox reported bounds
+            // of y=133, then y=1960, then y=249 on three consecutive visits, because where a web
+            // page sits when you arrive is not stable. A coordinate is a guess about scroll
+            // position; an accessibility action addresses the element itself.
+            System.out.println("=====OFFLINE_SET clicking box bounds=" + attr(box, UiObject2::getVisibleBounds)
+                    + " rowBounds=" + attr(row, UiObject2::getVisibleBounds)
+                    + " rowName='" + nameOf(row) + "'"
+                    + " rowCls=" + attr(row, UiObject2::getClassName) + "=====");
+            try {
+                box.click();
+            } catch (Throwable t) {
+                System.out.println("=====OFFLINE_SET click threw " + t + "=====");
+                return false;
+            }
+            sleep(1_500);
+            System.out.println("=====OFFLINE_SET round " + round + " clicked the box=====");
         }
-        UiObject2 control = scrollTo(Arrays.asList("Offline mode"), true, 20);
-        if (control == null) {
-            System.out.println("=====OFFLINE_SET no 'Offline mode' row :: " + labelledInventory(16) + "=====");
-            return false;
+        boolean now = isForcedOffline();
+        if (now != wanted) {
+            System.out.println("=====OFFLINE_SET after 3 rounds the app reports offline=" + now
+                    + ", wanted " + wanted + " :: " + labelledInventory(16) + "=====");
         }
-        UiObject2 target = Boolean.TRUE.equals(attr(control, UiObject2::isCheckable))
-                ? control
-                : nearestCheckable(control);
-        if (target == null) {
-            System.out.println("=====OFFLINE_SET row found but nothing checkable near it; row cls="
-                    + attr(control, UiObject2::getClassName) + " :: " + labelledInventory(16) + "=====");
-            return false;
-        }
-        Boolean checked = attr(target, UiObject2::isChecked);
-        if (checked != null && checked == wanted) return true;
-        try {
-            target.click();
-        } catch (Throwable t) {
-            return false;
-        }
-        sleep(1_500);
-        UiObject2 after = scrollTo(Arrays.asList("Offline mode"), true, 6);
-        if (after == null) return false;
-        UiObject2 verify = Boolean.TRUE.equals(attr(after, UiObject2::isCheckable))
-                ? after
-                : nearestCheckable(after);
-        Boolean now = verify == null ? null : attr(verify, UiObject2::isChecked);
-        if (now == null || now != wanted) {
-            System.out.println("=====OFFLINE_SET tapped but state is " + now + ", wanted " + wanted
-                    + " :: " + labelledInventory(16) + "=====");
-            return false;
-        }
-        return true;
+        return now == wanted;
+    }
+
+    /**
+     * Is the app ACTUALLY in forced-offline mode?
+     *
+     * Asked on Home, because the banner renders on content surfaces and not on Settings — so
+     * checking where the switch lives always answers "no". Returning to Home also leaves the app
+     * somewhere every caller can continue from.
+     */
+    private static boolean isForcedOffline() {
+        openTab("Home");
+        sleep(2_500);
+        return forcedOfflineBannerShowing();
     }
 
     /**
@@ -471,32 +564,59 @@ final class Journey {
      * type=checkbox>` — and only the input reports `checked`. Reading the label's state returns
      * false forever, so the toggle looks stuck off and the test flips it every time.
      */
+    /**
+     * Is the app in forced-offline mode — read from the BANNER, not from the checkbox.
+     *
+     * Chromium reports the `<input type=checkbox>` as `checkable=false`, so `isChecked()` is pinned
+     * to false and can never describe the real state. Three interactions therefore all looked like
+     * they "did nothing" while every one of them had in fact toggled the switch — and the run that
+     * proved it did so by leaving forced-offline ON and wedging the NEXT run, which could no longer
+     * sign in. (WebKit exposes the same input's state as value "0"/"1", which is why the iOS twin
+     * can read the control directly. This is a real platform difference, not a bug in either app.)
+     *
+     * The banner is the better observable regardless: `i18n en.json :: offlineForced` renders only
+     * when the app has actually entered forced-offline, so it proves the STATE rather than the
+     * appearance of a tick.
+     */
+    static boolean forcedOfflineBannerShowing() {
+        return find(Arrays.asList("Offline mode is on"), true, 4_000) != null;
+    }
+
+    /**
+     * The checkbox belonging to {@code labelled}, by CONTAINMENT rather than by proximity.
+     *
+     * ## The bug this replaces, which is the one this file warned about
+     *
+     * Settings has TWO checkboxes — "Voice input for notes" and "Offline mode" — and the previous
+     * version short-circuited to `checkables.get(0)` whenever only one was currently visible,
+     * skipping its own distance guard. So when the Offline row was scrolled out of view the helper
+     * silently drove the VOICE switch instead, three times, while reporting "clicked the box" each
+     * time and the app stayed offline (2026-09-24). Driving the wrong control is the worst outcome
+     * available here — it corrupts a setting nobody asked about AND reports success — and this
+     * file's own comment said so two revisions before it happened.
+     *
+     * Containment has no threshold to get wrong: the markup is
+     * `<label><span>Offline mode</span><input type=checkbox></label>`, so the input is inside an
+     * ancestor of the label text and inside NO ancestor of any other row. Walking up from the text
+     * and taking the first ancestor that contains a checkbox cannot pick a different row's input.
+     */
     private static UiObject2 nearestCheckable(UiObject2 labelled) {
-        Rect anchor = attr(labelled, UiObject2::getVisibleBounds);
-        if (anchor == null) return null;
-        // By POSITION, not by ancestry. Walking up from the label and searching its subtree found
-        // nothing: the checkbox is a SIBLING of the text, not a descendant of any of its first
-        // three ancestors, so the search kept missing a control that the inventory printed on the
-        // very next line (`<UNLABELLED>[CheckBox]`, measured 2026-09-24). Row layout is what ties a
-        // label to its input on screen, and it is what ties them here.
-        UiObject2 best = null;
-        int bestDistance = Integer.MAX_VALUE;
-        try {
-            for (UiObject2 c : device().findObjects(By.pkg(PKG).checkable(true))) {
-                Rect b = attr(c, UiObject2::getVisibleBounds);
-                if (b == null) continue;
-                int distance = Math.abs(b.centerY() - anchor.centerY());
-                // A row is one line tall; anything further away belongs to a different setting, and
-                // silently flipping the WRONG switch is the worst outcome available here.
-                if (distance < bestDistance && distance <= anchor.height() * 3) {
-                    bestDistance = distance;
-                    best = c;
-                }
+        UiObject2 cur = labelled;
+        for (int up = 0; up < 4; up++) {
+            UiObject2 parent = attr(cur, UiObject2::getParent);
+            if (parent == null) break;
+            for (BySelector sel : Arrays.asList(
+                    By.clazz("android.widget.CheckBox"),
+                    By.clazz("android.widget.Switch"),
+                    By.checkable(true))) {
+                List<UiObject2> hits = attr(parent, p -> p.findObjects(sel));
+                if (hits != null && !hits.isEmpty()) return hits.get(0);
             }
-        } catch (Throwable ignored) {
-            return null;
+            cur = parent;
         }
-        return best;
+        System.out.println("=====CHECKBOX no checkable inside any of the 4 ancestors of '"
+                + nameOf(labelled) + "'=====");
+        return null;
     }
 
     // ----------------------------------------------------------------- plumbing
