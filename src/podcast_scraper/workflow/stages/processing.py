@@ -2681,18 +2681,33 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 running = states.get("running", 0)
                 pending = states.get("pending", 0)
                 if running or pending:
-                    # Say how many are DONE, which is what a reader actually wants and what the
-                    # raw counts do not give them. `done_keys` counts SUBMITTED jobs, not finished
-                    # ones (`_mark_processed` fires at submit as the double-submit guard), so
-                    # "N marked processed" reads as a completion count and is not one — a
-                    # misreading this line has caused more than once. finished = submitted minus
-                    # still-in-flight.
-                    finished = max(0, len(done_keys) - len(futures))
+                    # Say how many are DONE, which is what a reader wants and what the raw counts
+                    # do not give them. `done_keys` counts SUBMITTED jobs, not finished ones
+                    # (`_mark_processed` fires at submit as the double-submit guard), so "N marked
+                    # processed" reads as a completion count and is not one.
+                    #
+                    # ABANDONED EPISODES MUST NOT COUNT AS DONE. `_abandon_overrunning_futures`
+                    # pops the future out of `futures` while its key STAYS in
+                    # `processed_job_indices`, so `submitted - in_flight` silently promoted every
+                    # abandoned episode to "done" — while its worker thread is still burning a
+                    # core, because a running future cannot be cancelled. A line written to end
+                    # misreadings was itself misreporting the one state it exists for.
+                    finished = max(0, len(done_keys) - len(futures) - abandoned_futures[0])
+                    tail = ""
+                    if abandoned_futures[0]:
+                        # Name the starvation rather than fix it (F5): with N of max_workers slots
+                        # held by abandoned-but-running episodes, queued work cannot start and the
+                        # feed burns to its wall-clock budget. Saying so beats a silent 4h.
+                        tail = (
+                            f" {abandoned_futures[0]} abandoned episode(s) still hold worker "
+                            f"slot(s) of {max_workers}; queued work is starved until the feed "
+                            "budget fires."
+                        )
                     verdict = (
                         f"WORKING — {finished}/{len(all_jobs)} episodes done, {running} running, "
-                        f"{pending} queued; longest in flight {longest:.0f}s. Normal."
+                        f"{pending} queued; longest in flight {longest:.0f}s. Normal.{tail}"
                     )
-                    log = logger.info
+                    log = logger.warning if abandoned_futures[0] else logger.info
                 elif len(futures) == 0 and missing:
                     verdict = (
                         f"STUCK — nothing is in flight and {len(missing)} job(s) are unaccounted "

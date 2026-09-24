@@ -23,8 +23,8 @@ API-health + logs; drop `PODCAST_OBS_GRAFANA_TOKEN` / `SENTRY_AUTH_TOKEN` into a
 This repo ships a project **`.mcp.json`**. Open the repo in Claude Code, approve the project MCP
 servers once, and **both** connect automatically:
 
-- `podcast-content` → `make serve-mcp`
-- `podcast-observability` → `make serve-obs`
+- `local-dev-content` → `make serve-mcp`
+- `local-dev-observability` → `make serve-obs`
 
 The `make` targets hold all the config (PYTHONPATH, the `make serve` corpus, the local
 `config/observability.local.yaml`), so there is nothing to edit.
@@ -37,8 +37,8 @@ These clients keep MCP config in their own file. Point them at the same `make` l
 ```jsonc
 {
   "mcpServers": {
-    "podcast-content":       { "command": "make", "args": ["serve-mcp"], "cwd": "/path/to/podcast_scraper" },
-    "podcast-observability": { "command": "make", "args": ["serve-obs"], "cwd": "/path/to/podcast_scraper" }
+    "local-dev-content":       { "command": "make", "args": ["serve-mcp"], "cwd": "/path/to/podcast_scraper" },
+    "local-dev-observability": { "command": "make", "args": ["serve-obs"], "cwd": "/path/to/podcast_scraper" }
   }
 }
 ```

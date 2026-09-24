@@ -142,7 +142,11 @@ def corpus_lock_state(corpus_parent: Union[str, Path]) -> Dict[str, object]:
         )
         return out
     except Exception as exc:  # noqa: BLE001 — a status probe must never raise
-        out.update(held=False, reason=f"could not probe the flock: {type(exc).__name__}")
+        # UNKNOWN IS NOT "NOT HELD". Reporting held=False here would be the same unsafe
+        # direction this function exists to end: a PermissionError (non-root probing a
+        # root-owned corpus — a shape prod has had) would read as "nothing is running" while
+        # a run holds the lock. Callers must treat None as "go look", not as a green light.
+        out.update(held=None, reason=f"COULD NOT PROBE the flock: {type(exc).__name__}: {exc}")
         return out
 
 

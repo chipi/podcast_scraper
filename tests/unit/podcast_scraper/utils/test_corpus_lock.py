@@ -339,12 +339,31 @@ class TestAPidFromAnotherHostIsNotEvidence:
     along and simply never compared.
     """
 
+    @staticmethod
+    def _reaped_pid() -> int:
+        """A pid GUARANTEED dead, and genuinely valid before it died.
+
+        The first version used 999999 and asserted it was dead without arranging it —
+        `kernel.pid_max` is 4194304 on Linux runners, so a live 999999 would flip the answer.
+        Asserting a property instead of establishing it is the failure mode this suite catches
+        elsewhere; it applied to this suite's own fixtures too.
+        """
+        import os
+
+        pid = os.fork()
+        if pid == 0:  # pragma: no cover - child exits immediately
+            os._exit(0)
+        os.waitpid(pid, 0)
+        return pid
+
     def test_a_dead_pid_on_this_host_is_reclaimable(self) -> None:
         import socket
 
         from podcast_scraper.utils import corpus_lock as cl
 
-        assert cl._holder_is_reclaimable({"pid": 999999, "hostname": socket.gethostname()})
+        assert cl._holder_is_reclaimable(
+            {"pid": self._reaped_pid(), "hostname": socket.gethostname()}
+        )
 
     def test_a_foreign_hostname_makes_the_pid_irrelevant(self) -> None:
         """The DISCRIMINATING case, and the first version of this test was not one.
@@ -355,12 +374,13 @@ class TestAPidFromAnotherHostIsNotEvidence:
         only shape that separates the two: host-blind says "dead, reclaim it"; host-aware
         says "not my host, I cannot know".
         """
+        import socket as _sock
+
         from podcast_scraper.utils import corpus_lock as cl
 
-        assert cl._holder_is_reclaimable(
-            {"pid": 999999, "hostname": __import__("socket").gethostname()}
-        )
-        assert not cl._holder_is_reclaimable({"pid": 999999, "hostname": "f0c5969c4647"}), (
+        dead = self._reaped_pid()
+        assert cl._holder_is_reclaimable({"pid": dead, "hostname": _sock.gethostname()})
+        assert not cl._holder_is_reclaimable({"pid": dead, "hostname": "f0c5969c4647"}), (
             "a dead-looking pid from ANOTHER host must not be reclaimable — that is how a "
             "second writer gets into one corpus"
         )
@@ -380,3 +400,44 @@ class TestAPidFromAnotherHostIsNotEvidence:
 
         assert not cl._holder_is_reclaimable({})
         assert not cl._holder_is_reclaimable({"pid": "not-an-int", "hostname": "x"})
+
+
+class TestAnUnprobableLockIsUnknownNotFree:
+    """`held=False` on a probe failure is the unsafe direction, in the tool built to end it.
+
+    A PermissionError — non-root probing a root-owned corpus dir, a shape prod has had after
+    docker-exec seeding — would report "nothing is running" while a run holds the lock. That is
+    exactly the false-green this function exists to prevent, so it must be None ("go look").
+    """
+
+    def test_probe_failure_reports_unknown(self, tmp_path, monkeypatch) -> None:
+        import filelock
+
+        from podcast_scraper.utils import corpus_lock as cl
+
+        (tmp_path / cl.LOCK_BASENAME).write_text("", encoding="utf-8")
+
+        class _Exploding:
+            def __init__(self, *a, **k) -> None:
+                raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr(filelock, "FileLock", _Exploding)
+
+        st = cl.corpus_lock_state(tmp_path)
+
+        assert st["held"] is None, (
+            f"a probe that could not run must be UNKNOWN, not free (got {st['held']!r}) — "
+            "held=False here is a false green on a corpus that may be in use"
+        )
+        assert st["held"] is not False
+        assert "COULD NOT PROBE" in str(st["reason"])
+
+    def test_a_free_lock_still_reports_false_not_none(self, tmp_path) -> None:
+        """Guard the other direction: don't make everything 'unknown'."""
+        from podcast_scraper.utils import corpus_lock as cl
+
+        with cl.corpus_parent_lock(tmp_path):
+            pass
+        st = cl.corpus_lock_state(tmp_path)
+        assert st["held"] is False
+        assert st["lock_file_exists"] is True

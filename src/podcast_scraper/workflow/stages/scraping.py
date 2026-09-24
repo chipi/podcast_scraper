@@ -745,13 +745,21 @@ def _reprocess_existing_episodes(
             # search, and this is the one line per episode an operator reads, so it must not
             # advertise behaviour that was removed.
             _resolution = "NO OWN TRANSCRIPT and none in a sibling run — SKIPPED, not guessed at"
-        else:
-            # A FULL (or rederive) run does not need one — it is about to create it. Printing
-            # "SKIPPED" here was wrong and observed on 2026-09-24: the repair probe logged
-            # SKIPPED for "What's Going On With Lettuce?" and then downloaded media, ran ASR and
-            # wrote a correct transcript. A line that says the opposite of what the run does is
-            # how an operator stops trusting the log — the exact failure this line exists to fix.
+        elif getattr(cfg, "transcribe_missing", False):
+            # A run that WILL transcribe does not need an existing transcript — it is about to
+            # create one. Printing "SKIPPED" here was wrong, observed 2026-09-24: the repair
+            # probe logged SKIPPED for "What's Going On With Lettuce?" and then downloaded
+            # media, ran ASR and wrote a correct transcript.
             _resolution = "no transcript on disk — will be transcribed by this run"
+        else:
+            # ...but do NOT promise a transcription the config has disabled. `rederive_only`
+            # coerces `transcribe_missing=false` (config.py:4905), so the first version of this
+            # branch promised ASR for exactly the stage that cannot do it — the same
+            # says-the-opposite-of-what-happens defect it replaced, one branch over.
+            _resolution = (
+                "no transcript on disk and this run does not transcribe "
+                "(transcribe_missing=false) — nothing to work on"
+            )
         logger.info(
             "reprocess: [%s] (on-disk %s) %r -> %s",
             seq,
