@@ -364,6 +364,9 @@ lint-search-v3:
 CORPUS ?= tests/fixtures/viewer-validation-corpus/v3
 QUERIES ?= tests/fixtures/viewer-validation-corpus/v3/search-queries.json
 OUT ?= data/eval/search-v3/eval/latest.json
+# `data/eval/**`: eval runs write their reports there. The `eval-data` ignores below point at
+# a directory that no longer exists (the path moved), so 320 generated reports were being
+# linted locally. CI never saw it — they are gitignored, so a fresh checkout has none.
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	".github/**/*.md" \
 	".cursor/**/*.md" \
@@ -379,6 +382,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore .build/site \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" --ignore "eval-data/**" --ignore eval-data \
+	--ignore "data/eval/**" --ignore data/eval \
 	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
 	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
 	--ignore "$(WEB_VIEWER_DIR)/validation-results/**" \
@@ -1679,6 +1683,26 @@ build-viewer:
 test-app:
 	@echo "Vitest unit tests + coverage gate (Learning Player)..."
 	@cd $(APP_DIR) && npm install && npm run test:coverage
+	@# Type-check the TESTS. `tsconfig.app.json` excludes `src/**/*.test.ts` and nothing else
+	@# covered them, so no fixture was ever checked against the types it claims — three
+	@# `EpisodeSummary` factories had drifted from the API contract and were exercising a shape the
+	@# app never receives. vitest transpiles without type-checking, so it cannot catch this.
+	@# Deliberately a separate invocation rather than a project reference in `tsconfig.json`:
+	@# `composite: true` requires the project to list every file it imports, which is the whole
+	@# `src` tree and collides with the app project (176 TS6307s when tried).
+	@#
+	@# `tsconfig.test.json` carries no comments because no tsconfig in this repo does — the
+	@# pre-commit JSON validator parses them as strict JSON, not JSONC. Two things in it are
+	@# load-bearing and non-obvious, so they are recorded here instead:
+	@#   "exclude": []  — `extends` INHERITS `exclude: ["src/**/*.test.ts"]` from the app config,
+	@#     i.e. exactly the files this project exists to check. Without clearing it the program
+	@#     resolves to a single `env.d.ts` and reports zero errors having checked nothing. That is
+	@#     how the first version of this config passed while a known defect was still present.
+	@#   "types": [... "node", "vitest/globals"] — tests use `node:fs`, `__dirname` and `process`,
+	@#     which the browser build's types do not carry. 51 of the original 111 errors were this
+	@#     alone, and none of them were real defects.
+	@echo "Type-checking the Learning Player test files..."
+	@cd $(APP_DIR) && npm run type-check:test
 
 # Consumer Learning Player — Playwright E2E (mobile + desktop projects).
 # Install browsers once: cd $(APP_DIR) && npx playwright install chromium
@@ -2315,6 +2339,22 @@ mobile-build-release:
 	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
 		MOBILE_RELEASE=1 npm install && npm run build && npx cap sync
+	@# The gate credential must not reach a SHIPPED app. `.env.mobile.example` states this as a
+	@# fact ("never baked into a shipped app"), but it is not one: `VITE_PREVIEW_BASIC_AUTH` is a
+	@# build-time substitution, so the literal lands in the bundle and only disappears if the
+	@# bundler happens to constant-fold `tierSwitchEnabled()` to false and drop the now-unused
+	@# const. That is an optimisation, not a guarantee — so verify it on the artifact, at the one
+	@# moment it matters, instead of trusting it.
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
+		if [ -n "$$VITE_PREVIEW_BASIC_AUTH" ] && \
+		   grep -rqF "$$VITE_PREVIEW_BASIC_AUTH" dist/ 2>/dev/null; then \
+			echo ""; \
+			echo "FAIL: the preview gate credential is present in the RELEASE bundle (dist/)."; \
+			echo "      It was expected to be tree-shaken out of a prod-locked build."; \
+			echo "      Do not ship this artifact; rotate the credential if it already shipped."; \
+			exit 1; \
+		fi; \
+		echo "OK: preview gate credential absent from the release bundle"
 
 # --- TestFlight (iOS) -------------------------------------------------------------------
 # Requires App Store Connect credentials in web/learning-player/ios/fastlane/.env — copy

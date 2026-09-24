@@ -7,8 +7,14 @@ import type { GroundedSpan } from '../player/insights'
 import TranscriptList from './TranscriptList.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-const mountList = (props: Record<string, unknown>) =>
-  mount(TranscriptList, { props, global: { plugins: [i18n] } })
+const mountList = (props: {
+  segments: Segment[]
+  activeIndex: number
+  grounded?: Record<number, GroundedSpan>
+  canCapture?: boolean
+  gated?: boolean
+  savedSegmentIds?: Set<string>
+}) => mount(TranscriptList, { props, global: { plugins: [i18n] } })
 
 const segments: Segment[] = [
   { id: 's0', start: 0, end: 2.5, text: 'Hello world.', speaker: 'person:matthew-walker' },
@@ -150,5 +156,71 @@ describe('TranscriptList', () => {
     const w = mountList({ segments, activeIndex: 0, canCapture: true, gated: true })
     await w.get('[aria-label="Sign in to mark this moment"]').trigger('click')
     expect(w.emitted('capture')).toHaveLength(1)
+  })
+
+  describe('the paragraph header reads time, separator, speaker — and always in that order', () => {
+    /**
+     * Operator 2026-09-19. The speaker used to come FIRST, and the only thing between it and the
+     * time was the green grounded marker — a dot present on a paragraph that grounds an insight
+     * and absent otherwise. Anything sitting in that slot reads as punctuation, so the line
+     * appeared to gain and lose a separator depending on content: "Jack Clark ● 0:14" against
+     * "Host 0:25". "Things should be always symmetric, and it should not matter what are we
+     * rendering."
+     */
+    const speakered: Segment[] = [
+      { id: 'a', start: 14, end: 20, text: 'Grounded line.', speaker: 'Jack Clark' },
+      { id: 'b', start: 25, end: 30, text: 'Plain line.', speaker: 'Host' },
+    ]
+
+    it('puts the TIME before the speaker', () => {
+      const w = mountList({ segments: speakered, activeIndex: 0 })
+      const header = w.text()
+      expect(header.indexOf('0:14')).toBeLessThan(header.indexOf('Jack Clark'))
+    })
+
+    it('renders the SAME structure whether or not the paragraph grounds an insight', () => {
+      // One grounded paragraph, one not. The header markup must not differ between them.
+      const w = mountList({
+        segments: speakered,
+        activeIndex: 0,
+        grounded: {
+          0: { insightId: 'i1', insightText: 'A claim.', insightType: 'claim', quote: 'Grounded' },
+        },
+      })
+      const headers = w.findAll('.lp-speaker').map((n) => n.element.parentElement)
+      expect(headers).toHaveLength(2)
+
+      const shape = (el: Element | null | undefined) =>
+        Array.from(el?.children ?? []).map((c) => c.tagName + (c.className ? '' : ''))
+      // Same tag sequence on both: the grounded one must not carry an extra element.
+      expect(shape(headers[0])).toEqual(shape(headers[1]))
+    })
+
+    it('never puts the grounded dot between the time and the speaker', () => {
+      const w = mountList({
+        segments: speakered,
+        activeIndex: 0,
+        grounded: {
+          0: { insightId: 'i1', insightText: 'A claim.', insightType: 'claim', quote: 'Grounded' },
+        },
+      })
+      // The glyph that was being read as punctuation. Grounded-ness is still carried — the
+      // timestamp keeps `text-grounded` and the segment keeps its underline + aria-label — but
+      // not as a character inside the who-and-when row.
+      const header = w.findAll('.lp-speaker')[0].element.parentElement
+      expect(header?.textContent ?? '').not.toContain('\u25cf')
+    })
+
+    it('shows a bare time, not a dangling separator, on a continuation paragraph', () => {
+      // A run from ONE speaker splits into paragraphs; only the first names them. The separator
+      // divides two things, so it must not survive alone when there is nothing to divide from.
+      const run: Segment[] = [
+        { id: 'a', start: 0, end: 5, text: 'First half of a long turn.', speaker: 'Host' },
+        { id: 'b', start: 5, end: 10, text: 'Second half of the same turn.', speaker: 'Host' },
+      ]
+      const w = mountList({ segments: run, activeIndex: 0 })
+      const labels = w.findAll('.lp-speaker')
+      expect(labels).toHaveLength(1) // only the run's first paragraph names the speaker
+    })
   })
 })

@@ -24,7 +24,7 @@ describe('AboutPageView', () => {
     const w = mountAbout('privacy')
     expect(w.get('[data-testid="about-page-title"]').text()).toBe(en.about.privacy)
     expect(w.get('[data-testid="about-page"]').text()).toContain(en.about.placeholder)
-    expect(w.get('a[href="/settings"]').exists()).toBe(true)
+    expect(w.find('a[href="/settings"]').exists()).toBe(true)
   })
 
   it('resolves each known page slug to its title', () => {

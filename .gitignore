@@ -333,8 +333,14 @@ tests/fixtures/app-validation-corpus/v3/.app/
 # The operator jobs queue + its lock, written into the corpus by the jobs API. Only these two
 # FILES: `.viewer/` itself holds tracked fixture data (enrichment_health.json,
 # enrichment_status.json), so ignoring the directory would hide real fixtures.
-tests/fixtures/app-validation-corpus/v3/.viewer/jobs.jsonl
-tests/fixtures/app-validation-corpus/v3/.viewer/jobs.jsonl.lock
+#
+# Globbed rather than listed per corpus (2026-09-20): the same two files appear under
+# viewer-validation-corpus after a Tier-3 walk, and under the REPO ROOT when `make
+# serve-for-validation` points the API at the repo. Both showed up as untracked, which is how 7 rows
+# of `query_log.jsonl` telemetry got swept into a rename commit on this branch by `git add -A` and
+# had to be removed by rewriting history.
+**/.viewer/jobs.jsonl
+**/.viewer/jobs.jsonl.lock
 
 # Design-surface screenshots from the Playwright `shoot()` helper, written to <root>/test-results/
 # when the suite runs from the repo root. The per-package `test-results/` rules above do not anchor

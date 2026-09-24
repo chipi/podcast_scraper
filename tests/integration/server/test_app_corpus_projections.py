@@ -85,7 +85,7 @@ def test_trending_topics_no_enricher_renders_nothing(tmp_path: Path) -> None:
         "has_velocity_data": False,
         "window_months": [],
         "topics": [],
-        "theme_clusters": [],
+        "storylines": [],
     }
 
 
@@ -220,8 +220,8 @@ def test_trending_topics_includes_theme_clusters(tmp_path: Path) -> None:
         },
     )
     body = _client(tmp_path).get("/api/app/corpus/trending-topics").json()
-    assert len(body["theme_clusters"]) == 1
-    cluster = body["theme_clusters"][0]
+    assert len(body["storylines"]) == 1
+    cluster = body["storylines"][0]
     assert cluster["canonical_label"] == "Artificial Intelligence"
     assert {m["topic_id"] for m in cluster["members"]} == {"topic:ai", "topic:ml"}
 

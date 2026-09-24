@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * Topic card BODY — the topic-specific sections of the entity card, in operator-reviewed order:
- * the rising-momentum badge LEADS, then similar topics, the storyline link (opens the storyline
- * overlay on top), strongest shows, TOP VOICES, search, episodes, conversation arc, perspectives,
+ * the rising-momentum badge and the activity sparkline LEAD, then the conversation arc (the two
+ * charts read as a pair), similar topics, the storyline link (opens the storyline overlay on top),
+ * strongest shows, TOP VOICES, perspectives (the same people the voices name), search, episodes,
  * notes. The shell ({@link EntityCardBody}) owns the back-stack, header and load; this renders the
  * loaded `TopicCard`. Graph navigation emits `open`; `close` dismisses the whole card.
  *
@@ -16,9 +17,10 @@ import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, TopicCard } from "../services/types"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
+import { resolveMediaUrl } from "../services/tier"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import NoteComposer from "./NoteComposer.vue"
-import EpisodeRow from "./EpisodeRow.vue"
+import EntityEpisodeList from "./EntityEpisodeList.vue"
 import StorylineCard from "./StorylineCard.vue"
 import TrendMomentum from "./TrendMomentum.vue"
 import Sparkline from "./Sparkline.vue"
@@ -62,8 +64,8 @@ const episodes = computed<EpisodeSummary[]>(() => props.topic.episodes ?? [])
 const episodeCount = computed(() => props.topic.episode_count ?? 0)
 const siblings = computed(() => props.topic.sibling_topics ?? [])
 // Theme cluster (co-occurrence "discussed together") — the STORYLINE this topic is part of.
-const themeClusterLabel = computed(() => props.topic.theme_cluster_label ?? null)
-const themeClusterSize = computed(() => props.topic.theme_cluster_size ?? 0)
+const storylineLabel = computed(() => props.topic.storyline_label ?? null)
+const storylineSize = computed(() => props.topic.storyline_size ?? 0)
 // The people who drive this topic — related_people is server-ranked by co-occurrence, so the top
 // few ARE the key voices. Prominent avatar chips.
 const topVoices = computed<Entity[]>(() => (props.topic.related_people ?? []).slice(0, 8))
@@ -142,13 +144,25 @@ const activitySeries = computed<number[]>(() => {
 // Strongest shows (TD.6): which shows cover this topic most, from the discussed episodes grouped by
 // feed. Only worth showing when the topic spans MORE THAN ONE show.
 const topShows = computed(() => {
-  const byFeed = new Map<string, { feed_id: string; title: string; count: number }>()
+  const byFeed = new Map<string, { feed_id: string; title: string; count: number; art: string | null }>()
   for (const e of episodes.value) {
     if (!e.feed_id) continue
     const cur = byFeed.get(e.feed_id)
-    if (cur) cur.count++
-    else
-      byFeed.set(e.feed_id, { feed_id: e.feed_id, title: e.podcast_title ?? e.feed_id, count: 1 })
+    if (cur) {
+      cur.count++
+      // Episodes vary in whether they carry the feed image; take the first one that does.
+      cur.art ??= resolveMediaUrl(e.feed_artwork_url || e.feed_image_url)
+    } else {
+      byFeed.set(e.feed_id, {
+        feed_id: e.feed_id,
+        title: e.podcast_title ?? e.feed_id,
+        count: 1,
+        // The FEED image, never the episode's own — this row is the show, not an episode of it.
+        // `feed_artwork_url` is our stored copy; `feed_image_url` is the feed-hosted original and
+        // only a fallback, since it points off-origin and is frequently unreachable.
+        art: resolveMediaUrl(e.feed_artwork_url || e.feed_image_url),
+      })
+    }
   }
   return [...byFeed.values()].sort((a, b) => b.count - a.count).slice(0, 5)
 })
@@ -181,18 +195,25 @@ function searchLibrary(): void {
     </figure>
   </div>
 
-  <!-- Semantically SIMILAR topics: the one you're on (ringed) + siblings. Distinct from the
-       storyline below, which is co-occurrence (#1603). Chips drill in place via the back stack. -->
-  <section v-if="siblings.length" class="mb-4">
+  <!-- The conversation arc sits directly under the activity sparkline (operator 2026-09-19). It was
+       at the foot of the page, below the episode list, which put the two time-series charts about
+       this topic at opposite ends of a long scroll. They answer the same question at different
+       resolutions — how much, and how it changed — so they read as a pair or not at all. -->
+  <TopicConversationArc :id="topic.id" />
+
+  <!-- Semantically SIMILAR topics. Distinct from the storyline below, which is co-occurrence
+       (#1603). Chips drill in place via the back stack.
+
+       The topic you are ON is not in this list (operator 2026-09-19). It used to lead it as a
+       ringed chip, on the reasoning that a cluster is best shown whole, with your position in it
+       marked. On the page that reasoning does not survive: the heading says "N similar topics" and
+       the first thing under it is the topic whose page you are reading, which is not similar to
+       itself. The count now counts what is actually listed. -->
+  <section v-if="siblings.length" class="mb-4" data-testid="ec-similar-topics">
     <h3 class="lp-section mb-2">
-      {{ t("ec.clusterMembers", siblings.length + 1, { named: { count: siblings.length + 1 } }) }}
+      {{ t("ec.clusterMembers", siblings.length, { named: { count: siblings.length } }) }}
     </h3>
     <div class="flex flex-wrap gap-1.5">
-      <span
-        class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-topic ring-1 ring-topic"
-      >
-        {{ label }}
-      </span>
       <button
         v-for="s in siblings"
         :key="s.id"
@@ -208,7 +229,7 @@ function searchLibrary(): void {
 
   <!-- Part of a storyline: ONE link that opens the whole storyline ON TOP (StorylineCard overlay).
        A topic with no cluster says so, quietly. -->
-  <section v-if="themeClusterLabel" class="mb-4" data-testid="ec-storyline">
+  <section v-if="storylineLabel" class="mb-4" data-testid="ec-storyline">
     <h3 class="lp-section mb-2">{{ t("ec.storylineHeading") }}</h3>
     <button
       type="button"
@@ -217,9 +238,9 @@ function searchLibrary(): void {
       @click="openStoryline"
     >
       <span class="min-w-0 flex-1">
-        <span class="block text-sm font-bold text-theme">{{ themeClusterLabel }}</span>
-        <span v-if="themeClusterSize" class="lp-kicker">{{
-          t("ec.clusterSize", themeClusterSize, { named: { count: themeClusterSize } })
+        <span class="block text-sm font-bold text-accent">{{ storylineLabel }}</span>
+        <span v-if="storylineSize" class="lp-kicker">{{
+          t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
         }}</span>
       </span>
       <span class="shrink-0 text-muted" aria-hidden="true">›</span>
@@ -251,13 +272,27 @@ function searchLibrary(): void {
   <!-- Strongest shows on this topic — only when it spans more than one show. -->
   <section v-if="topShows.length > 1" class="mb-4" data-testid="ec-top-shows">
     <h3 class="lp-section mb-2">{{ t("ec.topShows") }}</h3>
+    <!-- Artwork, then the name, then the tally — the compact row `EpisodeRow` uses, at its 40px
+         thumbnail (operator 2026-09-19). It was a bare line of text with a number on the right,
+         which is the one way a show does NOT get recognised: cover art is how you know a podcast at
+         a glance, and every other list of shows in the app shows it. Deliberately NOT the full
+         `ShowRow` (128px artwork + description) — this sits inside a card as a short aside, not as
+         the page's subject. -->
     <ul class="flex flex-col">
       <li v-for="s in topShows" :key="s.feed_id">
         <RouterLink
           :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
-          class="flex items-center justify-between gap-3 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+          class="flex items-center gap-2.5 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
         >
-          <span class="min-w-0 truncate text-sm font-semibold">{{ s.title }}</span>
+          <img
+            v-if="s.art"
+            :src="s.art"
+            alt=""
+            loading="lazy"
+            class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+          />
+          <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" aria-hidden="true" />
+          <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
           <span class="shrink-0 text-xs text-muted">{{
             t("ec.topShowCount", s.count, { named: { count: s.count } })
           }}</span>
@@ -290,6 +325,14 @@ function searchLibrary(): void {
     </div>
   </section>
 
+  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
+       Directly under Top voices (operator 2026-09-19) — it names the same people and says what they
+       actually argued, so it belongs beside the faces rather than at the foot of the page. -->
+  <TopicPerspectives
+    :id="topic.id"
+    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
+  />
+
   <!-- Search transcripts — between the strongest shows and the episode list (operator review). -->
   <button
     type="button"
@@ -306,19 +349,8 @@ function searchLibrary(): void {
       <span>{{ t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } }) }}</span>
       <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
     </h3>
-    <ul class="flex flex-col">
-      <li v-for="e in episodes" :key="e.slug">
-        <EpisodeRow :episode="e" />
-      </li>
-    </ul>
+    <EntityEpisodeList :episodes="episodes" />
   </section>
-
-  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none. -->
-  <TopicConversationArc :id="topic.id" />
-  <TopicPerspectives
-    :id="topic.id"
-    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
-  />
 
   <!-- Notes on this topic (TD.7). -->
   <NoteComposer target="topic" :target-id="topic.id" />

@@ -421,8 +421,13 @@ def _export_document(
         highlights = [
             h
             for h in highlights
+            # One expression for the id, used for BOTH the membership test and the lookup. They
+            # differed — `str(h.get("id") or "")` then `str(h.get("id"))` — so a highlight with a
+            # missing id probed the key "" and then read the key "None". Harmless today because
+            # every real highlight has a uuid, but two spellings of one value is how that stops
+            # being true (review 2026-09-18).
             if isinstance(state.get(str(h.get("id") or "")), dict)
-            and state[str(h.get("id"))].get("retired")
+            and state[str(h.get("id") or "")].get("retired")
         ]
     if q:
         needle = q.strip().lower()
@@ -476,7 +481,7 @@ def _export_document(
     )
     # Every episode that needs a heading: one the user highlighted, or one they only made a note on.
     titles = _episode_meta(
-        request, {str(h.get("episode_slug")) for h in highlights} | episode_note_slugs
+        request, {str(h.get("episode_slug") or "") for h in highlights} | episode_note_slugs
     )
 
     grouped: "OrderedDict[str, EpisodeHighlights]" = OrderedDict()
@@ -498,7 +503,12 @@ def _export_document(
         return grouped[slug]
 
     for h in highlights:
-        _episode(str(h.get("episode_slug"))).highlights.append(
+        # `or ""` — NOT bare str(). `str(None)` is the string "None", so a capture that lost its
+        # episode reference produced an export section headed `## None`, with the user's own quotes
+        # filed under an episode that does not exist and jump links resolving nowhere. The export is
+        # the canonical record; a fabricated episode title in it is permanent (review 2026-09-18).
+        # An empty slug groups under the orphan heading, which is what it is.
+        _episode(str(h.get("episode_slug") or "")).highlights.append(
             HighlightLine(
                 kind=str(h.get("kind", "span")),
                 start_ms=h.get("start_ms"),
@@ -551,7 +561,7 @@ async def export_highlights_html(
     color: str | None = Query(default=None, description="Same colour filter as export.md."),
     muted_only: bool = Query(default=False, description="Same muted filter as export.md."),
     q: str | None = Query(default=None, description="Same search filter as export.md."),
-) -> HTMLResponse:
+) -> HtmlResponse:
     """The export as a print-styled page — the PDF path, with no PDF library.
 
     There is no server-side renderer here on purpose. Every option cost something the others did
@@ -563,4 +573,4 @@ async def export_highlights_html(
     Same filters as ``export.md``, because it is literally the same document (``_export_document``).
     """
     episodes, orphans = _export_document(request, user, color, muted_only, q)
-    return HTMLResponse(render_highlights_html(episodes, orphans))
+    return HtmlResponse(render_highlights_html(episodes, orphans))

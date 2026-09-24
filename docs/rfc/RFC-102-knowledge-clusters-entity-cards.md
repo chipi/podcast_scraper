@@ -77,7 +77,8 @@ Interests = a **mixed token set**, saved as **per-user files** (`GET/PUT /api/ap
 same overlay as playback/queue; no new persistence). A token is a topic **cluster** (`tc:`), a
 **topic** (`topic:`) or a **person** (`person:`). Two entry-points feed the same list:
 
-- a first-Home dismissible card opens a picker over `GET /api/app/clusters` (top by `member_count`),
+- a first-Home dismissible card opens a picker over `GET /api/app/themes` (top by `member_count`;
+  named `/api/app/clusters` when this RFC was written — renamed 2026-09-20, see UXS-013),
   which writes `tc:` cluster ids via `PUT /api/app/interests`; and
 - a one-tap **Follow / Following** toggle on a person/topic **entity card** (§2/§3) follows /
   unfollows a single `topic:` / `person:` token via `POST` / `DELETE /api/app/interests/{token}`

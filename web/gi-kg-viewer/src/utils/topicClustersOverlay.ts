@@ -121,7 +121,7 @@ export function clusterTimelineCilTopicIdsForCluster(
   // member Topic node (``memberRows`` empty because the artifact had no nodes), the compound- and
   // member-row paths both yield nothing and the timeline never loads — the bug where topic-cluster
   // and cluster-member-topic Timeline tabs showed no chart while theme clusters (resolved from the
-  // full themeClustersDoc) did. The doc is always complete, so fall back to its member topic_ids.
+  // full storylinesDoc) did. The doc is always complete, so fall back to its member topic_ids.
   const fromDoc: string[] = []
   const seen = new Set<string>()
   for (const m of docMembers ?? []) {
@@ -395,10 +395,10 @@ export function withTopicClustersOnDisplay(
  * Unlike the semantic clusters, theme membership is a NODE decoration (a teal ring),
  * NOT a compound parent — Cytoscape allows only one parent per node, so themes
  * coexist with the semantic compound boxes as a border instead. Sets
- * ``node.themeClusterId``; ``toCytoElements`` turns that into a ``theme-member``
+ * ``node.storylineId``; ``toCytoElements`` turns that into a ``theme-member``
  * class the stylesheet paints. Same teal ring as the player pills (--lp-theme).
  *
- * graph-v3 Tier 5A-2 — additionally propagates ``themeClusterId`` outward via
+ * graph-v3 Tier 5A-2 — additionally propagates ``storylineId`` outward via
  * the artifact's edge list so Insight / Episode / Person / Org / Podcast nodes
  * carry the same field. Iteration order = doc order (member_count desc from
  * the enricher) → first cluster wins for nodes bridging themes. Downstream:
@@ -406,7 +406,7 @@ export function withTopicClustersOnDisplay(
  * tints, and NodeDetail reads it to render "Theme region: <label>" so users
  * can trace why a given node is a given colour.
  */
-export function applyThemeClustersOverlay(
+export function applyStorylinesOverlay(
   data: ArtifactData,
   doc: TopicClustersDocument | null | undefined,
 ): ArtifactData {
@@ -462,7 +462,7 @@ export function applyThemeClustersOverlay(
       clusterId = episodeToCluster.get(raw) ?? episodeToCluster.get(bareId)
     }
     if (clusterId) {
-      ;(n as RawGraphNode & { themeClusterId?: string }).themeClusterId = clusterId
+      ;(n as RawGraphNode & { storylineId?: string }).storylineId = clusterId
       nodeIdToCluster.set(bareId, clusterId)
     }
   }
@@ -519,7 +519,7 @@ export function applyThemeClustersOverlay(
       nodeIdToCluster.set(nbId, clusterId)
       const nb = nodeById.get(nbId)
       if (nb) {
-        ;(nb as RawGraphNode & { themeClusterId?: string }).themeClusterId = clusterId
+        ;(nb as RawGraphNode & { storylineId?: string }).storylineId = clusterId
       }
     }
   }
@@ -527,14 +527,14 @@ export function applyThemeClustersOverlay(
 }
 
 /** Tag the display artifact's Topic nodes with theme-cluster ids (teal rings) when *doc* is set. */
-export function withThemeClustersOnDisplay(
+export function withStorylinesOnDisplay(
   art: ParsedArtifact | null,
   doc: TopicClustersDocument | null | undefined,
 ): ParsedArtifact | null {
   if (!art || !doc) {
     return art
   }
-  return { ...art, data: applyThemeClustersOverlay(art.data, doc) }
+  return { ...art, data: applyStorylinesOverlay(art.data, doc) }
 }
 
 /** All Topic ids (bare) in ANY theme cluster — teal-ring pill styling on Digest /
@@ -558,7 +558,7 @@ export function themeMemberTopicIdSet(
  * topics (the "discussed together" siblings). Powers the node-view Theme block,
  * mirroring the player entity card. Null when the topic is in no theme cluster.
  */
-export function themeClusterInfoForTopic(
+export function storylineInfoForTopic(
   doc: TopicClustersDocument | null | undefined,
   topicNodeId: string,
 ): { label: string; members: { topic_id: string; label: string }[] } | null {
@@ -594,7 +594,7 @@ export function themeClusterInfoForTopic(
  * theme is a storyline, so its members' activity is the theme's lifespan). Empty
  * when the topic is in no theme cluster or the doc is absent.
  */
-export function themeClusterMemberTopicIdsForTopic(
+export function storylineMemberTopicIdsForTopic(
   doc: TopicClustersDocument | null | undefined,
   topicNodeId: string,
 ): string[] {

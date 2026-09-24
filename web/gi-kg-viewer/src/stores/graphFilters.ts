@@ -24,7 +24,7 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
    * picks between the top-down synthetic slice (super-theme nodes
    * only, ~6-8 nodes) and the merged display artifact based on the
    * load-mode opt-in. Falls back to the display artifact when the
-   * top-down slice isn't available (no theme_clusters doc yet). */
+   * top-down slice isn't available (no storylines doc yet). */
   const fullArtifact = computed<ParsedArtifact | null>(() => {
     if (loadMode.isTopDown) {
       const td = artifacts.topDownDisplayArtifact

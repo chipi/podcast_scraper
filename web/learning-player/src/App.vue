@@ -43,6 +43,7 @@ import {
   removeInterest,
   unfollowShow,
   addToCollection,
+  reorderCollections,
   createCollection,
   detectTimezone,
   getComms,
@@ -303,6 +304,7 @@ async function pushPendingWrites({ revalidate = true }: { revalidate?: boolean }
       await createCollection(action.name, action.clientId)
     else if (action.op === 'collection.addItem')
       await addToCollection(action.collectionId, action.item)
+    else if (action.op === 'collection.reorder') await reorderCollections(action.order)
     else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
     else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
     else if (action.op === 'completed.add') await markCompleted(action.slug)
@@ -518,30 +520,48 @@ const mainBottomPadding = computed(() =>
           the bottom of the same screen. Two navs is worse than either one — it makes the app feel
           like two designs stacked, and it wastes the scarcest space on a phone.
 
+          Search is the exception now (2026-09-20) and is hoisted out of this span: it is no longer a
+          tab, so it no longer appears twice, and it needs to stay reachable on a phone.
+
           Browse lives only here, and that is fine: it is a corpus index, not a daily destination
           (the reason it did not take a tab), and Home carries a "Browse all →" link plus the
           catalogue link in the empty shows state. The auth buttons below stay visible at every
           width — signing in is not a tab.
         -->
+        <!-- Search is the differentiator — corpus-wide semantic search with jump-to-moment, which
+             neither Spotify nor Apple Podcasts offers. It had exactly ONE entry point (the Home
+             search box), so from the catalogue, player, library or a show page there was no way to
+             reach it at all (#1588). Public, like Browse: reads are open.
+
+             Visible at EVERY width (operator 2026-09-20), unlike the icons below. The note above
+             hid these on phones because "Search appeared twice" — masthead AND bottom tab. Search
+             is no longer a tab, so that duplication is gone and the objection with it. This is now
+             the only always-available search control, which is what keeps folding search into
+             Discovery from re-opening #1588. -->
+        <NavIconLink
+          :to="{ name: 'search' }"
+          :label="t('nav.search')"
+          data-testid="masthead-search"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+          </svg>
+        </NavIconLink>
         <span class="hidden items-center gap-1.5 sm:flex">
         <!-- `browse`, not `catalog` (#2013). This link is labelled "Browse" and the bottom tab bar's
              "Browse" goes to `/browse`, so desktop and mobile disagreed on where the same word led:
              the hub with Episodes · Shows · Topics · People, versus a bare episode list. `/browse`
              is a strict superset — it renders `<CatalogView embedded />` as its Episodes tab — so
              the catalogue was never missing, three indexes were. -->
-        <NavIconLink :to="{ name: 'browse' }" :label="t('nav.browse')">
+        <NavIconLink
+          :to="{ name: 'browse' }"
+          :label="t('nav.browse')"
+          owns="browse"
+          data-testid="masthead-browse"
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-          </svg>
-        </NavIconLink>
-        <!-- Search is the differentiator — corpus-wide semantic search with jump-to-moment, which
-             neither Spotify nor Apple Podcasts offers. It had exactly ONE entry point (the Home
-             search box), so from the catalogue, player, library or a show page there was no way to
-             reach it at all (#1588). Public, like Browse: reads are open. -->
-        <NavIconLink :to="{ name: 'search' }" :label="t('nav.search')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
           </svg>
         </NavIconLink>
         <template v-if="auth.hasSession">
@@ -550,6 +570,7 @@ const mainBottomPadding = computed(() =>
             :to="resurfacing.dueCount ? { name: 'library', query: { tab: 'revisit' } } : { name: 'library' }"
             :label="t('library.title')"
             :badge="resurfacing.dueCount"
+            owns="library"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />

@@ -168,7 +168,12 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 | `insight`  | `var(--accent)` | GIL insight markers / "insight surfacing now"   |
 | `topic`    | `#A8B0C6`       | KG topic chips                                  |
 | `person`   | `#CCC7BB`       | Person chips / speaker emphasis                 |
-| `theme`    | `#98A0AE`       | Theme cluster (co-occurrence) chips             |
+| `theme`    | `#98A0AE`       | **Theme** chips (`tc:` — vector similarity)     |
+
+> **`theme` renders THEMES, not storylines (2026-09-19).** It used to describe "theme cluster
+> (co-occurrence)" — which is a **storyline**, the other object entirely. Storylines now take the
+> accent treatment wherever they render as a pill, so this token is free to mean what its name
+> says. See UXS-013 §Vocabulary; the backend still calls a storyline a "theme cluster" on the wire.
 
 ## Typography
 
@@ -407,7 +412,9 @@ the player surface** — see "Player-surface Queue & Recent" below):
   (add/edit/remove), a per-highlight colour swatch picker, a header **colour filter**, and an
   **Export Markdown** link.
 
-- **Following** — the shows and interest tokens (`topic:`/`person:`/`thc:`) the user follows.
+- **Following** — the shows and interest tokens (`topic:`/`tc:`/`thc:`/`person:`) the user
+  follows. All four are followable; `tc:` is a Theme and `thc:` a Storyline — see UXS-013
+  §Vocabulary, because the wire names invert against the reader-facing ones.
 - **Collections** ("Boards") — its own first-class tab (was nested under Saved); see "Collections"
   below. It also holds **Your notes**: every note the user has written, beside their boards. The
   section is topped by the shared kind-filter strip (UXS-014) whose chips are the **entity each note
@@ -489,15 +496,16 @@ state, not a new view:
 
 ### Resurfacing inbox (Revisit tab)
 
-Past highlights resurfaced on a spaced ladder (2d/1w/1mo/3mo, computed on read). Each card shows a
+Past highlights resurfaced on a spaced ladder (2d/7d/30d/90d, computed on read — `LADDER_SECONDS` in `app_resurfacing.py`; "1mo/3mo" here previously implied calendar months, which it is not). Each card shows a
 deterministic **reflection prompt** (no LLM), the highlight, a one-tap **jump-to-moment**, and a
 **"Got it"** dismiss (advances the ladder). A header **Pause/Resume** control governs pacing;
 paused or nothing-due shows an honest empty state.
 
 **Every card offers four outcomes (2026-09-18).** The ladder previously had no exit: reviewing
 advances a rung and tops out at 90 days, so a capture answered five times still returns quarterly,
-while ignoring one leaves it permanently overdue at the *top* of the list (the surface sorts
-most-overdue-first). Both paths loop, and the only way out was deleting the capture — which
+while ignoring one left it permanently overdue at the *top* of the list (the surface sorted
+most-overdue-first at the time; it now orders by episode recency — see Ordering below). Both paths
+loop, and the only way out was deleting the capture — which
 conflates "stop asking me about this" with "I no longer want this". So the card carries:
 
 | action | control | effect |
@@ -620,7 +628,7 @@ live on that card. Jumping to the player would also mark it reviewed on arrival 
 for them the one thing they went there to decide.
 
 **Two actions inline, stacked and right-aligned: the tick and the bell.** Reviews-answered-per-week
-is the only number that moves this loop, so the common answer is worth a tap in place; mute earns
+is the only number that moves this loop, so the common answer is worth a tap in place; retire earns
 the second slot because "stop asking me about this" is the other thing a glance produces, and it is
 NOT destructive — the capture stays in Saved, where the bell marker makes it reversible. Both drop
 the card optimistically and the next due capture fills the slot at once, because a spinner between
@@ -925,6 +933,44 @@ is a broken link.
 | Recap panel + Home prompt | `recap-and-deep-links.spec.ts`, `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3) |
 | `?t=` deep links | `recap-and-deep-links.spec.ts`, `recap-and-offline-writes-real-corpus.spec.ts` (Tier-3) |
 | Offline shell / SW | `offline.spec.ts`, `offline-shell-real-corpus.spec.ts` (Tier-3) |
+| Search folded into Discovery (nav) | `search-in-discovery.spec.ts` (tab count · masthead reachability at phone width · placement between Trending shows and Trends · Discovery highlight on `/search`), `BottomNav.test.ts`, `touch-affordances.test.ts` (#1588 source guard) |
+
+### Navigation: Search is part of Discovery (operator 2026-09-20)
+
+The phone bar carries **three** destinations — **Home** · **Discover** · **Library**. Search is not
+one of them, and `/search` lights **Discovery**.
+
+This finishes a decision the app had already half-made. #14 gave Browse its own tab because it "is
+the destination that gathers" the discovery surfaces; before it, `search` owned
+`['search', 'catalog', 'podcast']`. #14 inverted the parent and left search outside. Search is a
+discovery surface, so it now sits under the gatherer with the rest.
+
+Search gained entry points rather than losing them — three, up from two:
+
+| Entry point | Where | Notes |
+| --- | --- | --- |
+| Masthead magnifier | Every screen, **every width** | The only always-available control now. The other masthead icons are desktop-only |
+| Discovery's search box | `/browse`, between Trending shows and Trends | Same `lp-search` control as Home's, not a second dialect of it |
+| Home's "Ask" box | Home | Unchanged |
+
+**What this knowingly overrules.** `BottomNav` holds that "a wrong 'you are here' is worse than
+none" — the reason the player lights no tab at all. Someone who searches from Home's Ask box now
+lands on `/search` with Discovery lit, a path they did not take. Accepted because search, unlike an
+episode, has a canonical parent. It is pinned by tests at both layers so it cannot be quietly
+reverted into looking like a bug.
+
+**Accessibility: the highlight is a SPOKEN claim too.** Discovery carries `aria-current="page"` on
+`/search`, and the Search control — the link to the page you are actually on — carries none. The
+visual trade the operator accepted therefore extends to assistive tech, where it is stated more
+strongly ("Discover, current page") than a colour implies. Recorded rather than discovered later:
+both navs answer from one ownership map, so the alternative is the two disagreeing again, which is
+the bug this replaced. Revisit if AT users report it as disorienting.
+
+**The trap this must not spring.** #1588 existed because search had ONE entry point and was
+unreachable from the catalogue, player, library and show pages. Dropping its tab without hoisting
+the masthead icon out of the `hidden … sm:flex` span would re-open it — silently, since desktop
+would still look right. Guarded as a source check, because the breakage is a media query and jsdom
+does not evaluate one: a mounted test would pass either way.
 
 ## The view inventory (documented 2026-09-03)
 

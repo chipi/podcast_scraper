@@ -329,7 +329,7 @@ const PERSON_COMMUNITY_CLASSES: string[] = Array.from(
 )
 
 function personCommunityHashIndex(cid: string): number {
-  // djb2 hash (different from themeRegionIndex which uses multiplier-31).
+  // djb2 hash (different from storylineRegionIndex which uses multiplier-31).
   // Inlined to keep this file dep-free from the theme palette module.
   // Person-community palette slots are independent of theme-region palette slots.
   let h = 5381

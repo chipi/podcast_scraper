@@ -48,16 +48,60 @@ export const useSavedQueriesStore = defineStore('savedQueries', () => {
   const prefs = useUserPreferencesStore()
   const items = ref<SavedQuery[]>([])
 
+  /* Our own writes are already applied locally; this guard stops the mirror below from
+     re-applying them, and — the part that mattered — from reverting them. Same
+     echo-suppression `graphTopDown` uses; this store was the one that never got it.
+
+     A COUNTER, not a boolean. Writes overlap: the Save button has no pending state, so tapping
+     Save then un-Save fires two `commit()`s and the first PATCH to resolve would clear a boolean
+     while the second was still in flight — leaving the window the guard exists for unguarded,
+     under precisely the rapid Save/un-Save interaction that produced the original flake. */
+  let pendingWrites = 0
+
   // Mirror the preferences store's payload → refresh on any prefs mutation
   // (whether from initial hydrate, another feature's write, or an external
   // patch). Immediate so hydrated state is honored on first read.
+  //
+  // Skipped while a local write is in flight. `prefs.set` updates its ref optimistically and THEN
+  // PATCHes; any refresh resolving in between carries a server snapshot that predates our write,
+  // and applying it silently undid the write we had just shown the user. The symptom was Save →
+  // tap again to undo → still "Saved ✓": the revert made `isSaved()` false, so the second tap took
+  // the save branch and re-saved. Intermittent by nature — it needs a refresh to land between two
+  // taps — which is exactly why it surfaced as a flaky e2e rather than a reported bug.
+  // `flush: 'sync'` is load-bearing, not a style choice. With the default ('pre') the callback is
+  // queued and can run AFTER the write has settled and the count is back to zero — so the guard
+  // would read as protecting the window while letting the very interleaving it exists for through.
   watch(
     () => prefs.get<unknown>(PREF_KEY),
     (raw) => {
+      if (pendingWrites > 0) return
       items.value = readList(raw)
     },
-    { immediate: true },
+    { immediate: true, flush: 'sync' },
   )
+
+  /* Writes are SERIALISED, not just counted.
+     Each write PATCHes the whole list, so two in flight at once is a last-write-wins race decided
+     by the server's ordering, not the user's. Tap Save then un-Save fast enough and the save can
+     land after the remove — leaving the query saved on the server, so the next refresh puts it
+     back and the button sits on "Saved ✓" refusing to toggle off.
+     Counting pending writes stopped the mirror from reverting mid-write; it did nothing about the
+     order they arrive in. This chains them: optimistic local state still updates immediately, so
+     the UI stays instant, but the network sees save → remove in the order the user tapped. */
+  let writeChain: Promise<void> = Promise.resolve()
+
+  /** Apply optimistically, then persist IN ORDER; the mirror stays off until every write settles. */
+  async function commit(next: SavedQuery[]): Promise<void> {
+    items.value = next
+    pendingWrites += 1
+    const mine = writeChain.then(() => prefs.set(PREF_KEY, next)).catch(() => undefined)
+    writeChain = mine
+    try {
+      await mine
+    } finally {
+      pendingWrites -= 1
+    }
+  }
 
   const list = computed<SavedQuery[]>(() => items.value)
   const count = computed(() => items.value.length)
@@ -79,8 +123,7 @@ export const useSavedQueriesStore = defineStore('savedQueries', () => {
       (it) => !(normalize(it.q) === key && it.scope === scope),
     )
     const next = [{ q: q.trim(), scope, saved_at: now }, ...filtered].slice(0, MAX_SAVED_QUERIES)
-    items.value = next
-    await prefs.set(PREF_KEY, next)
+    await commit(next)
   }
 
   async function remove(q: string, scope: 'all' | 'mine' = 'all'): Promise<void> {
@@ -90,14 +133,12 @@ export const useSavedQueriesStore = defineStore('savedQueries', () => {
       (it) => !(normalize(it.q) === key && it.scope === scope),
     )
     if (next.length === items.value.length) return
-    items.value = next
-    await prefs.set(PREF_KEY, next)
+    await commit(next)
   }
 
   async function clear(): Promise<void> {
     if (!items.value.length) return
-    items.value = []
-    await prefs.set(PREF_KEY, [])
+    await commit([])
   }
 
   return { list, count, isSaved, save, remove, clear }

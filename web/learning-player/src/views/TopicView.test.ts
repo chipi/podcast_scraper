@@ -100,10 +100,16 @@ describe("TopicView (#1261-6)", () => {
 
   it("renders the sibling-topics chip section from the topic card payload", async () => {
     const { w } = await mountTopic()
-    // "3 similar topics" — current + 2 siblings (#1603 vocabulary).
-    expect(w.text()).toContain("3 similar topics")
+    // "2 similar topics" — the two siblings, and NOT the topic being read. It counted 3 while
+    // leading the list with the current topic as a ringed chip, which made the heading describe
+    // something other than what was under it (operator 2026-09-19).
+    expect(w.text()).toContain("2 similar topics")
     expect(w.text()).toContain("AGI")
     expect(w.text()).toContain("Alignment")
+    expect(w.findAll('[data-testid="ec-similar-topic"]').map((n) => n.text())).toEqual([
+      "AGI",
+      "Alignment",
+    ])
   })
 
   it("clicking a sibling topic chip pushes it onto the back stack — Back returns to the origin topic", async () => {

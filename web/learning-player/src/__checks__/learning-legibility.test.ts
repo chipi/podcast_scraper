@@ -26,16 +26,28 @@ describe("the learning differentiator stays legible", () => {
     // The code said "Theme ·" for co-occurrence while UXS-013 mandates "Theme" for the SEMANTIC
     // cluster — exactly backwards — and "Storyline" (Home's word) appeared in no spec at all. One
     // word wins, and it is the one users already meet on Home.
-    expect(en.kp.theme).toContain("Storyline")
-    expect(en.ec.themeMembers).toContain("storyline")
+    expect(en.kp.storyline).toContain("Storyline")
     expect(en.ec.singleTopic).toContain("storyline")
 
-    // "Similar" stays distinct: semantic similarity is a different idea, not a second name.
-    expect(en.kp.similar).toContain("Similar")
+    // "Similar" stays distinct WHERE IT STILL APPEARS: semantic similarity is a different idea
+    // from co-occurrence, not a second name for it.
+    //
+    // `kp.similar` is gone (operator 2026-09-19). The Knowledge Panel stacked "Storyline · X" above
+    // an inert "Similar · Y" in identical positions — one navigated, the other could not, and
+    // nothing said why. A semantic cluster has no card and no route, so the line named an internal
+    // mechanism and offered nowhere to go. The entity card still surfaces the concept as
+    // "N similar topics", where it sits beside a count rather than impersonating a link.
+    // Indexed access, not `en.kp.similar`: the key is GONE, so the typed read is a compile error —
+    // which the new test typecheck correctly refuses. Asserting its absence has to go through a
+    // widened view of the object.
+    expect(
+      (en.kp as Record<string, unknown>).similar,
+      "kp.similar should stay retired — see the issue on where semantic clusters belong",
+    ).toBeUndefined()
     expect(en.ec.clusterMembers).toContain("similar")
 
     // No consumer string may reintroduce "Theme ·" for either concept.
-    for (const v of [en.kp.theme, en.kp.similar, en.ec.themeMembers, en.ec.clusterMembers]) {
+    for (const v of [en.kp.storyline, en.ec.clusterMembers]) {
       expect(v).not.toMatch(/Theme ·/)
     }
   })

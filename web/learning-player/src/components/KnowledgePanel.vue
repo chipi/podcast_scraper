@@ -34,8 +34,10 @@ import CollapsibleSection from "./CollapsibleSection.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
+import StorylineCard from "./StorylineCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
 import { isNative, openExternal, saveAndShareText } from "../services/native"
+import { exportFilename } from "../utils/exportFilename"
 
 const props = withDefaults(
   defineProps<{
@@ -85,15 +87,38 @@ function notesUrl(ext: 'md' | 'html'): string {
 }
 
 /**
- * Open the print-styled notes so the browser can save them as PDF.
+ * The print-styled notes, for the browser's Save-as-PDF.
  *
- * `window.open(url, '_blank')` is a silent no-op in WKWebView, so on the phone this button did
- * nothing at all — the same defect found in the highlights PDF export (operator 2026-09-18).
- * `openExternal` hands it to SFSafariViewController / Custom Tabs, where Print -> Save to Files is
- * the real print-to-PDF path.
+ * On NATIVE this fetches the document and shares the file; it does not hand the URL to a browser.
+ * `openExternal` opens SFSafariViewController, which does not share the app's cookie jar — so the
+ * export route arrived unauthenticated and rendered the sign-in gate instead of the notes. The
+ * operator reported exactly that, along with the tell: "when I copy the link from there and open
+ * it in a normal browser, it works fine" — because that browser had a session.
+ *
+ * Shared as `.html` rather than converted here: iOS renders it in the share sheet's preview and
+ * offers Print -> Save as PDF, which is the real print-to-PDF path on the platform. Bundling a PDF
+ * library to re-implement a renderer the OS already has would be the wrong trade.
+ *
+ * Web keeps opening a tab, where the cookie travels and the user can see what they are printing.
  */
+const printingNotes = ref(false)
 async function openPrintableNotes(): Promise<void> {
-  await openExternal(notesUrl('html'))
+  if (!isNative()) {
+    await openExternal(notesUrl('html'))
+    return
+  }
+  if (printingNotes.value) return
+  printingNotes.value = true
+  try {
+    const html = await fetchEpisodeNotes(props.episode.slug, 'html')
+    await saveAndShareText(
+      exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes'),
+      html,
+      'text/html',
+    )
+  } finally {
+    printingNotes.value = false
+  }
 }
 
 /**
@@ -109,7 +134,7 @@ async function saveNotesNative(): Promise<void> {
   savingNotes.value = true
   try {
     const md = await fetchEpisodeNotes(props.episode.slug)
-    await saveAndShareText(`${props.episode.slug}-notes.md`, md)
+    await saveAndShareText(exportFilename(`${props.episode.title} notes`, 'md', 'episode-notes'), md)
   } finally {
     savingNotes.value = false
   }
@@ -140,7 +165,7 @@ type Tag = {
   label: string
   kind: "topic" | "person"
   dominant: boolean
-  themeMember: boolean
+  storylineMember: boolean
   /** Person only: aggregate speaker role (host/guest/mentioned), raw; localized at render. */
   role?: string
   /**
@@ -181,39 +206,48 @@ const dominantClusterId = computed<string | null>(() => {
   }
   return best
 })
-const dominantClusterLabel = computed(
-  () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null
-)
 
 // Theme clusters (co-occurrence "discussed together") — parallel to the semantic dominant above.
-// Marked on the pills (theme ring) + a "Theme ·" lead-in. No-op when topics carry no theme_cluster_id.
-const themeClusterCounts = computed<Record<string, number>>(() => {
+// Marked on the pills (theme ring) + a "Storyline ·" lead-in. No-op when topics carry no storyline_id.
+const storylineCounts = computed<Record<string, number>>(() => {
   const c: Record<string, number> = {}
   for (const t of props.topics)
-    if (t.theme_cluster_id) c[t.theme_cluster_id] = (c[t.theme_cluster_id] ?? 0) + 1
+    if (t.storyline_id) c[t.storyline_id] = (c[t.storyline_id] ?? 0) + 1
   return c
 })
-const themeDominantId = computed<string | null>(() => {
-  const counts = themeClusterCounts.value
+const storylineDominantId = computed<string | null>(() => {
+  const counts = storylineCounts.value
   let best: string | null = null
   let bestCount = 1
   let bestSize = -1
   for (const t of props.topics) {
-    if (!t.theme_cluster_id) continue
-    const n = counts[t.theme_cluster_id] ?? 0
-    if (n > bestCount || (n === bestCount && (t.theme_cluster_size ?? 0) > bestSize)) {
-      best = t.theme_cluster_id
+    if (!t.storyline_id) continue
+    const n = counts[t.storyline_id] ?? 0
+    if (n > bestCount || (n === bestCount && (t.storyline_size ?? 0) > bestSize)) {
+      best = t.storyline_id
       bestCount = n
-      bestSize = t.theme_cluster_size ?? 0
+      bestSize = t.storyline_size ?? 0
     }
   }
   return best
 })
-const themeDominantLabel = computed(
+const storylineDominantLabel = computed(
   () =>
-    props.topics.find((t) => t.theme_cluster_id === themeDominantId.value)?.theme_cluster_label ??
+    props.topics.find((t) => t.storyline_id === storylineDominantId.value)?.storyline_label ??
     null
 )
+/**
+ * A topic id that opens the storyline named by the lead-in (operator 2026-09-19).
+ *
+ * ANY MEMBER topic works, which is why this does not need the anchor id the theme-cluster artifact
+ * carries: "a storyline has no dedicated endpoint, so StorylineView reconstructs the whole theme
+ * cluster from any member topic's card" (StorylineCard). Routing with the `thc:` cluster id instead
+ * is what 404s, so it is deliberately not used here.
+ */
+const storylineDominantTopicId = computed<string | null>(
+  () => props.topics.find((t) => t.storyline_id === storylineDominantId.value)?.id ?? null
+)
+const storylineOpen = ref(false)
 // Speaker-role badge on person chips (BE.4/PL.2) — same host/guest/mentioned vocabulary and i18n
 // keys as EntityCardBody, so the label reads identically wherever a person appears.
 const ROLE_LABEL_KEYS: Record<string, string> = {
@@ -228,6 +262,19 @@ function roleLabel(role: string | undefined): string {
   const key = ROLE_LABEL_KEYS[role.toLowerCase()]
   return key ? t(key) : role
 }
+/** Chip order for people: host, guest, then anyone else (mentioned, or an unlabelled role). */
+const PERSON_ROLE_ORDER: Record<string, number> = { host: 0, guest: 1 }
+const personRank = (p: { role?: string | null }): number =>
+  PERSON_ROLE_ORDER[(p.role ?? "").toLowerCase()] ?? 2
+
+/** The people in the room, for the dossier line — host and guest only, in that order. */
+const dossierPeople = computed(() =>
+  props.persons
+    .filter((p) => personRank(p) < 2)
+    .slice()
+    .sort((a, b) => personRank(a) - personRank(b))
+)
+
 const allTags = computed<Tag[]>(() => {
   const counts = topicClusterCounts.value
   const dom = dominantClusterId.value
@@ -236,21 +283,25 @@ const allTags = computed<Tag[]>(() => {
   const rank = (t: { cluster_id: string | null }): number =>
     t.cluster_id === dom && dom ? 0 : t.cluster_id ? 100 - (counts[t.cluster_id] ?? 0) : 1000
   const topics = [...props.topics].sort((a, b) => rank(a) - rank(b))
+  // People read in conversation order — host, then guest, then everyone merely mentioned
+  // (operator 2026-09-19). The server returns them in graph order, which put the guest first as
+  // often as not; "who is this episode" is answered by the two people actually in the room.
+  const persons = [...props.persons].sort((a, b) => personRank(a) - personRank(b))
   return [
     ...topics.map((tp) => ({
       key: tp.id,
       label: tp.label,
       kind: "topic" as const,
       dominant: Boolean(dom) && tp.cluster_id === dom,
-      themeMember: Boolean(tp.theme_cluster_id),
+      storylineMember: Boolean(tp.storyline_id),
       episodeScoped: false,
     })),
-    ...props.persons.map((p) => ({
+    ...persons.map((p) => ({
       key: p.id,
       label: p.name,
       kind: "person" as const,
       dominant: false,
-      themeMember: false,
+      storylineMember: false,
       role: p.role ?? undefined,
       // #1685/#2062: a person identified only within this episode has no corpus-wide entity, so
       // the chip shows (she IS the guest) but does not offer a tap into an empty card.
@@ -309,9 +360,21 @@ const surfaceInsights = computed(() =>
 )
 // Per-type filter (IN.3): null = all. Chips render only for the types actually present.
 const insightTypeFilter = ref<string | null>(null)
-const insightTypeOptions = computed(() => [
-  ...new Set(surfaceInsights.value.map((i) => insightTypeLabel(i)).filter(Boolean)),
-])
+/**
+ * The types present, each with how many insights carry it (operator 2026-09-19).
+ *
+ * Counted off `surfaceInsights` — the same list the filter narrows — so a chip's number is exactly
+ * what tapping it yields. Note this is a different cut of the same total from the INSIGHT DENSITY
+ * bars above, which split by POSITION (early/mid/late); both sum to the same count.
+ */
+const insightTypeOptions = computed<{ type: string; count: number }[]>(() => {
+  const counts = new Map<string, number>()
+  for (const i of surfaceInsights.value) {
+    const ty = insightTypeLabel(i)
+    if (ty) counts.set(ty, (counts.get(ty) ?? 0) + 1)
+  }
+  return [...counts].map(([type, count]) => ({ type, count }))
+})
 const typeFilteredInsights = computed(() =>
   insightTypeFilter.value
     ? surfaceInsights.value.filter((i) => insightTypeLabel(i) === insightTypeFilter.value)
@@ -415,7 +478,17 @@ onMounted(() => {
 })
 watch(
   () => props.slug,
-  (s) => loadRelated(s)
+  (s) => {
+    // Clear the insight-type filter when the EPISODE changes.
+    //
+    // The panel is not remounted between episodes — PlayerView passes a new `slug` prop — so a
+    // filter set on episode A survived into episode B. If B had no insights of that type the user
+    // got the "Insights" heading, the chip strip, and an empty list with no explanation, and the
+    // only escape was tapping "All", which nobody would think to do. The filter is a property of
+    // the episode you are reading, not of the session (review 2026-09-19).
+    insightTypeFilter.value = null
+    return loadRelated(s)
+  }
 )
 watch(() => auth.isAuthenticated, loadCaptures)
 </script>
@@ -458,6 +531,34 @@ watch(() => auth.isAuthenticated, loadCaptures)
       </header>
 
       <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <!-- WHICH EPISODE THIS IS (operator 2026-09-19).
+
+             The panel carries the summary, the topics, the people and every insight — it is the
+             episode's dossier — but it opened with a generic "Insights" header and an Ask box, so
+             the document never said what it was about. The title leads; the show is a kicker above
+             it (smaller, the same subordinate relationship the episode rows use); the people in the
+             room follow, host first.
+
+             In the body rather than the sticky header: the header is a fixed-height strip shared
+             with the ✕, and a two-line episode title in it would either clip or push the close
+             control around. -->
+        <section class="mb-5" data-testid="kp-episode-dossier">
+          <p v-if="episode.podcast_title" class="lp-kicker mb-0.5 text-muted">
+            {{ episode.podcast_title }}
+          </p>
+          <h2 class="font-display text-xl font-bold leading-tight text-canvas-foreground">
+            {{ episode.title }}
+          </h2>
+          <!-- Host + guest only. "Mentioned" people are already in the Topics & People chips and
+               would turn a two-name line into a crowd. -->
+          <p v-if="dossierPeople.length" class="mt-1 text-sm text-muted">
+            <span v-for="(p, i) in dossierPeople" :key="p.id">
+              <span v-if="i > 0"> · </span>{{ p.name }}
+              <span class="lp-kicker">{{ roleLabel(p.role ?? undefined) }}</span>
+            </span>
+          </p>
+        </section>
+
         <!-- Ask -->
         <form class="mb-5" @submit.prevent="runSearch">
           <label class="sr-only" for="kp-ask">{{ t("kp.ask") }}</label>
@@ -585,15 +686,35 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <!-- Storyline + similar context (IN.2): promoted from a cramped, right-aligned `text-xs`
              column to a clear left-aligned block, so the storyline (theme cluster) this episode's
              topics belong to reads at a glance rather than as fine print. -->
-          <div
-            v-if="themeDominantLabel || dominantClusterLabel"
-            class="mb-2 flex flex-col gap-0.5 text-sm leading-snug"
-          >
-            <span v-if="themeDominantLabel" class="font-semibold text-theme">
-              {{ t("kp.theme", { cluster: themeDominantLabel }) }}
-            </span>
-            <span v-if="dominantClusterLabel" class="text-topic">
-              {{ t("kp.similar", { cluster: dominantClusterLabel }) }}
+          <div v-if="storylineDominantLabel" class="mb-2 flex items-center gap-2">
+            <!-- The storyline OPENS (operator 2026-09-19): it is a real destination with its own
+                 sheet, and reading its name without being able to go there was the gap. Falls back
+                 to a plain <span> when no member topic id is available to route with. -->
+            <!-- A PILL, in the accent, with its kind named (operator 2026-09-19).
+                 It used to be an underlined text link stacked above an inert "Similar ·" line, in a
+                 wall of identical grey topic pills — the one tappable thing in the section did not
+                 look tappable, and the line above it looked equally tappable and was not.
+                 Accent is correct by the app's own rule (`__checks__/accent-discipline`): it means
+                 "you can act on this", and in this section the storyline is the only thing you can.
+                 The word STORYLINE rides along so the kind is NAMED, not inferred from colour —
+                 colour alone reaches neither a colour-blind reader nor VoiceOver. -->
+            <button
+              v-if="storylineDominantTopicId"
+              type="button"
+              data-testid="kp-storyline-link"
+              class="lp-tap inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/25"
+              :aria-label="t('kp.openStoryline', { label: storylineDominantLabel })"
+              @click="storylineOpen = true"
+            >
+              <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>
+              {{ storylineDominantLabel }}
+            </button>
+            <span
+              v-else
+              class="inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-muted"
+            >
+              <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>
+              {{ storylineDominantLabel }}
             </span>
           </div>
           <div class="flex flex-wrap gap-1.5">
@@ -611,7 +732,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
               class="rounded-full px-2.5 py-1 text-xs transition"
               :class="[
                 tag.kind === 'topic' ? 'text-topic' : 'text-person',
-                tag.themeMember
+                tag.storylineMember
                   ? 'lp-theme-chip'
                   : tag.dominant
                   ? 'bg-overlay ring-1 ring-topic hover:bg-elevated'
@@ -643,16 +764,21 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
           <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
           <!-- Per-type filter (IN.3) — only shown when the episode has more than one insight type. -->
+          <!-- ONE row that scrolls, not a wrapping block (operator 2026-09-19). The per-type counts
+               widened every chip, so a fourth type pushed "Claim 9" alone onto a second line and
+               the insight list below jumped down. `shrink-0` on the chips is load-bearing: without
+               it flex squashes them to fit instead of overflowing, so the labels truncate rather
+               than scroll. Same overflow pattern the rails use. -->
           <div
             v-if="insightTypeOptions.length > 1"
-            class="mb-3 flex flex-wrap gap-1.5"
+            class="mb-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="group"
             :aria-label="t('kp.filterByType')"
             data-testid="insight-type-filter"
           >
             <button
               type="button"
-              class="rounded-full px-2.5 py-1 text-xs font-semibold transition"
+              class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold transition"
               :class="
                 insightTypeFilter === null
                   ? 'bg-accent text-accent-foreground'
@@ -661,20 +787,23 @@ watch(() => auth.isAuthenticated, loadCaptures)
               @click="insightTypeFilter = null"
             >
               {{ t("kp.filterAll") }}
+              <span class="ml-1 font-mono opacity-70">{{ surfaceInsights.length }}</span>
             </button>
             <button
-              v-for="ty in insightTypeOptions"
-              :key="ty"
+              v-for="opt in insightTypeOptions"
+              :key="opt.type"
               type="button"
-              class="rounded-full px-2.5 py-1 text-xs font-semibold capitalize transition"
+              class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold capitalize transition"
               :class="
-                insightTypeFilter === ty
+                insightTypeFilter === opt.type
                   ? 'bg-accent text-accent-foreground'
                   : 'bg-overlay text-muted hover:text-canvas-foreground'
               "
-              @click="insightTypeFilter = ty"
+              @click="insightTypeFilter = opt.type"
             >
-              {{ ty }}
+              {{ opt.type }}
+              <!-- `font-mono` + not capitalized: the count is data, not part of the type's name. -->
+              <span class="ml-1 font-mono normal-case opacity-70">{{ opt.count }}</span>
             </button>
           </div>
           <ul class="flex flex-col gap-3">
@@ -834,5 +963,15 @@ watch(() => auth.isAuthenticated, loadCaptures)
         <NoteComposer target="episode" :target-id="slug" />
       </div>
     </template>
+
+    <!-- The storyline named by the lead-in, opened ON TOP of this panel rather than replacing it —
+         the same stacking the panel already documents for a card's storyline ("topic underneath,
+         storyline on it"). Outside the `v-else` so it survives a chip swapping the body. -->
+    <StorylineCard
+      v-if="storylineOpen && storylineDominantTopicId"
+      :id="storylineDominantTopicId"
+      :depth="1"
+      @close="storylineOpen = false"
+    />
   </aside>
 </template>

@@ -27,6 +27,14 @@ dependencies = [
   "zipp>=4.1.0,<5.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.6,<4.0.0",  # For prompt templating (RFC-017)
   "filelock>=3.29.7,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
+  # Security fix: CVE-2026-63374 + CVE-2026-64847, both resolved in 4.14.2.
+  #
+  # Declared although nothing here imports it: anyio arrives transitively from httpx,
+  # starlette, sse-starlette, mcp, openai, anthropic, google-genai and watchfiles — eight
+  # paths, none of which floors it. "Transitive" describes where it comes from, not who
+  # ships it: it is in our image and our venv, so its CVEs are ours. Same reasoning as the
+  # zipp and filelock floors above.
+  "anyio>=4.14.2,<5.0.0",
   # Imported at module top by corpus_version, upgrade/runner and workflow/metadata_generation —
   # all three on the create_app / cli import chain, so every runtime process already needs it. It
   # was reaching us transitively (pip pulls it in for build tooling) and had never been declared;

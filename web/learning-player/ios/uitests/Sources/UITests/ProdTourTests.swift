@@ -11,11 +11,7 @@ import XCTest
  * Assertion-free on purpose: it is a camera pointed at a live system, and a surface that fails to
  * load against prod is the single most interesting thing it could capture.
  */
-final class ProdTourTests: XCTestCase {
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true
-  }
+final class ProdTourTests: UITestCase {
 
   func testTourProdSignedOut() {
     let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")

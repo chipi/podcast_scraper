@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { ParsedArtifact } from '../types/artifact'
 import { filterArtifactEgoOneHop } from './parsing'
 import {
-  applyThemeClustersOverlay,
+  applyStorylinesOverlay,
   applyTopicClustersOverlay,
-  themeClusterMemberTopicIdsForTopic,
+  storylineMemberTopicIdsForTopic,
   clusterTimelineCilTopicIdsForCluster,
   clusterTimelineCilTopicIdsFromMemberRows,
   expandFilteredArtifactEgoWithTopicClusterNeighbors,
@@ -62,8 +62,8 @@ describe('applyTopicClustersOverlay', () => {
   })
 })
 
-describe('applyThemeClustersOverlay', () => {
-  it('tags member Topic nodes with themeClusterId (a ring, NOT a compound parent)', () => {
+describe('applyStorylinesOverlay', () => {
+  it('tags member Topic nodes with storylineId (a ring, NOT a compound parent)', () => {
     const data = {
       nodes: [
         { id: 'k:topic:alpha', type: 'Topic', properties: { label: 'Alpha' } },
@@ -81,25 +81,25 @@ describe('applyThemeClustersOverlay', () => {
         },
       ],
     }
-    const out = applyThemeClustersOverlay(data, doc)
+    const out = applyStorylinesOverlay(data, doc)
     // No new nodes added (unlike the semantic compound parents) — just a decoration.
     expect(out.nodes?.length).toBe(2)
     const alpha = out.nodes?.find((n) => String(n.id) === 'k:topic:alpha') as {
-      themeClusterId?: string
+      storylineId?: string
     }
-    expect(alpha?.themeClusterId).toBe('thc:energy')
+    expect(alpha?.storylineId).toBe('thc:energy')
     const beta = out.nodes?.find((n) => String(n.id) === 'k:topic:beta') as {
-      themeClusterId?: string
+      storylineId?: string
     }
-    expect(beta?.themeClusterId).toBeUndefined()
+    expect(beta?.storylineId).toBeUndefined()
     // The member node is NOT re-parented (coexists with any semantic box).
     expect((out.nodes?.[0] as { parent?: string })?.parent).toBeUndefined()
   })
 
   it('returns data unchanged when doc empty', () => {
     const data = { nodes: [], edges: [] }
-    expect(applyThemeClustersOverlay(data, null)).toBe(data)
-    expect(applyThemeClustersOverlay(data, {})).toEqual(data)
+    expect(applyStorylinesOverlay(data, null)).toBe(data)
+    expect(applyStorylinesOverlay(data, {})).toEqual(data)
   })
 
   // graph-v3 Tier 5A-2 — propagation walk paths (harden follow-up test coverage).
@@ -121,13 +121,13 @@ describe('applyThemeClustersOverlay', () => {
         },
       ],
     }
-    const out = applyThemeClustersOverlay(data, doc)
+    const out = applyStorylinesOverlay(data, doc)
     const ep1 = out.nodes?.find((n) => String(n.id) === '__unified_ep__:ep-abc') as {
-      themeClusterId?: string
+      storylineId?: string
     }
-    const ep2 = out.nodes?.find((n) => String(n.id) === 'ep-def') as { themeClusterId?: string }
-    expect(ep1?.themeClusterId).toBe('thc:x')
-    expect(ep2?.themeClusterId).toBe('thc:x')
+    const ep2 = out.nodes?.find((n) => String(n.id) === 'ep-def') as { storylineId?: string }
+    expect(ep1?.storylineId).toBe('thc:x')
+    expect(ep2?.storylineId).toBe('thc:x')
   })
 
   it('propagates from Topic seeds to connected Insights + Persons via the edge list', () => {
@@ -151,13 +151,13 @@ describe('applyThemeClustersOverlay', () => {
         },
       ],
     }
-    const out = applyThemeClustersOverlay(data, doc)
-    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { themeClusterId?: string }
-    const person = out.nodes?.find((n) => n.id === 'g:person:p1') as { themeClusterId?: string }
+    const out = applyStorylinesOverlay(data, doc)
+    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { storylineId?: string }
+    const person = out.nodes?.find((n) => n.id === 'g:person:p1') as { storylineId?: string }
     // Round-1 propagation catches the Insight; round-2 catches the Person
-    // (two rounds of BFS in applyThemeClustersOverlay).
-    expect(insight?.themeClusterId).toBe('thc:x')
-    expect(person?.themeClusterId).toBe('thc:x')
+    // (two rounds of BFS in applyStorylinesOverlay).
+    expect(insight?.storylineId).toBe('thc:x')
+    expect(person?.storylineId).toBe('thc:x')
   })
 
   it('propagates from Episode seed to connected Podcast + Insight via HAS_EPISODE / HAS_INSIGHT edges', () => {
@@ -180,13 +180,13 @@ describe('applyThemeClustersOverlay', () => {
         },
       ],
     }
-    const out = applyThemeClustersOverlay(data, doc)
+    const out = applyStorylinesOverlay(data, doc)
     const podcast = out.nodes?.find((n) => n.id === 'k:podcast:show') as {
-      themeClusterId?: string
+      storylineId?: string
     }
-    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { themeClusterId?: string }
-    expect(podcast?.themeClusterId).toBe('thc:x')
-    expect(insight?.themeClusterId).toBe('thc:x')
+    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { storylineId?: string }
+    expect(podcast?.storylineId).toBe('thc:x')
+    expect(insight?.storylineId).toBe('thc:x')
   })
 
   it('first-cluster-wins: a node touched by two clusters joins the doc-order-first one', () => {
@@ -214,11 +214,11 @@ describe('applyThemeClustersOverlay', () => {
         },
       ],
     }
-    const out = applyThemeClustersOverlay(data, doc)
-    const alpha = out.nodes?.find((n) => n.id === 'g:topic:alpha') as { themeClusterId?: string }
-    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { themeClusterId?: string }
-    expect(alpha?.themeClusterId).toBe('thc:A')
-    expect(insight?.themeClusterId).toBe('thc:A')
+    const out = applyStorylinesOverlay(data, doc)
+    const alpha = out.nodes?.find((n) => n.id === 'g:topic:alpha') as { storylineId?: string }
+    const insight = out.nodes?.find((n) => n.id === 'g:insight:i1') as { storylineId?: string }
+    expect(alpha?.storylineId).toBe('thc:A')
+    expect(insight?.storylineId).toBe('thc:A')
   })
 
   it('does not propagate to node types outside the allowlist (e.g. does not tag a random Segment node)', () => {
@@ -234,9 +234,9 @@ describe('applyThemeClustersOverlay', () => {
         { graph_compound_parent_id: 'thc:x', members: [{ topic_id: 'topic:alpha' }] },
       ],
     }
-    const out = applyThemeClustersOverlay(data, doc)
-    const seg = out.nodes?.find((n) => n.id === 'g:segment:s1') as { themeClusterId?: string }
-    expect(seg?.themeClusterId).toBeUndefined()
+    const out = applyStorylinesOverlay(data, doc)
+    const seg = out.nodes?.find((n) => n.id === 'g:segment:s1') as { storylineId?: string }
+    expect(seg?.storylineId).toBeUndefined()
   })
 
   it('tags both Person (raw) and Entity variants — raw KG uses either', () => {
@@ -258,15 +258,15 @@ describe('applyThemeClustersOverlay', () => {
         { graph_compound_parent_id: 'thc:x', members: [{ topic_id: 'topic:alpha' }] },
       ],
     }
-    const out = applyThemeClustersOverlay(data, doc)
-    const p = out.nodes?.find((n) => n.id === 'g:person:p1') as { themeClusterId?: string }
-    const e = out.nodes?.find((n) => n.id === 'g:entity:e1') as { themeClusterId?: string }
-    expect(p?.themeClusterId).toBe('thc:x')
-    expect(e?.themeClusterId).toBe('thc:x')
+    const out = applyStorylinesOverlay(data, doc)
+    const p = out.nodes?.find((n) => n.id === 'g:person:p1') as { storylineId?: string }
+    const e = out.nodes?.find((n) => n.id === 'g:entity:e1') as { storylineId?: string }
+    expect(p?.storylineId).toBe('thc:x')
+    expect(e?.storylineId).toBe('thc:x')
   })
 })
 
-describe('themeClusterMemberTopicIdsForTopic', () => {
+describe('storylineMemberTopicIdsForTopic', () => {
   const doc = {
     clusters: [
       {
@@ -278,13 +278,13 @@ describe('themeClusterMemberTopicIdsForTopic', () => {
   }
 
   it('returns the theme members for a member topic (bare-matched from a prefixed id)', () => {
-    expect(themeClusterMemberTopicIdsForTopic(doc, 'k:topic:oil')).toEqual(['topic:oil', 'topic:lng'])
+    expect(storylineMemberTopicIdsForTopic(doc, 'k:topic:oil')).toEqual(['topic:oil', 'topic:lng'])
   })
 
   it('returns [] for a non-member topic, empty doc, or empty id', () => {
-    expect(themeClusterMemberTopicIdsForTopic(doc, 'k:topic:none')).toEqual([])
-    expect(themeClusterMemberTopicIdsForTopic(null, 'k:topic:oil')).toEqual([])
-    expect(themeClusterMemberTopicIdsForTopic(doc, '')).toEqual([])
+    expect(storylineMemberTopicIdsForTopic(doc, 'k:topic:none')).toEqual([])
+    expect(storylineMemberTopicIdsForTopic(null, 'k:topic:oil')).toEqual([])
+    expect(storylineMemberTopicIdsForTopic(doc, '')).toEqual([])
   })
 })
 

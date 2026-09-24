@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import uuid
 from pathlib import Path
 from typing import Any
@@ -28,7 +27,12 @@ from filelock import FileLock
 
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.server import app_graph_refs, app_user_state
-from podcast_scraper.server.app_capture_export import captured_on, format_duration, format_note
+from podcast_scraper.server.app_capture_export import (
+    captured_on,
+    format_duration,
+    format_note,
+    public_origin,
+)
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.atomic_write import atomic_write_text
@@ -132,21 +136,6 @@ def _usable_refs(refs: Any) -> list[dict[str, Any]]:
             continue
         out.append(ref)
     return out
-
-
-def public_origin() -> str:
-    """The origin export links point at, e.g. ``https://closelistening.app``.
-
-    Configured, NOT derived from the request Host, for a reason specific to this exporter: vault
-    note content is HASHED to drive the incremental-export cursor. A host-derived URL would change
-    every note's hash the moment the user exported from a different origin (native shell, a tunnel,
-    localhost), turning a no-op export into a full rewrite of their vault.
-
-    Links must be ABSOLUTE or they do not work at all: a vault note is read inside Obsidian, where
-    ``/episode/x`` resolves against the VAULT, not against any website, and silently dead-ends.
-    """
-    raw = (os.environ.get("APP_PUBLIC_ORIGIN") or "https://closelistening.app").strip()
-    return raw.rstrip("/").splitlines()[0] if raw else "https://closelistening.app"
 
 
 def episode_url(slug: str, t_ms: Any = None) -> str:

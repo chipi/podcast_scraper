@@ -94,7 +94,7 @@ def _write_clusters(root: Path) -> None:
     (root / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _write_theme_clusters(root: Path) -> None:
+def _write_storylines(root: Path) -> None:
     (root / "enrichments").mkdir(parents=True, exist_ok=True)
     payload = {
         "schema_version": "1",
@@ -414,19 +414,19 @@ def test_build_topic_card_episodes_siblings_people(tmp_path: Path) -> None:
 
 def test_build_topic_card_carries_theme_cluster_and_siblings(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
-    _write_theme_clusters(tmp_path)
+    _write_storylines(tmp_path)
     card = build_topic_card(tmp_path, "topic:ai")
     assert card is not None
-    assert card.theme_cluster_id == "thc:ai-safety"
-    assert card.theme_cluster_label == "ai safety"
-    assert card.theme_cluster_size == 2
-    assert {s.id for s in card.theme_sibling_topics} == {"topic:ml"}
+    assert card.storyline_id == "thc:ai-safety"
+    assert card.storyline_label == "ai safety"
+    assert card.storyline_size == 2
+    assert {s.id for s in card.storyline_sibling_topics} == {"topic:ml"}
     # Semantic + theme are independent — no semantic cluster written here.
     assert card.cluster_id is None
     assert card.sibling_topics == []
     # The theme sibling itself carries theme identity (via _enrich_topic).
-    ml = next(s for s in card.theme_sibling_topics if s.id == "topic:ml")
-    assert ml.theme_cluster_id == "thc:ai-safety"
+    ml = next(s for s in card.storyline_sibling_topics if s.id == "topic:ml")
+    assert ml.storyline_id == "thc:ai-safety"
 
 
 def test_build_topic_card_without_clusters_has_no_siblings(tmp_path: Path) -> None:
@@ -497,10 +497,10 @@ def test_resolve_entity_blank_and_no_match_return_none(tmp_path: Path) -> None:
     assert resolve_entity(tmp_path, "quantum chromodynamics") is None
 
 
-def _write_named_theme_clusters(root: Path, clusters: list[dict[str, object]]) -> None:
+def _write_named_storylines(root: Path, clusters: list[dict[str, object]]) -> None:
     """Write the theme-cluster artifact with CALLER-CHOSEN clusters, for the storyline resolver.
 
-    Distinct from `_write_theme_clusters` above, which writes one fixed cluster for the topic-card
+    Distinct from `_write_storylines` above, which writes one fixed cluster for the topic-card
     tests — naming this the same thing shadowed that helper and broke it.
     """
     d = root / "enrichments"
@@ -519,7 +519,7 @@ def test_resolve_entity_resolves_a_storyline_by_label(tmp_path: Path) -> None:
     left every other consumer of this resolver blind to them.
     """
     _two_episode_corpus(tmp_path)
-    _write_named_theme_clusters(
+    _write_named_storylines(
         tmp_path,
         [
             {
@@ -558,7 +558,7 @@ def test_resolve_entity_storyline_ignores_the_surfacing_floor(tmp_path: Path) ->
     thing: being told the thing you just named does not exist.
     """
     _two_episode_corpus(tmp_path)
-    _write_named_theme_clusters(
+    _write_named_storylines(
         tmp_path,
         [
             {
@@ -586,7 +586,7 @@ def test_resolve_entity_prefers_a_person_over_a_storyline_of_the_same_name(tmp_p
         persons=[("person:overlap", "Overlap")],
         topics=[],
     )
-    _write_named_theme_clusters(
+    _write_named_storylines(
         tmp_path,
         [
             {

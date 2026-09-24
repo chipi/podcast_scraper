@@ -6,7 +6,7 @@
  * hide cleanly when empty. Login-first (RFC-120): this view is authed-only. All data from the
  * real /api/app/* surface.
  */
-import { computed, onActivated, onMounted, ref } from "vue"
+import { computed, onActivated, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 defineOptions({ name: "HomeView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRouter } from "vue-router"
@@ -92,6 +92,18 @@ const continueSection = useSectionState<{ detail: EpisodeDetail; position: numbe
 })
 const recSection = useSectionState<EpisodeSummary[]>([], { cacheKey: "home.recommended" })
 const recommended = computed(() => recSection.data.value)
+// Four visible, then four more per tap (operator 2026-09-19) — one grid row at both breakpoints.
+// The fetch asks for 12 rather than the api default of 6, so "show more" is worth the tap; the
+// route's own ceiling is 25 and the similarity merge caps at 50, so 12 is well inside both.
+const RECOMMENDED_PAGE = 4
+const RECOMMENDED_FETCH = 12
+const recommendedShown = ref(RECOMMENDED_PAGE)
+const visibleRecommended = computed(() => recommended.value.slice(0, recommendedShown.value))
+// Re-collapse when the set itself changes — it is keyed off the most recent play, so it changes
+// under you as you listen, and leaving it expanded would silently grow the page.
+watch(recommended, () => {
+  recommendedShown.value = RECOMMENDED_PAGE
+})
 // An episode the user marked played is finished — it drops out of Continue (PL.6). Reactive: it
 // disappears the moment mark-as-played toggles, no refetch.
 const continueItems = computed(() =>
@@ -164,7 +176,7 @@ function loadWhatsNew(): Promise<void> {
 function loadRecommended(): Promise<void> {
   const top = continueItems.value[0]
   if (!top) return Promise.resolve()
-  return recSection.load(async () => (await getRelated(top.detail.slug)).items)
+  return recSection.load(async () => (await getRelated(top.detail.slug, RECOMMENDED_FETCH)).items)
 }
 
 const catalogue = computed<Podcast[]>(() => followsSection.data.value)
@@ -319,6 +331,10 @@ onMounted(async () => {
 // (App.vue), unlike onMounted which runs once. So returning to Home refreshes the resume hero without
 // factory-refreshing the whole page (#1 — the rest stays cached).
 onActivated(async () => {
+  // The Ask box is kept-alive too, so it held whatever you last typed. Returning to Home and
+  // finding a stale query in it reads as the app remembering something you did not ask it to —
+  // the same clear Discovery's box does.
+  query.value = ""
   if (!(auth.isAuthenticated || !auth.loaded)) {
     continueSection.phase.value = "ready" // signed out: nothing to resume is the truth, not a gap
     return
@@ -477,13 +493,50 @@ async function loadContinue(): Promise<void> {
         <!-- `play=1`: Resume means RESUME (operator 2026-09-18). This reads as a play control and
              behaved as a link — it opened the episode paused at the saved position, so continuing
              took a second tap on a transport further down the page. -->
-        <RouterLink
-          :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
-          data-testid="home-resume"
-          class="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
-        >
-          ▶ {{ t("home.resume") }} · {{ formatTime(resumeTop.position) }}
-        </RouterLink>
+        <div class="mt-3 flex items-center gap-2">
+          <RouterLink
+            :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
+            data-testid="home-resume"
+            class="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
+          >
+            ▶ {{ t("home.resume") }} · {{ formatTime(resumeTop.position) }}
+          </RouterLink>
+          <!-- The queue, reachable without playing something first (operator 2026-09-19). Its only
+               entrances were the full player and the mini-player, and the mini-player is only there
+               while something is loaded — so with nothing playing the queue could not be opened at
+               all. This is the one place on Home that is already about "what I am listening to", so
+               it is where the way in belongs.
+
+               Same list glyph `QueueButton` draws, deliberately: that button ADDS to the queue and
+               this one OPENS it, and they are the same object.
+
+               Plated the way `ShowRow` plates its over-artwork controls, not left as a quiet muted
+               outline: this hero sits ON the episode artwork, so a `border-border text-muted`
+               circle disappeared into whatever the cover happened to be. Resuming is still the
+               primary action — that is the filled accent pill — and this reads as secondary
+               without depending on the image behind it being calm. -->
+
+          <RouterLink
+            :to="{ name: 'queue' }"
+            data-testid="home-open-queue"
+            class="lp-tap inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white no-underline shadow-lg backdrop-blur-sm transition hover:text-white"
+            :aria-label="t('queue.title')"
+            :title="t('queue.title')"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M13 6H3" /><path d="M13 12H3" /><path d="M13 18H3" /><path d="M15 16l2 2 4-4" />
+            </svg>
+          </RouterLink>
+        </div>
       </div>
     </div>
     <!-- The "Ask across every episode" title + the search box + its topic chips are ONE unit and
@@ -626,16 +679,16 @@ async function loadContinue(): Promise<void> {
       <!-- The same heading tier as every other section. It was `font-display text-2xl` — a third
            title size on one page — and its kicker ("Ask across every episode") restated the title
            beneath it. No kicker: the pattern is a count or a date, and this section has neither. -->
-      <SectionHeading :title="t('home.askTitle')" />
+      <SectionHeading :title="t('ask.title')" />
       <!-- Cap the ask box: full-bleed on a wide desktop flung the Search button to the far right
            with an oversized input between (mobile-first layout, unbounded wide). -->
       <form class="lp-search mt-3 flex gap-2" @submit.prevent="goSearch(query)">
-        <label class="sr-only" for="home-search">{{ t("home.askKicker") }}</label>
+        <label class="sr-only" for="home-search">{{ t("ask.kicker") }}</label>
         <input
           id="home-search"
           v-model="query"
           type="search"
-          :placeholder="t('home.askPlaceholder')"
+          :placeholder="t('ask.placeholder')"
           data-testid="home-search-input"
           class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
         />
@@ -865,12 +918,33 @@ async function loadContinue(): Promise<void> {
            here). One component, so a change to the tile reaches every grid that uses it. -->
       <!-- 2 on a phone, 4 on desktop (operator 2026-09-17). Deliberately NOT the browse grids' 3/4:
            Recommended is a short curated set on the home screen, so its tiles stay large enough to
-           read at a glance rather than matching a dense catalogue. -->
+           read at a glance rather than matching a dense catalogue.
+
+           FOUR to begin with — one row on both breakpoints — then a control that reveals the rest
+           in place (operator 2026-09-19). There is no "see all" here because there is nowhere for
+           it to go: nothing in the app is a recommendations page, and inventing a route to satisfy
+           the shape of a link would be worse than expanding where you already are. It sits at the
+           very bottom of Home, so an expansion pushes nothing else down. -->
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <li v-for="ep in recommended.slice(0, 8)" :key="ep.slug" class="h-full">
+        <li v-for="ep in visibleRecommended" :key="ep.slug" class="h-full">
           <EpisodeTile :episode="ep" />
         </li>
       </ul>
+      <button
+        v-if="recommended.length > visibleRecommended.length"
+        type="button"
+        class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
+        data-testid="home-recommended-more"
+        @click="recommendedShown += RECOMMENDED_PAGE"
+      >
+        <!-- What the tap will ACTUALLY reveal, not what remains. It said "Show 8 more" and then
+             revealed four, which is a control describing someone else's behaviour. -->
+        {{
+          t("ec.moreEpisodes", {
+            count: Math.min(recommended.length - visibleRecommended.length, RECOMMENDED_PAGE),
+          })
+        }}
+      </button>
     </section>
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />

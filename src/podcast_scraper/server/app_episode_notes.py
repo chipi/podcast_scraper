@@ -26,9 +26,12 @@ from podcast_scraper.server.app_capture_export import (
     _e,
     _PRINT_CSS,
     _timecode,
+    brand_footer,
+    brand_header,
     captured_on,
     format_duration,
     KIND_LABELS,
+    public_origin,
 )
 
 
@@ -181,6 +184,7 @@ def render_episode_notes_html(doc: EpisodeNotes) -> str:
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{_e(doc.title)}</title>",
         f"<style>{_PRINT_CSS}</style></head><body>",
+        brand_header(doc.show),
         f"<h1>{_e(doc.title)}</h1>",
     ]
     meta = [_e(x) for x in (doc.show, doc.publish_date, format_duration(doc.duration_seconds)) if x]
@@ -255,6 +259,7 @@ def render_episode_notes_html(doc: EpisodeNotes) -> str:
         out.append("<h2>My notes on this episode</h2>")
         out += [f"<p class='note'>{_e(n)}</p>" for n in doc.episode_notes]
 
+    out.append(brand_footer(public_origin()))
     out.append("</body></html>")
     return "\n".join(out)
 

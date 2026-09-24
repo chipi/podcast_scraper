@@ -5,7 +5,7 @@
  * actions on one row, the member topics, top episodes and the people involved, and notes.
  *
  * There is no dedicated storyline endpoint — the anchor topic's card IS the storyline (its
- * `theme_cluster_*` + `theme_sibling_topics` + `related_people` + `episodes`), so the route param is
+ * `storyline_*` + `storyline_sibling_topics` + `related_people` + `episodes`), so the route param is
  * the anchor topic id and everything derives from `getTopicCard`.
  */
 import { computed, ref, watch, defineAsyncComponent } from "vue"
@@ -16,7 +16,7 @@ import { getTopicCard } from "../services/api"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
-import EpisodeRow from "../components/EpisodeRow.vue"
+import EntityEpisodeList from "../components/EntityEpisodeList.vue"
 import NoteComposer from "../components/NoteComposer.vue"
 // ASYNC: EntityCard → EntityCardBody → TopicCardContent → StorylineCard → this file is a cycle, so
 // the resolve is deferred to first open. Same reason TopicCardContent defers EntityCard.
@@ -74,19 +74,19 @@ const label = ref("")
 const topics = ref<Member[]>([])
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
-const themeClusterId = ref<string | null>(null)
+const storylineId = ref<string | null>(null)
 
 async function load(anchorTopicId: string): Promise<void> {
   loading.value = true
   failed.value = false
   try {
     const card = await getTopicCard(anchorTopicId)
-    label.value = card.theme_cluster_label ?? card.label
-    themeClusterId.value = card.theme_cluster_id ?? null
+    label.value = card.storyline_label ?? card.label
+    storylineId.value = card.storyline_id ?? null
     // Anchor + its theme siblings = the storyline's topics; de-dupe (the API may include the anchor).
     const members: Member[] = [
       { id: card.id, label: card.label },
-      ...(card.theme_sibling_topics ?? []).map((tp) => ({ id: tp.id, label: tp.label })),
+      ...(card.storyline_sibling_topics ?? []).map((tp) => ({ id: tp.id, label: tp.label })),
     ]
     const seen = new Set<string>()
     topics.value = members.filter((tp) => tp.id && !seen.has(tp.id) && seen.add(tp.id))
@@ -105,16 +105,16 @@ watch(
 )
 
 // Storyline momentum (BT.4): /trending?kind=storyline keys the same thc: id as the theme cluster,
-// so match the loaded storyline by its themeClusterId. Same badge idiom as the topic card
+// so match the loaded storyline by its storylineId. Same badge idiom as the topic card
 // (TrendMomentum badge variant). Best-effort — no badge when this storyline isn't in the top set.
 const trendingStorylines = useTrendingIndex("storyline")
 const storylineMomentum = computed(() =>
-  themeClusterId.value ? trendingStorylines.value[themeClusterId.value] ?? null : null
+  storylineId.value ? trendingStorylines.value[storylineId.value] ?? null : null
 )
 
-const following = computed(() => !!themeClusterId.value && interests.has(themeClusterId.value))
+const following = computed(() => !!storylineId.value && interests.has(storylineId.value))
 function toggleFollow(): void {
-  if (themeClusterId.value) void interests.toggle(themeClusterId.value)
+  if (storylineId.value) void interests.toggle(storylineId.value)
 }
 
 // #2036 — the shareable card for this storyline: the cluster label + how many topics/episodes it
@@ -159,7 +159,7 @@ function goBack(): void {
          their OWN row after the title (operator: the kicker+actions row was too cramped). -->
     <div :class="embedded ? '' : 'mt-3'">
       <div class="flex items-start justify-between gap-3">
-        <span class="lp-kicker min-w-0 text-theme">{{ t("home.storylines") }}</span>
+        <span class="lp-kicker min-w-0 text-accent">{{ t("home.storylines") }}</span>
         <!-- Close ✕ — embedded only; standalone uses the Back row above. -->
         <button
           v-if="embedded"
@@ -186,7 +186,7 @@ function goBack(): void {
         <!-- Share (card / link / text) — #2036. -->
         <ShareMenu :model="shareModel" />
         <button
-          v-if="auth.isAuthenticated && themeClusterId"
+          v-if="auth.isAuthenticated && storylineId"
           type="button"
           data-testid="storyline-follow"
           class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
@@ -250,14 +250,14 @@ function goBack(): void {
 
       <!-- Top episodes for the storyline (SL.2). Standalone page only — see the note above. -->
       <section v-if="episodes.length" class="mt-6">
-        <h2 class="lp-section mb-2">
-          {{ t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } }) }}
+        <!-- Says "newest first" like the topic, person and org lists do (operator 2026-09-19).
+             This was the one of the four that never did, which is the drift the shared
+             `EntityEpisodeList` exists to stop repeating. -->
+        <h2 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
+          <span>{{ t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } }) }}</span>
+          <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
         </h2>
-        <ul class="flex flex-col">
-          <li v-for="e in episodes" :key="e.slug">
-            <EpisodeRow :episode="e" />
-          </li>
-        </ul>
+        <EntityEpisodeList :episodes="episodes" />
       </section>
 
       <!-- People involved (SL.2). Standalone page only (redundant with the topic card in overlay). -->

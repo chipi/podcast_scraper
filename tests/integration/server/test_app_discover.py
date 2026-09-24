@@ -1,6 +1,6 @@
 """Integration tests for personalized discovery (#1098).
 
-GET /api/app/clusters (interests picker) and GET /api/app/discover (flag-gated ranking):
+GET /api/app/themes (interests picker) and GET /api/app/discover (flag-gated ranking):
 - flag OFF (default) → recency, identical to the catalog;
 - flag ON + signed-in user with interests → significance × interest-affinity re-ranking.
 """
@@ -108,10 +108,10 @@ def _corpus(root: Path) -> None:
     (root / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _write_theme_clusters(root: Path) -> None:
+def _write_storylines(root: Path) -> None:
     """Two theme clusters ("storylines") — one offerable, one below the navigation floor.
 
-    ``AI safety`` has 4 members and clears ``DEFAULT_MIN_THEME_MEMBERS``; ``thc:tiny`` has 2 and
+    ``AI safety`` has 4 members and clears ``DEFAULT_MIN_STORYLINE_MEMBERS``; ``thc:tiny`` has 2 and
     must not be offered. A 2-member theme is a single co-occurrence pair — a fact the corpus
     contains, not a place to send a listener — so the fixture carries both shapes rather than only
     the happy one.
@@ -158,7 +158,7 @@ def _client(root: Path, *, personalized: bool, derived: bool = False) -> TestCli
     app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
     app.state.personalized_ranking = personalized
     app.state.derived_interests = derived
-    # RFC-120: auth-gated routes (/clusters, /theme-clusters, /trending, /discover/click) now
+    # RFC-120: auth-gated routes (/themes, /storylines, /trending, /discover/click) now
     # require a signed-in user. Pre-sign a default user; tests that need different state call
     # _sign_in() or _sign_in_heard() after _client() to overwrite the cookie.
     user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
@@ -193,9 +193,7 @@ def _sign_in(client: TestClient, root: Path, interests: list[str]) -> None:
 
 def test_clusters_endpoint_returns_top_by_prevalence(tmp_path: Path) -> None:
     _corpus(tmp_path)
-    body = (
-        _client(tmp_path, personalized=False).get("/api/app/clusters", params={"limit": 5}).json()
-    )
+    body = _client(tmp_path, personalized=False).get("/api/app/themes", params={"limit": 5}).json()
     ids = [c["id"] for c in body["items"]]
     assert ids == ["tc:ai", "tc:health"]  # ranked by member_count desc
     assert body["items"][0] == {"id": "tc:ai", "label": "AI", "size": 3}
@@ -203,10 +201,10 @@ def test_clusters_endpoint_returns_top_by_prevalence(tmp_path: Path) -> None:
 
 def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
     _corpus(tmp_path)
-    _write_theme_clusters(tmp_path)
-    body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    _write_storylines(tmp_path)
+    body = _client(tmp_path, personalized=False).get("/api/app/storylines").json()
     # thc:tiny (2 members) is withheld: Storylines is a navigation destination, and the same
-    # ``DEFAULT_MIN_THEME_MEMBERS`` floor the operator overlay applies has to apply here too —
+    # ``DEFAULT_MIN_STORYLINE_MEMBERS`` floor the operator overlay applies has to apply here too —
     # it was added to the operator route alone at first, leaving the consumer rail (the surface
     # the floor exists for) unfiltered.
     assert body["items"] == [
@@ -216,15 +214,103 @@ def test_theme_clusters_endpoint_returns_storylines(tmp_path: Path) -> None:
 
 def test_theme_clusters_endpoint_empty_without_artifact(tmp_path: Path) -> None:
     _corpus(tmp_path)  # no enrichments/topic_theme_clusters.json → empty items, not 404
-    body = _client(tmp_path, personalized=False).get("/api/app/theme-clusters").json()
+    body = _client(tmp_path, personalized=False).get("/api/app/storylines").json()
     assert body["items"] == []
+
+
+class TestTrendingStorylinesCarryTheirClickTarget:
+    """Every trending storyline row says what it opens (operator 2026-09-19).
+
+    A storyline has no endpoint of its own — it is read as its most-central member topic's card —
+    so a row without `anchor_topic_id` cannot be opened at all. The client used to derive it by
+    joining these rows against `/storylines` on `thc:` id, which fails by construction: that
+    endpoint applies the >=4-member navigation floor and a top-N by SIZE, while trending ranks
+    every cluster with a series by MOMENTUM and floors nothing. The client's `?? entity_id`
+    fallback then handed a `thc:` id to a TOPIC lookup, which resolves nothing, so the row was dead
+    on tap: "storylines do open directly from the topic, but not from the trends".
+
+    Resolved in the MOMENTUM layer, not in this route. The route briefly hydrated it by reading the
+    theme-cluster artifact a second time under a different cache token — which reintroduces the
+    same class of bug one level down, since a re-enrichment that rewrites only that file leaves the
+    ranking reading a stale cluster list while the anchors read the fresh one. The ranking and the
+    anchor now come from one snapshot.
+
+    The ranker is STUBBED here on purpose: this fixture corpus carries no content series, so the
+    real one returns nothing and every assertion below would pass vacuously over an empty list.
+    What this file tests is that the field SURVIVES the route — schema, serialisation, and no
+    accidental stripping. That the anchors are resolved correctly and without a floor is a momentum
+    concern, tested at that layer in tests/unit/podcast_scraper/server/test_app_momentum_anchors.py.
+    """
+
+    def _rows(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str) -> dict[str, dict]:
+        from podcast_scraper.server.app_momentum import TrendingEntity
+        from podcast_scraper.server.routes import app_discover
+
+        ranked = {
+            "storyline": [
+                ("thc:ai-safety", "AI safety", "topic:ai"),
+                # Anchorless: the server could not resolve one, and the row must come back saying
+                # so rather than pointing at itself.
+                ("thc:orphan", "Orphan", None),
+            ],
+            "topic": [("topic:ai", "AI", None)],
+        }[kind]
+        monkeypatch.setattr(
+            app_discover,
+            "trending",
+            lambda *a, **k: [
+                TrendingEntity(
+                    entity_id=eid,
+                    kind=kind,
+                    label=label,
+                    velocity=2.0,
+                    volume=5.0,
+                    heating_up=True,
+                    total=5,
+                    series=[1, 2, 2],
+                    anchor_topic_id=anchor,
+                )
+                for eid, label, anchor in ranked
+            ],
+        )
+        _corpus(tmp_path)
+        _write_storylines(tmp_path)
+        body = (
+            _client(tmp_path, personalized=False)
+            .get("/api/app/trending", params={"kind": kind, "limit": 50})
+            .json()
+        )
+        return {it["entity_id"]: it for it in body["items"]}
+
+    def test_the_anchor_reaches_the_client(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        rows = self._rows(tmp_path, monkeypatch, "storyline")
+        assert rows["thc:ai-safety"]["anchor_topic_id"] == "topic:ai"
+
+    def test_an_unresolved_anchor_stays_null_rather_than_pointing_at_itself(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Never the `thc:` id. That value looks like an answer and is not one — it is the exact
+        # shape that produced a tap doing nothing.
+        rows = self._rows(tmp_path, monkeypatch, "storyline")
+        assert rows["thc:orphan"]["anchor_topic_id"] is None
+        for eid, row in rows.items():
+            assert row["anchor_topic_id"] != eid
+
+    def test_other_kinds_do_not_carry_an_anchor(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        rows = self._rows(tmp_path, monkeypatch, "topic")
+        assert rows, "no topic rows — the assertion below would be vacuous"
+        assert all(it["anchor_topic_id"] is None for it in rows.values())
 
 
 def test_discover_personalizes_by_followed_storyline(tmp_path: Path) -> None:
     # Following a storyline (thc: token) re-ranks like any other interest: epOld's topic:ai is in
     # the theme cluster, so epOld leads despite being older.
     _corpus(tmp_path)
-    _write_theme_clusters(tmp_path)
+    _write_storylines(tmp_path)
     client = _client(tmp_path, personalized=True)
     _sign_in(client, tmp_path, ["thc:ai-safety"])
     titles = [e["title"] for e in client.get("/api/app/discover").json()["items"]]

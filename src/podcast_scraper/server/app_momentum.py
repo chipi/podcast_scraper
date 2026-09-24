@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper import perf_cache
+from podcast_scraper.search.storylines import load_storylines_payload, storyline_anchor
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
@@ -27,7 +28,9 @@ from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
 _CONTENT_REL = "enrichments/temporal_velocity.json"
 _TOPIC_CLUSTERS_REL = "search/topic_clusters.json"
-_THEME_CLUSTERS_REL = "enrichments/topic_theme_clusters.json"
+_STORYLINES_REL = "enrichments/topic_theme_clusters.json"
+# Storyline reads go through ``_artifact_env`` below, NOT ``cached_json_artifact`` — the two token
+# on different clocks and this file is read by both. See that helper for why.
 
 _PERSON_ROLES_NS = "app_momentum.person_roles"
 # Strongest speaker role wins as a person's headline (host outranks guest outranks mentioned).
@@ -40,7 +43,7 @@ _LOOKBACK_WEEKS = 52  # history the EWMA integrates (older weeks are negligible 
 # --------------------------------------------------------------------------- #
 _DEFAULT_BLEND: dict[str, tuple[float, float]] = {  # kind → (w_content, w_engagement)
     "topic": (0.85, 0.15),
-    "cluster": (0.85, 0.15),
+    "theme": (0.85, 0.15),
     "storyline": (0.85, 0.15),
     "person": (0.80, 0.20),
     "episode": (0.50, 0.50),
@@ -320,8 +323,8 @@ def _content_weekly_by_entity(root: Path) -> dict[tuple[str, str], dict[str, int
         oid = str(row.get("org_id") or "")
         if oid:
             out[("organization", oid)] = dict(row.get("weekly_counts") or {})
-    _add_cluster_series(out, by_topic, root, _TOPIC_CLUSTERS_REL, "cluster")
-    _add_cluster_series(out, by_topic, root, _THEME_CLUSTERS_REL, "storyline")
+    _add_cluster_series(out, by_topic, root, _TOPIC_CLUSTERS_REL, "theme")
+    _add_cluster_series(out, by_topic, root, _STORYLINES_REL, "storyline")
     out.update(_show_content_series(root))  # shows: publishing cadence (RFC-103 §show)
     return out
 
@@ -334,7 +337,7 @@ def _add_cluster_series(
     kind: str,
 ) -> None:
     """Aggregate member topics' weekly series into each cluster/storyline (Σ members)."""
-    env = cached_json_artifact(root, rel)
+    env = _artifact_env(root, rel)
     data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
     for cl in data.get("clusters") or []:
         cid = str(cl.get("graph_compound_parent_id") or "")
@@ -381,6 +384,10 @@ class TrendingEntity:
     # say WHY a person is trending (a busy host vs a recurring guest vs a much-mentioned figure).
     # None for non-person kinds and for people whose KG nodes carry no role.
     role: str | None = None
+    #: A storyline's most-central member topic — what the row OPENS, since a storyline has no
+    #: endpoint of its own. None for every other kind, and for a storyline whose members do not
+    #: resolve, which means the row is genuinely not openable rather than openable-somewhere-wrong.
+    anchor_topic_id: str | None = None
     # RFC-103 R2 — the trend window this row was ranked under (1m|3m|6m|1y).
     window: str = "3m"
 
@@ -402,15 +409,60 @@ def _labels_from_content(root: Path) -> dict[str, str]:
     return out
 
 
+def _artifact_env(root: Path, rel: str) -> dict | None:
+    """Read a corpus artifact, tokened on the clock that actually tracks it.
+
+    ``cached_json_artifact`` tokens on ``perf_cache.corpus_mtime`` (run-summary / manifest /
+    upgrade-ledger / edges-stamp). Enrichment writes NONE of those, so an enricher that rewrites a
+    single artifact is invisible to it until the next ingest or a process restart — the #2065 shape.
+
+    The storyline artifact is read here AND by ``search/storylines.py``, which tokens on the file's
+    own mtime. Two clocks over one file meant a re-enrichment left the picker fresh and
+    ``/trending?kind=storyline`` stale — rank, labels and anchors. Routed to the same
+    file-mtime-cached loader so both surfaces move together.
+
+    The topic-cluster artifact keeps the corpus-mtime cache: it has one reader, so there is no
+    second clock to disagree with, and it benefits from the shared per-request cache.
+    """
+    if rel == _STORYLINES_REL:
+        return load_storylines_payload(root)
+    return cached_json_artifact(root, rel)
+
+
 def _labels_from_clusters(root: Path) -> dict[str, str]:
     out: dict[str, str] = {}
-    for rel in (_TOPIC_CLUSTERS_REL, _THEME_CLUSTERS_REL):
-        env = cached_json_artifact(root, rel)
+    for rel in (_TOPIC_CLUSTERS_REL, _STORYLINES_REL):
+        env = _artifact_env(root, rel)
         data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
         for cl in data.get("clusters") or []:
             cid = str(cl.get("graph_compound_parent_id") or "")
             if cid:
                 out[cid] = str(cl.get("canonical_label") or "")
+    return out
+
+
+def _storyline_anchors(root: Path) -> dict[str, str]:
+    """``thc:`` id → its anchor topic, from the SAME artifact read the labels come from.
+
+    A storyline has no endpoint of its own — it is read as its most-central member topic's card —
+    so a trending row without this cannot be opened at all. It is resolved HERE, beside the labels,
+    rather than hydrated in the route: the route would have to read the artifact a second time
+    under a different cache token, and on a re-enrichment that rewrites only this file the two
+    views disagree — rows ranked from the stale cluster list, anchors resolved from the fresh one,
+    every mismatch rendering as a row that will not open. Same snapshot, same loop, no skew.
+
+    No member floor and no top-N, deliberately: momentum ranks EVERY cluster carrying a series, so
+    anchoring only the ones some other surface considers worth showing would leave exactly the rows
+    this ranking chose unopenable.
+    """
+    env = _artifact_env(root, _STORYLINES_REL)
+    data = (env.get("data", env) if isinstance(env, dict) else {}) or {}
+    out: dict[str, str] = {}
+    for cl in data.get("clusters") or []:
+        cid = str(cl.get("graph_compound_parent_id") or "")
+        anchor = storyline_anchor(cl) if cid else None
+        if cid and anchor:
+            out[cid] = anchor
     return out
 
 
@@ -500,6 +552,8 @@ def trending(
     eng_user = user_id if scope == "mine" else None
     engagement = _engagement_weekly_by_entity(data_dir, eng_user)
     labels = _entity_labels(root)
+    # Only storylines have one; every other kind leaves the field None, exactly as `role` does.
+    anchors = _storyline_anchors(root) if kind == "storyline" else {}
     roles = _person_roles(root) if kind == "person" else {}
 
     # Anchor to the corpus's latest content month/week — unless a test pins the reference via
@@ -560,6 +614,7 @@ def trending(
                 series,
                 role=roles.get(eid),
                 window=win_key,
+                anchor_topic_id=anchors.get(eid),
             )
         )
     # R2: rank by velocity × volume (dampened) so big-and-rising outranks a tiny recent spike.

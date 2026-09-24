@@ -113,7 +113,8 @@ The cluster API is the shared spine.
 ### FR4: Personalized discovery (3.5)
 
 - **FR4.1**: A first-Home **dismissible** "set your interests" card (signed-in only) opens a picker
-  over the corpus's **top-12 clusters** (`GET /api/app/clusters`); the chosen cluster ids are saved
+  over the corpus's **top-12 themes** (`GET /api/app/themes`, named `/api/app/clusters` when this
+  PRD was written); the chosen ids are saved
   as **per-user files** (`GET/PUT /api/app/interests`) — no new persistence layer, no sign-up step.
   Interests are a **mixed token set**, not clusters-only: a token is a cluster (`tc:`), a topic
   (`topic:`) or a person (`person:`).

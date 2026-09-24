@@ -25,7 +25,7 @@ const { t } = useI18n()
 
 const triggerEl = ref<HTMLElement | null>(null)
 const panelEl = ref<HTMLElement | null>(null)
-const { open, toggle, close } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' })
+const { open, toggle, close, teleportTarget } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' })
 
 /** Tapping the active colour clears it; the picker closes on any pick. */
 function pick(token: string): void {
@@ -51,7 +51,7 @@ function pick(token: string): void {
         :class="swatchClass(color) || 'border border-border'"
       />
     </button>
-    <Teleport to="body">
+    <Teleport :to="teleportTarget">
       <div
         v-if="open"
         ref="panelEl"

@@ -102,7 +102,7 @@ describe('FollowedInterests', () => {
     expect(w.text(), 'people leaked past a topics-only filter').not.toContain('jane doe')
   })
 
-  // Regression guard: /clusters and /theme-clusters cap at `limit ≤ 50` (server le=50,
+  // Regression guard: /themes and /storylines cap at `limit ≤ 50` (server le=50,
   // app_discover.py). Requesting 60 returned 422, `.catch(() => [])` swallowed it, and the Following
   // tab's storyline/cluster labels went missing on prod.
   it('requests clusters + storylines within the server limit bound (≤50)', async () => {

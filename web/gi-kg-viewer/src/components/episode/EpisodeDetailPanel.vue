@@ -86,7 +86,7 @@ const railTabsEnabled = computed(
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
 // Topic ids in any co-occurrence THEME cluster — teal ring on the episode pills.
-const themeMemberIds = computed(() => themeMemberTopicIdSet(artifacts.themeClustersDoc))
+const themeMemberIds = computed(() => themeMemberTopicIdSet(artifacts.storylinesDoc))
 const graphExplorer = useGraphExplorerStore()
 const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
 

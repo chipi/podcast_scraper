@@ -55,6 +55,9 @@ const router = createRouter({
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },
+    // Home's resume hero links here now (operator 2026-09-19): the queue's only other entrances
+    // are the full player and the mini-player, so with nothing playing it was unreachable.
+    { path: '/queue', name: 'queue', component: { template: '<div/>' } },
     { path: '/browse/topics', name: 'browse-topics', component: { template: '<div/>' } },
     { path: '/browse/people', name: 'browse-people', component: { template: '<div/>' } },
   ],
@@ -66,6 +69,9 @@ function ep(slug: string, title: string): EpisodeSummary {
     duration_seconds: 1800, episode_image_url: null, feed_image_url: null, artwork_url: null,
     status: 'ready', summary_preview: 'r', topics: [], has_transcript: true, has_summary: true,
     has_gi: false, has_kg: false, has_bridge: false,
+    // Required by EpisodeSummary. Absent here for a long time — test files are excluded
+    // from tsconfig.app.json, so nothing type-checks fixtures against the real shape.
+    summary_text: null, summary_bullets: [],
   }
 }
 
@@ -77,7 +83,7 @@ beforeEach(() => {
     has_velocity_data: false,
     window_months: [],
     topics: [],
-    theme_clusters: [],
+    storylines: [],
   })
   vi.spyOn(api, 'getStorylines').mockResolvedValue([])
   vi.spyOn(api, 'getTrending').mockResolvedValue([])
@@ -432,6 +438,38 @@ describe('the primary controls share one height (#2004 item 2)', () => {
     // Source-level: the resume hero needs auth + playback history to render, and the value under
     // test is a static class. Pinned so the three cannot drift apart again.
     expect(homeViewSource).toMatch(/data-testid="home-resume"[\s\S]{0,200}?\bh-11\b/)
+  })
+
+  it('Resume RESUMES — it carries play=1, not just the right height', () => {
+    // The only assertion on this control was its height class, so the fix that made it start
+    // playing instead of opening paused could be reverted silently (review 2026-09-18). Source-level
+    // for the same reason as above: the hero needs auth + playback history to render.
+    expect(homeViewSource).toMatch(
+      /data-testid="home-resume"[\s\S]{0,400}?play:\s*'1'|play:\s*'1'[\s\S]{0,400}?data-testid="home-resume"/,
+    )
+  })
+
+  it('the queue is reachable from the resume hero', () => {
+    // Its only other entrances are the full player and the mini-player, and the mini-player only
+    // exists while something is loaded — so with nothing playing the queue could not be opened at
+    // all (operator 2026-09-19). Source-level for the same reason as the two above.
+    expect(homeViewSource).toContain('data-testid="home-open-queue"')
+    expect(homeViewSource).toMatch(
+      /data-testid="home-open-queue"[\s\S]{0,300}?name:\s*'queue'|name:\s*'queue'[\s\S]{0,300}?data-testid="home-open-queue"/,
+    )
+  })
+
+  it('the queue control is legible over the hero artwork, and named', () => {
+    // It sits ON the episode cover. A `border-border text-muted` circle — the app's default quiet
+    // control — disappeared into whatever the artwork happened to be, so it carries the same
+    // plating `ShowRow` gives its over-artwork controls.
+    const block = homeViewSource.slice(
+      homeViewSource.indexOf('data-testid="home-open-queue"') - 600,
+      homeViewSource.indexOf('data-testid="home-open-queue"') + 300,
+    )
+    expect(block, 'the queue control lost its scrim over the artwork').toMatch(/bg-black\/\d+/)
+    expect(block, 'an icon-only control needs an accessible name').toContain('aria-label')
+    expect(block, 'touch target').toMatch(/\bh-11\b/)
   })
 })
 

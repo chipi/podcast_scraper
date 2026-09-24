@@ -166,17 +166,44 @@ watch(
       {{ activeIndex >= 0 ? segments[activeIndex]?.text : '' }}
     </p>
     <div v-for="(para, pi) in paragraphs" :key="para.key" class="group relative py-2">
-      <span v-if="para.showSpeaker" class="lp-speaker mb-0.5 block">{{ speakerLabel(para.speaker) }}</span>
-      <div class="flex items-start gap-3" :class="canCapture ? 'pr-8' : ''">
+      <!-- Time, then speaker, above the paragraph and flush LEFT (operator 2026-09-19).
+
+           The timestamp used to be a left rail: a fixed column plus a `gap-3`, which every line of
+           every paragraph then had to flow around. On a phone that is a meaningful slice of the
+           measure spent on a number that is read once per paragraph, if at all. Moving it into a
+           header line with the speaker gives the prose the full width and puts the two facts about
+           the paragraph — who, and when — in one place instead of two.
+
+           The ORDER and the separator are now fixed, and that is the point of this row. Before, the
+           speaker came first and the only thing sitting between it and the time was the green
+           grounded marker — a dot present on a paragraph that grounds an insight and absent
+           otherwise. Anything in that slot reads as punctuation, so the line appeared to gain and
+           lose a separator at random depending on content: "Jack Clark ● 0:14" against "Host 0:25".
+
+           So: time leads, one muted separator always sits between the two, speaker follows. The
+           shape of the row is now a function of the row, not of what the paragraph happens to
+           contain. The grounded marker is gone from here — it never belonged to "who and when" —
+           and grounded-ness is NOT reduced to colour by removing it: every grounded segment in the
+           paragraph below carries an underline plus a `groundedSegment` aria-label, which is where
+           the state actually applies. The timestamp keeps the green as an echo of it. -->
+      <div class="mb-1 flex items-center gap-1.5">
         <!-- One timestamp per paragraph (seeks to its start). -->
         <button
           type="button"
-          class="shrink-0 pt-0.5 font-mono text-xs tabular-nums"
+          class="shrink-0 font-mono text-xs tabular-nums"
           :class="para.hasGrounded ? 'text-grounded' : 'text-muted'"
           :aria-label="t('player.jumpToTime', { time: formatTime(para.start) })"
           @click="emit('seek', para.start)"
-        ><span v-if="para.hasGrounded" aria-hidden="true" class="mr-0.5">●</span>{{ formatTime(para.start) }}</button>
-
+        >{{ formatTime(para.start) }}</button>
+        <!-- Rendered as a pair: the separator exists to divide the time from the speaker, so it is
+             there exactly when there is a speaker to divide it from. A continuation paragraph shows
+             the bare time, never a dangling dot. -->
+        <template v-if="para.showSpeaker">
+          <span aria-hidden="true" class="select-none text-xs text-disabled">·</span>
+          <span class="lp-speaker">{{ speakerLabel(para.speaker) }}</span>
+        </template>
+      </div>
+      <div class="flex items-start" :class="canCapture ? 'pr-8' : ''">
         <!-- Flowing paragraph: segments are inline, the active one highlighted, each tap-to-seek. -->
         <p
           :ref="(el) => { if (el) paraEls[pi] = el as HTMLElement }"

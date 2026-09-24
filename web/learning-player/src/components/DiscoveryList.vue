@@ -8,8 +8,10 @@
  *
  * All three kinds come from one endpoint (`GET /api/app/trending`), which carries BOTH `velocity`
  * and `volume` per entity — so Rising vs Trending is a client-side re-sort, not a second fetch.
- * Storylines are the one exception: the trending row lacks their `size` (for the "N topics" subtitle)
- * and `anchor_topic_id` (what the overlay opens on), so we merge in `getStorylines` by id.
+ * Storylines are the one exception, and only for DECORATION now: `anchor_topic_id` — what the row
+ * opens on — arrives on the trending row itself, because deriving it client-side from
+ * `getStorylines` could not work (the two lists cover different sets; see `fetchRows`). Only the
+ * "N topics" subtitle still comes from that join, and a missing count simply renders nothing.
  *
  * Controls (kind tabs, sort/scope toggles, window) live in the parent (HomeView); this is a
  * controlled presentational list. It emits `open` with the kind + the id to open.
@@ -33,7 +35,10 @@ type Kind = "topic" | "storyline" | "person"
 type Sort = "rising" | "trending"
 interface Row {
   id: string // entity id (topic:/thc:/person:) — the follow token
-  openId: string // what `open` targets: topic/person id, or a storyline's anchor topic
+  // What `open` targets: a topic/person id, or a storyline's anchor topic. NULL when the row is not
+  // openable — only reachable for a storyline whose anchor the server could not resolve. The row
+  // still renders (the momentum is real and followable); it just does not claim to go anywhere.
+  openId: string | null
   label: string
   count?: number // storylines: how many topics the cluster holds (shown as a "(N)" after the label)
   image?: string | null // people: avatar photo (falls back to initials)
@@ -53,10 +58,18 @@ const props = withDefaults(
     // Suppress the inline "show more" entirely — Discover surfaces a "See all →" in the section
     // header instead (in DiscoveryExplorer), so a bottom affordance would be redundant.
     hideMore?: boolean
+    // Show every row rather than the first `collapsed`. Owned by the PARENT because on Discover the
+    // control that flips it lives in the section header, a component up (operator 2026-09-19).
+    expanded?: boolean
   }>(),
-  { scope: "corpus", limit: 20, collapsed: 5, hideMore: false }
+  { scope: "corpus", limit: 20, collapsed: 5, hideMore: false, expanded: false }
 )
-const emit = defineEmits<{ (e: "open", payload: { kind: Kind; id: string }): void }>()
+const emit = defineEmits<{
+  (e: "open", payload: { kind: Kind; id: string }): void
+  // How many rows this kind actually has. The header's expand control needs it: a control that
+  // toggles when there is nothing hidden is the bug this whole change is fixing.
+  (e: "count", total: number): void
+}>()
 
 const { t } = useI18n()
 // The trend window lives here (not the parent) so it can share the row with the metric hint. #2030.
@@ -86,21 +99,29 @@ async function fetchRows(): Promise<Row[]> {
       series: e.series,
     }))
   }
-  // Storyline: join the trending momentum with the storyline list for size + anchor topic.
+  // Storyline: the anchor topic — what the row OPENS — now arrives on the trending row itself.
+  //
+  // It used to be joined here against GET /storylines on `thc:` id, with `?? e.entity_id` when the
+  // join missed. The two lists never covered the same set (/storylines floors at 4 members and
+  // returns the top-N by size; trending ranks every cluster by momentum), so misses were routine,
+  // and the fallback handed a `thc:` id to a consumer that resolves a TOPIC. Nothing resolved and
+  // the tap did nothing — "storylines do open directly from the topic, but not from the trends"
+  // (operator 2026-09-19).
+  //
+  // No fallback now: a row whose anchor the server could not resolve is genuinely not openable, and
+  // pretending otherwise is what produced a dead tap instead of a visibly inert row. `size` still
+  // comes from /storylines, which is fine — it is decoration, and a missing count renders nothing.
   const stories = await getStorylines(props.limit).catch(() => [] as Storyline[])
-  const byId = new Map(stories.map((s) => [s.id, s]))
-  return trending.map((e) => {
-    const s = byId.get(e.entity_id)
-    return {
-      id: e.entity_id,
-      openId: s?.anchor_topic_id ?? e.entity_id,
-      label: e.label,
-      count: s?.size,
-      velocity: e.velocity,
-      volume: e.volume,
-      series: e.series,
-    }
-  })
+  const sizeById = new Map(stories.map((s) => [s.id, s.size]))
+  return trending.map((e) => ({
+    id: e.entity_id,
+    openId: e.anchor_topic_id ?? null,
+    label: e.label,
+    count: sizeById.get(e.entity_id),
+    velocity: e.velocity,
+    volume: e.volume,
+    series: e.series,
+  }))
 }
 function load(): Promise<void> {
   return section.load(fetchRows)
@@ -115,11 +136,25 @@ const rows = computed<Row[]>(() =>
   )
 )
 const hasAny = computed(() => rows.value.length > 0)
+/**
+ * Every row inert — not one of them openable.
+ *
+ * A single unopenable storyline is a data gap and renders dimmed, which is enough. ALL of them is
+ * a different thing: the theme-cluster artifact is missing or mid-rebuild, and the reader gets a
+ * full, populated list where nothing responds. Dimming each row individually does not say that —
+ * it looks exactly like a feature that is broken rather than one that is briefly without its data.
+ */
+const allInert = computed(() => hasAny.value && rows.value.every((r) => !r.openId))
 
-const expanded = ref(false)
 const visible = computed(() =>
-  expanded.value ? rows.value : rows.value.slice(0, props.collapsed)
+  props.expanded ? rows.value : rows.value.slice(0, props.collapsed)
 )
+// Watches `rows` itself, NOT `rows.value.length`. The parent clears its copy of the count on a
+// kind change (so a stale count cannot lend its control to the new tab), and a length watcher does
+// not re-fire when the new kind happens to have the SAME number of rows — leaving the parent at
+// zero permanently and the expand control gone for good. `rows` is a fresh array per evaluation,
+// so this fires on every load; emitting the same number twice costs nothing.
+watch(rows, (r) => emit("count", r.length), { immediate: true })
 
 const vFmt = (v: number): number => Math.round(v * 10) / 10
 function rowLabel(r: Row): string {
@@ -154,20 +189,49 @@ function rowLabel(r: Row): string {
       </p>
     </div>
     <SectionStatus :phase="section.phase.value" :rows="4" @retry="load" />
+    <!-- Says WHY nothing opens, once, instead of leaving the reader to infer it from N dimmed
+         rows. The momentum is real and still followable, so the list stays. -->
+    <p v-if="allInert" class="mb-2 text-xs text-muted" data-testid="discovery-all-inert">
+      {{ t("home.trendsNotOpenable") }}
+    </p>
     <ul v-if="hasAny" class="flex flex-col">
       <li
         v-for="r in visible"
         :key="r.id"
-        class="flex items-center gap-1 rounded-lg transition hover:bg-overlay"
+        class="flex items-center gap-1 rounded-lg transition"
+        :class="r.openId ? 'hover:bg-overlay' : ''"
         data-testid="discovery-row"
       >
+        <!-- Not openable rather than a click that goes nowhere: a storyline with no resolvable
+             anchor has nothing to open, and the dead tap is exactly the bug this replaced.
+
+             `aria-disabled`, NOT the `disabled` attribute. `disabled` drops the button out of the
+             tab order entirely, so a keyboard or switch user skips the row without ever learning it
+             is there — which is the same silence, moved to a different user. It stays focusable and
+             says why in its accessible name.
+
+             The ROW's hover highlight goes with it. Without that, an inert row still lit up under
+             the cursor — promising a target — and then did nothing when clicked, which is the
+             original complaint restored for mouse users by the very fix meant to end it. Dimmed,
+             no hover, no pointer: inert on sight rather than on tap.
+
+             `aria-disabled` is undefined (not `false`) on working rows: every row announcing its
+             own not-disabled-ness is noise in the one place a screen reader is reading fast. -->
         <button
           type="button"
-          class="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
-          :aria-label="rowLabel(r)"
-          @click="emit('open', { kind, id: r.openId })"
+          class="flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left"
+          :class="r.openId ? '' : 'cursor-default opacity-60'"
+          :aria-disabled="r.openId ? undefined : true"
+          :aria-label="r.openId ? rowLabel(r) : t('home.rowNotOpenable', { label: rowLabel(r) })"
+          @click="r.openId && emit('open', { kind, id: r.openId })"
         >
-          <!-- People carry their photo (falls back to initials); topics/storylines don't. -->
+          <!-- People carry their photo (falls back to initials); topics/storylines don't — which is
+               why the row above pins `min-h-10`.
+               The avatar is 28px and the tallest thing in a topic/storyline row is the 20px
+               sparkline, so People rows were 40px and the other two 32px. Switching tabs then moved
+               everything below the section by 8px per row, and the page jumped under the reader
+               (operator 2026-09-19). The height is now the SAME whatever the tab renders, so the
+               kind can change without the layout moving. -->
           <ProfileAvatar
             v-if="kind === 'person'"
             :name="r.label"

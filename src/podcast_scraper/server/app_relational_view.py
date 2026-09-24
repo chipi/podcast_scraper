@@ -17,14 +17,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from podcast_scraper.search.theme_clusters import (
-    consumer_theme_cluster_map,
-    consumer_theme_cluster_siblings,
-    top_theme_clusters_by_member_count,
+from podcast_scraper.search.storylines import (
+    storyline_map_by_topic,
+    storyline_siblings_by_topic,
+    top_storylines_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import (
-    consumer_cluster_siblings,
-    consumer_topic_cluster_map,
+    theme_map_by_topic,
+    theme_siblings_by_topic,
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -72,7 +72,7 @@ def _person_web_payload(root: Path) -> dict[str, Any] | None:
     The executor writes every enrichment artifact as an envelope
     (``{derived, status, data:{provider, persons}, …}``), so the payload the card reads lives under
     ``data`` — the same convention every other enrichment reader uses (routes/app_enrichment.py,
-    routes/corpus_theme_clusters.py, cil_queries.py). Reading the top level instead found nothing
+    routes/corpus_storylines.py, cil_queries.py). Reading the top level instead found nothing
     on a real corpus (only the hand-written flat test fixtures matched), so bios/photos never
     surfaced. Tolerates an already-flat dict too. Uncached: the corpus-mtime token keys on
     corpus_run_summary.json, which an enrichment run does not bump, so a cached miss would hide
@@ -279,7 +279,7 @@ def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
     searching for something by name and being told it does not exist.
     """
     out: dict[str, AppEntityRef] = {}
-    for s in top_theme_clusters_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
+    for s in top_storylines_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
         label = str(s.get("label") or "").strip()
         # The ANCHOR TOPIC id, not the `thc:` id. There is no storyline endpoint — the anchor
         # topic's card IS the storyline — so `thc:…` is not openable and a client that routed with
@@ -295,15 +295,15 @@ def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
 
 
 def _enrich_topic(
-    topic: AppTopic, cluster_map: ClusterMap, theme_map: ClusterMap | None = None
+    topic: AppTopic, cluster_map: ClusterMap, storyline_map: ClusterMap | None = None
 ) -> AppTopic:
     """Attach semantic + theme cluster identity to a topic (no-op when unclustered)."""
     update: dict[str, object] = {}
     info = cluster_map.get(topic.id)
     if info:
         update.update(info)
-    if theme_map:
-        tinfo = theme_map.get(topic.id)
+    if storyline_map:
+        tinfo = storyline_map.get(topic.id)
         if tinfo:
             update.update(tinfo)
     return topic.model_copy(update=update) if update else topic
@@ -366,8 +366,8 @@ def build_person_card(
     top_k: int = _DEFAULT_TOP_K,
 ) -> AppPersonCard | None:
     """Project the person's corpus footprint to a card, or ``None`` if they appear nowhere."""
-    cluster_map: ClusterMap = consumer_topic_cluster_map(root)
-    theme_map: ClusterMap = consumer_theme_cluster_map(root)
+    cluster_map: ClusterMap = theme_map_by_topic(root)
+    storyline_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     roles: list[str | None] = []
@@ -401,7 +401,7 @@ def build_person_card(
         [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
     )
     related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map, theme_map)
+        _enrich_topic(topics_by_id[i], cluster_map, storyline_map)
         for i, _ in topic_counts.most_common(top_k)
     ]
     return AppPersonCard(
@@ -425,8 +425,8 @@ def build_topic_card(
     top_k: int = _DEFAULT_TOP_K,
 ) -> AppTopicCard | None:
     """Project the topic's corpus footprint + cluster siblings to a card, or ``None`` if absent."""
-    cluster_map: ClusterMap = consumer_topic_cluster_map(root)
-    theme_map: ClusterMap = consumer_theme_cluster_map(root)
+    cluster_map: ClusterMap = theme_map_by_topic(root)
+    storyline_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     about: list[CatalogEpisodeRow] = []
@@ -452,19 +452,19 @@ def build_topic_card(
     )
     info = cluster_map.get(topic_id) or {}
     cid, clabel, csize = info.get("cluster_id"), info.get("cluster_label"), info.get("cluster_size")
-    tinfo = theme_map.get(topic_id) or {}
+    tinfo = storyline_map.get(topic_id) or {}
     tcid, tclabel, tcsize = (
-        tinfo.get("theme_cluster_id"),
-        tinfo.get("theme_cluster_label"),
-        tinfo.get("theme_cluster_size"),
+        tinfo.get("storyline_id"),
+        tinfo.get("storyline_label"),
+        tinfo.get("storyline_size"),
     )
     siblings = [
-        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
-        for s in consumer_cluster_siblings(root, topic_id)[:top_k]
+        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, storyline_map)
+        for s in theme_siblings_by_topic(root, topic_id)[:top_k]
     ]
-    theme_siblings = [
-        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, theme_map)
-        for s in consumer_theme_cluster_siblings(root, topic_id)[:top_k]
+    storyline_siblings = [
+        _enrich_topic(AppTopic(id=s["id"], label=s["label"]), cluster_map, storyline_map)
+        for s in storyline_siblings_by_topic(root, topic_id)[:top_k]
     ]
     return AppTopicCard(
         id=topic_id,
@@ -473,10 +473,10 @@ def build_topic_card(
         cluster_label=clabel if isinstance(clabel, str) else None,
         cluster_size=csize if isinstance(csize, int) else 0,
         sibling_topics=siblings,
-        theme_cluster_id=tcid if isinstance(tcid, str) else None,
-        theme_cluster_label=tclabel if isinstance(tclabel, str) else None,
-        theme_cluster_size=tcsize if isinstance(tcsize, int) else 0,
-        theme_sibling_topics=theme_siblings,
+        storyline_id=tcid if isinstance(tcid, str) else None,
+        storyline_label=tclabel if isinstance(tclabel, str) else None,
+        storyline_size=tcsize if isinstance(tcsize, int) else 0,
+        storyline_sibling_topics=storyline_siblings,
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
         related_people=related_people,
@@ -545,8 +545,8 @@ def build_org_card(
     Mirrors ``build_person_card`` but keyed on MENTIONS_ORG, and carries a co-occurring-orgs list
     the person card has no analog for. No web enrichment — orgs have no bio/photo (#2031).
     """
-    cluster_map: ClusterMap = consumer_topic_cluster_map(root)
-    theme_map: ClusterMap = consumer_theme_cluster_map(root)
+    cluster_map: ClusterMap = theme_map_by_topic(root)
+    storyline_map: ClusterMap = storyline_map_by_topic(root)
 
     label = ""
     appears_in: list[CatalogEpisodeRow] = []
@@ -584,7 +584,7 @@ def build_org_card(
     )
     related_orgs = [orgs_by_id[i] for i, _ in org_counts.most_common(top_k)]
     related_topics = [
-        _enrich_topic(topics_by_id[i], cluster_map, theme_map)
+        _enrich_topic(topics_by_id[i], cluster_map, storyline_map)
         for i, _ in topic_counts.most_common(top_k)
     ]
     return AppOrgCard(

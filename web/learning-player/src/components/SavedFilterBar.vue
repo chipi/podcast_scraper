@@ -4,7 +4,7 @@
  * every section at once, instead of a colour filter buried inside the Highlights list.
  *
  * Three controls: **type** chips (which saved kinds to show — multi-select, none selected = all),
- * a collapsed **colour** filter (the always-on swatch strip is now behind one "Colour" toggle), and
+ * an always-on **colour** swatch strip (the whole palette, not only the colours in use), and
  * a **sort** select. Type chips render only for kinds present and colour swatches only for colours
  * in use, so the bar never offers a filter that would empty the list — same presence rule as the
  * sections themselves (#1962 single-empty-state).
@@ -125,11 +125,18 @@ function clearAll(): void {
 
     <!-- Colour swatches + sort on ONE row (operator): the "Colour"/"Sort" text labels are dropped —
          the swatches read as colours and the select shows its value — so the swatches (44px targets)
-         and the sort select fit a single line instead of wrapping to two. Sort is pushed right. -->
-    <div class="flex flex-wrap items-center gap-2">
+         and the sort select fit a single line instead of wrapping to two. Sort is pushed right.
+
+         GENUINELY one row now (operator 2026-09-19). It said "one row" and then wrapped anyway:
+         `flex-wrap` on both this container and the swatch group meant the six 44px targets filled
+         the width on a phone and the mute bell dropped onto a line of its own, reading as a second,
+         unrelated control. The swatches scroll horizontally instead; mute and clear are pinned
+         right behind a hairline separator, which is what marks them as a different question from
+         "which colour" rather than position alone doing that job. -->
+    <div class="flex items-center gap-2">
       <div
         v-if="showColors"
-        class="flex flex-wrap items-center gap-1"
+        class="flex min-w-0 items-center gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="group"
         :aria-label="t('library.savedFilterColor')"
       >
@@ -141,7 +148,7 @@ function clearAll(): void {
         <button
           type="button"
           data-testid="saved-filter-swatch-any"
-          class="flex h-11 w-11 items-center justify-center rounded-full transition"
+          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
           :aria-pressed="color === null"
           :aria-label="t('library.savedFilterColorAny')"
           :title="t('library.savedFilterColorAny')"
@@ -157,7 +164,7 @@ function clearAll(): void {
           :key="c.token"
           type="button"
           data-testid="saved-filter-swatch"
-          class="flex h-11 w-11 items-center justify-center rounded-full transition"
+          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
           :aria-pressed="color === c.token"
           :aria-label="t('library.savedFilterColorOnly', { color: t(c.labelKey) })"
           :title="t(c.labelKey)"
@@ -177,10 +184,18 @@ function clearAll(): void {
            A toggle rather than an any/muted/active triple like the colours: "everything except the
            muted" is the default minus a handful, and the operator asked for one icon. If reviewing
            the ACTIVE set alone turns out to matter, this becomes a three-state control. -->
+      <div class="ml-auto flex shrink-0 items-center gap-2">
+        <!-- A hairline, not a gap: "which colour" and "muted or not" are different questions, and
+             spacing alone did not say so once they shared a row. -->
+        <span
+          v-if="showColors && showMuted"
+          aria-hidden="true"
+          class="h-6 w-px shrink-0 bg-border"
+        />
       <button
         v-if="showMuted"
         type="button"
-        class="flex h-11 w-11 items-center justify-center rounded-full transition"
+        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
         data-testid="saved-filter-muted"
         :aria-pressed="mutedOnly"
         :aria-label="t('library.savedFilterMuted')"
@@ -196,10 +211,11 @@ function clearAll(): void {
       <button
         v-if="hasFilters"
         type="button"
-        class="ml-auto text-xs font-semibold text-accent"
+        class="shrink-0 text-xs font-semibold text-accent"
         data-testid="saved-filter-clear"
         @click="clearAll"
       >{{ t('library.savedFilterClear') }}</button>
+      </div>
     </div>
   </div>
 </template>

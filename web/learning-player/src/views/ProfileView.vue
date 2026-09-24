@@ -3,13 +3,14 @@
  * Profile / account — where the signed-in user sees who they are and edits their personalization,
  * starting with their interest topics (chosen at sign-in via the onboarding card). Auth-gated.
  */
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 defineOptions({ name: "ProfileView" }) // stable name for <keep-alive :include> (App.vue)
 import {
   getComms,
   getMyStats,
+  getStorylines,
   getTopClusters,
   getUserInterests,
   putComms,
@@ -20,6 +21,7 @@ import type {
   CommsSettings,
   CommsType,
   InterestCluster,
+  Storyline,
   UserStats,
 } from "../services/types"
 import { disablePush, enablePush } from "../composables/usePushSubscription"
@@ -34,6 +36,8 @@ import Sparkline from "../components/Sparkline.vue"
 import ListeningRecap from "../components/ListeningRecap.vue"
 import ProfileAvatar from "../components/ProfileAvatar.vue"
 import AvatarCropModal from "../components/AvatarCropModal.vue"
+const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
+const StorylineCard = defineAsyncComponent(() => import("../components/StorylineCard.vue"))
 import { dedupeByLabel, interestKind, interestLabel } from "../utils/interests"
 
 const { t } = useI18n()
@@ -112,6 +116,8 @@ function setYourWeekLayout(v: "compact" | "full"): void {
 
 const interests = ref<string[]>([])
 const clusters = ref<InterestCluster[]>([])
+// Followed `thc:` tokens resolve their label AND their anchor topic through this.
+const storylines = ref<Storyline[]>([])
 const pickerOpen = ref(false)
 
 // Listening analytics (UXS-014) — the user's own play history, summarized.
@@ -137,6 +143,15 @@ async function onSignOut(): Promise<void> {
 const stats = ref<UserStats | null>(null)
 /** A failed load is not an empty one — see the note in `hydrate()`. */
 const statsFailed = ref(false)
+/**
+ * Same flag as `statsFailed`, for the Account tab (operator 2026-09-19).
+ *
+ * Every section on this tab is gated on `comms`, so offline the whole tab collapsed to a lone
+ * "Sign out" button — no heading, no explanation, nothing to say the settings exist and simply
+ * could not be fetched. Stats already answers this ("Couldn't load this — it needs a connection");
+ * Account was the one tab that said nothing and so read as empty by design.
+ */
+const commsFailed = ref(false)
 const interestsFailed = ref(false)
 // NO hours tile here any more (#1914). `/me/stats` reports `listening_seconds` as
 // `sum(position_seconds)` — a lifetime snapshot of furthest position reached, which rises when
@@ -160,14 +175,42 @@ const kept = computed(() => (stats.value?.captures ?? 0) > 0 ? stats.value : nul
 // This stripped `^(tc|topic|person):` inline, which omits `thc:` — so a followed storyline rendered
 // as the literal "thc:managing on the edge of chaos" on the user's own profile. It also showed one
 // label twice when two prefixes pointed at the same thing (operator 2026-09-18).
+/**
+ * What each followed interest OPENS, and whether it can be opened at all.
+ *
+ * Styling these as pills made them look like the tappable storyline pill the Knowledge Panel
+ * renders — and they were inert `<span>`s, which is an affordance lie: the same object, the same
+ * look, one of them does nothing. So they open now.
+ *
+ * `openId` is deliberately separate from `id`. A storyline is READ as its anchor topic's card, so
+ * handing `thc:…` to a topic lookup resolves nothing — that is exactly the dead tap this round
+ * started with, and it would have been reproduced here by wiring the pill to its own id. A `tc:`
+ * theme has nowhere to go at all yet (#1603 is where its destination is being decided), so it
+ * stays inert — and, per the same lesson, inert ON SIGHT rather than on tap.
+ */
 const interestLabels = computed(() => {
-  const byId = new Map(clusters.value.map((c) => [c.id, c.label]))
-  return dedupeByLabel(interests.value, byId).map((id) => ({
-    id,
-    kind: interestKind(id),
-    label: interestLabel(id, byId),
-  }))
+  const byId = new Map<string, string>([
+    ...clusters.value.map((c) => [c.id, c.label] as [string, string]),
+    ...storylines.value.map((s) => [s.id, s.label] as [string, string]),
+  ])
+  const anchors = new Map(storylines.value.map((s) => [s.id, s.anchor_topic_id]))
+  return dedupeByLabel(interests.value, byId).map((id) => {
+    const kind = interestKind(id)
+    const openId =
+      kind === "storyline" ? (anchors.get(id) ?? null) : kind === "theme" ? null : id
+    return { id, kind, label: interestLabel(id, byId), openId }
+  })
 })
+
+// A tapped interest opens the SAME overlay its kind opens everywhere else — a storyline as the
+// StorylineCard, a topic or person as the entity card.
+const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
+const storylineTarget = ref<string | null>(null)
+function openInterest(i: { kind: string; openId: string | null }): void {
+  if (!i.openId) return
+  if (i.kind === "storyline") storylineTarget.value = i.openId
+  else cardTarget.value = { kind: i.kind === "person" ? "person" : "topic", id: i.openId }
+}
 
 // Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges.
 const comms = ref<CommsSettings | null>(null)
@@ -178,21 +221,30 @@ async function load(): Promise<void> {
   // "No interests chosen yet" to a user with both. That is #1591's defect — "a cold corpus and a
   // total API outage rendered the same page" — recurring here, where nothing was watching for it.
   statsFailed.value = false
+  commsFailed.value = false
   interestsFailed.value = false
-  const [ints, tops, st, cm] = await Promise.all([
+  const [ints, tops, stories, st, cm] = await Promise.all([
     getUserInterests().catch(() => {
       interestsFailed.value = true
       return [] as string[]
     }),
     getTopClusters(50).catch(() => [] as InterestCluster[]),
+    // Storylines carry a real label for `thc:` ids (they de-slugged to "ai safety" before) and the
+    // anchor topic the pill opens on. Failure is not fatal: the pills fall back to de-slugged
+    // labels and go inert, which is the honest state when we cannot resolve where they lead.
+    getStorylines(50).catch(() => [] as Storyline[]),
     getMyStats().catch(() => {
       statsFailed.value = true
       return null
     }),
-    getComms().catch(() => null),
+    getComms().catch(() => {
+      commsFailed.value = true
+      return null
+    }),
   ])
   interests.value = ints
   clusters.value = tops
+  storylines.value = stories
   stats.value = st
   comms.value = cm
   await userPrefs.hydrate()
@@ -526,14 +578,49 @@ onMounted(load)
           </button>
         </div>
         <p class="mb-3 text-sm text-muted">{{ t("profile.interestsHelp") }}</p>
+        <!-- Three KINDS share this strip — topics, storylines and people — and they used to be two
+             styles between them: `text-person` for people, `text-topic` for everything else. So a
+             storyline was indistinguishable from a topic, and the only way to tell them apart was
+             to already know (operator 2026-09-19).
+
+             Each pill now NAMES its kind in a mono kicker as well as carrying its own hue. The
+             kicker is the load-bearing part: these three colours sit close in value by design (the
+             knowledge layer is meant to be quiet), so hue alone was never going to carry the
+             distinction, and it carries nothing at all for a colour-blind reader. Storyline reuses
+             the accent treatment the Knowledge Panel's storyline pill uses, so the same object looks
+             the same in both places a PILL renders it. The topic card renders a storyline as a
+             full-width bordered row instead — a different component for a different job, not a
+             third style for the same one. -->
         <div v-if="interestLabels.length" class="flex flex-wrap gap-1.5">
-          <span
+          <!-- A BUTTON when it opens something, a span when it does not. These carry the same look
+               as the Knowledge Panel's tappable storyline pill, and shipping that look on an inert
+               element is an affordance lie — the same object, the same styling, one of them dead.
+               A theme (`tc:`) has nowhere to go yet, so it is dimmed and not a button: inert on
+               sight rather than on tap, which is the lesson from the trend rows. -->
+          <component
+            :is="i.openId ? 'button' : 'span'"
             v-for="i in interestLabels"
             :key="i.id"
-            class="rounded-full bg-overlay px-2.5 py-1 text-xs"
-            :class="i.kind === 'person' ? 'text-person' : 'text-topic'"
-            >{{ i.label }}</span
+            :type="i.openId ? 'button' : undefined"
+            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition"
+            :class="[
+              {
+                'bg-accent/15 font-semibold text-accent': i.kind === 'storyline',
+                'bg-overlay text-person ring-1 ring-inset ring-person/30': i.kind === 'person',
+                'bg-overlay text-theme ring-1 ring-inset ring-theme/30': i.kind === 'theme',
+                'bg-overlay text-topic': i.kind === 'topic',
+              },
+              i.openId ? 'lp-tap hover:brightness-125' : 'cursor-default opacity-60',
+            ]"
+            :aria-label="i.openId ? t('profile.openInterest', { label: i.label }) : undefined"
+            :data-testid="`profile-interest-${i.kind}`"
+            @click="openInterest(i)"
           >
+            <span class="font-mono text-[10px] uppercase tracking-wide opacity-70">{{
+              t(`notes.kind_${i.kind}`)
+            }}</span>
+            {{ i.label }}
+          </component>
         </div>
         <p
           v-else-if="interestsFailed"
@@ -662,6 +749,16 @@ onMounted(load)
         </template>
       </section>
 
+      <!-- Offline, every section above is absent. Say so, in the same words the Stats tab uses,
+           rather than leaving a tab that is bare for a reason the user cannot see. -->
+      <p
+        v-if="!comms && commsFailed"
+        class="text-sm text-muted"
+        data-testid="account-unavailable"
+      >
+        {{ t("profile.unavailable") }}
+      </p>
+
       <!-- Sign out (#1962): quiet, last, least weight — the last thing you'd do here. -->
       <button
         v-if="auth.isAuthenticated"
@@ -674,5 +771,16 @@ onMounted(load)
     </div>
 
     <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onSaved" />
+
+    <!-- A tapped interest opens the same overlay its kind opens everywhere else, rather than
+         navigating away from the profile you were reading. Async so this view does not pull the
+         whole entity-card chunk on every load — nothing here needs it until something is tapped. -->
+    <EntityCard
+      v-if="cardTarget"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      @close="cardTarget = null"
+    />
+    <StorylineCard v-if="storylineTarget" :id="storylineTarget" @close="storylineTarget = null" />
   </section>
 </template>

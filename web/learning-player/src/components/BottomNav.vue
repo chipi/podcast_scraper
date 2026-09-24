@@ -6,10 +6,13 @@
  * app whose primary Playwright project is a Pixel 7. The plumbing was always phone-first (`dvh`,
  * safe areas, sticky transport, touch-first rails); the layout idiom was not.
  *
- * Four destinations, chosen so each answers a different question: **Home** (what should I listen to),
- * **Search** (find a specific moment — the differentiator, previously reachable from one page only),
- * **Library** (my saved things), **Profile** (me). Browse folds into Home and Search rather than
- * taking a fifth slot; it is a corpus index, not a daily destination.
+ * THREE destinations, each answering a different question: **Home** (what should I listen to),
+ * **Discovery** (what is out there), **Library** (my saved things).
+ *
+ * It shipped with four. Profile left for the masthead avatar (2026-09-09) and Search left for
+ * Discovery (2026-09-20) — see the notes on `TABS` and `OWNED_ROUTES` below for why each moved and
+ * what replaced it. Both are still one tap away; neither needs a slot in the scarcest strip on the
+ * screen.
  *
  * Mobile only — `sm:hidden`. Desktop keeps the header nav, where a top reach costs nothing and the
  * horizontal space is free.
@@ -36,6 +39,7 @@ import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useResurfacingStore } from '../stores/resurfacing'
+import { ownsRoute } from '../utils/navOwnership'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -64,11 +68,16 @@ function tabLabel(name: string): string {
  *
  * Profile is NO LONGER a tab (operator 2026-09-09) — it moved to the masthead avatar, so the same
  * destination isn't reachable from two navs at once.
+ *
+ * Search is NO LONGER a tab either (operator 2026-09-20) — it is part of Discovery. It keeps three
+ * entry points, which is MORE than the two it had as a tab: the masthead magnifier (visible at every
+ * width, so reachable from any screen — the #1588 requirement), Discovery's own search box, and
+ * Home's "Ask" box. Removing a nav entry for search without the masthead icon would re-open #1588,
+ * which existed precisely because search had one entry point and was unreachable elsewhere.
  */
 const TABS = [
   { name: 'home', label: 'nav.home' },
   { name: 'browse', label: 'nav.browse' },
-  { name: 'search', label: 'nav.search' },
   { name: 'library', label: 'library.title' },
 ] as const
 
@@ -85,30 +94,10 @@ function target(name: string): { name: string; query?: Record<string, string> } 
   return { name }
 }
 
-/**
- * Which routes each tab OWNS — not just the route it links to.
- *
- * Highlighting only on an exact name match meant no tab was active on `player`, `podcast` or
- * `catalog` — the three routes users spend most of their time on. The bar went blank exactly when
- * it was most needed for orientation, which is the opposite of what a tab bar is for.
- *
- * Browse now has its own tab (#14): the hub plus the corpus indexes (catalogue, topic/people browse)
- * and show pages belong to it, since it is the destination that gathers them. Search owns only the
- * search route again.
- *
- * The player owns NOTHING, deliberately. You can reach an episode from any tab, so lighting one up
- * would assert a path the user may not have taken — and a wrong "you are here" is worse than none.
- */
-const OWNED_ROUTES: Record<string, readonly string[]> = {
-  home: ['home'],
-  browse: ['browse', 'catalog', 'podcast', 'browse-shows', 'browse-topics', 'browse-people'],
-  search: ['search'],
-  library: ['library'],
-}
+/* Route ownership is shared with the desktop masthead — see utils/navOwnership.ts. */
 
 /** Highlight by the routes the tab OWNS, not the resolved target, so a gated tab still reads active. */
-const isActive = (name: string): boolean =>
-  OWNED_ROUTES[name]?.includes(String(route.name)) ?? false
+const isActive = (name: string): boolean => ownsRoute(name, route.name as string | undefined)
 </script>
 
 <template>
@@ -134,9 +123,6 @@ const isActive = (name: string): boolean =>
             <template v-else-if="tab.name === 'browse'">
               <circle cx="12" cy="12" r="10" />
               <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-            </template>
-            <template v-else-if="tab.name === 'search'">
-              <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
             </template>
             <template v-else-if="tab.name === 'library'">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />

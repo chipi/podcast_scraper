@@ -421,12 +421,19 @@ watch(() => props.feedId, reset)
         <EpisodeCard :episode="visibleEpisodes[0]" />
         <EpisodeCard v-for="ep in visibleEpisodes.slice(1)" :key="ep.slug" :episode="ep" />
       </template>
-      <div class="mt-6 flex justify-center">
+      <!-- The one "there is more of this list below" shape (operator 2026-09-19). This is the same
+           paginated episode list Discover renders, and it kept the old centred pill only because it
+           lives in a different file — which is how two treatments for one concept survive a change
+           that was supposed to unify them. `aria-busy` because this one CAN be mid-fetch, and a
+           disabled button with no announcement reads as broken rather than busy. -->
+      <div class="mt-2">
         <button
           v-if="hasMore"
           type="button"
           :disabled="loading"
-          class="rounded-full border border-border px-5 py-2 font-bold disabled:opacity-50"
+          :aria-busy="loading"
+          class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+          data-testid="podcast-load-more"
           @click="loadMore"
         >
           {{ loading ? t('catalog.loading') : t('catalog.loadMore') }}

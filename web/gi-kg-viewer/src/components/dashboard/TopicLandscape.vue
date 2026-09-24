@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import {
-  fetchThemeClustersFromApi,
+  fetchStorylinesFromApi,
   fetchTopicClustersFromApi,
   type TopicClustersCluster,
 } from '../../api/corpusTopicClustersApi'
@@ -59,7 +59,7 @@ async function load(): Promise<void> {
   status.value = 'loading'
   error.value = null
   schemaWarning.value = null
-  const r = await (isThemes.value ? fetchThemeClustersFromApi : fetchTopicClustersFromApi)(p)
+  const r = await (isThemes.value ? fetchStorylinesFromApi : fetchTopicClustersFromApi)(p)
   if (r.status === 'missing') {
     clusters.value = null
     status.value = 'missing'

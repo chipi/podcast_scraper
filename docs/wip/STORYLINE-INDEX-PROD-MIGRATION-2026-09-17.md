@@ -11,8 +11,8 @@ app, and it does **not** need a schema migration or an api restart.
 Storylines (theme clusters) are now **rows in the LanceDB index**, not just something the
 entity resolver could name. Three pieces:
 
-- `search/theme_clusters.py` — `storyline_index_rows(corpus_root)` emits **one row per
-  cluster** (`doc_type="storyline"`, `episode_id=None`, embed text = canonical label +
+- `search/storylines.py` (was `search/theme_clusters.py`; renamed 2026-09-20) —
+  `storyline_index_rows(corpus_root)` emits **one row per cluster** (`doc_type="storyline"`, `episode_id=None`, embed text = canonical label +
   member labels).
 - `search/two_tier_indexer.py` — `_append_storyline_rows()` runs once per build after the
   episode loop; `_prune_orphaned_storylines()` removes rows for clusters that were
@@ -99,11 +99,11 @@ successfully and indexes **zero** storylines.
 Check first, read-only:
 
 ```bash
-curl -s https://<prod-host>/api/corpus/theme-clusters | head -c 300
+curl -s https://<prod-host>/api/corpus/storylines | head -c 300
 ```
 
 Note `--with-clusters` does **not** help here — it re-derives `search/topic_clusters.json`,
-a different artifact (semantic clusters, not theme clusters).
+a different artifact (the semantic clusters the product calls **Themes**, not storylines).
 
 ---
 

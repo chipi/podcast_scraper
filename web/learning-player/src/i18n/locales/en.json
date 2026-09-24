@@ -14,7 +14,6 @@
     "person": "Person",
     "storyline": "Storyline",
     "browse": "Discover",
-    "trends": "Trends",
     "settings": "Settings",
     "about-page": "About"
   },
@@ -53,10 +52,7 @@
     }
   },
   "home": {
-    "askKicker": "Ask across every episode",
-    "askTitle": "Find any moment you've heard.",
     "askTagline": "Search across every episode — answers that jump you straight to the moment.",
-    "askPlaceholder": "e.g. how memory consolidates…",
     "continue": "Continue listening",
     "revisitTitle": "Worth revisiting",
     "revisitSeeAll": "See all",
@@ -70,7 +66,6 @@
     "jumpBackIn": "Jump back in",
     "yourWeek": "Your Week",
     "yourWeekCount": "1 new | {count} new",
-    "yourWeekKicker": "For you",
     "yourWeekShowMore": "Show more",
     "yourWeekShowLess": "Show less",
     "yourWeekSection": {
@@ -130,7 +125,14 @@
     "staleNetwork": "You're offline — showing what you saved.",
     "staleServer": "We can't reach your account right now — showing what you saved.",
     "staleForcedAction": "Offline mode is on",
-    "seeAllTrends": "See all"
+    "seeAllTrends": "See all",
+    "trendsNotOpenable": "These aren’t linked to topic pages yet — momentum is still live.",
+    "rowNotOpenable": "{label} — nothing to open"
+  },
+  "ask": {
+    "title": "Find any moment you've heard.",
+    "kicker": "Ask across every episode",
+    "placeholder": "e.g. how memory consolidates…"
   },
   "rail": {
     "prev": "Scroll left",
@@ -380,6 +382,7 @@
     "insightLabel": "Insight",
     "insightBy": "by {speaker}",
     "sourcedMoments": "Sourced to {count} moment in the transcript | Sourced to {count} moments in the transcript",
+    "dismissInsight": "Hide this insight and show the artwork",
     "next": "Next",
     "nextIn": "in {time}",
     "grounded": "From the audio",
@@ -435,8 +438,9 @@
     "noResults": "No matches found.",
     "summary": "Summary",
     "tags": "Topics & People",
-    "theme": "Storyline · {cluster}",
-    "similar": "Similar · {cluster}",
+    "storyline": "Storyline · {cluster}",
+    "storylineKind": "Storyline",
+    "openStoryline": "Open the {label} storyline",
     "insights": "Insights",
     "related": "More like this",
     "showAll": "Show all",
@@ -520,7 +524,6 @@
     "personOtherEpisodes": "Also appears in {count} episode | Also appears in {count} episodes",
     "topicEpisodes": "Discussed in {count} episode | Discussed in {count} episodes",
     "clusterMembers": "{count} similar topic | {count} similar topics",
-    "themeMembers": "{count} topic in this storyline | {count} topics in this storyline",
     "topShows": "Strongest shows on this topic",
     "topShowCount": "{count} episode | {count} episodes",
     "topVoices": "Top voices",
@@ -531,6 +534,8 @@
     "relatedTopics": "Related topics",
     "perspectives": "{count} perspective | {count} perspectives",
     "newestFirst": "newest first",
+    "moreEpisodes": "Show {count} more",
+    "moreEpisodesShown": "{count} more episodes shown",
     "perspectivesTitle": "Perspectives",
     "conversationArc": "Conversation over time",
     "convArcInsights": "{count} insight | {count} insights",
@@ -582,7 +587,7 @@
     "sortUpdated": "Yours",
     "sortName": "A–Z",
     "sortCount": "Items",
-    "loadFailed": "Couldn't load your collections.",
+    "loadFailed": "Boards unavailable",
     "addFailed": "Couldn't add that — try again.",
     "createFailed": "Couldn't create that collection — try again.",
     "empty": "No collections yet. Group things worth listening to into named boards.",
@@ -603,6 +608,7 @@
     },
     "remove": "Delete collection",
     "moment": "Moment",
+    "alreadyIn": "Added",
     "addTo": "Add to collection",
     "pill": "Collection",
     "confirmDeleteTitle": "Delete this collection?",
@@ -612,7 +618,8 @@
     "episodeCount": "no episodes | {count} episode | {count} episodes",
     "reorderHandle": "Reorder {name}",
     "moveUp": "Move {name} up",
-    "moveDown": "Move {name} down"
+    "moveDown": "Move {name} down",
+    "loadFailedHint": "Your boards couldn't be loaded, so adding is off for now. They are not gone."
   },
   "revisit": {
     "intro": "Highlights worth a second look, on a spaced schedule. Reviewing one — open it, or mark it reviewed — takes it off this list and drops the Library count by one.",
@@ -626,7 +633,8 @@
     "open": "Open",
     "momentCount": "1 moment | {count} moments",
     "groupNoun": "moments",
-    "listenedOn": "Listened {date}"
+    "listenedOn": "Listened {date}",
+    "loadError": "Couldn't load what's due right now."
   },
   "episodeGroup": {
     "hide": "Hide {noun}",
@@ -653,11 +661,13 @@
     "avatarUploadFailed": "Couldn’t upload that image. Use a PNG, JPEG, or WebP under 2 MB.",
     "avatarCropTitle": "Position your photo",
     "avatarCropZoom": "Zoom",
+    "avatarCropPan": "Position the photo — arrow keys to move, hold shift to move faster",
     "avatarCropConfirm": "Save photo",
     "tabAccount": "Account",
     "tabTopics": "Topics",
     "tabStats": "Stats",
     "interests": "Interest topics",
+    "openInterest": "Open {label}",
     "interestsHelp": "These shape what surfaces on your Home when personalization is on.",
     "editInterests": "Edit",
     "noInterests": "No interests chosen yet.",
@@ -789,7 +799,6 @@
   },
   "highlights": {
     "empty": "No highlights yet. Mark a moment, save a transcript line, or keep an insight while you listen.",
-    "count": "No highlights | 1 highlight | {count} highlights",
     "export": "Export Markdown",
     "exportObsidian": "Export to Obsidian",
     "exportKicker": "Export",
@@ -927,10 +936,12 @@
     "kind_show": "Show",
     "kind_topic": "Topic",
     "kind_person": "Person",
-    "kind_storyline": "Storyline"
+    "kind_storyline": "Storyline",
+    "kind_theme": "Theme"
   },
   "common": {
     "cancel": "Cancel",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "retry": "Try again"
   }
 }

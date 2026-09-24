@@ -40,7 +40,8 @@ def test_topic_clusters_envelope(ctx: CorpusContext) -> None:
     # any topic id or none: the tool must always return the uniform ok-envelope
     out = connectivity.topic_clusters(ctx, "topic:does-not-exist")
     assert out["ok"] is True
-    assert set(out["data"]) == {"semantic", "theme"}
+    # Renamed 2026-09-20: `theme` used to carry the `thc:` STORYLINE siblings (UXS-013).
+    assert set(out["data"]) == {"themes", "storylines"}
 
 
 def test_ego_network_unknown_entity_is_clean_error(ctx: CorpusContext) -> None:

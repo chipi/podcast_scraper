@@ -58,7 +58,7 @@ const descIsLong = computed(() => description.value.length > DESC_CLAMP)
 const topTopics = computed(() => signals.value?.top_topics ?? [])
 const keyPeople = computed(() => signals.value?.key_people ?? [])
 const recurringGuests = computed(() => signals.value?.recurring_guests ?? [])
-const dominantThemes = computed(() => signals.value?.dominant_themes ?? [])
+const dominantThemes = computed(() => signals.value?.dominant_storylines ?? [])
 const trendingTopics = computed(() => signals.value?.trending_topics ?? [])
 const grounding = computed(() => signals.value?.grounding ?? null)
 const groundingPct = computed(() =>
@@ -167,6 +167,14 @@ function selectEpisode(e: CorpusEpisodeListItem): void {
 
 // Topic / person chips open the unified node view in this same rail; Back returns
 // here (focusGraphNode pushes the show onto the history stack).
+/**
+ * Open a topic node.
+ *
+ * Callers must pass `anchor_topic_id`, NOT a `thc:` theme id. The theme id is label-derived and is
+ * not a routable node, so focusing it opens an empty or misidentified panel when no artifact node
+ * carries that id. The backend added `anchor_topic_id` in #2115 for exactly this, and the player
+ * has used it since; the viewer had not caught up (cross-surface review 2026-09-18).
+ */
 function openTopic(id: string): void {
   subject.focusTopic(id)
 }
@@ -354,12 +362,15 @@ watch(
         <div class="flex flex-wrap gap-1">
           <button
             v-for="th in dominantThemes"
-            :key="th.theme_id"
+            :key="th.storyline_id"
             type="button"
             data-testid="show-rail-theme"
             class="rounded-full border px-2 py-0.5 text-[11px] font-medium outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary"
             style="border-color: rgba(125, 211, 192, 0.5); background-color: rgba(125, 211, 192, 0.18)"
-            @click="openTopic(th.theme_id)"
+            :disabled="!th.anchor_topic_id"
+            :class="!th.anchor_topic_id ? 'cursor-not-allowed opacity-50' : ''"
+            :title="!th.anchor_topic_id ? 'No member topic in this show to open' : undefined"
+            @click="th.anchor_topic_id && openTopic(th.anchor_topic_id)"
           >
             {{ th.label }} <span class="text-muted">· {{ th.topic_count }}</span>
           </button>
