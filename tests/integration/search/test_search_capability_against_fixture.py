@@ -23,6 +23,7 @@ changed semantics — move the test in lockstep.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -145,9 +146,32 @@ class TestSearchOperatorsAgainstFixture:
         assert g.get("label")
 
     def test_consensus_pairs_are_cross_person(self, corpus: Path) -> None:
-        out = _search(corpus, _Q, top_k=20)
+        """Query a topic the corpus HAS consensus on, chosen from the corpus.
+
+        This used to search ``_Q`` ("risk management"), which worked only while topics were
+        feed-wide umbrellas carried by most episodes — so most people shared them and pairs
+        formed. Episodes now carry their own authored topics, and every consensus pair sits on a
+        specific one (lighting-design, dive-planning, reef-conservation...). "risk management"
+        returns hits and none of them has a pair, so the assertion failed while the capability
+        was working: the corpus holds 12 pairs, more than the 10 it held before.
+
+        Reading which topic to query out of ``topic_consensus`` keeps the mechanism under test —
+        search -> hits -> pairs -> cross-person — without pinning it to whichever topic happened
+        to be popular when the test was written.
+        """
+        consensus = json.loads(
+            (corpus / "enrichments" / "topic_consensus.json").read_text(encoding="utf-8")
+        )["data"]["consensus"]
+        assert consensus, "the corpus carries no consensus pairs at all — enrichment regressed"
+        topic = consensus[0]["insight_a_id"].split(":")[2]  # insight:consensus:<topic>:<person>
+        query = topic.replace("topic-", "").replace("-", " ")
+
+        out = _search(corpus, query, top_k=20)
         pairs = operators.consensus_pairs_for_hits(out["results"], corpus, max_pairs=10)
-        assert pairs, "consensus_pairs_for_hits returned no cross-person pair on the corpus"
+        assert pairs, (
+            f"consensus_pairs_for_hits returned nothing for {query!r}, a topic the corpus "
+            f"does carry a pair on ({len(consensus)} pairs total)"
+        )
         p = pairs[0]
         assert p["person_a_id"] != p["person_b_id"], "consensus pair is not cross-person"
         assert p.get("topic_id", "").startswith("topic:")
