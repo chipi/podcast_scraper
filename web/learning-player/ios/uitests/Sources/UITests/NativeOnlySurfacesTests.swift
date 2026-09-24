@@ -19,6 +19,10 @@ import XCTest
  *
  * ## What is asserted, and what deliberately is not
  *
+ * Controls are found via `Journey.control`, never `app.buttons`: WebKit maps a `<button>` with
+ * `aria-haspopup` to a PopUpButton and one with `aria-pressed` to a toggle, so a typed query
+ * silently misses exactly the controls this suite is about.
+ *
  * XCUITest reads the ACCESSIBILITY TREE, not the DOM. It can therefore see a control's NAME
  * ("Download for offline" vs "Downloaded — tap to remove") and whether it is hittable, which is all
  * the behaviour here needs. It CANNOT see colour, so the accent-when-downloaded styling is not
@@ -55,7 +59,7 @@ final class NativeOnlySurfacesTests: UITestCase {
     if !Journey.tap(app, labels: ["Add to queue"], timeout: 10) {
       // Already queued from an earlier suite on the shared account — fine, that is the state we want.
       XCTAssertTrue(
-        app.buttons["Remove from queue"].firstMatch.waitForExistence(timeout: 10),
+        Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 10),
         "neither queue control was reachable on the player")
     }
 
@@ -77,7 +81,7 @@ final class NativeOnlySurfacesTests: UITestCase {
 
     // ...and the ⋯ is still there, because promoting download must not have REPLACED the overflow.
     XCTAssertTrue(
-      app.buttons["More actions"].firstMatch.exists,
+      Journey.control(app, label: "More actions").exists,
       "the overflow disappeared — download was meant to join the row, not take the ⋯'s place")
   }
 
@@ -101,7 +105,7 @@ final class NativeOnlySurfacesTests: UITestCase {
       app.staticTexts[seeded.title].firstMatch.waitForExistence(timeout: 10),
       "the seeded episode is missing from Downloaded")
     XCTAssertTrue(
-      app.buttons["Downloaded — tap to remove"].firstMatch.exists,
+      Journey.control(app, label: "Downloaded — tap to remove").exists,
       "a downloaded episode still offers 'Download for offline' — the state is not reaching the control")
   }
 
@@ -167,7 +171,7 @@ final class NativeOnlySurfacesTests: UITestCase {
 
     // Signed out but ONLINE: the landing must not advertise the offline list at all.
     XCTAssertFalse(
-      app.buttons["Play what's downloaded"].firstMatch.waitForExistence(timeout: 5),
+      Journey.control(app, label: "Play what's downloaded").waitForExistence(timeout: 5),
       "the offline downloads link is offered while online, where signing in is the better answer")
     XCTAssertTrue(
       app.staticTexts["On this device"].firstMatch.exists == false,

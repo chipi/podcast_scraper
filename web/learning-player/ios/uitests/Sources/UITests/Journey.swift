@@ -99,6 +99,57 @@ enum Journey {
     return nil
   }
 
+  /**
+   * Find a control by its accessible LABEL, whatever XCUIElement type WebKit mapped it to.
+   *
+   * `app.buttons["…"]` is not enough for this app, and the way it fails is silent. WebKit maps an
+   * HTML `<button>` to a Button only when it is a plain one: add `aria-haspopup` and it becomes a
+   * PopUpButton, add `aria-pressed` and it becomes a toggle, and `role="menuitem"` becomes a
+   * MenuItem. Every one of those is a11y-CORRECT markup, so the app is right and the query was
+   * wrong — it just reported "the episode page never rendered its action row".
+   *
+   * Measured on the player page (2026-09-24): `app.buttons` returned 12 controls — Back, the tier
+   * pill, summary, Insights, transcript, mark-moment, the transport — and NONE of favourite,
+   * add-to-collection, share or ⋯, all four of which were plainly on screen. They carry
+   * `aria-pressed` / `aria-haspopup`.
+   *
+   * `.any` is slower than a typed query; that cost is worth paying to stop a passing selector from
+   * depending on which ARIA attributes a component happens to carry today.
+   */
+  static func control(_ app: XCUIApplication, label: String) -> XCUIElement {
+    app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", label))
+      .firstMatch
+  }
+
+  /**
+   * A bounded, failure-PROOF inventory for diagnostic messages.
+   *
+   * This walked `descendants(matching: .any)` and blew up on its own snapshot — "No matches found
+   * for Element at index 120": the tree mutates while you iterate it, and a diagnostic that can
+   * fail is worse than no diagnostic, because it replaces the real failure with its own.
+   *
+   * So: a few CONCRETE types, small caps, and every access guarded. It is allowed to return less
+   * than the whole truth. It is not allowed to throw.
+   */
+  static func labelledInventory(_ app: XCUIApplication, limit: Int = 20) -> String {
+    var out: [String] = []
+    let sources: [(String, XCUIElementQuery)] = [
+      ("button", app.buttons), ("menuItem", app.menuItems),
+      ("popUp", app.popUpButtons), ("link", app.links),
+    ]
+    for (kind, query) in sources {
+      let n = min(query.count, limit)
+      guard n > 0 else { continue }
+      for i in 0..<n {
+        let label = query.element(boundBy: i).label
+        if !label.isEmpty { out.append("\(label)[\(kind)]") }
+        if out.count >= limit { return out.joined(separator: " | ") + " …(capped)" }
+      }
+    }
+    return out.isEmpty ? "<nothing labelled>" : out.joined(separator: " | ")
+  }
+
   /// Find and tap, scrolling the element clear of the bottom tab bar first (the transport/tab-bar
   /// overlap trap the playback suite documents — an unscrolled tap lands on a nav tab instead).
   @discardableResult

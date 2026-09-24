@@ -787,6 +787,61 @@ The corollary is easy to get wrong in the other direction: **an empty answer fro
 is not an empty list.** Both the request and the per-item hydration fall back to the cached copy
 rather than overwriting it with `[]` — discarding the only copy at the moment it is the only copy.
 
+## What the NATIVE app brings that the web cannot (operator 2026-09-24)
+
+The app ships as one Vue codebase to three places: the web player, an iOS Capacitor shell, and an
+Android one. Most surfaces are identical by design. This section is the list of places where they
+are NOT, because that boundary kept being rediscovered expensively — three separate investigations
+into "the page never rendered its action row" ended at a control that is `v-if="native"` and was
+never going to be there.
+
+**The rule: a capability is native-only when the WEB PLATFORM cannot honour the product promise, not
+when native is merely nicer.** Each entry below names the promise it is protecting.
+
+| Capability | Native-only because | Web behaviour |
+| --- | --- | --- |
+| **Downloads** (`DownloadButton`, `DownloadedList`, `downloads`/`downloadScheduler`) | Audio is BRIDGED, never rehosted, and the service worker deliberately does not cache it. There is no web mechanism that stores an episode for a flight without breaking that rule. | The control self-hides. Not disabled — an affordance that cannot work is worse than an absent one. |
+| **"On this device"** (`/offline`, `OfflineDownloadsView`) | It lists the download registry, which only exists on a device. | Route resolves, list is empty by construction. |
+| **Device settings** (`DeviceSettings`, network policy) | Governs Wi-Fi-vs-cellular for downloads; meaningless without downloads. | Hidden. |
+| **Share as an image card** (`ShareMenu`, `useShareCard`, `entityShareCard`) | The native share sheet takes a FILE; the Web Share API's file support is uneven and silently degrades. | Falls back to link/text sharing. |
+| **Push** (`usePushSubscription`) | APNs/FCM registration is a shell capability. | Web push where the browser supports it; otherwise absent. |
+| **App update prompt** (`useAppUpdate`) | The shell knows about a downloaded binary; a web page knows about a service worker. | The PWA update toast instead — a different mechanism for the same intent. |
+| **Session auth** (`stores/auth`, `services/native`) | The shell authenticates with a BEARER TOKEN; the web uses the session cookie. Same accounts, different credential. | Cookie session. |
+| **Deep links** | `closelistening://` is an OS registration. | Ordinary URLs. |
+| **Background audio** | `AVAudioSession` / an Android foreground service; a backgrounded WebView gets suspended. | Playback stops with the tab. |
+| **Output routing** (`RouteButton`) | Opens the platform's AirPlay/Cast sheet. See below — the *button* is not native-only, the useful RESULT is. | Renders only if the browser exposes a remote-playback API; usually absent. |
+
+### iOS versus Android
+
+Same Vue code, but three things genuinely differ, and only one of them is a product decision:
+
+- **Output routing is two APIs.** iOS/WKWebView has `webkitShowPlaybackTargetPicker()` with
+  `webkitplaybacktargetavailabilitychanged`; Chromium has the Remote Playback API
+  (`remote.prompt()` / `remote.watchAvailability()`). `RouteButton` feature-detects rather than
+  branching on platform, because MDN marks Remote Playback "limited availability" and does not say
+  whether the Android System WebView carries it as opposed to Chrome. On a platform with neither,
+  the control does not render — and Android still has the system output switcher on the media
+  notification, which MediaSession already populates.
+- **Background audio is two mechanisms.** iOS uses `AVAudioSession` + `UIBackgroundModes`; Android
+  needs a foreground service, which is why a local `BackgroundAudio` plugin exists and no-ops on iOS.
+- **Neither platform lets a page enumerate audio devices.** Not AirPlay, not Cast, not Bluetooth.
+  Any in-app device list would have to come from our own protocol, as Spotify Connect does. This is
+  a hard boundary, not a gap to close.
+
+### Testing consequence — and the trap that has already cost days
+
+**The browser tier cannot see any of the above.** A Playwright spec against a native-only control
+asserts an empty page and PASSES, which is worse than failing: it certifies the opposite of the
+truth. Anything in the table above belongs in the device tier (`make test-ios`) or in a unit test
+with `isNative` mocked — never in `e2e/*.spec.ts`.
+
+**And XCUITest cannot see what the DOM says it should.** It reads the accessibility tree, where
+WebKit maps a `<button>` to a Button only if it is plain: `aria-haspopup` makes it a PopUpButton,
+`aria-pressed` a toggle, `role="menuitem"` a MenuItem. On the player page `app.buttons` returned
+twelve controls and NONE of favourite, add-to-collection, share or ⋯ — all four on screen, all four
+carrying ARIA state. The markup is correct; the query was wrong. Device-tier selectors therefore go
+through `Journey.control(app, label:)`, which matches by accessible label across element types.
+
 ## Conformance checklist
 
 - [ ] No second backdrop; drilling inside a panel is replace-in-place with `‹ Back`.

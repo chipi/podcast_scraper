@@ -64,7 +64,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
 .PHONY: test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -2111,6 +2111,68 @@ test-app-ios-native:
 			-only-testing:OfflineSpikeUITests/NativeOnlySurfacesTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_NATIVE_EXIT=$$rc"; exit $$rc
+
+#: THE iOS entry point. Everything device-tier, in dependency order, guarded by platform.
+#
+# There were NINE `test-app-ios-*` targets and the split was the problem, not the granularity.
+# Each one set up its own preconditions, each was run by hand, and none was in a gate — which is
+# exactly how `DownloadThroughUITests.swift` sat UNCOMPILABLE from 71fc75965 until 2026-09-24
+# without anyone noticing that the whole bundle, and therefore every suite in it, was dead.
+#
+# One entry point, so there is one thing to run and one thing to gate. The step targets below still
+# exist and are still individually runnable — that is how you debug a single suite — but they are
+# INTERNALS now: `test-ios` is the contract.
+#
+# ORDER IS LOAD-BEARING, and not obvious from the names:
+#   1. download  — signs in as the SHARED `simtest` account and downloads two episodes through the
+#                  UI. It SEEDS what the offline suites consume, so it cannot move.
+#   2. offline   — auto-advance from the seeded queue, with the api DOWN. Needs 1.
+#   3. journey   — the signed-in walk, personalisation, offline cache.
+#   4. native    — native-shell capabilities, config toggle, stack depth, host links, boards,
+#                  and the native-only surfaces (inline download + /offline).
+#
+# DELIBERATELY EXCLUDED — `test-app-ios-prod-tour`. It points at the REAL production backend and
+# wants NO session, where every step above wants the fixture api and a seeded one. Folding it in
+# would mean a prod outage reads as a native-shell regression, and that nothing-that-talks-to-prod
+# -runs-by-accident stops being true. Run it on purpose or not at all.
+#
+# ALSO EXCLUDED — `test-app-ios-server-degraded`. It restarts the api with a DIFFERENT
+# `APP_SESSION_SECRET` to reproduce the 2026-09-16 incident, which invalidates every token the
+# steps above depend on. It is a destructive scenario against shared state; it runs alone.
+test-ios:
+	@if [ "$$(uname -s)" != "Darwin" ]; then \
+		echo "SKIP: test-ios — the iOS tier needs macOS, this is $$(uname -s)."; \
+		echo "      Not a pass: NOTHING on the device tier was verified here."; \
+		exit 0; \
+	fi
+	@command -v xcodebuild >/dev/null 2>&1 || { \
+		echo "SKIP: test-ios — macOS but no xcodebuild (install Xcode + run xcode-select)."; \
+		echo "      Not a pass: NOTHING on the device tier was verified here."; \
+		exit 0; \
+	}
+	@# Past this point the machine CAN run the tier, so a missing piece is a broken setup rather
+	@# than an absent platform — and a broken setup must fail, not skip. A skip that covers real
+	@# breakage is how a tier stops running quietly, which is the failure this target exists to end.
+	@command -v xcodegen >/dev/null 2>&1 || { \
+		echo "FAIL: test-ios — xcodegen missing on a Mac that has Xcode. brew install xcodegen"; \
+		exit 1; \
+	}
+	@xcrun simctl list devices available 2>/dev/null | grep -q "$(IOS_SIM)" || { \
+		echo "FAIL: test-ios — no '$(IOS_SIM)' simulator available. Create it in Xcode, or set"; \
+		echo "      IOS_SIM=<name> to one from: xcrun simctl list devices available"; \
+		exit 1; \
+	}
+	@echo ""; echo "=== test-ios START $$(date '+%Y-%m-%d %H:%M:%S') — sim '$(IOS_SIM)' ==="
+	@set -e; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/4 download (seeds the offline suites) ==="; \
+	$(MAKE) test-app-ios-sim-download; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 2/4 offline auto-advance ==="; \
+	$(MAKE) test-app-ios-sim-offline; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 3/4 journey + personalisation + cache ==="; \
+	$(MAKE) test-app-ios-journey-ui; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 4/4 native capabilities + native-only surfaces ==="; \
+	$(MAKE) test-app-ios-native; \
+	echo ""; echo "=== test-ios PASS $$(date '+%Y-%m-%d %H:%M:%S') ==="
 
 #: The same, but sets up its own preconditions end to end (build, install, origin, sign-in).
 test-app-ios-native-full:
