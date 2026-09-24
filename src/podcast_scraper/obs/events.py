@@ -42,10 +42,27 @@ _fallback_logger = logging.getLogger(__name__)
 
 # Default corpus-relative path per file-sink event type. Callers may override with
 # an explicit ``path=``. Unknown event types fall back to ``events/<type>.jsonl``.
+#
+# NEVER MAP AN EVENT TYPE INTO A FILE SOMETHING ELSE REWRITES. ``emit_event`` APPENDS; a mutable
+# registry is read-all / serialise-all / rename. ``"job"`` used to point at
+# ``.viewer/jobs.jsonl``, which ``server.pipeline_job_registry.write_jobs_atomic`` rewrites
+# WHOLE on every status change, so the first ``emit_event("job", ...)`` would have both
+# (a) appended a row the next registry write silently deletes, and (b) been parsed BY
+# ``read_jobs`` as a job record — a well-formed envelope with no ``job_id`` lands in the
+# ``no_id`` bucket of ``_dedupe_job_rows_by_id`` and is carried into the rewritten registry.
+#
+# It was dead config that looked like a supported feature, which is the dangerous kind: the next
+# person wanting job events reaches for the entry already sitting there. REMOVED rather than
+# repointed, because the fallback documented above already resolves ``"job"`` to the append-only
+# ``events/job.jsonl`` — the better end state, reached with less code. The same
+# append-only-vs-mutable confusion is what broke ``podcast-ingest-stalled`` for its whole life
+# (12260e8d2 here, 9bc438f in homelab).
+#
+# ``tests/unit/podcast_scraper/obs/test_event_sink_paths.py`` enforces this as a CLASS, not as a
+# fact about one entry.
 _FILE_FOR: dict[str, str] = {
     "search_query": "search/query_log.jsonl",
     "listen": "listen.jsonl",  # usually combined with a per-user subdir via path=
-    "job": ".viewer/jobs.jsonl",
 }
 
 
