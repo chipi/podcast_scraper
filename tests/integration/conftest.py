@@ -289,6 +289,23 @@ def app_validation_search_index() -> Path:
                 return APP_VALIDATION_CORPUS
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
             os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+            # Decide "the extra is absent" BEFORE building, not from whatever the build throws.
+            # This used to be inferred from any exception, which meant the reason was a guess:
+            # on macOS x86_64 the stub embedder raises ``'object' object has no attribute
+            # 'encode'`` and the old handler reported "embedding model offline?" — a cause it had
+            # not checked — while a genuine ``index-two-tier`` regression produced the SAME skip.
+            # Same principle as ``requires`` above: skipping more than the thing that is actually
+            # unavailable is how a suite stops being evidence.
+            _missing_for_index = [
+                m
+                for m in ("sentence_transformers", "lancedb")
+                if importlib.util.find_spec(m) is None
+            ]
+            if _missing_for_index:
+                pytest.skip(
+                    "needs the [ml]/[search] extra — not importable: "
+                    f"{', '.join(_missing_for_index)}"
+                )
             try:
                 from podcast_scraper.cli import main as cli_main
 
@@ -322,10 +339,23 @@ def app_validation_search_index() -> Path:
                     missing_ok=True
                 )
                 rc = cli_main(["index-two-tier", "--output-dir", str(APP_VALIDATION_CORPUS)])
-            except Exception as exc:  # noqa: BLE001 — any build failure => skip, not fail
-                pytest.skip(f"could not build search index (embedding model offline?): {exc}")
-            if rc not in (0, None) or not _present():
-                pytest.skip("search index build produced no lance_index/metadata.json")
+            except ImportError as exc:
+                # A lazily-imported optional module the pre-flight check above does not name.
+                # Still an environment fact, so still a skip — but ONLY for a missing import.
+                pytest.skip(f"needs the [ml]/[search] extra — not importable: {exc.name or exc}")
+            # Everything past here runs with the extra CONFIRMED present, so a non-zero rc or an
+            # absent index is a real defect in ``index-two-tier`` and must fail. Reporting it as a
+            # skip is what let it hide: a broken indexer and an uninstallable extra produced the
+            # same green summary line, and the search path is public product code.
+            assert rc in (0, None), (
+                f"index-two-tier exited {rc!r} with the [ml]/[search] extra present — this is a "
+                f"build failure, not a missing dependency."
+            )
+            assert _present(), (
+                "index-two-tier exited cleanly but produced no usable lance_index/metadata.json "
+                f"under {APP_VALIDATION_CORPUS} — the indexer wrote nothing, or wrote an index "
+                "with an unusable embed_dim."
+            )
     except Timeout:  # pragma: no cover — only under a wedged concurrent build
         pytest.skip(f"timed out waiting for another worker to build {APP_VALIDATION_CORPUS}")
     return APP_VALIDATION_CORPUS
