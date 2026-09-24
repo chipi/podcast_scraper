@@ -614,13 +614,24 @@ a half-width column later (it is now 166px), leaving the hero the only element m
 one-per-episode candidate and the VIEW slices — how many fit is a layout question, and a store that
 knew the viewport would have to be told about the next breakpoint.
 
-**Home carries a "Worth revisiting" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
+**Home carries a "Highlights to revisit" rail (`RevisitRail`, operator 2026-09-18).** Up to four due
 captures, **at most one per episode** so it shows the breadth of what is waiting rather than one
 session's thinking. Each card is the **quote, with the episode as a small square thumbnail on its right** and the
 capture's colour on the left edge — the same row idiom `EpisodeRow` and the downloads list use. Two
 overlay treatments were tried first (artwork dimmed behind the text, then a cropped strip fading
 into it) and both looked forced: the episode is a fact ABOUT the quote, not a backdrop for it, and
 inventing a treatment for one surface is how a design system stops being one.
+
+**It was called "Worth revisiting" until 2026-09-23, and the name was wrong.** Sitting beside Your
+Week, next to "New in your follows", it read as a list of episodes the listener had played that
+week — which is what the operator went looking for and did not find. What it actually holds is due
+saved HIGHLIGHTS on a spaced-repetition schedule: captures, not episodes. The rail's own kicker
+already said "{kept} highlights · {reviewed} revisited"; the title contradicted it.
+
+Renamed rather than re-pointed at played episodes, because the resurfacing loop is the useful thing
+here and re-pointing it would have deleted that from Home to answer a different question. The
+"what did I play recently" question has its own answers — Browse's **Played** filter and the queue
+panel's Recently played — and Home deliberately did NOT gain a third (operator's call: rename only).
 
 Tapping goes to the **Revisit tab, scrolled to that capture** (`?focus=<id>`, briefly ringed), not
 to the player: from Home the user is deciding what to do with a capture, and the three outcomes
