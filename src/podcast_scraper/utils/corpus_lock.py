@@ -99,13 +99,21 @@ def _holder_is_reclaimable(holder: Dict[str, object]) -> bool:
     PID 1, so a holder written as ``{"pid": 1, "hostname": "f0c5969c4647"}`` — exactly
     what a ``docker compose run`` reprocess records — reads as ALIVE from any other
     container, because that container has its own PID 1. The hostname was already being
-    recorded and simply never compared, so a hard-dead container's holder could never be
-    reclaimed automatically.
+    recorded and simply never compared.
 
     Unknown is not dead: a holder from a different hostname returns False rather than
     guessing. That is the safe direction — a false "reclaimable" would admit two writers
     to one corpus, the data-loss shape this lock exists to prevent. The OS ``flock``
     stays the real mutual exclusion; this only decides whether a retry is worth trying.
+
+    WHAT THIS DOES NOT DO, since an earlier version of this docstring implied otherwise by
+    framing the old code as the reason "a hard-dead container's holder could never be reclaimed
+    automatically": it still cannot be. Every ``docker compose run`` container gets a unique
+    hostname, so a dead container's holder is forever a foreign host and never reclaimable here.
+    The change is purely safety-direction — the old bare ``_is_pid_alive`` would WRONGLY reclaim
+    a lock whose holder pid happened to be dead locally while a live process on another host
+    held it. Harmless in practice that reclaim is unreachable, because the kernel releases a
+    dead container's ``flock`` anyway and the next acquire simply succeeds.
     """
     pid = holder.get("pid")
     if not isinstance(pid, int):

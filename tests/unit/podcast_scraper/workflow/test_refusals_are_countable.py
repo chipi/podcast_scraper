@@ -183,3 +183,89 @@ def test_the_recorder_itself_keys_on_the_canonical_episode_id():
     body = src[start : start + 3000]
     assert "get_episode_id_from_episode" in body, "the recorder no longer derives the canonical id"
     assert 'getattr(job.episode, "guid"' not in body, "keyed on a non-existent Episode attribute"
+
+
+# ---------------------------------------------------------------------------
+# M5: the ledger key must match the row orchestration ALREADY created
+# ---------------------------------------------------------------------------
+
+
+def test_the_abandon_row_lands_ON_the_row_orchestration_created_not_beside_it():
+    """Asserting against ``get_episode_id_from_episode`` alone cannot catch the orphan.
+
+    The existing key test derives the expected id with the SAME helper the implementation calls,
+    so the two can never disagree and the test proves only self-consistency. The real orphan risk
+    is one level up: ``orchestration.py`` pre-creates every episode's row by DUPLICATING the
+    derivation inline (its own guid/link/date extraction feeding ``generate_episode_id``) rather
+    than calling the helper. They agree field-for-field today; edit either copy alone and orphans
+    come back — a ledger showing one episode both ok and failed — with nothing failing.
+
+    So this reproduces orchestration's inline derivation, creates the row the way a real run
+    does, then records an abandonment and asserts there is still exactly ONE row.
+    """
+    import xml.etree.ElementTree as ET
+
+    from podcast_scraper import models
+    from podcast_scraper.rss.parser import extract_episode_published_date
+    from podcast_scraper.workflow import metrics as metrics_mod
+    from podcast_scraper.workflow.metadata_generation import generate_episode_id
+    from podcast_scraper.workflow.stages import processing
+    from podcast_scraper.workflow.types import ProcessingJob
+
+    feed_url = "https://example.com/podcast.xml"
+    item = ET.Element("item")
+    ET.SubElement(item, "title").text = "Ep Orphan"
+    ET.SubElement(item, "guid").text = "guid-orphan-check"
+    ET.SubElement(item, "link").text = "https://example.com/ep/1"
+    ET.SubElement(item, "pubDate").text = "Tue, 01 Sep 2026 10:00:00 +0000"
+    episode = models.Episode(
+        idx=11, title="Ep Orphan", title_safe="Ep Orphan", item=item, transcript_urls=[]
+    )
+
+    # --- orchestration.py's inline derivation, reproduced verbatim in shape ---
+    guid_elem = item.find("guid")
+    episode_guid = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else None
+    link_elem = item.find("link")
+    episode_link = link_elem.text.strip() if link_elem is not None and link_elem.text else None
+    published = extract_episode_published_date(item)
+    orchestration_id = generate_episode_id(
+        feed_url=feed_url,
+        episode_title=episode.title,
+        episode_guid=episode_guid,
+        published_date=published,
+        episode_link=episode_link,
+        episode_number=getattr(episode, "number", None),
+    )
+
+    pm = metrics_mod.Metrics()
+    pm.get_or_create_episode_status(episode_id=orchestration_id, episode_number=episode.idx)
+    pm.update_episode_status(episode_id=orchestration_id, status="ok", stage="summarized")
+    assert len(pm.episode_statuses) == 1
+
+    class _Cfg:
+        rss_url = feed_url
+
+    wrote = processing.record_abandoned_episode(
+        ProcessingJob(
+            episode=episode,
+            transcript_path="/tmp/orphan.txt",
+            transcript_source="whisper_transcription",
+            detected_names=None,
+            whisper_model=None,
+        ),
+        _Cfg(),
+        pm,
+        elapsed_seconds=4000.0,
+        ceiling_seconds=3600.0,
+    )
+
+    assert wrote is True
+    rows = [(s.episode_id, s.status) for s in pm.episode_statuses]
+    assert len(pm.episode_statuses) == 1, (
+        "the abandon appended an ORPHAN row instead of updating the one orchestration created — "
+        f"the same episode now reads twice: {rows}"
+    )
+    row = pm.episode_statuses[0]
+    assert row.episode_id == orchestration_id
+    assert row.status == "failed", "the pre-existing 'ok' was left in place on an abandoned episode"
+    assert row.error_type == "ProcessingAbandoned"

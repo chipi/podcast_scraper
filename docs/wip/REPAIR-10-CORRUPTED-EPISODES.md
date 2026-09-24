@@ -51,8 +51,17 @@ That is what makes repair-first / cleanup-after safe.
 ### 1. Preconditions
 - `e2dedbd17` in the running image. Pass `image_sha` **explicitly** to `deploy-all-prod`; blank
   resolves "newest published", which may not be this commit.
-- No reprocess container; `corpus/.podcast_scraper.lock` absent. The lock does **not** release when a
-  GitHub run is cancelled (verified twice, 2026-09-22/23).
+- No reprocess container. **Both halves of the original wording here were wrong.** Corrected in
+  place rather than quietly deleted, because the same false claim also reached a runbook:
+  - "`corpus/.podcast_scraper.lock` absent" is not a reachable precondition. `filelock` never
+    unlinks the file on release — it drops the `flock` and removes the `.holder` sidecar — so a
+    0-byte lock file sits there after every run that has ever succeeded. Probe the `flock`
+    instead (`corpus_lock_state` in `utils/corpus_lock.py`); the file's existence means nothing.
+  - "The lock does **not** release when a GitHub run is cancelled (verified twice)" is false. It
+    does release. What survives a cancelled run is the **container**, which still holds the flock
+    because it is still working — cancelling the runner does not stop it. Stop the container to
+    release the lock. The "verified twice" backed three unnecessary hand-removals of a file that
+    was never stale.
 - `corpus/.viewer/jobs.paused` present.
 - Profile `prod_dgx_full` → `tailnet_dgx_whisper`. Self-hosted ASR, so the failure mode is DGX
   availability, not billing.

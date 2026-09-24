@@ -228,7 +228,7 @@ def test_existing_transcript_refuses_an_admap_as_the_transcript(tmp_path: Path):
     ), f"resolved to a derivative/non-text artifact instead of refusing: {p}"
 
 
-def test_existing_transcript_still_accepts_a_published_vtt(tmp_path: Path):
+def test_existing_transcript_still_accepts_a_published_srt(tmp_path: Path):
     """Guard the over-correction: a first attempt restricted this to `.txt` alone.
 
     `.vtt` and `.srt` are the two publisher formats this pipeline ingests

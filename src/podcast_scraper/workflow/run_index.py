@@ -509,11 +509,26 @@ def _transcript_beside(meta_abs: Path) -> Optional[str]:
     the restriction was wrong. Worth recording: that test's name reads like it is protecting
     the very glob being removed, and it is not.
 
-    Callers that only need PRESENCE are unaffected: ``existing_transcript_path_in_corpus``
-    falls through to the metadata path as its presence marker, so `skip_existing`
-    (episode_processor.py:481) still sees the episode. The caller that needs real TEXT
-    (rederive, episode_processor.py:3935) stops being handed an ad-map. Verified by tracing
-    both call sites before changing this.
+    The caller that needs real TEXT (rederive, episode_processor.py:3935) stops being handed an
+    ad-map. `skip_existing` (episode_processor.py:481) still sees the episode, because
+    ``existing_transcript_path_in_corpus`` falls through to the metadata path as its presence
+    marker.
+
+    ONE BEHAVIOR DELTA, in a state this narrow: a run dir holding ``{base}.cleaned.txt`` and no
+    plain ``.txt``. The skip_existing caller is not purely presence-based — it feeds the
+    resolved path to ``_should_retranscribe_for_gi_segments`` (:508). The old glob returned the
+    ``.cleaned.txt``, which ends ``.txt``, so ``transcript_txt_missing_segments`` looked for
+    ``{base}.cleaned.segments.json``, did not find it, and scheduled a healing
+    re-transcription. Now the path resolves to the metadata marker, which does not end ``.txt``,
+    so that check returns False and the episode is skipped instead.
+
+    Deliberately left as-is: the old trigger fired off a sidecar name that is not the
+    convention — segments are written as ``{base}.segments.json``, never
+    ``{base}.cleaned.segments.json`` — so it healed by accident, and an episode with no plain
+    ``.txt`` at all is a broken artifact set that a backfill re-transcription would not repair.
+    Recorded because an earlier version of this docstring claimed presence callers were
+    "unaffected" and that both call sites had been "verified", and neither was true: review
+    found this by reading :508, which I had not followed.
     """
     stem = meta_abs.name
     base = stem

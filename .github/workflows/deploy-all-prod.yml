@@ -198,6 +198,10 @@ jobs:
             echo "::error::deploy did NOT complete for every surface — control-plane=${CP} player=${PL} operator=${OP}. Prod may be split across two shas or still wholly on the old one; this step cannot tell which. Read the running images (ssh deploy@prod-podcast docker ps --format '{{.Names}} {{.Image}}'), then re-run the incomplete surfaces at the SAME sha-${SHA}."
             exit 1
           fi
-          # Alignment follows from the inputs — every surface was handed sha-${SHA} explicitly
-          # and reported success. It is not a read-back of the running images.
-          echo "::notice::every surface deployed sha-${SHA} successfully"
+          # Alignment follows from the inputs — every surface asked for was handed sha-${SHA}
+          # explicitly and reported success. It is not a read-back of the running images.
+          # "every surface" would still be false here: `skipped` counts as green above
+          # (skip_control_plane), so a skipped control-plane stays on whatever it was running.
+          # Enumerated rather than summarised, so the notice cannot overstate what happened —
+          # the same defect this step's error path was just fixed for.
+          echo "::notice::deployed sha-${SHA} — control-plane=${CP} player=${PL} operator=${OP} (skipped surfaces were NOT touched and remain on their previous image)"
