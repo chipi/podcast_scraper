@@ -187,8 +187,17 @@ jobs:
           for r in "$CP" "$PL" "$OP"; do
             case "$r" in success|skipped) ;; *) FAILED=1 ;; esac
           done
+          # Say only what the job results prove. These are DEPLOY OUTCOMES, not an image
+          # comparison — this step never looks at what prod is running. "NOT aligned" asserted
+          # drift it had not checked: a control-plane failure that happened BEFORE anything
+          # shipped leaves every surface aligned at the OLD sha, which is a different situation,
+          # with a different fix, from one surface shipping while another did not. Both need
+          # attention; telling them apart needs the box, so point there instead of guessing.
+          # Overstating the failure is the same defect as overstating the success.
           if [ "$FAILED" = "1" ]; then
-            echo "::error::surfaces are NOT aligned — control-plane=${CP} player=${PL} operator=${OP}. Re-run the failed ones at the SAME sha before leaving prod in this state."
+            echo "::error::deploy did NOT complete for every surface — control-plane=${CP} player=${PL} operator=${OP}. Prod may be split across two shas or still wholly on the old one; this step cannot tell which. Read the running images (ssh deploy@prod-podcast docker ps --format '{{.Names}} {{.Image}}'), then re-run the incomplete surfaces at the SAME sha-${SHA}."
             exit 1
           fi
-          echo "::notice::all surfaces aligned"
+          # Alignment follows from the inputs — every surface was handed sha-${SHA} explicitly
+          # and reported success. It is not a read-back of the running images.
+          echo "::notice::every surface deployed sha-${SHA} successfully"
