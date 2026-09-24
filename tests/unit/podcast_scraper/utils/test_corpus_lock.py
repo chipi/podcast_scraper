@@ -441,3 +441,116 @@ class TestAnUnprobableLockIsUnknownNotFree:
         st = cl.corpus_lock_state(tmp_path)
         assert st["held"] is False
         assert st["lock_file_exists"] is True
+
+
+# ---------------------------------------------------------------------------
+# M1 (2026-09-24 review): a STATUS READ must not be able to kill a real run
+# ---------------------------------------------------------------------------
+
+
+def test_status_probe_running_concurrently_does_not_abort_a_real_acquire(tmp_path: Path):
+    """The failure: reading status aborted the run it was reporting on.
+
+    ``corpus_lock_state`` takes the REAL flock for a few microseconds to decide ``held``. A
+    reprocess launching inside that window got ``Timeout`` on its own ``timeout=0`` acquire,
+    found NO holder file (the probe writes none), and so fell through to the contention branch
+    and raised — "locked (no holder file)" — killing a legitimate 25-hour batch because
+    somebody asked whether anything was running.
+
+    Drives the real collision: a thread hammers ``corpus_lock_state`` while the main thread
+    acquires repeatedly. Pre-fix this raises RuntimeError within a few hundred iterations.
+    """
+    import threading
+
+    from podcast_scraper.utils import corpus_lock
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    stop = threading.Event()
+    probe_errors: list = []
+
+    def _probe_forever():
+        while not stop.is_set():
+            try:
+                corpus_lock.corpus_lock_state(corpus)
+            except Exception as exc:  # the probe itself must never raise either
+                probe_errors.append(exc)
+
+    t = threading.Thread(target=_probe_forever, daemon=True)
+    t.start()
+    try:
+        for _ in range(300):
+            with corpus_lock.corpus_parent_lock(corpus):
+                pass
+    finally:
+        stop.set()
+        t.join(timeout=5)
+
+    assert not probe_errors, f"corpus_lock_state raised: {probe_errors[:3]}"
+
+
+def test_probe_does_not_take_the_lock_when_a_live_local_holder_is_recorded(tmp_path: Path):
+    """Held-by-a-live-local-process is answerable from the sidecar, so do not touch the flock.
+
+    Narrow on purpose. The sidecar is NOT authority in general — this module exists because
+    its mere existence was read as "locked" — so this shortcut fires only when the holder
+    names a pid alive on THIS host, the one case where it is evidence rather than a leftover.
+    """
+    from podcast_scraper.utils import corpus_lock
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    with corpus_lock.corpus_parent_lock(corpus):
+        called = []
+        real_filelock = __import__("filelock").FileLock
+
+        class _TattlingFileLock(real_filelock):  # type: ignore[misc,valid-type]
+            def acquire(self, *a, **kw):
+                called.append(1)
+                return super().acquire(*a, **kw)
+
+        with patch("filelock.FileLock", _TattlingFileLock):
+            state = corpus_lock.corpus_lock_state(corpus)
+
+        assert state["held"] is True
+        assert not called, "probed (and briefly took) a lock a live local holder already explains"
+        assert "not probed" in str(state["reason"])
+
+
+def test_a_dead_holder_still_falls_through_to_the_flock(tmp_path: Path):
+    """The shortcut must never report held from a STALE sidecar — that is the original bug.
+
+    A holder whose pid is dead is exactly the leftover this module refuses to treat as
+    meaningful, so it must reach the flock and be reported FREE.
+    """
+    from podcast_scraper.utils import corpus_lock
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    with corpus_lock.corpus_parent_lock(corpus):
+        pass  # creates the lock file; release removes the holder
+
+    (corpus / ".podcast_scraper.lock.holder").write_text(
+        json.dumps({"pid": 999999, "hostname": socket.gethostname(), "started_at": "x"}),
+        encoding="utf-8",
+    )
+    with patch.object(corpus_lock, "_is_pid_alive", return_value=False):
+        state = corpus_lock.corpus_lock_state(corpus)
+    assert state["held"] is False
+    assert "FREE" in str(state["reason"])
+
+
+def test_a_foreign_host_holder_still_falls_through_to_the_flock(tmp_path: Path):
+    """A pid from another host proves nothing — every container has a PID 1."""
+    from podcast_scraper.utils import corpus_lock
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    with corpus_lock.corpus_parent_lock(corpus):
+        pass
+    (corpus / ".podcast_scraper.lock.holder").write_text(
+        json.dumps({"pid": 1, "hostname": "some-other-container", "started_at": "x"}),
+        encoding="utf-8",
+    )
+    state = corpus_lock.corpus_lock_state(corpus)
+    assert state["held"] is False, "trusted a foreign-host pid"

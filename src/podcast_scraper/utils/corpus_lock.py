@@ -41,6 +41,13 @@ from typing import Dict, Iterator, Optional, Union
 LOCK_BASENAME = ".podcast_scraper.lock"
 _HOLDER_BASENAME = ".podcast_scraper.lock.holder"
 
+# Bounded POLLING retry for an acquire that failed with NO holder file recorded. Sized against
+# what it absorbs — `corpus_lock_state`'s probe holds the flock for microseconds, possibly
+# repeatedly — not against real contention, which lasts hours and always records a holder
+# first. A one-shot sleep was tried and still lost the race; filelock polls, so this returns
+# as soon as the probe releases and only spends the full budget when genuinely blocked.
+_PROBE_COLLISION_RETRY_SECONDS = 2.0
+
 
 def corpus_lock_enabled() -> bool:
     """Return False when ``PODCAST_SCRAPER_CORPUS_LOCK`` is ``0``/``false``/``off``."""
@@ -64,6 +71,25 @@ def _is_pid_alive(pid: int) -> bool:
         return True
     except OSError:
         return False
+
+
+def _holder_is_live_on_this_host(holder: Dict[str, object]) -> bool:
+    """True only when the holder records a pid that is ALIVE on the host reading it.
+
+    The narrow complement of :func:`_holder_is_reclaimable`: that answers "can I prove it is
+    gone", this answers "can I prove it is here". Everything else — a foreign hostname, a
+    missing pid, an unparsable sidecar — is neither, and callers must fall through to the
+    flock. Used only to avoid probing (and therefore briefly TAKING) a lock that is already
+    known to be held; never to report a lock free, which would make the sidecar meaningful
+    again in the one direction this module exists to prevent.
+    """
+    pid = holder.get("pid")
+    if not isinstance(pid, int):
+        return False
+    recorded_host = holder.get("hostname")
+    if not isinstance(recorded_host, str) or recorded_host != socket.gethostname():
+        return False
+    return _is_pid_alive(pid)
 
 
 def _holder_is_reclaimable(holder: Dict[str, object]) -> bool:
@@ -118,6 +144,26 @@ def corpus_lock_state(corpus_parent: Union[str, Path]) -> Dict[str, object]:
         return out
     if not lock_path.exists():
         out.update(held=False, reason="no lock file — this corpus has never been locked")
+        return out
+    # ANSWER WITHOUT TAKING THE LOCK WHEN THE HOLDER ALREADY ANSWERS IT. The probe below
+    # acquires the REAL flock for a moment, and a reprocess launching in that moment gets a
+    # `Timeout` on its own `timeout=0` acquire. The probe writes no holder file, so the run
+    # then finds none, reports "locked (no holder file)" and ABORTS — a status read killing
+    # a legitimate run, most likely exactly when someone is watching the status. The launch
+    # side is also hardened (see `corpus_parent_lock`), but not probing at all is the better
+    # half of the fix.
+    #
+    # Only skipped when the holder names a LIVE pid on THIS host, which is the one case
+    # where the holder is evidence rather than a leftover: that process is running under the
+    # lock right now. A holder from another host proves nothing (every container has a PID 1
+    # — see `_holder_is_reclaimable`), and a holder whose pid is dead is exactly the stale
+    # sidecar this module refuses to treat as meaningful, so both still fall through to the
+    # flock, which remains the only authority.
+    if holder is not None and _holder_is_live_on_this_host(holder):
+        out.update(
+            held=True,
+            reason=f"holder names a live local process — not probed, to avoid racing it ({holder})",
+        )
         return out
     try:
         from filelock import FileLock, Timeout
@@ -236,7 +282,25 @@ def corpus_parent_lock(
 
     lock = FileLock(str(lock_path), timeout=0)
     try:
-        lock.acquire()
+        # A SHORT RETRY, NOT A WAIT. `corpus_lock_state` acquires this same flock for a few
+        # microseconds to answer "is anything running"; a run launching inside that window
+        # got Timeout, found no holder file (the probe writes none), and aborted itself with
+        # "locked (no holder file)". A real competing run holds the lock for HOURS and is
+        # completely unaffected by retrying for a fraction of a second, so this cannot mask
+        # genuine contention — it only absorbs a transient holderless collision.
+        try:
+            lock.acquire()
+        except Timeout:
+            if _read_holder(holder_path) is not None:
+                raise  # a real holder — genuine contention, handled below
+            # No holder recorded, so whoever has the flock did not take it to do WORK.
+            # Retry with a bounded, POLLING acquire rather than one fixed sleep: a status
+            # surface can probe repeatedly, and a single retry simply loses the race again
+            # (proven — the concurrency test still raised RuntimeError with a one-shot
+            # retry). filelock polls internally, so this returns the instant the probe lets
+            # go. It cannot mask real contention: a competing RUN records a holder before it
+            # starts working and is caught by the branch above.
+            lock.acquire(timeout=_PROBE_COLLISION_RETRY_SECONDS)
     except Timeout:  # pragma: no cover - contention/crash-recovery path, not hit by single-run e2e
         # Check whether the holder is still alive; reclaim if dead.
         holder = _read_holder(holder_path)
