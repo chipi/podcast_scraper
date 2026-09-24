@@ -813,7 +813,8 @@ when native is merely nicer.** Each entry below names the promise it is protecti
 
 ### iOS versus Android
 
-Same Vue code, but three things genuinely differ, and only one of them is a product decision:
+Same Vue code, and **two** things genuinely differ. Both are platform mechanics, not product
+decisions — the product behaves identically on both:
 
 - **Output routing is two APIs.** iOS/WKWebView has `webkitShowPlaybackTargetPicker()` with
   `webkitplaybacktargetavailabilitychanged`; Chromium has the Remote Playback API
@@ -824,9 +825,12 @@ Same Vue code, but three things genuinely differ, and only one of them is a prod
   notification, which MediaSession already populates.
 - **Background audio is two mechanisms.** iOS uses `AVAudioSession` + `UIBackgroundModes`; Android
   needs a foreground service, which is why a local `BackgroundAudio` plugin exists and no-ops on iOS.
-- **Neither platform lets a page enumerate audio devices.** Not AirPlay, not Cast, not Bluetooth.
-  Any in-app device list would have to come from our own protocol, as Spotify Connect does. This is
-  a hard boundary, not a gap to close.
+**Not a difference — a SETTLED decision, recorded so it is not reopened as one.** Using the OS
+picker is the answer on both platforms (operator 2026-09-24: "I'm okay with the generic AirPlay way
+to trigger the iOS native dialog"). Neither platform lets a page — or a native app — enumerate
+AirPlay, Cast or Bluetooth targets, so an in-app device list would require our own device protocol,
+as Spotify Connect is. It is listed here only because "build the device list for Android" is the
+obvious next thought and there is nothing to build.
 
 ### Testing consequence — and the trap that has already cost days
 

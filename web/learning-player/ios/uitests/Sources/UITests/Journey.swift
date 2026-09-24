@@ -132,19 +132,26 @@ enum Journey {
    * So: a few CONCRETE types, small caps, and every access guarded. It is allowed to return less
    * than the whole truth. It is not allowed to throw.
    */
-  static func labelledInventory(_ app: XCUIApplication, limit: Int = 20) -> String {
+  static func labelledInventory(_ app: XCUIApplication, limit: Int = 8) -> String {
+    // PER-TYPE caps, not one global budget. With a single budget the first type consumes it — Home
+    // has a dozen buttons, so `links` never appeared, and the element actually being hunted (the
+    // masthead avatar, a LINK) was invisible in every diagnostic it produced. A cap that hides the
+    // thing you are looking for is worse than no cap, because it reads as evidence of absence.
     var out: [String] = []
     let sources: [(String, XCUIElementQuery)] = [
-      ("button", app.buttons), ("menuItem", app.menuItems),
-      ("popUp", app.popUpButtons), ("link", app.links),
+      ("button", app.buttons), ("link", app.links), ("menuItem", app.menuItems),
+      ("popUp", app.popUpButtons), ("image", app.images), ("other", app.otherElements),
     ]
     for (kind, query) in sources {
-      let n = min(query.count, limit)
+      var taken = 0
+      let n = min(query.count, 40)
       guard n > 0 else { continue }
-      for i in 0..<n {
+      for i in 0..<n where taken < limit {
         let label = query.element(boundBy: i).label
-        if !label.isEmpty { out.append("\(label)[\(kind)]") }
-        if out.count >= limit { return out.joined(separator: " | ") + " …(capped)" }
+        if !label.isEmpty {
+          out.append("\(label)[\(kind)]")
+          taken += 1
+        }
       }
     }
     return out.isEmpty ? "<nothing labelled>" : out.joined(separator: " | ")

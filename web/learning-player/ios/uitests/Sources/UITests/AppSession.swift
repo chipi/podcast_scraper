@@ -132,7 +132,27 @@ enum AppSession {
    * the identity, so Profile being reachable by that label answers both questions at once.
    */
   static func isSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
-    guard Journey.tap(app, labels: [identity], contains: true, timeout: 12) else { return false }
+    // Open Profile by the identity label WHEN IT IS THERE, else the generic one.
+    //
+    // This used to reach the page by the identity alone, on the reasoning that "the masthead entry
+    // is labelled with the display NAME, which for a dev-picker account IS the identity". That does
+    // not hold: the avatar is `aria-label="auth.user?.name || 'Your profile'"`, so any account
+    // without a resolved name is labelled generically — and the check then reported SIGNED OUT
+    // about an app that was demonstrably signed in, with the avatar, the queue badge and the
+    // offline stale-notice all on screen (2026-09-24).
+    guard Journey.tap(app, labels: [identity], contains: true, timeout: 8)
+      || Journey.tap(app, labels: ["Your profile"], contains: false, timeout: 8)
+    else { return false }
+
+    // The RIGHT account, checked FIRST — before the scroll below moves it off screen. Profile
+    // prints the name and the email, and a dev identity appears in at least one of them
+    // (`simtest` / `simtest@e2e.local`). This is what keeps per-suite isolation (#2091) honest:
+    // "some session exists" is not the question, "whose" is.
+    guard Journey.find(app, labels: [identity], contains: true, timeout: 10) != nil else {
+      return false
+    }
+
+    // A session EXISTS — "Sign out" is deliberately the last control on Profile (#1962).
     guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else { return false }
     // The painted session is not the answer — the revalidation that follows it is.
     sleep(6)
