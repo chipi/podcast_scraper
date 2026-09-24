@@ -110,8 +110,14 @@ enum AppSession {
       picker = input.waitForExistence(timeout: 20)
     }
     guard picker else {
+      // BEFORE failing: are we already signed in? `/login` correctly bounces an authenticated
+      // visitor to Home, so an app that is ALREADY signed in can never show the picker — and this
+      // reported "no dev identity input" for a session that was perfectly good. `isSignedIn(as:)`
+      // hunts the masthead entry by the account NAME, which is not reliable when the identity has
+      // not resolved, so a healthy session can fail detection and send us here.
+      if isSignedIn(app) { return true }
       XCTFail(
-        "no dev identity input after two attempts to reach the login page. "
+        "no dev identity input after two attempts, and the app is not signed in either. "
           + "On screen: \(Journey.labelledInventory(app, limit: 10))"
       )
       return false

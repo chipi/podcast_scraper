@@ -132,6 +132,7 @@ app.use(createPinia()).use(router).use(i18n)
 // RFC-120 (#2009): route an EXPIRED session to the lure landing. A 401 fires this only when we
 // still believe we're signed in (guards against a redirect loop — anonymous 401s are normal under
 // login-first). Registered after pinia+router so the store and navigation are live.
+let adjudicating401 = false
 setOnUnauthorized(() => {
   const auth = useAuthStore()
   // `hasSession`, NOT `isAuthenticated`. Gating on the latter meant a device holding a DEAD native
@@ -141,11 +142,28 @@ setOnUnauthorized(() => {
   // 2026-09-16. An anonymous 401 (normal under login-first) still no-ops, because with no user and
   // no token `hasSession` is false.
   if (!auth.hasSession) return
-  auth.markSignedOut()
-  const current = router.currentRoute.value
-  if (current.name !== 'landing' && current.name !== 'login') {
-    void router.replace({ name: 'landing', query: { redirect: current.fullPath } })
-  }
+  // ADJUDICATE the 401 — do not wipe on sight.
+  //
+  // This called `markSignedOut()`, which drops the token and the identity snapshot with NONE of
+  // the guards `refresh()` carries. Since `api.ts` fires this handler on EVERY 401, the careful
+  // truth table in `refresh()` — keep the token when the server rotated its key or is unwell,
+  // keep the identity on a transport failure — was unreachable: the wipe always won the race.
+  // The 2026-09-16 incident was hardened in one path and left open in the one that actually runs.
+  //
+  // `refresh()` re-asks `/me` and applies that truth table. The latch stops its own inner 401 from
+  // re-entering here; the redirect happens only if it concludes the session is genuinely gone.
+  if (adjudicating401) return
+  adjudicating401 = true
+  void auth
+    .refresh()
+    .finally(() => {
+      adjudicating401 = false
+      if (auth.hasSession) return
+      const current = router.currentRoute.value
+      if (current.name !== 'landing' && current.name !== 'login') {
+        void router.replace({ name: 'landing', query: { redirect: current.fullPath } })
+      }
+    })
 })
 
 // Native prep that MUST land before the router's first navigation (which starts at mount):

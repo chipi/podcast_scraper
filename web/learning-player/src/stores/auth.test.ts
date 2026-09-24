@@ -83,6 +83,14 @@ describe('auth store', () => {
   it('refresh() clears the snapshot when the credential is dead (401)', async () => {
     disk['auth.me'] = ME
     vi.spyOn(api, 'getMe').mockResolvedValue(null)
+    // The server must be stated HEALTHY, or this asserts nothing about a dead credential.
+    // It used to pass without saying so, because the snapshot was removed unconditionally ahead of
+    // the `serverAtFault` check — so the test held for a 401 of ANY origin, including one the code
+    // had judged to be the server's fault. Under the guard, jsdom's `offlineReason()` reports a
+    // degraded server and the identity is (correctly) kept. The intent is unchanged; the
+    // precondition that intent needs is now supplied rather than left to chance.
+    vi.spyOn(api, 'getHealth').mockResolvedValue({ auth_ready: true } as never)
+    vi.spyOn(online, 'offlineReason').mockReturnValue(null)
     const auth = useAuthStore()
     await auth.refresh()
     expect(auth.isAuthenticated).toBe(false)
@@ -233,6 +241,58 @@ describe('a dead credential takes the TOKEN with it (2026-09-24)', () => {
     await useAuthStore().refresh()
 
     expect(store).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('a server-fault 401 keeps the IDENTITY, not just the token (2026-09-24)', () => {
+  /*
+   * Measured on device: across a full run the bearer token was present in all 34 samples and
+   * `auth.me` in none, while the downloads registry — written through the same Preferences path —
+   * persisted fine. The snapshot was not failing to write. It was written, then deleted by a 401
+   * that this code had ALREADY judged not to be the user's fault.
+   *
+   * `removeDeviceKey(SNAPSHOT_KEY)` sat ahead of the `serverAtFault` check, so a rotated signing
+   * key kept the token (right) and destroyed the identity anyway (wrong) — leaving the worst of
+   * both: a session the router admits that cannot name its user, with nothing left to paint
+   * offline. That is exactly the offline promise this app makes to someone on a plane.
+   */
+  function nativeSession() {
+    vi.spyOn(native, 'isNative').mockReturnValue(true)
+    vi.spyOn(online, 'offlineReason').mockReturnValue(null)
+    return vi.spyOn(native, 'storeAuthToken').mockImplementation(() => {})
+  }
+
+  it('keeps the snapshot when the server rotated its signing key', async () => {
+    nativeSession()
+    const auth = useAuthStore()
+    // A real identity lands first, exactly as a successful login would.
+    vi.spyOn(api, 'getMe').mockResolvedValue(ME)
+    await auth.refresh()
+    expect(disk['auth.me']).toBeTruthy()
+
+    // Now the server invalidates every token at once and answers 401.
+    vi.spyOn(api, 'getMe').mockResolvedValue(null)
+    vi.spyOn(api, 'getHealth').mockResolvedValue({ auth_ready: false } as never)
+    await auth.refresh()
+
+    expect(disk['auth.me'], 'the identity was destroyed over a fault that was not the user\'s').toBeTruthy()
+  })
+
+  it('still drops the snapshot when the credential is genuinely ours and dead', async () => {
+    // The other half: a real expiry must still sign you out cleanly, or the guard becomes a
+    // licence to keep stale identities forever.
+    nativeSession()
+    const auth = useAuthStore()
+    vi.spyOn(api, 'getMe').mockResolvedValue(ME)
+    await auth.refresh()
+    expect(disk['auth.me']).toBeTruthy()
+
+    vi.spyOn(api, 'getMe').mockResolvedValue(null)
+    vi.spyOn(api, 'getHealth').mockResolvedValue({ auth_ready: true } as never)
+    await auth.refresh()
+
+    expect(disk['auth.me']).toBeFalsy()
   })
 })
 

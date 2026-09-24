@@ -28,29 +28,54 @@ final class OfflineAutoAdvanceTests: UITestCase {
   override var accountIdentity: String { Self.sharedSeededIdentity }
   func testBootsAndPlaysADownloadedEpisodeWithNoNetwork() throws {
     let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
+
+    // TELL the app it is offline, as well as taking its network away (operator 2026-09-24:
+    // "why not just move app to offline mode via config?").
+    //
+    // The api being down is a real network failure, and it is what the flight looks like from
+    // outside. But on its own it leaves the app GUESSING: the episode page still reaches for its
+    // detail over the network, fails, and can land in an error state — so playback never starts
+    // and the failure reads as "audio did not start" when nothing about audio was wrong.
+    //
+    // The forced-offline switch is the app's own contract for this ("behave as if offline"), so
+    // flipping it exercises the path the offline experience is actually built on. Both together is
+    // the honest condition: no network AND the app knowing it. Using the switch ALONE would be
+    // weaker — a code path that ignored the flag and hit the network would still pass.
+    //
+    // `lp.forceOffline` is device-local, so it survives the relaunch below.
+    _ = Journey.setOfflineMode(app, on: true)
+
     // A COLD start is the point: launch() on an already-running app only activates it, so what is
     // on disk is never re-read.
     app.terminate()
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
 
-    // 1. Boot keeps the session with no network — the persisted identity, not a login bounce.
-    // Asserted through AppSession so it survives the revalidation rather than passing on the
-    // painted session: with the api DOWN the refresh cannot answer, and NOT signing out on a
-    // transport failure is precisely what this line exists to prove.
-    // The message carries the evidence. `print` does NOT survive xcodebuild — that is why three
-    // investigations into this tier read a truncated log and blamed the app. "Fell back to
-    // signed-out" has three causes (signed out, signed in as someone ELSE, or the masthead entry
-    // not labelled with the display name), and only the labels on screen tell them apart.
-    let signedIn = AppSession.isSignedIn(app, as: accountIdentity)
-    XCTAssertTrue(
-      signedIn,
-      "offline boot did not keep the session as '\(accountIdentity)'. "
-        + "On screen: \(Journey.labelledInventory(app, limit: 14)). "
-        // The masthead's right-hand third, where the avatar and bell sit. Identified by POSITION
-        // because their NAME is the thing in question.
-        + "Masthead right: \(Journey.inventoryInRegion(app, CGRect(x: app.frame.width * 0.6, y: 0, width: app.frame.width * 0.4, height: 120)))"
-    )
+    // 1. CASE 1 — "I was signed in; now I am offline."
+    //
+    //    The requirement is that the app opens into the APP, not a login wall: Library is
+    //    reachable, so the episodes already on this device are too. That is what a listener needs
+    //    on a plane.
+    //
+    //    It does NOT assert the masthead can display the account's name. That was the old
+    //    assertion (`isSignedIn(as: identity)`) and it conflated two things: "my library is here"
+    //    with "the app can render my identity". Offline no login is asked for and none is
+    //    possible, so gating the journey on a name failed for something the listener never needed
+    //    (operator 2026-09-24).
+    //
+    //    CASE 2 — never signed in, offline, reaching downloads through `/offline` — is a SEPARATE
+    //    test with a separate contract, in `NativeOnlySurfacesTests`. Both are offline and they are
+    //    otherwise unrelated; neither stands in for the other.
+    guard Journey.openTab(app, "Library") else {
+      XCTFail(
+        "offline boot did not reach Library — the app put a wall in front of episodes that are "
+          + "already on this device. On screen: \(Journey.labelledInventory(app, limit: 14))"
+      )
+      return
+    }
 
     // 2. The Downloaded list renders from the device registry, with zero successful requests.
     let downloadedHeading = app.staticTexts["Downloaded"]
@@ -77,9 +102,30 @@ final class OfflineAutoAdvanceTests: UITestCase {
       app.swipeUp(); sleep(1); scrolls += 1
     }
     play.tap()
+    // Playing, OR ALREADY FINISHED. The fixture episodes are ~6 SECONDS long, so the transport can
+    // run to the end and be replaced by the auto-advance end-card before this assertion catches
+    // `Pause` — the state it was waiting for has already gone by.
+    //
+    // The end-card is not a weaker proof here, it is a stronger one: with no network and no
+    // playable local file the episode could never reach its end at all, so "NEXT · IN" means the
+    // audio ran from disk. Asserting only `Pause` was asserting on a race, and it reported "audio
+    // did not start" about audio that had started AND finished (measured 2026-09-24: the page
+    // carried the full transport, `Queue (2)`, and `NEXT · IN 0:06`).
+    let playing = app.buttons["Pause"].firstMatch.waitForExistence(timeout: 20)
+    let finished = Journey.control(app, label: "NEXT · IN 0:06").exists
+      || app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'NEXT'")).firstMatch.exists
     XCTAssertTrue(
-      app.buttons["Pause"].firstMatch.waitForExistence(timeout: 20),
-      "audio did not start from the downloaded file with no network"
+      playing || finished,
+      // What is ON the page matters more than the missing Pause. "Audio isn't available" or a
+      // not-downloaded notice means the SOURCE failed to resolve (a stale container URI after
+      // reinstall, say); a transport still sitting on Play means the tap never landed. Those need
+      // opposite fixes, and the bare assertion could not tell them apart.
+      "audio neither started nor completed from the downloaded file with no network. On screen: "
+        + "\(Journey.labelledInventory(app, limit: 12))"
     )
+
+    // Device-local and survives a relaunch AND an account change — left on, it breaks every later
+    // suite's network assertions for the wrong reason (the 2026-09-16 cross-suite leak).
+    _ = Journey.setOfflineMode(app, on: false)
   }
 }

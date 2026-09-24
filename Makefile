@@ -2173,8 +2173,6 @@ test-ios:
 	@set -e; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/4 download (seeds the offline suites) ==="; \
 	$(MAKE) test-app-ios-sim-download; \
-	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] seed a DURABLE native session ==="; \
-	$(MAKE) ios-journey-signin; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 2/4 offline auto-advance ==="; \
 	$(MAKE) test-app-ios-sim-offline; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 3/4 journey + personalisation + cache ==="; \
@@ -2396,7 +2394,20 @@ seed-ios-offline-queue:
 # without a single successful request. Requires a prior `make test-app-ios-sim` to have installed
 # the app and signed in as the uitest identity.
 test-app-ios-sim-offline:
-	@$(MAKE) seed-ios-offline-queue
+	@# NO `defaults write` seeding (2026-09-24). This used to run `seed-ios-offline-queue`, which
+	@# manufactures a downloads registry and a cached queue by writing straight into the app's
+	@# preferences — a mechanism THIS SUITE'S OWN HEADER documents as unreliable: "`xcrun simctl
+	@# spawn defaults read` reports the seeded value while the app reads the previous one, so the
+	@# test asserted a state that was not the state under test". Auto-advance was already scoped out
+	@# of the suite because of it; the session and registry were still riding on it.
+	@#
+	@# It is also redundant. `test-app-ios-sim-download` signs in through the real login and
+	@# downloads two episodes through the UI, so the session and the files are genuinely on the
+	@# device by the time we get here. Seeding on top could only overwrite what the app itself
+	@# wrote — and the app booted SIGNED OUT with both seeds in place (measured 2026-09-24).
+	@#
+	@# What remains is the journey a person actually takes: sign in online, close the app, lose
+	@# connectivity, open it again.
 	@$(MAKE) app-e2e-api-down
 	@echo "--> api is DOWN; running the offline journey"
 	@# `| tail` makes the pipeline's status the TAIL's, so this target reported success while its
