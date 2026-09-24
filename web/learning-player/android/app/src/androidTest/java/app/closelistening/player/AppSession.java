@@ -176,16 +176,41 @@ final class AppSession {
      */
     static boolean signOut() {
         if (!hasAnySession()) return true; // already out; the caller's precondition holds
-        Journey.openProfile();
-        UiObject2 out = Journey.scrollTo("Sign out", false);
-        if (out == null) return false;
-        try {
-            out.click();
-        } catch (Throwable t) {
-            return false;
+
+        // RETRY, and re-resolve the control each time.
+        //
+        // A single tap reported success and left the app signed in, on a Discover page it had
+        // navigated to — so the click landed on SOMETHING, just not the button (2026-09-24). Two
+        // ways that happens here and both are invisible from the return value: `find` prefers a
+        // clickable ancestor, which for a full-width button row can be a much larger container; and
+        // a node resolved before a scroll is stale afterwards, so clicking it quietly does nothing.
+        //
+        // The app is not the suspect: `auth.logout()` drops the local identity in a `finally`
+        // precisely so a sign-out with no network still works.
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            Journey.openProfile();
+            UiObject2 out = Journey.scrollTo("Sign out", false);
+            if (out == null) {
+                System.out.println("=====SIGNOUT attempt " + attempt
+                        + ": no 'Sign out' control on Profile :: " + Journey.labelledInventory(20)
+                        + "=====");
+                continue;
+            }
+            // `Journey.tap`, NOT a raw `click()` on the node `scrollTo` returned.
+            //
+            // "Sign out" is the LAST control on Profile, so scrolling to it parks it at the bottom
+            // of the screen — measured at Rect(47, 2207 - 1031, 2328) on a 2400-tall display, i.e.
+            // UNDERNEATH the bottom nav. The click landed on "Discover", the app navigated there,
+            // and the session was of course still present. `tap` exists precisely to lift a control
+            // clear of that overlap before touching it, and this call site had skipped it — the
+            // same trap the iOS `Journey` documents for the transport row.
+            boolean tapped = Journey.tap("Sign out", false, 10_000);
+            Journey.sleep(3_000);
+            if (!hasAnySession()) return true;
+            System.out.println("=====SIGNOUT attempt " + attempt + " tapped=" + tapped
+                    + " but a session is still present :: " + Journey.labelledInventory(20) + "=====");
         }
-        Journey.sleep(3_000);
-        return !hasAnySession();
+        return false;
     }
 
     /** Leave the app signed in as {@code identity}, whatever it was signed in as before. */

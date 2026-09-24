@@ -2181,6 +2181,104 @@ test-ios:
 	$(MAKE) test-app-ios-native; \
 	echo ""; echo "=== test-ios PASS $$(date '+%Y-%m-%d %H:%M:%S') ==="
 
+# ANDROID device tier (#2139) — the sibling of `test-ios`, one entry point, same guard shape.
+#
+# The app is a Capacitor WebView on both platforms, but almost nothing transfers: XCUITest is
+# iOS-only, so `ios/uitests/` cannot exercise the Android shell. These suites are a port of the iOS
+# DESIGN in Java against UI Automator, which reads the Android accessibility tree — the surface
+# TalkBack consumes. That choice is the point: `Espresso.onWebView()` drives the DOM and would
+# share the browser tier's blind spot, and on its first real run this tier found two Android-only
+# product bugs (downloads broken outright; four controls with no accessible name) that no DOM-based
+# test could have seen.
+ANDROID_AVD ?= Pixel_8
+ANDROID_PKG ?= app.closelistening.player
+ANDROID_SDK_DIR ?= $(HOME)/Library/Android/sdk
+ADB ?= $(ANDROID_SDK_DIR)/platform-tools/adb
+ANDROID_DIR = $(APP_DIR)/android
+
+test-android:
+	@# ASYMMETRIC GUARD, same as test-ios: skip LOUDLY where the tier cannot run, FAIL where it
+	@# can run but the setup is broken. A skip that covers real breakage is how a tier stops
+	@# running without anyone noticing — which is precisely how `DownloadThroughUITests.swift` sat
+	@# uncompilable for weeks on the iOS side.
+	@if [ ! -d "$(ANDROID_SDK_DIR)" ]; then \
+		echo "SKIP: test-android — no Android SDK at $(ANDROID_SDK_DIR)."; \
+		echo "      Not a pass: NOTHING on the Android device tier was verified here."; \
+		exit 0; \
+	fi
+	@test -x $(ADB) || { \
+		echo "FAIL: test-android — an Android SDK exists but adb is missing at $(ADB)."; \
+		exit 1; \
+	}
+	@$(ANDROID_SDK_DIR)/emulator/emulator -list-avds 2>/dev/null | grep -qx "$(ANDROID_AVD)" || { \
+		echo "FAIL: test-android — no '$(ANDROID_AVD)' AVD. Create it in Android Studio, or set"; \
+		echo "      ANDROID_AVD=<name> to one from: $(ANDROID_SDK_DIR)/emulator/emulator -list-avds"; \
+		exit 1; \
+	}
+	@echo ""; echo "=== test-android START $$(date '+%Y-%m-%d %H:%M:%S') — avd '$(ANDROID_AVD)' ==="
+	@$(MAKE) android-emulator-up
+	@$(MAKE) ios-origin-up
+	@# `adb reverse` rather than the emulator's 10.0.2.2 alias, so the Android build's API base is
+	@# BYTE-IDENTICAL to the iOS one and the two tiers cannot drift apart on configuration.
+	@$(ADB) reverse tcp:$(IOS_ORIGIN_PORT) tcp:$(IOS_ORIGIN_PORT) >/dev/null
+	@$(ADB) reverse tcp:$(IOS_MEDIA_PORT) tcp:$(IOS_MEDIA_PORT) >/dev/null
+	@echo "--> building the app against the single origin and installing it on '$(ANDROID_AVD)'"
+	@cd $(APP_DIR) && CAP_ANDROID_TEST_ORIGIN=1 \
+		VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
+		npm run build >/dev/null && CAP_ANDROID_TEST_ORIGIN=1 npx cap sync android >/dev/null
+	@cd $(ANDROID_DIR) && ./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest >/dev/null
+	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk >/dev/null
+	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
+	@# A CLEAN DEVICE, every time. Forced-offline is device-local and survives both a relaunch and
+	@# an account change, and a run that leaves it on cannot sign in on the NEXT run either — the
+	@# switch is in Settings, Settings is behind the masthead avatar, and the avatar needs a
+	@# session. That wedge is unrecoverable from inside a test, so it is handled here instead.
+	@$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null
+	@rc=0; \
+	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/4 harness (sign-in, nav, deep links, offline switch) ==="; \
+	$(MAKE) android-suite SUITE=HarnessSmokeTests || rc=$$?; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 2/4 download through the UI (seeds the offline suites) ==="; \
+		$(MAKE) android-suite SUITE=DownloadThroughUITests || rc=$$?; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 3/4 offline boot + playback from disk ==="; \
+		$(MAKE) android-suite SUITE=OfflineAutoAdvanceTests || rc=$$?; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 4/4 native-only surfaces ==="; \
+		$(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; fi; \
+	echo ""; echo "--> resetting the device (the last suite leaves it offline AND signed out by design)"; \
+	$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null 2>&1 || true; \
+	$(MAKE) ios-origin-down >/dev/null 2>&1 || true; \
+	if [ $$rc -eq 0 ]; then echo "=== test-android PASS $$(date '+%Y-%m-%d %H:%M:%S') ==="; \
+	else echo "=== test-android FAIL ($$rc) $$(date '+%Y-%m-%d %H:%M:%S') ==="; fi; \
+	exit $$rc
+
+# One suite. `am instrument` rather than gradle's `connectedAndroidTest`, because gradle UNINSTALLS
+# both apks when it finishes — which would delete the downloads the offline suites exist to read.
+android-suite:
+	@test -n "$(SUITE)" || { echo "FAIL: android-suite needs SUITE=<ClassName>"; exit 1; }
+	@out=$$($(ADB) shell am instrument -w -e class $(ANDROID_PKG).$(SUITE) \
+		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
+	echo "$$out"; \
+	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)"; exit 1; }
+
+android-emulator-up:
+	@if $(ADB) shell true >/dev/null 2>&1; then echo "✓ a device is already attached"; else \
+		echo "--> booting '$(ANDROID_AVD)'"; \
+		nohup $(ANDROID_SDK_DIR)/emulator/emulator -avd $(ANDROID_AVD) -no-snapshot-load -no-boot-anim \
+			> /tmp/lp-android-emu.log 2>&1 < /dev/null & \
+		$(ADB) wait-for-device; \
+	fi
+	@i=0; while [ $$i -lt 90 ]; do \
+		[ "$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break; \
+		i=$$((i+1)); sleep 5; \
+	done; \
+	[ "$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || \
+		{ echo "FAIL: '$(ANDROID_AVD)' never finished booting; see /tmp/lp-android-emu.log"; exit 1; }
+	@echo "✓ emulator ready"
+
+# Scoped to THIS avd by name so a sibling worktree's emulator is never touched (AGENTS.md).
+android-emulator-down:
+	@$(ADB) emu kill >/dev/null 2>&1 || true
+	@echo "✓ '$(ANDROID_AVD)' emulator reaped"
+
 #: The same, but sets up its own preconditions end to end (build, install, origin, sign-in).
 test-app-ios-native-full:
 	@$(MAKE) test-app-ios-sim-download
@@ -3688,9 +3786,9 @@ ci-ui-fast:
 # break main. ci-ui-full closes that gap locally without slowing down the
 # default per-commit gate.
 ci-ui-full:
-	# Note: ci-ui-full = ci-ui-fast + stack-test-ml-ci + the DEVICE tier (`test-ios`,
+	# Note: ci-ui-full = ci-ui-fast + stack-test-ml-ci + BOTH DEVICE tiers (`test-ios` + `test-android`,
 	# operator 2026-09-24). The device tier lives HERE and not in `ci-ui-fast` because it boots a
-	# simulator and stands up the containerised api — minutes, which is the opposite of what a fast
+	# simulator/emulator and stand up the containerised api — minutes, which is the opposite of what a fast
 	# gate is for. `test-ios` self-SKIPS off macOS and says out loud that nothing was verified; a
 	# SILENT skip is how that tier sat dead from 71fc75965 until 2026-09-24. On a Mac with Xcode but
 	# no simulator it fails instead — a broken setup is not an absent platform.
@@ -3719,6 +3817,7 @@ ci-ui-full:
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-app-e2e ==="; $(MAKE) test-app-e2e; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build-app ==="; $(MAKE) build-app; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-ios (device tier) ==="; $(MAKE) test-ios; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-android (device tier) ==="; $(MAKE) test-android; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] stack-test-ml-ci ==="; $(MAKE) stack-test-ml-ci; \
