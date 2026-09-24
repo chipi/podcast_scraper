@@ -1,3 +1,5 @@
+
+
 # Podcast Scraper
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -155,7 +157,7 @@ Choose the installation method based on your use case:
 - Want both? → `pip install -e ".[ml,llm]"` (recommended)
 - Contributing / developing? → `pip install -e ".[dev,ml,llm]"`
 
-**Note:** LLM provider SDKs (`openai`, `google-genai`, `anthropic`, `mistralai`, `httpx`) are **not** in core — they require the `[llm]` extra. Core (`pip install -e .`) gives you the pipeline framework only.
+**Note:** LLM provider SDKs (`openai`, `google-genai`, `anthropic`, `mistralai`) are **not** in core — they require the `[llm]` extra (`httpx` is already a core dependency). Core (`pip install -e .`) gives you the pipeline framework only.
 
 ### `vector_search` and embedding cache
 
