@@ -2664,9 +2664,16 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 running = states.get("running", 0)
                 pending = states.get("pending", 0)
                 if running or pending:
+                    # Say how many are DONE, which is what a reader actually wants and what the
+                    # raw counts do not give them. `done_keys` counts SUBMITTED jobs, not finished
+                    # ones (`_mark_processed` fires at submit as the double-submit guard), so
+                    # "N marked processed" reads as a completion count and is not one — a
+                    # misreading this line has caused more than once. finished = submitted minus
+                    # still-in-flight.
+                    finished = max(0, len(done_keys) - len(futures))
                     verdict = (
-                        f"WORKING — {running} running, {pending} queued; "
-                        f"longest in flight {longest:.0f}s. This is normal while episodes process."
+                        f"WORKING — {finished}/{len(all_jobs)} episodes done, {running} running, "
+                        f"{pending} queued; longest in flight {longest:.0f}s. Normal."
                     )
                     log = logger.info
                 elif len(futures) == 0 and missing:
@@ -2686,7 +2693,9 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     verdict = f"UNCLEAR — {len(futures)} future(s) tracked in states {states}."
                     log = logger.warning
                 log(
-                    "Processing loop: %s [jobs=%d marked_processed=%d futures=%d states=%s "
+                    # `submitted`, not `marked_processed`: the set is populated at submit time,
+                    # so naming it after processing invites reading it as a completion count.
+                    "Processing loop: %s [jobs=%d submitted=%d in_flight=%d states=%s "
                     "unaccounted=%s]",
                     verdict,
                     len(all_jobs),
