@@ -597,15 +597,13 @@ def select_reduce_model(cfg, _default_model_name: str) -> str:
     mode_precedence = getattr(cfg, "summary_mode_precedence", "mode")
     if mode_precedence == "config" and reduce_key:
         reduce_key = cast(str, reduce_key)
-        return _loadable_or_map_model(resolve_model_name(reduce_key), _default_model_name)
+        return resolve_model_name(reduce_key)
 
     mode_id = getattr(cfg, "summary_mode_id", None)
     if mode_id:
         try:
             mode = ModelRegistry.get_mode_configuration(str(mode_id))
-            return _loadable_or_map_model(
-                resolve_model_name(mode.reduce_model), _default_model_name
-            )
+            return resolve_model_name(mode.reduce_model)
         except ValueError as exc:
             logger.warning(
                 "summary_mode_id '%s' not found in registry, falling back to default reduce "
@@ -617,16 +615,16 @@ def select_reduce_model(cfg, _default_model_name: str) -> str:
     if reduce_key:
         reduce_key = cast(str, reduce_key)
         # Use resolve_model_name for consistent alias resolution and raw HF ID passthrough
-        return _loadable_or_map_model(resolve_model_name(reduce_key), _default_model_name)
+        return resolve_model_name(reduce_key)
 
     # Default to LED-base for reduce phase (production baseline: baseline_ml_prod_authority_v1)
     default_model = DEFAULT_SUMMARY_MODELS.get("long-fast")
     if not default_model:
         raise ValueError("DEFAULT_SUMMARY_MODELS['long-fast'] is not defined")
-    return _loadable_or_map_model(default_model, _default_model_name)
+    return default_model
 
 
-def _loadable_or_map_model(reduce_model: str, map_model: str) -> str:
+def resolve_loadable_reduce_model(reduce_model: str, map_model: str) -> str:
     """``reduce_model``, unless this runtime cannot load it — then the map model.
 
     LED-base ships only pickle weights, and ``transformers >= 4.56`` refuses ``torch.load``
@@ -643,10 +641,12 @@ def _loadable_or_map_model(reduce_model: str, map_model: str) -> str:
     supported production target. It changes a crash into a summary on the platforms where
     the pinned checkpoint is unloadable.
 
-    Applied to EVERY way a reduce model gets chosen — explicit config, a registry mode, or
-    the default — because "can this runtime load it" is a property of the runtime, not of
-    how the name arrived. Guarding only the default is what left three e2e tests failing
-    after the first pass: they resolve a mode, and the modes name long-fast directly.
+    Called at the LOAD site, not inside ``select_reduce_model``. Selection answers "what
+    should this configuration use" and must stay a pure function of the config: putting the
+    check there made it depend on the host's torch version, and eight unit tests asserting
+    plain selection behaviour started failing on one machine and passing on another. Which
+    model is WANTED and which can be LOADED here are different questions, and only the
+    second one is about the runtime.
     """
     from .model_manifest import checkpoint_is_loadable_here
 

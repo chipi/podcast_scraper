@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.providers.ml import model_manifest as mm
-from podcast_scraper.providers.ml.summarizer import _loadable_or_map_model
+from podcast_scraper.providers.ml.summarizer import resolve_loadable_reduce_model
 
 pytestmark = pytest.mark.unit
 
@@ -32,18 +32,18 @@ def test_the_pickle_only_set_is_not_empty() -> None:
 
 def test_unloadable_reduce_model_falls_back_to_the_map_model(monkeypatch) -> None:
     monkeypatch.setattr(mm, "torch_refuses_pickle_weights", lambda: True)
-    assert _loadable_or_map_model(_PICKLE_ONLY, _SAFETENSORS) == _SAFETENSORS
+    assert resolve_loadable_reduce_model(_PICKLE_ONLY, _SAFETENSORS) == _SAFETENSORS
 
 
 def test_a_loadable_reduce_model_is_left_alone(monkeypatch) -> None:
     """The substitution must be conditional, or it silently downgrades every summary."""
     monkeypatch.setattr(mm, "torch_refuses_pickle_weights", lambda: False)
-    assert _loadable_or_map_model(_PICKLE_ONLY, _SAFETENSORS) == _PICKLE_ONLY
+    assert resolve_loadable_reduce_model(_PICKLE_ONLY, _SAFETENSORS) == _PICKLE_ONLY
 
 
 def test_a_safetensors_model_is_never_substituted(monkeypatch) -> None:
     monkeypatch.setattr(mm, "torch_refuses_pickle_weights", lambda: True)
-    assert _loadable_or_map_model(_SAFETENSORS, "other") == _SAFETENSORS
+    assert resolve_loadable_reduce_model(_SAFETENSORS, "other") == _SAFETENSORS
 
 
 def test_the_substitution_is_logged_with_its_cause(monkeypatch, caplog) -> None:
@@ -52,7 +52,7 @@ def test_the_substitution_is_logged_with_its_cause(monkeypatch, caplog) -> None:
 
     monkeypatch.setattr(mm, "torch_refuses_pickle_weights", lambda: True)
     with caplog.at_level(logging.WARNING):
-        _loadable_or_map_model(_PICKLE_ONLY, _SAFETENSORS)
+        resolve_loadable_reduce_model(_PICKLE_ONLY, _SAFETENSORS)
     messages = [r.getMessage() for r in caplog.records]
     assert any("CVE-2025-32434" in m for m in messages), messages
     assert any(_PICKLE_ONLY in m and _SAFETENSORS in m for m in messages), messages

@@ -136,12 +136,22 @@ class TestMLProviderSummarizationViaFactory(unittest.TestCase):
         mock_map_model = Mock()
         mock_map_model.model_name = config.TEST_DEFAULT_SUMMARY_MODEL
         mock_map_model.device = "cpu"
+        # A DISTINCT reduce model, named literally. This used to read
+        # TEST_DEFAULT_SUMMARY_REDUCE_MODEL, which made the test's whole subject — that a
+        # different reduce model is loaded SEPARATELY — depend on two constants happening
+        # to differ. When the test reduce default moved to bart-small (long-fast names a
+        # pickle-only checkpoint that cannot load under torch < 2.6) they became equal,
+        # the provider correctly reused the map model, and this test failed while the
+        # behaviour it guards was fine. Its sibling test_provider_initialize_same_model
+        # owns the equal case.
+        reduce_model_id = "facebook/bart-large-cnn"
+        self.assertNotEqual(reduce_model_id, config.TEST_DEFAULT_SUMMARY_MODEL)
         mock_reduce_model = Mock()
-        mock_reduce_model.model_name = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
+        mock_reduce_model.model_name = reduce_model_id
         mock_reduce_model.device = "cpu"
         mock_summary_model.side_effect = [mock_map_model, mock_reduce_model]
         mock_select_map.return_value = config.TEST_DEFAULT_SUMMARY_MODEL
-        mock_select_reduce.return_value = config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
+        mock_select_reduce.return_value = reduce_model_id
 
         provider = create_summarization_provider(cfg)
         provider.initialize()

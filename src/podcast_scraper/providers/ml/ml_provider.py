@@ -763,6 +763,12 @@ class MLProvider:
 
             # Load REDUCE model if different from MAP model (for final combine)
             reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
+            # Selection says what this config WANTS; this says what this runtime can load.
+            # A pickle-only checkpoint under torch < 2.6 raises from inside from_pretrained
+            # (CVE-2025-32434), so substitute here rather than crash there.
+            reduce_model_name = summarizer.resolve_loadable_reduce_model(
+                reduce_model_name, model_name
+            )
             if reduce_model_name != model_name:
                 logger.info(f"Loading REDUCE model: {reduce_model_name}")
                 # Stage-level device config takes precedence (Issue #387)

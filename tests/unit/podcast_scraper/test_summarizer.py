@@ -111,17 +111,23 @@ class TestModelSelection(unittest.TestCase):
         self.assertEqual(reduce_model_name, summarizer.DEFAULT_SUMMARY_MODELS["long"])
 
     def test_select_reduce_model_with_direct_model_id(self):
-        """Test that alias works for reduce model."""
+        """An alias in summary_reduce_model resolves to its full HF id.
+
+        Uses a LITERAL alias rather than TEST_DEFAULT_SUMMARY_REDUCE_MODEL. It used to
+        read the constant and assert the id that constant happened to map to, so the two
+        had to be edited together — and when the test default moved off long-fast (it
+        names a pickle-only checkpoint that cannot load under torch < 2.6), this test
+        failed for a reason that has nothing to do with alias resolution, which is what it
+        is here to check.
+        """
         from podcast_scraper import config
 
         cfg = create_test_config(
             summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
-            summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
+            summary_reduce_model="long-fast",
         )
         map_model_name = summarizer.select_summary_model(cfg)
         reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
-        # TEST_DEFAULT_SUMMARY_REDUCE_MODEL is "long-fast" which is an alias
-        # select_reduce_model resolves it to "allenai/led-base-16384"
         self.assertEqual(reduce_model_name, "allenai/led-base-16384")
 
     def test_select_model_uses_mode_configuration_when_set(self):
