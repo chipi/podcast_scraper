@@ -57,6 +57,7 @@ of every `unlabeled-seed` query into that query's
   — the seed run always sees `nDCG@10 = 1.000`, correctly.
 
 The metrics that don't depend on labels still baseline today:
+
 - intent-router accuracy (measurable — we predict vs. `intent_expected`).
 - tier coverage (measurable — count of insight/segment/aux per response).
 - compound-lift rate (measurable — count of `lifted` blocks on transcript
@@ -67,7 +68,7 @@ The metrics that don't depend on labels still baseline today:
 
 ## Lifecycle
 
-```
+```text
 scaffold (this ship)  →  regression-anchor (seed labels)  →  human-audit
      ↓                          ↓                                ↓
 label_status:          label_status:                    label_status:

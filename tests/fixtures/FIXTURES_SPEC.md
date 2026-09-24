@@ -6,7 +6,6 @@
 > test placed here would be collected by neither lane. See
 > `tests/integration/fixtures/README.md`.
 
-
 This document describes how the podcast fixtures were generated and
 serves as the single source of truth for regeneration.
 
@@ -221,7 +220,7 @@ The two effects were separated by running the same episode through the same mode
 prompts (2 attempts each):
 
 | prompt | result |
-|---|---|
+| --- | --- |
 | as shipped | **copied** both attempts (coverage 1.00, 0.71) |
 | biking example swapped for a neutral subject | **clean** both attempts |
 | all examples reduced to shape-only placeholders | **clean** both attempts |
@@ -299,12 +298,12 @@ container, against the repo's own `src/` rather than the image's baked copy.
 
 Two traps that target now guards:
 
-* **Delete `episode_fingerprints.json` with the index.** The indexer skips episodes whose
+- **Delete `episode_fingerprints.json` with the index.** The indexer skips episodes whose
   fingerprint is unchanged, so leaving the sidecar behind yields a silently EMPTY index —
   `episodes=36 segments=0 insights=0 aux=0` — that still exits 0. This has happened once already.
   Always read the per-tier counts; a healthy rebuild of this corpus prints
   `episodes=36 segments=131 insights=124 aux=716`.
-* **Colima mounts the host read-only**, so the corpus is staged into a named volume and copied
+- **Colima mounts the host read-only**, so the corpus is staged into a named volume and copied
   back, not bind-mounted.
 
 Serving it has the same constraint, and it fails in a misleading way. Bind-mounting the corpus
@@ -327,9 +326,9 @@ that step must assert non-zero per-tier counts rather than trusting the exit cod
 
 Nobody owns the enrichment directory:
 
-* `build_app_validation_corpus.py` authors **four** files itself — `temporal_velocity`,
+- `build_app_validation_corpus.py` authors **four** files itself — `temporal_velocity`,
   `topic_theme_clusters`, `topic_similarity`, `topic_consensus`.
-* The enrichment **framework** (`cli enrich`) produces **nine**, including those four plus
+- The enrichment **framework** (`cli enrich`) produces **nine**, including those four plus
   `grounding_rate`, `guest_coappearance`, `topic_cooccurrence_corpus` and the executor's own
   `run.jsonl` / `run_summary.json`, and 36+36 per-episode `insight_density` /
   `insight_sentiment` sidecars.
@@ -344,7 +343,7 @@ surfaces just render empty. That happened once during the pipeline migration.
 Where the two writers disagree, measured on the 2026-08-16 corpus:
 
 | file | builder | framework |
-|---|---|---|
+| --- | --- | --- |
 | `grounding_rate` | *(not written)* | 5063 B |
 | `guest_coappearance` | *(not written)* | 6599 B |
 | `topic_cooccurrence_corpus` | *(not written)* | 8605 B |
@@ -355,10 +354,10 @@ Where the two writers disagree, measured on the 2026-08-16 corpus:
 
 Two of those differences are substantive, and both explain why the builder authors its own:
 
-* **`topic_theme_clusters`** — the real enricher finds NO theme clusters in this corpus. The
+- **`topic_theme_clusters`** — the real enricher finds NO theme clusters in this corpus. The
   Storylines rail's only chip ("Managing risk across domains", 3 members) exists solely because the
   builder authors it. Swap in the framework's output and Storylines renders empty.
-* **`temporal_velocity`** — the framework's payload embeds `now: <wall-clock timestamp>` and
+- **`temporal_velocity`** — the framework's payload embeds `now: <wall-clock timestamp>` and
   derives velocity relative to it, so committing it makes the corpus non-deterministic and
   time-dependent. The builder's version is derived from the authored publish dates instead.
 
@@ -375,7 +374,7 @@ episodes** instead of checking that files exist. Both defects §3 and §9 record
 in `metadata.json` and left untouched everywhere else:
 
 | layer | field | v3 state |
-|---|---|---|
+| --- | --- | --- |
 | `*.metadata.json` | `duration_seconds` | 33 distinct / 36 ✅ |
 | `*.gi.json` Episode node | `duration_ms` | **1 distinct / 36** — all `1800000` |
 | `enrichments/*.insight_density.json` | `duration_seconds` | **1 distinct / 36** — all `1800.0` |
@@ -384,14 +383,14 @@ in `metadata.json` and left untouched everywhere else:
 
 Causes, all removed from the builders on 2026-08-17:
 
-* `build_synthetic_validation_corpus.build_gi` hardcoded `duration_ms: 1800000`.
-* `_insight_density_envelope` hardcoded `duration_seconds: 1800.0`.
-* The duration was resolved **after** the GI and the sidecar were already written, so a fix applied
+- `build_synthetic_validation_corpus.build_gi` hardcoded `duration_ms: 1800000`.
+- `_insight_density_envelope` hardcoded `duration_seconds: 1800.0`.
+- The duration was resolved **after** the GI and the sidecar were already written, so a fix applied
   at the resolution point could not reach them. It is now resolved once, before any writer.
-* `_clean_insight_quote_excerpts` took the first 3 substantive utterances, and an episode's first
+- `_clean_insight_quote_excerpts` took the first 3 substantive utterances, and an episode's first
   substantive utterance is **always** the host's welcome. Greetings and connective filler are now
   rejected outright.
-* `_load_pipeline_outputs` dropped an episode from the map entirely when the summary quality guard
+- `_load_pipeline_outputs` dropped an episode from the map entirely when the summary quality guard
   rejected its summary — discarding the **duration** the pipeline had measured perfectly well. That
   is why `p01_e02` records 1800s against 360.8s of real audio, the only episode in the corpus that
   disagrees with its own file. Summary quality and duration measurement are independent facts and
@@ -400,11 +399,11 @@ Causes, all removed from the builders on 2026-08-17:
 **How much of this actually matters — measured 2026-08-17, not assumed. Do not re-litigate without
 re-measuring.**
 
-* **The 36 greeting Insights are the only class with user-visible weight.** Insights are the
+- **The 36 greeting Insights are the only class with user-visible weight.** Insights are the
   KnowledgePanel content, the "Insight now" card, and 124 indexed search documents. Nothing breaks;
   every insight surface in the fixture is simply exercised with the host saying hello, so a test
   asserting "insights render" proves the plumbing and nothing about the surface.
-* **The duration disagreements are inert today.** Nothing under `src/podcast_scraper/server/` or
+- **The duration disagreements are inert today.** Nothing under `src/podcast_scraper/server/` or
   `web/learning-player/src/` reads `duration_ms` at all — its only readers are the GI pipeline's
   `position_hint` waterfall (step 1) and a migration, and in this fixture `position_hint` is
   authored directly by the builder, so that waterfall never runs. The density sidecar's `1800.0` is
@@ -429,15 +428,15 @@ them** (decision 2026-08-17): the builder can no longer produce them, and v4 wil
 Same review, same method: count distinct values where 36 episodes should differ. A field with one
 distinct value across the corpus is the shape of "nothing here varies, so nothing here is tested".
 
-* **Every transcript segment is exactly 6.0s** — 1376 of 1376, one distinct value. And segment
+- **Every transcript segment is exactly 6.0s** — 1376 of 1376, one distinct value. And segment
   timelines disagree with the audio for **35/36** episodes (`p01_e01` segments end at 372.0s; the
   audio and metadata say 488s). Seek-to-segment against the real fixture audio lands in the wrong
   place for every episode, so nothing consuming segment timing is exercised realistically.
-* **Every episode has the same three insight position hints** — `0.200 / 0.350 / 0.500`, from
+- **Every episode has the same three insight position hints** — `0.200 / 0.350 / 0.500`, from
   `0.2 + 0.15 * (i % 5)` — so the Position Tracker timeline looks identical for all 36.
-* **KG shape is near-uniform**: `n_nodes` 2 distinct (7 ×35, 8 ×1), `n_edges` 2 distinct (6 ×35,
+- **KG shape is near-uniform**: `n_nodes` 2 distinct (7 ×35, 8 ×1), `n_edges` 2 distinct (6 ×35,
   7 ×1), and a **single edge type** (`MENTIONS`) across all 217 edges.
-* **Topics are per-FEED constants, not per-episode**: 10 labels total, only 7 distinct per-episode
+- **Topics are per-FEED constants, not per-episode**: 10 labels total, only 7 distinct per-episode
   topic sets, and `lifelong learning` + `expert interviews` on **36/36**. Measured downstream
   consequence: `topic_theme_clusters.json` has `cluster_count: 1`, so every theme surface renders
   exactly one cluster. Same root cause as the picker degeneracy in #1669 — the ranker discriminates,
@@ -450,15 +449,15 @@ real quote times rather than from an index. **None of this is in `_audit_built_c
 
 ### 15. The layers disagree about which episodes exist, and when they were published
 
-* **40 feed items vs 36 corpus episodes.** XML-only: `p02_e05`, `p05_e05`, `p06_e05`, `p06_e06` —
+- **40 feed items vs 36 corpus episodes.** XML-only: `p02_e05`, `p05_e05`, `p06_e05`, `p06_e06` —
   all four have audio in `tests/fixtures/audio/v3/`. Cause: `--max-episodes-per-feed` defaults to 4
   while `build_corpus_feeds.py` lists every transcript+audio episode. The app therefore sees four
   advertised episodes that resolve to nothing. If that is deliberate unprocessed-episode coverage,
   no spec line or test says so. (Related to §7, which fixed the opposite direction.)
-* **Publish datetime disagrees between metadata and KG/GI in 36/36**: metadata `T00:00:00`, KG/GI
+- **Publish datetime disagrees between metadata and KG/GI in 36/36**: metadata `T00:00:00`, KG/GI
   `T12:00:00`. Same calendar date, 12 hours apart. Cosmetic today only because the catalog truncates
   to the date — and two writers away from a real bug.
-* **`_RUN_TAG` is `run_20260101_000000` (underscore) but `corpus_scope._RUN_TS_RE` expects the dash
+- **`_RUN_TAG` is `run_20260101_000000` (underscore) but `corpus_scope._RUN_TS_RE` expects the dash
   format** (`run_%Y%m%d-%H%M%S`), so it never matches and run recency silently falls back to file
   **mtime**. Harmless with one run per feed; any future two-run fixture would be ordered by
   git-checkout mtimes, which differ per clone. The builder's own comment still describes a
@@ -473,14 +472,14 @@ match `corpus_scope._RUN_TS_RE`.
 
 Every path that degrades quality in `build_app_validation_corpus.py` still returns 0:
 
-* Fabricating fallbacks — `bullets or ["Key point 1..3"]`, `summary_body = raw_text or
+- Fabricating fallbacks — `bullets or ["Key point 1..3"]`, `summary_body = raw_text or
   episode_title`, greeting-as-summary. None reached the committed corpus (`grep -rl "Key point"
   feeds/` finds nothing), but all three paths exist.
-* The "SYNTHESIZED STAND-IN" report prints clearly and then returns 0 regardless. A CI regeneration
+- The "SYNTHESIZED STAND-IN" report prints clearly and then returns 0 regardless. A CI regeneration
   that fell back for 20 episodes would commit cleanly.
-* `_load_pipeline_outputs` swallows malformed files, so a corrupted pipeline run degrades to
+- `_load_pipeline_outputs` swallows malformed files, so a corrupted pipeline run degrades to
   fallbacks rather than failing.
-* `build_corpus_feeds.py` writes `duration = "00:00:00"` when ffmpeg is unavailable — stderr warning
+- `build_corpus_feeds.py` writes `duration = "00:00:00"` when ffmpeg is unavailable — stderr warning
   only, exit 0. A machine without ffmpeg regenerates all 40 items with a plausible zero. The
   committed result is caught by `test_corpus_feeds.py::test_every_item_has_a_nonzero_duration` —
   the right backstop, but the wrong layer to be relying on. Its fallback pubDate is also the source
@@ -501,7 +500,7 @@ are recorded in its sidecar. The p01-p09 core (38 episodes) is generated by
 `scripts/build_v3_fixtures.py`; the remaining 8 are standalone smoke fixtures (`p01_e01_fast`,
 `p01_multi_e01`–`e05`, `p06_e05`, `p06_e06`).
 
-#### Four different episode counts, all correct
+### Four different episode counts, all correct
 
 The corpus grew by accretion — shows started at four episodes each and picked up
 extras for specific tests — so "how many episodes are there" has four right
@@ -527,7 +526,7 @@ here so the number itself stops being a surprise.
 36 is asserting the default flag value, not the corpus. Quote 40 when you mean
 the fixtures, and 36 only when you mean a corpus built with the default cap.
 
-#### The special episodes
+### The special episodes
 
 Episodes beyond each show's original four. They exist for a reason; the reason
 belongs here rather than in whoever's memory added them:
@@ -729,168 +728,53 @@ Audio output:
 
 **Generate all audio:**
 
-```bash
-./tests/fixtures/scripts/generate_audio.sh
-```
+    ./tests/fixtures/scripts/generate_audio.sh
 
 **Generate specific files:**
 
-```bash
-python3 tests/fixtures/scripts/transcripts_to_mp3.py \
-    tests/fixtures/transcripts/p07_e01.txt \
-    tests/fixtures/transcripts/p08_e01.txt \
-    --overwrite
-```yaml
+    python3 tests/fixtures/scripts/transcripts_to_mp3.py \
+        tests/fixtures/transcripts/v3/p07_e01.txt \
+        tests/fixtures/transcripts/v3/p08_e01.txt \
+        --overwrite
 
----
+## Fast fixtures
 
-Fast Test Fixtures
+A 60-second cut of `p01_e01`, so the E2E-fast arm does not pay for a full episode.
+It is a **variant of an episode, not an episode** — excluded from every count but
+the raw file count.
 
-For fast test execution, minimal fixtures are available to reduce test runtime:
+| asset | path |
+| --- | --- |
+| RSS | `rss/p01_fast.xml` — single item |
+| transcript | `transcripts/v3/p01_e01_fast.txt` — first ~1 minute of `p01_e01` |
+| audio | `audio/v3/p01_e01_fast.mp3` — 469 KB |
 
-Fast Episode (p01_e01_fast)
- • RSS Feed: rss/p01_fast.xml - Single episode with 1-minute duration
- • Transcript: transcripts/p01_e01_fast.txt - First ~1 minute of p01_e01 transcript
- • Audio: audio/p01_e01_fast.mp3 - 60-second audio file (469 KB)
+Generated by extracting the first 60 seconds:
 
-Purpose: Reduce E2E-fast test execution time by ~75-85% (from ~3-4 minutes to ~30-45 seconds).
+    ffmpeg -i audio/v3/p01_e01.mp3 -t 60 -c copy audio/v3/p01_e01_fast.mp3
 
-Generation: Fast audio was created by extracting the first 60 seconds of p01_e01.mp3 using ffmpeg:
+Effect: E2E-fast drops from roughly 3-4 minutes to 30-45 seconds.
 
-ffmpeg -i audio/p01_e01.mp3 -t 60 -c copy audio/p01_e01_fast.mp3
+## The v1 long-context design — HISTORY, not satisfied by v3
 
-⸻
+This section described three shows built to push the summarizer past its chunking
+thresholds. **v3 does not contain any of it.** It is kept because it records what
+the corpus was once designed to test, and that intent has not been withdrawn — only
+un-met. Measured gaps and the v4 requirements that follow from them are in #1189.
 
-### p07 — The Long View: Sustainability
+| show (v1) | design | v3 reality |
+| --- | --- | --- |
+| `p07` The Long View: Sustainability | 1 episode, **14,471w**, ~1h45, ~22 chunks, ~3,300 combined-summary tokens — the 3-4k threshold boundary | 4 episodes, longest **977w** |
+| `p08` The Long View: Solar Energy | 1 episode, **19,251w**, ~2h21, ~30 chunks, ~4,500 tokens — the >4k extractive-fallback path | renamed *Public Hour*; 4 episodes, longest **792w** |
+| `p09` The Long View: Biohacking | 3 solo episodes, ~3,000w each, ~20min, 4-5 chunks | renamed *Cross-Show*; 4 episodes, longest **629w** |
 
-- Topic: Sustainability, systems thinking, long-term societal challenges
-- Host: Alex Morgan
-- **Purpose:** Long-context testing, threshold boundary scenarios (issue #283)
+Those transcripts still exist under `transcripts/v1/` and `transcripts/v2/`, which
+are **deprecated and must not be used** — `FIXTURES_VERSION` is `v3`. They are
+evidence that the coverage existed, not a supported fixture set.
 
-Episodes:
-
-- e01 — *What Sustainability Really Means (And Why Everyone Is Talking About It)* (guest: Dr. Elena Fischer) — **extra-long**
-
-**Actual specs:**
-
-- **Words:** 14,471 words
-- **Duration:** ~1 hour 45 minutes
-- **File size:** ~48 MB
-- **Expected chunks:** ~22 chunks (at 650 words/chunk)
-- **Expected combined summary tokens:** ~3,300 tokens
-- **Test scenario:** 3-4k token threshold boundary (hierarchical reduce vs extractive)
-
-Transcript requirements:
-
-- Single episode only
-- Plain text transcript
-- Speaker labels required (Alex Morgan:, Dr. Elena Fischer:)
-- No markdown formatting
-- Natural long-form podcast conversation
-- Reflective, explanatory tone
-
-Output files:
-
-- Transcript: `transcripts/p07_e01.txt`
-- RSS feed: `rss/p07_sustainability.xml`
-- Audio: `audio/p07_e01.mp3`
-
----
-
-### p08 — The Long View: Solar Energy
-
-- Topic: Solar energy and its role in the near future
-- Host: Alex Morgan
-- **Purpose:** Very long-context testing, >4k token threshold validation
-
-Episodes:
-
-- e01 — *The Role of Solar Energy in the Near Future* (guest: Dr. Rafael Mendes) — **extra-long**
-
-**Actual specs:**
-
-- **Words:** 19,251 words
-- **Duration:** ~2 hours 21 minutes
-- **File size:** ~65 MB
-- **Expected chunks:** ~30 chunks (at 650 words/chunk)
-- **Expected combined summary tokens:** ~4,500 tokens
-- **Test scenario:** >4k token threshold (extractive fallback validation)
-
-Transcript requirements:
-
-- Single episode only
-- Plain text transcript
-- Speaker labels required (Alex Morgan:, Dr. Rafael Mendes:)
-- No markdown formatting
-- Natural long-form podcast conversation
-- Analytical and forward-looking tone
-
-Output files:
-
-- Transcript: `transcripts/p08_e01.txt`
-- RSS feed: `rss/p08_solar.xml`
-- Audio: `audio/p08_e01.mp3`
-
----
-
-### p09 — The Long View: Biohacking
-
-- Topic: Biohacking and the state of the field in 2025
-- Host: Alex Morgan
-- Format: Solo host (no guests)
-- **Purpose:** Medium-to-long episode testing, multi-episode processing
-
-Episodes:
-
-- e01 — *Biohacking in 2025: From Fringe to Framework* — long
-- e02 — *Sleep, Metabolism, and Measurement: What Actually Works* — long
-- e03 — *Ethics, Limits, and the Next Decade of Human Optimization* — long
-
-**Actual specs:**
-
-- **Words per episode:** ~3,000 words each (2,964 / 2,937 / 2,954)
-- **Duration per episode:** ~20 minutes each
-- **File size per episode:** ~9 MB each
-- **Expected chunks per episode:** ~4-5 chunks
-- **Expected combined summary tokens per episode:** ~600-750 tokens
-- **Test scenario:** Medium-length episodes with consistent processing
-
-Transcript requirements:
-
-- Plain text transcripts
-- Speaker label only: Alex Morgan:
-- No markdown formatting
-- Long-form, reflective monologue style
-
-Output files:
-
-- Transcripts:
-  - `transcripts/p09_e01.txt`
-  - `transcripts/p09_e02.txt`
-  - `transcripts/p09_e03.txt`
-- RSS feed: `rss/p09_biohacking.xml`
-- Audio:
-  - `audio/p09_e01.mp3`
-  - `audio/p09_e02.mp3`
-  - `audio/p09_e03.mp3`
-
----
-
-LD Fixture Generation Notes
- • LD fixtures intentionally exceed normal episode lengths
- • Audio generation MAY:
- • Be chunked internally for TTS
- • Use the same voices and parameters as defined above
- • RSS <itunes:duration> SHOULD reflect full episode length
- • These fixtures are expected to be slow to generate and large on disk
-
-Purpose:
- • Evaluate long-context model behavior
- • Test transcript chunking strategies
- • Test RSS + audio handling for very large episodes
- • Benchmark summarization, NER, and topic coherence over long inputs
-
-⸻
+The consequence to carry: **no chunking threshold in this repo is exercised by a
+fixture.** Every episode in v3 fits in one chunk. A regression in hierarchical
+reduce, extractive fallback, or chunk-boundary handling cannot be caught here.
 
 ## Validation corpora (derived, committed)
 

@@ -19,7 +19,7 @@ connectivity surface the relational query layer expects under #1058:
 
 ## Layout
 
-```
+```text
 feeds/
 ├── show-{a,b,c}/
 │   ├── metadata/

@@ -411,6 +411,11 @@ strip-docs: strip-doc-checkmarks strip-doc-emoji
 lint-markdown-docs:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
 	markdownlint "docs/**/*.md" --ignore "docs/wip/**" --config .markdownlint.json
+# tests/fixtures/*.md is not in mkdocs (docs_dir: docs), so nothing linted it. It is
+# where the corpus documents itself, and it had an unterminated code fence swallowing
+# 150 lines of rendering. Formatting only — the stale-number problem these docs
+# actually had is caught by tests/unit/test_fixture_docs_match_disk.py instead.
+	markdownlint "tests/fixtures/**/*.md" --config .markdownlint.json
 
 # Match CI lint job (python-app.yml): PYTHONPATH includes repo root so imports match Actions.
 type:
