@@ -729,9 +729,30 @@ def remove_queue_item(data_dir: Path, user_id: str, slug: str) -> list[str]:
 
 
 def get_completed(data_dir: Path, user_id: str) -> list[str]:
-    """Return the slugs the user has marked played; empty when unset."""
+    """Every episode that counts as played — marked by hand OR listened to the end.
+
+    Two separate records answered "have I played this", and only one of them reached the app. The
+    manual list below is written by the mark-as-played menu item; ``finished_at`` in the listening
+    record is written by the player itself the moment an episode runs out. The UI read the manual
+    list alone, so an episode you actually sat through was played nowhere: it stayed in "Jump back
+    in", it carried no marker in the queue, and the catalogue's Played filter returned nothing at
+    all unless you had also reached for the menu (operator 2026-09-23).
+
+    Merging here rather than in each view is deliberate. The alternative was for every surface to
+    ask two questions and combine them, which is how the two records drifted apart in the first
+    place; and doing it server-side means it is true RETROACTIVELY and on every device, not just
+    wherever the finish happened to be observed.
+    """
     data = _read(data_dir, user_id, "completed", [])
-    return [str(x) for x in data] if isinstance(data, list) else []
+    manual = [str(x) for x in data] if isinstance(data, list) else []
+    seen = set(manual)
+    # Manual first, then finished — order is not meaningful (callers treat this as a set), but a
+    # stable one keeps the response diffable across requests.
+    return manual + [
+        slug
+        for slug in map(str, get_listening(data_dir, user_id)["finished_at"])
+        if slug not in seen
+    ]
 
 
 def mark_completed(data_dir: Path, user_id: str, slug: str) -> list[str]:
@@ -744,15 +765,43 @@ def mark_completed(data_dir: Path, user_id: str, slug: str) -> list[str]:
         return items
 
 
+def _clear_finished_unlocked(data_dir: Path, user_id: str, slug: str) -> None:
+    """Forget that ``slug`` was ever finished. Takes the playback lock itself."""
+    with _user_lock(data_dir, user_id, "playback"):
+        playback = _mapping_for_update(data_dir, user_id, "playback")
+        rec = playback.get(slug)
+        if isinstance(rec, dict) and rec.get("finished"):
+            rec["finished"] = False
+            _write(data_dir, user_id, "playback", playback)
+        listening = get_listening(data_dir, user_id)
+        if slug in listening["finished_at"]:
+            after = deepcopy(listening)
+            del after["finished_at"][slug]
+            _write(data_dir, user_id, "listening_daily", after)
+
+
 def unmark_completed(data_dir: Path, user_id: str, slug: str) -> list[str]:
-    """Clear the played mark for one episode; return the stored list. A no-op when not set."""
+    """Clear the played mark for one episode; return the stored list.
+
+    Clears the FINISH record too, not just the manual mark. Now that :func:`get_completed` merges
+    the two, dropping only the manual entry would leave an episode the listener had heard to the
+    end marked played forever — the toggle would look broken, going one way and refusing to come
+    back. "Mark unplayed" is the listener saying they did not finish it, so the finish history is
+    part of what they are retracting; a recap that still counts it would be reporting something
+    they explicitly denied.
+
+    Not a no-op when the manual mark is absent, for that same reason: the mark may never have
+    existed while the finish did.
+    """
     with _user_lock(data_dir, user_id, "completed"):
         items = _strings_for_update(data_dir, user_id, "completed")
-        if slug not in items:
-            return items
-        items = [x for x in items if x != slug]
-        _write(data_dir, user_id, "completed", items)
-        return items
+        if slug in items:
+            items = [x for x in items if x != slug]
+            _write(data_dir, user_id, "completed", items)
+    # Outside the completed lock: two locks held at once is a deadlock waiting for the first
+    # caller to take them the other way round.
+    _clear_finished_unlocked(data_dir, user_id, slug)
+    return items
 
 
 def _upsert_in_place(

@@ -331,3 +331,60 @@ def test_library_subscribe_list_unsubscribe(tmp_path: Path) -> None:
     assert {i["feed_id"] for i in listed} == {"f1", "f2"}
     removed = client.delete("/api/app/library/f1")
     assert [i["feed_id"] for i in removed.json()["items"]] == ["f2"]
+
+
+# --- "played" means played, however you got there (operator 2026-09-23) --------------------------
+
+
+def test_finishing_an_episode_makes_it_completed_without_touching_the_menu(tmp_path: Path) -> None:
+    """The reported bug, at its source.
+
+    The listener heard the episode to the end; the player reported `finished`. Nothing in the app
+    called it played, because `/completed` only ever returned the hand-marked list -- so "Jump back
+    in" kept offering it and the catalogue's Played filter matched nothing.
+    """
+    client = _authed_client(tmp_path)
+    assert client.get("/api/app/completed").json() == {"slugs": []}
+
+    client.put("/api/app/playback/ep-heard", json={"position_seconds": 1800.0, "finished": True})
+
+    assert client.get("/api/app/completed").json()["slugs"] == ["ep-heard"]
+
+
+def test_a_position_save_that_is_not_a_finish_does_not_count_as_played(tmp_path: Path) -> None:
+    """The other half: stopping halfway is exactly what "Jump back in" is FOR."""
+    client = _authed_client(tmp_path)
+    client.put("/api/app/playback/ep-part", json={"position_seconds": 90.0, "finished": False})
+    assert client.get("/api/app/completed").json()["slugs"] == []
+
+
+def test_the_two_sources_merge_without_duplicating(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    client.put("/api/app/completed/ep-both")
+    client.put("/api/app/playback/ep-both", json={"position_seconds": 10.0, "finished": True})
+    client.put("/api/app/playback/ep-heard", json={"position_seconds": 10.0, "finished": True})
+
+    slugs = client.get("/api/app/completed").json()["slugs"]
+    assert sorted(slugs) == ["ep-both", "ep-heard"]
+    assert len(slugs) == len(set(slugs)), f"same episode listed twice: {slugs}"
+
+
+def test_mark_unplayed_actually_un_plays_a_FINISHED_episode(tmp_path: Path) -> None:
+    """The toggle has to come back.
+
+    With `/completed` merging the finish record, deleting only the manual mark would leave the
+    episode played forever: tap "Mark unplayed", get "Mark played" back on the next read. So the
+    delete retracts the finish too -- including when there was never a manual mark to remove.
+    """
+    client = _authed_client(tmp_path)
+    client.put("/api/app/playback/ep-heard", json={"position_seconds": 1800.0, "finished": True})
+    assert client.get("/api/app/completed").json()["slugs"] == ["ep-heard"]
+
+    assert client.delete("/api/app/completed/ep-heard").json()["slugs"] == []
+    assert client.get("/api/app/completed").json()["slugs"] == [], "it came back"
+
+    # The position record is retracted with it, not just the list entry -- otherwise the next
+    # client that reads /playback re-derives "finished" and re-plays the whole cycle.
+    rec = client.get("/api/app/playback/ep-heard").json()
+    assert rec["finished"] is False
+    assert rec["position_seconds"] == 1800.0, "unplaying must not lose the resume point"
