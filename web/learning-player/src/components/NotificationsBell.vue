@@ -85,6 +85,15 @@ function ago(createdAt: number, now = Math.floor(Date.now() / 1000)): string {
         data-testid="notifications-badge"
         class="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground"
       >{{ store.unread > 9 ? '9+' : store.unread }}</span>
+      <!-- A non-hidden accessible name INSIDE the trigger (2026-09-24, Android device tier).
+           `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System
+           WebView 150 — the label string appears nowhere in the accessibility tree, so TalkBack
+           announces only "Button". Neither condition alone does it: `Play` and `Skip back 15
+           seconds` are icon-only with `aria-label` and named, because they open no popup. See
+           OverflowMenu.vue for the measurement. -->
+      <span class="sr-only">{{
+        store.unread ? t('notifications.bellCounted', { n: store.unread }) : t('notifications.bell')
+      }}</span>
     </button>
 
     <!-- The dropdown. A right-anchored panel so it never runs off a phone's right edge. -->

@@ -41,6 +41,29 @@ import { localPosition } from './playbackPositions'
  * the OS may reap it, and a download the user explicitly asked for should not evaporate.
  */
 export const DOWNLOAD_DIR = Directory.LibraryNoCloud
+
+/**
+ * The directory `downloadFile` — and ONLY `downloadFile` — may be given on Android (2026-09-24).
+ *
+ * `Filesystem.downloadFile` is served by the plugin's LEGACY Android implementation, whose
+ * `getDirectory()` has cases for DOCUMENTS / DATA / LIBRARY / CACHE / EXTERNAL / EXTERNAL_STORAGE
+ * and NONE for `LIBRARY_NO_CLOUD`. It returns null, `getFileObject` hands that null on, and
+ * `FileOutputStream(null)` throws. So on Android EVERY download failed with "Error downloading
+ * file: null", recorded itself as retryable, and every retry failed identically — downloads did
+ * not work on the platform at all. Found by the Android device tier on its first real run
+ * (#2139); no browser or iOS test could see it.
+ *
+ * `Data` is the CORRECT substitute rather than merely a working one: on Android it resolves to
+ * `context.filesDir`, which is where the MODERN implementation already puts `LIBRARY_NO_CLOUD` —
+ * that is how `readdir` reported `/data/user/0/<pkg>/files/offline-audio/...` while a download
+ * into the "same" directory was throwing. The bytes therefore land on exactly the path every
+ * other call in this module reads back, and `settleDownloadedFile` stays a no-op here.
+ *
+ * The iCloud reasoning above is untouched: it is an iOS concern and iOS still gets
+ * `LibraryNoCloud`.
+ */
+export const DOWNLOAD_FETCH_DIR =
+  Capacitor.getPlatform() === 'android' ? Directory.Data : DOWNLOAD_DIR
 export const DOWNLOAD_FOLDER = 'offline-audio'
 export const ARTWORK_FOLDER = 'offline-artwork'
 export const TRANSCRIPT_FOLDER = 'offline-transcripts'
@@ -292,7 +315,9 @@ async function runDownload(slug: string): Promise<boolean> {
     await Filesystem.downloadFile({
       url,
       path,
-      directory: DOWNLOAD_DIR,
+      // `DOWNLOAD_FETCH_DIR`, not `DOWNLOAD_DIR` — see its comment. This one call goes through the
+      // plugin's legacy Android path, which cannot resolve `LIBRARY_NO_CLOUD` and throws.
+      directory: DOWNLOAD_FETCH_DIR,
       progress: true,
       recursive: true,
     })
@@ -389,9 +414,12 @@ async function cacheArtwork(
     const url = absolutize(raw)
     const downloadedTo = artworkPathFor(slug, url)
     await ensureFolder(downloadedTo)
-    await Filesystem.downloadFile({ url, path: downloadedTo, directory: DOWNLOAD_DIR, recursive: true })
-    // Artwork lands in Documents too; this one failed SILENTLY (the catch below is deliberate),
-    // so the episode played offline with no cover art and nothing said why.
+    // `DOWNLOAD_FETCH_DIR` for the same reason as the audio transfer: this is the legacy Android
+    // path, which cannot resolve `LIBRARY_NO_CLOUD`. Artwork is the worse of the two to leave
+    // broken, because the catch below is deliberate — it would fail SILENTLY for ever.
+    await Filesystem.downloadFile({ url, path: downloadedTo, directory: DOWNLOAD_FETCH_DIR, recursive: true })
+    // Artwork lands in Documents too on iOS; this one failed SILENTLY (the catch below is
+    // deliberate), so the episode played offline with no cover art and nothing said why.
     await settleDownloadedFile(downloadedTo)
     // The name was a guess off the URL; the bytes are the fact. Do this BEFORE the epoch check so a
     // cancelled download removes the file that is actually on disk.

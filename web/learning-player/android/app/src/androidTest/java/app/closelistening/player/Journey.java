@@ -164,6 +164,34 @@ final class Journey {
     }
 
     /**
+     * How many DISTINCT controls carry this exact name.
+     *
+     * For asserting UNIQUENESS before tapping. The iOS twin needed this after an unscoped lookup
+     * matched a different episode that happened to be downloaded already and reported a success it
+     * had not produced — `Library → Downloaded` renders the same controls bare and that view is
+     * kept alive. A count of one cannot pick wrong; a count above one says so out loud instead of
+     * guessing.
+     *
+     * Counts by BOUNDS, not by node, because web content exposes every control twice — once as the
+     * text and once as the interactive wrapper — so a raw node count reports two for a page with
+     * one control and the assertion fires on healthy markup.
+     */
+    static int countDistinct(String name) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        try {
+            for (BySelector sel : selectorsFor(name, false)) {
+                for (UiObject2 o : device().findObjects(sel)) {
+                    Rect b = attr(o, UiObject2::getVisibleBounds);
+                    if (b != null) seen.add(b.centerX() + "," + b.centerY());
+                }
+            }
+        } catch (Throwable ignored) {
+            // A count that throws would replace the real assertion with its own failure.
+        }
+        return seen.size();
+    }
+
+    /**
      * The clickable ANCESTOR of a labelled node.
      *
      * The words and the click handler frequently sit on different nodes: `<button><span>Sign

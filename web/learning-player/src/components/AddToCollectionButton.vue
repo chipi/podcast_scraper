@@ -201,6 +201,13 @@ async function createAndAdd(): Promise<void> {
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
         <path d="M6 3v18l6-4 6 4V3z" />
       </svg>
+      <!-- A non-hidden accessible name for the ICON-ONLY variant (2026-09-24, Android device tier).
+           `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System
+           WebView 150; the pill and menuitem variants already carry readable text, this one did
+           not. See OverflowMenu.vue for the measurement. -->
+      <span v-if="variant !== 'pill' && variant !== 'menuitem'" class="sr-only">{{
+        t('collections.addTo')
+      }}</span>
       <span v-if="variant === 'menuitem'">{{ t('collections.addTo') }}</span>
     </button>
 

@@ -80,6 +80,13 @@ onBeforeUnmount(() => {
       <span v-if="variant === 'pill'" class="max-w-[6rem] truncate text-xs font-semibold">{{
         currentLabel()
       }}</span>
+      <!-- A non-hidden accessible name INSIDE the trigger (2026-09-24, Android device tier).
+           `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System
+           WebView 150 — the label string appears nowhere in the accessibility tree, so TalkBack
+           announces only "Button". Neither condition alone does it: `Play` and `Skip back 15
+           seconds` are icon-only with `aria-label` and named, because they open no popup. See
+           OverflowMenu.vue for the measurement. -->
+      <span v-if="variant !== 'pill'" class="sr-only">{{ menuLabel }}</span>
     </button>
     <div
       v-if="open"

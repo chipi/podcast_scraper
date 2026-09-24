@@ -50,6 +50,13 @@ function pick(token: string): void {
         class="h-4 w-4 rounded-full"
         :class="swatchClass(color) || 'border border-border'"
       />
+      <!-- A non-hidden accessible name INSIDE the trigger (2026-09-24, Android device tier).
+           `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System
+           WebView 150 — the label string appears nowhere in the accessibility tree, so TalkBack
+           announces only "Button". Neither condition alone does it: `Play` and `Skip back 15
+           seconds` are icon-only with `aria-label` and named, because they open no popup. See
+           OverflowMenu.vue for the measurement. -->
+      <span class="sr-only">{{ t('highlights.colorPick') }}</span>
     </button>
     <Teleport :to="teleportTarget">
       <div

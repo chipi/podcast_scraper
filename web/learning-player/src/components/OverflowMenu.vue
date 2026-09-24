@@ -79,6 +79,25 @@ defineExpose({ close: () => close(false) })
     <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
       <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
     </svg>
+    <!-- A real, non-hidden accessible name INSIDE the button (2026-09-24, Android device tier).
+
+         The svg above is correctly `aria-hidden` — it is decorative — but it was this button's ONLY
+         child. Measured on Android System WebView 150.0.7871.181: the button stays in the
+         accessibility tree and carries NO NAME. The string "More actions" appeared nowhere in the
+         dumped hierarchy; the node arrived as a zero-child `Button` with an empty
+         contentDescription, so TalkBack announces "Button".
+
+         The trigger is `aria-haspopup` PLUS a fully hidden subtree. Neither alone does it, which is
+         how the general version of this claim was disproved on the same page: `Play`, `Skip back 15
+         seconds`, `Mark this moment` and `Playback speed` are all icon-only with `aria-label` and
+         all named — the first three have no `aria-haspopup`, and ToolbarMenu's pill has readable
+         text beside its icon. Exactly the four `aria-haspopup` triggers with nothing readable
+         inside were the four unnamed nodes.
+
+         Same family as the masthead profile link WebKit dropped outright
+         (src/__checks__/accessible-names.test.ts): the engines fail it differently, one fix covers
+         both, and the fix is the pattern this codebase already uses. -->
+    <span class="sr-only">{{ label || t('common.moreActions') }}</span>
   </button>
 
   <Teleport :to="teleportTarget">
