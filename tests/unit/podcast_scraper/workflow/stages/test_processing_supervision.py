@@ -964,7 +964,14 @@ class TestTheClosureSeamIsActuallyExecuted(unittest.TestCase):
     # `as_completed(..., timeout=1.0)` and the abandon check runs after it, with the clock
     # stamped lazily on the first iteration that observes `running()`. At 2.0s the drain
     # collected the result before the second check and the abandon never fired.
-    def _drive(self, *, abandon_seconds=0.2, worker_sleep=4.0):
+    #
+    # 20.0, not the 4.0 that works locally. The abandon fires at ~2.1s, so 4.0 left only ~1.9s
+    # of scheduling slack; on the loaded-CI shape this repo has documented (load ~40 on 14
+    # cores) a 2x stall over two drain cycles lets the worker COMPLETE first, the future drains
+    # as success, and the test false-FAILS. Costs nothing in the happy path — the loop exits on
+    # the abandon, not on worker completion (measured 2.06s) — and only a real regression pays
+    # the longer wait. Review finding L-1.
+    def _drive(self, *, abandon_seconds=0.2, worker_sleep=20.0):
         import threading
 
         from podcast_scraper.workflow import metrics as metrics_mod
@@ -1162,6 +1169,27 @@ class TestTheSeamWithMORETHANONEJOB(unittest.TestCase):
             f"episode was charged for time it never spent running: {abandoned}",
         )
 
+        # The sibling gap: episodes still in flight when the LOOP stops must also be recorded.
+        # Before this, the budget-exit path counted them, logged, emitted `pipeline_truncated`
+        # and called `record_truncation` — all run-level — while each EPISODE kept whatever row
+        # it had. On a reprocess that is the previous run's `ok`, so a mop-up batch could not
+        # tell "finished" from "the run died before reaching it".
+        truncated = [s for s in pm.episode_statuses if s.error_type == "RunTruncated"]
+        self.assertTrue(
+            truncated,
+            "the loop stopped with episodes in flight and recorded no RunTruncated row: "
+            f"{[(s.episode_id, s.status, s.error_type) for s in pm.episode_statuses]}",
+        )
+        for row in truncated:
+            self.assertEqual(row.status, "failed")
+            self.assertIn("Re-run it", str(row.error_message))
+        # RunTruncated and ProcessingAbandoned must stay DISTINCT: the first needs only a
+        # re-run, the second is an episode that overran its own ceiling and may need looking at.
+        self.assertFalse(
+            set(a for a in abandoned) & set(str(r.episode_id) for r in truncated),
+            "an episode is recorded as both abandoned and truncated",
+        )
+
     def test_the_verdict_line_is_INTERNALLY_CONSISTENT_with_its_own_bracket(self):
         """Catches a swapped argument at the call site, which no pure-function test can.
 
@@ -1216,3 +1244,88 @@ class TestTheSeamWithMORETHANONEJOB(unittest.TestCase):
                 )
             checked += 1
         self.assertGreater(checked, 0, f"no verdict line was emitted to check: {logs.output}")
+
+
+class TestRecordTruncatedEpisodes(unittest.TestCase):
+    """``record_truncated_episodes`` — rows for episodes in flight when the LOOP stops.
+
+    Distinct from ProcessingAbandoned on purpose. That one means "this episode overran its own
+    ceiling", a property of the EPISODE that often wants investigating. This means "the run
+    stopped; nothing is known about this episode", a property of the RUN that needs only a
+    re-run. Collapsing them loses the distinction that decides what to do next.
+    """
+
+    class _Metrics:
+        def __init__(self):
+            self.calls = []
+
+        def update_episode_status(self, **kwargs):
+            self.calls.append(kwargs)
+
+    def _job(self, i):
+        from podcast_scraper.workflow.types import ProcessingJob
+
+        return ProcessingJob(
+            episode=TestRecordAbandonedEpisode._episode(f"guid-trunc-{i}", i),
+            transcript_path=f"/tmp/t{i}.txt",
+            transcript_source="whisper_transcription",
+            detected_names=None,
+            whisper_model=None,
+        )
+
+    def test_one_row_per_in_flight_episode_under_the_canonical_id(self):
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        rss = "https://example.com/podcast.xml"
+        jobs = [self._job(1), self._job(2), self._job(3)]
+        metrics = self._Metrics()
+
+        n = processing.record_truncated_episodes(
+            jobs, _Cfg(rss_url=rss), metrics, reason="wall-clock budget exceeded (7200s > 3600s)"
+        )
+
+        self.assertEqual(n, 3)
+        self.assertEqual(len(metrics.calls), 3)
+        expected = {get_episode_id_from_episode(j.episode, rss)[0] for j in jobs}
+        self.assertEqual({c["episode_id"] for c in metrics.calls}, expected)
+        for c in metrics.calls:
+            self.assertEqual(c["status"], "failed")
+            self.assertEqual(c["error_type"], "RunTruncated")
+            self.assertIn("wall-clock budget", c["error_message"])
+            self.assertIn("Re-run it", c["error_message"])
+
+    def test_it_reports_how_many_rows_it_actually_wrote(self):
+        """The count is used in the log line, so it must be the truth, not the input length.
+
+        A silent shortfall here would put a confident number in the ERROR line describing the
+        truncation — the same defect class as the verdict overstating what it knows.
+        """
+
+        class _HalfBroken:
+            def __init__(self):
+                self.n = 0
+
+            def update_episode_status(self, **kwargs):
+                self.n += 1
+                if self.n == 2:
+                    raise RuntimeError("ledger backend blipped")
+
+        n = processing.record_truncated_episodes(
+            [self._job(1), self._job(2), self._job(3)],
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            _HalfBroken(),
+            reason="main thread exited",
+        )
+        self.assertEqual(n, 2, "reported a row it did not write")
+
+    def test_no_metrics_and_junk_jobs_are_survived(self):
+        cfg = _Cfg(rss_url="https://example.com/podcast.xml")
+        self.assertEqual(
+            processing.record_truncated_episodes([self._job(1)], cfg, None, reason="x"), 0
+        )
+        self.assertEqual(
+            processing.record_truncated_episodes(
+                [object(), None], cfg, self._Metrics(), reason="x"
+            ),
+            0,
+        )

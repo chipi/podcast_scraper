@@ -392,6 +392,61 @@ def abandon_episode_accounting(
     return idx, tail
 
 
+def record_truncated_episodes(
+    jobs: List[Any],
+    cfg: "config.Config",
+    pipeline_metrics: Any,
+    *,
+    reason: str,
+) -> int:
+    """Ledger rows for episodes still in flight when the loop itself stops. Returns rows written.
+
+    The sibling gap to ``record_abandoned_episode``, and the same shape of blind spot. When a
+    supervision bound fires (wall-clock budget, or the main thread going away) the loop counts
+    the remaining in-flight episodes as abandoned, logs an ERROR, emits ``pipeline_truncated``
+    and calls ``record_truncation`` — all of which describe the RUN. Nothing described the
+    EPISODES, so each one kept whatever row it already had; on a reprocess that is the previous
+    run's ``ok``, and the one surface an operator queries to build a mop-up batch could not
+    distinguish "this episode's reprocess finished" from "the run died before reaching it".
+
+    A distinct ``RunTruncated`` rather than reusing ``ProcessingAbandoned``: that one means "this
+    episode overran its own ceiling", which is a property of the episode and often means it needs
+    investigating. This means "the run stopped; nothing is known about this episode", which is a
+    property of the run and needs only a re-run. Collapsing them would lose exactly the
+    distinction that decides what to do next.
+
+    ``failed`` is right even for an episode that never started: the claim is about the run not
+    completing for it, the serving artifact is untouched, and ``skip_existing`` makes the re-run
+    idempotent. Never raises — this is already the degraded path.
+    """
+    written = 0
+    for job in jobs:
+        try:
+            episode = getattr(job, "episode", None)
+            if pipeline_metrics is None or episode is None:
+                continue
+            from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+            episode_id, _ = get_episode_id_from_episode(episode, getattr(cfg, "rss_url", "") or "")
+            if not episode_id:
+                continue
+            pipeline_metrics.update_episode_status(
+                episode_id=episode_id,
+                status="failed",
+                stage="processing",
+                error_type="RunTruncated",
+                error_message=(
+                    f"the processing loop stopped before this episode finished ({reason}); it was "
+                    "still in flight and is NOT complete. Re-run it — skip_existing keeps that "
+                    "idempotent."
+                ),
+            )
+            written += 1
+        except Exception:  # noqa: BLE001 — accounting must never break the run
+            logger.debug("could not record a truncated-episode status", exc_info=True)
+    return written
+
+
 from ...rss import extract_episode_description as rss_extract_episode_description
 
 
@@ -2800,12 +2855,29 @@ def process_processing_jobs_concurrent(  # noqa: C901
                         # out two episodes and then hit the wall-clock bound under-reported the
                         # first two — in the shutdown decision below and in the truncation event.
                         abandoned_futures[0] += len(futures)
+                        # Per-EPISODE rows, not just the run-level counters/event below. Without
+                        # these each truncated episode kept whatever row it already had — on a
+                        # reprocess, the PREVIOUS run's `ok` — so the surface used to build a
+                        # mop-up batch could not tell "finished" from "the run died before
+                        # reaching it". Run-level truncation facts do not answer a per-episode
+                        # question.
+                        truncated_rows = record_truncated_episodes(
+                            list(futures.values()), cfg, pipeline_metrics, reason=reason
+                        )
                         logger.error(
                             "Processing loop stopping: %s. Abandoning %d in-flight "
                             "episode(s); they are not marked complete and a resumed run "
-                            "will reprocess them (skip_existing keeps this idempotent).",
+                            "will reprocess them (skip_existing keeps this idempotent). "
+                            "%d episode-ledger row(s) marked RunTruncated%s.",
                             reason,
                             len(futures),
+                            truncated_rows,
+                            (
+                                ""
+                                if truncated_rows == len(futures)
+                                else " — FEWER THAN ABANDONED, so the per-episode surface is "
+                                "incomplete for this truncation; trust the count in this line"
+                            ),
                         )
                         # #1981: make the shortfall queryable, not just greppable — the job
                         # result reports success either way. Best-effort; never raises.

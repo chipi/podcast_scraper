@@ -269,14 +269,30 @@ rebuilt from the wrong words. It now refuses instead.
 ### The processing-loop line states its own verdict — believe it, not the raw counts
 
 ```text
-INFO  Processing loop: WORKING — 2 running, 3 queued; longest in flight 412s ...
-ERROR Processing loop: STUCK — every job is accounted for and nothing is in flight ...
+INFO  Processing loop: WORKING — 4/6 episodes settled (ok or failed), 2 running, 3 queued ...
+ERROR Processing loop: STUCK? — every job is accounted for and nothing is in flight ...
 ```
 
-`WORKING` at INFO is ordinary waiting and is **not** a problem, however long it runs.
-Only `STUCK` at ERROR is. The pre-2026-09-24 version printed raw counts and was misread in
-both directions — 366 lines of normal waiting counted as wedges (producing a "17.3h of
-dead time" figure that was wrong by >2x), and a real wedge called healthy for an hour.
+`WORKING` at INFO is ordinary waiting and is **not** a problem, however long it runs. The
+pre-2026-09-24 version printed raw counts and was misread in both directions — 366 lines of
+normal waiting counted as wedges (producing a "17.3h of dead time" figure that was wrong by
+>2x), and a real wedge called healthy for an hour.
+
+Read the wording precisely, because two parts of it are deliberately weaker than they look:
+
+- **`STUCK?` with a question mark, and only a REPEAT is a wedge.** The counts are sampled, not
+  synchronised, so a job landing between the exit check and the report produces one
+  STUCK-shaped line that the next iteration clears. One occurrence is inconclusive; the same
+  line again 60s later is the real thing.
+- **`settled (ok or failed)`, not "done".** A drained FAILURE is in that count. It previously
+  read "N/M episodes done", so a feed with three failures reported "6/6 episodes done. Normal."
+- **`may still hold worker slot(s)`.** `abandoned` never decrements, so hours later those
+  workers may well have finished. The loop stopped waiting on them and genuinely cannot tell.
+
+Two error types distinguish *why* an episode is incomplete, and they want different follow-ups:
+`ProcessingAbandoned` means that episode overran its own per-episode ceiling (look at it);
+`RunTruncated` means the loop itself stopped while the episode was still in flight (just re-run
+it). Both appear in the per-episode ledger, which is what a mop-up batch should be built from.
 
 ### `docker logs`, never the `logs/reprocess-*.log` file
 
