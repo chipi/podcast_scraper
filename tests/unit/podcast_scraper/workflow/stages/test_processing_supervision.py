@@ -708,3 +708,205 @@ class TestTheVerdictIsExecutedNotReconstructed(unittest.TestCase):
             max_workers=2,
         )
         self.assertEqual(level, "info")
+
+
+class TestRecordAbandonedEpisode(unittest.TestCase):
+    """``record_abandoned_episode`` — the ledger row for an episode whose wait was abandoned.
+
+    The bound stops the loop waiting and bumps the FEED counter. Before this, the EPISODE
+    ledger was untouched, so on a reprocess the abandoned episode kept the previous run's
+    ``ok`` and was indistinguishable from the ones that really finished — the one surface an
+    operator queries to find what needs redoing did not know.
+    """
+
+    @staticmethod
+    def _episode(guid, idx):
+        import xml.etree.ElementTree as ET
+
+        from podcast_scraper import models
+
+        item = ET.Element("item")
+        ET.SubElement(item, "title").text = "Ep A"
+        ET.SubElement(item, "guid").text = guid
+        return models.Episode(
+            idx=idx, title="Ep A", title_safe="Ep A", item=item, transcript_urls=[]
+        )
+
+    @staticmethod
+    def _job(episode):
+        from podcast_scraper.workflow.types import ProcessingJob
+
+        return ProcessingJob(
+            episode=episode,
+            transcript_path="/tmp/x.txt",
+            transcript_source="whisper_transcription",
+            detected_names=None,
+            whisper_model=None,
+        )
+
+    class _Metrics:
+        def __init__(self):
+            self.calls = []
+
+        def update_episode_status(self, **kwargs):
+            self.calls.append(kwargs)
+
+    def test_writes_the_row_under_the_CANONICAL_id_never_idx(self):
+        """The key is the discriminating assertion, not that a call happened.
+
+        A previous accounting fix keyed on ``episode.guid`` — an attribute ``Episode`` does
+        not have — so it appended an ORPHAN row while the episode's real row still read
+        ``ok``: one episode recorded both ok and failed. Its test asserted only that
+        ``update_episode_status`` was called, so it passed. This asserts the id EQUALS the
+        canonical one and is NOT the idx.
+        """
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        rss = "https://example.com/podcast.xml"
+        episode = self._episode("guid-abc123", 7)
+        expected_id, _ = get_episode_id_from_episode(episode, rss)
+        metrics = self._Metrics()
+
+        wrote = processing.record_abandoned_episode(
+            self._job(episode),
+            _Cfg(rss_url=rss),
+            metrics,
+            elapsed_seconds=3720.0,
+            ceiling_seconds=3600.0,
+        )
+
+        self.assertTrue(wrote)
+        self.assertEqual(len(metrics.calls), 1, "exactly one ledger row per abandoned episode")
+        call = metrics.calls[0]
+        self.assertEqual(call["episode_id"], expected_id)
+        self.assertNotEqual(
+            call["episode_id"], "7", "keyed on idx — idx is not unique across a work-list"
+        )
+        self.assertNotEqual(call["episode_id"], "", "an empty key appends an orphan row")
+        self.assertEqual(call["status"], "failed")
+        self.assertEqual(call["error_type"], "ProcessingAbandoned")
+        self.assertIn("3720", call["error_message"])
+        self.assertIn("re-run", call["error_message"])
+
+    def test_says_the_worker_was_not_cancelled_so_artifacts_may_be_partial(self):
+        """The message has to carry it: a running future cannot be cancelled in Python."""
+        metrics = self._Metrics()
+        processing.record_abandoned_episode(
+            self._job(self._episode("g1", 1)),
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            metrics,
+            elapsed_seconds=4000.0,
+            ceiling_seconds=3600.0,
+        )
+        self.assertIn("NOT", metrics.calls[0]["error_message"])
+        self.assertIn("partial artifacts", metrics.calls[0]["error_message"])
+
+    def test_returns_False_and_never_raises_when_accounting_is_unavailable(self):
+        """Runs on an already-degraded path; must not convert an abandoned wait into a crash."""
+        cfg = _Cfg(rss_url="https://example.com/podcast.xml")
+        episode = self._episode("g1", 1)
+
+        self.assertFalse(
+            processing.record_abandoned_episode(
+                self._job(episode), cfg, None, elapsed_seconds=1.0, ceiling_seconds=2.0
+            )
+        )
+
+        class _Exploding:
+            def update_episode_status(self, **kwargs):
+                raise RuntimeError("ledger backend is down")
+
+        self.assertFalse(
+            processing.record_abandoned_episode(
+                self._job(episode), cfg, _Exploding(), elapsed_seconds=1.0, ceiling_seconds=2.0
+            )
+        )
+        # A job with no episode at all (defensive: the futures map is Any-valued).
+        self.assertFalse(
+            processing.record_abandoned_episode(
+                object(), cfg, self._Metrics(), elapsed_seconds=1.0, ceiling_seconds=2.0
+            )
+        )
+
+    def test_ceiling_None_is_rendered_not_crashed(self):
+        """``ceiling_seconds`` is Optional — the bound can be disabled by config."""
+        metrics = self._Metrics()
+        wrote = processing.record_abandoned_episode(
+            self._job(self._episode("g1", 1)),
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            metrics,
+            elapsed_seconds=10.0,
+            ceiling_seconds=None,
+        )
+        self.assertTrue(wrote)
+        self.assertIn("unset", metrics.calls[0]["error_message"])
+
+
+class TestAbandonEpisodeAccounting(unittest.TestCase):
+    """``abandon_episode_accounting`` — the write and the sentence reporting it, as one unit.
+
+    This exists because the loop's call site is inside a closure that cannot be imported.
+    Deleting the ledger write from that closure passed all 50 tests in this file (mutation,
+    2026-09-24). Pairing the write with the log tail out here is what makes the deletion
+    detectable.
+    """
+
+    class _Metrics:
+        def __init__(self):
+            self.calls = []
+
+        def update_episode_status(self, **kwargs):
+            self.calls.append(kwargs)
+
+    def _job(self, idx=3):
+        return TestRecordAbandonedEpisode._job(TestRecordAbandonedEpisode._episode("g-xyz", idx))
+
+    def test_writes_the_row_and_says_so(self):
+        metrics = self._Metrics()
+        idx, tail = processing.abandon_episode_accounting(
+            self._job(idx=3),
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            metrics,
+            elapsed_seconds=3700.0,
+            ceiling_seconds=3600.0,
+        )
+        self.assertEqual(idx, 3, "the log must still identify the episode by idx")
+        self.assertEqual(len(metrics.calls), 1, "the ledger row is the point of this function")
+        self.assertEqual(metrics.calls[0]["error_type"], "ProcessingAbandoned")
+        self.assertIn("ledger", tail)
+        self.assertIn("ProcessingAbandoned", tail)
+        self.assertNotIn("NOT be written", tail)
+
+    def test_a_failed_write_is_reported_as_failed_not_as_success(self):
+        """A silent accounting failure is the blind spot this whole fix exists to remove.
+
+        If the row cannot be written the log must say the per-episode surface is stale, so
+        nobody reads a missing row as "this episode was fine".
+        """
+
+        class _Exploding:
+            def update_episode_status(self, **kwargs):
+                raise RuntimeError("ledger backend down")
+
+        idx, tail = processing.abandon_episode_accounting(
+            self._job(idx=9),
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            _Exploding(),
+            elapsed_seconds=3700.0,
+            ceiling_seconds=3600.0,
+        )
+        self.assertEqual(idx, 9)
+        self.assertIn("NOT be written", tail)
+        self.assertIn("trust the feed counters", tail)
+
+    def test_survives_a_job_that_is_not_a_job(self):
+        """``futures`` is Any-valued; this runs on the degraded path and must not raise."""
+        idx, tail = processing.abandon_episode_accounting(
+            None,
+            _Cfg(rss_url="https://example.com/podcast.xml"),
+            self._Metrics(),
+            elapsed_seconds=1.0,
+            ceiling_seconds=1.0,
+        )
+        self.assertIsNone(idx)
+        self.assertIn("NOT be written", tail)
