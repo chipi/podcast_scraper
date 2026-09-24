@@ -81,6 +81,20 @@ const DEV_API_BASE =
 const PROD_API_BASE = 'https://closelistening.app/api/app'
 
 /**
+ * Is the app actually talking to the LIVE player API?
+ *
+ * Not the same question as `getTier()`, which only says what the switch is set to. A build that
+ * bakes `VITE_API_BASE_URL` — every simulator and e2e build does — overrides the prod base while
+ * the stored tier is still 'prod', so the header pill read **PROD** while every request went to
+ * `127.0.0.1` (operator 2026-09-24: "prod badge means app should talk to prod").
+ *
+ * A badge that names where traffic goes has to be derived from where traffic goes.
+ */
+export function isTargetingProd(): boolean {
+  return resolveApiBase() === PROD_API_BASE
+}
+
+/**
  * The API base for the current context:
  *   - web: origin-relative (`/api/app`) unless a build baked VITE_API_BASE_URL.
  *   - native prod (or release): VITE_API_BASE_URL if baked, else the live player API.
