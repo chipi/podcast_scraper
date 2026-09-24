@@ -219,34 +219,56 @@ def processing_loop_verdict(
     running = states.get("running", 0)
     pending = states.get("pending", 0)
     if running or pending:
-        finished = max(0, submitted - in_flight - abandoned)
+        # "settled", not "done": a drained FAILURE is subtracted from neither term, so this
+        # counts episodes that are no longer pending, not episodes that succeeded. Calling it
+        # "done" invited precisely the misreading the line exists to prevent — "6/6 episodes
+        # done. Normal." with three failures among them is indefensible as reassurance.
+        settled = max(0, submitted - in_flight - abandoned)
         tail = ""
         level = "info"
         if abandoned:
-            # F5 is NAMED, not fixed: abandoned-but-running episodes hold worker slots, so
+            # F5 is NAMED, not fixed: an abandoned-but-running episode holds a worker slot, so
             # queued work cannot start and the feed burns to its wall-clock budget. A capacity
             # fix needs either a private `_max_workers` poke or an executor swap-and-resubmit —
             # real complexity for an event requiring two simultaneous wedges. Saying it beats a
             # silent four hours.
-            tail = (
-                f" {abandoned} abandoned episode(s) still hold worker slot(s) of {max_workers}; "
-                "queued work is starved until the feed budget fires."
+            #
+            # MAY, not DOES, and only claimed when something is actually queued. `abandoned`
+            # never decrements, so hours later its worker may well have finished and freed the
+            # slot — the loop stopped waiting and therefore cannot know either way. And with
+            # `pending == 0` there is nothing to starve, so asserting starvation would be
+            # false in a state reached on every feed whose tail is one slow episode.
+            held = (
+                f" {abandoned} abandoned episode(s) may still hold worker slot(s) of "
+                f"{max_workers} — the loop stopped waiting on them and cannot tell"
+            )
+            tail = held + (
+                f"; with {pending} still queued that caps throughput until the feed budget fires."
+                if pending
+                else "; nothing is queued behind them."
             )
             level = "warning"
         return level, (
-            f"WORKING — {finished}/{jobs} episodes done, {running} running, {pending} queued; "
-            f"longest in flight {longest_in_flight_sec:.0f}s. Normal.{tail}"
+            f"WORKING — {settled}/{jobs} episodes settled (ok or failed), {running} running, "
+            f"{pending} queued; longest in flight {longest_in_flight_sec:.0f}s. Normal.{tail}"
         )
+    # Both branches below are sampled, not synchronised: a job can be submitted between the
+    # caller's own snapshot and this call, so a single observation can be a race artifact that
+    # the next iteration clears. The reports are still ERROR — a genuine wedge looks exactly
+    # like this and lasts forever — but they no longer state a conclusion the sample cannot
+    # support, and in particular no longer accuse a named commit of regressing on one sample.
     if in_flight == 0 and unaccounted:
         return "error", (
-            f"STUCK — nothing is in flight and {unaccounted} job(s) are unaccounted for. "
-            "The loop cannot make progress on its own."
+            f"STUCK? — nothing is in flight and {unaccounted} job(s) are unaccounted for, so "
+            "the loop has no way to make progress on its own. If this line does not repeat on "
+            "the next report, it was a submit landing mid-sample and the loop recovered."
         )
     if in_flight == 0:
         return "error", (
-            "STUCK — every job is accounted for and nothing is in flight, yet the exit "
-            "condition is unsatisfied. This is the cardinality wedge fixed in cd4c53857; "
-            "seeing it again means that fix regressed."
+            "STUCK? — every job is accounted for and nothing is in flight, yet the exit "
+            "condition is unsatisfied. REPEATED, this is the cardinality wedge fixed in "
+            "cd4c53857 and means that fix regressed; ONCE, it can be a job landing between "
+            "the exit check and this sample."
         )
     return "warning", f"UNCLEAR — {in_flight} future(s) tracked in states {states}."
 
@@ -2709,12 +2731,15 @@ def process_processing_jobs_concurrent(  # noqa: C901
                         ceiling_seconds=future_abandon_seconds,
                     )
                     logger.error(
-                        "Episode %s has been running %.0fs (ceiling %.0fs) with no result — "
+                        "Episode %s has been running %.0fs (ceiling %s) with no result — "
                         "ABANDONING the wait so this feed can finish. The worker thread cannot be "
                         "cancelled and keeps running; the episode is counted as failed%s.",
                         idx,
                         elapsed,
-                        future_abandon_seconds or 0.0,
+                        # `%.3g`, not `%.0f`: a sub-second ceiling rendered as "ceiling 0s",
+                        # which reads as "the bound is zero, that is why it fired" — the
+                        # opposite of a diagnosis. Surfaced by the multi-job seam test.
+                        f"{future_abandon_seconds:.3g}s" if future_abandon_seconds else "unset",
                         ledger_note,
                     )
 
