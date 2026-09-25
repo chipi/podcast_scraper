@@ -1,0 +1,61 @@
+{
+  "edges": [
+    {
+      "from": "episode:ae754f41-0909-500a-bcb4-14199e04f20d",
+      "to": "topic:edge-cases",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ae754f41-0909-500a-bcb4-14199e04f20d",
+      "to": "topic:code-switching",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ae754f41-0909-500a-bcb4-14199e04f20d",
+      "to": "topic:business-markets",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ae754f41-0909-500a-bcb4-14199e04f20d",
+  "extraction": {
+    "extracted_at": "2026-09-21T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e06.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ae754f41-0909-500a-bcb4-14199e04f20d",
+      "properties": {
+        "podcast_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "publish_date": "2026-09-21T12:00:00",
+        "title": "The Drift \u2014 Episode 6"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:edge-cases",
+      "properties": {
+        "label": "edge cases",
+        "slug": "edge-cases"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:code-switching",
+      "properties": {
+        "label": "code switching",
+        "slug": "code-switching"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:business-markets",
+      "properties": {
+        "label": "Business & markets",
+        "slug": "business-markets"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>Public Hour</title>
     <link>http://localhost/</link>
@@ -17,8 +18,9 @@
       <pubDate>Tue, 11 Mar 2025 00:00:00 +0000</pubDate>
       <description>An in-depth discussion on how solar energy will shape grids, markets, geopolitics, and daily life over the next two decades.</description>
       <enclosure url="/audio/p08_e01.mp3" length="2172386" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p08_e01.vtt" type="text/vtt"/>
       <itunes:episode>1</itunes:episode>
-      <itunes:duration>00:04:32</itunes:duration>
+      <itunes:duration>00:04:31</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
 
@@ -28,6 +30,7 @@
       <pubDate>Fri, 25 Apr 2025 00:00:00 +0000</pubDate>
       <description>A. correspondent talks with Renee Montague-Park: Pronunciation as a Reliability Signal.</description>
       <enclosure url="/audio/p08_e02.mp3" length="1598946" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p08_e02.vtt" type="text/vtt"/>
       <itunes:episode>2</itunes:episode>
       <itunes:duration>00:03:20</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -39,6 +42,7 @@
       <pubDate>Tue, 02 Sep 2025 00:00:00 +0000</pubDate>
       <description>A. correspondent talks with Renee Montagne-Park: The Desk That Never Sleeps.</description>
       <enclosure url="/audio/p08_e03.mp3" length="1498427" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p08_e03.vtt" type="text/vtt"/>
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:03:07</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -50,6 +54,7 @@
       <pubDate>Mon, 05 Jan 2026 00:00:00 +0000</pubDate>
       <description>A. correspondent talks with Renee Montagne-Park: Corrections, Trust, and the Long Game.</description>
       <enclosure url="/audio/p08_e04.mp3" length="1458303" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p08_e04.vtt" type="text/vtt"/>
       <itunes:episode>4</itunes:episode>
       <itunes:duration>00:03:02</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

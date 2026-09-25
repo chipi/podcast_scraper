@@ -1,6 +1,6 @@
 {
   "derived": true,
-  "computed_at": "2026-07-17T13:58:48Z",
+  "computed_at": "2026-09-24T14:39:00Z",
   "enricher_id": "insight_sentiment",
   "enricher_version": "1.0.0",
   "schema_version": "1.0",
@@ -36,5 +36,6 @@
   "retry_count": 0,
   "circuit_state": null,
   "duration_ms": 0,
-  "records_written": 3
+  "records_written": 3,
+  "input_fingerprint": "ab33b0f286c5853de4f8fdef0d36b5f14fc51ca26b3aba4fcd6d919148ec2b20"
 }

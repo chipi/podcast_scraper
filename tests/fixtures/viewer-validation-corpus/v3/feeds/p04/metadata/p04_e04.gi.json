@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:roundtable-photography",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
+      "to": "topic:strobe-lighting",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:c675a4bd6a56d075",
+      "to": "topic:roundtable-photography",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
       "to": "insight:98d2af0573fa274b",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:c70c6c69a679beff",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:c675a4bd6a56d075",
-      "to": "quote:c70c6c69a679beff",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:5a8f2e02e524bbbd",
+      "from": "quote:8650367a028512af",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:98d2af0573fa274b",
-      "to": "quote:5a8f2e02e524bbbd",
+      "from": "insight:c675a4bd6a56d075",
+      "to": "quote:8650367a028512af",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:3b92fcdf7856658e",
+      "from": "quote:ce785d1451268d93",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:98d2af0573fa274b",
+      "to": "quote:ce785d1451268d93",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:df077282d905e443",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:5dc2253d421449be",
-      "to": "quote:3b92fcdf7856658e",
+      "to": "quote:df077282d905e443",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:bf39255e07628d2f",
+      "from": "quote:834a7e8e4a22801a",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:c675a4bd6a56d075",
-      "to": "quote:bf39255e07628d2f",
+      "to": "quote:834a7e8e4a22801a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:afb0a00f53e5ae43",
-      "to": "person:speaker-02",
+      "from": "quote:c2bea2279f3816c3",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:98d2af0573fa274b",
-      "to": "quote:afb0a00f53e5ae43",
+      "to": "quote:c2bea2279f3816c3",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:2bfc3c7d0a0e99a4",
+      "from": "quote:8dcd0ef31f9d3672",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:5dc2253d421449be",
-      "to": "quote:2bfc3c7d0a0e99a4",
+      "to": "quote:8dcd0ef31f9d3672",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:47fbed20-6172-5fec-a904-656de37b88ec",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-07-31T12:00:00",
+        "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "podcast_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "publish_date": "2026-09-21T12:00:00",
         "title": "Frame & Light \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:roundtable-photography",
+      "properties": {
+        "label": "roundtable photography"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-lighting",
+      "properties": {
+        "label": "strobe lighting"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Leo"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:c70c6c69a679beff",
-      "properties": {
-        "char_end": 177,
-        "char_start": 5,
-        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Frame & Light. Today we're talking about roundtable photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Ava Lemoine"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:5a8f2e02e524bbbd",
+      "id": "quote:8650367a028512af",
       "properties": {
         "char_end": 221,
         "char_start": 191,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:3b92fcdf7856658e",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:ce785d1451268d93",
       "properties": {
         "char_end": 364,
         "char_start": 227,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:bf39255e07628d2f",
+      "id": "quote:df077282d905e443",
       "properties": {
         "char_end": 545,
         "char_start": 364,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:afb0a00f53e5ae43",
-      "properties": {
-        "char_end": 617,
-        "char_start": 559,
-        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p04_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:2bfc3c7d0a0e99a4",
+      "id": "quote:834a7e8e4a22801a",
       "properties": {
         "char_end": 705,
         "char_start": 623,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Ava mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c2bea2279f3816c3",
+      "properties": {
+        "char_end": 796,
+        "char_start": 705,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Tariq Hasaan mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p04_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8dcd0ef31f9d3672",
+      "properties": {
+        "char_end": 889,
+        "char_start": 796,
+        "episode_id": "47fbed20-6172-5fec-a904-656de37b88ec",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Daniel Olufemy mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p04_e04.txt"
       },
       "type": "Quote"

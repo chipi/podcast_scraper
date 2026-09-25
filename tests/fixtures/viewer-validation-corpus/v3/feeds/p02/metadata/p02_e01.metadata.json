@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "on call rotation",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:on-call-rotation"
+    },
+    {
       "in_topic_cluster": true,
       "label": "technology",
       "topic_cluster_compound_id": "tc:technology-cluster",
       "topic_id": "topic:technology"
-    },
-    {
-      "in_topic_cluster": false,
-      "label": "Science & research",
-      "topic_cluster_compound_id": null,
-      "topic_id": "topic:science-research"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
-    "published_date": "2026-08-02",
+    "published_date": "2026-09-23",
     "title": "Practical Systems \u2014 Episode 1"
   },
   "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
   "episode_title": "Practical Systems \u2014 Episode 1",
   "feed": {
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
-    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
     "title": "Practical Systems",
     "url": "http://localhost/"
   },
   "feed_display_title": "Practical Systems",
-  "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+  "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
   "gi_relative_path": "feeds/p02/metadata/p02_e01.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p02/metadata/p02_e01.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p02/metadata/p02_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-08-02",
+  "publish_date": "2026-09-23",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,9 +75,12 @@
     "title": "Practical Systems \u2014 Episode 1 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:on-call-rotation",
+    "topic:reliability",
+    "topic:incident-response",
+    "topic:systems-thinking",
     "topic:technology",
-    "topic:science-research",
-    "topic:welcome-back-to"
+    "topic:science-research"
   ],
   "summary_bullets": [
     "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform.",
@@ -88,8 +91,11 @@
   "summary_text": "Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform.\nPriya Nair, thanks for being here.\nExcited for this one \u2014 incident response and on-call design is something I've been thinking about a lot.",
   "summary_title": "Practical Systems \u2014 Episode 1 \u2014 synthetic",
   "topics": [
+    "on call rotation",
+    "reliability",
+    "incident response",
+    "systems thinking",
     "technology",
-    "Science & research",
-    "welcome back to"
+    "Science & research"
   ]
 }

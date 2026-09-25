@@ -1,17 +1,19 @@
 {
   "derived": true,
-  "computed_at": "2026-07-17T13:58:48Z",
+  "computed_at": "2026-09-24T14:39:00Z",
   "enricher_id": "topic_consensus",
-  "enricher_version": "2.0.0",
+  "enricher_version": "3.0.0",
   "schema_version": "1.0",
   "status": "ok",
   "data": {
     "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
-    "model_version": "v2",
+    "model_version": "v3",
     "cos_threshold": 0.7,
     "contra_threshold": 0.5,
     "pairs_scored": 0,
-    "consensus": []
+    "pairs_nli_pending": 0,
+    "consensus": [],
+    "partial_reason": "no_scoreable_pairs"
   },
   "error": null,
   "error_class": null,

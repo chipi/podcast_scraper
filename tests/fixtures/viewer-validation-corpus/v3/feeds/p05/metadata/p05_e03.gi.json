@@ -2,23 +2,38 @@
   "edges": [
     {
       "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:macro-policy",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
       "to": "topic:business-markets",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-      "to": "topic:great-to-be-back",
       "type": "MENTIONS"
     },
     {
       "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
       "to": "insight:a36f67a4094b7883",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:a36f67a4094b7883",
+      "to": "topic:macro-policy",
+      "type": "ABOUT"
     },
     {
       "from": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
@@ -31,63 +46,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:5536e6b3ec4f955c",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:a36f67a4094b7883",
-      "to": "quote:5536e6b3ec4f955c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:6dd2fff0c772772b",
+      "from": "quote:42be1ac0e7c14034",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:759a81a4a80000ed",
-      "to": "quote:6dd2fff0c772772b",
+      "from": "insight:a36f67a4094b7883",
+      "to": "quote:42be1ac0e7c14034",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:80c389c1a2e83e26",
+      "from": "quote:c985fdc95ff6434c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:759a81a4a80000ed",
+      "to": "quote:c985fdc95ff6434c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0392bc88c905f730",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:0c71912f39d5ea24",
-      "to": "quote:80c389c1a2e83e26",
+      "to": "quote:0392bc88c905f730",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:455c1047d40c2606",
+      "from": "quote:e1f8ea494ed8c03f",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:a36f67a4094b7883",
-      "to": "quote:455c1047d40c2606",
+      "to": "quote:e1f8ea494ed8c03f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:1a498bc316f50ef4",
-      "to": "person:speaker-02",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:759a81a4a80000ed",
-      "to": "quote:1a498bc316f50ef4",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:169cfc017f5b477c",
+      "from": "quote:57d14bef83a3a3e8",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:759a81a4a80000ed",
+      "to": "quote:57d14bef83a3a3e8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:91a74c8d04b647a4",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:0c71912f39d5ea24",
-      "to": "quote:169cfc017f5b477c",
+      "to": "quote:91a74c8d04b647a4",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,31 +128,45 @@
       "id": "episode:7f877683-ea36-55d1-94f7-a5cc051ff3d0",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-08-01T12:00:00",
+        "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "podcast_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 3"
       },
       "type": "Episode"
     },
     {
+      "id": "topic:macro-policy",
+      "properties": {
+        "label": "macro policy"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:business-markets",
       "properties": {
         "label": "Business & markets"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:great-to-be-back",
-      "properties": {
-        "label": "great to be back"
       },
       "type": "Topic"
     },
@@ -175,27 +204,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Nora"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:5536e6b3ec4f955c",
-      "properties": {
-        "char_end": 191,
-        "char_start": 6,
-        "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Long Horizon Notes. Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser. Scott Bessett, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p05_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Scott Bessett"
@@ -203,7 +211,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:6dd2fff0c772772b",
+      "id": "quote:42be1ac0e7c14034",
       "properties": {
         "char_end": 238,
         "char_start": 207,
@@ -217,7 +225,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:80c389c1a2e83e26",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c985fdc95ff6434c",
       "properties": {
         "char_end": 397,
         "char_start": 245,
@@ -231,7 +246,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:455c1047d40c2606",
+      "id": "quote:0392bc88c905f730",
       "properties": {
         "char_end": 499,
         "char_start": 397,
@@ -245,21 +260,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:1a498bc316f50ef4",
-      "properties": {
-        "char_end": 573,
-        "char_start": 515,
-        "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p05_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:169cfc017f5b477c",
+      "id": "quote:e1f8ea494ed8c03f",
       "properties": {
         "char_end": 671,
         "char_start": 580,
@@ -268,6 +269,34 @@
         "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:57d14bef83a3a3e8",
+      "properties": {
+        "char_end": 764,
+        "char_start": 671,
+        "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Marco Biancchi mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p05_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:91a74c8d04b647a4",
+      "properties": {
+        "char_end": 954,
+        "char_start": 780,
+        "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
+        "speaker_id": "person:speaker-02",
+        "text": "I used to think currency intervention was always counter-productive. After 2023 I changed my mind \u2014 selective intervention in thin overnight markets can be a legitimate tool.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p05_e03.txt"
       },
       "type": "Quote"

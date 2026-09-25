@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "systems thinking",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:systems-thinking"
+    },
+    {
       "in_topic_cluster": true,
       "label": "technology",
       "topic_cluster_compound_id": "tc:technology-cluster",
       "topic_id": "topic:technology"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "health",
-      "topic_cluster_compound_id": "tc:health-cluster",
-      "topic_id": "topic:health"
     }
   ],
   "content": {
@@ -37,7 +37,7 @@
   },
   "episode": {
     "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-    "published_date": "2026-08-01",
+    "published_date": "2026-09-22",
     "title": "The Long View: Biohacking \u2014 Episode 1"
   },
   "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p09/metadata/p09_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-08-01",
+  "publish_date": "2026-09-22",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,6 +75,9 @@
     "title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:systems-thinking",
+    "topic:sustainability",
+    "topic:reliability",
     "topic:technology",
     "topic:health",
     "topic:science-research"
@@ -88,6 +91,9 @@
   "summary_text": "# Cross-Show \u2014 Episode\n## Systems Thinking, Two Years Later\nHost: Sam\nGuest: Dr.\nElena Fischer\n#fixture-v3: failure_modes=recurring_guest,position_arc_multi,multi_accent\n#fixture-v3: voice=de-DE host_voice=en-US\nSam: Welcome back to Cross-Show.\nToday we're talking about systems thinking, and I'm joined by Dr.",
   "summary_title": "The Long View: Biohacking \u2014 Episode 1 \u2014 synthetic",
   "topics": [
+    "systems thinking",
+    "sustainability",
+    "reliability",
     "technology",
     "health",
     "Science & research"

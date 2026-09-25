@@ -2,16 +2,28 @@
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
   "identities": [
     {
+      "display_name": "engineering communication",
+      "id": "topic:engineering-communication"
+    },
+    {
+      "display_name": "reliability",
+      "id": "topic:reliability"
+    },
+    {
+      "display_name": "incident postmortems",
+      "id": "topic:incident-postmortems"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
       "display_name": "technology",
       "id": "topic:technology"
     },
     {
       "display_name": "Technology",
       "id": "topic:technology"
-    },
-    {
-      "display_name": "welcome back to",
-      "id": "topic:welcome-back-to"
     }
   ],
   "schema_version": "1"

@@ -1,0 +1,344 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "insight:d04df2587b2471ad",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "topic:sustainability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "insight:82d03ec8a8543c44",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "topic:sustainability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-1979e93514355ea6",
+      "to": "insight:10a502a99307e296",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:10a502a99307e296",
+      "to": "topic:sustainability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:10a502a99307e296",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "quote:4674265192303a74",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "quote:4674265192303a74",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:59d95de72784c4a5",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "quote:59d95de72784c4a5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6d09af2cbb27c6ef",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:10a502a99307e296",
+      "to": "quote:6d09af2cbb27c6ef",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4bc6491b07ea2c5e",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "quote:4bc6491b07ea2c5e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1e0e17f179121445",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "quote:1e0e17f179121445",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5e560f98808aabc8",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:10a502a99307e296",
+      "to": "quote:5e560f98808aabc8",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:d04df2587b2471ad",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:82d03ec8a8543c44",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:10a502a99307e296",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-1979e93514355ea6",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-1979e93514355ea6",
+      "properties": {
+        "duration_ms": 344000,
+        "feed_id": "p07",
+        "podcast_id": "p07",
+        "publish_date": "2025-01-08T00:00:00",
+        "title": "What Sustainability Really Means"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:sustainability",
+      "properties": {
+        "label": "sustainability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:d04df2587b2471ad",
+      "properties": {
+        "episode_id": "ep-1979e93514355ea6",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:82d03ec8a8543c44",
+      "properties": {
+        "episode_id": "ep-1979e93514355ea6",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "That's a useful framing. Where do systems thinking and sustainability intersect?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:10a502a99307e296",
+      "properties": {
+        "episode_id": "ep-1979e93514355ea6",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. And the seco\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:dr-elena-fischer",
+      "properties": {
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4674265192303a74",
+      "properties": {
+        "char_end": 372,
+        "char_start": 248,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:alex-morgan",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:59d95de72784c4a5",
+      "properties": {
+        "char_end": 504,
+        "char_start": 386,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6d09af2cbb27c6ef",
+      "properties": {
+        "char_end": 584,
+        "char_start": 504,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. Where do systems thinking and sustainability intersect?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4bc6491b07ea2c5e",
+      "properties": {
+        "char_end": 846,
+        "char_start": 604,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1e0e17f179121445",
+      "properties": {
+        "char_end": 942,
+        "char_start": 860,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a useful framing. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5e560f98808aabc8",
+      "properties": {
+        "char_end": 1128,
+        "char_start": 962,
+        "episode_id": "ep-1979e93514355ea6",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. The most expensive thing about climate is the optionality you lose by delaying. And the second-order effect is the part most people miss.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p07_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

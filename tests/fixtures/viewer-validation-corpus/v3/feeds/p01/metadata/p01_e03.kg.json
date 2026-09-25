@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:drivetrain-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -18,7 +33,7 @@
   ],
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
   "extraction": {
-    "extracted_at": "2026-07-30T12:00:00",
+    "extracted_at": "2026-09-20T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p01_e03.txt"
   },
@@ -26,11 +41,35 @@
     {
       "id": "episode:f6f1df34-2251-5301-b1c7-68ee8468bf65",
       "properties": {
-        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-07-30T12:00:00",
+        "podcast_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "properties": {
+        "label": "drivetrain mechanics",
+        "slug": "drivetrain-mechanics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance",
+      "properties": {
+        "label": "maintenance",
+        "slug": "maintenance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",

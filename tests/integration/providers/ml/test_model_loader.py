@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from podcast_scraper import config
+from podcast_scraper import config, config_constants as cc
 from podcast_scraper.providers.ml.model_loader import (
     is_evidence_model_cached,
     preload_evidence_models,
@@ -279,18 +279,26 @@ class TestModelLoaderTransformers(unittest.TestCase):
         # Test with explicit model name
         preload_transformers_models(["facebook/bart-base"])
 
+        # `revision` is expected, and asserting it is half the point of this test. bart-base
+        # used to be unpinned, so the call carried no revision and this test encoded that
+        # absence. ADR-155 pins every checkpoint — an unpinned model is a moving remote
+        # archive — so a call WITHOUT a revision is now the failure, not the baseline.
+        #
+        # Read from config_constants rather than hardcoded: pinning it here too would mean
+        # re-pinning a model needs an edit in two places, and the one that got missed would be
+        # this test passing on a stale SHA.
+        expected_revision = cc.get_pinned_revision_for_model("facebook/bart-base")
+        assert expected_revision, "facebook/bart-base must be pinned (ADR-155)"
+        expected = dict(
+            cache_dir=str(self.transformers_cache),
+            local_files_only=False,
+            use_safetensors=True,
+            revision=expected_revision,
+        )
         mock_tokenizer_class.from_pretrained.assert_called_once_with(
-            "facebook/bart-base",
-            cache_dir=str(self.transformers_cache),
-            local_files_only=False,
-            use_safetensors=True,
+            "facebook/bart-base", **expected
         )
-        mock_model_class.from_pretrained.assert_called_once_with(
-            "facebook/bart-base",
-            cache_dir=str(self.transformers_cache),
-            local_files_only=False,
-            use_safetensors=True,
-        )
+        mock_model_class.from_pretrained.assert_called_once_with("facebook/bart-base", **expected)
 
     @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
     @patch("transformers.AutoModelForSeq2SeqLM")

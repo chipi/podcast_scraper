@@ -2,23 +2,28 @@
   "edges": [
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:cultural-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:dialogue",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "topic:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-      "to": "topic:excited-for-this-one",
       "type": "MENTIONS"
     }
   ],
   "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
   "extraction": {
-    "extracted_at": "2026-07-29T12:00:00",
+    "extracted_at": "2026-09-19T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p06_e01.txt"
   },
@@ -26,33 +31,41 @@
     {
       "id": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "properties": {
-        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "publish_date": "2026-07-29T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 1"
+        "podcast_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "publish_date": "2026-09-19T12:00:00",
+        "title": "The Drift \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:cultural-drift",
+      "properties": {
+        "label": "cultural drift",
+        "slug": "cultural-drift"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue",
+      "properties": {
+        "label": "dialogue",
+        "slug": "dialogue"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long form",
+        "slug": "long-form"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
         "label": "Science & research",
         "slug": "science-research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to",
-        "slug": "welcome-back-to"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:excited-for-this-one",
-      "properties": {
-        "label": "excited for this one",
-        "slug": "excited-for-this-one"
       },
       "type": "Topic"
     }

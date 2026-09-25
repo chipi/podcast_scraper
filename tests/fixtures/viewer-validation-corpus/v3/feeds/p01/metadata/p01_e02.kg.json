@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -18,7 +33,7 @@
   ],
   "episode_id": "799ba6c0-3117-50e1-8c97-c2d8b695cce4",
   "extraction": {
-    "extracted_at": "2026-08-01T12:00:00",
+    "extracted_at": "2026-09-22T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p01_e02.txt"
   },
@@ -26,11 +41,35 @@
     {
       "id": "episode:799ba6c0-3117-50e1-8c97-c2d8b695cce4",
       "properties": {
-        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-08-01T12:00:00",
+        "podcast_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:enduro-racing",
+      "properties": {
+        "label": "enduro racing",
+        "slug": "enduro-racing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion",
+        "slug": "soil-erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",

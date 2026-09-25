@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:marine-biology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:reef-conservation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -18,7 +33,7 @@
   ],
   "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
   "extraction": {
-    "extracted_at": "2026-08-03T12:00:00",
+    "extracted_at": "2026-09-24T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p03_e03.txt"
   },
@@ -26,11 +41,35 @@
     {
       "id": "episode:9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
       "properties": {
-        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-08-03T12:00:00",
+        "podcast_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "publish_date": "2026-09-24T12:00:00",
         "title": "Below the Surface \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:marine-biology",
+      "properties": {
+        "label": "marine biology",
+        "slug": "marine-biology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reef-conservation",
+      "properties": {
+        "label": "reef conservation",
+        "slug": "reef-conservation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",

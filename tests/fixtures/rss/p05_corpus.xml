@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>Long Horizon Notes</title>
     <link>http://localhost/</link>
@@ -17,6 +18,7 @@
       <pubDate>Fri, 06 Sep 2024 00:00:00 +0000</pubDate>
       <description>What indexing does well, where people still make mistakes, and how to think about fees and behavior.</description>
       <enclosure url="/audio/p05_e01.mp3" length="3326163" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p05_e01.vtt" type="text/vtt"/>
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:06:56</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -28,6 +30,7 @@
       <pubDate>Mon, 21 Oct 2024 00:00:00 +0000</pubDate>
       <description>Cap rates, maintenance, vacancy, leverage, and the difference between “cash flow” and “stress test.”</description>
       <enclosure url="/audio/p05_e02.mp3" length="2918026" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p05_e02.vtt" type="text/vtt"/>
       <itunes:episode>2</itunes:episode>
       <itunes:duration>00:06:05</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -39,6 +42,7 @@
       <pubDate>Fri, 28 Feb 2025 00:00:00 +0000</pubDate>
       <description>A longer conversation on risk: position sizing, drawdowns, diversification that actually diversifies, and decision rules you can follow when emotions spike.</description>
       <enclosure url="/audio/p05_e03.mp3" length="2910502" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p05_e03.vtt" type="text/vtt"/>
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:06:04</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -50,6 +54,7 @@
       <pubDate>Thu, 03 Jul 2025 00:00:00 +0000</pubDate>
       <description>Nora talks with Daniel Cho: The Risk Panel: Diversify or Concentrate?.</description>
       <enclosure url="/audio/p05_e04.mp3" length="2008755" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p05_e04.vtt" type="text/vtt"/>
       <itunes:episode>4</itunes:episode>
       <itunes:duration>00:04:11</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -61,6 +66,7 @@
       <pubDate>Thu, 11 Sep 2025 00:00:00 +0000</pubDate>
       <description>Nora talks with Daniel Cho: From the Archive.</description>
       <enclosure url="/audio/p05_e05.mp3" length="554466" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p05_e05.vtt" type="text/vtt"/>
       <itunes:episode>5</itunes:episode>
       <itunes:duration>00:01:09</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

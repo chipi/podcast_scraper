@@ -1,0 +1,336 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:broadcast-format",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:60ab353f2b28b593",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:60ab353f2b28b593",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:ac49c363a6ff3818",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-efc13989b676df9d",
+      "to": "insight:3be44d7d620fad29",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:3be44d7d620fad29",
+      "to": "topic:public-radio",
+      "type": "ABOUT"
+    },
+    {
+      "from": "quote:447e96213bc298f7",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:60ab353f2b28b593",
+      "to": "quote:447e96213bc298f7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1d231abc1086b7ca",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ac49c363a6ff3818",
+      "to": "quote:1d231abc1086b7ca",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:62bd51c615ba2fe2",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3be44d7d620fad29",
+      "to": "quote:62bd51c615ba2fe2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d37f36da6d7a07dd",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:60ab353f2b28b593",
+      "to": "quote:d37f36da6d7a07dd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:51b71dae947cc630",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ac49c363a6ff3818",
+      "to": "quote:51b71dae947cc630",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9f384a3458c7d964",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3be44d7d620fad29",
+      "to": "quote:9f384a3458c7d964",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:60ab353f2b28b593",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ac49c363a6ff3818",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3be44d7d620fad29",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-efc13989b676df9d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-efc13989b676df9d",
+      "properties": {
+        "duration_ms": 271000,
+        "feed_id": "p08",
+        "podcast_id": "p08",
+        "publish_date": "2025-03-11T00:00:00",
+        "title": "Public Radio Format Conventions"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:broadcast-format",
+      "properties": {
+        "label": "broadcast format"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:60ab353f2b28b593",
+      "properties": {
+        "episode_id": "ep-efc13989b676df9d",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ac49c363a6ff3818",
+      "properties": {
+        "episode_id": "ep-efc13989b676df9d",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3be44d7d620fad29",
+      "properties": {
+        "episode_id": "ep-efc13989b676df9d",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:447e96213bc298f7",
+      "properties": {
+        "char_end": 319,
+        "char_start": 203,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:1d231abc1086b7ca",
+      "properties": {
+        "char_end": 499,
+        "char_start": 338,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-01",
+        "text": "This episode is brought to you by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Get started at squarespace.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:62bd51c615ba2fe2",
+      "properties": {
+        "char_end": 592,
+        "char_start": 499,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d37f36da6d7a07dd",
+      "properties": {
+        "char_end": 789,
+        "char_start": 614,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:51b71dae947cc630",
+      "properties": {
+        "char_end": 873,
+        "char_start": 808,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-01",
+        "text": "Take me through the decision. How does NPR fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9f384a3458c7d964",
+      "properties": {
+        "char_end": 1049,
+        "char_start": 895,
+        "episode_id": "ep-efc13989b676df9d",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Reliability of pronunciation matters more than people think. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p08_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

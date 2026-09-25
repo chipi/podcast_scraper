@@ -2,6 +2,26 @@
   "edges": [
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:on-call-rotation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:incident-response",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -12,13 +32,13 @@
     },
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "to": "insight:6e4d637fbcef879f",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:6e4d637fbcef879f",
+      "to": "topic:on-call-rotation",
+      "type": "ABOUT"
     },
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
@@ -31,63 +51,68 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:49f2595c32a2796a",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6e4d637fbcef879f",
-      "to": "quote:49f2595c32a2796a",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:13ef2f5e00a094a2",
-      "to": "person:speaker-02",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:cc8dfdce8a173576",
-      "to": "quote:13ef2f5e00a094a2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:d8e261d5d8676f34",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:2104f2725b7b11dc",
-      "to": "quote:d8e261d5d8676f34",
-      "type": "SUPPORTED_BY"
+      "to": "topic:incident-response",
+      "type": "ABOUT"
     },
     {
-      "from": "quote:b7962939c97adb5a",
+      "from": "quote:d981d6acec44e30b",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:6e4d637fbcef879f",
-      "to": "quote:b7962939c97adb5a",
+      "to": "quote:d981d6acec44e30b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:4be83f808a814fff",
+      "from": "quote:64783792af46100a",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:cc8dfdce8a173576",
-      "to": "quote:4be83f808a814fff",
+      "to": "quote:64783792af46100a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:0145ac7cd061fb02",
-      "to": "person:speaker-01",
+      "from": "quote:66f0ef6242ea7a44",
+      "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:2104f2725b7b11dc",
-      "to": "quote:0145ac7cd061fb02",
+      "to": "quote:66f0ef6242ea7a44",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:065354b107d6fdbe",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6e4d637fbcef879f",
+      "to": "quote:065354b107d6fdbe",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0060fd2a42a987e9",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cc8dfdce8a173576",
+      "to": "quote:0060fd2a42a987e9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9ff8393f2b0d6643",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2104f2725b7b11dc",
+      "to": "quote:9ff8393f2b0d6643",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +138,40 @@
       "id": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-08-02T12:00:00",
+        "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "podcast_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "publish_date": "2026-09-23T12:00:00",
         "title": "Practical Systems \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:on-call-rotation",
+      "properties": {
+        "label": "on call rotation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-response",
+      "properties": {
+        "label": "incident response"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -131,13 +184,6 @@
       "id": "topic:science-research",
       "properties": {
         "label": "Science & research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
       },
       "type": "Topic"
     },
@@ -175,27 +221,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Ethan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:49f2595c32a2796a",
-      "properties": {
-        "char_end": 188,
-        "char_start": 7,
-        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Practical Systems. Today we're talking about on call rotation, and I'm joined by Priya Nair, principal SRE at a payments platform. Priya Nair, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p02_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Priya Nair"
@@ -203,7 +228,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:13ef2f5e00a094a2",
+      "id": "quote:d981d6acec44e30b",
       "properties": {
         "char_end": 320,
         "char_start": 201,
@@ -217,7 +242,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d8e261d5d8676f34",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:64783792af46100a",
       "properties": {
         "char_end": 466,
         "char_start": 328,
@@ -231,7 +263,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b7962939c97adb5a",
+      "id": "quote:66f0ef6242ea7a44",
       "properties": {
         "char_end": 582,
         "char_start": 479,
@@ -245,7 +277,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:4be83f808a814fff",
+      "id": "quote:065354b107d6fdbe",
       "properties": {
         "char_end": 628,
         "char_start": 590,
@@ -259,7 +291,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:0145ac7cd061fb02",
+      "id": "quote:0060fd2a42a987e9",
       "properties": {
         "char_end": 723,
         "char_start": 628,
@@ -268,6 +300,20 @@
         "text": "What does the failure mode look like? What's the version of the question that actually matters?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9ff8393f2b0d6643",
+      "properties": {
+        "char_end": 959,
+        "char_start": 736,
+        "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. A good on-call rotation is designed so that waking up is rare. We've seen this play out at teams using Linear. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p02_e01.txt"
       },
       "type": "Quote"

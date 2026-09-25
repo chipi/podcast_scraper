@@ -63,8 +63,17 @@ def test_a_pinned_temperature_reaches_extraction(provider: str) -> None:
 @pytest.mark.parametrize("provider", LLM_PROVIDERS)
 def test_unpinned_still_falls_back_to_the_provider_default(provider: str) -> None:
     """The knob is opt-in. Absent, behaviour is unchanged — this is a new control, not a new
-    default that silently re-tunes every existing caller."""
-    assert insight_salvage.resolve_insight_temperature(_cfg(), provider) == pytest.approx(0.3)
+    default that silently re-tunes every existing caller.
+
+    ``None`` is stated rather than left to the ambient profile. This asserted on a bare
+    ``_cfg()``, which meant "whatever the default profile happens not to set" — and when
+    ``test_default`` became registry-governed (#2146) the materialiser emitted
+    ``gi_insight_temperature: 0.0`` into it and this test failed on a control that had not
+    changed. The field is ``Optional[float]`` and ``None`` is exactly "unpinned", so say it.
+    """
+    assert insight_salvage.resolve_insight_temperature(
+        _cfg(gi_insight_temperature=None), provider
+    ) == pytest.approx(0.3)
 
 
 def test_pinning_insights_does_NOT_re_tune_summarisation_or_speaker_detection() -> None:

@@ -1,0 +1,90 @@
+{
+  "cil_digest_topics": [
+    {
+      "in_topic_cluster": false,
+      "label": "edge cases",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:edge-cases"
+    },
+    {
+      "in_topic_cluster": false,
+      "label": "code switching",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:code-switching"
+    }
+  ],
+  "content": {
+    "diarization_num_speakers": 2,
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Liam",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e06.txt",
+    "transcript_source": "synthetic"
+  },
+  "episode": {
+    "episode_id": "ae754f41-0909-500a-bcb4-14199e04f20d",
+    "published_date": "2026-09-21",
+    "title": "The Drift \u2014 Episode 6"
+  },
+  "episode_id": "ae754f41-0909-500a-bcb4-14199e04f20d",
+  "episode_title": "The Drift \u2014 Episode 6",
+  "feed": {
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+    "title": "The Drift",
+    "url": "http://localhost/"
+  },
+  "feed_display_title": "The Drift",
+  "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+  "gi_relative_path": "feeds/p06/metadata/p06_e06.gi.json",
+  "grounded_insights": {
+    "artifact_path": "feeds/p06/metadata/p06_e06.gi.json",
+    "schema_version": "1.0"
+  },
+  "has_gi": true,
+  "has_kg": true,
+  "kg_relative_path": "feeds/p06/metadata/p06_e06.kg.json",
+  "knowledge_graph": {
+    "artifact_path": "feeds/p06/metadata/p06_e06.kg.json",
+    "schema_version": "1.1"
+  },
+  "publish_date": "2026-09-21",
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "# Edge Cases \u2014 Episode e06\n## Mixed Languages\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+      "A bit of code-switching to test transcription robustness.",
+      "End of edge-case episode e06."
+    ],
+    "preview": "# Edge Cases \u2014 Episode e06\n## Mixed Languages\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+    "text": "# Edge Cases \u2014 Episode e06\n## Mixed Languages\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.\nA bit of code-switching to test transcription robustness.\nEnd of edge-case episode e06.",
+    "title": "The Drift \u2014 Episode 6 \u2014 synthetic"
+  },
+  "summary_bullet_graph_topic_ids": [
+    "topic:edge-cases",
+    "topic:code-switching",
+    "topic:business-markets"
+  ],
+  "summary_bullets": [
+    "# Edge Cases \u2014 Episode e06\n## Mixed Languages\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+    "A bit of code-switching to test transcription robustness.",
+    "End of edge-case episode e06."
+  ],
+  "summary_preview": "# Edge Cases \u2014 Episode e06\n## Mixed Languages\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.",
+  "summary_text": "# Edge Cases \u2014 Episode e06\n## Mixed Languages\nHost: Maya\nMaya: This is an edge-case fixture used for parser and processor robustness tests.\nA bit of code-switching to test transcription robustness.\nEnd of edge-case episode e06.",
+  "summary_title": "The Drift \u2014 Episode 6 \u2014 synthetic",
+  "topics": [
+    "edge cases",
+    "code switching",
+    "Business & markets"
+  ]
+}

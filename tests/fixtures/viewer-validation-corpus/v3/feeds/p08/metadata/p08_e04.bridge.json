@@ -2,6 +2,22 @@
   "episode_id": "1b3a6ea0-3cfe-5f9b-a562-a0e49e2b4130",
   "identities": [
     {
+      "display_name": "reliability",
+      "id": "topic:reliability"
+    },
+    {
+      "display_name": "corrections policy",
+      "id": "topic:corrections-policy"
+    },
+    {
+      "display_name": "journalism",
+      "id": "topic:journalism"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
       "display_name": "environment",
       "id": "topic:environment"
     },

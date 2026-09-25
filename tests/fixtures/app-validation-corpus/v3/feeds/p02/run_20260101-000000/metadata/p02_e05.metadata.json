@@ -1,0 +1,57 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p02-e05",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p02_e05.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Priya Nair",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Caller",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e05.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 79,
+    "episode_id": "ep-a05e37624721d37c",
+    "published_date": "2025-03-09T00:00:00",
+    "title": "Reliability, Live"
+  },
+  "feed": {
+    "authors": [
+      "Ethan Park"
+    ],
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "p02",
+    "language": "en-us",
+    "last_updated": "2025-03-09T00:00:00",
+    "title": "Practical Systems",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Alert fatigue is a signal-to-noise problem rather than a discipline problem — when a team ignores pages, the pages are wrong, not the people.",
+      "Tuning the alerts should come before tuning the humans; fixing the paging system addresses the root cause, whereas pushing responders to try harder does not.",
+      "The share of pages that led to action is the key diagnostic metric — under half signals a noise problem.",
+      "Noise cannot be overcome through willpower; no amount of responder effort compensates for alerts that don't warrant action, so the fix has to live in the alerting itself."
+    ],
+    "raw_text": "Alert fatigue is a signal-to-noise problem rather than a discipline problem — when a team ignores pages, the pages are wrong, not the people. Tuning the alerts should come before tuning the humans; fixing the paging system addresses the root cause, whereas pushing responders to try harder does not.",
+    "title": "Alert Fatigue vs. Real Incidents"
+  }
+}

@@ -1,0 +1,79 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Ethan",
+    "start": 0.0,
+    "text": "Welcome back to Practical Systems. I'm joined again by Priya Nair, who spends her days keeping large systems upright. Priya, good to have you back."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Priya Nair",
+    "start": 6.0,
+    "text": "Good to be back, Ethan."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Ethan",
+    "start": 12.0,
+    "text": "This episode is brought to you by Datadog \u2014 unified observability across logs, metrics, and traces. Start at datadog.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Ethan",
+    "start": 18.0,
+    "text": "We opened the phones this week. Here's a question that came in from a listener out in the field."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Caller",
+    "start": 24.0,
+    "text": "Hi Ethan \u2014 how do you tell alert fatigue from a real incident?"
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Priya Nair",
+    "start": 30.0,
+    "text": "Great question. Alert fatigue is a signal-to-noise problem, not a discipline problem. If the team ignores pages, the pages are wrong, not the people."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Ethan",
+    "start": 36.0,
+    "text": "So you'd tune the alerts before you tune the humans."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Priya Nair",
+    "start": 42.0,
+    "text": "Every time. Measure how many pages led to action. Under half, and you have a noise problem \u2014 no amount of willpower fixes noise."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Ethan",
+    "start": 48.0,
+    "text": "Before we wrap \u2014 thanks to the caller for that one. Priya, always a pleasure."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Priya Nair",
+    "start": 54.0,
+    "text": "Anytime, Ethan."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Ethan",
+    "start": 60.0,
+    "text": "That's it for Practical Systems. See you next week."
+  }
+]

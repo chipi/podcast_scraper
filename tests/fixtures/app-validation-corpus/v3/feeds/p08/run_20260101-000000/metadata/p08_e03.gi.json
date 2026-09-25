@@ -1,0 +1,331 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:newsroom-operations",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "insight:b4d1b05b601509cf",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "insight:ceb14ee5e9abd1c1",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-b3570c1ceb5eca41",
+      "to": "insight:641561d0d2786ae5",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:641561d0d2786ae5",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "quote:43822a32a9bf3dcd",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "quote:43822a32a9bf3dcd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f69aa5a54d1837dd",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "quote:f69aa5a54d1837dd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0d34177428613390",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:641561d0d2786ae5",
+      "to": "quote:0d34177428613390",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:3c8cedfe192d75b5",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "quote:3c8cedfe192d75b5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bff76b71429c92d3",
+      "to": "person:a-correspondent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "quote:bff76b71429c92d3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:195d93dc6613a70f",
+      "to": "person:renee-montagne-park",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:641561d0d2786ae5",
+      "to": "quote:195d93dc6613a70f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b4d1b05b601509cf",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ceb14ee5e9abd1c1",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:641561d0d2786ae5",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-b3570c1ceb5eca41",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-b3570c1ceb5eca41",
+      "properties": {
+        "duration_ms": 187000,
+        "feed_id": "p08",
+        "podcast_id": "p08",
+        "publish_date": "2025-09-02T00:00:00",
+        "title": "The Desk That Never Sleeps"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:newsroom-operations",
+      "properties": {
+        "label": "newsroom operations"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:b4d1b05b601509cf",
+      "properties": {
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, A. correspondent. Great to be back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ceb14ee5e9abd1c1",
+      "properties": {
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:641561d0d2786ae5",
+      "properties": {
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:43822a32a9bf3dcd",
+      "properties": {
+        "char_end": 244,
+        "char_start": 201,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, A. correspondent. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f69aa5a54d1837dd",
+      "properties": {
+        "char_end": 409,
+        "char_start": 263,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Squarespace. Squarespace makes building a beautiful, branded website actually pleasant. Try squarespace.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:0d34177428613390",
+      "properties": {
+        "char_end": 511,
+        "char_start": 409,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-01",
+        "text": "What does the failure mode look like? What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:3c8cedfe192d75b5",
+      "properties": {
+        "char_end": 713,
+        "char_start": 533,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 A newsroom is a reliability system with a deadline. We've seen this play out at teams using BBC. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bff76b71429c92d3",
+      "properties": {
+        "char_end": 803,
+        "char_start": 732,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. How does BBC fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:195d93dc6613a70f",
+      "properties": {
+        "char_end": 985,
+        "char_start": 825,
+        "episode_id": "ep-b3570c1ceb5eca41",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Trust is the only asset a public broadcaster actually owns. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p08_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

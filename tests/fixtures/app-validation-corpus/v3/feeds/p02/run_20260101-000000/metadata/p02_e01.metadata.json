@@ -1,0 +1,61 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p02-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p02_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Ethan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Priya Nair",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p02_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 393,
+    "episode_id": "ep-4a1a673a7005a6b5",
+    "published_date": "2024-03-04T00:00:00",
+    "title": "On-Call That Doesn't Break People"
+  },
+  "feed": {
+    "authors": [
+      "Ethan Park"
+    ],
+    "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
+    "feed_id": "p02",
+    "language": "en-us",
+    "last_updated": "2025-03-09T00:00:00",
+    "title": "Practical Systems",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "A good on-call rotation is designed so that waking up is rare — a pattern observed holding across three different teams, including teams using Notion and Datadog.",
+      "Alerting should be action-oriented rather than informational; a page only earns its place if it tells the responder something to do.",
+      "Error budgets work when they change behavior rather than existing as a reporting metric — the framing matters because it reveals which trade-offs a team is actually making.",
+      "Outside of Sentry-class tooling, the failure mode is harder to spot; once that visibility gap is internalized, the remaining on-call design decisions get easier.",
+      "Adopting Sentry in the incident flow makes the trade-off visible — ignoring it leads teams to rebuild the same capability from scratch a year later.",
+      "PagerDuty's incident response model assumes someone owns the page; the second-order effect of unclear ownership is the part most people miss.",
+      "Systems thinking cross-cuts every on-call decision — alerting, error budgets, and page ownership are interdependent trade-offs rather than isolated choices.",
+      "Running one idea for two weeks and then iterating beats attempting a wholesale on-call redesign — the recommended starting point for improving a rotation."
+    ],
+    "raw_text": "A good on-call rotation is designed so that waking up is rare — a pattern observed holding across three different teams, including teams using Notion and Datadog. Alerting should be action-oriented rather than informational; a page only earns its place if it tells the responder something to do.",
+    "title": "Designing On-Call Rotation for Reliability"
+  }
+}

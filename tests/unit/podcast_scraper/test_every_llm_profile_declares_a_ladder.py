@@ -56,9 +56,21 @@ def _profiles() -> List[Tuple[Path, Dict[str, Any]]]:
     return out
 
 
+#: Profiles that pin ONE provider on purpose, so a ladder would defeat them rather than protect
+#: them. ``bakeoff_*`` pins a provider to score it. ``fixture_validation`` pins one to produce
+#: a REPRODUCIBLE artifact: its summaries are committed into the app-validation corpus, and a
+#: corpus half-written by a fallback vendor is not a fixture, it is two fixtures interleaved with
+#: no record of which episode came from where.
+_ONE_PROVIDER_ON_PURPOSE = ("fixture_validation.yaml",)
+
+
 def _is_measurement_profile(path: Path) -> bool:
     rel = path.relative_to(PROFILE_DIR)
-    return rel.name.startswith("bakeoff_") or rel.parts[0] == "freeze"
+    return (
+        rel.name.startswith("bakeoff_")
+        or rel.parts[0] == "freeze"
+        or rel.name in _ONE_PROVIDER_ON_PURPOSE
+    )
 
 
 #: Profiles whose environment cannot authenticate a SECOND vendor, so no declarable tier could be

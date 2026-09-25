@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:documentary-photography",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
+      "to": "topic:editing-workflow",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -13,7 +28,7 @@
   ],
   "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
   "extraction": {
-    "extracted_at": "2026-07-29T12:00:00",
+    "extracted_at": "2026-09-19T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p04_e02.txt"
   },
@@ -21,11 +36,35 @@
     {
       "id": "episode:9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
       "properties": {
-        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-07-29T12:00:00",
+        "podcast_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "publish_date": "2026-09-19T12:00:00",
         "title": "Frame & Light \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:documentary-photography",
+      "properties": {
+        "label": "documentary photography",
+        "slug": "documentary-photography"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame",
+        "slug": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:editing-workflow",
+      "properties": {
+        "label": "editing workflow",
+        "slug": "editing-workflow"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",

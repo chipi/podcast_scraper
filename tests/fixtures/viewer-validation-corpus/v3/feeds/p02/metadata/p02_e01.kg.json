@@ -2,6 +2,26 @@
   "edges": [
     {
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:on-call-rotation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:incident-response",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -9,16 +29,11 @@
       "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "to": "topic:science-research",
       "type": "MENTIONS"
-    },
-    {
-      "from": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
     }
   ],
   "episode_id": "3d0ec494-98ba-5f71-b2bd-c8559c779786",
   "extraction": {
-    "extracted_at": "2026-08-02T12:00:00",
+    "extracted_at": "2026-09-23T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p02_e01.txt"
   },
@@ -26,11 +41,43 @@
     {
       "id": "episode:3d0ec494-98ba-5f71-b2bd-c8559c779786",
       "properties": {
-        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-08-02T12:00:00",
+        "podcast_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "publish_date": "2026-09-23T12:00:00",
         "title": "Practical Systems \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:on-call-rotation",
+      "properties": {
+        "label": "on call rotation",
+        "slug": "on-call-rotation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-response",
+      "properties": {
+        "label": "incident response",
+        "slug": "incident-response"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -45,14 +92,6 @@
       "properties": {
         "label": "Science & research",
         "slug": "science-research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to",
-        "slug": "welcome-back-to"
       },
       "type": "Topic"
     }

@@ -1,0 +1,58 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p09-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p09_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Sam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Skanda Amarnath",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p09_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 212,
+    "episode_id": "ep-919c77e84ad37664",
+    "published_date": "2026-01-07T00:00:00",
+    "title": "When the Severe Garble Bites"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "Recurring guests from other shows revisit their positions.",
+    "feed_id": "p09",
+    "language": "en-us",
+    "last_updated": "2026-07-16T00:00:00",
+    "title": "Cross-Show",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Labor markets are where macro stops being abstract — the point at which economic conditions become concrete realities for workers and households rather than aggregate figures.",
+      "Risk is a household-level variable rather than a portfolio-level one; a pattern observed to hold consistently across three different teams.",
+      "Ignoring the household and labor-market grounding of risk forces teams to rebuild their approach from scratch a year later — a recurring pattern at teams using Bloomberg and BloombergNEF.",
+      "Systems thinking involves trade-offs that cross-cut every other theme, from labor markets to risk management, rather than standing as a separate topic.",
+      "Adoption works best by picking one idea and running it for two weeks rather than overhauling everything at once — the rest is iteration."
+    ],
+    "raw_text": "Labor markets are where macro stops being abstract — the point at which economic conditions become concrete realities for workers and households rather than aggregate figures. Risk is a household-level variable rather than a portfolio-level one; a pattern observed to hold consistently across three different teams.",
+    "title": "Labor Markets, Household Risk, and Systems Thinking"
+  }
+}

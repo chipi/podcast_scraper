@@ -2,6 +2,22 @@
   "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
   "identities": [
     {
+      "display_name": "sustainability",
+      "id": "topic:sustainability"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "reliability",
+      "id": "topic:reliability"
+    },
+    {
       "display_name": "environment",
       "id": "topic:environment"
     },

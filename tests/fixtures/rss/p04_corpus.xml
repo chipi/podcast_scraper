@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>Frame &amp; Light</title>
     <link>http://localhost/</link>
@@ -17,6 +18,7 @@
       <pubDate>Sat, 06 Jul 2024 00:00:00 +0000</pubDate>
       <description>Composition, strobe angles, backscatter, and managing a shot list when the current has other plans.</description>
       <enclosure url="/audio/p04_e01.mp3" length="2599123" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p04_e01.vtt" type="text/vtt"/>
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:05:25</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -28,6 +30,7 @@
       <pubDate>Fri, 04 Oct 2024 00:00:00 +0000</pubDate>
       <description>How to keep batteries, backups, captions, and releases organized when you’re moving every day.</description>
       <enclosure url="/audio/p04_e02.mp3" length="3651544" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p04_e02.vtt" type="text/vtt"/>
       <itunes:episode>2</itunes:episode>
       <itunes:duration>00:07:36</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -39,6 +42,7 @@
       <pubDate>Sat, 01 Feb 2025 00:00:00 +0000</pubDate>
       <description>A longer, practical breakdown: key/fill logic, modifiers, skin tones, controlling spill, and repeatable setups for consistent results.</description>
       <enclosure url="/audio/p04_e03.mp3" length="2506127" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p04_e03.vtt" type="text/vtt"/>
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:05:13</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -50,6 +54,7 @@
       <pubDate>Sat, 21 Jun 2025 00:00:00 +0000</pubDate>
       <description>Leo talks with Ava Lemoine: Roundtable: Three Photographers on Light.</description>
       <enclosure url="/audio/p04_e04.mp3" length="2393278" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p04_e04.vtt" type="text/vtt"/>
       <itunes:episode>4</itunes:episode>
       <itunes:duration>00:04:59</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p05-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p05_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Nora",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Scott Bessett",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p05_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 364,
+    "episode_id": "ep-8aa4d883afa10fa4",
+    "published_date": "2025-02-28T00:00:00",
+    "title": "The Bessent Tape"
+  },
+  "feed": {
+    "authors": [
+      "Nora Bakker"
+    ],
+    "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
+    "feed_id": "p05",
+    "language": "en-us",
+    "last_updated": "2025-09-11T00:00:00",
+    "title": "Long Horizon Notes",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Macro is mostly about not being on the wrong side of a regime change — positioning around structural shifts matters more than calling individual price moves.",
+      "Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
+      "Risk you can articulate is risk you can manage — a pattern observed holding across three different teams, and one that makes downstream decisions easier once internalized.",
+      "Reliability of expectations is the underrated piece of macro analysis, with the second-order effect being the part most people miss.",
+      "Systems thinking applies because the dollar is a system, not a price; ignoring that means rebuilding the analysis from scratch a year later.",
+      "Trade-offs around systems thinking cut across risk management and macro policy, and framing matters because it reveals which trade-offs are actually being made.",
+      "Practical starting point: pick one idea and run it for two weeks rather than overhauling everything at once — the rest is iteration."
+    ],
+    "raw_text": "Macro is mostly about not being on the wrong side of a regime change — positioning around structural shifts matters more than calling individual price moves. Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
+    "title": "Macro Policy, Regime Change, and the Dollar as a System"
+  }
+}

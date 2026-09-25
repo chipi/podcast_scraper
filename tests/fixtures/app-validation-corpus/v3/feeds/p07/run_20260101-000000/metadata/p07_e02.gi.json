@@ -1,0 +1,307 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:macroeconomics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "insight:cecf25e240f24083",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:cecf25e240f24083",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "insight:58433146870b98cc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2cd5c6d11325a312",
+      "to": "insight:b6f11de57c1d0f81",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:c3f2ba437434e2bc",
+      "to": "person:skanda-amarnath",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cecf25e240f24083",
+      "to": "quote:c3f2ba437434e2bc",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2aacabe9e8ee6142",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:58433146870b98cc",
+      "to": "quote:2aacabe9e8ee6142",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b1c8c640f9c0bb34",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b6f11de57c1d0f81",
+      "to": "quote:b1c8c640f9c0bb34",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:83e01545160c987c",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cecf25e240f24083",
+      "to": "quote:83e01545160c987c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b2f259ae016efaf9",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:58433146870b98cc",
+      "to": "quote:b2f259ae016efaf9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f80003d386f589ee",
+      "to": "person:alex-morgan",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b6f11de57c1d0f81",
+      "to": "quote:f80003d386f589ee",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:cecf25e240f24083",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:58433146870b98cc",
+      "to": "person:skanda-amarnath",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:b6f11de57c1d0f81",
+      "to": "person:alex-morgan",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-2cd5c6d11325a312",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-2cd5c6d11325a312",
+      "properties": {
+        "duration_ms": 307000,
+        "feed_id": "p07",
+        "podcast_id": "p07",
+        "publish_date": "2025-04-08T00:00:00",
+        "title": "Severe Garbles: A Macro Discussion"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:macroeconomics",
+      "properties": {
+        "label": "macroeconomics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:cecf25e240f24083",
+      "properties": {
+        "episode_id": "ep-2cd5c6d11325a312",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:58433146870b98cc",
+      "properties": {
+        "episode_id": "ep-2cd5c6d11325a312",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:b6f11de57c1d0f81",
+      "properties": {
+        "episode_id": "ep-2cd5c6d11325a312",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "I want to flag something \u2014 Dr. Eliana Fishler mentioned this same dynamic a couple episodes back."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:skanda-amarnath",
+      "properties": {
+        "name": "Skanda Amarnath"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c3f2ba437434e2bc",
+      "properties": {
+        "char_end": 244,
+        "char_start": 206,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Alex Morgan. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:alex-morgan",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2aacabe9e8ee6142",
+      "properties": {
+        "char_end": 395,
+        "char_start": 258,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Bloomberg. Bloomberg Terminal is the data spine that institutional desks run on. Try bloomberg.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b1c8c640f9c0bb34",
+      "properties": {
+        "char_end": 484,
+        "char_start": 395,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week talking about systems thinking.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:83e01545160c987c",
+      "properties": {
+        "char_end": 667,
+        "char_start": 572,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b2f259ae016efaf9",
+      "properties": {
+        "char_end": 764,
+        "char_start": 667,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Dr. Eliana Fishler mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f80003d386f589ee",
+      "properties": {
+        "char_end": 847,
+        "char_start": 764,
+        "episode_id": "ep-2cd5c6d11325a312",
+        "speaker_id": "person:speaker-01",
+        "text": "Let's start there. What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

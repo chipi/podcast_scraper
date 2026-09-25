@@ -1,86 +1,131 @@
 {
   "feeds": [
     {
+      "authors": [
+        "Maya Koster"
+      ],
       "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
       "display_title": "Singletrack Sessions",
       "episode_count": 4,
-      "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+      "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     },
     {
+      "authors": [
+        "Ethan Park"
+      ],
       "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
       "display_title": "Practical Systems",
-      "episode_count": 4,
-      "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+      "episode_count": 5,
+      "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     },
     {
+      "authors": [
+        "Rina Okafor"
+      ],
       "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
       "display_title": "Below the Surface",
       "episode_count": 4,
-      "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+      "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     },
     {
+      "authors": [
+        "Leo Hartman"
+      ],
       "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
       "display_title": "Frame & Light",
       "episode_count": 4,
-      "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+      "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     },
     {
+      "authors": [
+        "Nora Bakker"
+      ],
       "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
       "display_title": "Long Horizon Notes",
-      "episode_count": 4,
-      "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+      "episode_count": 5,
+      "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     },
     {
-      "description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
-      "display_title": "Edge Cases Podcast",
-      "episode_count": 4,
-      "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+      "authors": [
+        "Test Author"
+      ],
+      "description": "Dialogue-heavy, meandering long-form interviews.",
+      "display_title": "The Drift",
+      "episode_count": 6,
+      "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     },
     {
+      "authors": [
+        "Alex Morgan"
+      ],
       "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
       "display_title": "The Long View",
       "episode_count": 4,
-      "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+      "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     },
     {
-      "description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
-      "display_title": "The Long View",
+      "authors": [
+        "Alex Morgan"
+      ],
+      "description": "NPR-shape public-radio conversations.",
+      "display_title": "Public Hour",
       "episode_count": 4,
-      "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+      "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     },
     {
+      "authors": [
+        "Alex Morgan"
+      ],
       "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
       "display_title": "The Long View: Biohacking",
       "episode_count": 4,
       "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
       "image_local_relpath": null,
       "image_url": null,
+      "language": "en-us",
+      "last_updated": "",
       "rss_url": "http://localhost/"
     }
   ],
-  "path": "/workspace/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v3"
+  "path": "tests/fixtures/viewer-validation-corpus/v3"
 }

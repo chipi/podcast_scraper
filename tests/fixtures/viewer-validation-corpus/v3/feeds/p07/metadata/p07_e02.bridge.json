@@ -2,6 +2,18 @@
   "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
   "identities": [
     {
+      "display_name": "macroeconomics",
+      "id": "topic:macroeconomics"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
       "display_name": "environment",
       "id": "topic:environment"
     },

@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p04-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p04_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Leo",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Tarek Hassan",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p04_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 456,
+    "episode_id": "ep-fb2bb5f0f4044f1d",
+    "published_date": "2024-10-04T00:00:00",
+    "title": "Documentary Workflow in the Field"
+  },
+  "feed": {
+    "authors": [
+      "Leo Hartman"
+    ],
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "p04",
+    "language": "en-us",
+    "last_updated": "2025-06-21T00:00:00",
+    "title": "Frame & Light",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
+    "image_url": "http://localhost/images/p04.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Documentary frames carry the most weight when the photographer is closer than feels comfortable — a principle observed at teams using Profoto and Capture One, with second-order effects most people miss.",
+      "Editing a documentary essay is the second project rather than a finishing step; ignoring that distinction means rebuilding the work from scratch a year later.",
+      "Peak Design slings have changed how a photographer moves through a story, making gear choice part of the reporting process rather than a neutral accessory.",
+      "Adopting Peak Design in a working flow makes trade-offs visible — the framing matters because it reveals which trade-offs are being made.",
+      "Color grading documentary work is an area of changed conviction, a pattern observed holding across three different teams.",
+      "Editing workflow cross-cuts every other trade-off in documentary photography, from proximity to gear to grading.",
+      "Running one idea for two weeks rather than adopting everything at once is the recommended starting point — the rest is iteration."
+    ],
+    "raw_text": "Documentary frames carry the most weight when the photographer is closer than feels comfortable — a principle observed at teams using Profoto and Capture One, with second-order effects most people miss. Editing a documentary essay is the second project rather than a finishing step; ignoring that distinction means rebuilding the work from scratch a year later.",
+    "title": "Documentary Photography: Proximity, Editing, and Gear on Frame & Light"
+  }
+}

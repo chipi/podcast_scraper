@@ -624,6 +624,44 @@ def select_reduce_model(cfg, _default_model_name: str) -> str:
     return default_model
 
 
+def resolve_loadable_reduce_model(reduce_model: str, map_model: str) -> str:
+    """``reduce_model``, unless this runtime cannot load it — then the map model.
+
+    LED-base ships only pickle weights, and ``transformers >= 4.56`` refuses ``torch.load``
+    below torch 2.6 (CVE-2025-32434). torch has no x86_64 macOS wheel above 2.2.2, so on an
+    Intel Mac the production default reduce model cannot be loaded at all, and the failure
+    was a ValueError from inside ``from_pretrained`` — a crash, several layers below anyone
+    who could act on it.
+
+    Degrading is strictly better than that: the map model is already loaded and can reduce,
+    so the summary is shorter-context rather than absent. The warning names the cause,
+    because a silent substitution would make a quality change look like a model regression.
+
+    This does not change behaviour anywhere torch >= 2.6 is available, which is every
+    supported production target. It changes a crash into a summary on the platforms where
+    the pinned checkpoint is unloadable.
+
+    Called at the LOAD site, not inside ``select_reduce_model``. Selection answers "what
+    should this configuration use" and must stay a pure function of the config: putting the
+    check there made it depend on the host's torch version, and eight unit tests asserting
+    plain selection behaviour started failing on one machine and passing on another. Which
+    model is WANTED and which can be LOADED here are different questions, and only the
+    second one is about the runtime.
+    """
+    from .model_manifest import checkpoint_is_loadable_here
+
+    if checkpoint_is_loadable_here(reduce_model):
+        return reduce_model
+    logger.warning(
+        "reduce model %s cannot be loaded on this runtime (pickle-only weights and "
+        "transformers refuses torch.load below torch 2.6, CVE-2025-32434); reducing with "
+        "the map model %s instead. Summaries will use its shorter context.",
+        reduce_model,
+        map_model,
+    )
+    return map_model
+
+
 def _resolve_summarize_generation_params(
     is_reduce_phase: bool,
     is_distill_phase: bool,

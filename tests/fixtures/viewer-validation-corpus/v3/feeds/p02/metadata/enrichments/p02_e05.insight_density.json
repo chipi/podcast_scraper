@@ -1,0 +1,41 @@
+{
+  "derived": true,
+  "computed_at": "2026-09-24T14:39:00Z",
+  "enricher_id": "insight_density",
+  "enricher_version": "1.0.0",
+  "schema_version": "1.0",
+  "status": "ok",
+  "data": {
+    "episode_id": "77ae2478-6495-5707-a35f-04ab67e5386a",
+    "duration_seconds": 0.0,
+    "has_timing": false,
+    "counts": {
+      "early": 1,
+      "mid": 1,
+      "late": 1,
+      "unknown": 0
+    },
+    "total_insights": 3,
+    "insight_segments": [
+      {
+        "insight_id": "insight:d864ada4cb1a0d8a",
+        "segment": "early"
+      },
+      {
+        "insight_id": "insight:b29d888e327b38ac",
+        "segment": "mid"
+      },
+      {
+        "insight_id": "insight:791325aa6bb11a6c",
+        "segment": "late"
+      }
+    ]
+  },
+  "error": null,
+  "error_class": null,
+  "retry_count": 0,
+  "circuit_state": null,
+  "duration_ms": 0,
+  "records_written": 3,
+  "input_fingerprint": "f18ffdb79b145407bfee84b3554d672c7e90a691b6e0dcdd1750106a684cfdff"
+}

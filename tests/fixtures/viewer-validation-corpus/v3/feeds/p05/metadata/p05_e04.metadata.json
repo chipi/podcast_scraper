@@ -2,15 +2,15 @@
   "cil_digest_topics": [
     {
       "in_topic_cluster": false,
-      "label": "Science & research",
+      "label": "risk management",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:science-research"
+      "topic_id": "topic:risk-management"
     },
     {
       "in_topic_cluster": false,
-      "label": "diversify or",
+      "label": "index investing",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:diversify-or"
+      "topic_id": "topic:index-investing"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
-    "published_date": "2026-07-30",
+    "published_date": "2026-09-20",
     "title": "Long Horizon Notes \u2014 Episode 4"
   },
   "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
   "episode_title": "Long Horizon Notes \u2014 Episode 4",
   "feed": {
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
-    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
     "title": "Long Horizon Notes",
     "url": "http://localhost/"
   },
   "feed_display_title": "Long Horizon Notes",
-  "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+  "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
   "gi_relative_path": "feeds/p05/metadata/p05_e04.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p05/metadata/p05_e04.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p05/metadata/p05_e04.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-30",
+  "publish_date": "2026-09-20",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,9 +75,11 @@
     "title": "Long Horizon Notes \u2014 Episode 4 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
-    "topic:science-research",
-    "topic:diversify-or",
-    "topic:welcome-back-to"
+    "topic:risk-management",
+    "topic:index-investing",
+    "topic:systems-thinking",
+    "topic:reliability",
+    "topic:science-research"
   ],
   "summary_bullets": [
     "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?",
@@ -88,8 +90,10 @@
   "summary_text": "# Long Horizon Notes \u2014 Episode\n## The Risk Panel: Diversify or Concentrate?\nNora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=high_person_density\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome back to Long Horizon Notes.\nToday is a debate \u2014 one question, two people who genuinely disagree.",
   "summary_title": "Long Horizon Notes \u2014 Episode 4 \u2014 synthetic",
   "topics": [
-    "Science & research",
-    "diversify or",
-    "welcome back to"
+    "risk management",
+    "index investing",
+    "systems thinking",
+    "reliability",
+    "Science & research"
   ]
 }

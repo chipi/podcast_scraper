@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -31,63 +46,68 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:f8c3d2fc26fd969b",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
+      "from": "insight:417c935b40909f74",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
     },
     {
-      "from": "insight:9224ea104d8f83b3",
-      "to": "quote:f8c3d2fc26fd969b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a043012e9439e055",
+      "from": "quote:30a4853ea5448a74",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:25c50b72853ecec5",
-      "to": "quote:a043012e9439e055",
+      "from": "insight:9224ea104d8f83b3",
+      "to": "quote:30a4853ea5448a74",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:b055865bcef215b5",
+      "from": "quote:301b1bf02d2899f7",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:25c50b72853ecec5",
+      "to": "quote:301b1bf02d2899f7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:40da7e95ee6025a9",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:417c935b40909f74",
-      "to": "quote:b055865bcef215b5",
+      "to": "quote:40da7e95ee6025a9",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:92f29f94096a8303",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:9224ea104d8f83b3",
-      "to": "quote:92f29f94096a8303",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:8af69d8fbbfde5cf",
+      "from": "quote:d4010661c110d015",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:25c50b72853ecec5",
-      "to": "quote:8af69d8fbbfde5cf",
+      "from": "insight:9224ea104d8f83b3",
+      "to": "quote:d4010661c110d015",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:354f1b03b6622af5",
+      "from": "quote:2e16968c9a9adc25",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:25c50b72853ecec5",
+      "to": "quote:2e16968c9a9adc25",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4d4a80faf710d75c",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:417c935b40909f74",
-      "to": "quote:354f1b03b6622af5",
+      "to": "quote:4d4a80faf710d75c",
       "type": "SUPPORTED_BY"
     },
     {
@@ -115,10 +135,31 @@
         "duration_ms": 1800000,
         "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-        "publish_date": "2026-08-01T12:00:00",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Sam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:f8c3d2fc26fd969b",
-      "properties": {
-        "char_end": 181,
-        "char_start": 5,
-        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Cross-Show. Today we're talking about risk management, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p09_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Dr. Elena Fischer"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:a043012e9439e055",
+      "id": "quote:30a4853ea5448a74",
       "properties": {
         "char_end": 231,
         "char_start": 201,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b055865bcef215b5",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:301b1bf02d2899f7",
       "properties": {
         "char_end": 355,
         "char_start": 237,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:92f29f94096a8303",
+      "id": "quote:40da7e95ee6025a9",
       "properties": {
         "char_end": 448,
         "char_start": 355,
@@ -245,7 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:8af69d8fbbfde5cf",
+      "id": "quote:d4010661c110d015",
       "properties": {
         "char_end": 694,
         "char_start": 468,
@@ -259,7 +286,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:354f1b03b6622af5",
+      "id": "quote:2e16968c9a9adc25",
       "properties": {
         "char_end": 769,
         "char_start": 700,
@@ -268,6 +295,20 @@
         "text": "I want to dig into that. How does BloombergNEF fit into this picture?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4d4a80faf710d75c",
+      "properties": {
+        "char_end": 965,
+        "char_start": 789,
+        "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. The dangerous risks are the slow correlated ones you can name but discount. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p09_e04.txt"
       },
       "type": "Quote"

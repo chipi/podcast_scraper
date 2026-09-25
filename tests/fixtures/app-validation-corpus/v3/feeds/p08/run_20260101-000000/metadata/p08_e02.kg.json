@@ -1,0 +1,139 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:pronunciation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "person:a-correspondent",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-64ef09a7ee543045",
+      "to": "person:renee-montagne-park",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-64ef09a7ee543045",
+  "extraction": {
+    "extracted_at": "2025-04-25T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p08_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-64ef09a7ee543045",
+      "properties": {
+        "podcast_id": "p08",
+        "publish_date": "2025-04-25T00:00:00",
+        "title": "Pronunciation as a Reliability Signal"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio",
+        "slug": "public-radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism",
+        "slug": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:pronunciation",
+      "properties": {
+        "label": "pronunciation",
+        "slug": "pronunciation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:a-correspondent",
+      "properties": {
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:renee-montagne-park",
+      "properties": {
+        "name": "Renee Montagne-Park",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

@@ -27,7 +27,12 @@ import {
  * Queries here are real corpus queries; the palette's debounced fetch hits the real
  * ``/api/search``.
  */
-const QUERY = 'systems thinking'
+/*
+ * See search-enriched-hero.spec.ts for why this is not 'systems thinking': the palette's
+ * "Show on graph" action needs a graph-resolvable (kg_*) hit, and that phrase stopped
+ * placing one in the top 10 once the fixture grew to 40 episodes.
+ */
+const QUERY = 'incident response'
 
 test.describe('Search — command palette (#1233)', () => {
   /** Sign in as a per-test identity with clean prefs, land on Digest, blur focus. */

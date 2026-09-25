@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "journalism",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:journalism"
+    },
+    {
       "in_topic_cluster": true,
       "label": "environment",
       "topic_cluster_compound_id": "tc:environment-cluster",
       "topic_id": "topic:environment"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "technology",
-      "topic_cluster_compound_id": "tc:technology-cluster",
-      "topic_id": "topic:technology"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
-    "published_date": "2026-07-29",
-    "title": "The Long View \u2014 Episode 3"
+    "published_date": "2026-09-19",
+    "title": "Public Hour \u2014 Episode 3"
   },
   "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
-  "episode_title": "The Long View \u2014 Episode 3",
+  "episode_title": "Public Hour \u2014 Episode 3",
   "feed": {
-    "description": "Extended conversations on energy, technology, and long-term transitions shaping the near future.",
-    "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-    "title": "The Long View",
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
+    "title": "Public Hour",
     "url": "http://localhost/"
   },
-  "feed_display_title": "The Long View",
-  "feed_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
+  "feed_display_title": "Public Hour",
+  "feed_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
   "gi_relative_path": "feeds/p08/metadata/p08_e03.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p08/metadata/p08_e03.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p08/metadata/p08_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-29",
+  "publish_date": "2026-09-19",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -72,9 +72,13 @@
     ],
     "preview": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.",
     "text": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.\ncorrespondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.\ncorrespondent: Welcome back to Public Hour.",
-    "title": "The Long View \u2014 Episode 3 \u2014 synthetic"
+    "title": "Public Hour \u2014 Episode 3 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:journalism",
+    "topic:newsroom-operations",
+    "topic:public-radio",
+    "topic:reliability",
     "topic:environment",
     "topic:technology",
     "topic:business-markets"
@@ -86,8 +90,12 @@
   ],
   "summary_preview": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.",
   "summary_text": "# Public Hour \u2014 Episode\n## The Desk That Never Sleeps\nHost: A.\ncorrespondent\nGuest: Renee Montagne-Park\n#fixture-v3: failure_modes=zero_host_ner\n#fixture-v3: voice=en-US host_voice=en-US\nA.\ncorrespondent: Welcome back to Public Hour.",
-  "summary_title": "The Long View \u2014 Episode 3 \u2014 synthetic",
+  "summary_title": "Public Hour \u2014 Episode 3 \u2014 synthetic",
   "topics": [
+    "journalism",
+    "newsroom operations",
+    "public radio",
+    "reliability",
     "environment",
     "technology",
     "Business & markets"

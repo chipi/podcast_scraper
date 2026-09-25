@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p01-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p01_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Noah Bryer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p01_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 348,
+    "episode_id": "ep-0d9100843ee555f8",
+    "published_date": "2024-07-30T00:00:00",
+    "title": "The Mechanics of a Quiet, Fast Bike"
+  },
+  "feed": {
+    "authors": [
+      "Maya Koster"
+    ],
+    "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+    "feed_id": "p01",
+    "language": "en-us",
+    "last_updated": "2024-12-17T00:00:00",
+    "title": "Singletrack Sessions",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
+    "image_url": "http://localhost/images/p01.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec; the pattern held across three different teams working with Spoke & Wrench and Shimano.",
+      "Chain wear is the single best leading indicator of how soon cassettes will need replacing, which makes it the metric worth watching rather than waiting for a cassette to fail.",
+      "Suspension service intervals are a risk-management decision rather than a routine chore, and ignoring them means rebuilding the suspension from scratch a year later.",
+      "A bike should feel quiet and predictable so the rider's attention stays on the trail; internalizing that goal makes the rest of the maintenance decisions easier.",
+      "Framing maintenance through these principles matters because it reveals which trade-offs are being made, and the second-order effects are the part most people miss.",
+      "Risk management cross-cuts every drivetrain and maintenance decision, from creak diagnosis to service scheduling.",
+      "Practical adoption starts small: pick one idea, such as chain-wear checks or re-torquing to spec, run it for two weeks, and iterate from there."
+    ],
+    "raw_text": "Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec; the pattern held across three different teams working with Spoke & Wrench and Shimano. Chain wear is the single best leading indicator of how soon cassettes will need replacing, which makes it the metric worth watching rather than waiting for a cassette to fail.",
+    "title": "Drivetrain Mechanics: Creaks, Chain Wear, and Suspension Service"
+  }
+}

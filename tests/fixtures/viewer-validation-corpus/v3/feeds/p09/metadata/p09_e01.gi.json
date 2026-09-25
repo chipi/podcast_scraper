@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:61a85862bae0b079",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
       "to": "insight:b60f322bd7c4cff3",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,68 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:09d89989be3fc1c2",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:61a85862bae0b079",
-      "to": "quote:09d89989be3fc1c2",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:da1392d0b08c02a9",
-      "to": "person:speaker-02",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b60f322bd7c4cff3",
-      "to": "quote:da1392d0b08c02a9",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:69e949c1cbe5657f",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:4ffbe5c7c22eb6f9",
-      "to": "quote:69e949c1cbe5657f",
-      "type": "SUPPORTED_BY"
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
     },
     {
-      "from": "quote:c4aab0256f4e0e31",
+      "from": "quote:fa5a33e183b092b5",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:61a85862bae0b079",
-      "to": "quote:c4aab0256f4e0e31",
+      "to": "quote:fa5a33e183b092b5",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:3a05bdd5ffdd3523",
+      "from": "quote:a3e6c15d76b91783",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:b60f322bd7c4cff3",
-      "to": "quote:3a05bdd5ffdd3523",
+      "to": "quote:a3e6c15d76b91783",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:61fce2a8159ecc2c",
-      "to": "person:speaker-01",
+      "from": "quote:e0ad9c07dee7a889",
+      "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:4ffbe5c7c22eb6f9",
-      "to": "quote:61fce2a8159ecc2c",
+      "to": "quote:e0ad9c07dee7a889",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8b06b915bceec426",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:61a85862bae0b079",
+      "to": "quote:8b06b915bceec426",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1335c36c3cf818f9",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b60f322bd7c4cff3",
+      "to": "quote:1335c36c3cf818f9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8a3af1e1e6ae264d",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:4ffbe5c7c22eb6f9",
+      "to": "quote:8a3af1e1e6ae264d",
       "type": "SUPPORTED_BY"
     },
     {
@@ -115,10 +140,31 @@
         "duration_ms": 1800000,
         "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-        "publish_date": "2026-08-01T12:00:00",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sustainability",
+      "properties": {
+        "label": "sustainability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -175,27 +221,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Sam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:09d89989be3fc1c2",
-      "properties": {
-        "char_end": 182,
-        "char_start": 5,
-        "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Cross-Show. Today we're talking about systems thinking, and I'm joined by Dr. Elena Fischer, returning systems thinker. Dr. Elena Fischer, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p09_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Dr. Elena Fischer"
@@ -203,7 +228,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:da1392d0b08c02a9",
+      "id": "quote:fa5a33e183b092b5",
       "properties": {
         "char_end": 299,
         "char_start": 202,
@@ -217,7 +242,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:69e949c1cbe5657f",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a3e6c15d76b91783",
       "properties": {
         "char_end": 423,
         "char_start": 305,
@@ -231,7 +263,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:c4aab0256f4e0e31",
+      "id": "quote:e0ad9c07dee7a889",
       "properties": {
         "char_end": 570,
         "char_start": 443,
@@ -245,7 +277,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:3a05bdd5ffdd3523",
+      "id": "quote:8b06b915bceec426",
       "properties": {
         "char_end": 614,
         "char_start": 576,
@@ -259,7 +291,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:61fce2a8159ecc2c",
+      "id": "quote:1335c36c3cf818f9",
       "properties": {
         "char_end": 680,
         "char_start": 614,
@@ -268,6 +300,20 @@
         "text": "I want to dig into that. How does Bloomberg fit into this picture?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8a3af1e1e6ae264d",
+      "properties": {
+        "char_end": 936,
+        "char_start": 700,
+        "episode_id": "22aa61d4-d535-5e72-ae9b-d44d9a3054d1",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. Two years of systems-thinking work has made me more humble about leverage points. We've seen this play out at teams using IPCC. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p09_e01.txt"
       },
       "type": "Quote"

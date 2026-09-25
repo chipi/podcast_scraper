@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p08-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p08_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Renee Montagne-Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p08_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 187,
+    "episode_id": "ep-b3570c1ceb5eca41",
+    "published_date": "2025-09-02T00:00:00",
+    "title": "The Desk That Never Sleeps"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "language": "en-us",
+    "last_updated": "2026-01-05T00:00:00",
+    "title": "Public Hour",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "A newsroom is a reliability system with a deadline — framing journalism this way treats accuracy as an operational discipline rather than an afterthought, a pattern observed at teams using BBC.",
+      "Trust is the only asset a public broadcaster actually owns; everything else is secondary to preserving the audience's confidence in the reporting.",
+      "Ignoring reliability or trust carries a delayed cost — newsrooms that neglect them end up rebuilding those foundations from scratch a year later rather than maintaining them continuously.",
+      "The second-order effects of treating a newsroom as a reliability system are the part most people miss, extending beyond immediate accuracy to how the organization operates overall.",
+      "Reliability trade-offs cross-cut every other aspect of journalism, making them the central lens rather than a narrow technical concern.",
+      "Framing matters because it reveals which trade-offs are being made — choosing trust or reliability as the core principle makes those choices explicit rather than defaulted into.",
+      "Practical adoption favors a small experiment over a wholesale overhaul — pick one idea and run it for two weeks, then iterate."
+    ],
+    "raw_text": "A newsroom is a reliability system with a deadline — framing journalism this way treats accuracy as an operational discipline rather than an afterthought, a pattern observed at teams using BBC. Trust is the only asset a public broadcaster actually owns; everything else is secondary to preserving the audience's confidence in the reporting.",
+    "title": "Journalism as Reliability and Trust"
+  }
+}

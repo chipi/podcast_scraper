@@ -17,6 +17,7 @@
   "publish_date": "2025-03-11",
   "publish_offset_days": 435,
   "secondary_topics": [
+    "topic:broadcast-format",
     "topic:journalism",
     "topic:reliability"
   ],

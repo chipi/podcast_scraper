@@ -1,0 +1,274 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:edge-cases",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:code-switching",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "insight:ae4361058ac53839",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-26eaa57651247221",
+      "to": "insight:7c6a6d43bdeed31f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:7c6a6d43bdeed31f",
+      "to": "topic:code-switching",
+      "type": "ABOUT"
+    },
+    {
+      "from": "quote:f28857394d30accd",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ae4361058ac53839",
+      "to": "quote:f28857394d30accd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:33090e3b0b963aa5",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7c6a6d43bdeed31f",
+      "to": "quote:33090e3b0b963aa5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d240ad2c68770911",
+      "to": "person:liam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ae4361058ac53839",
+      "to": "quote:d240ad2c68770911",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2ccd746becaa242d",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7c6a6d43bdeed31f",
+      "to": "quote:2ccd746becaa242d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ca3624e5d0cc3da2",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ae4361058ac53839",
+      "to": "quote:ca3624e5d0cc3da2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:ae4361058ac53839",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:7c6a6d43bdeed31f",
+      "to": "person:liam",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-26eaa57651247221",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-26eaa57651247221",
+      "properties": {
+        "duration_ms": 15000,
+        "feed_id": "p06",
+        "podcast_id": "p06",
+        "publish_date": "2026-06-20T00:00:00",
+        "title": "Mixed Languages"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:edge-cases",
+      "properties": {
+        "label": "edge cases"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:code-switching",
+      "properties": {
+        "label": "code switching"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long-form"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:ae4361058ac53839",
+      "properties": {
+        "episode_id": "ep-26eaa57651247221",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "This is an edge-case fixture used for parser and processor robustness tests."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7c6a6d43bdeed31f",
+      "properties": {
+        "episode_id": "ep-26eaa57651247221",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "A bit of code-switching to test transcription robustness."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f28857394d30accd",
+      "properties": {
+        "char_end": 82,
+        "char_start": 6,
+        "episode_id": "ep-26eaa57651247221",
+        "speaker_id": "person:speaker-01",
+        "text": "This is an edge-case fixture used for parser and processor robustness tests.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p06_e06.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:33090e3b0b963aa5",
+      "properties": {
+        "char_end": 90,
+        "char_start": 82,
+        "episode_id": "ep-26eaa57651247221",
+        "speaker_id": "person:speaker-01",
+        "text": "Welcome.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p06_e06.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:liam",
+      "properties": {
+        "name": "Liam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d240ad2c68770911",
+      "properties": {
+        "char_end": 115,
+        "char_start": 97,
+        "episode_id": "ep-26eaa57651247221",
+        "speaker_id": "person:speaker-02",
+        "text": "Hola, \u00bfc\u00f3mo est\u00e1s?",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p06_e06.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2ccd746becaa242d",
+      "properties": {
+        "char_end": 179,
+        "char_start": 122,
+        "episode_id": "ep-26eaa57651247221",
+        "speaker_id": "person:speaker-01",
+        "text": "A bit of code-switching to test transcription robustness.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p06_e06.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ca3624e5d0cc3da2",
+      "properties": {
+        "char_end": 208,
+        "char_start": 179,
+        "episode_id": "ep-26eaa57651247221",
+        "speaker_id": "person:speaker-01",
+        "text": "End of edge-case episode e06.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p06_e06.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

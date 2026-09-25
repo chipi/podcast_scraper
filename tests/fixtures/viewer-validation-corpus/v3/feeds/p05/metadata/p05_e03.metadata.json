@@ -2,15 +2,15 @@
   "cil_digest_topics": [
     {
       "in_topic_cluster": false,
-      "label": "Business & markets",
+      "label": "macro policy",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:business-markets"
+      "topic_id": "topic:macro-policy"
     },
     {
       "in_topic_cluster": false,
-      "label": "welcome back to",
+      "label": "risk management",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:welcome-back-to"
+      "topic_id": "topic:risk-management"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
-    "published_date": "2026-08-01",
+    "published_date": "2026-09-22",
     "title": "Long Horizon Notes \u2014 Episode 3"
   },
   "episode_id": "7f877683-ea36-55d1-94f7-a5cc051ff3d0",
   "episode_title": "Long Horizon Notes \u2014 Episode 3",
   "feed": {
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
-    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
     "title": "Long Horizon Notes",
     "url": "http://localhost/"
   },
   "feed_display_title": "Long Horizon Notes",
-  "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+  "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
   "gi_relative_path": "feeds/p05/metadata/p05_e03.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p05/metadata/p05_e03.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p05/metadata/p05_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-08-01",
+  "publish_date": "2026-09-22",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,9 +75,11 @@
     "title": "Long Horizon Notes \u2014 Episode 3 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
-    "topic:business-markets",
-    "topic:welcome-back-to",
-    "topic:great-to-be-back"
+    "topic:macro-policy",
+    "topic:risk-management",
+    "topic:reliability",
+    "topic:systems-thinking",
+    "topic:business-markets"
   ],
   "summary_bullets": [
     "Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser.",
@@ -88,8 +90,10 @@
   "summary_text": "Today we're talking about macro policy, and I'm joined by Scott Bessett, hedge fund manager and policy adviser.\nScott Bessett, thanks for being here.\nThis episode is brought to you by Bloomberg.",
   "summary_title": "Long Horizon Notes \u2014 Episode 3 \u2014 synthetic",
   "topics": [
-    "Business & markets",
-    "welcome back to",
-    "great to be back"
+    "macro policy",
+    "risk management",
+    "reliability",
+    "systems thinking",
+    "Business & markets"
   ]
 }

@@ -27,7 +27,22 @@ import {
  * summing logic in the test would assert the implementation. Instead: the hero must render, every
  * chip it shows must be a topic the server actually returned, and the off-states must hide it.
  */
-const QUERY = 'systems thinking'
+/*
+ * QUERY must surface a ``kg_topic`` doc in the top-K, which is a RANKING precondition, not
+ * just a string. ``query_topic_relatedness`` decorates only hits whose ``metadata.source_id``
+ * is a ``topic:…`` id, so the enriched hero renders only when a topic doc places.
+ *
+ * This was 'systems thinking'. That phrase is scattered through insights and transcripts
+ * across the corpus, so when the fixture grew 36 -> 40 episodes the prose docs crowded the
+ * topic doc out of the top 10 — it sits at rank 10 when top_k=50 and outside it when
+ * top_k=10, because RRF re-fuses as the candidate pool changes. Three specs then failed with
+ * "element(s) not found" 30 seconds later, naming a symptom well downstream of the cause.
+ *
+ * 'incident response' is an exact topic label that is NOT scattered through the prose, so its
+ * topic doc places. The margin is still one hit in ten — see assertTopicDocInTopK, which
+ * states that precondition out loud so the next corpus change says so directly.
+ */
+const QUERY = 'incident response'
 
 type EnrichedResult = {
   metadata?: {
@@ -48,6 +63,21 @@ test.describe('Search — enriched-answer hero (#1235)', () => {
     await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
     await mainViewsNav(page).getByRole('button', { name: 'Search' }).click()
     await expect(page.getByTestId('search-workspace')).toBeVisible({ timeout: 10_000 })
+  }
+
+  /** Fail with the CAUSE when the ranking precondition breaks, not with a 30s timeout. */
+  async function assertTopicDocInTopK(page: Page): Promise<void> {
+    const resp = await page.request.get(
+      `/api/search?q=${encodeURIComponent(QUERY)}&top_k=10&enrich_results=true`,
+    )
+    const { results } = (await resp.json()) as { results: { doc_id: string }[] }
+    const topicDocs = results.filter((r) => r.doc_id?.startsWith('kg_topic:'))
+    expect(
+      topicDocs.length,
+      `no kg_topic doc in the top 10 for "${QUERY}". The enriched hero can only render ` +
+        `when one places, so this is a ranking change in the fixture, not a UI regression. ` +
+        `Got: ${results.map((r) => r.doc_id.split(':')[0]).join(', ')}`,
+    ).toBeGreaterThan(0)
   }
 
   async function runSearch(page: Page): Promise<void> {
@@ -88,6 +118,7 @@ test.describe('Search — enriched-answer hero (#1235)', () => {
   })
 
   test('hero renders topic chips drawn from the server enrichments', async ({ page }) => {
+    await assertTopicDocInTopK(page)
     await runSearch(page)
     const hero = page.getByTestId('enriched-answer-hero')
     await expect(hero).toBeVisible({ timeout: 30_000 })

@@ -2,15 +2,15 @@
   "cil_digest_topics": [
     {
       "in_topic_cluster": false,
-      "label": "Technology",
+      "label": "long form",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:technology"
+      "topic_id": "topic:long-form"
     },
     {
       "in_topic_cluster": false,
-      "label": "welcome back to",
+      "label": "dialogue",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:welcome-back-to"
+      "topic_id": "topic:dialogue"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-    "published_date": "2026-08-02",
-    "title": "Edge Cases Podcast \u2014 Episode 2"
+    "published_date": "2026-09-23",
+    "title": "The Drift \u2014 Episode 2"
   },
   "episode_id": "e3d8c7e5-2b7b-572b-a226-ddec128285ca",
-  "episode_title": "Edge Cases Podcast \u2014 Episode 2",
+  "episode_title": "The Drift \u2014 Episode 2",
   "feed": {
-    "description": "Testing edge cases: special characters, unicode, long titles, missing fields.",
-    "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-    "title": "Edge Cases Podcast",
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+    "title": "The Drift",
     "url": "http://localhost/"
   },
-  "feed_display_title": "Edge Cases Podcast",
-  "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
+  "feed_display_title": "The Drift",
+  "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
   "gi_relative_path": "feeds/p06/metadata/p06_e02.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p06/metadata/p06_e02.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p06/metadata/p06_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-08-02",
+  "publish_date": "2026-09-23",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -72,12 +72,13 @@
     ],
     "preview": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.",
     "text": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.\nJordan Park, thanks for being here.\nThis episode is brought to you by Squarespace.",
-    "title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic"
+    "title": "The Drift \u2014 Episode 2 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
-    "topic:technology",
-    "topic:welcome-back-to",
-    "topic:great-to-be-back"
+    "topic:long-form",
+    "topic:dialogue",
+    "topic:cultural-drift",
+    "topic:technology"
   ],
   "summary_bullets": [
     "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.",
@@ -86,10 +87,11 @@
   ],
   "summary_preview": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.",
   "summary_text": "Today we're talking about long form, and I'm joined by Jordan Park, cultural critic.\nJordan Park, thanks for being here.\nThis episode is brought to you by Squarespace.",
-  "summary_title": "Edge Cases Podcast \u2014 Episode 2 \u2014 synthetic",
+  "summary_title": "The Drift \u2014 Episode 2 \u2014 synthetic",
   "topics": [
-    "Technology",
-    "welcome back to",
-    "great to be back"
+    "long form",
+    "dialogue",
+    "cultural drift",
+    "Technology"
   ]
 }

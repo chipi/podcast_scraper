@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:marine-biology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:reef-conservation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:b32ea17e1406a74b",
+      "to": "topic:marine-biology",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
       "to": "insight:7fed4785a0677ec4",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:d56473f01385ab0b",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:b32ea17e1406a74b",
-      "to": "quote:d56473f01385ab0b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f07cb1f67f92b18d",
+      "from": "quote:286a38dac66d826c",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:7fed4785a0677ec4",
-      "to": "quote:f07cb1f67f92b18d",
+      "from": "insight:b32ea17e1406a74b",
+      "to": "quote:286a38dac66d826c",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:b19a561ad22f488c",
+      "from": "quote:702cbab74930846c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7fed4785a0677ec4",
+      "to": "quote:702cbab74930846c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6222e0cb2884ef1c",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:b227b21d000fe047",
-      "to": "quote:b19a561ad22f488c",
+      "to": "quote:6222e0cb2884ef1c",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:01fb28efbeeba143",
+      "from": "quote:1a1e975b4c22ae06",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:b32ea17e1406a74b",
-      "to": "quote:01fb28efbeeba143",
+      "to": "quote:1a1e975b4c22ae06",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:65ee0bec7d823fb5",
-      "to": "person:speaker-02",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:7fed4785a0677ec4",
-      "to": "quote:65ee0bec7d823fb5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:fa5bf70aa6b5136c",
+      "from": "quote:a8733b216ea7276c",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:7fed4785a0677ec4",
+      "to": "quote:a8733b216ea7276c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4ce0d7e38631e23d",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:b227b21d000fe047",
-      "to": "quote:fa5bf70aa6b5136c",
+      "to": "quote:4ce0d7e38631e23d",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:254fe2be-b570-592e-84cd-c22cb9e271e9",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-07-30T12:00:00",
+        "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "podcast_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "Below the Surface \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:marine-biology",
+      "properties": {
+        "label": "marine biology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reef-conservation",
+      "properties": {
+        "label": "reef conservation"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Rina"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:d56473f01385ab0b",
-      "properties": {
-        "char_end": 207,
-        "char_start": 6,
-        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Below the Surface. Today we're talking about marine biology, and I'm joined by Hanna Crebo Rediker, marine biologist focused on reef systems. Hanna Crebo Rediker, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p03_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Hanna Crebo Rediker"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:f07cb1f67f92b18d",
+      "id": "quote:286a38dac66d826c",
       "properties": {
         "char_end": 260,
         "char_start": 229,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b19a561ad22f488c",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:702cbab74930846c",
       "properties": {
         "char_end": 372,
         "char_start": 267,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:01fb28efbeeba143",
+      "id": "quote:6222e0cb2884ef1c",
       "properties": {
         "char_end": 454,
         "char_start": 372,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:65ee0bec7d823fb5",
-      "properties": {
-        "char_end": 534,
-        "char_start": 476,
-        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p03_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:fa5bf70aa6b5136c",
+      "id": "quote:1a1e975b4c22ae06",
       "properties": {
         "char_end": 631,
         "char_start": 541,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Marco Sylva mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a8733b216ea7276c",
+      "properties": {
+        "char_end": 707,
+        "char_start": 631,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "speaker_id": "person:speaker-01",
+        "text": "Let's start there. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p03_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4ce0d7e38631e23d",
+      "properties": {
+        "char_end": 893,
+        "char_start": 729,
+        "episode_id": "254fe2be-b570-592e-84cd-c22cb9e271e9",
+        "speaker_id": "person:speaker-02",
+        "text": "Sure. Coral bleaching events are not random. We've seen this play out at teams using Suunto. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p03_e02.txt"
       },
       "type": "Quote"

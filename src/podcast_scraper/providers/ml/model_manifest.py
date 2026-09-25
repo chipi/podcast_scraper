@@ -62,7 +62,54 @@ class MLModelSpec(NamedTuple):
 _T = frozenset({"test", "ci_artifact", "production"})  # core: everywhere
 _T_AIR = _T | {"airgapped_thin"}  # core + the trimmed airgapped-thin summarizers
 _CI = frozenset({"ci_artifact", "production"})  # artifact + nightly
+_CI_AIR = _CI | {"airgapped_thin"}  # artifact + nightly + airgapped-thin, but NOT local test
 _PROD = frozenset({"production"})  # nightly / full bake only
+
+# WHY TWO OF THE SUMMARISERS ARE NOT IN THE ``test`` TIER (2026-09-24)
+#
+# ``allenai/led-base-16384`` and ``google/long-t5-tglobal-base`` ship ONLY
+# ``pytorch_model.bin`` — no safetensors — so loading either one unpickles through
+# ``torch.load``. ``transformers >= 4.56`` refuses that below torch 2.6, citing
+# PYSEC-2025-41 / CVE-2025-32434, and it is right to: ``weights_only=True`` does not
+# close that hole.
+#
+# On x86_64 macOS the newest torch wheel that exists is 2.2.2, so ``make
+# preload-ml-models`` — and therefore ``make ci`` — could not complete on that host at
+# all. Not a skipped stage: a hard failure on a cached model.
+#
+# The ``test`` tier is what a DEVELOPER MACHINE preloads. It is now safetensors-only, so
+# it loads anywhere. CI, nightly and airgapped-thin keep both models: they run on Linux
+# where torch is current and the guard never fires. Nothing about the airgapped profile
+# changes — it still needs a long-context local REDUCE and LED is still the only one.
+#
+# Removing them from ``test`` does not make them unpinned or unreachable: both carry a
+# SHA (ADR-155) and both stay in ``REQUIRED_ML_MODELS``.
+
+#: Checkpoints that publish ONLY ``pytorch_model.bin`` — no ``model.safetensors`` at the
+#: revision we pin. Loading one unpickles through ``torch.load``, which ``transformers >= 4.56``
+#: refuses below torch 2.6 (PYSEC-2025-41 / CVE-2025-32434). Stated here because it is a fact
+#: about the checkpoints, not about any one machine: the same refusal fires anywhere torch is
+#: older than 2.6, and x86_64 macOS is simply where it fires today (newest wheel: 2.2.2).
+#:
+#: Checked against the Hub on 2026-09-24. No safetensors build of these WEIGHTS exists — the
+#: community copies are pickle too, and near-name repos like ``led-base-16384-ms2`` are
+#: fine-tunes. So this is a durable property, not a "pending upstream" note.
+#:
+#: The ``test`` tier must not contain any of these: it is what a developer machine preloads, and
+#: a model it cannot load turns ``make preload-ml-models`` — and therefore ``make ci`` — into a
+#: hard failure. ``test_the_test_tier_holds_only_loadable_checkpoints`` enforces that.
+PICKLE_ONLY_CHECKPOINTS: frozenset[str] = frozenset(
+    {
+        "google/pegasus-large",
+        "google/pegasus-cnn_dailymail",
+        "google/pegasus-xsum",
+        "google/long-t5-tglobal-base",
+        "google/long-t5-tglobal-large",
+        "allenai/led-base-16384",
+        "allenai/led-large-16384",
+        "sshleifer/distilbart-cnn-12-6",
+    }
+)
 
 REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     # Whisper (ids from config_constants whisper defaults)
@@ -81,8 +128,9 @@ REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     # ALLOWED-known and revision-pinned but are NOT preloaded by default, so they
     # are intentionally absent from this preload manifest.
     MLModelSpec("facebook/bart-base", "summary", _T_AIR),  # airgapped-thin bart-small
-    MLModelSpec("allenai/led-base-16384", "summary", _T_AIR),  # airgapped-thin long-fast
-    MLModelSpec("google/long-t5-tglobal-base", "summary", _T),
+    # pickle-only -> not in `test`; see the note above the tier constants
+    MLModelSpec("allenai/led-base-16384", "summary", _CI_AIR),  # airgapped-thin long-fast
+    MLModelSpec("google/long-t5-tglobal-base", "summary", _CI),
     MLModelSpec("google/flan-t5-base", "summary", _T),
     # Evidence stack -- ids from config_constants DEFAULT_* (also registry keys).
     # MiniLM is corpus-wide core -> ci_artifact (the model missing from the #897 CI).
@@ -111,3 +159,37 @@ def ci_artifact_model_ids(kind: str | None = None) -> list[str]:
     in duplicated bash arrays.
     """
     return model_ids_for_tier("ci_artifact", kind=kind)
+
+
+def torch_refuses_pickle_weights() -> bool:
+    """Whether this runtime's transformers will refuse a pickle-only checkpoint.
+
+    ``transformers >= 4.56`` will not call ``torch.load`` below torch 2.6, citing
+    PYSEC-2025-41 / CVE-2025-32434. It raises rather than degrading, so on such a runtime a
+    checkpoint in :data:`PICKLE_ONLY_CHECKPOINTS` cannot be loaded at all — not slowly, not
+    with a warning: not at all.
+
+    Returns False when torch is absent, because then no summariser is running anyway and
+    the caller's model choice is moot.
+    """
+    try:
+        import torch
+    except ImportError:
+        return False
+    try:
+        major, minor = (int(p) for p in str(torch.__version__).split(".")[:2])
+    except (TypeError, ValueError):
+        return False
+    return (major, minor) < (2, 6)
+
+
+def checkpoint_is_loadable_here(model_id: str) -> bool:
+    """Whether ``model_id`` can actually be loaded by this runtime.
+
+    ``PICKLE_ONLY_CHECKPOINTS`` existed as data that nothing consulted: the manifest used it
+    to decide what to PRELOAD, and the model selectors went on naming those same checkpoints
+    as defaults. A model excluded from one path and still chosen by another is excluded from
+    neither — on an x86_64 Mac (torch caps at 2.2.2) that produced a hard ValueError deep in
+    ``from_pretrained``, which is a crash where a substitution would do.
+    """
+    return not (model_id in PICKLE_ONLY_CHECKPOINTS and torch_refuses_pickle_weights())

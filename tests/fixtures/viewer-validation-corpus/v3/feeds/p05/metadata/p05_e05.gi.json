@@ -1,0 +1,285 @@
+{
+  "edges": [
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "insight:d6b03b6b91cae6ae",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "insight:81349cb73b6902a7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "to": "insight:e9c7359d6a650fee",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:9dcf5cf2a72fd7a2",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d6b03b6b91cae6ae",
+      "to": "quote:9dcf5cf2a72fd7a2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8a20efb458a3a62b",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:81349cb73b6902a7",
+      "to": "quote:8a20efb458a3a62b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:102491b99843cd5a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e9c7359d6a650fee",
+      "to": "quote:102491b99843cd5a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c613cf3afacbe25e",
+      "to": "person:speaker-03",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d6b03b6b91cae6ae",
+      "to": "quote:c613cf3afacbe25e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2956e8c4a499c6cb",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:81349cb73b6902a7",
+      "to": "quote:2956e8c4a499c6cb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:90634cdfae6d9836",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e9c7359d6a650fee",
+      "to": "quote:90634cdfae6d9836",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:d6b03b6b91cae6ae",
+      "to": "person:speaker-01",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:81349cb73b6902a7",
+      "to": "person:speaker-02",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:e9c7359d6a650fee",
+      "to": "person:speaker-03",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:da36bd38-cbbe-5d64-91c1-e73f0866b824",
+      "properties": {
+        "duration_ms": 1800000,
+        "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "podcast_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "publish_date": "2026-09-24T12:00:00",
+        "title": "Long Horizon Notes \u2014 Episode 5"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:d6b03b6b91cae6ae",
+      "properties": {
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "# Long Horizon Notes \u2014 Episode\n## From the Archive\nHost: Nora\nGuest: Daniel Cho\n#fixture-v3: failure_modes=cameo\n#fixture-v3: voice=en-US host_voice=en-US\nNora: Welcome to Long Horizon Notes."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:81349cb73b6902a7",
+      "properties": {
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "My guest today is Daniel Cho, former bond trader turned index advocate."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:e9c7359d6a650fee",
+      "properties": {
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:speaker-02",
+      "properties": {
+        "name": "Daniel Cho"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:9dcf5cf2a72fd7a2",
+      "properties": {
+        "char_end": 173,
+        "char_start": 143,
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Nora. Glad to be here.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:8a20efb458a3a62b",
+      "properties": {
+        "char_end": 321,
+        "char_start": 180,
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring. Visit betterment.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:102491b99843cd5a",
+      "properties": {
+        "char_end": 426,
+        "char_start": 321,
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:speaker-03",
+      "properties": {
+        "name": "Nadia Sereni"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c613cf3afacbe25e",
+      "properties": {
+        "char_end": 484,
+        "char_start": 441,
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "speaker_id": "person:speaker-03",
+        "text": "Leverage feels free until the day it isn't.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2956e8c4a499c6cb",
+      "properties": {
+        "char_end": 602,
+        "char_start": 497,
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "speaker_id": "person:speaker-02",
+        "text": "That line held up. Most blow-ups I've seen weren't bad bets \u2014 they were fine bets financed the wrong way.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:90634cdfae6d9836",
+      "properties": {
+        "char_end": 668,
+        "char_start": 609,
+        "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+        "speaker_id": "person:speaker-01",
+        "text": "So the risk isn't the asset, it's the borrowing against it.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p05_e05.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

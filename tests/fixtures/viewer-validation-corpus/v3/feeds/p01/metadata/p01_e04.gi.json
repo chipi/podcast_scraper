@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -31,63 +46,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:6c9d9f4e18265591",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:9d169ef5f1a9f0d9",
-      "to": "quote:6c9d9f4e18265591",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e2817293d2bb29a6",
+      "from": "quote:35c88d1b6e19a7f4",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:b48adb2454ae4000",
-      "to": "quote:e2817293d2bb29a6",
+      "from": "insight:9d169ef5f1a9f0d9",
+      "to": "quote:35c88d1b6e19a7f4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:1acdc19b9d1bd255",
+      "from": "quote:d643ca43ca3ae05c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b48adb2454ae4000",
+      "to": "quote:d643ca43ca3ae05c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fa974b6cb2cb8a9f",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ddd65689a99a0f26",
-      "to": "quote:1acdc19b9d1bd255",
+      "to": "quote:fa974b6cb2cb8a9f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:f2d6d8372065fd66",
-      "to": "person:speaker-01",
+      "from": "quote:a43591fb26c35b11",
+      "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:9d169ef5f1a9f0d9",
-      "to": "quote:f2d6d8372065fd66",
+      "to": "quote:a43591fb26c35b11",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d5240ddf7ed0dba5",
+      "from": "quote:50f2c31da3cb340a",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:b48adb2454ae4000",
-      "to": "quote:d5240ddf7ed0dba5",
+      "to": "quote:50f2c31da3cb340a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c81152ac90f31fbf",
-      "to": "person:speaker-02",
+      "from": "quote:518e3a8999fb16ee",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ddd65689a99a0f26",
-      "to": "quote:c81152ac90f31fbf",
+      "to": "quote:518e3a8999fb16ee",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +128,33 @@
       "id": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-08-03T12:00:00",
+        "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "podcast_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "publish_date": "2026-09-24T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:enduro-racing",
+      "properties": {
+        "label": "enduro racing"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",
@@ -175,27 +211,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Maya"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:6c9d9f4e18265591",
-      "properties": {
-        "char_end": 118,
-        "char_start": 6,
-        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Singletrack Sessions. I'm with Sophie Laurent, enduro racer and coach. Sophie, good to have you.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p01_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Sophie Laurent"
@@ -203,7 +218,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:e2817293d2bb29a6",
+      "id": "quote:35c88d1b6e19a7f4",
       "properties": {
         "char_end": 175,
         "char_start": 135,
@@ -217,7 +232,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:1acdc19b9d1bd255",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d643ca43ca3ae05c",
       "properties": {
         "char_end": 276,
         "char_start": 182,
@@ -231,7 +253,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:f2d6d8372065fd66",
+      "id": "quote:fa974b6cb2cb8a9f",
       "properties": {
         "char_end": 336,
         "char_start": 276,
@@ -245,7 +267,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d5240ddf7ed0dba5",
+      "id": "quote:a43591fb26c35b11",
       "properties": {
         "char_end": 560,
         "char_start": 353,
@@ -259,7 +281,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:c81152ac90f31fbf",
+      "id": "quote:50f2c31da3cb340a",
       "properties": {
         "char_end": 777,
         "char_start": 560,
@@ -268,6 +290,20 @@
         "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:518e3a8999fb16ee",
+      "properties": {
+        "char_end": 860,
+        "char_start": 784,
+        "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+        "speaker_id": "person:speaker-01",
+        "text": "That's almost word-for-word what a friend in finance says about a portfolio.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p01_e04.txt"
       },
       "type": "Quote"

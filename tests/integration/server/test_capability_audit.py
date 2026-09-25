@@ -3,20 +3,29 @@
 This harness exists to be pointed at PRODUCTION, where nobody can eyeball the result — so the only
 thing standing between "it printed numbers" and "the numbers mean something" is this file.
 
-``app-validation-corpus/v3`` is the right fixture for that precisely because it is degenerate. Its
-answers were established by hand while investigating #1669, and every one of them is a value the
-audit must reproduce:
+``app-validation-corpus/v3`` is the right fixture for that because its answers are known by
+hand — established while investigating #1669, and re-established 2026-09-24 when the corpus was
+regenerated from a real pipeline run. Every number below is a value the audit must reproduce.
 
-* 36 episodes across 9 feeds, 4 episodes each;
-* exactly 2 topic clusters, BOTH covering all 36 episodes;
+**The corpus is less degenerate than it was, and the changes are the point.** The per-feed episode
+cap is gone (40 episodes, not 36, in feeds of 4-6 rather than a uniform 4) and episodes carry
+their own authored topics instead of only feed-wide labels. So: the band holds 42 candidate tokens
+instead of 27, the trending rail sees 50 topics instead of 10, and the content-quality defect rate
+is 0.0% instead of 2.8% because `p01_e02`'s summary was rescued by the #1386 guard's move from
+fragment- to sentence-matching. Where a fixture defect USED to supply the mutation — a known echo,
+an absence of spanning ids — the test now constructs it, because "clean" and "broken instrument"
+report the same number.
+
+* 40 episodes across 9 feeds, 4-6 episodes each;
+* exactly 2 topic clusters, BOTH covering all 40 episodes;
 * the picker's offered options therefore produce **1** distinct feed — decorative;
 * a discriminating band (2 <= n <= 60% coverage) holds **27** tokens whose top 12 produce **10**
   distinct feeds. NOTE: this was quoted as 8 until 2026-08-19. That figure was measured while tie
   ordering was hash-dependent, so it was never stable — with ties broken by token it is 10. The
   conclusion it supports (1 distinct feed from the picker's own options) is unchanged and in fact
   a wider gap;
-* the discover pool window (4 * 12 = 48) EXCEEDS the corpus, so the pool is everything and the
-  relevance leg never runs — the blind spot that motivated the epic.
+* the discover pool window (4 * 12 = 48) still EXCEEDS the corpus at 40, so the pool is
+  everything and the relevance leg never runs — the blind spot that motivated the epic.
 
 That last one is why these assertions are worth having. A tool that reported "pool reaches 100%"
 without also reporting "because the window is larger than the corpus" would be actively
@@ -69,20 +78,20 @@ class TestTheWalkItself:
         }
 
     def test_it_found_the_corpus(self, report) -> None:
-        assert report.episodes == 36
+        assert report.episodes == 40
         assert report.feeds == 9
 
 
 class TestPoolReachability:
     def test_it_reports_that_the_window_swallows_this_corpus(self, report) -> None:
-        """The finding that motivated #1682: 4*12=48 > 36, so the relevance leg never runs here.
+        """The finding that motivated #1682: 4*12=48 > 40, so the relevance leg never runs here.
 
         This must be REPORTED, not merely true — a bare "100% reachable" would be read as health.
         """
         pool = report.sections["pool_reachability"]
         assert pool["recency_window"] == DEFAULT_FEED_LIMIT * 4
         assert pool["pool_is_whole_corpus"] is True
-        assert pool["recency_reach"] == 36
+        assert pool["recency_reach"] == 40
         assert pool["unreachable_without_a_match"] == 0
 
     def test_the_warning_reaches_the_summary(self, report) -> None:
@@ -101,7 +110,10 @@ class TestPickerDiscrimination:
     def test_a_discriminating_band_exists_and_separates_the_corpus(self, report) -> None:
         """The contrast that makes the verdict actionable rather than just negative."""
         picker = report.sections["picker_discrimination"]
-        assert picker["band_candidates"] == 27
+        # 42, not 27: episodes carry their own topics since the per-feed cap was removed and
+        # `_episode_topics_for` started reading the authored primary/secondary. More tokens land
+        # in the band because more tokens are episode-specific — which is the point of the band.
+        assert picker["band_candidates"] == 42
         # 10, not the 8 quoted before 2026-08-19 — see the module docstring. The old figure came
         # from a hash-dependent top-12, so it was never reproducible.
         assert picker["band_distinct_feeds"] == 10
@@ -196,12 +208,17 @@ class TestCorpusShape:
     def test_it_reports_the_feed_imbalance_that_makes_normalisation_unmeasurable(
         self, report
     ) -> None:
-        """9 feeds x 4 episodes: a per-feed significance mean over 4 samples is noise (#1684)."""
+        """A per-feed significance mean over 4-6 samples is still noise (#1684).
+
+        Was 9 feeds x 4. The per-feed cap that made it uniform is gone, so the shape is now
+        4/4/4/4/5/5/6/4/4 — 6 of 9 feeds below the <5 sparse rule rather than all 9. The finding
+        is unchanged in kind: two thirds of the corpus cannot support a per-feed mean.
+        """
         shape = report.sections["corpus_shape"]
         assert shape["feeds"] == 9
         assert shape["episodes_per_feed_min"] == 4
-        assert shape["episodes_per_feed_max"] == 4
-        assert shape["feeds_with_fewer_than_5"] == 9
+        assert shape["episodes_per_feed_max"] == 6
+        assert shape["feeds_with_fewer_than_5"] == 6
 
     def test_every_episode_has_a_publish_date(self, report) -> None:
         """Recency decays from publish dates; an undated episode would silently skew the spread."""
@@ -327,9 +344,9 @@ class TestGraphCoverage:
 
     def test_the_fixture_is_fully_covered(self, report) -> None:
         cov = report.sections["graph_coverage"]
-        assert cov["episodes"] == 36
-        assert cov["with_kg"] == 36
-        assert cov["with_gi"] == 36
+        assert cov["episodes"] == 40
+        assert cov["with_kg"] == 40
+        assert cov["with_gi"] == 40
         assert cov["kg_share"] == 1.0
 
     def test_the_warning_is_absent_when_coverage_is_complete(self, report) -> None:
@@ -356,8 +373,10 @@ class TestEntityIdentity:
 
     def test_it_finds_the_single_word_names(self, report) -> None:
         ident = report.sections["entity_identity"]
-        assert ident["person_entities"] == 26
-        assert ident["single_word_names"] == 7
+        # 29/9, not 26/7: the four episodes the per-feed cap used to drop are in the corpus now,
+        # and they bring their own speakers (p06_e05/e06 are hosted by Maya, p02_e05 has a caller).
+        assert ident["person_entities"] == 29
+        assert ident["single_word_names"] == 9
         assert "person:sam" in ident["single_word_examples"]
 
     def test_it_finds_the_shared_surname(self, report) -> None:
@@ -378,20 +397,55 @@ class TestEntityIdentity:
 class TestContentQuality:
     """A defect rate for the most-read text in the product (#1686).
 
-    The fixture carries exactly one survivor of the greeting bug (#14) — `p01_e02`, whose summary
-    still opens "welcome back to singletrack sessions" — which makes it a usable regression corpus:
-    the expected answer is a specific non-zero number, not "clean".
+    This class used to assert a known NON-ZERO answer: `p01_e02` was the last survivor of the
+    greeting bug (#14), so the fixture's expected defect rate was 2.8% and a 0 meant the
+    instrument had broken. That episode now has a real summary — the #1386 guard's fragment rule
+    ("reject anything containing 'braking earlier'") was replaced by whole-sentence copy
+    detection, and a correct summary of a braking episode stopped being indistinguishable from a
+    copied one.
+
+    So the corpus is clean, and "clean" is the weakest possible thing to assert: a check that
+    reports 0 because it is broken reports the same 0. Three things keep that honest here —
+    `TestTheEchoCheckActuallyReadsTranscripts` proves every opening resolves, and the two tests
+    below prove the comparison still FIRES by planting an echo and by planting a leak.
     """
 
-    def test_it_finds_the_one_known_echo(self, report) -> None:
+    def test_the_corpus_is_clean(self, report) -> None:
         cq = report.sections["content_quality"]
-        assert cq["episodes"] == 36
-        assert cq["transcript_echo"] == 1
-        assert cq["defects"] == 1
-        assert cq["echo_examples"][0]["episode"].startswith("p01_e02")
+        assert cq["episodes"] == 40
+        assert cq["transcript_echo"] == 0
+        assert cq["prompt_example_leak"] == 0
+        assert cq["defects"] == 0
 
     def test_the_rate_reaches_the_report(self, report) -> None:
-        assert "defect rate **2.8%**" in format_report(report)
+        assert "defect rate **0.0%**" in format_report(report)
+
+    def test_a_planted_echo_is_caught(self, tmp_path) -> None:
+        """The mutation the old fixture supplied for free. Without it, "0 defects" is unfalsified.
+
+        Copies the corpus, overwrites ONE summary with that episode's own transcript opening —
+        precisely the v3 defect — and requires the audit to find exactly it.
+        """
+        import json
+        import shutil
+
+        from podcast_scraper.capability_audit import _transcript_opening
+        from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+        corpus = tmp_path / "v3"
+        shutil.copytree(CORPUS, corpus)
+        row = build_catalog_rows_cumulative(corpus)[0]
+        meta = corpus / row.metadata_relative_path
+        doc = json.loads(meta.read_text(encoding="utf-8"))
+        doc["summary"]["raw_text"] = _transcript_opening(corpus, row.metadata_relative_path)
+        meta.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+
+        cq = measure(corpus).sections["content_quality"]
+        assert cq["transcript_echo"] == 1, (
+            "a summary that is verbatim its own transcript opening was not caught — the echo "
+            "check is reporting 0 because it cannot see, not because the corpus is clean"
+        )
+        assert cq["echo_examples"][0]["episode"].startswith(meta.name.split(".")[0])
 
 
 class TestTheEchoCheckActuallyReadsTranscripts:
@@ -459,7 +513,8 @@ class TestTopicMomentum:
         """The #1668 regression test, inverted: the rail must have something to show."""
         mom = report.sections["topic_momentum"]
         assert mom["available"] is True
-        assert mom["topics"] == 10
+        # 50, not 10: per-episode topics multiplied the distinct tokens the rail can consider.
+        assert mom["topics"] == 50
         assert mom["rail_is_always_empty"] is False, (
             "the trending rail is empty by construction again — this is #1668 exactly. Check "
             "_RISING_DEFAULT in server/routes/app_enrichment.py before touching this test."
@@ -480,7 +535,7 @@ class TestTopicMomentum:
         assert (
             "topic:systems-thinking" in rows
         ), f"the fixture's most-discussed topic is hidden again; visible: {sorted(rows)}"
-        assert rows["topic:systems-thinking"]["total"] == 20
+        assert rows["topic:systems-thinking"]["total"] == 27
         assert rows["topic:systems-thinking"]["velocity"] == pytest.approx(
             0.857, abs=0.01
         ), "still below 1.0 — it is not accelerating, and that was never the point"
@@ -494,8 +549,10 @@ class TestTopicMomentum:
         qualifies" line in an operator report is worse than no line.
         """
         mom = report.sections["topic_momentum"]
-        assert mom["max_velocity"] == pytest.approx(0.857, abs=0.01)
-        assert mom["headroom_to_gate"] == pytest.approx(-0.857, abs=0.01)
+        # The fastest mover is now `topic:reliability` at 1.5, not systems-thinking at 0.857 —
+        # episode-specific topics gave the window something that actually accelerates.
+        assert mom["max_velocity"] == pytest.approx(1.5, abs=0.01)
+        assert mom["headroom_to_gate"] == pytest.approx(-1.5, abs=0.01)
         assert "short by" not in format_report(report)
 
     def test_the_gate_matches_the_component(self, report) -> None:
@@ -604,15 +661,44 @@ class TestSingleWordEntitiesAreJudgedByFeedSpan:
 
     def test_the_fixture_case_is_the_benign_one(self, report) -> None:
         ident = report.sections["entity_identity"]
-        assert ident["single_word_names"] == 7
-        assert (
-            ident["single_word_spanning_feeds"] == 0
-        ), "every single-word id here is confined to one show, so none is a pooled-people risk"
+        ident = report.sections["entity_identity"]
+        assert ident["single_word_names"] == 9
+        # WAS 0. The corpus gained a real spanning case when the per-feed cap stopped dropping
+        # p06_e05/e06: both are hosted by "Maya", and so is all of p01. Two different people are
+        # now pooled under `person:maya` across two shows — the precision failure this section
+        # exists to measure, which the fixture previously could not exhibit at all.
+        assert ident["single_word_spanning_feeds"] == 1
+        worst = ident["single_word_worst"][0]
+        assert worst["token"] == "person:maya"
+        assert worst["feeds"] == 2
 
-    def test_the_warning_stays_silent_when_nothing_spans(self, report) -> None:
-        """The corollary of the above: no spanning ids, no warning. A warning that always prints
-        is not a warning, and this is the fixture that proves it can be quiet."""
-        assert "pooled under one followable token" not in format_report(report)
+    def test_the_warning_fires_on_the_spanning_case(self, report) -> None:
+        assert "pooled under one followable token" in format_report(report)
+
+    def test_the_warning_stays_silent_when_nothing_spans(self, tmp_path) -> None:
+        """A warning that always prints is not a warning.
+
+        The fixture used to prove this for free by having no spanning ids. It has one now, so the
+        quiet case is constructed: drop the two episodes that put Maya in a second show and the
+        warning must disappear. Asserting only the loud case would leave "always warns"
+        indistinguishable from "correctly warns".
+        """
+        import shutil
+
+        corpus = tmp_path / "v3"
+        shutil.copytree(CORPUS, corpus)
+        removed = 0
+        for meta in corpus.rglob("p06_e0[56].*"):
+            meta.unlink()
+            removed += 1
+        assert removed, "expected p06_e05/e06 artifacts to remove"
+
+        quiet = measure(corpus)
+        assert quiet.sections["entity_identity"]["single_word_spanning_feeds"] == 0, (
+            "Maya still spans two feeds after removing p06_e05/e06 — the span measurement is "
+            "not actually keyed on the episodes that produce it"
+        )
+        assert "pooled under one followable token" not in format_report(quiet)
 
     def test_span_is_reported_per_token(self, report) -> None:
         worst = report.sections["entity_identity"]["single_word_worst"]
@@ -1021,7 +1107,9 @@ class TestRankingCalibration:
     def test_significance_normalisation_numbers(self, report) -> None:
         sig = report.sections["ranking_calibration"]["significance"]
         assert sig["feeds"] == 9
-        assert sig["sparse_feeds"] == 9, "all v3 feeds have 4 episodes — a mean over 4 is noise"
+        assert (
+            sig["sparse_feeds"] == 6
+        ), "6 of 9 feeds hold fewer than 5 episodes — a mean over 4 is still noise"
         assert sig["feed_mean_min"] <= sig["feed_mean_median"] <= sig["feed_mean_max"]
         # The over-reward question is answered by comparing where sparse feeds land vs their size.
         assert 0.0 <= sig["sparse_top_share"] <= 1.0

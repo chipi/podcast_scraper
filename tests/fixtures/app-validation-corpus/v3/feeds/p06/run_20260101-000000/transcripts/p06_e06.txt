@@ -1,0 +1,3 @@
+Maya: This is an edge-case fixture used for parser and processor robustness tests.Welcome.
+Liam: Hola, ¿cómo estás?
+Maya: A bit of code-switching to test transcription robustness.End of edge-case episode e06.

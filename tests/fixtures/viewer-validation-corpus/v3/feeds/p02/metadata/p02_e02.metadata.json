@@ -1,15 +1,15 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "engineering communication",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:engineering-communication"
+    },
+    {
       "in_topic_cluster": true,
       "label": "technology",
       "topic_cluster_compound_id": "tc:technology-cluster",
-      "topic_id": "topic:technology"
-    },
-    {
-      "in_topic_cluster": false,
-      "label": "Technology",
-      "topic_cluster_compound_id": null,
       "topic_id": "topic:technology"
     }
   ],
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
-    "published_date": "2026-07-31",
+    "published_date": "2026-09-21",
     "title": "Practical Systems \u2014 Episode 2"
   },
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
   "episode_title": "Practical Systems \u2014 Episode 2",
   "feed": {
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
-    "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+    "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
     "title": "Practical Systems",
     "url": "http://localhost/"
   },
   "feed_display_title": "Practical Systems",
-  "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
+  "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
   "gi_relative_path": "feeds/p02/metadata/p02_e02.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p02/metadata/p02_e02.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p02/metadata/p02_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-31",
+  "publish_date": "2026-09-21",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,9 +75,12 @@
     "title": "Practical Systems \u2014 Episode 2 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:engineering-communication",
+    "topic:reliability",
+    "topic:incident-postmortems",
+    "topic:risk-management",
     "topic:technology",
-    "topic:technology",
-    "topic:welcome-back-to"
+    "topic:technology"
   ],
   "summary_bullets": [
     "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.",
@@ -88,8 +91,11 @@
   "summary_text": "Today we're talking about engineering communication, and I'm joined by Joll Wisenthal, staff engineer focused on platform teams.\nJoll Wisenthal, thanks for being here.\nJoll Wisenthal: Thanks, Ethan.",
   "summary_title": "Practical Systems \u2014 Episode 2 \u2014 synthetic",
   "topics": [
+    "engineering communication",
+    "reliability",
+    "incident postmortems",
+    "risk management",
     "technology",
-    "Technology",
-    "welcome back to"
+    "Technology"
   ]
 }

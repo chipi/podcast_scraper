@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "systems thinking",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:systems-thinking"
+    },
+    {
       "in_topic_cluster": true,
       "label": "environment",
       "topic_cluster_compound_id": "tc:environment-cluster",
       "topic_id": "topic:environment"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "health",
-      "topic_cluster_compound_id": "tc:health-cluster",
-      "topic_id": "topic:health"
     }
   ],
   "content": {
@@ -32,19 +32,19 @@
   },
   "episode": {
     "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
-    "published_date": "2026-07-30",
+    "published_date": "2026-09-20",
     "title": "The Long View \u2014 Episode 3"
   },
   "episode_id": "a6d9a4a0-6c21-5c3e-ba1f-3fb5fdb79207",
   "episode_title": "The Long View \u2014 Episode 3",
   "feed": {
     "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
-    "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+    "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
     "title": "The Long View",
     "url": "http://localhost/"
   },
   "feed_display_title": "The Long View",
-  "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
+  "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
   "gi_relative_path": "feeds/p07/metadata/p07_e03.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p07/metadata/p07_e03.gi.json",
@@ -57,7 +57,7 @@
     "artifact_path": "feeds/p07/metadata/p07_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-30",
+  "publish_date": "2026-09-20",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -70,6 +70,9 @@
     "title": "The Long View \u2014 Episode 3 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:systems-thinking",
+    "topic:sustainability",
+    "topic:risk-management",
     "topic:environment",
     "topic:health",
     "topic:business-markets"
@@ -83,6 +86,9 @@
   "summary_text": "# The Long View \u2014 Sustainability \u2014 Episode\n## Sustainability Is a Systems Problem\nHost: Alex Morgan\nGuest: Dr.\nElena Fischer\n#fixture-v3: voice=de-DE host_voice=en-AU\nAlex Morgan: Welcome back to The Long View.\nI'm Alex Morgan, and my guest is Dr.",
   "summary_title": "The Long View \u2014 Episode 3 \u2014 synthetic",
   "topics": [
+    "systems thinking",
+    "sustainability",
+    "risk management",
     "environment",
     "health",
     "Business & markets"

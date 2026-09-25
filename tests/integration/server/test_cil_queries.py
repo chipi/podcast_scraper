@@ -1295,7 +1295,7 @@ def test_timeline_dedups_to_latest_run_per_feed(tmp_path: Path) -> None:
     the enrichment / indexer latest-run-per-feed dedup) so superseded runs don't double-count."""
     corpus = tmp_path / "c"
     feed = corpus / "feeds" / "f1"
-    old_run = feed / "run_20260101_000000" / "metadata"
+    old_run = feed / "run_20260101-000000" / "metadata"
     new_run = feed / "run_20260201_000000" / "metadata"
     _write_bundle(
         old_run,

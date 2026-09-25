@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "risk management",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:risk-management"
+    },
+    {
       "in_topic_cluster": true,
       "label": "outdoor activities",
       "topic_cluster_compound_id": "tc:outdoor-activities-cluster",
       "topic_id": "topic:outdoor-activities"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "gear",
-      "topic_cluster_compound_id": "tc:gear-cluster",
-      "topic_id": "topic:gear"
     }
   ],
   "content": {
@@ -32,19 +32,19 @@
   },
   "episode": {
     "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
-    "published_date": "2026-08-03",
+    "published_date": "2026-09-24",
     "title": "Singletrack Sessions \u2014 Episode 4"
   },
   "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
   "episode_title": "Singletrack Sessions \u2014 Episode 4",
   "feed": {
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
-    "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+    "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
     "title": "Singletrack Sessions",
     "url": "http://localhost/"
   },
   "feed_display_title": "Singletrack Sessions",
-  "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+  "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
   "gi_relative_path": "feeds/p01/metadata/p01_e04.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p01/metadata/p01_e04.gi.json",
@@ -57,7 +57,7 @@
     "artifact_path": "feeds/p01/metadata/p01_e04.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-08-03",
+  "publish_date": "2026-09-24",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -70,6 +70,9 @@
     "title": "Singletrack Sessions \u2014 Episode 4 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:risk-management",
+    "topic:systems-thinking",
+    "topic:enduro-racing",
     "topic:outdoor-activities",
     "topic:gear",
     "topic:science-research"
@@ -83,6 +86,9 @@
   "summary_text": "# Singletrack Sessions \u2014 Episode\n## The Risk You Didn't Name\nHost: Maya\nGuest: Sophie Laurent\n#fixture-v3: voice=en-US host_voice=en-US\nMaya: Welcome back to Singletrack Sessions.\nI'm with Sophie Laurent, enduro racer and coach.\nToday's episode is sponsored by Strava.",
   "summary_title": "Singletrack Sessions \u2014 Episode 4 \u2014 synthetic",
   "topics": [
+    "risk management",
+    "systems thinking",
+    "enduro racing",
     "outdoor activities",
     "gear",
     "Science & research"

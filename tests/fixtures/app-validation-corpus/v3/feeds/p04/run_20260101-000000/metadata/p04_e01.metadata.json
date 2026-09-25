@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p04-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p04_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Leo",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Ava Lemoine",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p04_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 325,
+    "episode_id": "ep-febd9a8f53bf3a3a",
+    "published_date": "2024-07-06T00:00:00",
+    "title": "Underwater Images That Feel Alive"
+  },
+  "feed": {
+    "authors": [
+      "Leo Hartman"
+    ],
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "p04",
+    "language": "en-us",
+    "last_updated": "2025-06-21T00:00:00",
+    "title": "Frame & Light",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
+    "image_url": "http://localhost/images/p04.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "An underwater frame is built around backscatter management before composition — once that priority is internalized, the downstream decisions get easier, and ignoring it means rebuilding from scratch a year later.",
+      "Strobe positioning at 45 degrees is the starting point rather than the destination; it is a default to adjust from, not a fixed rule.",
+      "Adobe Lightroom underwater work is half about white balance and half about removing magenta, so color correction means handling both problems rather than treating white balance alone as the fix.",
+      "The frame should reward the eye in the first three seconds — the framing matters because it reveals which trade-offs are being made.",
+      "Strobe lighting trade-offs cut across every other underwater imaging decision, linking backscatter, color, and composition rather than standing as a separate concern.",
+      "Outside of Capture One-class tooling, the failure mode is harder to spot; the second-order effects of these choices are the part most people miss.",
+      "Picking one idea and running it for two weeks is the recommended way to start, with everything beyond that treated as iteration."
+    ],
+    "raw_text": "An underwater frame is built around backscatter management before composition — once that priority is internalized, the downstream decisions get easier, and ignoring it means rebuilding from scratch a year later. Strobe positioning at 45 degrees is the starting point rather than the destination; it is a default to adjust from, not a fixed rule.",
+    "title": "Underwater Photography: Backscatter, Strobes, and Color Correction"
+  }
+}

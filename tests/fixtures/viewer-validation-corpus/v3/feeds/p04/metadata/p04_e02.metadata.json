@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "documentary photography",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:documentary-photography"
+    },
+    {
       "in_topic_cluster": true,
       "label": "technology",
       "topic_cluster_compound_id": "tc:technology-cluster",
       "topic_id": "topic:technology"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "gear",
-      "topic_cluster_compound_id": "tc:gear-cluster",
-      "topic_id": "topic:gear"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
-    "published_date": "2026-07-29",
+    "published_date": "2026-09-19",
     "title": "Frame & Light \u2014 Episode 2"
   },
   "episode_id": "9833b47e-0cc8-50b9-a6da-65dc0f6d053f",
   "episode_title": "Frame & Light \u2014 Episode 2",
   "feed": {
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
-    "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+    "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
     "title": "Frame & Light",
     "url": "http://localhost/"
   },
   "feed_display_title": "Frame & Light",
-  "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
+  "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
   "gi_relative_path": "feeds/p04/metadata/p04_e02.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p04/metadata/p04_e02.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p04/metadata/p04_e02.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-29",
+  "publish_date": "2026-09-19",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,6 +75,9 @@
     "title": "Frame & Light \u2014 Episode 2 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:documentary-photography",
+    "topic:frame",
+    "topic:editing-workflow",
     "topic:technology",
     "topic:gear",
     "topic:technology"
@@ -88,6 +91,9 @@
   "summary_text": "Today we're talking about documentary photography, and I'm joined by Tarek Hassan, documentary photographer.\nTarek Hassan, thanks for being here.\nToday's episode is sponsored by Adobe.",
   "summary_title": "Frame & Light \u2014 Episode 2 \u2014 synthetic",
   "topics": [
+    "documentary photography",
+    "frame",
+    "editing workflow",
     "technology",
     "gear",
     "Technology"

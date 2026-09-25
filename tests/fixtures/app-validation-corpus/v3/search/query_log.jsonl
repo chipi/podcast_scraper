@@ -69,3 +69,17 @@
 {"ts": "2026-09-18T14:11:45.109960+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
 {"ts": "2026-09-18T14:11:46.122499+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
 {"ts": "2026-09-18T14:11:55.456041+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:51:41.014169+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:51:56.103505+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:52:00.590137+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:52:30.247362+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:52:34.624649+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:53:21.609212+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:53:26.598444+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:54:00.306215+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:56:31.982742+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:56:38.812614+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:56:48.361476+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:57:20.886681+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:57:26.383736+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}
+{"ts": "2026-09-24T18:57:37.135801+00:00", "schema": 1, "event_type": "search_query", "query_type": "semantic"}

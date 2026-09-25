@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "topic:labor-markets",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:8f1f33ab14837583",
+      "to": "topic:labor-markets",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
       "to": "insight:d161d14242939a22",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:693ea20604743776",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:8f1f33ab14837583",
-      "to": "quote:693ea20604743776",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b02e55484d058feb",
+      "from": "quote:d986e271ed062c93",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:d161d14242939a22",
-      "to": "quote:b02e55484d058feb",
+      "from": "insight:8f1f33ab14837583",
+      "to": "quote:d986e271ed062c93",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:363cc5f794d7edc6",
+      "from": "quote:4ef64c1d3e7582b9",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d161d14242939a22",
+      "to": "quote:4ef64c1d3e7582b9",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f3b1d529325f1116",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ac4017ed0dd4b7af",
-      "to": "quote:363cc5f794d7edc6",
+      "to": "quote:f3b1d529325f1116",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:0ebef2c3a156d06f",
+      "from": "quote:509f2836cea7750f",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:8f1f33ab14837583",
-      "to": "quote:0ebef2c3a156d06f",
+      "to": "quote:509f2836cea7750f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:447ca20c9c9af9cd",
+      "from": "quote:6c280d1f7ac1099e",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:d161d14242939a22",
-      "to": "quote:447ca20c9c9af9cd",
+      "to": "quote:6c280d1f7ac1099e",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d1fa356c9bbb526d",
+      "from": "quote:8bdf1e191993dcf7",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ac4017ed0dd4b7af",
-      "to": "quote:d1fa356c9bbb526d",
+      "to": "quote:8bdf1e191993dcf7",
       "type": "SUPPORTED_BY"
     },
     {
@@ -115,10 +135,31 @@
         "duration_ms": 1800000,
         "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-        "publish_date": "2026-08-03T12:00:00",
+        "publish_date": "2026-09-24T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:labor-markets",
+      "properties": {
+        "label": "labor markets"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Sam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:693ea20604743776",
-      "properties": {
-        "char_end": 175,
-        "char_start": 5,
-        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Cross-Show. Today we're talking about labor markets, and I'm joined by Skanda Amarnath, returning macro economist. Skanda Amarnath, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p09_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Skanda Amarnath"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:b02e55484d058feb",
+      "id": "quote:d986e271ed062c93",
       "properties": {
         "char_end": 223,
         "char_start": 193,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:363cc5f794d7edc6",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:4ef64c1d3e7582b9",
       "properties": {
         "char_end": 366,
         "char_start": 229,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:0ebef2c3a156d06f",
+      "id": "quote:f3b1d529325f1116",
       "properties": {
         "char_end": 470,
         "char_start": 366,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:447ca20c9c9af9cd",
-      "properties": {
-        "char_end": 546,
-        "char_start": 488,
-        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p09_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:d1fa356c9bbb526d",
+      "id": "quote:509f2836cea7750f",
       "properties": {
         "char_end": 644,
         "char_start": 552,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Skanda Eminas mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6c280d1f7ac1099e",
+      "properties": {
+        "char_end": 782,
+        "char_start": 662,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "speaker_id": "person:speaker-02",
+        "text": "Two years ago I argued labor data was reliable at quarterly frequency. I now think only annual averages are trustworthy.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p09_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8bdf1e191993dcf7",
+      "properties": {
+        "char_end": 826,
+        "char_start": 788,
+        "episode_id": "79fb44f3-5be0-5fc7-9d43-2f39049f7f2d",
+        "speaker_id": "person:speaker-01",
+        "text": "That's a real shift. Worth pulling on.",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p09_e03.txt"
       },
       "type": "Quote"

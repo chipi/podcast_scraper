@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+      "to": "topic:macroeconomics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
       "to": "topic:environment",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:6801b329e87b1732",
+      "to": "topic:macroeconomics",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
       "to": "insight:d7cd0c1a2791d2f2",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:d9d4ee2ea353c7e5",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6801b329e87b1732",
-      "to": "quote:d9d4ee2ea353c7e5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:dac59e7c4b33fd6d",
+      "from": "quote:36ac699a4d62e9ec",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:d7cd0c1a2791d2f2",
-      "to": "quote:dac59e7c4b33fd6d",
+      "from": "insight:6801b329e87b1732",
+      "to": "quote:36ac699a4d62e9ec",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:75cd90acc0c4f800",
+      "from": "quote:509fd6b2dc29d53a",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d7cd0c1a2791d2f2",
+      "to": "quote:509fd6b2dc29d53a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:508dbab2c831c2c4",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:e78d6fbb5cdd75b2",
-      "to": "quote:75cd90acc0c4f800",
+      "to": "quote:508dbab2c831c2c4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:67189f5e5043031d",
+      "from": "quote:ff2626c0ded18d89",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:6801b329e87b1732",
-      "to": "quote:67189f5e5043031d",
+      "to": "quote:ff2626c0ded18d89",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:87bdd1e8fa8695c4",
-      "to": "person:speaker-02",
+      "from": "quote:fe4e68d546850fd3",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:d7cd0c1a2791d2f2",
-      "to": "quote:87bdd1e8fa8695c4",
+      "to": "quote:fe4e68d546850fd3",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:b8bfdc9242ec9b1a",
+      "from": "quote:276c244b7c7f9828",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:e78d6fbb5cdd75b2",
-      "to": "quote:b8bfdc9242ec9b1a",
+      "to": "quote:276c244b7c7f9828",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
-        "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
-        "publish_date": "2026-08-01T12:00:00",
+        "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
+        "podcast_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "The Long View \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:macroeconomics",
+      "properties": {
+        "label": "macroeconomics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:environment",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Alex Morgan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:d9d4ee2ea353c7e5",
-      "properties": {
-        "char_end": 190,
-        "char_start": 13,
-        "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to The Long View \u2014 Sustainability. Today we're talking about macroeconomics, and I'm joined by Skanda Eminas, macro economist. Skanda Eminas, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Skanda Eminas"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:dac59e7c4b33fd6d",
+      "id": "quote:36ac699a4d62e9ec",
       "properties": {
         "char_end": 244,
         "char_start": 206,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:75cd90acc0c4f800",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Alex Morgan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:509fd6b2dc29d53a",
       "properties": {
         "char_end": 395,
         "char_start": 258,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:67189f5e5043031d",
+      "id": "quote:508dbab2c831c2c4",
       "properties": {
         "char_end": 484,
         "char_start": 395,
@@ -245,21 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:87bdd1e8fa8695c4",
-      "properties": {
-        "char_end": 558,
-        "char_start": 500,
-        "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
-        "speaker_id": "person:speaker-02",
-        "text": "Yeah, exactly. And it ties into what we're covering today.",
-        "timestamp_end_ms": 30000,
-        "timestamp_start_ms": 24000,
-        "transcript_ref": "transcripts/p07_e02.txt"
-      },
-      "type": "Quote"
-    },
-    {
-      "id": "quote:b8bfdc9242ec9b1a",
+      "id": "quote:ff2626c0ded18d89",
       "properties": {
         "char_end": 667,
         "char_start": 572,
@@ -268,6 +281,34 @@
         "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fe4e68d546850fd3",
+      "properties": {
+        "char_end": 764,
+        "char_start": 667,
+        "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to flag something \u2014 Dr. Eliana Fishler mentioned this same dynamic a couple episodes back.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p07_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:276c244b7c7f9828",
+      "properties": {
+        "char_end": 847,
+        "char_start": 764,
+        "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+        "speaker_id": "person:speaker-01",
+        "text": "Let's start there. What's the structural angle most listeners don't have access to?",
+        "timestamp_end_ms": 48000,
+        "timestamp_start_ms": 42000,
         "transcript_ref": "transcripts/p07_e02.txt"
       },
       "type": "Quote"

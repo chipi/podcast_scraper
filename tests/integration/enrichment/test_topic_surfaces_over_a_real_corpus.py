@@ -39,9 +39,19 @@ pytestmark = pytest.mark.integration
 
 _CORPUS = Path(__file__).resolve().parents[2] / "fixtures" / "viewer-validation-corpus" / "v3"
 
-#: Measured on this corpus, 2026-09-03. Asserted rather than described so a fixture change that
+#: Measured on this corpus, 2026-09-24. Asserted rather than described so a fixture change that
 #: silently guts the topic set fails here instead of quietly weakening every downstream test.
-_EXPECTED_DISTINCT_TOPICS = 13
+#:
+#: Was 13 until the viewer corpus started reading its topics from the v3 ground truth instead of
+#: a capitalised-phrase regex over the transcript (#2147). Every episode of a show used to carry
+#: the same two or three feed-wide umbrella labels; each now leads with its own authored topic,
+#: so the distinct count rose to 51 and the corpus can finally tell two episodes apart.
+_EXPECTED_DISTINCT_TOPICS = 51
+
+#: The filler the regex used to promote to Topic nodes. The corpus no longer contains ANY of
+#: these — that is the fix, not a regression — so they are now what we inject to prove the guard
+#: still runs (see ``enriched_with_filler``) and what we assert never appears in the shipped
+#: fixture (see ``test_the_fixture_carries_no_filler_at_source``).
 _EXPECTED_FILLER = {
     "topic:welcome-back-to",
     "topic:great-to-be-back",
@@ -50,18 +60,13 @@ _EXPECTED_FILLER = {
 }
 
 
-@pytest.fixture(scope="module")
-def enriched(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A writable copy of the committed corpus with the real enrichers run over it."""
-    if not _CORPUS.is_dir():
-        pytest.skip(f"corpus fixture missing: {_CORPUS}")
-    root = tmp_path_factory.mktemp("corpus")
-    dest = root / "v3"
-    shutil.copytree(_CORPUS, dest)
+def _run_enrichers(dest: Path) -> None:
+    """Run the three corpus enrichers over ``dest``, through the CLI.
 
-    # Through the CLI, deliberately: that is the command the runbook tells an operator to run
-    # after a scoring change, so this exercises the orchestration and not just the enricher
-    # functions. A test that bypasses the entry point cannot catch a wiring break in it.
+    Through the CLI, deliberately: that is the command the runbook tells an operator to run
+    after a scoring change, so this exercises the orchestration and not just the enricher
+    functions. A test that bypasses the entry point cannot catch a wiring break in it.
+    """
     proc = subprocess.run(
         [
             sys.executable,
@@ -82,6 +87,16 @@ def enriched(tmp_path_factory: pytest.TempPathFactory) -> Path:
     assert (
         proc.returncode == 0
     ), f"enrichment CLI failed:\n{proc.stdout[-3000:]}\n{proc.stderr[-3000:]}"
+
+
+@pytest.fixture(scope="module")
+def enriched(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A writable copy of the committed corpus with the real enrichers run over it."""
+    if not _CORPUS.is_dir():
+        pytest.skip(f"corpus fixture missing: {_CORPUS}")
+    dest = tmp_path_factory.mktemp("corpus") / "v3"
+    shutil.copytree(_CORPUS, dest)
+    _run_enrichers(dest)
     return dest
 
 
@@ -90,6 +105,55 @@ def _payload(root: Path, name: str) -> dict[str, Any]:
     data = envelope["data"]
     assert isinstance(data, dict), f"{name}: envelope has no data object"
     return data
+
+
+def _topic_ids(root: Path) -> set[str]:
+    """Every Topic node id in the corpus.
+
+    rglob: this corpus nests KGs under feeds/<id>/run_*/ as well as a flat metadata/ dir.
+    """
+    ids: set[str] = set()
+    for kg in root.rglob("*.kg.json"):
+        for node in json.loads(kg.read_text()).get("nodes", []):
+            if node.get("type") == "Topic":
+                ids.add(str(node.get("id")))
+    return ids
+
+
+@pytest.fixture(scope="module")
+def enriched_with_filler(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The same corpus with filler Topic nodes injected, then enriched.
+
+    The guard's "it actually runs" claim used to rest on the shipped fixture containing
+    greeting topics. That made a corpus fix look like a test regression and put pressure on
+    the wrong thing. Injecting the filler here decouples the two: the fixture can be clean
+    and the guard can still be proven to fire.
+    """
+    if not _CORPUS.is_dir():
+        pytest.skip(f"corpus fixture missing: {_CORPUS}")
+    dest = tmp_path_factory.mktemp("corpus_filler") / "v3"
+    shutil.copytree(_CORPUS, dest)
+
+    targets = sorted(dest.rglob("*.kg.json"))
+    assert targets, "no KG artifacts to inject into"
+    doc = json.loads(targets[0].read_text())
+    episode_node = next((n["id"] for n in doc.get("nodes", []) if n.get("type") == "Episode"), None)
+    for topic_id in sorted(_EXPECTED_FILLER):
+        label = topic_id.removeprefix("topic:").replace("-", " ")
+        doc["nodes"].append(
+            {
+                "id": topic_id,
+                "type": "Topic",
+                "properties": {"label": label, "slug": topic_id.removeprefix("topic:")},
+            }
+        )
+        if episode_node:
+            doc.setdefault("edges", []).append(
+                {"type": "MENTIONS", "from": episode_node, "to": topic_id}
+            )
+    targets[0].write_text(json.dumps(doc), encoding="utf-8")
+    _run_enrichers(dest)
+    return dest
 
 
 def test_the_corpus_still_has_topics_after_filtering(enriched: Path) -> None:
@@ -117,29 +181,57 @@ def test_no_filler_survives_to_any_topic_artifact(enriched: Path) -> None:
     assert not leaked, f"filler reached a topic artifact: {sorted(leaked)}"
 
 
-def test_the_filler_count_is_reported_by_every_enricher(enriched: Path) -> None:
-    """An empty-ish artifact must be attributable. See the no-silent-fail contract."""
+def test_every_enricher_reports_what_it_removed(enriched: Path) -> None:
+    """An empty-ish artifact must be attributable. See the no-silent-fail contract.
+
+    The FIELD is the contract, not a positive value. This used to assert ``> 0``, which held
+    only because the shipped corpus contained filler; it now reports 0 because the corpus is
+    clean at source. ``test_the_guard_still_fires_when_filler_is_present`` proves the guard
+    runs, against a corpus dirtied on purpose — the right place for that claim, since it does
+    not need the fixture to stay broken to stay true.
+    """
     for name in ("temporal_velocity", "topic_cooccurrence_corpus", "topic_theme_clusters"):
         data = _payload(enriched, name)
         assert "topics_filtered_as_filler" in data, f"{name} does not report what it removed"
-        assert data["topics_filtered_as_filler"] > 0, (
-            f"{name} reported 0 filtered on a corpus known to contain "
-            f"{len(_EXPECTED_FILLER)} filler topics — the guard is not running here"
+        assert isinstance(data["topics_filtered_as_filler"], int), (
+            f"{name} reports topics_filtered_as_filler as "
+            f"{type(data['topics_filtered_as_filler']).__name__}, not a count"
         )
 
 
+def test_the_guard_still_fires_when_filler_is_present(enriched_with_filler: Path) -> None:
+    """The guard runs and is attributable — proven by injection, not by a dirty fixture."""
+    data = _payload(enriched_with_filler, "temporal_velocity")
+    assert data["topics_filtered_as_filler"] > 0, (
+        "temporal_velocity reported 0 filtered on a corpus with "
+        f"{len(_EXPECTED_FILLER)} filler topics injected into it — the guard is not running"
+    )
+    seen = {str(row.get("topic_id")) for row in data.get("content_series", {}).get("topics", [])}
+    leaked = seen & _EXPECTED_FILLER
+    assert not leaked, f"injected filler survived the guard: {sorted(leaked)}"
+
+
 def test_the_fixture_still_contains_what_these_tests_assume(enriched: Path) -> None:
-    """Guard the guard. If the corpus is regenerated without filler these tests go vacuous."""
-    ids: set[str] = set()
-    # rglob: this corpus nests KGs under feeds/<id>/run_*/, not a flat metadata/ dir.
-    for kg in enriched.rglob("*.kg.json"):
-        for node in json.loads(kg.read_text()).get("nodes", []):
-            if node.get("type") == "Topic":
-                ids.add(str(node.get("id")))
+    """Guard the guard — the corpus must stay rich enough to be worth enriching."""
+    ids = _topic_ids(enriched)
     assert len(ids) == _EXPECTED_DISTINCT_TOPICS, (
         f"the corpus fixture changed shape ({len(ids)} topics, expected "
         f"{_EXPECTED_DISTINCT_TOPICS}) — re-derive the constants in this module"
     )
-    assert _EXPECTED_FILLER <= ids, "the fixture no longer contains the filler these tests need"
     kept = {i for i in ids if not is_filler_topic(i.replace("topic:", "").replace("-", " "), i)}
     assert kept, "every topic in the fixture is filler — nothing left to prove"
+
+
+def test_the_fixture_carries_no_filler_at_source(enriched: Path) -> None:
+    """The shipped corpus must be clean BEFORE any guard runs.
+
+    Filtering filler downstream and shipping a fixture full of it are not the same thing. The
+    viewer corpus used to carry ``topic:welcome-back-to`` as a real Topic node, and
+    ``cli topic-clusters`` promoted it to ``tc:welcome-back-to`` — a greeting rendered as a
+    theme, on a surface no filler guard sits in front of. Fix the source, then assert it.
+    """
+    leaked = _topic_ids(enriched) & _EXPECTED_FILLER
+    assert not leaked, (
+        f"the corpus fixture carries filler topics at source: {sorted(leaked)}. "
+        "Rebuild it with scripts/build_synthetic_validation_corpus.py."
+    )

@@ -1,0 +1,397 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "insight:95e6bff7ab4955fb",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "insight:1f21124fba3a3ec2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:1f21124fba3a3ec2",
+      "to": "topic:reliability",
+      "type": "ABOUT"
+    },
+    {
+      "from": "episode:ep-4d94c63887afbd1a",
+      "to": "insight:8914b76de4bda3a8",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:42fdd47acede303b",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:95e6bff7ab4955fb",
+      "to": "quote:42fdd47acede303b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e6723b055aee6bb1",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1f21124fba3a3ec2",
+      "to": "quote:e6723b055aee6bb1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:96969ffe37dab3d5",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8914b76de4bda3a8",
+      "to": "quote:96969ffe37dab3d5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:882e2d513d26de39",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:95e6bff7ab4955fb",
+      "to": "quote:882e2d513d26de39",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7a0f01498e899311",
+      "to": "person:sam",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1f21124fba3a3ec2",
+      "to": "quote:7a0f01498e899311",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:150dbb74d749c7e1",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:8914b76de4bda3a8",
+      "to": "quote:150dbb74d749c7e1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:95e6bff7ab4955fb",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:1f21124fba3a3ec2",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:8914b76de4bda3a8",
+      "to": "person:sam",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p09_e04-0",
+      "to": "quote:authored-p09_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p09_e04-0",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p09_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p09_e04-0",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p09_e04-1",
+      "to": "quote:authored-p09_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p09_e04-1",
+      "to": "person:dr-elena-fischer",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p09_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p09_e04-1",
+      "to": "person:dr-elena-fischer",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-4d94c63887afbd1a",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-4d94c63887afbd1a",
+      "properties": {
+        "duration_ms": 217000,
+        "feed_id": "p09",
+        "podcast_id": "p09",
+        "publish_date": "2026-07-16T00:00:00",
+        "title": "Risk Is a Systems Property"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:95e6bff7ab4955fb",
+      "properties": {
+        "episode_id": "ep-4d94c63887afbd1a",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:1f21124fba3a3ec2",
+      "properties": {
+        "episode_id": "ep-4d94c63887afbd1a",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using BloombergNEF. The framing matters because it tells you wh\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:8914b76de4bda3a8",
+      "properties": {
+        "episode_id": "ep-4d94c63887afbd1a",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "I want to dig into that. How does BloombergNEF fit into this picture?"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:dr-elena-fischer",
+      "properties": {
+        "name": "Dr. Elena Fischer"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:42fdd47acede303b",
+      "properties": {
+        "char_end": 231,
+        "char_start": 201,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Sam. Great to be back.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:sam",
+      "properties": {
+        "name": "Sam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e6723b055aee6bb1",
+      "properties": {
+        "char_end": 355,
+        "char_start": 237,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Notion. Notion replaces the dozen tools your team is half-using. Try notion.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:96969ffe37dab3d5",
+      "properties": {
+        "char_end": 448,
+        "char_start": 355,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:speaker-01",
+        "text": "Walk me through a concrete example. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:882e2d513d26de39",
+      "properties": {
+        "char_end": 694,
+        "char_start": 468,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using BloombergNEF. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7a0f01498e899311",
+      "properties": {
+        "char_end": 769,
+        "char_start": 700,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. How does BloombergNEF fit into this picture?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:150dbb74d749c7e1",
+      "properties": {
+        "char_end": 965,
+        "char_start": 789,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:speaker-02",
+        "text": "Here's how I think about it. The dangerous risks are the slow correlated ones you can name but discount. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p09_e04-0",
+      "properties": {
+        "episode_id": "ep-4d94c63887afbd1a",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Risk is a systems property: it lives in the interactions, not the parts."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p09_e04-0",
+      "properties": {
+        "char_end": 72,
+        "char_start": 0,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:dr-elena-fischer",
+        "text": "Risk is a systems property: it lives in the interactions, not the parts.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p09_e04-1",
+      "properties": {
+        "episode_id": "ep-4d94c63887afbd1a",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "Systems thinking and risk management are one discipline in two vocabularies."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p09_e04-1",
+      "properties": {
+        "char_end": 76,
+        "char_start": 0,
+        "episode_id": "ep-4d94c63887afbd1a",
+        "speaker_id": "person:dr-elena-fischer",
+        "text": "Systems thinking and risk management are one discipline in two vocabularies.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p09_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

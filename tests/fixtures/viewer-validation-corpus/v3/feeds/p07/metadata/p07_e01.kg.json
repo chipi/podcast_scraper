@@ -2,6 +2,26 @@
   "edges": [
     {
       "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
       "to": "topic:environment",
       "type": "MENTIONS"
     },
@@ -18,7 +38,7 @@
   ],
   "episode_id": "5ef53e66-e083-5fcb-b555-a3814ebb6b39",
   "extraction": {
-    "extracted_at": "2026-08-03T12:00:00",
+    "extracted_at": "2026-09-24T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p07_e01.txt"
   },
@@ -26,11 +46,43 @@
     {
       "id": "episode:5ef53e66-e083-5fcb-b555-a3814ebb6b39",
       "properties": {
-        "podcast_id": "sha256:9e4a8b34d0b761bb138fb239ee0ace25609c27381d49bf78622ee8a40c7ce4ab",
-        "publish_date": "2026-08-03T12:00:00",
+        "podcast_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
+        "publish_date": "2026-09-24T12:00:00",
         "title": "The Long View \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:sustainability",
+      "properties": {
+        "label": "sustainability",
+        "slug": "sustainability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:environment",

@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p08-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p08_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "A. correspondent",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Renee Montague-Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p08_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 200,
+    "episode_id": "ep-64ef09a7ee543045",
+    "published_date": "2025-04-25T00:00:00",
+    "title": "Pronunciation as a Reliability Signal"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "NPR-shape public-radio conversations.",
+    "feed_id": "p08",
+    "language": "en-us",
+    "last_updated": "2026-01-05T00:00:00",
+    "title": "Public Hour",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Mispronunciation is a high-signal mistake — it tells listeners 'this person isn't paying attention', making it more damaging than its apparent size suggests.",
+      "Reliability of voice is partly preparation, partly humility; neither alone is sufficient to earn listener trust.",
+      "The mispronunciation pattern has played out at teams using NPR and held consistently across three different teams rather than being a one-off observation.",
+      "The second-order effect of these credibility signals is the part most people miss — small lapses compound into broader doubts about attention and care.",
+      "Ignoring the preparation-and-humility foundation of reliability means rebuilding it from scratch a year later rather than maintaining it incrementally.",
+      "Trade-offs around reliability cross-cut every other aspect of public radio, including where journalism and public radio intersect and how outlets like BBC fit the picture.",
+      "Practical adoption starts small — pick one idea and run it for two weeks, treating everything after that as iteration rather than a fixed plan."
+    ],
+    "raw_text": "Mispronunciation is a high-signal mistake — it tells listeners 'this person isn't paying attention', making it more damaging than its apparent size suggests. Reliability of voice is partly preparation, partly humility; neither alone is sufficient to earn listener trust.",
+    "title": "Public Radio: Pronunciation, Preparation, and Reliability of Voice"
+  }
+}

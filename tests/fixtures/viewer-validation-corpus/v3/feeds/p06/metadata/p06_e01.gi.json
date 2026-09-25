@@ -2,23 +2,33 @@
   "edges": [
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:cultural-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:dialogue",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "topic:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-      "to": "topic:excited-for-this-one",
       "type": "MENTIONS"
     },
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "to": "insight:738c0d8597e80be9",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:738c0d8597e80be9",
+      "to": "topic:cultural-drift",
+      "type": "ABOUT"
     },
     {
       "from": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
@@ -32,67 +42,67 @@
     },
     {
       "from": "insight:2cf8f4744b6d684d",
-      "to": "topic:excited-for-this-one",
+      "to": "topic:dialogue",
       "type": "ABOUT"
     },
     {
-      "from": "quote:1361955c324ef88d",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:738c0d8597e80be9",
-      "to": "quote:1361955c324ef88d",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:e6d6eacf3a2a8d12",
+      "from": "quote:23f6456bdbc43653",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:49ceee537c0fbff7",
-      "to": "quote:e6d6eacf3a2a8d12",
+      "from": "insight:738c0d8597e80be9",
+      "to": "quote:23f6456bdbc43653",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ccb1012a25b2555e",
+      "from": "quote:a779db42f6ed23fd",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:a779db42f6ed23fd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:61357c59e73acaba",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:2cf8f4744b6d684d",
-      "to": "quote:ccb1012a25b2555e",
+      "to": "quote:61357c59e73acaba",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:38e21abe60628002",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:738c0d8597e80be9",
-      "to": "quote:38e21abe60628002",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:42eb3370981819ac",
+      "from": "quote:3663842cf3e30f6a",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:49ceee537c0fbff7",
-      "to": "quote:42eb3370981819ac",
+      "from": "insight:738c0d8597e80be9",
+      "to": "quote:3663842cf3e30f6a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:9073a3b4f9bdf3c6",
+      "from": "quote:abfa431f9431c9b4",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:abfa431f9431c9b4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a6c7fd758a897ac1",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:2cf8f4744b6d684d",
-      "to": "quote:9073a3b4f9bdf3c6",
+      "to": "quote:a6c7fd758a897ac1",
       "type": "SUPPORTED_BY"
     },
     {
@@ -118,31 +128,38 @@
       "id": "episode:e741f35a-8dd9-5c40-9d5c-905f4dca4122",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "publish_date": "2026-07-29T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 1"
+        "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "podcast_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "publish_date": "2026-09-19T12:00:00",
+        "title": "The Drift \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:cultural-drift",
+      "properties": {
+        "label": "cultural drift"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue",
+      "properties": {
+        "label": "dialogue"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long form"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
         "label": "Science & research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:excited-for-this-one",
-      "properties": {
-        "label": "excited for this one"
       },
       "type": "Topic"
     },
@@ -180,27 +197,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Cam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:1361955c324ef88d",
-      "properties": {
-        "char_end": 157,
-        "char_start": 5,
-        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to The Drift. Today we're talking about cultural drift, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p06_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Jordan Park"
@@ -208,7 +204,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:e6d6eacf3a2a8d12",
+      "id": "quote:23f6456bdbc43653",
       "properties": {
         "char_end": 285,
         "char_start": 171,
@@ -222,7 +218,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ccb1012a25b2555e",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a779db42f6ed23fd",
       "properties": {
         "char_end": 409,
         "char_start": 291,
@@ -236,7 +239,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:38e21abe60628002",
+      "id": "quote:61357c59e73acaba",
       "properties": {
         "char_end": 485,
         "char_start": 409,
@@ -250,7 +253,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:42eb3370981819ac",
+      "id": "quote:3663842cf3e30f6a",
       "properties": {
         "char_end": 712,
         "char_start": 499,
@@ -264,7 +267,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:9073a3b4f9bdf3c6",
+      "id": "quote:abfa431f9431c9b4",
       "properties": {
         "char_end": 790,
         "char_start": 718,
@@ -273,6 +276,20 @@
         "text": "I want to dig into that. Where do dialogue and cultural drift intersect?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:a6c7fd758a897ac1",
+      "properties": {
+        "char_end": 919,
+        "char_start": 804,
+        "episode_id": "e741f35a-8dd9-5c40-9d5c-905f4dca4122",
+        "speaker_id": "person:speaker-02",
+        "text": "Sure. The texture of dialogue is the work. The framing matters because it tells you which trade-offs you're making.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p06_e01.txt"
       },
       "type": "Quote"

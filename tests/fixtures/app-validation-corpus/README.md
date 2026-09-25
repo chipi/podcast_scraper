@@ -19,11 +19,28 @@ Learning Player e2e fixture and was realigned (RFC-097) so every read surface �
   insights, KG topics/people, **diarization diagnostics**, and per-episode + corpus-scope
   enrichments. Sorted keys, stable content-hash episode ids and fixed dates, so a rebuild from the
   same inputs yields the same tree.
-- **Summaries:** 35 of 36 are real pipeline output. **`p01_e02` is a known exception** and keeps a
-  synthesized stand-in: its transcript was authored in nearly the summarization prompt's own
-  style-example wording, so a faithful summary of it is indistinguishable from a copied one and the
-  #1386 poison guard correctly drops it. Accepted for v3, tracked for v4 in
-  [#1671](https://github.com/chipi/podcast_scraper/issues/1671) and `FIXTURES_SPEC.md` v4 #8.
+- **Why 40 and not 36:** it used to be 36. `--max-episodes-per-feed` defaulted to 4 and took the
+  first four of each show, so `p02_e05`, `p05_e05`, `p06_e05` and `p06_e06` had transcript, audio
+  and ground truth and were in no build — including the corpus's only single-speaker episode and
+  its only code-switching one. The default is gone; the flag remains for building something
+  smaller on purpose.
+- **A rebuild is not a no-op.** The committed tree was built with `--pipeline-run`, which supplies
+  real summaries and measured durations. Rebuilding without it silently substitutes the synthesized
+  stand-in: summaries revert to the transcript's opening line and every duration becomes 1800s —
+  the two defects `FIXTURES_SPEC.md` §3 and §9 record as fixed.
+- **Summaries:** **38 of 40 are real pipeline output**; the other two are AUTHORED ground truth.
+  `p06_e05` and `p06_e06` are 44 and 46 words, so their only sentence long enough to survive
+  excerpt filtering is also the transcript's opening — an echo is structurally guaranteed and no
+  model can do better. Their summaries are hand-written in
+  `ground-truth/v3/ground_truth/`, and authored beats generated there for the same reason gold
+  beats silver. Zero stand-ins.
+- **`p01_e02` is no longer an exception.** It used to keep a stand-in: the #1386 guard rejected any
+  summary containing `"braking earlier"`, and this episode is *about* braking technique. That
+  fragment rule was replaced (2026-08-16) with whole-sentence copy detection, so a correct summary
+  now passes — confirmed by running `_looks_copied_from_example` over the committed text
+  (returns `None`; the verbatim style example returns `1.0`). `FIXTURES_SPEC.md` §8 has the detail;
+  [#1671](https://github.com/chipi/podcast_scraper/issues/1671) still tracks the wider question of
+  fixtures quoting prompts.
 - **Versioned:** laid out under `v3/`, matching `tests/fixtures/FIXTURES_VERSION` (`v3`).
 
 ## Media / audio — NOT in this tree

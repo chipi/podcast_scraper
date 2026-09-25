@@ -2,23 +2,33 @@
   "edges": [
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "to": "topic:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "topic:without-the",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "topic:welcome-back-to",
       "type": "MENTIONS"
     }
   ],
   "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
   "extraction": {
-    "extracted_at": "2026-07-30T12:00:00",
+    "extracted_at": "2026-09-20T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p05_e01.txt"
   },
@@ -26,33 +36,49 @@
     {
       "id": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "properties": {
-        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-07-30T12:00:00",
+        "podcast_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing",
+        "slug": "index-investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame",
+        "slug": "frame"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:science-research",
       "properties": {
         "label": "Science & research",
         "slug": "science-research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:without-the",
-      "properties": {
-        "label": "without the",
-        "slug": "without-the"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to",
-        "slug": "welcome-back-to"
       },
       "type": "Topic"
     }

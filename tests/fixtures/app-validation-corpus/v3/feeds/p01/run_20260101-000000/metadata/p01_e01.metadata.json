@@ -1,0 +1,61 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p01-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p01_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Liam Verbeek",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p01_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 488,
+    "episode_id": "ep-db8f44d2e07a22bd",
+    "published_date": "2024-01-02T00:00:00",
+    "title": "Building Trails That Last"
+  },
+  "feed": {
+    "authors": [
+      "Maya Koster"
+    ],
+    "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
+    "feed_id": "p01",
+    "language": "en-us",
+    "last_updated": "2024-12-17T00:00:00",
+    "title": "Singletrack Sessions",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p01.webp",
+    "image_url": "http://localhost/images/p01.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Drainage is the single highest-leverage design choice on any trail — ignoring it means rebuilding the trail from scratch a year later.",
+      "The most common mistake new builders make is grading too aggressively; internalizing this makes the rest of the design decisions easier.",
+      "Bench cuts on hillsides aren't optional — the shortcut on day one becomes the washout on year three.",
+      "Soil structure matters more than people think, a pattern observed holding across three different teams.",
+      "Land-stewardship conversations have to happen before the first dig rather than after — the framing reveals which trade-offs a project is making.",
+      "The machine-built versus hand-built trails question is a position that has been revised over time rather than settled at the outset.",
+      "Second-order effects of trail design choices are the part most people miss, and failure modes are harder to spot outside well-established tooling.",
+      "Picking one idea and running it for two weeks is the recommended starting point — the rest is iteration."
+    ],
+    "raw_text": "Drainage is the single highest-leverage design choice on any trail — ignoring it means rebuilding the trail from scratch a year later. The most common mistake new builders make is grading too aggressively; internalizing this makes the rest of the design decisions easier.",
+    "title": "Trail Building Fundamentals: Drainage, Bench Cuts, and Land Stewardship"
+  }
+}

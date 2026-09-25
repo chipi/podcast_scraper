@@ -2,23 +2,33 @@
   "edges": [
     {
       "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:dialogue",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:cultural-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
       "to": "topic:business-markets",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
-      "to": "topic:great-to-be-back",
       "type": "MENTIONS"
     },
     {
       "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
       "to": "insight:5955ee3ddf40392f",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:5955ee3ddf40392f",
+      "to": "topic:dialogue",
+      "type": "ABOUT"
     },
     {
       "from": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
@@ -31,63 +41,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:fe003442987de13c",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:5955ee3ddf40392f",
-      "to": "quote:fe003442987de13c",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:99bd9a7f988d7a5c",
+      "from": "quote:cc986f18f22a3b8a",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:49ceee537c0fbff7",
-      "to": "quote:99bd9a7f988d7a5c",
+      "from": "insight:5955ee3ddf40392f",
+      "to": "quote:cc986f18f22a3b8a",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:87063352e9c90cad",
+      "from": "quote:451389733c565c8d",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:451389733c565c8d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ebd36e9b202305c3",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:3e91ef621d0c5cbf",
-      "to": "quote:87063352e9c90cad",
+      "to": "quote:ebd36e9b202305c3",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c31747bd512271b7",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:5955ee3ddf40392f",
-      "to": "quote:c31747bd512271b7",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b9dc92c5018a24fb",
+      "from": "quote:30387fc2b1625c11",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:49ceee537c0fbff7",
-      "to": "quote:b9dc92c5018a24fb",
+      "from": "insight:5955ee3ddf40392f",
+      "to": "quote:30387fc2b1625c11",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:89215b5b47c87d5f",
+      "from": "quote:e3e74db5fe3dbfdd",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:49ceee537c0fbff7",
+      "to": "quote:e3e74db5fe3dbfdd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:13325490610b6c36",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:3e91ef621d0c5cbf",
-      "to": "quote:89215b5b47c87d5f",
+      "to": "quote:13325490610b6c36",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,31 +123,38 @@
       "id": "episode:01835c28-431e-5b5a-adbb-5ec01411a299",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "podcast_id": "sha256:d517d39c803a89d395740e81b17ace57ebb95aa5ec504129b1c306c7e592f10c",
-        "publish_date": "2026-07-31T12:00:00",
-        "title": "Edge Cases Podcast \u2014 Episode 3"
+        "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "podcast_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "publish_date": "2026-09-21T12:00:00",
+        "title": "The Drift \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:dialogue",
+      "properties": {
+        "label": "dialogue"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cultural-drift",
+      "properties": {
+        "label": "cultural drift"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long form"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:business-markets",
       "properties": {
         "label": "Business & markets"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:great-to-be-back",
-      "properties": {
-        "label": "great to be back"
       },
       "type": "Topic"
     },
@@ -175,27 +192,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Cam"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:fe003442987de13c",
-      "properties": {
-        "char_end": 151,
-        "char_start": 5,
-        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to The Drift. Today we're talking about dialogue, and I'm joined by Jordan Park, cultural critic. Jordan Park, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p06_e03.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Jordan Park"
@@ -203,7 +199,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:99bd9a7f988d7a5c",
+      "id": "quote:cc986f18f22a3b8a",
       "properties": {
         "char_end": 195,
         "char_start": 165,
@@ -217,7 +213,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:87063352e9c90cad",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Cam"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:451389733c565c8d",
       "properties": {
         "char_end": 319,
         "char_start": 201,
@@ -231,7 +234,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:c31747bd512271b7",
+      "id": "quote:ebd36e9b202305c3",
       "properties": {
         "char_end": 419,
         "char_start": 319,
@@ -245,7 +248,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b9dc92c5018a24fb",
+      "id": "quote:30387fc2b1625c11",
       "properties": {
         "char_end": 608,
         "char_start": 433,
@@ -259,7 +262,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:89215b5b47c87d5f",
+      "id": "quote:e3e74db5fe3dbfdd",
       "properties": {
         "char_end": 707,
         "char_start": 614,
@@ -268,6 +271,20 @@
         "text": "Walk me through a concrete example. What's the version of the question that actually matters?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p06_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:13325490610b6c36",
+      "properties": {
+        "char_end": 871,
+        "char_start": 721,
+        "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+        "speaker_id": "person:speaker-02",
+        "text": "Let me give you the version I actually believe. The best conversations refuse to resolve. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p06_e03.txt"
       },
       "type": "Quote"

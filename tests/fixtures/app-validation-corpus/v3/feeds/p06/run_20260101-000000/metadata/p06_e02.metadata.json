@@ -1,0 +1,58 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p06-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p06_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Cam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Jordan Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 248,
+    "episode_id": "ep-f4b940a095192621",
+    "published_date": "2025-03-17T00:00:00",
+    "title": "More Drift, Less Signal"
+  },
+  "feed": {
+    "authors": [
+      "Test Author"
+    ],
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "language": "en-us",
+    "last_updated": "2026-06-20T00:00:00",
+    "title": "The Drift",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Dialogue-heavy formats trade grounding for texture — a pattern observed holding across three different teams rather than a one-off impression.",
+      "Sometimes the point of a conversation is not having a point; aimlessness can be a deliberate feature of long form rather than a failure mode.",
+      "The same dynamics show up at teams using Patreon and teams using Substack — the trade-off follows the format rather than the platform.",
+      "Cultural drift cross-cuts every other trade-off in long-form dialogue, making it the point where the conversation gets most interesting.",
+      "Running one idea for two weeks beats trying everything at once — the rest is iteration."
+    ],
+    "raw_text": "Dialogue-heavy formats trade grounding for texture — a pattern observed holding across three different teams rather than a one-off impression. Sometimes the point of a conversation is not having a point; aimlessness can be a deliberate feature of long form rather than a failure mode.",
+    "title": "Long Form, Dialogue, and Cultural Drift"
+  }
+}

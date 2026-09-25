@@ -2,18 +2,33 @@
   "edges": [
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "topic:technology",
+      "to": "topic:engineering-communication",
       "type": "MENTIONS"
     },
     {
       "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
-      "to": "topic:welcome-back-to",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:incident-postmortems",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
+      "to": "topic:technology",
       "type": "MENTIONS"
     }
   ],
   "episode_id": "096240a2-e115-5a3c-98b4-2d852b096eda",
   "extraction": {
-    "extracted_at": "2026-07-31T12:00:00",
+    "extracted_at": "2026-09-21T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p02_e02.txt"
   },
@@ -21,25 +36,49 @@
     {
       "id": "episode:096240a2-e115-5a3c-98b4-2d852b096eda",
       "properties": {
-        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-07-31T12:00:00",
+        "podcast_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "publish_date": "2026-09-21T12:00:00",
         "title": "Practical Systems \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:engineering-communication",
+      "properties": {
+        "label": "engineering communication",
+        "slug": "engineering-communication"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-postmortems",
+      "properties": {
+        "label": "incident postmortems",
+        "slug": "incident-postmortems"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
       "properties": {
         "label": "technology",
         "slug": "technology"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to",
-        "slug": "welcome-back-to"
       },
       "type": "Topic"
     }

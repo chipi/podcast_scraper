@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:dive-planning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -31,63 +46,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:6e303c97ef6d6d7b",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:6191892e4d27b718",
-      "to": "quote:6e303c97ef6d6d7b",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:aded400ed5c94ea3",
+      "from": "quote:271c0739be700cd2",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:9c3654333b6f8b01",
-      "to": "quote:aded400ed5c94ea3",
+      "from": "insight:6191892e4d27b718",
+      "to": "quote:271c0739be700cd2",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:0dc2e9360b0ae956",
+      "from": "quote:6edd96f31ece3a29",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9c3654333b6f8b01",
+      "to": "quote:6edd96f31ece3a29",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:35ca4eb373789846",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:230551b6c5ce8a9e",
-      "to": "quote:0dc2e9360b0ae956",
+      "to": "quote:35ca4eb373789846",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:ec3f8b0330cc9718",
-      "to": "person:speaker-01",
+      "from": "quote:0e292da60a40263c",
+      "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:6191892e4d27b718",
-      "to": "quote:ec3f8b0330cc9718",
+      "to": "quote:0e292da60a40263c",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:1b4c6b9fc79963aa",
+      "from": "quote:da68080cb76f8db4",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:9c3654333b6f8b01",
-      "to": "quote:1b4c6b9fc79963aa",
+      "to": "quote:da68080cb76f8db4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:241e804a7c872f5e",
-      "to": "person:speaker-02",
+      "from": "quote:197180072df83e2f",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:230551b6c5ce8a9e",
-      "to": "quote:241e804a7c872f5e",
+      "to": "quote:197180072df83e2f",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +128,33 @@
       "id": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-08-01T12:00:00",
+        "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "podcast_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "Below the Surface \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dive-planning",
+      "properties": {
+        "label": "dive planning"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",
@@ -175,27 +211,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Rina"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:6e303c97ef6d6d7b",
-      "properties": {
-        "char_end": 135,
-        "char_start": 6,
-        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Below the Surface. I'm joined by Marco Silva, technical diver and instructor. Marco, thanks for surfacing for us.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p03_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Marco Silva"
@@ -203,7 +218,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:aded400ed5c94ea3",
+      "id": "quote:271c0739be700cd2",
       "properties": {
         "char_end": 169,
         "char_start": 149,
@@ -217,7 +232,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:0dc2e9360b0ae956",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Rina"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6edd96f31ece3a29",
       "properties": {
         "char_end": 302,
         "char_start": 176,
@@ -231,7 +253,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:ec3f8b0330cc9718",
+      "id": "quote:35ca4eb373789846",
       "properties": {
         "char_end": 363,
         "char_start": 302,
@@ -245,7 +267,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:1b4c6b9fc79963aa",
+      "id": "quote:0e292da60a40263c",
       "properties": {
         "char_end": 579,
         "char_start": 377,
@@ -259,7 +281,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:241e804a7c872f5e",
+      "id": "quote:da68080cb76f8db4",
       "properties": {
         "char_end": 803,
         "char_start": 579,
@@ -268,6 +290,20 @@
         "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, that pattern held every time.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p03_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:197180072df83e2f",
+      "properties": {
+        "char_end": 866,
+        "char_start": 810,
+        "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
+        "speaker_id": "person:speaker-01",
+        "text": "So it's not so different from managing any kind of risk.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p03_e04.txt"
       },
       "type": "Quote"

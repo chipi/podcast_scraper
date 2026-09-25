@@ -1,0 +1,34 @@
+{
+  "episode_id": "ep-db8f44d2e07a22bd",
+  "identities": [
+    {
+      "display_name": "trail building",
+      "id": "topic:trail-building"
+    },
+    {
+      "display_name": "soil erosion",
+      "id": "topic:soil-erosion"
+    },
+    {
+      "display_name": "land stewardship",
+      "id": "topic:land-stewardship"
+    },
+    {
+      "display_name": "endurance sport",
+      "id": "topic:endurance-sport"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "lifelong learning",
+      "id": "topic:lifelong-learning"
+    },
+    {
+      "display_name": "expert interviews",
+      "id": "topic:expert-interviews"
+    }
+  ],
+  "schema_version": "1"
+}

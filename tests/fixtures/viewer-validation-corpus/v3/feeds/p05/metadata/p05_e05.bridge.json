@@ -1,0 +1,18 @@
+{
+  "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+  "identities": [
+    {
+      "display_name": "index investing",
+      "id": "topic:index-investing"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "Technology",
+      "id": "topic:technology"
+    }
+  ],
+  "schema_version": "1"
+}

@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -18,7 +33,7 @@
   ],
   "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
   "extraction": {
-    "extracted_at": "2026-08-01T12:00:00",
+    "extracted_at": "2026-09-22T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p09_e04.txt"
   },
@@ -27,10 +42,34 @@
       "id": "episode:e5f72053-f000-519e-95cb-204c957f7ab3",
       "properties": {
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-        "publish_date": "2026-08-01T12:00:00",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",

@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "marine biology",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:marine-biology"
+    },
+    {
       "in_topic_cluster": true,
       "label": "outdoor activities",
       "topic_cluster_compound_id": "tc:outdoor-activities-cluster",
       "topic_id": "topic:outdoor-activities"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "gear",
-      "topic_cluster_compound_id": "tc:gear-cluster",
-      "topic_id": "topic:gear"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
-    "published_date": "2026-08-03",
+    "published_date": "2026-09-24",
     "title": "Below the Surface \u2014 Episode 3"
   },
   "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
   "episode_title": "Below the Surface \u2014 Episode 3",
   "feed": {
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
-    "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+    "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
     "title": "Below the Surface",
     "url": "http://localhost/"
   },
   "feed_display_title": "Below the Surface",
-  "feed_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
+  "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
   "gi_relative_path": "feeds/p03/metadata/p03_e03.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p03/metadata/p03_e03.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p03/metadata/p03_e03.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-08-03",
+  "publish_date": "2026-09-24",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,6 +75,9 @@
     "title": "Below the Surface \u2014 Episode 3 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:marine-biology",
+    "topic:reef-conservation",
+    "topic:risk-management",
     "topic:outdoor-activities",
     "topic:gear",
     "topic:business-markets"
@@ -88,6 +91,9 @@
   "summary_text": "Today we're talking about marine biology, and I'm joined by Hanna Krebohticker, marine biologist focused on reef systems.\nHanna Krebohticker, thanks for being here.\nHanna Krebohticker: Thanks, Rina.",
   "summary_title": "Below the Surface \u2014 Episode 3 \u2014 synthetic",
   "topics": [
+    "marine biology",
+    "reef conservation",
+    "risk management",
     "outdoor activities",
     "gear",
     "Business & markets"

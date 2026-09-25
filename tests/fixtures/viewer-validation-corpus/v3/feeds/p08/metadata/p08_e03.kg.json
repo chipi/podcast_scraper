@@ -2,6 +2,26 @@
   "edges": [
     {
       "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:journalism",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:newsroom-operations",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:public-radio",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
       "to": "topic:environment",
       "type": "MENTIONS"
     },
@@ -18,7 +38,7 @@
   ],
   "episode_id": "1c0614c2-9f65-5fd5-9340-ab8c6059d014",
   "extraction": {
-    "extracted_at": "2026-07-29T12:00:00",
+    "extracted_at": "2026-09-19T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p08_e03.txt"
   },
@@ -26,11 +46,43 @@
     {
       "id": "episode:1c0614c2-9f65-5fd5-9340-ab8c6059d014",
       "properties": {
-        "podcast_id": "sha256:5ffc16f86af9856b053a670e3a580eb8f0e2888d6c6ccf09d988a2619350ed2a",
-        "publish_date": "2026-07-29T12:00:00",
-        "title": "The Long View \u2014 Episode 3"
+        "podcast_id": "sha256:c5df4ffdf9a45b0c75fbcf3b416e78ac14f7a8af21d0155471f55502c7c01bcc",
+        "publish_date": "2026-09-19T12:00:00",
+        "title": "Public Hour \u2014 Episode 3"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:journalism",
+      "properties": {
+        "label": "journalism",
+        "slug": "journalism"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:newsroom-operations",
+      "properties": {
+        "label": "newsroom operations",
+        "slug": "newsroom-operations"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:public-radio",
+      "properties": {
+        "label": "public radio",
+        "slug": "public-radio"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:environment",

@@ -2,6 +2,26 @@
   "edges": [
     {
       "from": "episode:8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+      "to": "topic:incident-response",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -12,17 +32,12 @@
     },
     {
       "from": "episode:8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
-      "to": "topic:welcome-back-to",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
       "to": "insight:62762412c5c75f58",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "insight:62762412c5c75f58",
-      "to": "topic:welcome-back-to",
+      "to": "topic:reliability",
       "type": "ABOUT"
     },
     {
@@ -36,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:c44eb39c3f73c424",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:62762412c5c75f58",
-      "to": "quote:c44eb39c3f73c424",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:a2776da0dcec65ef",
+      "from": "quote:970fd327b1ff2cfa",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:afcedcf168cfe0a7",
-      "to": "quote:a2776da0dcec65ef",
+      "from": "insight:62762412c5c75f58",
+      "to": "quote:970fd327b1ff2cfa",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:6b5e22bb156da506",
+      "from": "quote:2e5b717e008fb739",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:afcedcf168cfe0a7",
+      "to": "quote:2e5b717e008fb739",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a855b30aaba7eb95",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:a0f6b06a8ee4a976",
-      "to": "quote:6b5e22bb156da506",
+      "to": "quote:a855b30aaba7eb95",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:446c55e6186c0d66",
-      "to": "person:speaker-01",
+      "from": "quote:a21272e7843a004b",
+      "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:62762412c5c75f58",
-      "to": "quote:446c55e6186c0d66",
+      "to": "quote:a21272e7843a004b",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d06317636e7332f4",
+      "from": "quote:60306d124794a2a8",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:afcedcf168cfe0a7",
-      "to": "quote:d06317636e7332f4",
+      "to": "quote:60306d124794a2a8",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:7bae1fc2e00e757a",
-      "to": "person:speaker-02",
+      "from": "quote:28cbd28e3b8c41cc",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:a0f6b06a8ee4a976",
-      "to": "quote:7bae1fc2e00e757a",
+      "to": "quote:28cbd28e3b8c41cc",
       "type": "SUPPORTED_BY"
     },
     {
@@ -118,12 +133,40 @@
       "id": "episode:8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "podcast_id": "sha256:05eff208d6fd774940bed9fd154c6a46b9325e32cf95e1769f8eb679505ef414",
-        "publish_date": "2026-08-02T12:00:00",
+        "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "podcast_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+        "publish_date": "2026-09-23T12:00:00",
         "title": "Practical Systems \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-response",
+      "properties": {
+        "label": "incident response"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -136,13 +179,6 @@
       "id": "topic:science-research",
       "properties": {
         "label": "Science & research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
       },
       "type": "Topic"
     },
@@ -180,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Ethan"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:c44eb39c3f73c424",
-      "properties": {
-        "char_end": 156,
-        "char_start": 7,
-        "episode_id": "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Practical Systems. My guest is Priya Nair, who's spent a decade keeping large systems from falling over. Priya, thanks for coming on.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p02_e04.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Priya Nair"
@@ -208,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:a2776da0dcec65ef",
+      "id": "quote:970fd327b1ff2cfa",
       "properties": {
         "char_end": 192,
         "char_start": 169,
@@ -222,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:6b5e22bb156da506",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Ethan"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:2e5b717e008fb739",
       "properties": {
         "char_end": 348,
         "char_start": 200,
@@ -236,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:446c55e6186c0d66",
+      "id": "quote:a855b30aaba7eb95",
       "properties": {
         "char_end": 410,
         "char_start": 348,
@@ -250,7 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d06317636e7332f4",
+      "id": "quote:a21272e7843a004b",
       "properties": {
         "char_end": 653,
         "char_start": 423,
@@ -264,7 +286,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:7bae1fc2e00e757a",
+      "id": "quote:60306d124794a2a8",
       "properties": {
         "char_end": 869,
         "char_start": 653,
@@ -273,6 +295,20 @@
         "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was pretty blunt about that.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p02_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:28cbd28e3b8c41cc",
+      "properties": {
+        "char_end": 950,
+        "char_start": 877,
+        "episode_id": "8f88b1fc-4adc-5b98-8539-af5f32fef5a4",
+        "speaker_id": "person:speaker-01",
+        "text": "You once told me production risk is the same as portfolio risk. Say more.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p02_e04.txt"
       },
       "type": "Quote"

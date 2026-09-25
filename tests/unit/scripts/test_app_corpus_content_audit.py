@@ -382,12 +382,14 @@ def test_the_skew_check_finds_a_nested_stamp_under_any_publish_key(tmp_path: Pat
 
 
 def test_a_run_directory_the_search_layer_cannot_parse_is_caught(tmp_path: Path) -> None:
-    """`corpus_scope._RUN_TS_RE` wants `run_YYYYMMDD-HHMMSS`. The builder writes an UNDERSCORE
-    before the time, so nothing matches and run-recency ordering falls back to file mtime — a
-    property of the checkout rather than of the corpus (#63)."""
+    """`corpus_scope._RUN_TS_RE` wants `run_YYYYMMDD-HHMMSS`. The builder used to write an
+    UNDERSCORE before the time, so nothing matched and run-recency ordering fell back to file
+    mtime — a property of the checkout rather than of the corpus (#63). Fixed 2026-09-24; this
+    keeps the underscore form as the NEGATIVE case so the check cannot silently stop firing."""
     root = _corpus(tmp_path, episodes=1)
+    good = root / "feeds" / "p01" / "run_20260101-000000"
     bad = root / "feeds" / "p01" / "run_20260101_000000"
-    (root / "feeds" / "p01" / "run_20260101-000000").rename(bad)
+    good.rename(bad)
     problems = _audit_built_corpus(root)
     assert any("run-recency pattern" in p for p in problems), problems
 

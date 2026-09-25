@@ -2,23 +2,38 @@
   "edges": [
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:index-investing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "to": "topic:science-research",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "topic:without-the",
-      "type": "MENTIONS"
-    },
-    {
-      "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-      "to": "topic:welcome-back-to",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "to": "insight:15b1d98fdea73abc",
       "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:15b1d98fdea73abc",
+      "to": "topic:index-investing",
+      "type": "ABOUT"
     },
     {
       "from": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
@@ -31,63 +46,68 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:702e88c15864145e",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
+      "from": "insight:ba0248f7d7723706",
+      "to": "topic:index-investing",
+      "type": "ABOUT"
     },
     {
-      "from": "insight:15b1d98fdea73abc",
-      "to": "quote:702e88c15864145e",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:7f22144da157055b",
+      "from": "quote:672c6ab316632e64",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:c1e3bcbe11e2a958",
-      "to": "quote:7f22144da157055b",
+      "from": "insight:15b1d98fdea73abc",
+      "to": "quote:672c6ab316632e64",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:54d9a201259a2e7d",
+      "from": "quote:3ad17fc1726bdd4c",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c1e3bcbe11e2a958",
+      "to": "quote:3ad17fc1726bdd4c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0e67c2e8ca666f48",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:ba0248f7d7723706",
-      "to": "quote:54d9a201259a2e7d",
+      "to": "quote:0e67c2e8ca666f48",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:d33dfc8aae77fbed",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:15b1d98fdea73abc",
-      "to": "quote:d33dfc8aae77fbed",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:addf65b8736872c1",
+      "from": "quote:c8e44c934e1d11dd",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:c1e3bcbe11e2a958",
-      "to": "quote:addf65b8736872c1",
+      "from": "insight:15b1d98fdea73abc",
+      "to": "quote:c8e44c934e1d11dd",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:4e4e78d038016624",
+      "from": "quote:1b4d56801ab4d51f",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:c1e3bcbe11e2a958",
+      "to": "quote:1b4d56801ab4d51f",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9207c9518f3ea5df",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:ba0248f7d7723706",
-      "to": "quote:4e4e78d038016624",
+      "to": "quote:9207c9518f3ea5df",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,31 +133,45 @@
       "id": "episode:ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "podcast_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
-        "publish_date": "2026-07-30T12:00:00",
+        "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "podcast_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "Long Horizon Notes \u2014 Episode 1"
       },
       "type": "Episode"
     },
     {
+      "id": "topic:index-investing",
+      "properties": {
+        "label": "index investing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame"
+      },
+      "type": "Topic"
+    },
+    {
       "id": "topic:science-research",
       "properties": {
         "label": "Science & research"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:without-the",
-      "properties": {
-        "label": "without the"
-      },
-      "type": "Topic"
-    },
-    {
-      "id": "topic:welcome-back-to",
-      "properties": {
-        "label": "welcome back to"
       },
       "type": "Topic"
     },
@@ -175,27 +209,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Nora"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:702e88c15864145e",
-      "properties": {
-        "char_end": 191,
-        "char_start": 6,
-        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Long Horizon Notes. Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate. Daniel Cho, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p05_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Daniel Cho"
@@ -203,7 +216,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:7f22144da157055b",
+      "id": "quote:672c6ab316632e64",
       "properties": {
         "char_end": 301,
         "char_start": 204,
@@ -217,7 +230,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:54d9a201259a2e7d",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Nora"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3ad17fc1726bdd4c",
       "properties": {
         "char_end": 429,
         "char_start": 308,
@@ -231,7 +251,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:d33dfc8aae77fbed",
+      "id": "quote:0e67c2e8ca666f48",
       "properties": {
         "char_end": 507,
         "char_start": 429,
@@ -245,7 +265,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:addf65b8736872c1",
+      "id": "quote:c8e44c934e1d11dd",
       "properties": {
         "char_end": 736,
         "char_start": 520,
@@ -259,7 +279,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:4e4e78d038016624",
+      "id": "quote:1b4d56801ab4d51f",
       "properties": {
         "char_end": 861,
         "char_start": 743,
@@ -268,6 +288,20 @@
         "text": "What's the one heuristic you keep coming back to? What's something you used to believe about this that you've revised?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p05_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9207c9518f3ea5df",
+      "properties": {
+        "char_end": 986,
+        "char_start": 874,
+        "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
+        "speaker_id": "person:speaker-02",
+        "text": "Honestly, Vanguard's structure pioneered low costs. I've watched this pattern hold across three different teams.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p05_e01.txt"
       },
       "type": "Quote"

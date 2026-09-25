@@ -1,0 +1,37 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Maya",
+    "start": 0.0,
+    "text": "This is an edge-case fixture used for parser and processor robustness tests."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Maya",
+    "start": 6.0,
+    "text": "Welcome."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Liam",
+    "start": 12.0,
+    "text": "Hola, \u00bfc\u00f3mo est\u00e1s?"
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Maya",
+    "start": 18.0,
+    "text": "A bit of code-switching to test transcription robustness."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Maya",
+    "start": 24.0,
+    "text": "End of edge-case episode e06."
+  }
+]

@@ -1,0 +1,61 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p03-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p03_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Rina",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Hanna Crebo Rediker",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p03_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 307,
+    "episode_id": "ep-a0a7f86b34a4de26",
+    "published_date": "2024-09-12T00:00:00",
+    "title": "Marine Biology for Divers"
+  },
+  "feed": {
+    "authors": [
+      "Rina Okafor"
+    ],
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "p03",
+    "language": "en-us",
+    "last_updated": "2025-07-09T00:00:00",
+    "title": "Below the Surface",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
+    "image_url": "http://localhost/images/p03.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Coral bleaching events are not random — a pattern observed repeatedly across three different teams, including those using PADI and DAN, and one that simplifies downstream decisions once internalized.",
+      "Erosion in coastal areas drives sediment plumes, making soil erosion a cross-cutting factor in reef conservation rather than a separate land-based concern.",
+      "Most reef damage from divers comes from anchor strikes rather than fin contact — a finding seen among teams using Suunto and PADI, with second-order effects that most people miss.",
+      "Adopting PADI in a dive workflow makes the underlying trade-off visible, while outside of Suunto-class tooling the failure mode is harder to spot.",
+      "Ignoring a hard-to-spot failure mode early leads to rebuilding from scratch a year later — catching it up front costs far less than retrofitting.",
+      "Framing a reef or erosion problem correctly matters because it reveals which trade-offs are being made rather than leaving them implicit.",
+      "A changed view on shark dives stands as one of the most underrated points in marine biology, with the shift holding consistently across three different teams.",
+      "Running one idea for two weeks and iterating from there serves as the practical starting point rather than attempting a wholesale change at once."
+    ],
+    "raw_text": "Coral bleaching events are not random — a pattern observed repeatedly across three different teams, including those using PADI and DAN, and one that simplifies downstream decisions once internalized. Erosion in coastal areas drives sediment plumes, making soil erosion a cross-cutting factor in reef conservation rather than a separate land-based concern.",
+    "title": "Surface: Reef Systems, Sediment Plumes, and Diver Impact"
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:long-form",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:dialogue",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:cultural-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "person:cam",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-f4b940a095192621",
+      "to": "person:jordan-park",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-f4b940a095192621",
+  "extraction": {
+    "extracted_at": "2025-03-17T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-f4b940a095192621",
+      "properties": {
+        "podcast_id": "p06",
+        "publish_date": "2025-03-17T00:00:00",
+        "title": "More Drift, Less Signal"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:long-form",
+      "properties": {
+        "label": "long form",
+        "slug": "long-form"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue",
+      "properties": {
+        "label": "dialogue",
+        "slug": "dialogue"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cultural-drift",
+      "properties": {
+        "label": "cultural drift",
+        "slug": "cultural-drift"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:cam",
+      "properties": {
+        "name": "Cam",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:jordan-park",
+      "properties": {
+        "name": "Jordan Park",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

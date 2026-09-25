@@ -104,7 +104,7 @@ export async function liveCorpusRoot(page: Page): Promise<string> {
 /**
  * A real per-run `.../metadata` directory inside the live corpus, discovered from the API.
  *
- * The run directory is named for the run that produced it (`run_20260101_000000` in the v3
+ * The run directory is named for the run that produced it (`run_20260101-000000` in the v3
  * fixture), so it is derived from an artifact's `relative_path` rather than spelled out — a
  * rebuilt corpus renames it and a hardcoded spec would silently stop exercising the hint.
  */

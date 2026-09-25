@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
+      "to": "topic:dive-planning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -18,7 +33,7 @@
   ],
   "episode_id": "2922a74e-5598-537f-a2d1-1ac08059e49d",
   "extraction": {
-    "extracted_at": "2026-08-01T12:00:00",
+    "extracted_at": "2026-09-22T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p03_e04.txt"
   },
@@ -26,11 +41,35 @@
     {
       "id": "episode:2922a74e-5598-537f-a2d1-1ac08059e49d",
       "properties": {
-        "podcast_id": "sha256:16de36c98e7e4b95d699380d14d84d2f13717c2c151f935076564a9a5f5e979b",
-        "publish_date": "2026-08-01T12:00:00",
+        "podcast_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+        "publish_date": "2026-09-22T12:00:00",
         "title": "Below the Surface \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dive-planning",
+      "properties": {
+        "label": "dive planning",
+        "slug": "dive-planning"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",

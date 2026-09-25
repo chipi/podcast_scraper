@@ -1,9 +1,9 @@
 {
-  "catalog_episode_count": 36,
+  "catalog_episode_count": 40,
   "catalog_feed_count": 9,
   "digest_topics_configured": 0,
-  "path": "/workspace/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v3",
+  "path": "tests/fixtures/viewer-validation-corpus/v3",
   "publish_month_histogram": {
-    "2026-05": 36
+    "2026-05": 40
   }
 }

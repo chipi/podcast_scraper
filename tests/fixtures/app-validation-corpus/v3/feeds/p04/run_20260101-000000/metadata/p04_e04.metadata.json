@@ -1,0 +1,60 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p04-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p04_e04.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Leo",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Ava Lemoine",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p04_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 299,
+    "episode_id": "ep-9b36e2e3b959298d",
+    "published_date": "2025-06-21T00:00:00",
+    "title": "Roundtable: Three Photographers on Light"
+  },
+  "feed": {
+    "authors": [
+      "Leo Hartman"
+    ],
+    "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
+    "feed_id": "p04",
+    "language": "en-us",
+    "last_updated": "2025-06-21T00:00:00",
+    "title": "Frame & Light",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
+    "image_url": "http://localhost/images/p04.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Roundtables reveal where photographers actually disagree — surfacing real points of contention across underwater, documentary, and commercial lighting work rather than consensus talking points.",
+      "Frame and light decisions converge across genres; internalizing that convergence makes the rest of the decisions easier and clarifies which trade-offs are being made.",
+      "Practical reliability of gear shows up under crowd-shoot conditions rather than in controlled settings — a pattern observed at teams using Profoto and Peak Design.",
+      "Outside of Profoto-class or Peak Design-class tooling, the failure mode is harder to spot, and the second-order effect is the part most people miss.",
+      "Ignoring gear reliability and genre-convergence dynamics leads to rebuilding a workflow from scratch a year later — a pattern held across three different teams.",
+      "Strobe lighting trade-offs cross-cut every other decision in roundtable photography, making it the point where framing, gear reliability, and genre differences intersect.",
+      "Running one idea for two weeks beats adopting everything at once; the rest is iteration."
+    ],
+    "raw_text": "Roundtables reveal where photographers actually disagree — surfacing real points of contention across underwater, documentary, and commercial lighting work rather than consensus talking points. Frame and light decisions converge across genres; internalizing that convergence makes the rest of the decisions easier and clarifies which trade-offs are being made.",
+    "title": "Roundtable Photography: Where Genres Converge and Photographers Disagree"
+  }
+}

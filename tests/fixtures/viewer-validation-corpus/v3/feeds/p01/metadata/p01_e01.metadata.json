@@ -1,16 +1,16 @@
 {
   "cil_digest_topics": [
     {
+      "in_topic_cluster": false,
+      "label": "trail building",
+      "topic_cluster_compound_id": null,
+      "topic_id": "topic:trail-building"
+    },
+    {
       "in_topic_cluster": true,
       "label": "outdoor activities",
       "topic_cluster_compound_id": "tc:outdoor-activities-cluster",
       "topic_id": "topic:outdoor-activities"
-    },
-    {
-      "in_topic_cluster": true,
-      "label": "gear",
-      "topic_cluster_compound_id": "tc:gear-cluster",
-      "topic_id": "topic:gear"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-    "published_date": "2026-08-03",
+    "published_date": "2026-09-24",
     "title": "Singletrack Sessions \u2014 Episode 1"
   },
   "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
   "episode_title": "Singletrack Sessions \u2014 Episode 1",
   "feed": {
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
-    "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+    "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
     "title": "Singletrack Sessions",
     "url": "http://localhost/"
   },
   "feed_display_title": "Singletrack Sessions",
-  "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
+  "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
   "gi_relative_path": "feeds/p01/metadata/p01_e01.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p01/metadata/p01_e01.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p01/metadata/p01_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-08-03",
+  "publish_date": "2026-09-24",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,6 +75,9 @@
     "title": "Singletrack Sessions \u2014 Episode 1 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
+    "topic:trail-building",
+    "topic:soil-erosion",
+    "topic:land-stewardship",
     "topic:outdoor-activities",
     "topic:gear",
     "topic:science-research"
@@ -88,6 +91,9 @@
   "summary_text": "Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance.\nLiam Verbeek, thanks for being here.\nExcited for this one \u2014 trail building is something I've been thinking about a lot.",
   "summary_title": "Singletrack Sessions \u2014 Episode 1 \u2014 synthetic",
   "topics": [
+    "trail building",
+    "soil erosion",
+    "land stewardship",
     "outdoor activities",
     "gear",
     "Science & research"

@@ -2,6 +2,18 @@
   "episode_id": "a283fe88-fdec-51b4-8014-431b4a7ce670",
   "identities": [
     {
+      "display_name": "wreck diving",
+      "id": "topic:wreck-diving"
+    },
+    {
+      "display_name": "dive planning",
+      "id": "topic:dive-planning"
+    },
+    {
+      "display_name": "soil erosion",
+      "id": "topic:soil-erosion"
+    },
+    {
       "display_name": "outdoor activities",
       "id": "topic:outdoor-activities"
     },

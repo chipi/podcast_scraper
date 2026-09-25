@@ -1,0 +1,54 @@
+{
+  "content": {
+    "diarization_num_speakers": 2,
+    "media_id": "sha256:p03-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p03_e04.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Rina",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Marco Silva",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p03_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 82,
+    "episode_id": "ep-916dab1698f88aec",
+    "published_date": "2025-07-09T00:00:00",
+    "title": "Plan the Dive, Manage the Risk"
+  },
+  "feed": {
+    "authors": [
+      "Rina Okafor"
+    ],
+    "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
+    "feed_id": "p03",
+    "language": "en-us",
+    "last_updated": "2025-07-09T00:00:00",
+    "title": "Below the Surface",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
+    "image_url": "http://localhost/images/p03.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Dive planning is risk management rather than paperwork — it is framed as survival, not an administrative formality new divers can skip.",
+      "Conservative margins define a good plan; it is the gas you don't use and the ascent you don't rush.",
+      "Unnamed risks cause the harm — the incident that hurts you is the one nobody named on the boat, so every hazard gets named before the dive.",
+      "The whole dive should be planned as one system — depth, gas, team, current — because accidents live in how those factors interact rather than in any single number.",
+      "A decade of reviewed incident reports consistently showed the same pattern: accidents emerged from interactions between variables rather than isolated failures.",
+      "A dive plan and a portfolio are the same discipline — systems of correlated risk, where the risk you can describe in advance is the one you can actually control."
+    ],
+    "raw_text": "Dive planning is risk management rather than paperwork — it is framed as survival, not an administrative formality new divers can skip. Conservative margins define a good plan; it is the gas you don't use and the ascent you don't rush.",
+    "title": "Dive Planning as Risk Management"
+  }
+}

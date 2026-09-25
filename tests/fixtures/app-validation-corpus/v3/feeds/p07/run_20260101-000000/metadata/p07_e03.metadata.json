@@ -1,0 +1,54 @@
+{
+  "content": {
+    "diarization_num_speakers": 2,
+    "media_id": "sha256:p07-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p07_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Alex Morgan",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Dr. Elena Fischer",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p07_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 88,
+    "episode_id": "ep-a86da8f148d3bf29",
+    "published_date": "2025-08-06T00:00:00",
+    "title": "Sustainability Is a Systems Problem"
+  },
+  "feed": {
+    "authors": [
+      "Alex Morgan"
+    ],
+    "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
+    "feed_id": "p07",
+    "language": "en-us",
+    "last_updated": "2025-12-24T00:00:00",
+    "title": "The Long View",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p07.webp",
+    "image_url": "http://localhost/images/p07.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "The word 'sustainability' hides the hard part — it is fundamentally a systems problem in which no single part can be optimized without moving another.",
+      "Fixing emissions in isolation pushes the cost into water, land, or the grid rather than eliminating it; the interactions between parts are the whole story.",
+      "Systems thinking, first and last, means managing the couplings rather than the components — the connections between elements determine outcomes more than any single element does.",
+      "A decade of modeled interventions showed a consistent failure pattern — the ones that failed treated a system as a list of parts rather than an interconnected whole.",
+      "The most dangerous risks are the slow ones that can be named but are discounted — familiarity breeds neglect rather than preparedness.",
+      "Risk management in sustainability is the same discipline as for a portfolio, a power grid, or a reef — name the risk before it names you, and respect the correlations."
+    ],
+    "raw_text": "The word 'sustainability' hides the hard part — it is fundamentally a systems problem in which no single part can be optimized without moving another. Fixing emissions in isolation pushes the cost into water, land, or the grid rather than eliminating it; the interactions between parts are the whole story.",
+    "title": "Sustainability as a Systems Problem: Couplings, Tradeoffs, and Slow Risks"
+  }
+}

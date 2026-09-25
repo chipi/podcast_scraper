@@ -2,6 +2,18 @@
   "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
   "identities": [
     {
+      "display_name": "drivetrain mechanics",
+      "id": "topic:drivetrain-mechanics"
+    },
+    {
+      "display_name": "maintenance",
+      "id": "topic:maintenance"
+    },
+    {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
       "display_name": "outdoor activities",
       "id": "topic:outdoor-activities"
     },

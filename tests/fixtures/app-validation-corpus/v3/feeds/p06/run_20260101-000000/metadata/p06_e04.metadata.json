@@ -1,0 +1,59 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p06-e04",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p06_e04.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Cam",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Jordan Park",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e04.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 255,
+    "episode_id": "ep-3158b8ff3e943b1e",
+    "published_date": "2026-01-11T00:00:00",
+    "title": "Signal, Noise, and the Space Between"
+  },
+  "feed": {
+    "authors": [
+      "Test Author"
+    ],
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "language": "en-us",
+    "last_updated": "2026-06-20T00:00:00",
+    "title": "The Drift",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Culture is a system that never sits still — a heuristic grounded in patterns observed at teams using Substack and reportedly holding across three different teams.",
+      "Drift can only be noticed rather than gripped; attempts to control it directly miss how it actually operates.",
+      "Second-order effects are the most overlooked dimension of cultural drift — the part most people miss when reasoning about how culture changes.",
+      "Ignoring cultural drift carries a concrete cost: teams end up rebuilding it from scratch a year later rather than adapting incrementally.",
+      "Systems thinking cross-cuts every aspect of cultural drift — its trade-offs shape the rest of the analysis rather than forming a separate topic.",
+      "Practical adoption favors small experiments over sweeping change — pick one idea, run it for two weeks, and treat the rest as iteration."
+    ],
+    "raw_text": "Culture is a system that never sits still — a heuristic grounded in patterns observed at teams using Substack and reportedly holding across three different teams. Drift can only be noticed rather than gripped; attempts to control it directly miss how it actually operates.",
+    "title": "Cultural Drift: A System That Never Sits Still"
+  }
+}

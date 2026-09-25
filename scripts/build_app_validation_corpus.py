@@ -44,7 +44,7 @@ Usage::
         [--rss-dir tests/fixtures/rss] \\
         [--transcripts-dir tests/fixtures/transcripts/<version>] \\
         [--output tests/fixtures/app-validation-corpus] \\
-        [--max-feeds 3] [--max-episodes-per-feed 2]
+        [--max-feeds 3] [--max-episodes-per-feed N]
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ import importlib.util
 import json
 import re
 import sys
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -69,7 +69,9 @@ if str(_SCRIPTS_DIR) not in sys.path:
 from build_synthetic_validation_corpus import (  # noqa: E402
     build_gi,
     build_kg,
+    episode_topics_for,
     format_screenplay_with_offsets,
+    is_greeting_or_filler,
     parse_diarized_segments,
     parse_rss_feed_metadata,
     slug,
@@ -114,6 +116,22 @@ SHOW_META_OVERRIDE: dict[str, dict[str, str]] = {
 }
 
 
+def _legacy_publish_date(ordinal: int) -> str:
+    """Fallback publish date for an episode with no authored ground truth.
+
+    The old form was ``f"2026-01-{28 - ordinal:02d}"``, which is a day-of-month
+    subtraction pretending to be date arithmetic. It holds only while the whole
+    corpus fits in 27 episodes; past that it yields ``2026-01-00`` and then
+    ``2026-01--1``, and the build dies inside ``datetime.fromisoformat`` several
+    frames from the cause. The corpus passed 27 long ago — 8 of the 36 episodes
+    already computed a non-positive day and were saved only by having authored
+    dates. The first episode without one crashed the build.
+
+    Real date arithmetic instead: same newest-first ordering, no ceiling.
+    """
+    return (date(2026, 1, 28) - timedelta(days=ordinal)).isoformat()
+
+
 def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
     """Publish date from the v3 ground truth (CORPUS_EPOCH + publish_offset_days).
 
@@ -130,6 +148,71 @@ def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
     except (OSError, ValueError):
         return None
     return pd if isinstance(pd, str) else None
+
+
+def _authored_summary_for(ep_label: str, gt_dir: Path) -> dict[str, Any] | None:
+    """A hand-written summary from the v3 ground truth, for episodes a pipeline cannot help.
+
+    The 38 generated episodes get real summaries from ``--pipeline-run``. The two
+    hand-written ones (``p06_e05``, ``p06_e06``) are 44 and 46 words: their only
+    sentence long enough to survive excerpt filtering IS the transcript's opening,
+    so every synthesized summary for them is an echo by construction — and that is
+    a true statement about the input, not a defect the builder can fix by picking
+    a different sentence.
+
+    A hand-made fixture gets a hand-made summary. Authored here rather than
+    special-cased in code, so it lives with the episode it describes.
+    """
+    gt = gt_dir / f"{ep_label}.json"
+    if not gt.is_file():
+        return None
+    try:
+        doc = json.loads(gt.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    authored = doc.get("summary")
+    if not isinstance(authored, dict) or not str(authored.get("raw_text") or "").strip():
+        return None
+    return authored
+
+
+def _measured_duration_for(ep_label: str, rss_dir: Path) -> int | None:
+    """Duration in seconds, measured, from the generated corpus feed.
+
+    ``--pipeline-run`` supplies real durations; without it every episode fell back
+    to a hardcoded 1800, and the audit's own message names that correctly: "that is
+    a default, not a measurement". But a duration is a property of the mp3, not of
+    an LLM pipeline — and it has already been measured. ``build_corpus_feeds.py``
+    reads it off ``audio/<ver>/`` with ffmpeg and writes ``<itunes:duration>`` into
+    ``pNN_corpus.xml``, which is committed.
+
+    So: prefer the pipeline's measurement, fall back to the feed's measurement, and
+    only then to a constant. The 1800 default should be unreachable for any episode
+    that has audio.
+    """
+    show = ep_label.split("_")[0]
+    feed = rss_dir / f"{show}_corpus.xml"
+    if not feed.is_file():
+        return None
+    try:
+        xml = feed.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    for item in re.findall(r"<item>(.*?)</item>", xml, re.S):
+        guid = re.search(r"<guid[^>]*>([^<]+)", item)
+        if not guid or guid.group(1).strip() != ep_label:
+            continue
+        dur = re.search(r"<itunes:duration>([^<]+)", item)
+        if not dur:
+            return None
+        parts = [int(x) for x in dur.group(1).strip().split(":") if x.isdigit()]
+        if len(parts) == 3:
+            return parts[0] * 3600 + parts[1] * 60 + parts[2]
+        if len(parts) == 2:
+            return parts[0] * 60 + parts[1]
+        if len(parts) == 1:
+            return parts[0]
+    return None
 
 
 def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
@@ -484,7 +567,13 @@ def _canonicalize_persons(
 
 # Stable, sortable run tag per show (single run per feed — the catalog keeps only
 # the lexicographically-greatest run_* per feed dir).
-_RUN_TAG = "run_20260101_000000"
+#: Run directory name. The separator between date and time is a DASH, because
+#: ``corpus_scope._RUN_TS_RE`` is ``^run_(?:.*_)?(\d{8}-\d{6})`` and an underscore
+#: never matched it — so run-recency silently fell back to file mtime, which differs
+#: per clone (SPEC §15). Harmless with one run per feed and wrong the moment there
+#: are two. Renaming this renames the committed run directory; it must land together
+#: with a corpus regeneration, not on its own.
+_RUN_TAG = "run_20260101-000000"
 
 # ``content.media_url`` points at the mock podcast host, RELATIVE — the same convention the RSS
 # fixtures use for their enclosure URLs (``url="/audio/p01_e01_fast.mp3"``), so the origin is
@@ -571,41 +660,6 @@ def _stable_episode_id(show_dir: str, ep_label: str) -> str:
 #: Openings and connective filler that read as content but say nothing about the episode.
 #: Matched case-insensitively against the START of an utterance, except the filler lines, which
 #: are matched anywhere because they arrive mid-sentence.
-_GREETING_PREFIXES = (
-    "welcome back to",
-    "welcome to",
-    "hello and welcome",
-    "hi and welcome",
-    "thanks for joining",
-    "thanks for listening",
-    "you're listening to",
-    "i'm your host",
-    "before we get started",
-    "in today's episode",
-    "on today's episode",
-    "today we're talking about",
-)
-_FILLER_MARKERS = (
-    "yeah, exactly. and it ties into what we're covering today",
-    "that's a great question",
-    "let's dive in",
-    "more on that after the break",
-)
-
-
-def is_greeting_or_filler(text: str) -> bool:
-    """True when an utterance is an opening or connective filler rather than substance.
-
-    Used by the builder to keep greetings out of Insights/Quotes, and available to the fixture
-    guard so the rule the builder applies and the rule the tests assert are the SAME rule — the
-    greeting-summary bug survived because the two were never connected.
-    """
-    low = " ".join(str(text or "").split()).lower().lstrip("\"'“‘")
-    if any(low.startswith(p) for p in _GREETING_PREFIXES):
-        return True
-    return any(m in low for m in _FILLER_MARKERS)
-
-
 def _clean_insight_quote_excerpts(
     diar_segments: list[dict[str, Any]],
     topics: list[str],
@@ -687,6 +741,15 @@ def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> 
 
 
 # A fixed timestamp keeps the synthesized corpus byte-stable across rebuilds.
+#: Time-of-day appended to an episode's authored publish DATE, for every layer that
+#: records an instant. It exists as a constant because it did not used to: metadata
+#: wrote midnight and the KG/GI wrote midday for the same episode, so "newest first"
+#: meant two different orders depending on which artifact a surface happened to read
+#: (#62.7, SPEC §15). Midnight is the one that wins — ``published_date`` in metadata is
+#: what the app displays and sorts on, so the graph layers move rather than the
+#: user-visible field.
+_PUBLISH_TIME_OF_DAY = "T00:00:00"
+
 _ENRICH_COMPUTED_AT = "2026-01-01T00:00:00Z"
 
 
@@ -1015,6 +1078,7 @@ def _topic_consensus_data(
         contradiction = round((h % 137) / 137.0 * 0.15, 6)  # low (< contra_threshold 0.5)
         consensus.append(
             {
+                "person_count": len(persons),  # ordering only; stripped before the payload
                 "topic_id": tid,
                 "person_a_id": pid_a,
                 "person_a_name": name_a,
@@ -1031,8 +1095,19 @@ def _topic_consensus_data(
                 "model_version": "v2",
             }
         )
-    consensus.sort(key=lambda r: (-r["consensus_score"], r["topic_id"]))
+    # Breadth first, THEN score. `consensus_score` is a stable hash, so ordering by it alone
+    # made the cap an arbitrary lottery — fine while the corpus had ~10 topics and everything
+    # fit, wrong the moment episodes carried their own topics and there were 50. The topics that
+    # lost were the broad ones a person actually searches for: `topic:systems-thinking` has 22
+    # distinct people across the corpus and no pair, while a single-episode topic kept one.
+    #
+    # Corroboration between many people on a shared topic is also the more interesting claim —
+    # which is what the Consensus surface is for — so this ordering is truer to the feature, not
+    # just convenient for the tests that caught it.
+    consensus.sort(key=lambda r: (-int(r["person_count"]), -r["consensus_score"], r["topic_id"]))
     consensus = consensus[:max_rows]
+    for row in consensus:
+        row.pop("person_count", None)  # ordering input, not part of the enricher's shape
     return {
         "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
         "model_version": "v2",
@@ -1210,7 +1285,17 @@ def main() -> int:
     )
     p.add_argument("--output", type=Path, default=Path("tests/fixtures/app-validation-corpus"))
     p.add_argument("--max-feeds", type=int, default=9)
-    p.add_argument("--max-episodes-per-feed", type=int, default=4)
+    # No default cap. It used to default to 4, which was a silent no-op while every
+    # show had four episodes — and then silently started EXCLUDING when p02/p05 grew
+    # to five and p06 to six. Four episodes with transcript, audio and ground truth
+    # sat on disk in no build, including the corpus's only single-speaker episode and
+    # its only code-switching one. A cap you have to ask for cannot do that to you.
+    p.add_argument(
+        "--max-episodes-per-feed",
+        type=int,
+        default=None,
+        help="cap episodes taken per show (default: every episode)",
+    )
     p.add_argument(
         "--pipeline-run",
         type=Path,
@@ -1245,6 +1330,11 @@ def main() -> int:
     allow_synthesized = bool(args.allow_synthesized_summaries)
     summaries_from_pipeline: list[str] = []
     summaries_synthesized: list[str] = []
+    #: Hand-written in the ground truth. NOT a stand-in — a stand-in is the transcript's
+    #: opening line, which is the v3 defect; an authored summary is the best available
+    #: description of an episode no model can summarise (44 words, all of it boilerplate).
+    #: Counting these as fallbacks made a correct build fail its own audit.
+    summaries_authored: list[str] = []
     corpus_topic_counts: dict[str, int] = {}  # → corpus-scope temporal_velocity envelope
     # topic_id → publish months (YYYY-MM) of the episodes it appears in. The
     # temporal_velocity signal is authored from the corpus's OWN date axis (not
@@ -1273,18 +1363,19 @@ def main() -> int:
 
         transcripts = sorted(args.transcripts_dir.glob(f"{show_dir}_e[0-9]*.txt"))
         transcripts = [t for t in transcripts if "_multi_" not in t.stem and "_fast" not in t.stem]
-        transcripts = transcripts[: args.max_episodes_per_feed]
+        if args.max_episodes_per_feed is not None:
+            transcripts = transcripts[: args.max_episodes_per_feed]
 
         # Feed "last updated" ≈ the show's newest episode date (RSS carries no lastBuildDate here),
         # so it's a real, constant feed-level value across the show's episodes (#2043). Mirrors the
         # per-episode `publish` derivation below.
         _show_dates = [
             _publish_date_for(t.stem, gt_dir)
-            or f"2026-01-{28 - (shows.index((show_rss_stem, show_dir)) * len(transcripts) + i):02d}"
+            or _legacy_publish_date(shows.index((show_rss_stem, show_dir)) * len(transcripts) + i)
             for i, t in enumerate(transcripts)
         ]
         show_last_updated = feed_meta.get("last_updated") or (
-            (max(_show_dates) + "T00:00:00") if _show_dates else None
+            (max(_show_dates) + _PUBLISH_TIME_OF_DAY) if _show_dates else None
         )
 
         run_meta_dir = out / "feeds" / show_dir / _RUN_TAG / "metadata"
@@ -1300,8 +1391,8 @@ def main() -> int:
             # app's "What's new" (recency) order is stable. Show 0 ep 0 is newest.
             # Prefer the authored v3 date (#1148 varied 2024→now schedule, unique
             # per episode); fall back to the legacy single-month scheme.
-            day = 28 - (shows.index((show_rss_stem, show_dir)) * len(transcripts) + ei)
-            publish = _publish_date_for(ep_label, gt_dir) or f"2026-01-{day:02d}"
+            ordinal = shows.index((show_rss_stem, show_dir)) * len(transcripts) + ei
+            publish = _publish_date_for(ep_label, gt_dir) or _legacy_publish_date(ordinal)
 
             diar_segments, roster = parse_diarized_segments(transcript_path)
             raw_text, offset_segs = format_screenplay_with_offsets(diar_segments)
@@ -1311,7 +1402,12 @@ def main() -> int:
             # yields conversational junk like "welcome back to" on these chatty fixtures,
             # which would look broken on the entity/topic surfaces), and they give the
             # topic_clusters the cross-show overlap the interests picker needs.
-            topics = CROSS_CUTTING_TOPICS.get(show_dir, []) + SHARED_UMBRELLAS
+            authored = episode_topics_for(ep_label, gt_dir)
+            topics = authored + [
+                t
+                for t in CROSS_CUTTING_TOPICS.get(show_dir, []) + SHARED_UMBRELLAS
+                if t not in authored
+            ]
             # Insights/quotes from CLEAN diarized utterances (not the raw header block).
             excerpts = _clean_insight_quote_excerpts(diar_segments, topics)
 
@@ -1321,6 +1417,8 @@ def main() -> int:
             # layer of three and the corpus reported itself fixed. Every writer below reads this.
             pipeline_row = pipeline_outputs.get(ep_label) or {}
             raw_duration = pipeline_row.get("duration_seconds")
+            if not isinstance(raw_duration, (int, float)):
+                raw_duration = _measured_duration_for(ep_label, args.rss_dir)
             duration_seconds = int(raw_duration) if isinstance(raw_duration, (int, float)) else 1800
 
             # Artifact relpaths (corpus-root-relative). The catalog derives gi/kg
@@ -1333,7 +1431,7 @@ def main() -> int:
                 episode_id,
                 feed_id,
                 episode_title,
-                publish + "T12:00:00",
+                publish + _PUBLISH_TIME_OF_DAY,
                 excerpts,
                 quote_segments=offset_segs,
                 roster=roster,
@@ -1346,9 +1444,9 @@ def main() -> int:
                 episode_title,
                 excerpts,
                 transcript_run_rel,
-                publish + "T12:00:00",
+                publish + _PUBLISH_TIME_OF_DAY,
                 feed_id,
-                publish + "T12:00:00",
+                publish + _PUBLISH_TIME_OF_DAY,
                 metadata_relative_path=metadata_rel,
             )
             # The viewer build_kg emits no Person nodes; add the diarized roster so the
@@ -1358,7 +1456,7 @@ def main() -> int:
             # cross-episode enrichers (guest_coappearance / grounding_rate) work,
             # and stamp the Episode publish_date so temporal_velocity sees it.
             _canonicalize_persons(gi, kg, name_variants=name_variants)
-            _stamp_publish_date(publish + "T12:00:00", gi, kg)
+            _stamp_publish_date(publish + _PUBLISH_TIME_OF_DAY, gi, kg)
             _vary_grounding(gi, ep_label, gt_dir)  # #1148: real grounding variation
             # #1148: surface the authored claims (perspectives + opposition) the
             # naive sentences[:3] extractor drops.
@@ -1441,15 +1539,40 @@ def main() -> int:
             # stand-in. The stand-in is the transcript's opening line — a greeting, not a summary —
             # so its use is counted and reported at the end of the build rather than passing
             # silently for "we ran the pipeline".
+            # AUTHORED BEATS GENERATED, and only for the episodes that have an authored
+            # one. Same precedence as gold over silver references: a hand-written fixture's
+            # hand-written summary is ground truth, and a model summarising a 44-word episode
+            # can only echo it — p06_e05's real pipeline summary was the transcript's opening
+            # line, because that line is the entire episode.
             pipeline_summary = pipeline_outputs.get(ep_label)
-            if pipeline_summary and pipeline_summary.get("has_summary"):
+            authored_first = _authored_summary_for(ep_label, gt_dir)
+            if authored_first:
+                bullets = [str(b) for b in (authored_first.get("bullets") or [])] or [episode_title]
+                summary_body = str(authored_first["raw_text"])
+                summary_title = str(authored_first.get("title") or episode_title)
+                summaries_authored.append(ep_label)
+            elif pipeline_summary and pipeline_summary.get("has_summary"):
                 bullets = pipeline_summary["bullets"] or [f"Key point {n + 1}" for n in range(3)]
                 summary_body = pipeline_summary["raw_text"] or episode_title
                 summary_title = pipeline_summary["title"] or episode_title
                 summaries_from_pipeline.append(ep_label)
             else:
                 bullets = excerpts["insights"][:3] or [f"Key point {n + 1}" for n in range(3)]
-                summary_body = excerpts["insights"][0] if excerpts["insights"] else episode_title
+                # Not insights[0] blindly: for most episodes greeting-filtering has already
+                # moved the first insight past the transcript's opening, so the two never
+                # collided and nobody noticed the stand-in was "the first line". Where they
+                # DO collide, take the next insight — an echo of the opening is the defect
+                # #58 is about.
+                opening = _norm_text(
+                    str((diar_segments[0] if diar_segments else {}).get("text") or "")
+                )
+                head = opening[:_ECHO_PREFIX_CHARS]
+                non_echo = [
+                    i
+                    for i in excerpts["insights"]
+                    if not (len(head) >= _ECHO_PREFIX_CHARS and head in _norm_text(i))
+                ]
+                summary_body = (non_echo or excerpts["insights"] or [episode_title])[0]
                 summary_title = episode_title
                 summaries_synthesized.append(ep_label)
             metadata_doc = {
@@ -1469,7 +1592,7 @@ def main() -> int:
                 "episode": {
                     "episode_id": episode_id,
                     "title": episode_title,
-                    "published_date": publish + "T00:00:00",
+                    "published_date": publish + _PUBLISH_TIME_OF_DAY,
                     # Measured off the audio by the pipeline when available. The old hardcoded
                     # 1800 was wrong for every episode — the fixtures run from 82s to ~32min.
                     "duration_seconds": duration_seconds,
@@ -1659,8 +1782,15 @@ def main() -> int:
     # State plainly where the summaries came from. A corpus built with --pipeline-run that
     # quietly fell back for half its episodes would still claim "we ran the pipeline", and the
     # synthesized stand-in is a greeting, not a summary — so the gap is reported, never implied.
-    total_summaries = len(summaries_from_pipeline) + len(summaries_synthesized)
+    total_summaries = (
+        len(summaries_from_pipeline) + len(summaries_synthesized) + len(summaries_authored)
+    )
     print(f"\n  summaries — real pipeline: {len(summaries_from_pipeline)}/{total_summaries}")
+    if summaries_authored:
+        print(
+            f"  summaries — AUTHORED ground truth: {len(summaries_authored)}/{total_summaries}"
+            f"  ({', '.join(summaries_authored)})"
+        )
     if summaries_synthesized:
         print(
             f"  summaries — SYNTHESIZED STAND-IN (transcript opening line, NOT a summary): "

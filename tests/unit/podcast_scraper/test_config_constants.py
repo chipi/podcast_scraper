@@ -84,9 +84,32 @@ class TestGetPinnedRevisionForModel:
         assert rev == config_constants.LONG_T5_TGLOBAL_LARGE_REVISION
 
     def test_unknown_model_returns_none(self):
-        """Unknown model returns None."""
-        assert config_constants.get_pinned_revision_for_model("allenai/led-base-16384") is None
+        """Unknown model returns None.
+
+        This used ``allenai/led-base-16384`` as its example of an unpinned model. ADR-155 pins
+        every checkpoint, so that id is now a POSITIVE case — see
+        ``test_summarization_checkpoints_are_pinned`` below. Using ids that resolve to nothing
+        keeps the negative case negative as the pin table grows.
+        """
         assert config_constants.get_pinned_revision_for_model("other/model") is None
+        assert config_constants.get_pinned_revision_for_model("acme/not-a-real-model") is None
+
+    def test_summarization_checkpoints_are_pinned(self):
+        """ADR-155: every summarization checkpoint carries a SHA, not a branch."""
+        cases = {
+            "facebook/bart-base": config_constants.BART_BASE_REVISION,
+            "facebook/bart-large-cnn": config_constants.BART_LARGE_CNN_REVISION,
+            "google/pegasus-large": config_constants.PEGASUS_LARGE_REVISION,
+            "google/pegasus-cnn_dailymail": config_constants.PEGASUS_CNN_DAILYMAIL_REVISION,
+            "google/pegasus-xsum": config_constants.PEGASUS_XSUM_REVISION,
+            "allenai/led-base-16384": config_constants.LED_BASE_16384_REVISION,
+            "allenai/led-large-16384": config_constants.LED_LARGE_16384_REVISION,
+            "sshleifer/distilbart-cnn-12-6": config_constants.DISTILBART_CNN_12_6_REVISION,
+        }
+        for model_id, expected in cases.items():
+            rev = config_constants.get_pinned_revision_for_model(model_id)
+            assert rev == expected, model_id
+            assert config_constants.is_sha_revision(rev), f"{model_id} -> {rev!r} is not a SHA"
 
     def test_evidence_and_enrichment_models_are_pinned(self):
         """The QA/NLI/embedding quartet is in the table — full id AND the

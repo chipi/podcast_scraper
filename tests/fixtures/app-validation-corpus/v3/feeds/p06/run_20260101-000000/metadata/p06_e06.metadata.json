@@ -1,0 +1,51 @@
+{
+  "content": {
+    "diarization_num_speakers": 2,
+    "media_id": "sha256:p06-e06",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p06_e06.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Maya",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Liam",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p06_e06.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 15,
+    "episode_id": "ep-26eaa57651247221",
+    "published_date": "2026-06-20T00:00:00",
+    "title": "Mixed Languages"
+  },
+  "feed": {
+    "authors": [
+      "Test Author"
+    ],
+    "description": "Dialogue-heavy, meandering long-form interviews.",
+    "feed_id": "p06",
+    "language": "en-us",
+    "last_updated": "2026-06-20T00:00:00",
+    "title": "The Drift",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Two speakers, one switching language mid-conversation.",
+      "Non-English speech appears without a language marker in the transcript.",
+      "Deliberately brief — the switch is the whole subject."
+    ],
+    "raw_text": "A short bilingual exchange. It exists so transcription and diarization are exercised on code-switching mid-turn, rather than on a single language per speaker.",
+    "title": "Mixed Languages"
+  }
+}

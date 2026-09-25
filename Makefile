@@ -64,7 +64,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
 .PHONY: test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -411,6 +411,11 @@ strip-docs: strip-doc-checkmarks strip-doc-emoji
 lint-markdown-docs:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
 	markdownlint "docs/**/*.md" --ignore "docs/wip/**" --config .markdownlint.json
+# tests/fixtures/*.md is not in mkdocs (docs_dir: docs), so nothing linted it. It is
+# where the corpus documents itself, and it had an unterminated code fence swallowing
+# 150 lines of rendering. Formatting only — the stale-number problem these docs
+# actually had is caught by tests/unit/test_fixture_docs_match_disk.py instead.
+	markdownlint "tests/fixtures/**/*.md" --config .markdownlint.json
 
 # Match CI lint job (python-app.yml): PYTHONPATH includes repo root so imports match Actions.
 type:
@@ -454,14 +459,45 @@ security-bandit:
 #                    deferred to a COORDINATED upgrade: it risks the diarization/whisper stack, the
 #                    torchcodec<0.15 cap, and divergence from the baked stack-test image. Do it as a
 #                    deliberate ML-stack pass, not a drive-by here.
+# Blocking on CI, advisory locally — decided by $CI, which every CI provider sets.
+#
+# The findings are identical either way; what differs is whether they halt the run. On CI they
+# must: that is the gate. Locally they must not, because of one situation this repo actually has.
+#
+# x86_64 macOS is it. The newest torch wheel published for that platform is 2.2.2, which carries
+# 22 known vulnerabilities, and EVERY version the advisories name as fixed (2.5, 2.6, 2.7, 2.8,
+# 2.9) has no macOS x86_64 build. There is no pin that is both installable and clean. A gate that
+# cannot go green on a supported dev machine stops the other 20 stages of `make ci` from running
+# at all, and "I never run the full build locally" is a worse security outcome than a warning.
+#
+# Override either way:
+#   SECURITY_AUDIT_STRICT=1     fail even locally (check before you push)
+#   SECURITY_AUDIT_ADVISORY=1   report-only even on CI (do not)
 security-audit:
 	@$(PYTHON) -m pip install --quiet --upgrade pip setuptools
-	$(PYTHON) -m pip_audit --progress-spinner off \
+	@$(PYTHON) -m pip_audit --progress-spinner off \
 		--ignore-vuln PYSEC-2026-3740 \
 		--ignore-vuln CVE-2026-69112 \
 		--ignore-vuln PYSEC-2026-2447 \
 		--ignore-vuln PYSEC-2026-3624 \
-		--ignore-vuln PYSEC-2025-194
+		--ignore-vuln PYSEC-2025-194; \
+	rc=$$?; \
+	[ $$rc -eq 0 ] && exit 0; \
+	blocking=1; \
+	[ -z "$${CI:-}" ] && blocking=0; \
+	[ -n "$${SECURITY_AUDIT_STRICT:-}" ] && blocking=1; \
+	[ -n "$${SECURITY_AUDIT_ADVISORY:-}" ] && blocking=0; \
+	if [ $$blocking -eq 0 ]; then \
+		echo ""; \
+		echo "  ================================================================"; \
+		echo "  SECURITY AUDIT FAILED - reported, NOT blocking (local run)"; \
+		echo "  The findings above are real. CI blocks on them."; \
+		echo "  Run SECURITY_AUDIT_STRICT=1 make security-audit to fail here too."; \
+		echo "  ================================================================"; \
+		echo ""; \
+		exit 0; \
+	fi; \
+	exit $$rc
 
 # Code quality analysis (radon)
 # Note: Use $(PYTHON) -m to ensure tools run from venv, not system PATH
@@ -2601,6 +2637,37 @@ kg-quality-metrics:
 	fi
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py "$(DIR)" $(ARGS)
 
+# RFC-107 §T2 search quality over a corpus's LanceDB index — the third sibling of the two
+# targets above, and the same shape: a thin CLI over a product module
+# (podcast_scraper.search.quality_metrics). GI/KG measure what extraction WROTE; this
+# measures what retrieval RETURNS, which no artifact check can see.
+#
+#   make search-quality-metrics
+#   make search-quality-metrics SEARCH_CORPUS=path/to/corpus ARGS='--no-embed --json'
+#
+# Needs an index: make build-validation-index. Reports; the --min-* floors are all OFF by
+# default and there is no CI gate yet, deliberately — see the module docstring.
+SEARCH_CORPUS ?= tests/fixtures/viewer-validation-corpus/$(shell cat tests/fixtures/FIXTURES_VERSION 2>/dev/null || echo v3)
+
+search-quality-metrics:
+	@export PYTHONPATH="$(PWD)/src:$${PYTHONPATH}" && $(PYTHON) scripts/tools/search_quality_metrics.py \
+		"$(SEARCH_CORPUS)" $(ARGS)
+
+search-quality-reseed:
+	# Re-freeze expected_top_k_doc_ids from what search returns TODAY, for every query whose
+	# label_status is "unlabeled-seed". Deliberate and separate: it rewrites a TRACKED fixture,
+	# and the seeding run scores nDCG = 1.000 by construction — worth nothing by itself. The
+	# value is in a later run differing.
+	#
+	# Anchors embed a content hash, so regenerating the corpus kills all of them at once. Reset
+	# the stale ones to "unlabeled-seed" first, or this is a no-op: it skips labelled queries on
+	# purpose so a re-run can never silently overwrite a human audit.
+	@export PYTHONPATH="$(PWD)/src:$${PYTHONPATH}" && $(PYTHON) scripts/tools/search_quality_metrics.py \
+		"$(SEARCH_CORPUS)" --seed-labels
+	@echo ""
+	@echo "Review the diff before committing it:"
+	@echo "  git diff --stat $(SEARCH_CORPUS)/search-queries.json"
+
 quality-metrics-ci:
 	# Same GIL+KG enforce as GitHub Actions test-unit job (committed fixtures).
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-extraction-coverage 1.0 --min-grounded-insight-rate 1.0 --min-quote-validity-rate 1.0 --min-avg-insights 1 --min-avg-quotes 1
@@ -3605,7 +3672,7 @@ serve-for-app-validation:
 
 APP_TIER3_CORPUS ?= tests/fixtures/app-validation-corpus/v3
 
-.PHONY: serve-app-validation-api serve-app-validation-media serve-app-validation-ui
+.PHONY: serve-app-validation-api serve-app-validation-media serve-app-validation-ui build-app-validation-index build-validation-index build-validation-topic-clusters
 serve-app-validation-api:
 	@APP_OAUTH_PROVIDER=mock APP_SESSION_SECRET=tier3-app-secret \
 	 APP_SIGNUP_MODE=open APP_DATA_DIR=$(CURDIR)/.tier3-app-data \
@@ -3621,33 +3688,79 @@ serve-app-validation-ui:
 	 VITE_API_TARGET=http://127.0.0.1:8000 \
 	 npm run preview -- --port 5175 --strictPort --host 127.0.0.1
 
+# Corpus this target indexes. Its own variable, NOT `$(if $(CORPUS),...)`: CORPUS is globally
+# defaulted to the viewer corpus at the top of this file, so it is never empty and that
+# conditional could never choose the app corpus.
+APP_IDX_CORPUS ?= $(APP_TIER3_CORPUS)
+
+build-app-validation-index:
+	# Builds ONLY the LanceDB index for the app tier-3 corpus. It stays a separate verb from
+	# build-validation-index because it also clears the incremental ledger first and then COUNTS
+	# what landed; build-validation-index does neither.
+	#
+	# The app corpus's search/topic_clusters.json is TRACKED and authored deterministically by
+	# build_app_validation_corpus.py with no ML (synthetic, threshold 0.75, 2 clusters).
+	# `cli topic-clusters --threshold 0.35` replaces it with embedding-derived output (14
+	# clusters, 16 singletons, keyed to all-MiniLM-L6-v2), which is a different artifact with a
+	# different meaning — and six tests in test_capability_audit.py assert the deterministic one.
+	# Measured: regenerating it turns 80 passed into 6 failed.
+	#
+	# Clearing search/episode_fingerprints.json first is the load-bearing step. That ledger
+	# records which episodes are already indexed, so with it in place the indexer treats a GROWN
+	# corpus as fully covered, writes nothing, and exits 0. The corpus went 36 -> 40, so a build
+	# without this yields a 40-episode corpus with a 36-episode index and no complaint.
+	#
+	# Then it COUNTS, because `index-two-tier` exits 0 either way and the exit code is not
+	# evidence.
+	@echo "=== 1/3 Clearing the incremental ledger at $(APP_IDX_CORPUS)/search ==="
+	@rm -f "$(APP_IDX_CORPUS)/search/episode_fingerprints.json"
+	@echo "=== 2/3 Building the LanceDB two-tier index at $(APP_IDX_CORPUS)/search/lance_index ==="
+	@$(PYTHON) -m podcast_scraper.cli index-two-tier --output-dir "$(APP_IDX_CORPUS)"
+	@echo ""
+	@echo "=== 3/3 Verifying the index covers the corpus ==="
+	@$(PYTHON) scripts/tools/count_indexed_episodes.py "$(APP_IDX_CORPUS)"
+
+# ONE threshold for both corpora. It lived only inside the recipe below, so the number that
+# produced a COMMITTED fixture was visible only to whoever read the recipe.
+VALIDATION_TOPIC_CLUSTER_THRESHOLD ?= 0.35
+
 build-validation-index:
-	# Build ALL search artifacts the Tier-3 walk needs, against the in-repo
-	# synthetic validation corpus. Run this BEFORE ``make serve-for-validation``.
-	# Unlocks the index-dependent specs (V1/V5 — Library/Digest handoffs — do NOT
-	# need any of this; they pass on the path fix alone):
-	#   1. LanceDB two-tier index (search/lance_index/) — the single search layer
-	#      (native BM25 + dense + hybrid RRF). Required for V3 (semantic search →
-	#      Show on graph); without it V3 is SKIPPED (test.skip on
-	#      ``!indexJson.available``).
-	#   2. topic_clusters.json — required for V2 (digest topic-band) and V4
-	#      (dashboard topic-cluster chip). Without it the Intelligence tab shows
-	#      "Topic clusters not yet built" → no chips → V4 fails.
-	# Both live under <corpus>/search/ and are gitignored (binary,
-	# embedding-model-hash-keyed, regenerable) — never committed.
+	# Builds the LanceDB two-tier index ONLY — the ignored, regenerable half.
+	#
+	# It used to also run ``cli topic-clusters``, back when the whole of <corpus>/search/
+	# was gitignored and nothing under it could be clobbered. topic_clusters.json is now a
+	# COMMITTED fixture for both corpora, so "build me an index" silently rewriting it is
+	# the same hazard that turned 80 passed into 6 failed on the app corpus. Regenerating a
+	# tracked fixture is a deliberate act with its own verb: build-validation-topic-clusters.
+	#
+	# Run this BEFORE ``make serve-for-validation``. It unlocks V3 (semantic search → Show
+	# on graph); without an index V3 is SKIPPED (test.skip on ``!indexJson.available``).
+	# V1/V5 (Library/Digest handoffs) need none of it. V2/V4 need topic_clusters.json, which
+	# is committed — so a clean clone has it already and needs no ML to run them.
 	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== 1/2 Building LanceDB two-tier index at $$CORPUS/search/lance_index ==="; \
+	echo "=== Building LanceDB two-tier index at $$CORPUS/search/lance_index ==="; \
 	$(PYTHON) -m podcast_scraper.cli index-two-tier \
 		--output-dir $$CORPUS
-	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
-	echo "=== 2/2 Building topic_clusters.json at $$CORPUS/search ==="; \
-	$(PYTHON) -m podcast_scraper.cli topic-clusters \
-		--output-dir $$CORPUS \
-		--threshold 0.35
 	@echo ""
-	@echo "Done — LanceDB two-tier + topic_clusters built. Now run:"
+	@echo "Done — LanceDB two-tier index built. Now run:"
 	@echo "  make serve-for-validation       (terminal 1)"
 	@echo "  make ci-ui-validation CORPUS=$(VIEWER_VALIDATION_CORPUS)  (terminal 2)"
+
+build-validation-topic-clusters:
+	# Regenerate the COMMITTED topic_clusters.json for a validation corpus. Deliberate:
+	# the output is a tracked fixture and several tests assert its cluster ids, so the
+	# diff this produces is the thing to review, not a side effect to skim past.
+	#
+	# Needs the ML extras — the clusters are embedding-derived (all-MiniLM-L6-v2). That is
+	# also why it is committed: a clean clone must be able to run V2/V4 without them.
+	@CORPUS=$(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS)); \
+	echo "=== Building topic_clusters.json at $$CORPUS/search (threshold $(VALIDATION_TOPIC_CLUSTER_THRESHOLD)) ==="; \
+	$(PYTHON) -m podcast_scraper.cli topic-clusters \
+		--output-dir $$CORPUS \
+		--threshold $(VALIDATION_TOPIC_CLUSTER_THRESHOLD)
+	@echo ""
+	@echo "Done. Review the diff before committing it:"
+	@echo "  git diff --stat $(if $(CORPUS),$(CORPUS),$(VIEWER_VALIDATION_CORPUS))/search/topic_clusters.json"
 
 ci-clean: clean-all format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy preload-ml-models test test-ui test-ui-e2e build-viewer coverage-enforce docs build
 

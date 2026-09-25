@@ -4,578 +4,642 @@
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p01_e01.gi.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p01/metadata/p01_e01.gi.json",
-      "size_bytes": 8170
+      "size_bytes": 9181
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p01_e01.kg.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p01/metadata/p01_e01.kg.json",
-      "size_bytes": 1531
+      "size_bytes": 2449
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p01_e02.gi.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p01/metadata/p01_e02.gi.json",
-      "size_bytes": 7950
+      "size_bytes": 8931
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p01_e02.kg.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p01/metadata/p01_e02.kg.json",
-      "size_bytes": 1505
+      "size_bytes": 2415
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p01_e03.gi.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p01/metadata/p01_e03.gi.json",
-      "size_bytes": 7967
+      "size_bytes": 8877
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p01_e03.kg.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p01/metadata/p01_e03.kg.json",
-      "size_bytes": 1531
+      "size_bytes": 2465
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p01_e04.gi.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p01/metadata/p01_e04.gi.json",
-      "size_bytes": 8193
+      "size_bytes": 8986
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p01_e04.kg.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p01/metadata/p01_e04.kg.json",
-      "size_bytes": 1531
+      "size_bytes": 2457
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p02_e01.gi.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p02/metadata/p02_e01.gi.json",
-      "size_bytes": 8123
+      "size_bytes": 9228
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p02_e01.kg.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p02/metadata/p02_e01.kg.json",
-      "size_bytes": 1540
+      "size_bytes": 2470
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p02_e02.gi.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p02/metadata/p02_e02.gi.json",
-      "size_bytes": 8021
+      "size_bytes": 9017
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p02_e02.kg.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p02/metadata/p02_e02.kg.json",
-      "size_bytes": 1224
+      "size_bytes": 2198
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p02_e03.gi.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p02/metadata/p02_e03.gi.json",
-      "size_bytes": 8021
+      "size_bytes": 8870
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p02_e03.kg.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p02/metadata/p02_e03.kg.json",
-      "size_bytes": 1540
+      "size_bytes": 2414
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p02_e04.gi.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p02/metadata/p02_e04.gi.json",
-      "size_bytes": 8442
+      "size_bytes": 9191
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p02_e04.kg.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p02/metadata/p02_e04.kg.json",
-      "size_bytes": 1540
+      "size_bytes": 2466
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p02_e05.gi.json",
+      "publish_date": "2026-09-21",
+      "relative_path": "feeds/p02/metadata/p02_e05.gi.json",
+      "size_bytes": 8492
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p02_e05.kg.json",
+      "publish_date": "2026-09-21",
+      "relative_path": "feeds/p02/metadata/p02_e05.kg.json",
+      "size_bytes": 1486
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p03_e01.gi.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p03/metadata/p03_e01.gi.json",
-      "size_bytes": 8260
+      "size_bytes": 9268
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p03_e01.kg.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p03/metadata/p03_e01.kg.json",
-      "size_bytes": 1528
+      "size_bytes": 2426
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p03_e02.gi.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p03/metadata/p03_e02.gi.json",
-      "size_bytes": 7940
+      "size_bytes": 8860
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p03_e02.kg.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p03/metadata/p03_e02.kg.json",
-      "size_bytes": 1502
+      "size_bytes": 2424
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p03_e03.gi.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p03/metadata/p03_e03.gi.json",
-      "size_bytes": 8016
+      "size_bytes": 8984
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p03_e03.kg.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p03/metadata/p03_e03.kg.json",
-      "size_bytes": 1528
+      "size_bytes": 2462
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p03_e04.gi.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p03/metadata/p03_e04.gi.json",
-      "size_bytes": 8237
+      "size_bytes": 8993
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p03_e04.kg.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p03/metadata/p03_e04.kg.json",
-      "size_bytes": 1528
+      "size_bytes": 2454
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p04_e01.gi.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p04/metadata/p04_e01.gi.json",
-      "size_bytes": 8225
+      "size_bytes": 9079
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p04_e01.kg.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p04/metadata/p04_e01.kg.json",
-      "size_bytes": 1492
+      "size_bytes": 2410
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p04_e02.gi.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p04/metadata/p04_e02.gi.json",
-      "size_bytes": 7908
+      "size_bytes": 8965
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p04_e02.kg.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p04/metadata/p04_e02.kg.json",
-      "size_bytes": 1176
+      "size_bytes": 2102
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p04_e03.gi.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p04/metadata/p04_e03.gi.json",
-      "size_bytes": 8076
+      "size_bytes": 8940
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p04_e03.kg.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p04/metadata/p04_e03.kg.json",
-      "size_bytes": 1492
+      "size_bytes": 2382
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p04_e04.gi.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p04/metadata/p04_e04.gi.json",
-      "size_bytes": 8000
+      "size_bytes": 8908
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p04_e04.kg.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p04/metadata/p04_e04.kg.json",
-      "size_bytes": 1492
+      "size_bytes": 2410
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p05_e01.gi.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p05/metadata/p05_e01.gi.json",
-      "size_bytes": 8249
+      "size_bytes": 8931
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p05_e01.kg.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p05/metadata/p05_e01.kg.json",
-      "size_bytes": 1545
+      "size_bytes": 2125
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p05_e02.gi.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p05/metadata/p05_e02.gi.json",
-      "size_bytes": 8075
+      "size_bytes": 8390
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p05_e02.kg.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p05/metadata/p05_e02.kg.json",
-      "size_bytes": 1531
+      "size_bytes": 1829
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p05_e03.gi.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p05/metadata/p05_e03.gi.json",
-      "size_bytes": 8032
+      "size_bytes": 8713
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p05_e03.kg.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p05/metadata/p05_e03.kg.json",
-      "size_bytes": 1565
+      "size_bytes": 2157
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p05_e04.gi.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p05/metadata/p05_e04.gi.json",
-      "size_bytes": 8751
+      "size_bytes": 9030
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p05_e04.kg.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p05/metadata/p05_e04.kg.json",
-      "size_bytes": 1549
+      "size_bytes": 2169
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p05_e05.gi.json",
+      "publish_date": "2026-09-24",
+      "relative_path": "feeds/p05/metadata/p05_e05.gi.json",
+      "size_bytes": 8200
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p05_e05.kg.json",
+      "publish_date": "2026-09-24",
+      "relative_path": "feeds/p05/metadata/p05_e05.kg.json",
+      "size_bytes": 1535
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p06_e01.gi.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p06/metadata/p06_e01.gi.json",
-      "size_bytes": 8319
+      "size_bytes": 8599
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p06_e01.kg.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p06/metadata/p06_e01.kg.json",
-      "size_bytes": 1581
+      "size_bytes": 1806
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p06_e02.gi.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p06/metadata/p06_e02.gi.json",
-      "size_bytes": 8102
+      "size_bytes": 8426
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p06_e02.kg.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p06/metadata/p06_e02.kg.json",
-      "size_bytes": 1539
+      "size_bytes": 1780
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p06_e03.gi.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p06/metadata/p06_e03.gi.json",
-      "size_bytes": 8022
+      "size_bytes": 8361
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p06_e03.kg.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p06/metadata/p06_e03.kg.json",
-      "size_bytes": 1565
+      "size_bytes": 1806
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p06_e04.gi.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p06/metadata/p06_e04.gi.json",
-      "size_bytes": 8068
+      "size_bytes": 8432
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p06_e04.kg.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p06/metadata/p06_e04.kg.json",
-      "size_bytes": 1565
+      "size_bytes": 1834
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e05.gi.json",
+      "publish_date": "2026-09-23",
+      "relative_path": "feeds/p06/metadata/p06_e05.gi.json",
+      "size_bytes": 5733
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e05.kg.json",
+      "publish_date": "2026-09-23",
+      "relative_path": "feeds/p06/metadata/p06_e05.kg.json",
+      "size_bytes": 1510
+    },
+    {
+      "kind": "gi",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e06.gi.json",
+      "publish_date": "2026-09-21",
+      "relative_path": "feeds/p06/metadata/p06_e06.gi.json",
+      "size_bytes": 7182
+    },
+    {
+      "kind": "kg",
+      "mtime_utc": "2026-05-01T00:00:00Z",
+      "name": "p06_e06.kg.json",
+      "publish_date": "2026-09-21",
+      "relative_path": "feeds/p06/metadata/p06_e06.kg.json",
+      "size_bytes": 1528
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p07_e01.gi.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p07/metadata/p07_e01.gi.json",
-      "size_bytes": 8286
+      "size_bytes": 9666
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p07_e01.kg.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p07/metadata/p07_e01.kg.json",
-      "size_bytes": 1504
+      "size_bytes": 2728
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p07_e02.gi.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p07/metadata/p07_e02.gi.json",
-      "size_bytes": 7919
+      "size_bytes": 8808
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p07_e02.kg.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p07/metadata/p07_e02.kg.json",
-      "size_bytes": 1478
+      "size_bytes": 2408
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p07_e03.gi.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p07/metadata/p07_e03.gi.json",
-      "size_bytes": 8237
+      "size_bytes": 9072
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p07_e03.kg.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p07/metadata/p07_e03.kg.json",
-      "size_bytes": 1504
+      "size_bytes": 2434
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p07_e04.gi.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p07/metadata/p07_e04.gi.json",
-      "size_bytes": 8222
+      "size_bytes": 9098
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p07_e04.kg.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p07/metadata/p07_e04.kg.json",
-      "size_bytes": 1504
+      "size_bytes": 2434
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p08_e01.gi.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p08/metadata/p08_e01.gi.json",
-      "size_bytes": 8220
+      "size_bytes": 9394
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p08_e01.kg.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p08/metadata/p08_e01.kg.json",
-      "size_bytes": 1520
+      "size_bytes": 2714
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p08_e02.gi.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p08/metadata/p08_e02.gi.json",
-      "size_bytes": 8058
+      "size_bytes": 9481
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p08_e02.kg.json",
-      "publish_date": "2026-07-31",
+      "publish_date": "2026-09-21",
       "relative_path": "feeds/p08/metadata/p08_e02.kg.json",
-      "size_bytes": 1204
+      "size_bytes": 2386
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p08_e03.gi.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p08/metadata/p08_e03.gi.json",
-      "size_bytes": 8140
+      "size_bytes": 9219
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p08_e03.kg.json",
-      "publish_date": "2026-07-29",
+      "publish_date": "2026-09-19",
       "relative_path": "feeds/p08/metadata/p08_e03.kg.json",
-      "size_bytes": 1520
+      "size_bytes": 2726
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p08_e04.gi.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p08/metadata/p08_e04.gi.json",
-      "size_bytes": 8173
+      "size_bytes": 9272
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p08_e04.kg.json",
-      "publish_date": "2026-08-02",
+      "publish_date": "2026-09-23",
       "relative_path": "feeds/p08/metadata/p08_e04.kg.json",
-      "size_bytes": 1520
+      "size_bytes": 2734
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p09_e01.gi.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p09/metadata/p09_e01.gi.json",
-      "size_bytes": 8123
+      "size_bytes": 9232
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p09_e01.kg.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p09/metadata/p09_e01.kg.json",
-      "size_bytes": 1512
+      "size_bytes": 2426
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p09_e02.gi.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p09/metadata/p09_e02.gi.json",
-      "size_bytes": 7929
+      "size_bytes": 8862
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p09_e02.kg.json",
-      "publish_date": "2026-07-30",
+      "publish_date": "2026-09-20",
       "relative_path": "feeds/p09/metadata/p09_e02.kg.json",
-      "size_bytes": 1196
+      "size_bytes": 2106
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p09_e03.gi.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p09/metadata/p09_e03.gi.json",
-      "size_bytes": 7953
+      "size_bytes": 8824
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p09_e03.kg.json",
-      "publish_date": "2026-08-03",
+      "publish_date": "2026-09-24",
       "relative_path": "feeds/p09/metadata/p09_e03.kg.json",
-      "size_bytes": 1512
+      "size_bytes": 2438
     },
     {
       "kind": "gi",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p09_e04.gi.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p09/metadata/p09_e04.gi.json",
-      "size_bytes": 8180
+      "size_bytes": 9117
     },
     {
       "kind": "kg",
       "mtime_utc": "2026-05-01T00:00:00Z",
       "name": "p09_e04.kg.json",
-      "publish_date": "2026-08-01",
+      "publish_date": "2026-09-22",
       "relative_path": "feeds/p09/metadata/p09_e04.kg.json",
-      "size_bytes": 1512
+      "size_bytes": 2430
     }
   ],
-  "path": "/workspace/Projects/podcast_scraper-FUTURE/tests/fixtures/viewer-validation-corpus/v3"
+  "path": "tests/fixtures/viewer-validation-corpus/v3"
 }

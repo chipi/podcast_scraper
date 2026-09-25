@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:underwater-photography",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:frame",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+      "to": "topic:strobe-lighting",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:c63634b4b198dfe1",
+      "to": "topic:underwater-photography",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
       "to": "insight:98d2af0573fa274b",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,63 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:dc00bd09114ae7b5",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:c63634b4b198dfe1",
-      "to": "quote:dc00bd09114ae7b5",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:3c678d272fa18881",
+      "from": "quote:1114a454ccf1c475",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:98d2af0573fa274b",
-      "to": "quote:3c678d272fa18881",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:b8202d81eb1257f6",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:e4d827ca6454fa6f",
-      "to": "quote:b8202d81eb1257f6",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:dced0ad834ffd58b",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
       "from": "insight:c63634b4b198dfe1",
-      "to": "quote:dced0ad834ffd58b",
+      "to": "quote:1114a454ccf1c475",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:25858339ce7c3537",
+      "from": "quote:90bfaa5bbf9e2b1f",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:98d2af0573fa274b",
-      "to": "quote:25858339ce7c3537",
+      "to": "quote:90bfaa5bbf9e2b1f",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:22c21c990f0f2ebe",
-      "to": "person:speaker-02",
+      "from": "quote:8c4232fac8f2d97b",
+      "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:e4d827ca6454fa6f",
-      "to": "quote:22c21c990f0f2ebe",
+      "to": "quote:8c4232fac8f2d97b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ef8e504c58ad9c44",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c63634b4b198dfe1",
+      "to": "quote:ef8e504c58ad9c44",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d6e37acd30113c41",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:98d2af0573fa274b",
+      "to": "quote:d6e37acd30113c41",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9ffbc76bc9a7875d",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:e4d827ca6454fa6f",
+      "to": "quote:9ffbc76bc9a7875d",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +133,33 @@
       "id": "episode:09ead36d-954f-5cbb-ae3f-6f0d5985233d",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "podcast_id": "sha256:acf6d1026eaa400425afb658fa014e874a2eb50129923b7a92fe82290004a6e7",
-        "publish_date": "2026-07-31T12:00:00",
+        "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "podcast_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+        "publish_date": "2026-09-21T12:00:00",
         "title": "Frame & Light \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:underwater-photography",
+      "properties": {
+        "label": "underwater photography"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame",
+      "properties": {
+        "label": "frame"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-lighting",
+      "properties": {
+        "label": "strobe lighting"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",
@@ -175,27 +216,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Leo"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:dc00bd09114ae7b5",
-      "properties": {
-        "char_end": 177,
-        "char_start": 5,
-        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Frame & Light. Today we're talking about underwater photography, and I'm joined by Ava Lemoine, underwater photographer. Ava Lemoine, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p04_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Ava Lemoine"
@@ -203,7 +223,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:3c678d272fa18881",
+      "id": "quote:1114a454ccf1c475",
       "properties": {
         "char_end": 290,
         "char_start": 191,
@@ -217,7 +237,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b8202d81eb1257f6",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Leo"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:90bfaa5bbf9e2b1f",
       "properties": {
         "char_end": 433,
         "char_start": 296,
@@ -231,7 +258,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:dced0ad834ffd58b",
+      "id": "quote:8c4232fac8f2d97b",
       "properties": {
         "char_end": 564,
         "char_start": 433,
@@ -245,7 +272,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:25858339ce7c3537",
+      "id": "quote:ef8e504c58ad9c44",
       "properties": {
         "char_end": 647,
         "char_start": 564,
@@ -259,7 +286,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:22c21c990f0f2ebe",
+      "id": "quote:d6e37acd30113c41",
       "properties": {
         "char_end": 876,
         "char_start": 661,
@@ -268,6 +295,20 @@
         "text": "Here's how I think about it. An underwater frame is built around backscatter management before composition. We've seen this play out at teams using Adobe. I've watched this pattern hold across three different teams.",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p04_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9ffbc76bc9a7875d",
+      "properties": {
+        "char_end": 964,
+        "char_start": 882,
+        "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+        "speaker_id": "person:speaker-01",
+        "text": "I want to dig into that. What's the version of the question that actually matters?",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p04_e01.txt"
       },
       "type": "Quote"

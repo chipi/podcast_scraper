@@ -1,0 +1,61 @@
+{
+  "edges": [
+    {
+      "from": "episode:70b6d4cd-5f59-5606-a432-48ecc739bb4f",
+      "to": "topic:edge-cases",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:70b6d4cd-5f59-5606-a432-48ecc739bb4f",
+      "to": "topic:stage-directions",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:70b6d4cd-5f59-5606-a432-48ecc739bb4f",
+      "to": "topic:technology",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "70b6d4cd-5f59-5606-a432-48ecc739bb4f",
+  "extraction": {
+    "extracted_at": "2026-09-23T12:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p06_e05.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:70b6d4cd-5f59-5606-a432-48ecc739bb4f",
+      "properties": {
+        "podcast_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+        "publish_date": "2026-09-23T12:00:00",
+        "title": "The Drift \u2014 Episode 5"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:edge-cases",
+      "properties": {
+        "label": "edge cases",
+        "slug": "edge-cases"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:stage-directions",
+      "properties": {
+        "label": "stage directions",
+        "slug": "stage-directions"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:technology",
+      "properties": {
+        "label": "Technology",
+        "slug": "technology"
+      },
+      "type": "Topic"
+    }
+  ],
+  "schema_version": "2.0"
+}

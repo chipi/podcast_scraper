@@ -125,12 +125,45 @@ def test_preloaded_pinned_summaries_are_in_the_manifest():
         assert model_id in manifest_ids, f"pinned {model_id} not in manifest"
 
 
-def test_airgapped_thin_summary_is_the_trimmed_manifest_subset():
-    # preload_ml_models.py --airgapped-thin reads model_ids_for_tier("airgapped_thin",
-    # "summary"); it must be the trimmed bart/led pair and a subset of the test tier.
+def test_airgapped_thin_summary_is_the_trimmed_pair():
+    """``preload_ml_models.py --airgapped-thin`` preloads exactly this pair.
+
+    This used to also assert ``set(air) <= set(model_ids_for_tier("test", "summary"))``, which
+    stopped holding when LED left the test tier. The replacement written first was
+    ``set(air) <= {m.model_id for m in REQUIRED_ML_MODELS}`` — which CANNOT FAIL, because
+    ``models_for_tier`` is a filter OVER ``REQUIRED_ML_MODELS``. A tautology in the place a
+    dropped guard used to be is worse than no guard: it reads as coverage.
+
+    What is worth pinning here is the pair itself. The relationship to the test tier moved to
+    ``test_the_test_tier_is_the_loadable_subset_of_airgapped_thin``, where it is asserted in the
+    direction that now runs.
+    """
     air = mm.model_ids_for_tier("airgapped_thin", "summary")
     assert set(air) == {"facebook/bart-base", "allenai/led-base-16384"}
-    assert set(air) <= set(mm.model_ids_for_tier("test", "summary"))
+    for model_id in air:
+        assert cc.get_pinned_revision_for_model(model_id), f"{model_id} preloaded unpinned"
+
+
+def test_the_test_tier_holds_only_loadable_checkpoints():
+    """Nothing in the ``test`` tier needs torch >= 2.6 to load.
+
+    The ``test`` tier is what a developer machine preloads, so every entry has to be loadable on
+    whatever torch that machine can install. ``transformers >= 4.56`` refuses ``torch.load``
+    below torch 2.6 (PYSEC-2025-41), and the checkpoints in ``PICKLE_ONLY_CHECKPOINTS`` have no
+    safetensors build, so they cannot be loaded any other way.
+
+    This is a property of the TIER, stated on its own terms — not a relationship to some other
+    tier that happens to share models with it. A pickle-only entry here makes
+    ``make preload-ml-models`` a hard failure rather than a slow one, and takes ``make ci`` with
+    it.
+    """
+    for kind in ("summary", "embedding", "qa", "nli"):
+        for model_id in mm.model_ids_for_tier("test", kind):
+            assert model_id not in mm.PICKLE_ONLY_CHECKPOINTS, (
+                f"{model_id} is pickle-only and cannot load below torch 2.6, so it must not be "
+                "in the `test` tier — move it to ci_artifact/production, which run on hosts "
+                "where torch is current"
+            )
 
 
 def test_preload_evidence_defaults_are_manifest_ids():

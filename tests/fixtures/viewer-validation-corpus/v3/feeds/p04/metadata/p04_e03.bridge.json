@@ -2,6 +2,18 @@
   "episode_id": "e1743bda-76ff-5586-9e39-3fa45e41ef9a",
   "identities": [
     {
+      "display_name": "lighting design",
+      "id": "topic:lighting-design"
+    },
+    {
+      "display_name": "strobe lighting",
+      "id": "topic:strobe-lighting"
+    },
+    {
+      "display_name": "frame",
+      "id": "topic:frame"
+    },
+    {
       "display_name": "technology",
       "id": "topic:technology"
     },

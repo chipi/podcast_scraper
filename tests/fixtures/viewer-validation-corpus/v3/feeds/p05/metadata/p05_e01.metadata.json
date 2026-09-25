@@ -2,15 +2,15 @@
   "cil_digest_topics": [
     {
       "in_topic_cluster": false,
-      "label": "Science & research",
+      "label": "index investing",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:science-research"
+      "topic_id": "topic:index-investing"
     },
     {
       "in_topic_cluster": false,
-      "label": "without the",
+      "label": "reliability",
       "topic_cluster_compound_id": null,
-      "topic_id": "topic:without-the"
+      "topic_id": "topic:reliability"
     }
   ],
   "content": {
@@ -37,19 +37,19 @@
   },
   "episode": {
     "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
-    "published_date": "2026-07-30",
+    "published_date": "2026-09-20",
     "title": "Long Horizon Notes \u2014 Episode 1"
   },
   "episode_id": "ac5784fa-1c94-5cd8-99c6-c4f0be157a64",
   "episode_title": "Long Horizon Notes \u2014 Episode 1",
   "feed": {
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
-    "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+    "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
     "title": "Long Horizon Notes",
     "url": "http://localhost/"
   },
   "feed_display_title": "Long Horizon Notes",
-  "feed_id": "sha256:f4abc2ce662eb5875453632ed70c87b2fbc7394bbeef83c9d1d0918febd5bebe",
+  "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
   "gi_relative_path": "feeds/p05/metadata/p05_e01.gi.json",
   "grounded_insights": {
     "artifact_path": "feeds/p05/metadata/p05_e01.gi.json",
@@ -62,7 +62,7 @@
     "artifact_path": "feeds/p05/metadata/p05_e01.kg.json",
     "schema_version": "1.1"
   },
-  "publish_date": "2026-07-30",
+  "publish_date": "2026-09-20",
   "schema_version": "1",
   "summary": {
     "bullets": [
@@ -75,9 +75,11 @@
     "title": "Long Horizon Notes \u2014 Episode 1 \u2014 synthetic"
   },
   "summary_bullet_graph_topic_ids": [
-    "topic:science-research",
-    "topic:without-the",
-    "topic:welcome-back-to"
+    "topic:index-investing",
+    "topic:reliability",
+    "topic:risk-management",
+    "topic:frame",
+    "topic:science-research"
   ],
   "summary_bullets": [
     "Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate.",
@@ -88,8 +90,10 @@
   "summary_text": "Today we're talking about index investing, and I'm joined by Daniel Cho, former bond trader turned index advocate.\nDaniel Cho, thanks for being here.\nExcited for this one \u2014 index investing is something I've been thinking about a lot.",
   "summary_title": "Long Horizon Notes \u2014 Episode 1 \u2014 synthetic",
   "topics": [
-    "Science & research",
-    "without the",
-    "welcome back to"
+    "index investing",
+    "reliability",
+    "risk management",
+    "frame",
+    "Science & research"
   ]
 }

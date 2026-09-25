@@ -1,0 +1,409 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "insight:62a7190d2a4ded85",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "insight:5e35fb7106d60df7",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-de59d003651d9e5d",
+      "to": "insight:81318986adbd8e69",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "insight:81318986adbd8e69",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "quote:6b65417c8e68e546",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:62a7190d2a4ded85",
+      "to": "quote:6b65417c8e68e546",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:a4334eec6c9ac203",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5e35fb7106d60df7",
+      "to": "quote:a4334eec6c9ac203",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2d281afff9d60e11",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:81318986adbd8e69",
+      "to": "quote:2d281afff9d60e11",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:87a875c631835729",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:62a7190d2a4ded85",
+      "to": "quote:87a875c631835729",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e2af62f685104787",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:5e35fb7106d60df7",
+      "to": "quote:e2af62f685104787",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4dbbe8e8a518dbf5",
+      "to": "person:maya",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:81318986adbd8e69",
+      "to": "quote:4dbbe8e8a518dbf5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:62a7190d2a4ded85",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:5e35fb7106d60df7",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:81318986adbd8e69",
+      "to": "person:maya",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p01_e04-0",
+      "to": "quote:authored-p01_e04-0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p01_e04-0",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p01_e04-0",
+      "to": "topic:risk-management",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p01_e04-0",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:authored-p01_e04-1",
+      "to": "quote:authored-p01_e04-1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:authored-p01_e04-1",
+      "to": "person:sophie-laurent",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:authored-p01_e04-1",
+      "to": "topic:systems-thinking",
+      "type": "ABOUT"
+    },
+    {
+      "from": "insight:authored-p01_e04-1",
+      "to": "person:sophie-laurent",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-de59d003651d9e5d",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-de59d003651d9e5d",
+      "properties": {
+        "duration_ms": 82000,
+        "feed_id": "p01",
+        "podcast_id": "p01",
+        "publish_date": "2024-12-17T00:00:00",
+        "title": "The Risk You Didn't Name"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:enduro-racing",
+      "properties": {
+        "label": "enduro racing"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:62a7190d2a4ded85",
+      "properties": {
+        "episode_id": "ep-de59d003651d9e5d",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Thanks, Maya. Always happy to talk shop."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:5e35fb7106d60df7",
+      "properties": {
+        "episode_id": "ep-de59d003651d9e5d",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "People think racing is about nerve. You say it's about risk."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:81318986adbd8e69",
+      "properties": {
+        "episode_id": "ep-de59d003651d9e5d",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:sophie-laurent",
+      "properties": {
+        "name": "Sophie Laurent"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:6b65417c8e68e546",
+      "properties": {
+        "char_end": 175,
+        "char_start": 135,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-02",
+        "text": "Thanks, Maya. Always happy to talk shop.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:maya",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:a4334eec6c9ac203",
+      "properties": {
+        "char_end": 276,
+        "char_start": 182,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-01",
+        "text": "Today's episode is sponsored by Strava. Strava is the home for athletes. Try strava.com today.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2d281afff9d60e11",
+      "properties": {
+        "char_end": 336,
+        "char_start": 276,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-01",
+        "text": "People think racing is about nerve. You say it's about risk.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:87a875c631835729",
+      "properties": {
+        "char_end": 560,
+        "char_start": 353,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-02",
+        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger goes away.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e2af62f685104787",
+      "properties": {
+        "char_end": 777,
+        "char_start": 560,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-02",
+        "text": "And you have to ride the whole run as a system, not a list of corners. The mistakes come from how one section sets up the next. When I logged a full season of my own crashes, the causes were always two turns upstream.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4dbbe8e8a518dbf5",
+      "properties": {
+        "char_end": 860,
+        "char_start": 784,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:speaker-01",
+        "text": "That's almost word-for-word what a friend in finance says about a portfolio.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p01_e04-0",
+      "properties": {
+        "episode_id": "ep-de59d003651d9e5d",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "The crash that ends your season is the boring risk you didn't name."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p01_e04-0",
+      "properties": {
+        "char_end": 67,
+        "char_start": 0,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:sophie-laurent",
+        "text": "The crash that ends your season is the boring risk you didn't name.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "insight:authored-p01_e04-1",
+      "properties": {
+        "episode_id": "ep-de59d003651d9e5d",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.5,
+        "text": "You ride the whole run as a system; the mistakes come from how sections interact."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "quote:authored-p01_e04-1",
+      "properties": {
+        "char_end": 81,
+        "char_start": 0,
+        "episode_id": "ep-de59d003651d9e5d",
+        "speaker_id": "person:sophie-laurent",
+        "text": "You ride the whole run as a system; the mistakes come from how sections interact.",
+        "timestamp_end_ms": 0,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p01_e04.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

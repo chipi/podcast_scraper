@@ -1,0 +1,126 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:monetary-policy",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:personal-finance",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "person:nora",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1e526e495918fb27",
+      "to": "person:richard-clarida",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-1e526e495918fb27",
+  "extraction": {
+    "extracted_at": "2024-10-21T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p05_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-1e526e495918fb27",
+      "properties": {
+        "podcast_id": "p05",
+        "publish_date": "2024-10-21T00:00:00",
+        "title": "Nickname Variance: A Fed Vice Chair Reflects"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:monetary-policy",
+      "properties": {
+        "label": "monetary policy",
+        "slug": "monetary-policy"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:personal-finance",
+      "properties": {
+        "label": "personal finance",
+        "slug": "personal-finance"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:nora",
+      "properties": {
+        "name": "Nora",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:richard-clarida",
+      "properties": {
+        "name": "Richard Clarida",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

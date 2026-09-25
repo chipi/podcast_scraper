@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:macroeconomics",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "to": "topic:technology",
       "type": "MENTIONS"
     },
@@ -13,7 +28,7 @@
   ],
   "episode_id": "d24c1620-8d16-54dd-b681-2f2e06c0b579",
   "extraction": {
-    "extracted_at": "2026-07-30T12:00:00",
+    "extracted_at": "2026-09-20T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p09_e02.txt"
   },
@@ -22,10 +37,34 @@
       "id": "episode:d24c1620-8d16-54dd-b681-2f2e06c0b579",
       "properties": {
         "podcast_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
-        "publish_date": "2026-07-30T12:00:00",
+        "publish_date": "2026-09-20T12:00:00",
         "title": "The Long View: Biohacking \u2014 Episode 2"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:macroeconomics",
+      "properties": {
+        "label": "macroeconomics",
+        "slug": "macroeconomics"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:technology",

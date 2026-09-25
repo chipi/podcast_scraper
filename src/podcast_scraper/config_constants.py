@@ -263,7 +263,24 @@ SUMMARY_MODEL_LED_BASE_16384 = "allenai/led-base-16384"
 TEST_DEFAULT_WHISPER_MODEL = "tiny.en"  # Smallest, fastest English-only model
 # Test defaults use aliases (not direct model IDs) since summarizer.py only accepts aliases
 TEST_DEFAULT_SUMMARY_MODEL = "bart-small"  # Maps to facebook/bart-base (~500MB, fast)
-TEST_DEFAULT_SUMMARY_REDUCE_MODEL = "long-fast"  # Maps to allenai/led-base-16384 (fast)
+# Was "long-fast" (allenai/led-base-16384) for its 16k context. That checkpoint ships ONLY
+# pickle weights, at every revision — it is in PICKLE_ONLY_CHECKPOINTS for that reason — and
+# transformers >= 4.56 refuses torch.load below torch 2.6 (CVE-2025-32434). torch has no
+# x86_64 macOS wheel above 2.2.2, so on an Intel Mac this default made 38 e2e tests
+# unrunnable: every one of them failed on "Loading REDUCE model: allenai/led-base-16384".
+#
+# Tiering LED to ci_artifact fixed `make preload-ml-models` and not this, because the e2e
+# tests do not preload — they run the real pipeline and reach for the reduce model at
+# runtime. A model excluded from one path and still named as a default in another is
+# excluded from neither.
+#
+# bart-base is safetensors at its pin and is already the MAP default, so the test profile
+# now loads one checkpoint instead of two. The cost is context: 1024 tokens against LED's
+# 16384. That is a real reduction and it is acceptable HERE ONLY — these are e2e fixtures
+# whose transcripts are short, and the assertions are that the pipeline produces a summary,
+# never that the summary is good. Production defaults are untouched; so are the research
+# modes in model_registry.py that name long-fast explicitly.
+TEST_DEFAULT_SUMMARY_REDUCE_MODEL = "bart-small"  # Maps to facebook/bart-base (safetensors)
 # spaCy NER model defaults (dev/prod distinction)
 # Dev: Small, fast model for CI/local dev (~50MB, ~200ms/episode)
 # Prod: Transformer-based, higher quality for production (~500MB, ~450ms/episode)
@@ -353,9 +370,18 @@ LED_LARGE_16384_REVISION = (
     "cd59d11c3528415b7dda4dfc95cc8f138aceda2e"  # allenai/led-large-16384 @ main
 )
 
-# FLAN-T5 revisions (hybrid REDUCE; Issue #352)
-FLAN_T5_BASE_REVISION = "c5050bcda0fe2097b76f41c6908474097b859666"
-FLAN_T5_LARGE_REVISION = "c5050bcda0fe2097b76f41c6908474097b859666"  # Update when needed
+# FLAN-T5 revisions (hybrid REDUCE; Issue #352).
+#
+# RE-PINNED 2026-09-24. Both pointed at c5050bcd, a revision that predates the safetensors
+# upload — so ``model.safetensors`` does not exist THERE even though it does on ``main``.
+# ``transformers >= 4.56`` therefore fell back to ``torch.load`` and refused below torch 2.6
+# (PYSEC-2025-41), and ``make preload-ml-models`` died on a model whose repo has shipped
+# safetensors for years.
+#
+# The lesson is in the pin, not the repo: safetensors is a property of a REVISION. "This model
+# has safetensors" is not a claim you can check on ``main`` and then pin away from.
+FLAN_T5_BASE_REVISION = "7bcac572ce56db69c1ea7c8af255c5d7c9672fc2"  # safetensors present
+FLAN_T5_LARGE_REVISION = "0613663d0d48ea86ba8cb3d7a44f0f65dc596a2a"  # safetensors present
 # LongT5 revisions (MAP and REDUCE; Issue #353). Same as other ML models: pinned SHA.
 LONG_T5_TGLOBAL_BASE_REVISION = (
     "aecb1376e5bd78db32ebc5c9deb257449b9e2b21"  # google/long-t5-tglobal-base @ main
@@ -379,6 +405,32 @@ NLI_DEBERTA_V3_SMALL_REVISION = (
 )
 ALL_MINILM_L6_V2_REVISION = (
     "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"  # sentence-transformers/all-MiniLM-L6-v2 @ main
+)
+
+
+# Summarization checkpoint revisions (ADR-155, 2026-09-24). Pinned for the same reason the
+# evidence stack was: an unpinned model is a moving remote archive, and six of these ship ONLY
+# `pytorch_model.bin`, so loading them runs a pickle through ``torch.load``. No safetensors
+# version of those WEIGHTS exists — the Hub's copies are themselves pickle, and
+# ``led-base-16384-ms2`` is a fine-tune — so the pin is what bounds the risk rather than a
+# format change. SHAs read from the Hub API on 2026-09-24.
+BART_BASE_REVISION = "aadd2ab0ae0c8268c7c9693540e9904811f36177"  # facebook/bart-base (safetensors)
+BART_LARGE_CNN_REVISION = (
+    "37f520fa929c961707657b28798b30c003dd100b"  # facebook/bart-large-cnn (safetensors)
+)
+PEGASUS_LARGE_REVISION = "dec7796b22f29b7d1c476192313eae8ed57b6b77"  # google/pegasus-large (pickle)
+PEGASUS_CNN_DAILYMAIL_REVISION = (
+    "40d588fdab0cc077b80d950b300bf66ad3c75b92"  # google/pegasus-cnn_dailymail (pickle)
+)
+PEGASUS_XSUM_REVISION = "8d8ffc158a3bee9fbb03afacdfc347c823c5ec8b"  # google/pegasus-xsum (pickle)
+LED_BASE_16384_REVISION = (
+    "38335783885b338d93791936c54bb4be46bebed9"  # allenai/led-base-16384 (pickle)
+)
+LED_LARGE_16384_REVISION = (
+    "cd59d11c3528415b7dda4dfc95cc8f138aceda2e"  # allenai/led-large-16384 (pickle)
+)
+DISTILBART_CNN_12_6_REVISION = (
+    "a4f8f3ea906ed274767e9906dbaede7531d660ff"  # sshleifer/distilbart-cnn-12-6 (pickle)
 )
 
 
@@ -407,6 +459,25 @@ def get_pinned_revision_for_model(model_id: str) -> str | None:
         return NLI_DEBERTA_V3_SMALL_REVISION
     if "all-minilm-l6-v2" in model_lower:
         return ALL_MINILM_L6_V2_REVISION
+    # Summarization checkpoints (ADR-155). bart-large-cnn is checked BEFORE bart-base because
+    # "bart-base" is not a substring of it, but keeping the more specific id first is the habit
+    # that stops the next entry from being shadowed.
+    if "bart-large-cnn" in model_lower:
+        return BART_LARGE_CNN_REVISION
+    if "bart-base" in model_lower:
+        return BART_BASE_REVISION
+    if "pegasus-cnn_dailymail" in model_lower:
+        return PEGASUS_CNN_DAILYMAIL_REVISION
+    if "pegasus-xsum" in model_lower:
+        return PEGASUS_XSUM_REVISION
+    if "pegasus-large" in model_lower:
+        return PEGASUS_LARGE_REVISION
+    if "led-base-16384" in model_lower:
+        return LED_BASE_16384_REVISION
+    if "led-large-16384" in model_lower:
+        return LED_LARGE_16384_REVISION
+    if "distilbart-cnn-12-6" in model_lower:
+        return DISTILBART_CNN_12_6_REVISION
     return None
 
 

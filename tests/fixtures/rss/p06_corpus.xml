@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>The Drift</title>
     <link>http://localhost/</link>
@@ -17,6 +18,7 @@
       <pubDate>Thu, 07 Nov 2024 00:00:00 +0000</pubDate>
       <description>Testing special characters: &lt; &gt; &quot; &amp; ' / \ ? * |</description>
       <enclosure url="/audio/p06_e01.mp3" length="2630679" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p06_e01.vtt" type="text/vtt"/>
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:05:29</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -28,8 +30,9 @@
       <pubDate>Mon, 17 Mar 2025 00:00:00 +0000</pubDate>
       <description>Testing Unicode: 你好世界 🌍 Café résumé naïve ñoño</description>
       <enclosure url="/audio/p06_e02.mp3" length="1988484" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p06_e02.vtt" type="text/vtt"/>
       <itunes:episode>2</itunes:episode>
-      <itunes:duration>00:04:09</itunes:duration>
+      <itunes:duration>00:04:08</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
 
@@ -39,6 +42,7 @@
       <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
       <description>Testing very long episode title handling.</description>
       <enclosure url="/audio/p06_e03.mp3" length="1821928" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p06_e03.vtt" type="text/vtt"/>
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:03:48</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -50,17 +54,19 @@
       <pubDate>Sun, 11 Jan 2026 00:00:00 +0000</pubDate>
       <description>Cam talks with Jordan Park: Signal, Noise, and the Space Between.</description>
       <enclosure url="/audio/p06_e04.mp3" length="2044491" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p06_e04.vtt" type="text/vtt"/>
       <itunes:episode>4</itunes:episode>
-      <itunes:duration>00:04:16</itunes:duration>
+      <itunes:duration>00:04:15</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
 
     <item>
       <title>Stage Directions</title>
       <guid isPermaLink="false">p06_e05</guid>
-      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <pubDate>Sat, 18 Apr 2026 00:00:00 +0000</pubDate>
       <description>Maya on Stage Directions.</description>
       <enclosure url="/audio/p06_e05.mp3" length="80710" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p06_e05.vtt" type="text/vtt"/>
       <itunes:episode>5</itunes:episode>
       <itunes:duration>00:00:10</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
@@ -69,9 +75,10 @@
     <item>
       <title>Mixed Languages</title>
       <guid isPermaLink="false">p06_e06</guid>
-      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <pubDate>Sat, 20 Jun 2026 00:00:00 +0000</pubDate>
       <description>Testing relative URL resolution.</description>
       <enclosure url="/audio/p06_e06.mp3" length="124177" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p06_e06.vtt" type="text/vtt"/>
       <itunes:episode>6</itunes:episode>
       <itunes:duration>00:00:15</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>

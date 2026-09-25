@@ -1,0 +1,139 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:on-call",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "person:ethan",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "person:priya-nair",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a05e37624721d37c",
+      "to": "person:caller",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-a05e37624721d37c",
+  "extraction": {
+    "extracted_at": "2025-03-09T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p02_e05.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-a05e37624721d37c",
+      "properties": {
+        "podcast_id": "p02",
+        "publish_date": "2025-03-09T00:00:00",
+        "title": "Reliability, Live"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:reliability",
+      "properties": {
+        "label": "reliability",
+        "slug": "reliability"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:on-call",
+      "properties": {
+        "label": "on call",
+        "slug": "on-call"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:ethan",
+      "properties": {
+        "name": "Ethan",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:priya-nair",
+      "properties": {
+        "name": "Priya Nair",
+        "role": "guest"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:caller",
+      "properties": {
+        "name": "Caller",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

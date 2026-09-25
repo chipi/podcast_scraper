@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:systems-thinking",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
+      "to": "topic:enduro-racing",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -18,7 +33,7 @@
   ],
   "episode_id": "4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
   "extraction": {
-    "extracted_at": "2026-08-03T12:00:00",
+    "extracted_at": "2026-09-24T12:00:00",
     "model_version": "provider:synthetic-validation-corpus-v1",
     "transcript_ref": "transcripts/p01_e04.txt"
   },
@@ -26,11 +41,35 @@
     {
       "id": "episode:4a626fea-ed45-5ce0-a5c1-4e39d22beaad",
       "properties": {
-        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-08-03T12:00:00",
+        "podcast_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "publish_date": "2026-09-24T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 4"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "properties": {
+        "label": "systems thinking",
+        "slug": "systems-thinking"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:enduro-racing",
+      "properties": {
+        "label": "enduro racing",
+        "slug": "enduro-racing"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",

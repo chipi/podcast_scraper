@@ -2,6 +2,21 @@
   "edges": [
     {
       "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
       "to": "topic:outdoor-activities",
       "type": "MENTIONS"
     },
@@ -21,6 +36,11 @@
       "type": "HAS_INSIGHT"
     },
     {
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "topic:trail-building",
+      "type": "ABOUT"
+    },
+    {
       "from": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
       "to": "insight:6a337835e5094de9",
       "type": "HAS_INSIGHT"
@@ -31,63 +51,68 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:73daf6464cff7348",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
+      "from": "insight:f247d55c98c9b199",
+      "to": "topic:trail-building",
+      "type": "ABOUT"
     },
     {
-      "from": "insight:9e81c80cb0d583e7",
-      "to": "quote:73daf6464cff7348",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:f6fc35aad65210f8",
+      "from": "quote:e42afbb2b70c2fa9",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6a337835e5094de9",
-      "to": "quote:f6fc35aad65210f8",
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "quote:e42afbb2b70c2fa9",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:c7adee17351c9f53",
+      "from": "quote:c8a90ec803536ffa",
+      "to": "person:speaker-01",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6a337835e5094de9",
+      "to": "quote:c8a90ec803536ffa",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:95c2a2689c6a67db",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
       "from": "insight:f247d55c98c9b199",
-      "to": "quote:c7adee17351c9f53",
+      "to": "quote:95c2a2689c6a67db",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:b361c4a0b17bab22",
-      "to": "person:speaker-01",
-      "type": "SPOKEN_BY"
-    },
-    {
-      "from": "insight:9e81c80cb0d583e7",
-      "to": "quote:b361c4a0b17bab22",
-      "type": "SUPPORTED_BY"
-    },
-    {
-      "from": "quote:c842e5fe8b174fe5",
+      "from": "quote:2e69c860aa39a191",
       "to": "person:speaker-02",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:6a337835e5094de9",
-      "to": "quote:c842e5fe8b174fe5",
+      "from": "insight:9e81c80cb0d583e7",
+      "to": "quote:2e69c860aa39a191",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:e88d783dcfed1867",
+      "from": "quote:6d3f2a45906126aa",
       "to": "person:speaker-01",
       "type": "SPOKEN_BY"
     },
     {
+      "from": "insight:6a337835e5094de9",
+      "to": "quote:6d3f2a45906126aa",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b5fcbb60cd0a8fcc",
+      "to": "person:speaker-02",
+      "type": "SPOKEN_BY"
+    },
+    {
       "from": "insight:f247d55c98c9b199",
-      "to": "quote:e88d783dcfed1867",
+      "to": "quote:b5fcbb60cd0a8fcc",
       "type": "SUPPORTED_BY"
     },
     {
@@ -113,12 +138,33 @@
       "id": "episode:5b39965f-22a2-54c9-9c42-e7a19d8da2da",
       "properties": {
         "duration_ms": 1800000,
-        "feed_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "podcast_id": "sha256:90167c0635d0f3d31fe8ebc87b372f75cd15166e02da8abb2df7dfeca65aa588",
-        "publish_date": "2026-08-03T12:00:00",
+        "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "podcast_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+        "publish_date": "2026-09-24T12:00:00",
         "title": "Singletrack Sessions \u2014 Episode 1"
       },
       "type": "Episode"
+    },
+    {
+      "id": "topic:trail-building",
+      "properties": {
+        "label": "trail building"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-stewardship",
+      "properties": {
+        "label": "land stewardship"
+      },
+      "type": "Topic"
     },
     {
       "id": "topic:outdoor-activities",
@@ -175,27 +221,6 @@
       "type": "Insight"
     },
     {
-      "id": "person:speaker-01",
-      "properties": {
-        "name": "Maya"
-      },
-      "type": "Person"
-    },
-    {
-      "id": "quote:73daf6464cff7348",
-      "properties": {
-        "char_end": 195,
-        "char_start": 6,
-        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
-        "speaker_id": "person:speaker-01",
-        "text": "Welcome back to Singletrack Sessions. Today we're talking about trail building, and I'm joined by Liam Verbeek, trail builder for the Cascadia Alliance. Liam Verbeek, thanks for being here.",
-        "timestamp_end_ms": 6000,
-        "timestamp_start_ms": 0,
-        "transcript_ref": "transcripts/p01_e01.txt"
-      },
-      "type": "Quote"
-    },
-    {
       "id": "person:speaker-02",
       "properties": {
         "name": "Liam Verbeek"
@@ -203,7 +228,7 @@
       "type": "Person"
     },
     {
-      "id": "quote:f6fc35aad65210f8",
+      "id": "quote:e42afbb2b70c2fa9",
       "properties": {
         "char_end": 306,
         "char_start": 210,
@@ -217,7 +242,14 @@
       "type": "Quote"
     },
     {
-      "id": "quote:c7adee17351c9f53",
+      "id": "person:speaker-01",
+      "properties": {
+        "name": "Maya"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c8a90ec803536ffa",
       "properties": {
         "char_end": 422,
         "char_start": 313,
@@ -231,7 +263,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:b361c4a0b17bab22",
+      "id": "quote:95c2a2689c6a67db",
       "properties": {
         "char_end": 492,
         "char_start": 422,
@@ -245,7 +277,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:c842e5fe8b174fe5",
+      "id": "quote:2e69c860aa39a191",
       "properties": {
         "char_end": 704,
         "char_start": 507,
@@ -259,7 +291,7 @@
       "type": "Quote"
     },
     {
-      "id": "quote:e88d783dcfed1867",
+      "id": "quote:6d3f2a45906126aa",
       "properties": {
         "char_end": 798,
         "char_start": 711,
@@ -268,6 +300,20 @@
         "text": "Take me through the decision. What's the version of the question that actually matters?",
         "timestamp_end_ms": 36000,
         "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p01_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b5fcbb60cd0a8fcc",
+      "properties": {
+        "char_end": 959,
+        "char_start": 813,
+        "episode_id": "5b39965f-22a2-54c9-9c42-e7a19d8da2da",
+        "speaker_id": "person:speaker-02",
+        "text": "Yeah, so \u2014 The most common mistake new builders make is grading too aggressively. Once you internalize that, the rest of the decisions get easier.",
+        "timestamp_end_ms": 42000,
+        "timestamp_start_ms": 36000,
         "transcript_ref": "transcripts/p01_e01.txt"
       },
       "type": "Quote"

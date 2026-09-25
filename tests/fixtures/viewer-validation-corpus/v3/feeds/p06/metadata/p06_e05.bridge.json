@@ -1,0 +1,18 @@
+{
+  "episode_id": "70b6d4cd-5f59-5606-a432-48ecc739bb4f",
+  "identities": [
+    {
+      "display_name": "edge cases",
+      "id": "topic:edge-cases"
+    },
+    {
+      "display_name": "stage directions",
+      "id": "topic:stage-directions"
+    },
+    {
+      "display_name": "Technology",
+      "id": "topic:technology"
+    }
+  ],
+  "schema_version": "1"
+}

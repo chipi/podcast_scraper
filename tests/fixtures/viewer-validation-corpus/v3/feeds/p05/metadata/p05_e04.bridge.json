@@ -2,16 +2,24 @@
   "episode_id": "d04b0413-4fbe-5d89-b3e8-774bbc15a3c4",
   "identities": [
     {
+      "display_name": "risk management",
+      "id": "topic:risk-management"
+    },
+    {
+      "display_name": "index investing",
+      "id": "topic:index-investing"
+    },
+    {
+      "display_name": "systems thinking",
+      "id": "topic:systems-thinking"
+    },
+    {
+      "display_name": "reliability",
+      "id": "topic:reliability"
+    },
+    {
       "display_name": "Science & research",
       "id": "topic:science-research"
-    },
-    {
-      "display_name": "diversify or",
-      "id": "topic:diversify-or"
-    },
-    {
-      "display_name": "welcome back to",
-      "id": "topic:welcome-back-to"
     }
   ],
   "schema_version": "1"
