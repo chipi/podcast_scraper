@@ -92,32 +92,21 @@ public class NativeOnlySurfacesTests extends UITestCase {
         // is the same mistake as inventing a fixture title — asserting against a remembered app
         // instead of this one. Operator: "queue actions exist only when you open queue in the upper
         // section under the artwork."
-        assertTrue("Library was not reachable", Journey.openTab("Library"));
-        // REWIND FIRST. `scrollTo` only searches DOWNWARD from wherever the page currently sits,
-        // and `openTab` leaves it scrolled — its own scroll-clear swipes up to six times trying to
-        // lift the bottom-nav tab clear of the bottom nav, which it never can because the nav is
-        // fixed. So the page arrives near its end and a section ABOVE that point can never be
-        // found. This reported "the Downloaded section was not reachable — the download suite may
-        // not have run" about an account that had just downloaded two episodes (2026-09-24).
-        // `DownloadThroughUITests` already does this; forgetting it is silent, which is what makes
-        // it worth a comment rather than a one-liner.
-        for (int i = 0; i < 6; i++) Journey.swipeDown();
-        assertNotNull("the Downloaded section was not reachable — the download suite may not have "
-                        + "run. On screen: " + Journey.labelledInventory(24),
-                Journey.scrollTo("Downloaded", false));
-        // Either state is fine: the point is that SOMETHING is in the queue so Up next has a row.
-        boolean queued = Journey.tap("Add to queue", false, 10_000)
-                || Journey.find("Remove from queue", false, 5_000) != null;
-        assertTrue("no queue control on the Downloaded rows, so nothing can reach Up next. "
-                + "On screen: " + Journey.labelledInventory(30), queued);
-
-        // The queue panel lives under the artwork on the player (`queue.open`), which is the
-        // surface carrying Up next.
+        // A FAITHFUL port of the iOS suite, step for step. Earlier versions of this method
+        // redesigned the setup three times — queue from the ⋯, then from Library's Downloaded
+        // rows, then from Home — each time designing around a failure instead of finding its
+        // cause. That is not a port and it is not a test of the same thing.
+        //
+        // iOS does exactly this: open the seeded episode, add it to the queue (accepting
+        // already-queued), go to the queue, and assert the row carries a download control.
         AppSession.openEpisode(SEEDED_SLUG);
-        assertTrue("the queue panel could not be opened from the player. On screen: "
-                + Journey.labelledInventory(24),
-                Journey.tap("Queue & recently played", false, 20_000));
-        Journey.sleep(2_000);
+        if (!Journey.tap("Add to queue", false, 10_000)) {
+            assertNotNull("neither queue control was reachable from the episode. On screen: "
+                            + Journey.labelledInventory(30),
+                    Journey.find("Remove from queue", false, 10_000));
+        }
+        assertTrue("the queue was not reachable. On screen: " + Journey.labelledInventory(24),
+                Journey.tap("Queue", false, 15_000));
 
         // The claim: the download control is in the ROW, reachable without opening the ⋯.
         assertNotNull(
