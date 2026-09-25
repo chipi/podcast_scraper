@@ -92,21 +92,32 @@ public class NativeOnlySurfacesTests extends UITestCase {
         // is the same mistake as inventing a fixture title — asserting against a remembered app
         // instead of this one. Operator: "queue actions exist only when you open queue in the upper
         // section under the artwork."
-        // A FAITHFUL port of the iOS suite, step for step. Earlier versions of this method
-        // redesigned the setup three times — queue from the ⋯, then from Library's Downloaded
-        // rows, then from Home — each time designing around a failure instead of finding its
-        // cause. That is not a port and it is not a test of the same thing.
+        // QUEUE FROM A LIST. Not from the player, which is what the iOS suite does.
         //
-        // iOS does exactly this: open the seeded episode, add it to the queue (accepting
-        // already-queued), go to the queue, and assert the row carries a download control.
-        AppSession.openEpisode(SEEDED_SLUG);
-        if (!Journey.tap("Add to queue", false, 10_000)) {
-            assertNotNull("neither queue control was reachable from the episode. On screen: "
-                            + Journey.labelledInventory(30),
-                    Journey.find("Remove from queue", false, 10_000));
+        // Add-to-queue does not exist on the episode player, and that is correct product
+        // behaviour rather than a gap: you are already playing the episode, so queueing it again
+        // means nothing (operator 2026-09-25). The control lives on LIST rows — browse, library,
+        // Home's what's-new — where you are scanning episodes you have not committed to.
+        //
+        // The iOS suite opens an episode and looks for "Add to queue" there. It passes only
+        // because its lookup cannot tell the player's buttons apart and matches a different one;
+        // the enumeration this harness now uses is precise, so the same step fails honestly.
+        // Porting that step faithfully would mean copying a test that verifies nothing.
+        assertTrue("Home was not reachable", Journey.openTab("Home"));
+        for (int i = 0; i < 6; i++) Journey.swipeDown();
+        boolean queued = Journey.scrollTo(java.util.Arrays.asList("Add to queue"), false, 25) != null
+                && Journey.tap("Add to queue", false, 10_000);
+        if (!queued) {
+            // Already queued on the shared account is a legitimate state — assert the OTHER
+            // control rather than assuming it.
+            queued = Journey.find("Remove from queue", false, 5_000) != null;
         }
-        assertTrue("the queue was not reachable. On screen: " + Journey.labelledInventory(24),
-                Journey.tap("Queue", false, 15_000));
+        assertTrue("no queue control on any Home list row, so nothing can reach Up next. On screen: "
+                + Journey.labelledInventory(30), queued);
+
+        // Then the queue itself, from the masthead.
+        assertTrue("the masthead queue control was not reachable. On screen: "
+                + Journey.labelledInventory(20), Journey.tap("Queue", false, 15_000));
 
         // The claim: the download control is in the ROW, reachable without opening the ⋯.
         assertNotNull(
