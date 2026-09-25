@@ -124,7 +124,31 @@ final class Journey {
     }
 
     /**
-     * First element matching ANY of {@code names}, across both name fields.
+     * First element matching ANY of {@code names} — by ENUMERATING nodes, not by `BySelector`.
+     *
+     * ## `By.desc(...)` DOES NOT MATCH WEBVIEW CONTENT. Measured 2026-09-25.
+     *
+     * The Pause button was on screen, `clickable=true`, with `desc=[Pause]` read straight off the
+     * node — and every one of these returned nothing:
+     *
+     *     By.pkg(PKG).desc("Pause")        -> null
+     *     By.desc("Pause")                 -> null   (unscoped, so it is not the package filter)
+     *     By.pkg(PKG).descContains("Pause")-> null
+     *
+     * while `findObjects(By.pkg(PKG))` returned that very node and `getContentDescription()` on it
+     * gave "Pause". So selector matching on `desc` is evaluated against something that does not
+     * carry web content's descriptions, even though reading the materialised node does.
+     *
+     * The consequence is worth stating plainly: every lookup in this harness that appeared to work
+     * was working through `By.text`, i.e. through nodes where Chromium populates `text`. Every
+     * icon-only control whose name lives in `contentDescription` was silently unfindable, and the
+     * failures read as "the control is not there" — which is how an "Add to queue" that was plainly
+     * on screen got reported as absent on Android.
+     *
+     * It also explains why adding `sr-only` spans fixed findability as well as the screen-reader
+     * name: an `sr-only` span is a real TEXT node.
+     *
+     * Enumeration is slower than a selector. It is the only form that sees what is actually there.
      *
      * Prefers a CLICKABLE match. Web content exposes each control twice — an inert `TextView`
      * carrying the words and a `View` carrying the same name as its contentDescription and the
@@ -137,26 +161,33 @@ final class Journey {
         long deadline = System.currentTimeMillis() + timeoutMs;
         do {
             UiObject2 fallback = null;
-            for (String name : names) {
-                for (BySelector sel : selectorsFor(name, contains)) {
-                    List<UiObject2> hits;
-                    try {
-                        hits = device().findObjects(sel);
-                    } catch (Throwable t) {
-                        continue;
-                    }
-                    for (UiObject2 o : hits) {
-                        if (Boolean.TRUE.equals(attr(o, UiObject2::isClickable))) return o;
-                        UiObject2 clickable = clickableAncestorOf(o);
-                        if (clickable != null) return clickable;
-                        if (fallback == null) fallback = o;
-                    }
-                }
+            List<UiObject2> all;
+            try {
+                all = device().findObjects(By.pkg(PKG));
+            } catch (Throwable t) {
+                all = java.util.Collections.emptyList();
+            }
+            for (UiObject2 o : all) {
+                String name = nameOf(o);
+                if (name.isEmpty() || !matches(name, names, contains)) continue;
+                if (Boolean.TRUE.equals(attr(o, UiObject2::isClickable))) return o;
+                UiObject2 clickable = clickableAncestorOf(o);
+                if (clickable != null) return clickable;
+                if (fallback == null) fallback = o;
             }
             if (fallback != null) return fallback;
             sleep(400);
         } while (System.currentTimeMillis() < deadline);
         return null;
+    }
+
+    private static boolean matches(String name, List<String> wanted, boolean contains) {
+        for (String w : wanted) {
+            if (contains ? name.toLowerCase().contains(w.toLowerCase()) : name.equalsIgnoreCase(w)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static UiObject2 find(String name, boolean contains, long timeoutMs) {
