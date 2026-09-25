@@ -75,5 +75,13 @@ const onClick = gated(async () => {
     <span v-if="props.variant === 'menuitem'">{{
       queue.has(slug) ? t('queue.remove') : t('queue.add')
     }}</span>
+    <!-- The icon variant needs the same name, visually hidden (2026-09-25, Android device tier).
+         The svg above is correctly `aria-hidden`, and with nothing else inside, Chromium left the
+         button with NO usable name — which is why a device test could not find "Add to queue" on a
+         page that plainly showed it, and reported the control as absent on Android. It was there;
+         it had no name to be found by. A screen reader had the same problem, silently. -->
+    <span v-else class="sr-only">{{
+      isGated ? t('auth.signInToQueue') : queue.has(slug) ? t('queue.remove') : t('queue.add')
+    }}</span>
   </button>
 </template>

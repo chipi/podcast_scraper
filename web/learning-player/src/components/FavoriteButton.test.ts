@@ -30,10 +30,17 @@ describe('FavoriteButton', () => {
       .spyOn(api, 'addFavorite')
       .mockResolvedValue({ episodes: [{ slug: 'ep1' } as EpisodeSummary] })
     const w = mountBtn()
-    expect(w.text()).toBe('♡') // not yet saved
+    // The GLYPH shows state and the `sr-only` text carries the NAME. This used to assert
+    // `text() === '♡'`, which pinned the bug: with the glyph as the button's only content,
+    // Chromium made it the accessible name and the control announced as "♡" to a screen reader
+    // (2026-09-25, found by the Android device tier). Asserting both halves keeps the state
+    // check and adds the one that was missing.
+    expect(w.find('[aria-hidden="true"]').text()).toBe('♡') // not yet saved
+    expect(w.find('.sr-only').text()).toBe('Save to favorites')
     await w.find('button').trigger('click')
     await flushPromises()
     expect(add).toHaveBeenCalledWith(item)
-    expect(w.text()).toBe('♥') // store now reports it saved
+    expect(w.find('[aria-hidden="true"]').text()).toBe('♥') // store now reports it saved
+    expect(w.find('.sr-only').text()).toBe('Remove from favorites')
   })
 })

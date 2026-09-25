@@ -62,6 +62,16 @@ function onGatedClick(e: MouseEvent): void {
       }}</span>
       <span>{{ active ? t('fav.remove') : t('fav.add') }}</span>
     </template>
-    <template v-else>{{ active ? '♥' : '♡' }}</template>
+    <!-- The glyph is DECORATION; the NAME sits beside it (2026-09-25, Android device tier).
+         It was bare text, so Chromium used it as the button's accessible name: the control
+         announced as "♡", and every name-based lookup — a screen reader's, a device test's — got a
+         symbol instead of "Add to favourites". The `aria-label` above did not win.
+         `AccessibleNameAuditTests` counts this class app-wide and fails on it. -->
+    <template v-else>
+      <span aria-hidden="true">{{ active ? '♥' : '♡' }}</span>
+      <span class="sr-only">{{
+        isGated ? t('auth.signInToSave') : active ? t('fav.remove') : t('fav.add')
+      }}</span>
+    </template>
   </button>
 </template>

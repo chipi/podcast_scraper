@@ -71,10 +71,18 @@ const { t } = useI18n()
     @click.prevent.stop="$emit('toggle')"
   >
     <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-    <!-- The label is the whole control in the labelled variants and pure noise in `icon`, where the
-         glyph plus the accessible name carry it. -->
+    <!-- The label is the whole control in the labelled variants. -->
     <template v-if="variant !== 'icon'">{{
       following ? t("podcast.following") : t("podcast.follow")
     }}</template>
+    <!-- ...and in `icon` it is an `sr-only` NAME, not "the glyph plus the accessible name"
+         (2026-09-25, Android device tier). That reasoning was wrong on Chromium: the glyph above is
+         `aria-hidden` and Chromium STILL used it as the button's name, so the control announced as
+         "+" and the `aria-label` never applied. Correctly hiding the glyph is not enough — only
+         real text inside the control produces a usable name. Fourteen instances of this one
+         component were in the first audit run; see `AccessibleNameAuditTests`. -->
+    <span v-else class="sr-only">{{
+      gated ? t("auth.signInToFollow") : following ? t("podcast.following") : t("podcast.follow")
+    }}</span>
   </button>
 </template>
