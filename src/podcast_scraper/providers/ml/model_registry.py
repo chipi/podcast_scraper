@@ -2438,14 +2438,25 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         diarization="tailnet_dgx_diarization_community1",
         # ADR-147: FULLY AIRGAPPED — every LLM stage + every fallback is DGX-local, zero internet.
         # Transcription falls back DGX-whisper -> local in-process whisper (no cloud Whisper); the
-        # MOSS coverage failover above is also local. Summary falls back to DGX-local ollama;
-        # diarization to local pyannote (no cloud deepgram).
+        # MOSS coverage failover above is also local; diarization to local pyannote (no cloud
+        # deepgram).
         transcription_fallback=(
             "tailnet_dgx_speaches_thread_b",
             "local_mps_large_v3",
         ),
         diarization_fallback=("pyannote_diarization_community1",),  # local only, no cloud
-        summary_fallback=("ollama_qwen35_35b",),
+        # SUMMARY HAS NO FALLBACK, DELIBERATELY. It was `("ollama_qwen35_35b",)` — DGX-local, so
+        # it satisfied the airgap on paper. In practice ollama is not listening on the DGX
+        # (:11434 refuses from the box, from the tailnet, and on prod's own localhost), so every
+        # failover attempt burned wall-clock and then failed anyway: the 2026-09-24 284-episode
+        # batch logged 4x "Fallback tier 'ollama' also failed on extract_kg_graph".
+        #
+        # A fallback that cannot succeed is worse than none: it converts one legible primary
+        # failure into a slow secondary failure, and the log then names ollama — which is not the
+        # thing that broke. Removing it makes the PRIMARY failure the error, which is the one
+        # worth diagnosing. Re-add a tier only once something is actually serving it, and prove
+        # it answers before trusting it (a health probe, not a config line).
+        summary_fallback=(),
         notes=(
             "Prod-ready all-DGX (#923): whisper + summary + GI + KG on the GB10, "
             "Gemini for the cheap speaker-detect, cloud Gemini as the summary "

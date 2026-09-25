@@ -110,7 +110,6 @@ gi_nli_entailment_min: 0.75
 gil_evidence_match_summary_provider: true
 transcription_fallback_providers: [tailnet_dgx_whisper, whisper]
 diarization_fallback_providers: [local]
-summary_fallback_providers: [ollama]
 resilience_run_context: serve
 resilience_failure_strategy: failover
 transcription_coverage_min: 0.0
@@ -121,8 +120,6 @@ vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 vllm_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8003/v1
 vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 ner_model: en_core_web_trf
-ollama_summary_model: qwen3.5:35b
-ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
 transcription_speech_coverage_min: 0.0
 gi_value_gate_provider: vllm
 gi_value_gate_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
