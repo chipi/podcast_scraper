@@ -867,3 +867,88 @@ class TestSkipExisting(unittest.TestCase):
 
             self.assertIsNone(job)
             mock_download.assert_not_called()
+
+
+class TestNamesTheSameEpisodeAcrossRuns:
+    """A transcript in a DIFFERENT run than its metadata still names the same episode.
+
+    The comparator stripped the longest COMMON suffix, which assumes both stems end in the same
+    identifier — true for a per-episode guid, and true for a per-run stamp when both artifacts came
+    from one run. A reprocess breaks it: fresh metadata goes into a NEW run while the transcript
+    stays in the OLD one, so the tails are two different run ids, the common suffix is empty, and
+    two whole strings that diverge at the stamp are compared. A correctly-paired episode then reads
+    as mispaired and `relabel_only` refuses it as `TranscriptUnresolved`.
+
+    Measured on the 2026-09-25 prod corpus: 34 of 2002 served episodes, every one a false positive,
+    zero genuine mispairings. Five refused mid-batch, which is how it surfaced.
+    `run_index._transcript_beside` documents the state as normal: "THE NEWEST RECORD IS NOT ALWAYS
+    THE ONE WITH THE TRANSCRIPT."
+    """
+
+    def test_same_episode_transcript_left_behind_in_an_older_run(self):
+        assert filesystem.names_the_same_episode(
+            "0003 - _Causal Models Need Causal Data _20260805-183456_7a69fc41",
+            "0003 - _Causal Models Need Causal Data _20260729-041658_ba02775e",
+        )
+
+    def test_a_uuid_bearing_run_id_also_strips(self):
+        """Prod carries three tail shapes; the longest is uuid + stamp + hex."""
+        assert filesystem.names_the_same_episode(
+            "0007 - Some Title_7096bc13-d87e-47ea-9c7e-798ce307b1d6_20260827-211855_285e51f2",
+            "0007 - Some Title_20260729-010441_ba02775e",
+        )
+
+    def test_truncated_title_with_a_SHARED_guid_still_works(self):
+        """The common-tail path must keep working — it is what the fix must not break.
+
+        A plain equality test called 128 correctly-paired episodes mispaired, which is how #2082's
+        headline read 275 instead of 147.
+        """
+        assert filesystem.names_the_same_episode(
+            "0006 - This Funding Model is Helping Fi_guid123",
+            "0006 - This Funding Model is Helping Fight Climate Change_guid123",
+        )
+
+    def test_the_2082_corruption_is_STILL_refused_when_the_idx_collides_across_runs(self):
+        """The case the whole guard exists for, and the one most at risk from this change.
+
+        #2082 handed an episode another episode's transcript found by globbing `{idx} - *.txt`
+        across the feed root — so the idx MATCHES and the title does not. Stripping the run tails
+        must not make two different titles compare equal.
+        """
+        assert not filesystem.names_the_same_episode(
+            "0010 - Re-engineering the Semiconductor_20260805-192550_7a69fc41",
+            "0010 - Pax Silica_ Inside the Trump Adm_20260729-061755_ba02775e",
+        )
+
+    def test_different_episode_same_run_is_still_refused(self):
+        assert not filesystem.names_the_same_episode(
+            "0001 - Pax Silica_ Inside the Trump Adm_20260924-063930",
+            "0010 - Re-engineering the Semiconductor_20260924-063930",
+        )
+
+    def test_different_episode_and_different_run_is_still_refused(self):
+        assert not filesystem.names_the_same_episode(
+            "0001 - Chinese AI Is Spooking Silicon V_20260805-192550_7a69fc41",
+            "0003 - The Data Is In on Work From Home_20260729-061755_ba02775e",
+        )
+
+    def test_no_recognisable_run_id_falls_through_to_refusal(self):
+        """Test 2 must not become a second, looser way to say yes.
+
+        With no strippable tail on either side there is nothing new to compare, so the verdict is
+        test 1's. Two unrelated names must not pass merely because the regex matched nothing.
+        """
+        assert not filesystem.names_the_same_episode("0001 - Alpha", "0002 - Beta")
+
+    def test_a_title_ending_in_digits_is_not_mistaken_for_a_run_id(self):
+        """The tail regex requires a real YYYYMMDD-HHMMSS stamp, anchored at the end."""
+        assert filesystem._strip_run_identifier("0004 - Episode 12345678") == (
+            "0004 - Episode 12345678"
+        )
+        assert filesystem._strip_run_identifier("0004 - T_20260805-183456") == "0004 - T"
+
+    def test_a_per_episode_guid_is_never_stripped(self):
+        """Stripping a guid would discard what distinguishes two episodes of one feed."""
+        stem = "0006 - Some Title_0abbdc7e-4cb3-11f1-bb0f-9b67bad2c789"
+        assert filesystem._strip_run_identifier(stem) == stem

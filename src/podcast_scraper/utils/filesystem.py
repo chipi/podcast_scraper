@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import time
 from pathlib import Path
 from typing import Optional, Tuple
@@ -51,6 +52,9 @@ def names_the_same_episode(meta_stem: str, transcript_stem: str) -> bool:
     """
     if meta_stem == transcript_stem:
         return True
+    # Test 1 — the COMMON-tail test. Correct whenever both files carry the same trailing
+    # identifier, which is the ordinary case: a per-episode guid, or a per-run stamp when both
+    # artifacts came out of the same run. Strip the shared tail and compare what is left.
     n = 0
     while (
         n < min(len(meta_stem), len(transcript_stem))
@@ -59,7 +63,47 @@ def names_the_same_episode(meta_stem: str, transcript_stem: str) -> bool:
         n += 1
     a = meta_stem[: len(meta_stem) - n].rstrip()
     b = transcript_stem[: len(transcript_stem) - n].rstrip()
-    return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))
+    if bool(a) and bool(b) and (a.startswith(b) or b.startswith(a)):
+        return True
+    # Test 2 — DIFFERENT RUNS. The premise of test 1 is that both stems end in the same
+    # identifier, and a reprocess breaks it: it writes fresh metadata into a NEW run while the
+    # transcript stays in the OLD one, so the tails are two different run ids, the common suffix
+    # is empty, and test 1 compares whole strings that diverge at the stamp. A correctly-paired
+    # episode then reads as mispaired. `run_index._transcript_beside`'s own docstring calls this
+    # state normal ("THE NEWEST RECORD IS NOT ALWAYS THE ONE WITH THE TRANSCRIPT"), and measured
+    # on the 2026-09-25 prod corpus it is 34 of 2002 served episodes — every one a false
+    # positive, no genuine mispairing among them. Five of them refused mid-batch as
+    # `TranscriptUnresolved`, which is how this surfaced.
+    #
+    # So strip each stem's OWN run identifier and compare again. The INDEX AND TITLE both have to
+    # agree by prefix, which is what keeps the #2082 corruption caught: that handed an episode a
+    # different episode's transcript from another run, so the titles disagree even though the idx
+    # collides. Removing the tails cannot make two different titles match.
+    a2, b2 = _strip_run_identifier(meta_stem), _strip_run_identifier(transcript_stem)
+    if a2 == meta_stem and b2 == transcript_stem:
+        return False  # neither carried a recognisable run id — nothing new to compare
+    return bool(a2) and bool(b2) and (a2.startswith(b2) or b2.startswith(a2))
+
+
+#: A run identifier at the END of an artifact stem. Shapes seen on prod, longest first:
+#:   _<uuid>_<YYYYMMDD-HHMMSS>_<hex>   _7096bc13-...-798ce307b1d6_20260827-211855_285e51f2
+#:   _<YYYYMMDD-HHMMSS>_<hex>          _20260805-183456_7a69fc41
+#:   _<YYYYMMDD-HHMMSS>                _20260924-063930
+#: Anchored to the end and requiring the timestamp, so a title ending in an underscore or a
+#: number is never mistaken for one.
+_RUN_ID_TAIL = re.compile(
+    r"_(?:[0-9a-fA-F]{8}-[0-9a-fA-F-]{20,40}_)?\d{8}-\d{6}(?:_[0-9a-zA-Z]{4,})?$"
+)
+
+
+def _strip_run_identifier(stem: str) -> str:
+    """*stem* without its trailing run identifier, or unchanged when it has none.
+
+    Only ever removes a tail that contains a real ``YYYYMMDD-HHMMSS`` stamp, so a per-episode
+    guid (the downloaded-transcript case) is left alone — test 1 already handles those, and
+    stripping a guid here would discard the very thing distinguishing two episodes of one feed.
+    """
+    return _RUN_ID_TAIL.sub("", stem).rstrip()
 
 
 def _platformdirs_safe_roots() -> set[Path]:
