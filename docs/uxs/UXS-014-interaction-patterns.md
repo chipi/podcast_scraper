@@ -813,8 +813,11 @@ when native is merely nicer.** Each entry below names the promise it is protecti
 
 ### iOS versus Android
 
-Same Vue code, and **two** things genuinely differ. Both are platform mechanics, not product
-decisions — the product behaves identically on both:
+Same Vue code, and **four** things genuinely differ. All are platform mechanics rather than product
+decisions — the product is meant to behave identically on both. The last two were found on
+2026-09-24 by the Android device tier's first run against the app (#2139), and neither was a
+curiosity: one had broken a whole feature on Android, the other had made four controls unusable
+with a screen reader.
 
 - **Output routing is two APIs.** iOS/WKWebView has `webkitShowPlaybackTargetPicker()` with
   `webkitplaybacktargetavailabilitychanged`; Chromium has the Remote Playback API
@@ -825,6 +828,24 @@ decisions — the product behaves identically on both:
   notification, which MediaSession already populates.
 - **Background audio is two mechanisms.** iOS uses `AVAudioSession` + `UIBackgroundModes`; Android
   needs a foreground service, which is why a local `BackgroundAudio` plugin exists and no-ops on iOS.
+- **`Filesystem.downloadFile` resolves a different set of directories.** It is served by the
+  plugin's LEGACY Android implementation, whose `getDirectory()` has no case for
+  `LIBRARY_NO_CLOUD` — it returns null and `FileOutputStream(null)` throws. Every download on
+  Android failed with "Error downloading file: null" and recorded itself as retryable, so the user
+  saw "Download failed — tap to retry" for ever. Downloads now fetch into `Directory.Data`, which
+  on Android is the SAME `filesDir` the modern implementation maps `LIBRARY_NO_CLOUD` to, so every
+  other call still reads the bytes back at the same path. iOS is unchanged: `LibraryNoCloud` is how
+  podcast audio is kept out of an iCloud backup, which is not an Android concern.
+- **`aria-haspopup` costs a control its accessible NAME on Android when nothing inside it is
+  readable.** Measured on Android System WebView 150: the overflow ⋯, Notifications, Share and Add
+  to collection each arrived as a zero-child `Button` with an EMPTY contentDescription — the label
+  string appeared nowhere in the accessibility tree, so TalkBack announced only "Button". Neither
+  condition alone does it: `Play`, `Skip back 15 seconds` and `Mark this moment` are icon-only with
+  `aria-label` and all named, because they open no popup; `Playback speed` has `aria-haspopup` and
+  IS named, because its pill renders readable text beside the icon. The fix is the `sr-only` span
+  this codebase already uses for the masthead profile link — the same remedy as the WebKit defect
+  below, which the two engines express differently (WebKit drops the element; Chromium keeps it and
+  strips the name).
 **Not a difference — a SETTLED decision, recorded so it is not reopened as one.** Using the OS
 picker is the answer on both platforms (operator 2026-09-24: "I'm okay with the generic AirPlay way
 to trigger the iOS native dialog"). Neither platform lets a page — or a native app — enumerate
@@ -836,8 +857,14 @@ obvious next thought and there is nothing to build.
 
 **The browser tier cannot see any of the above.** A Playwright spec against a native-only control
 asserts an empty page and PASSES, which is worse than failing: it certifies the opposite of the
-truth. Anything in the table above belongs in the device tier (`make test-ios`) or in a unit test
-with `isNative` mocked — never in `e2e/*.spec.ts`.
+truth. Anything in the table above belongs in a device tier (`make test-ios`, `make test-android`)
+or in a unit test with `isNative` mocked — never in `e2e/*.spec.ts`.
+
+**And a DOM-driven device test would not have helped either.** `Espresso.onWebView()` runs WebDriver
+atoms against the DOM, so on the `aria-haspopup` defect above it would have found every control and
+passed — the same blind spot Playwright has, at device-tier cost. The Android tier uses UI Automator
+precisely because it reads the accessibility tree, which is the surface TalkBack consumes. Choosing
+the runner that can see the bug is not a detail; it is the reason the tier is worth running.
 
 **And XCUITest cannot see what the DOM says it should.** It reads the accessibility tree, where
 WebKit maps a `<button>` to a Button only if it is plain: `aria-haspopup` makes it a PopUpButton,

@@ -2235,13 +2235,20 @@ test-android:
 	@# session. That wedge is unrecoverable from inside a test, so it is handled here instead.
 	@$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null
 	@rc=0; \
-	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/4 harness (sign-in, nav, deep links, offline switch) ==="; \
+	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/6 harness (sign-in, nav, deep links, offline switch) ==="; \
 	$(MAKE) android-suite SUITE=HarnessSmokeTests || rc=$$?; \
-	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 2/4 download through the UI (seeds the offline suites) ==="; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 2/6 download through the UI (seeds the offline suites) ==="; \
 		$(MAKE) android-suite SUITE=DownloadThroughUITests || rc=$$?; fi; \
-	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 3/4 offline boot + playback from disk ==="; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 3/6 offline boot + playback from disk ==="; \
 		$(MAKE) android-suite SUITE=OfflineAutoAdvanceTests || rc=$$?; fi; \
-	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 4/4 native-only surfaces ==="; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 4/6 offline playback + cache + the config toggle ==="; \
+		$(MAKE) android-suite SUITE=OfflinePlaybackTests || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=OfflineCacheTests || rc=$$?; }; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=ConfigOfflineToggleTests || rc=$$?; }; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 5/6 server-degraded + personalisation ==="; \
+		$(MAKE) android-suite SUITE=ServerDegradedTests || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=PersonalisationTests || rc=$$?; }; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/6 native-only surfaces (leaves the device offline+signed-out) ==="; \
 		$(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; fi; \
 	echo ""; echo "--> resetting the device (the last suite leaves it offline AND signed out by design)"; \
 	$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null 2>&1 || true; \

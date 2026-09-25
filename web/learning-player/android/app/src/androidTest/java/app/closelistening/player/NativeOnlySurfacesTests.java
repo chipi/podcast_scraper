@@ -77,44 +77,38 @@ public class NativeOnlySurfacesTests extends UITestCase {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity(), ready);
 
-        // Queue the seeded episode, so Up next has a row whose download state we already know.
+        // Queue the seeded episode from a LIST ROW, then open the queue panel from under the
+        // artwork.
         //
-        // The queue control is a MENU ITEM, not part of the visible action row — which carries
-        // favourite, add-to-collection, share and ⋯ and nothing else. The download suite reached it
-        // without opening anything only because its own flow leaves the ⋯ open; relying on that
-        // here reported "neither queue control was reachable" about a player page that was
-        // perfectly healthy (2026-09-24).
-        AppSession.openEpisode(SEEDED_SLUG);
-        assertTrue("no ⋯ on the player, so the queue control cannot be reached. On screen: "
-                + Journey.labelledInventory(20), Journey.tap("More actions", false, 20_000));
-        Journey.sleep(1_500);
-        // Say what the menu actually contains. "neither queue control was reachable" is true of a
-        // menu that never opened AND of one that opened without the item, and those need opposite
-        // fixes — the first time this failed, the inventory showed the action row with no menu
-        // items at all and that was the whole diagnosis (2026-09-24).
-        // Ask the DIRECT question. A capped inventory cannot answer it: the panel teleports to
-        // `<body>`, so its items sit at the END of the tree and a limit of 30 cut them off — which
-        // made an open menu look like a closed one.
-        System.out.println("=====UPNEXT add=" + (Journey.find("Add to queue", false, 3_000) != null)
-                + " remove=" + (Journey.find("Remove from queue", false, 3_000) != null)
-                + " markPlayed=" + (Journey.find("Mark as played", false, 2_000) != null)
-                + " download=" + (Journey.find("Download for offline", false, 2_000) != null)
-                + " downloaded=" + (Journey.find("Downloaded — tap to remove", false, 2_000) != null)
-                + "=====");
-        if (!Journey.tap("Add to queue", false, 10_000)) {
-            // Already queued by an earlier suite on the shared account — that is the state we want,
-            // but say so by asserting the OTHER control rather than assuming it.
-            assertNotNull("neither queue control was reachable on the player. On screen: "
-                            + Journey.labelledInventory(20),
-                    Journey.find("Remove from queue", false, 10_000));
-        }
+        // The first version tapped ⋯ on the player and looked for a queue control there, copying
+        // the iOS suite. It is not there and never has been: `EpisodeActions` renders `QueueButton`
+        // in the visible ROW when `!hideQueue` and inside the ⋯ only when `hideQueue`, and the
+        // player uses neither — its action row is favourite, add-to-collection, share, ⋯. A direct
+        // probe of the open menu settled it (2026-09-24):
+        //
+        //     =====UPNEXT add=false remove=false markPlayed=true download=false downloaded=true=====
+        //
+        // The menu was open the whole time. The assertion was inherited rather than checked, which
+        // is the same mistake as inventing a fixture title — asserting against a remembered app
+        // instead of this one. Operator: "queue actions exist only when you open queue in the upper
+        // section under the artwork."
+        assertTrue("Library was not reachable", Journey.openTab("Library"));
+        assertNotNull("the Downloaded section was not reachable — the download suite may not have "
+                        + "run. On screen: " + Journey.labelledInventory(24),
+                Journey.scrollTo("Downloaded", false));
+        // Either state is fine: the point is that SOMETHING is in the queue so Up next has a row.
+        boolean queued = Journey.tap("Add to queue", false, 10_000)
+                || Journey.find("Remove from queue", false, 5_000) != null;
+        assertTrue("no queue control on the Downloaded rows, so nothing can reach Up next. "
+                + "On screen: " + Journey.labelledInventory(30), queued);
 
-        // The masthead queue control, asserted on the way in rather than taken for granted: before
-        // it existed, `/queue` was reachable only from the player or Home's resume hero, so
-        // finishing everything made the queue unreachable without starting an episode you did not
-        // want to play. If it regresses, the surface under test becomes unreachable on device.
-        assertTrue("the masthead queue control was not reachable. On screen: "
-                + Journey.labelledInventory(20), Journey.tap("Queue", false, 15_000));
+        // The queue panel lives under the artwork on the player (`queue.open`), which is the
+        // surface carrying Up next.
+        AppSession.openEpisode(SEEDED_SLUG);
+        assertTrue("the queue panel could not be opened from the player. On screen: "
+                + Journey.labelledInventory(24),
+                Journey.tap("Queue & recently played", false, 20_000));
+        Journey.sleep(2_000);
 
         // The claim: the download control is in the ROW, reachable without opening the ⋯.
         assertNotNull(
