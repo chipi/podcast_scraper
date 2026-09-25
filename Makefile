@@ -77,12 +77,12 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
+.PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
-.PHONY: test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
+.PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -2059,14 +2059,15 @@ test-app-ios-playback:
 # `test-app-ios-sim-offline` can then run with nothing seeded at all.
 test-app-ios-sim-download:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
-	@$(MAKE) ios-origin-up
-	@echo "--> building the app against the single origin and installing it on '$(IOS_SIM)'"
-	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app npm run build >/dev/null && npx cap sync ios >/dev/null
-	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
-		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
-		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
-	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
-	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
+	@# ONE build-and-install, shared with `ios-app-install` (deduplicated 2026-09-25). This target
+	@# carried a byte-identical copy — origin-up, npm build against $(IOS_ORIGIN_PORT), cap sync,
+	@# xcodebuild, boot, install — MINUS the two integrity probes, which is the half that matters:
+	@# `ios-app-install` proves the installed bundle actually targets the origin (otherwise it runs
+	@# against PROD and every fixture assertion fails at once) and that the origin serves /audio
+	@# (otherwise the episode page renders "Couldn't load the audio from the source" with no
+	@# transport, and a test reports the Play control missing rather than the audio). Both are
+	@# documented as having cost whole sessions; phase 1 was running without either.
+	@$(MAKE) ios-app-install
 	@echo "--> downloading two episodes through the UI"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
@@ -2075,20 +2076,11 @@ test-app-ios-sim-download:
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
 		rc=$${PIPESTATUS[0]}; exit $$rc
 
-# The full device journey in the order the preconditions demand: download with the network UP,
-# then prove the offline half with everything DOWN. Nothing is seeded — what plays offline is what
-# the UI actually downloaded.
-test-app-ios-journey:
-	@$(MAKE) test-app-ios-sim-download
-	@$(MAKE) ios-origin-down
-	@$(MAKE) app-e2e-api-down
-	@echo "--> api, media and origin are ALL down; running the offline journey"
-	@cd $(IOS_UITESTS_DIR) && \
-		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
-			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
-			-only-testing:OfflineSpikeUITests/OfflineAutoAdvanceTests \
-			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
-		rc=$${PIPESTATUS[0]}; exit $$rc
+# `test-app-ios-journey` was DELETED 2026-09-25. It chained download -> everything-down ->
+# auto-advance, which is exactly `test-ios` phases 1 and 2, and nothing called it. Two ways to run
+# the same sequence is how they drift: this copy still piped through `| tail -25`, the bug
+# `test-app-ios-sim-offline` documents at length (the pipeline's status becomes the TAIL's, so the
+# target reports success while its suite fails).
 
 # Consumer-surface journey suite on the simulator (2026-09-16): profile tabs, episode → insights,
 # topic → storyline, person, collections, share, saved colour picker, personalisation, and the
@@ -2363,12 +2355,11 @@ android-emulator-down:
 	@$(ADB) emu kill >/dev/null 2>&1 || true
 	@echo "✓ '$(ANDROID_AVD)' emulator reaped"
 
-#: The same, but sets up its own preconditions end to end (build, install, origin, sign-in).
-test-app-ios-native-full:
-	@$(MAKE) test-app-ios-sim-download
-	@$(MAKE) ios-origin-up
-	@$(MAKE) ios-journey-signin
-	@$(MAKE) test-app-ios-native
+# `test-app-ios-native-full` was DELETED 2026-09-25: download -> origin -> sign-in -> native is
+# what `test-ios` phases 1-5 do, and nothing called it. It is worth recording WHY it existed,
+# because that is the bug it was quietly compensating for: `test-ios` omitted the `ios-journey-signin`
+# its own comment said it ran, so this target was the only way to get the native suites a session.
+# The tier does it properly now; the workaround goes.
 
 # The signed-out PRODUCTION tour. Separate because its preconditions are different in kind: it wants
 # the real prod backend and NO session, where every target above wants the fixture api and a seeded
@@ -2604,44 +2595,23 @@ ios-journey-shots:
 	[ -n "$$xcr" ] || { echo "FAIL: no .xcresult — run a UI-test target first"; exit 1; }; \
 	$(PYTHON) scripts/tools/export_xcresult_shots.py --xcresult "$$xcr" --out $(IOS_SHOTS_DIR)
 
-# NOTE on defaults, which cost two wrong diagnoses: WRITE through `xcrun simctl spawn ... defaults
-# write` — that goes via the simulator's cfprefsd, which is what the app actually reads. Writing
-# the container plist file directly LOOKS right and is then silently clobbered by cfprefsd's
-# cached copy. Conversely, READ the container plist file: `simctl spawn defaults read` can return
-# a stale value for a write the app has already made. Write through the daemon, read from the file.
-# The app is stopped first either way, so it cannot flush over the seed on exit.
+# `seed-ios-download` and `seed-ios-offline-queue` were DELETED 2026-09-25, with the
+# `defaults write` note that justified them.
 #
-# Seeds one downloaded episode for the dedicated `uitest` identity, so the offline path has
-# something to play without driving a real download through the UI. The namespace is the
-# user_id the mock provider derives for that hint (see server/app_user_store.user_id_for).
-UITEST_NS ?= u_bc76c56b88bcec16904531b0
-seed-ios-download:
-	@xcrun simctl terminate booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
-	@DATA=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID) data); \
-	mkdir -p "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)"; \
-	cp tests/fixtures/audio/v3/p01_e01.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3"; \
-	BYTES=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3" | tr -d ' '); \
-	REG='{"p05-ee8e47b94b":{"slug":"p05-ee8e47b94b","state":"downloaded","updatedAt":1,"uri":"file:///stale/old.mp3","path":"offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3","title":"Index Investing Without the Myths","showTitle":"Long Horizon Notes","feedId":"p05","durationSeconds":416,"bytes":'"$$BYTES"'}}'; \
-	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) "CapacitorStorage.downloads.registry.$(UITEST_NS)" -string "$$REG"; \
-	echo "seeded a downloaded episode for $(UITEST_NS)"
-
-# Seeds the OFFLINE journey (#1925 slice 3): two downloaded episodes and a cached queue holding
-# both, so auto-advance has somewhere to advance TO with no network. Uses the shortest fixture
-# audio so an episode actually reaches its end inside a test.
-UITEST_EP1 ?= p06-7217050bc6
-UITEST_EP2 ?= p06-5416bc0968
-seed-ios-offline-queue:
-	@xcrun simctl terminate booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
-	@DATA=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID) data); \
-	mkdir -p "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)" "$$DATA/Library/NoCloud/content-cache/$(UITEST_NS)"; \
-	cp tests/fixtures/audio/v3/p06_e05.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3"; \
-	cp tests/fixtures/audio/v3/p01_multi_e05.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3"; \
-	B1=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3" | tr -d ' '); \
-	B2=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3" | tr -d ' '); \
-	REG='{"$(UITEST_EP1)":{"slug":"$(UITEST_EP1)","state":"downloaded","updatedAt":2,"uri":"file:///stale/1.mp3","path":"offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3","title":"Signal Offline One","showTitle":"The Drift","feedId":"p06","durationSeconds":6,"bytes":'"$$B1"'},"$(UITEST_EP2)":{"slug":"$(UITEST_EP2)","state":"downloaded","updatedAt":1,"uri":"file:///stale/2.mp3","path":"offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3","title":"The Conversation About Conversations","showTitle":"The Drift","feedId":"p06","durationSeconds":6,"bytes":'"$$B2"'}}'; \
-	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) "CapacitorStorage.downloads.registry.$(UITEST_NS)" -string "$$REG"; \
-	printf '["%s","%s"]' "$(UITEST_EP1)" "$(UITEST_EP2)" > "$$DATA/Library/NoCloud/content-cache/$(UITEST_NS)/queue.json"; \
-	echo "seeded 2 downloads + a cached queue for $(UITEST_NS)"
+# Both hand-wrote a downloads registry through `xcrun simctl spawn defaults write` into
+# `UITEST_NS` (u_bc76c56b88bcec16904531b0), the namespace the mock provider derives for the
+# `uitest` hint. Every suite that consumed them signs in as the SHARED `simtest` account, whose
+# registry on device is u_1e9f7e3c36157a4b6262cafc — measured. The seeds were therefore invisible
+# to their own consumers, and `OfflinePlaybackTests` asserted on an episode title
+# ("Index Investing Without the Myths") that only the seed invented, so it could not pass either
+# way. Nobody noticed because its only caller, `test-app-ios-sim`, was called by nothing.
+#
+# `seed-ios-offline-queue` had already been abandoned in place: `test-app-ios-sim-offline`
+# documents at length why it stopped seeding (the mechanism is unreliable — `defaults read` reports
+# the seeded value while the app reads the previous one) and relies on real downloads instead.
+#
+# The tier now downloads through the UI in phase 1 and every offline suite reads THAT. Decision 4
+# of #1925 said to prefer a real download over a manufactured registry; this finishes the job.
 
 # The OFFLINE journey: the api is deliberately DOWN for the whole run, so the app must boot from
 # its cached identity, render Library from the content cache, play from disk and auto-advance
