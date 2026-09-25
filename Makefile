@@ -82,7 +82,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
 .PHONY: test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -144,7 +144,7 @@ help:
 	@echo "  make test-app            Vitest unit tests + coverage gate for $(APP_DIR)"
 	@echo "  make test-app-e2e        Playwright E2E for $(APP_DIR) (needs npm install + chromium in that dir)"
 	@echo "  make test-app-e2e-docker Same suite against a CONTAINERISED api (hosts where [search] cannot install)"
-	@echo "  make test-app-ios-sim    Device-tier UI tests on an iOS simulator (needs xcodegen + cocoapods)"
+	@echo "  make test-ios            THE iOS device tier — 6 phases, the one thing to run (needs xcodegen)"
 	@echo "  make test-app-ios-sim-offline  The offline journey with the api DOWN (boot, library, play, auto-advance)"
 	@echo "  make build-app           Production Learning Player bundle (vue-tsc -b && vite build)"
 	@echo "  make app-docker-build    Build the Learning Player Docker image"
@@ -2009,29 +2009,34 @@ IOS_DD ?= /tmp/lp-ios-dd
 IOS_ORIGIN_PORT ?= 4174
 IOS_MEDIA_PORT ?= 18765
 
-test-app-ios-sim:
+# `OfflinePlaybackTests` — plays an episode from disk and seeks in it.
+#
+# REPLACED `test-app-ios-sim` (deleted 2026-09-25), which built the app, installed it, ran
+# `seed-ios-download` and then this suite — and which NOTHING called. That is the failure mode the
+# wiring guard was written for and could not see: the suite WAS reachable from a target, so the
+# guard passed, while the target itself was reachable from nothing. It is now step 2 of `test-ios`.
+#
+# No build, no install, no seeding: step 1 downloads two real episodes through the UI as the shared
+# `simtest` account, and this suite reads those.
+#
+# MEASURED, after asserting it twice without checking: `seed-ios-download` writes
+# `downloads.registry.$(UITEST_NS)` = u_bc76c56b88bcec16904531b0, the `uitest` identity's namespace,
+# while `simtest` on device is u_1e9f7e3c36157a4b6262cafc. The seed was therefore INVISIBLE to this
+# suite however often it ran — and the suite asserted on the seed's invented episode title, so it
+# could not pass either way. That went unnoticed because its only home, `test-app-ios-sim`, was
+# called by nothing. The suite now asserts on an episode phase 1 genuinely downloaded.
+#
+# The api stays UP: despite the name, this suite plays from DISK but still signs in and reads
+# Library (see its own header). It therefore runs BEFORE `test-app-ios-sim-offline` tears the api
+# down, not alongside it.
+test-app-ios-playback:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
-	@command -v pod >/dev/null || { echo "FAIL: cocoapods missing — brew install cocoapods"; exit 1; }
-	@$(MAKE) app-e2e-api-up
-	@echo "--> building the app against the fixture api and installing it on '$(IOS_SIM)'"
-	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(APP_E2E_PORT)/api/app npm run build >/dev/null && npx cap sync ios >/dev/null
-	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
-		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
-		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
-	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
-	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
-	@$(MAKE) seed-ios-download
-	@echo "--> running the UI tests"
-	@# ONLY the playback suite. OfflineAutoAdvanceTests has preconditions this target does not set
-	@# up — the api DOWN and a session already established — and XCTest runs suites alphabetically,
-	@# so it went first and failed on a fresh install with no stored session. Its home is
-	@# `test-app-ios-sim-offline`, run AFTER this target has signed in.
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/OfflinePlaybackTests \
-			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -20; \
-		rc=$${PIPESTATUS[0]}; $(MAKE) -C $(CURDIR) app-e2e-api-down; exit $$rc
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_PLAYBACK_EXIT=$$rc"; exit $$rc
 
 # Decision 4 of the #1925 arc: DOWNLOAD through the UI rather than seeding a registry.
 #
@@ -2168,6 +2173,26 @@ test-app-ios-native:
 #                  api and session; `NativeOnlySurfacesTests` re-signs-in per test via
 #                  `startClean`, but the suites in step 3 do NOT, which is why 2b cannot move.
 #
+# TWO SUITES JOINED THE TIER ON 2026-09-25, having sat outside every gate:
+#
+#   playback — `OfflinePlaybackTests` plays what step 1 downloaded. Its old home was
+#              `test-app-ios-sim`, which nothing called — the suite was reachable from a target and
+#              therefore passed the wiring guard while never actually running.
+#
+#              It runs AFTER the auto-advance step, not before, and that is load-bearing. Placed at
+#              step 2 it broke step 3 immediately: it PLAYS an episode, playback position persists
+#              SERVER-SIDE, and `OfflineAutoAdvanceTests` then opened the same slug and found a
+#              resumed episode showing a "NEXT · IN 0:06" countdown and no Play control at all —
+#              "no Play control offline", measured 2026-09-25. `PersonalisationTests` documents the
+#              same trap from the other side. It needs the api UP, so it sits after the recovery
+#              rather than before the teardown.
+#
+#   degraded — `ServerDegradedTests` is LAST because it is destructive: it restarts the api with a
+#              different `APP_SESSION_SECRET`, which invalidates every token the steps above
+#              depend on. Running it anywhere else poisons whatever follows. It was previously
+#              excluded from the tier outright for that reason; ordering solves it without giving
+#              up the coverage, and the 2026-09-16 secrets-lost incident is worth a gate.
+#
 # DELIBERATELY EXCLUDED — `test-app-ios-prod-tour`. It points at the REAL production backend and
 # wants NO session, where every step above wants the fixture api and a seeded one. Folding it in
 # would mean a prod outage reads as a native-shell regression, and that nothing-that-talks-to-prod
@@ -2201,16 +2226,20 @@ test-ios:
 	}
 	@echo ""; echo "=== test-ios START $$(date '+%Y-%m-%d %H:%M:%S') — sim '$(IOS_SIM)' ==="
 	@set -e; \
-	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/4 download (seeds the offline suites) ==="; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/6 download (seeds the offline suites) ==="; \
 	$(MAKE) test-app-ios-sim-download; \
-	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 2/4 offline auto-advance ==="; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 2/6 offline auto-advance (api DOWN) ==="; \
 	$(MAKE) test-app-ios-sim-offline; \
-	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 3/4 journey + personalisation + cache ==="; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 3/6 offline playback (plays what 1 downloaded) ==="; \
 	$(MAKE) ios-origin-up; \
 	$(MAKE) ios-journey-signin; \
+	$(MAKE) test-app-ios-playback; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 4/6 journey + personalisation + cache ==="; \
 	$(MAKE) test-app-ios-journey-ui; \
-	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 4/4 native capabilities + native-only surfaces ==="; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 5/6 native capabilities + native-only surfaces ==="; \
 	$(MAKE) test-app-ios-native; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 6/6 degraded server (DESTRUCTIVE — runs last) ==="; \
+	$(MAKE) test-app-ios-server-degraded; \
 	echo ""; echo "=== test-ios PASS $$(date '+%Y-%m-%d %H:%M:%S') ==="
 
 # ANDROID device tier (#2139) — the sibling of `test-ios`, one entry point, same guard shape.
@@ -2370,6 +2399,13 @@ ios-journey-signin:
 # install and "found" an empty app — a test artifact, not a finding).
 test-app-ios-server-degraded:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@# A SESSION FIRST (2026-09-25). `test11a` asserts "not signed in — run `make ios-journey-signin`
+	@# before this target" as its very first check, and this target never ran it. Standalone, the
+	@# suite therefore failed on its own stated precondition, and that failure was then reported as a
+	@# real Android-vs-iOS behaviour difference and used to park the suite on BOTH platforms. Same
+	@# defect `test-ios` had: a precondition documented in prose and never wired.
+	@$(MAKE) ios-origin-up
+	@$(MAKE) ios-journey-signin
 	@echo "--> 1/3 warming the cache against a HEALTHY api"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
@@ -2530,8 +2566,8 @@ seed-ios-offline-queue:
 
 # The OFFLINE journey: the api is deliberately DOWN for the whole run, so the app must boot from
 # its cached identity, render Library from the content cache, play from disk and auto-advance
-# without a single successful request. Requires a prior `make test-app-ios-sim` to have installed
-# the app and signed in as the uitest identity.
+# without a single successful request. Requires a prior `make test-app-ios-sim-download` to have
+# installed the app and signed in — which is phase 1 of `test-ios`, where this runs as phase 3.
 test-app-ios-sim-offline:
 	@# NO `defaults write` seeding (2026-09-24). This used to run `seed-ios-offline-queue`, which
 	@# manufactures a downloads registry and a cached queue by writing straight into the app's

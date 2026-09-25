@@ -163,7 +163,19 @@ function dismissInterests(): void {
 }
 
 async function onInterestsSaved(): Promise<void> {
-  dismissInterests()
+  // NO `dismissInterests()` here (2026-09-25). The picker now writes the saved set into the
+  // interests store, so `showInterestsCard` goes false on its own — the card hides because the user
+  // HAS interests, which is the real reason, not because we marked the offer as declined.
+  //
+  // It was actively wrong twice over. `dismissInterests` persists to localStorage AND write-syncs
+  // the preference across devices, so choosing interests permanently suppressed the card: clear
+  // them again later and it would never come back. And it masked the bug — saving from Home LOOKED
+  // right while the store stayed empty, so the defect only showed on the Profile path, where
+  // nothing set the flag. That is what `PersonalisationTests.test10` hit.
+  //
+  // Declining still works: "Not now" calls `dismissInterests` directly, which is the only place
+  // that should.
+  //
   // Re-pull discovery so a personalized order (when the flag is on) takes effect immediately.
   await loadWhatsNew()
 }

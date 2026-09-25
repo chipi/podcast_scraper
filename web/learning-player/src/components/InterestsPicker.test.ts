@@ -1,14 +1,20 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
+import { useInterestsStore } from '../stores/interests'
 import InterestsPicker from './InterestsPicker.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 // Stub <Teleport> so the modal renders inline in the wrapper (it teleports to <body> in the app).
 const mountPicker = () => mount(InterestsPicker, { global: { plugins: [i18n], stubs: { teleport: true } } })
 
+// Pinia: the picker now writes the saved set into the interests store itself (iOS-F1). Before that
+// it PUT the list and told nobody, leaving each parent to update its own copy — which is how Home
+// kept prompting "Personalize your Home" after interests were chosen from Profile.
+beforeEach(() => setActivePinia(createPinia()))
 // Default the storylines fetch to empty; the storyline-specific tests override it.
 beforeEach(() => vi.spyOn(api, 'getStorylines').mockResolvedValue([]))
 afterEach(() => vi.restoreAllMocks())
@@ -85,5 +91,28 @@ describe('InterestsPicker', () => {
     await w.findAll('button').find((b) => b.text() === 'Save')!.trigger('click')
     await flushPromises()
     expect(put).toHaveBeenCalledWith(['person:jane'])
+  })
+
+  it('writes the saved set into the STORE, not just the server (iOS-F1)', async () => {
+    // The picker PUTs an absolute list and used to tell nobody. `ProfileView` then assigned a local
+    // ref and `HomeView` set its DISMISSED flag, so Home's "Personalize your Home" card — gated on
+    // `interests.ids.length === 0` — kept asking after interests were chosen from Profile. Pinned
+    // here, at the write, because that is the one place both surfaces go through.
+    vi.spyOn(api, 'getTopClusters').mockResolvedValue([{ id: 'tc:ai', label: 'AI', size: 5 }])
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'putUserInterests').mockResolvedValue(['tc:ai'])
+
+    const store = useInterestsStore()
+    expect(store.ids).toEqual([])
+
+    const w = mountPicker()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text() === 'AI')!.trigger('click')
+    await w.findAll('button').find((b) => b.text() === 'Save')!.trigger('click')
+    await flushPromises()
+
+    // The SERVER's response is authoritative, not the local selection.
+    expect(store.ids).toEqual(['tc:ai'])
+    expect(store.loaded).toBe(true)
   })
 })

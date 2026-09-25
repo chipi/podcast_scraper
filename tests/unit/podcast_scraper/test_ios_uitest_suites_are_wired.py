@@ -38,6 +38,23 @@ _SUPPORT_FILES = {"Journey.swift", "AppSession.swift", "UITestCase.swift"}
 #: delete it; a quarantined suite that nobody runs is the exact thing this file exists to catch).
 _UNWIRED_BY_DESIGN: dict[str, str] = {}
 
+#: Suites reachable from a target but deliberately OUTSIDE the `test-ios` entry point.
+#:
+#: A much narrower door than `_UNWIRED_BY_DESIGN`: these still run, just never as part of the tier.
+#: Both entries are about the preconditions being incompatible with the gate, not about the suite.
+_OUTSIDE_THE_TIER: dict[str, str] = {
+    "ProdTourTests": (
+        "Points at the REAL production backend and wants NO session, where every step of the tier "
+        "wants the fixture api and a seeded one. Folding it in would mean a prod outage reads as a "
+        "native-shell regression. `make test-app-ios-prod-tour`, on purpose or not at all."
+    ),
+    "ScreenshotTourTests": (
+        "A CAMERA, not an assertion suite — best-effort by design, it photographs whatever is on "
+        "screen rather than failing. Gating on it would gate on screenshots. Run it with "
+        "`make ios-contact-sheet`."
+    ),
+}
+
 
 def _suite_names() -> list[str]:
     """Every XCUITest class name that has at least one `func test…`."""
@@ -109,4 +126,72 @@ def test_no_make_target_references_a_suite_that_does_not_exist() -> None:
         f"These Makefile targets run a suite that does not exist: {dangling}.\n"
         "xcodebuild does not fail on an unknown -only-testing identifier — it runs nothing and "
         "reports success, so the target is green while testing zero code."
+    )
+
+
+def _recipes() -> dict[str, list[str]]:
+    """Map each Makefile target to its recipe lines."""
+    recipes: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in MAKEFILE.read_text(encoding="utf-8").splitlines():
+        header = re.match(r"^([A-Za-z0-9_.\-/]+)\s*:(?!=)", line)
+        if header:
+            current = header.group(1)
+            recipes.setdefault(current, [])
+            continue
+        # A recipe line is TAB-indented; anything else at column 0 ends the recipe.
+        if current is not None and (line.startswith("\t") or not line.strip()):
+            recipes[current].append(line)
+        elif line and not line[0].isspace():
+            current = None
+    return recipes
+
+
+def _suites_reachable_from(entry: str) -> set[str]:
+    """Every suite run by `entry`, following `$(MAKE) <target>` transitively."""
+    recipes = _recipes()
+    seen: set[str] = set()
+    stack = [entry]
+    suites: set[str] = set()
+    while stack:
+        target = stack.pop()
+        if target in seen:
+            continue
+        seen.add(target)
+        body = "\n".join(recipes.get(target, []))
+        suites.update(re.findall(r"-only-testing:\w+/(\w+)", body))
+        stack.extend(re.findall(r"\$\(MAKE\)\s+([A-Za-z0-9_.\-/]+)", body))
+    return suites
+
+
+@pytest.mark.unit
+def test_every_suite_is_reachable_from_the_test_ios_ENTRY_POINT() -> None:
+    """Reachable from *a* target is not the same as reachable from the GATE.
+
+    The original guard asked only whether some target mentioned the suite. `OfflinePlaybackTests`
+    satisfied that for weeks while its only home, `test-app-ios-sim`, was called by nothing — so the
+    guard was green about a suite that never ran. `ServerDegradedTests` was in the same position and
+    its resulting failure got misread as an Android-vs-iOS product difference (2026-09-25).
+
+    `test-ios` is the contract. A suite outside it runs only when someone remembers, which is the
+    state this whole file exists to make impossible.
+    """
+    reachable = _suites_reachable_from("test-ios")
+    # Guard the guard: zero reachable would report "everything is wired" having checked nothing.
+    assert reachable, "no suites reachable from `test-ios` — did the target or the parser break?"
+
+    missing = [
+        name
+        for name in _suite_names()
+        if name not in reachable
+        and name not in _OUTSIDE_THE_TIER
+        and name not in _UNWIRED_BY_DESIGN
+    ]
+
+    assert not missing, (
+        f"These suites exist but `make test-ios` does not run them: {sorted(missing)}.\n\n"
+        "Being referenced by SOME target is not enough — `test-app-ios-sim` referenced "
+        "OfflinePlaybackTests and was itself called by nothing, so the suite sat unrun while the "
+        "wiring guard stayed green.\n\n"
+        "Add it to a phase of `test-ios`, or record it in _OUTSIDE_THE_TIER with a reason."
     )

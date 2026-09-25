@@ -8,6 +8,7 @@ import en from '../i18n/locales/en.json'
 import type { EpisodeSummary, Me, Podcast } from '../services/types'
 import { resetStaleness } from '../composables/useSectionState'
 import { useDownloadsStore } from '../stores/downloads'
+import { useInterestsStore } from '../stores/interests'
 import HomeView from './HomeView.vue'
 
 // Defaults to "nothing cached", so every test above keeps the behaviour it was written for.
@@ -315,6 +316,41 @@ describe('HomeView interests card (3.5)', () => {
     const w = mountKeptAlive()
     await flushPromises()
     expect(w.text()).not.toContain('Personalize your Home')
+  })
+
+  it('stops prompting once interests are SAVED IN SESSION, not only when present at load', async () => {
+    // iOS-F1, caught by `PersonalisationTests.test10` on device and by nothing here.
+    //
+    // The test above loads an account that ALREADY has interests, which the store gets right for
+    // free. The broken case is choosing them WHILE the app is open: `InterestsPicker.save()` PUT
+    // the list and told nobody, so this card — gated on `interests.ids.length === 0` — went on
+    // asking. Home only appeared correct because its own handler set the DISMISSED flag, which
+    // hid the card for the wrong reason and only on the path that starts from Home. Save from
+    // Profile, come back to Home, and it still prompted. Present since #1111 (2026-06-28).
+    //
+    // Asserting through the STORE, not the flag: that is what `showInterestsCard` reads, and it is
+    // the thing every other surface shares.
+    // Driven through the PICKER, not by poking the store: the seam is exactly where the bug lived,
+    // and a test that calls `replaceAll` itself would have passed against the broken code.
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'getTopClusters').mockResolvedValue([{ id: 'tc:ai', label: 'AI', size: 5 }])
+    vi.spyOn(api, 'putUserInterests').mockResolvedValue(['tc:ai'])
+    signIn()
+    const w = mount(HomeView, { global: { plugins: [i18n, router], stubs: { teleport: true } } })
+    await flushPromises()
+    expect(w.text()).toContain('Personalize your Home') // precondition: it IS asking
+
+    await w.findAll('button').find((b) => b.text() === 'Choose interests')!.trigger('click')
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text() === 'AI')!.trigger('click')
+    await w.findAll('button').find((b) => b.text() === 'Save')!.trigger('click')
+    await flushPromises()
+
+    expect(useInterestsStore().ids).toEqual(['tc:ai'])
+    expect(w.text()).not.toContain('Personalize your Home')
+    // And NOT because we marked the offer declined — that would suppress it forever, so a user who
+    // later cleared their interests would never be offered it again.
+    expect(localStorage.getItem('lp.interests.dismissed')).toBeNull()
   })
 
   // Compact "Discover" strip (renamed from Browse topics/people, operator 2026-09-14): three chips

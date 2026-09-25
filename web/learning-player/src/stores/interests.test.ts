@@ -67,3 +67,24 @@ describe('interests store', () => {
     expect(enq).not.toHaveBeenCalled()
   })
 })
+
+describe('replaceAll — the picker PUTs an absolute set (iOS-F1)', () => {
+  it('adopts the written set so every surface reading the store agrees', () => {
+    const s = useInterestsStore()
+    expect(s.ids).toEqual([])
+    s.replaceAll(['tc:ai', 'thc:risk'])
+    expect(s.ids).toEqual(['tc:ai', 'thc:risk'])
+    expect(s.has('tc:ai')).toBe(true)
+  })
+
+  it('marks the store LOADED, so a later ensureLoaded() cannot clobber it with a stale fetch', async () => {
+    // `ensureLoaded` short-circuits on `loaded`. If `replaceAll` left it false the next caller
+    // would refetch and could overwrite a just-saved set with whatever the server had a moment ago.
+    const spy = vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const s = useInterestsStore()
+    s.replaceAll(['tc:ai'])
+    await s.ensureLoaded()
+    expect(spy).not.toHaveBeenCalled()
+    expect(s.ids).toEqual(['tc:ai'])
+  })
+})
