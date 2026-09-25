@@ -1930,11 +1930,24 @@ ios-origin-up:
 	if [ -n "$$stale" ]; then \
 		echo "--> containerised api predates its inputs — rebuilding before the device run"; \
 		$(MAKE) app-e2e-api-up; \
-	elif curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1; then \
+	elif curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1 && \
+	     [ "$$(curl -s -o /dev/null -w '%{http_code}' \
+	         "http://127.0.0.1:$(APP_E2E_PORT)/api/app/me")" != "503" ]; then \
 		echo "✓ api already healthy on :$(APP_E2E_PORT)"; \
 	else \
 		$(MAKE) app-e2e-api-up; \
 	fi
+	@# "HEALTHY" HAS TO MEAN "CAN AUTHENTICATE", not just "/api/health is 200" (2026-09-25).
+	@#
+	@# `test-app-ios-server-degraded` deliberately leaves an api with no signing secret, and such an
+	@# api serves /api/health perfectly — auth is not involved. Reusing it made the NEXT device run
+	@# fail in phase 1 with "Signal, Noise, and the Space Between is not in the Downloaded list …
+	@# the UI download did not land": a sign-in failure wearing a downloads costume, with the real
+	@# cause an api left behind by a different target. Measured, after it cost a full tier run.
+	@#
+	@# `/api/app/me` answers 401 when the server CAN authenticate and merely has no caller
+	@# (see `routes/app_auth.py`), and 503 only when it cannot authenticate anyone. So 503 is the
+	@# precise signal, and no credential is needed to ask.
 	@$(MAKE) ios-origin-down >/dev/null 2>&1 || true
 	@echo "--> mock podcast host on :$(IOS_MEDIA_PORT) (serves tests/fixtures/audio)"
 	@nohup $(PYTHON) scripts/tools/run_e2e_mock_server.py --port $(IOS_MEDIA_PORT) \
@@ -2198,9 +2211,10 @@ test-app-ios-native:
 # would mean a prod outage reads as a native-shell regression, and that nothing-that-talks-to-prod
 # -runs-by-accident stops being true. Run it on purpose or not at all.
 #
-# ALSO EXCLUDED — `test-app-ios-server-degraded`. It restarts the api with a DIFFERENT
-# `APP_SESSION_SECRET` to reproduce the 2026-09-16 incident, which invalidates every token the
-# steps above depend on. It is a destructive scenario against shared state; it runs alone.
+# NO LONGER EXCLUDED — `test-app-ios-server-degraded` is phase 6. It restarts the api with NO
+# `APP_SESSION_SECRET` to reproduce the 2026-09-16 incident, which makes every stored token
+# unverifiable. That is destructive to shared state, which is why it runs LAST rather than not at
+# all: everything above has finished with the session by then.
 test-ios:
 	@if [ "$$(uname -s)" != "Darwin" ]; then \
 		echo "SKIP: test-ios — the iOS tier needs macOS, this is $$(uname -s)."; \
@@ -2391,8 +2405,14 @@ ios-journey-signin:
 
 # The 2026-09-16 production incident, reproduced end to end: a reboot lost the signing secret, so
 # the server stayed UP and answered while being unable to authenticate anyone. Simulated by
-# restarting the SAME api with a different APP_SESSION_SECRET — every stored token becomes
-# unverifiable, exactly as it did in prod. Nothing about the device changes.
+# restarting the SAME api, on the SAME volumes, with NO `APP_SESSION_SECRET` — which is the one
+# thing that makes the server return 503 ("cannot authenticate anyone") instead of 401 ("your
+# credential is bad"). Nothing about the device changes.
+#
+# It previously claimed to do this by passing a DIFFERENT secret. That was wrong twice: the variable
+# was ignored (`app-e2e-api-up` hardcodes the secret) and that target deletes the state volume, so
+# the drill really tested "the user record was deleted" — where a 401 and a sign-out are correct.
+# Step 2 now runs the container directly and PROVES the 503 before asserting anything.
 #
 # Sequence matters: warm the cache while healthy, THEN break the server, then assert. Asserting on
 # a cold cache proves nothing (the first attempt at this flipped the offline switch on a fresh
@@ -2412,16 +2432,75 @@ test-app-ios-server-degraded:
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/ServerDegradedTests/test11aWarmTheCacheWhileHealthy \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -5
-	@echo "--> 2/3 restarting the api with a DIFFERENT signing secret (the reboot)"
+	@echo "--> 2/3 restarting the api with NO signing secret, same data (the reboot)"
+	@# THE INCIDENT IS A *LOST* SECRET, NOT A ROTATED ONE (rewritten 2026-09-25).
+	@#
+	@# `app_auth.py` returns 503 — "cannot authenticate ANYONE" — only when the secret is ABSENT
+	@# (`if not secret or data_dir is None`). With any secret present it takes the normal path, the
+	@# token fails to verify, and it returns 401. Measured against this very api:
+	@#     secret present  -> /api/app/me  bogus-token=401
+	@#     secret absent   -> /api/app/me  bogus-token=503
+	@# And the client keys its degraded state on 503 alone (`services/api.ts`:
+	@# `reportServerReachable(resp.status !== 503)`), because 401 means "your credential is bad"
+	@# and MUST sign you out. So a rotated secret can never produce the banner this drill asserts.
+	@#
+	@# What the old recipe did was worse than imprecise. `APP_SESSION_SECRET=… $(MAKE)
+	@# app-e2e-api-up` set a variable that recipe IGNORES — it hardcodes `-e
+	@# APP_SESSION_SECRET=e2e-secret` — and `app-e2e-api-up` opens by DELETING both volumes,
+	@# including `$(APP_E2E_STATE)` (`APP_DATA_DIR`, the user store). So the secret never changed and
+	@# the drill silently tested "the user was deleted", for which 401 and a sign-out are correct.
+	@# It then asserted incident behaviour against it and failed, and that failure was read as a
+	@# product regression on BOTH platforms and used to park the suite.
+	@#
+	@# Hence a bare `docker run` rather than `app-e2e-api-up`: the volumes must SURVIVE. The cache
+	@# and the user store being intact is the whole point — the server is up and healthy and simply
+	@# cannot verify a signature, exactly as it was on 2026-09-16.
 	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
-	@APP_SESSION_SECRET=rotated-by-the-degraded-server-drill $(MAKE) app-e2e-api-up
+	@docker run -d --name $(APP_E2E_CT) -p $(APP_E2E_PORT):8000 \
+		-v $(APP_E2E_VOL):/app/output -v $(APP_E2E_STATE):/app/state \
+		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET= -e APP_SIGNUP_MODE=open \
+		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
+		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		$(APP_E2E_IMAGE) >/dev/null
+	@i=0; while [ $$i -lt 40 ]; do \
+		curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" 2>/dev/null && break; \
+		i=$$((i+1)); sleep 1; \
+	done; \
+	curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" || \
+		{ echo "FAIL: the secretless api never became healthy"; exit 1; }
+	@# PROVE the drill is actually in the state it claims, before asserting anything about the app.
+	@# A silently-wrong scenario is what this whole recipe just cost.
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' \
+		-H "Authorization: Bearer probe.probe.probe" \
+		"http://127.0.0.1:$(APP_E2E_PORT)/api/app/me"); \
+	[ "$$code" = "503" ] || { \
+		echo "FAIL: the api answers $$code on /api/app/me, not 503 — it can still authenticate,"; \
+		echo "      so this is NOT the lost-secret incident and the assertions below are vacuous."; \
+		exit 1; }
+	@echo "✓ api is UP and cannot authenticate anyone (503) — the incident, reproduced"
 	@echo "--> 3/3 asserting the app notices, stays honest, and keeps its cache"
 	@cd $(IOS_UITESTS_DIR) && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/ServerDegradedTests/test11bDegradedServerIsDetectedAndCacheSurvives \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
-		rc=$${PIPESTATUS[0]}; echo "IOS_DEGRADED_EXIT=$$rc"; exit $$rc
+		rc=$${PIPESTATUS[0]}; echo "IOS_DEGRADED_EXIT=$$rc"; \
+		echo "--> restoring a healthy api (this target leaves it UNABLE TO AUTHENTICATE)"; \
+		$(MAKE) -C $(CURDIR) app-e2e-api-up >/dev/null 2>&1 || true; \
+		exit $$rc
+	@# RESTORE, always, pass or fail — the line above runs before the exit.
+	@#
+	@# This target ends with an api that cannot authenticate anyone, and a secretless api answers
+	@# `/api/health` perfectly. `ios-origin-up` reuses any api whose health endpoint is 200, so
+	@# WITHOUT this the next `make test-ios` silently inherits the broken one and phase 1 fails with
+	@# "the UI download did not land" — a sign-in failure wearing a downloads costume, four phases
+	@# away from the cause. Measured 2026-09-25: that is exactly what happened on the first run after
+	@# this drill was rewritten.
+	@#
+	@# The OLD recipe self-healed by accident: its last act was `app-e2e-api-up`, which rebuilt a
+	@# normal api. Rewriting step 2 to a bare `docker run` removed the accident, so the cleanup is
+	@# now deliberate. `ios-origin-up` also probes for this independently — belt and braces, because
+	@# a destructive target that is interrupted (Ctrl-C) never reaches this line at all.
 
 # ONE image of every screen, for a visual sweep (operator 2026-09-16). Reviewing screenshots one at
 # a time hides exactly the thing a sweep is for — surfaces drifting apart from each other.
