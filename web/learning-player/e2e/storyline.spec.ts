@@ -128,7 +128,17 @@ test('the storyline overlay can be followed, when it carries a theme cluster', a
     await expect(card.getByTestId('storyline-view')).toBeVisible()
     opened += 1
     follow = page.getByTestId('storyline-follow')
-    if (await follow.isVisible().catch(() => false)) break
+    // WAIT for it. `isVisible()` is an INSTANT check — like `count()`, it does not auto-wait, and
+    // almost every other Playwright call does, which is what makes these two worth calling out.
+    // `StorylineView` resolves the cluster id from `getTopicCard(anchorTopicId)` BEFORE it can
+    // render follow (`v-if="auth.isAuthenticated && storylineId"`), so the control appears a
+    // network round-trip after the card does. Checking instantly always answered "no", the loop
+    // pressed Escape before the control existed, and the failure blamed the corpus for data the
+    // API had in fact returned — verified directly: `/topics/topic:risk-management` returns
+    // `storyline_id = thc:managing-risk` (2026-09-25).
+    if (await follow.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false)) {
+      break
+    }
     // Not this one — close the overlay and try the next openable row.
     await page.keyboard.press('Escape')
     await expect(card).toBeHidden()
@@ -141,7 +151,7 @@ test('the storyline overlay can be followed, when it carries a theme cluster', a
   const containers = await page.getByTestId('discovery-list-storyline').count()
   const topicLists = await page.getByTestId('discovery-list-topic').count()
   expect(
-    await follow.isVisible().catch(() => false),
+    await follow.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false),
     `opened ${opened} of ${total} storyline rows and none carried a follow control.\n` +
       `Rows on screen: ${labels.map((l) => JSON.stringify(l.split('\n')[0])).join(', ')}\n` +
       `storyline containers: ${containers}, topic containers still mounted: ${topicLists}\n` +
