@@ -134,10 +134,19 @@ test('the storyline overlay can be followed, when it carries a theme cluster', a
     await expect(card).toBeHidden()
     follow = page.getByTestId('storyline-follow')
   }
+  // NAME THE ROWS. "0 of 4" says four rows were unopenable but not WHAT they were, and the answer
+  // decides the fix: storyline labels mean the anchors did not resolve, topic labels mean the
+  // previous tab's rows are still rendering under the storyline container.
+  const labels = await rows.allInnerTexts()
+  const containers = await page.getByTestId('discovery-list-storyline').count()
+  const topicLists = await page.getByTestId('discovery-list-topic').count()
   expect(
     await follow.isVisible().catch(() => false),
-    `opened ${opened} of ${total} storyline rows and none carried a follow control. Follow needs a ` +
-      `resolvable theme-cluster (thc:) id, so the corpus cannot currently exercise storyline-follow.`
+    `opened ${opened} of ${total} storyline rows and none carried a follow control.\n` +
+      `Rows on screen: ${labels.map((l) => JSON.stringify(l.split('\n')[0])).join(', ')}\n` +
+      `storyline containers: ${containers}, topic containers still mounted: ${topicLists}\n` +
+      `The API returns exactly one storyline (thc:managing-risk) for this corpus, so anything else ` +
+      `here is the wrong list under the right container.`
   ).toBe(true)
 
   const before = await follow.getAttribute('aria-pressed')

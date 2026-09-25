@@ -160,6 +160,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
          attribute) and the control would reference an element that does not exist. -->
     <div v-bind="panelAttrs('discovery', discoveryTab)">
       <DiscoveryList
+        :key="discoveryTab"
         :kind="discoveryTab"
         :sort="discoverySort"
         :scope="trendingScope"

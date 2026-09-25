@@ -129,7 +129,15 @@ function load(): Promise<void> {
 }
 void load()
 // Re-fetch on kind/scope/window; sort is client-side (no refetch).
-watch(() => [props.kind, props.scope, window.value] as const, load)
+watch(
+  () => [props.kind, props.scope, window.value] as const,
+  (next, prev) => {
+    // A KIND change makes the rows on screen answer a DIFFERENT QUESTION — see `section.reset`.
+    // Scope and window are the same question over different data, so those revalidate in place.
+    if (prev && next[0] !== prev[0]) section.reset()
+    return load()
+  }
+)
 
 const rows = computed<Row[]>(() =>
   [...section.data.value].sort((a, b) =>

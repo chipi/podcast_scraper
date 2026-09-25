@@ -159,5 +159,29 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
   const isError = computed(() => phase.value === 'error')
   const isReady = computed(() => phase.value === 'ready')
 
-  return { data, phase, load, isLoading, isError, isReady, stale }
+  /**
+   * Discard what is on screen because the QUESTION changed, not the answer.
+   *
+   * `load` deliberately keeps existing content while refetching — "revalidate in place, never
+   * wipe" (#1909) — which is right when the same query is being refreshed: dropping to a skeleton
+   * for fresher data is a flicker backwards.
+   *
+   * It is WRONG when the section's identity changes. `DiscoveryList` renders
+   * `data-testid="discovery-list-{kind}"` from its prop, so tapping a kind tab relabels the
+   * container immediately while `data` still holds the PREVIOUS kind's rows — and the previous
+   * kind's topics render, briefly, presented as storylines. A reader sees the wrong list under the
+   * right heading; a test scoping to the container gets rows the server never returned for it.
+   * Measured 2026-09-25: the storyline tab showed 4 rows while `/trending?kind=storyline` returned
+   * exactly 1, stably, across 8 authenticated calls.
+   *
+   * So identity changes call this FIRST. Keeping stale content is a freshness decision; showing it
+   * under a different name is a correctness one.
+   */
+  function reset(): void {
+    data.value = initial
+    phase.value = 'loading'
+    stale.value = false
+  }
+
+  return { data, phase, load, isLoading, isError, isReady, stale, reset }
 }
