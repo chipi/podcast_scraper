@@ -276,7 +276,17 @@ function rowLabel(r: Row): string {
           :title="isFollowed(r.id) ? t('ec.following') : t('ec.follow')"
           @click="onFollow(r.id)"
         >
-          {{ isFollowed(r.id) ? "✓" : "+" }}
+          <!-- Glyph DECORATIVE, name in `sr-only` (2026-09-25, Android device tier).
+               As bare text the glyph became the button's accessible name, so all four trend rows
+               announced as "+" and the `aria-label` never applied — fourteen instances of this
+               shape across Home and Discover in the first `AccessibleNameAuditTests` run.
+               The row's LABEL is included because otherwise every follow control on the list is
+               called the same thing, and "Follow" four times in a row tells a screen-reader user
+               nothing about which topic they are following. -->
+          <span aria-hidden="true">{{ isFollowed(r.id) ? "✓" : "+" }}</span>
+          <span class="sr-only">{{
+            `${isFollowed(r.id) ? t('ec.following') : t('ec.follow')} — ${r.label}`
+          }}</span>
         </button>
       </li>
     </ul>

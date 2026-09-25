@@ -204,7 +204,15 @@ function toggleShown(): void {
           "
           @click="emit('follow', tp.id)"
         >
-          {{ isFollowed(tp.id) ? "✓" : "+" }}
+          <!-- Glyph DECORATIVE, name in `sr-only` (2026-09-25, Android device tier).
+               As the button's only content the glyph became its accessible NAME, so six of these on
+               Home announced as "+" and the `aria-label` right above never applied. The label text
+               is duplicated rather than referenced because a button CAN hold a child, unlike the
+               scrubber and the search field. See `AccessibleNameAuditTests`. -->
+          <span aria-hidden="true">{{ isFollowed(tp.id) ? "✓" : "+" }}</span>
+          <span class="sr-only">{{
+            isFollowed(tp.id) ? `Following ${tp.label}` : `Add ${tp.label} to my interests`
+          }}</span>
         </button>
       </li>
     </ul>

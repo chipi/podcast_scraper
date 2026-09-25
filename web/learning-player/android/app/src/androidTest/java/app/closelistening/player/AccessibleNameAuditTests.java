@@ -79,12 +79,53 @@ public class AccessibleNameAuditTests extends UITestCase {
             for (UiObject2 o : Journey.device().findObjects(By.pkg(Journey.PKG).clickable(true))) {
                 String name = Journey.nameOf(o);
                 if (usable(name)) continue;
+                String kind = String.valueOf(o.getClassName());
+                // EditText and SeekBar are EXCLUDED, because this audit cannot judge them.
+                //
+                // Android names a text field through its HINT and a slider through its value/range
+                // metadata, and `UiObject2` exposes neither — it offers only `getText()` and
+                // `getContentDescription()`. So both arrive here looking unnamed whatever the
+                // markup says.
+                //
+                // That is not a theory. Home's search field carries a correct
+                // `<label class="sr-only" for="home-search">` and the scrubber a plain
+                // `aria-label`, and BOTH were reported as unnamed. Acting on that, I added
+                // `aria-labelledby` to two components whose markup was already right, measured no
+                // change, and reverted it (2026-09-25). Ten of the original thirty-eight findings
+                // were this false positive.
+                //
+                // Excluding them is honest about what the tool can see. Verifying a text field's
+                // or a slider's name on Android needs a probe that reads `AccessibilityNodeInfo`
+                // directly — worth building, and NOT covered here. Recorded so the gap is visible
+                // rather than silently "passing".
+                if (kind.endsWith("EditText") || kind.endsWith("SeekBar")) continue;
                 String cls = String.valueOf(o.getClassName());
                 cls = cls.substring(cls.lastIndexOf('.') + 1);
                 // Bounds included: two unnamed controls are otherwise indistinguishable in the
                 // report, and "which one" is the first thing anyone fixing this needs.
+                // The NEIGHBOURS, not just the bounds. Coordinates alone cannot identify a control
+                // — the page scrolls between runs, so a screenshot taken afterwards does not line
+                // up, and matching a rect to a component by eye is guesswork. What the control sits
+                // NEXT TO names it: a toggle beside "Episodes"/"Shows" is the browse switch, one
+                // beside a topic row is a follow control.
+                StringBuilder near = new StringBuilder();
+                try {
+                    UiObject2 parent = o.getParent();
+                    if (parent != null) {
+                        for (UiObject2 sib : parent.getChildren()) {
+                            String n = Journey.nameOf(sib);
+                            if (!n.isEmpty() && near.length() < 120) {
+                                near.append(near.length() == 0 ? "" : " / ").append(n);
+                            }
+                        }
+                        if (near.length() == 0) near.append(Journey.nameOf(parent));
+                    }
+                } catch (Throwable ignored) {
+                    near.append("<neighbours unreadable>");
+                }
                 String entry = (name.isEmpty() ? "<NO NAME>" : "<SYMBOL-ONLY '" + name + "'>")
-                        + " " + cls + " " + o.getVisibleBounds();
+                        + " " + cls + " " + o.getVisibleBounds()
+                        + " near=[" + near + "]";
                 if (seen.add(entry)) bad.add(entry);
             }
         } catch (Throwable t) {

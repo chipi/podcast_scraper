@@ -124,6 +124,15 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         >
           <svg v-if="discoverySort === 'rising'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M3 17l6-6 4 4 7-7" /><path d="M17 8h4v4" /></svg>
           <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" /></svg>
+          <!-- A non-hidden NAME inside the button (2026-09-25, Android device tier). Both svgs
+               above are correctly `aria-hidden` and the button had nothing else, so Chromium left
+               it with NO name — it announced as "Button". `aria-label` does not survive a fully
+               hidden subtree here. See `AccessibleNameAuditTests`. -->
+          <span class="sr-only">{{
+            t('home.discoverySortLabel', {
+              mode: discoverySort === 'rising' ? t('home.tabRising') : t('home.tabTrending'),
+            })
+          }}</span>
         </button>
         <!-- Corpus ⇄ Mine scope — icon circle; active (accent) = My listening. -->
         <button
@@ -138,6 +147,10 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
           @click="setTrendingScope(trendingScope === 'mine' ? 'corpus' : 'mine')"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+          <!-- Same reason as the sort toggle above: the only child is a hidden svg. -->
+          <span class="sr-only">{{
+            trendingScope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll')
+          }}</span>
         </button>
       </div>
     </div>
