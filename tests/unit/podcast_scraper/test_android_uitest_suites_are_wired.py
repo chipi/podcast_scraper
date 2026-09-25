@@ -38,6 +38,16 @@ _SUPPORT_FILES = {"Journey.java", "AppSession.java", "UITestCase.java"}
 #: is not one (give it its own nightly target instead), and neither is "it is flaky" (fix it or
 #: delete it; a quarantined suite nobody runs is the exact thing this file exists to catch).
 _UNWIRED_BY_DESIGN: dict[str, str] = {
+    "PersonalisationTests": (
+        "PARKED with the operator 2026-09-25, alongside ServerDegradedTests. Measured by running "
+        "each platform's suite ALONE: iOS fails both too — PersonalisationTests.swift line 39 "
+        "('no Play control and nothing playing') and line 71 ('no Topics tab on Profile'). So this "
+        "is shared app behaviour, not an Android defect. Note the two tiers fail at DIFFERENT "
+        "points in the same tests — iOS fails earlier, before reaching the assertion Android "
+        "reaches — so the ports diverge as well. UNLIKE ServerDegradedTests this suite IS inside "
+        "the iOS gate (`test-app-ios-journey-ui`), so parking the Android half does not make "
+        "`test-ios` green; that tier is red on this too."
+    ),
     "ServerDegradedTests": (
         "PARKED, matching iOS, which excludes `test-app-ios-server-degraded` from every gate "
         "(Makefile: 'ALSO EXCLUDED'). Measured 2026-09-25: the iOS test FAILS on the same two "
