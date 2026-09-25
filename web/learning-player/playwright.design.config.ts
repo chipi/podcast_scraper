@@ -91,8 +91,8 @@ export default defineConfig({
       // Identical to playwright.config.ts's api — same corpus, same flags. If these drift, the
       // critic starts judging a differently-populated app than the e2e suite tests.
       command:
-        '../../.venv/bin/python -m podcast_scraper.cli serve ' +
-        '--output-dir ../../tests/fixtures/app-validation-corpus/v3 --port 8011 --host 127.0.0.1',
+        'node e2e/prepare-corpus.mjs && ../../.venv/bin/python -m podcast_scraper.cli serve ' +
+        '--output-dir .e2e-corpus/v3 --port 8011 --host 127.0.0.1',
       url: 'http://127.0.0.1:8011/api/health',
       reuseExistingServer: true,
       timeout: 120_000,

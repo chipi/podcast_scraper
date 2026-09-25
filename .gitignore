@@ -449,3 +449,7 @@ AuthKey_*.p8
 # variant — exactly the leak this entry exists to prevent.
 /eval-data/
 /eval-data
+
+# Disposable app-corpus copy the learning-player e2e seeds (see e2e/prepare-corpus.mjs).
+# The committed fixture is read-only; this is the tree the API is allowed to write into.
+web/learning-player/.e2e-corpus/

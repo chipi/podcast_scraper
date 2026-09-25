@@ -82,14 +82,18 @@ export default async function globalSetup(): Promise<void> {
   rmSync(join(process.cwd(), 'e2e', '.app-state'), { recursive: true, force: true })
 
   const repoRoot = resolve(process.cwd(), '..', '..')
-  const corpus = join(repoRoot, 'tests', 'fixtures', 'app-validation-corpus', 'v3')
+  // The DISPOSABLE copy e2e/prepare-corpus.mjs seeds, not the committed fixture. Playwright
+  // starts webServer before globalSetup, so by the time this runs the copy exists and the API
+  // is already serving it — building the index at the committed path would put it where
+  // nothing reads it, and `serve` would answer every search with embed_failed.
+  const corpus = join(process.cwd(), '.e2e-corpus', 'v3')
   const lanceDir = join(corpus, 'search', 'lance_index')
   const hasIndex = existsSync(lanceDir) && readdirSync(lanceDir).length > 0
   if (hasIndex) return
 
   const python = join(repoRoot, '.venv', 'bin', 'python')
   // eslint-disable-next-line no-console
-  console.log('[globalSetup] building two-tier search index for app-validation-corpus/v3…')
+  console.log('[globalSetup] building two-tier search index for the disposable app corpus…')
   execFileSync(python, ['-m', 'podcast_scraper.cli', 'index-two-tier', '--output-dir', corpus], {
     cwd: repoRoot,
     stdio: 'inherit',

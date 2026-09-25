@@ -158,9 +158,30 @@ class HFSeq2SeqBackend:
             self.model_id, revision=self.revision, cache_dir=cache_path
         )
         if snapshot_path is None and self.revision:
+            # The pinned revision is not in the cache. Falling back to whatever else is
+            # cached means the model that RUNS is not the model that was pinned — and this
+            # used to happen with no log line at all, which is the part that matters.
+            #
+            # ADR-155 pins every checkpoint so a run can say which weights produced it. A
+            # silent substitution does not break that guarantee loudly; it hollows it out,
+            # and every artifact downstream still claims the pin. The sibling fallback below
+            # (pinned snapshot present but missing weights) has warned all along; this one
+            # now says the same thing.
+            #
+            # It degrades rather than raising, deliberately: an airgapped host with a warm
+            # cache and a stale pin should still summarise. But it says so.
             snapshot_path = get_transformers_snapshot_path(
                 self.model_id, revision=None, cache_dir=cache_path
             )
+            if snapshot_path is not None:
+                logger.warning(
+                    "Pinned revision %s of %s is not cached; loading a DIFFERENT cached "
+                    "revision from %s. The weights that run are not the weights that were "
+                    "pinned (ADR-155) — run `make preload-ml-models` to fetch the pin.",
+                    self.revision,
+                    self.model_id,
+                    snapshot_path.name,
+                )
 
         if snapshot_path is not None:
             snapshot_str = str(snapshot_path.resolve())

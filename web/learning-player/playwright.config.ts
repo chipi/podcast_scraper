@@ -52,10 +52,14 @@ export default defineConfig({
   // cannot.
   //
   // The corpus is tests/fixtures/app-validation-corpus/v3 — checked in, version-pinned, and built
-  // by scripts/build_app_validation_corpus.py (deterministic, no pipeline, no ML). There is NO
-  // build step here: `serve` reads the committed corpus directly, so boot is fast and stable.
-  // Per-user runtime state (queue/profile/interests the API writes) is redirected via APP_DATA_DIR
-  // to a gitignored ephemeral dir so the committed corpus tree is never mutated.
+  // by scripts/build_app_validation_corpus.py (deterministic, no pipeline, no ML). `serve` runs
+  // against a DISPOSABLE COPY of it, seeded by e2e/prepare-corpus.mjs.
+  //
+  // This used to read the committed corpus directly and claim "the committed corpus tree is
+  // never mutated" on the strength of APP_DATA_DIR redirecting per-user state (queue, profile,
+  // interests). That covered everything except the file written INSIDE the corpus:
+  // search/query_log.jsonl, which every search appends to. A clean run left a dirty tracked
+  // file, and the next run started from a corpus the last one had grown.
   webServer: [
     {
       // Mock podcast host (#1618) — serves the REAL fixture audio the corpus points at.
@@ -82,8 +86,8 @@ export default defineConfig({
       // ``make test-app-e2e`` locally when the first run of playwright
       // failed with `../.venv/bin/python: No such file or directory`.
       command:
-        '../../.venv/bin/python -m podcast_scraper.cli serve ' +
-        '--output-dir ../../tests/fixtures/app-validation-corpus/v3 --port 8011 --host 127.0.0.1',
+        'node e2e/prepare-corpus.mjs && ../../.venv/bin/python -m podcast_scraper.cli serve ' +
+        '--output-dir .e2e-corpus/v3 --port 8011 --host 127.0.0.1',
       url: 'http://127.0.0.1:8011/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
