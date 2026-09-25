@@ -166,9 +166,31 @@ final class AppSession {
         return isSignedIn();
     }
 
+    /**
+     * The dev picker's text field, found by ENUMERATION for the same reason as `Journey.find`.
+     *
+     * This used `Until.findObject(By.pkg(PKG).clazz("android.widget.EditText"))`. `BySelector`
+     * matching is not reliable against WebView content — `By.desc` was measured to match nothing at
+     * all for web nodes (see `Journey.find`) — and the class filter fails the same way here: the
+     * field is on screen and the selector returns null, so sign-in reports "no dev identity input"
+     * about a picker that is rendered and waiting (2026-09-25).
+     *
+     * Enumerating and reading `getClassName()` off each materialised node sees what is there.
+     */
     private static UiObject2 waitForField(long timeoutMs) {
-        return Journey.device().wait(
-                Until.findObject(By.pkg(Journey.PKG).clazz("android.widget.EditText")), timeoutMs);
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            try {
+                for (UiObject2 o : Journey.device().findObjects(By.pkg(Journey.PKG))) {
+                    String cls = String.valueOf(o.getClassName());
+                    if (cls.endsWith("EditText")) return o;
+                }
+            } catch (Throwable ignored) {
+                // Tree mutated mid-walk; the retry below covers it.
+            }
+            Journey.sleep(400);
+        } while (System.currentTimeMillis() < deadline);
+        return null;
     }
 
     /**
@@ -253,7 +275,24 @@ final class AppSession {
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         ctx.startActivity(launch);
         Journey.device().wait(Until.hasObject(By.pkg(Journey.PKG).depth(0)), 30_000);
+        // WAIT FOR THE WEB ACCESSIBILITY TREE, not just for the process.
+        //
+        // `Until.hasObject(By.pkg(...))` is satisfied by the native shell — the WebView container
+        // exists long before Chromium has built the tree for its content, and Chromium builds that
+        // tree lazily. A suite that looks immediately sees a foregrounded app with NOTHING in it,
+        // and the failure reads "sign-in did not complete ... <nothing labelled; foreground window
+        // = app.closelistening.player>", which points at the session rather than at the timing
+        // (2026-09-25, ConfigOfflineToggleTests).
+        //
+        // A fixed sleep was what stood here, and a fixed sleep is a guess about the slowest machine
+        // anyone will ever run this on. Poll for real content instead, and keep a ceiling so a
+        // genuinely blank app still fails rather than hanging.
+        long deadline = System.currentTimeMillis() + 30_000;
+        while (System.currentTimeMillis() < deadline) {
+            if (!Journey.labelledInventory(1).startsWith("<nothing labelled")) break;
+            Journey.sleep(500);
+        }
         // Boot paints the device snapshot and then revalidates; assert after that lands.
-        Journey.sleep(7_000);
+        Journey.sleep(5_000);
     }
 }
