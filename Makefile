@@ -2251,7 +2251,8 @@ test-android:
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/7 journey + native capabilities + stack depth ==="; \
 		$(MAKE) android-suite SUITE=AppJourneyTests || rc=$$?; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=NativeCapabilityTests || rc=$$?; }; \
-		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=StackDepthProbeTests || rc=$$?; }; fi; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=StackDepthProbeTests || rc=$$?; }; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=AccessibleNameAuditTests || rc=$$?; }; fi; \
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 7/7 native-only surfaces (leaves the device offline+signed-out) ==="; \
 		$(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; fi; \
 	echo ""; echo "--> resetting the device (the last suite leaves it offline AND signed out by design)"; \
