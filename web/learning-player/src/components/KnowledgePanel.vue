@@ -31,6 +31,7 @@ import { scrollBehavior } from "../utils/motion"
 import { useQueueStore } from "../stores/queue"
 import { useCaptureStore } from "../stores/capture"
 import CollapsibleSection from "./CollapsibleSection.vue"
+import FavoriteButton from "./FavoriteButton.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
@@ -876,30 +877,17 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   <!-- Favorite this insight (RFC-121): the ONE save affordance, the shared `.lp-fav`
                      heart. It writes an insight highlight via the capture store — NOT the favorites
                      store (favorite(insight) is banned, #1593). Auth-gated means deferred, not
-                     hidden (#1590): renders signed-out and routes to sign-in. -->
-                  <button
-                    type="button"
-                    class="lp-fav lp-tap h-8 w-8 shrink-0 rounded-full border border-border text-base"
-                    :class="{ 'lp-fav--on': savedInsightIds.has(ins.id) }"
-                    :aria-pressed="isGated ? undefined : savedInsightIds.has(ins.id)"
-                    :aria-label="
-                      isGated
-                        ? t('auth.signInToSave')
-                        : savedInsightIds.has(ins.id)
-                        ? t('fav.remove')
-                        : t('fav.add')
-                    "
-                    :title="
-                      isGated
-                        ? t('auth.signInToSave')
-                        : savedInsightIds.has(ins.id)
-                        ? t('fav.remove')
-                        : t('fav.add')
-                    "
-                    @click="captureInsight(ins)"
-                  >
-                    {{ savedInsightIds.has(ins.id) ? "♥" : "♡" }}
-                  </button>
+                     hidden (#1590): renders signed-out and routes to sign-in.
+                     `controlled` variant: FavoriteButton renders + names the button; KnowledgePanel
+                     owns the active state and toggle side-effect (capture store path). `label` is
+                     truncated insight text, giving each heart a distinct accessible name so multiple
+                     insights on one panel don't all announce identically (2026-09-25, Android tier). -->
+                  <FavoriteButton
+                    variant="controlled"
+                    :label="ins.text.slice(0, 60)"
+                    :active="savedInsightIds.has(ins.id)"
+                    @toggle="captureInsight(ins)"
+                  />
                 </span>
               </div>
               <p class="mt-1 text-sm font-semibold text-surface-foreground">{{ ins.text }}</p>

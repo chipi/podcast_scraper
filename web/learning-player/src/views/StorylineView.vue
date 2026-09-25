@@ -22,6 +22,7 @@ import NoteComposer from "../components/NoteComposer.vue"
 // the resolve is deferred to first open. Same reason TopicCardContent defers EntityCard.
 const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
 import FavoriteButton from "../components/FavoriteButton.vue"
+import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
@@ -185,22 +186,13 @@ function goBack(): void {
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
         <!-- Share (card / link / text) — #2036. -->
         <ShareMenu :model="shareModel" />
-        <button
+        <FollowButton
           v-if="auth.isAuthenticated && storylineId"
-          type="button"
-          data-testid="storyline-follow"
-          class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-          :class="
-            following
-              ? 'bg-accent text-accent-foreground'
-              : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-          "
-          :aria-pressed="following"
-          @click="toggleFollow"
-        >
-          <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-          {{ following ? t("ec.followingStoryline") : t("ec.followStoryline") }}
-        </button>
+          variant="storyline"
+          :following="following"
+          :label="label || undefined"
+          @toggle="toggleFollow"
+        />
       </div>
     </div>
 

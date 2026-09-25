@@ -30,6 +30,7 @@ import ProfileAvatar from "./ProfileAvatar.vue"
 import Sparkline from "./Sparkline.vue"
 import TrendWindowTabs from "./TrendWindowTabs.vue"
 import { trendArrow, trendColor } from "./trending"
+import FollowButton from "./FollowButton.vue"
 
 type Kind = "topic" | "storyline" | "person"
 type Sort = "rising" | "trending"
@@ -265,29 +266,13 @@ function rowLabel(r: Row): string {
             <template v-else>{{ r.volume }}</template>
           </span>
         </button>
-        <button
+        <FollowButton
           v-if="canFollow(r.id)"
-          type="button"
-          class="shrink-0 rounded-full px-2 py-1 text-base leading-none transition"
-          :class="isFollowed(r.id) ? 'text-accent' : 'text-muted hover:text-accent'"
-          data-testid="discovery-follow"
-          :aria-pressed="isFollowed(r.id)"
-          :aria-label="isFollowed(r.id) ? t('ec.following') : t('ec.follow')"
-          :title="isFollowed(r.id) ? t('ec.following') : t('ec.follow')"
-          @click="onFollow(r.id)"
-        >
-          <!-- Glyph DECORATIVE, name in `sr-only` (2026-09-25, Android device tier).
-               As bare text the glyph became the button's accessible name, so all four trend rows
-               announced as "+" and the `aria-label` never applied — fourteen instances of this
-               shape across Home and Discover in the first `AccessibleNameAuditTests` run.
-               The row's LABEL is included because otherwise every follow control on the list is
-               called the same thing, and "Follow" four times in a row tells a screen-reader user
-               nothing about which topic they are following. -->
-          <span aria-hidden="true">{{ isFollowed(r.id) ? "✓" : "+" }}</span>
-          <span class="sr-only">{{
-            `${isFollowed(r.id) ? t('ec.following') : t('ec.follow')} — ${r.label}`
-          }}</span>
-        </button>
+          variant="discovery"
+          :following="isFollowed(r.id)"
+          :label="r.label"
+          @toggle="onFollow(r.id)"
+        />
       </li>
     </ul>
     <!-- "Show N more" NAVIGATES to the full trends page (operator 2026-09-16) rather than growing

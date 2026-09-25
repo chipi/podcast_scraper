@@ -18,6 +18,7 @@ import { getOrgCard, getPersonCard, getTopicCard, getTopicPerspectives } from ".
 import type { OrgCard, PersonCard, TopicCard } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
+import FollowButton from "./FollowButton.vue"
 import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
 import OrgCardContent from "./OrgCardContent.vue"
@@ -273,23 +274,13 @@ const isTopic = computed(() => current.value.kind === "topic")
       <!-- Actions on their OWN aligned row, AFTER the title (operator). Follow / save / collection
            are person·topic; org is deliberately lean (#2031). Share is present for every kind. -->
       <div v-if="label" class="mt-3 flex flex-wrap items-center gap-2">
-        <button
+        <FollowButton
           v-if="auth.isAuthenticated"
-          type="button"
-          data-testid="ec-follow"
-          class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition"
-          :class="
-            following
-              ? 'bg-accent text-accent-foreground'
-              : 'bg-overlay text-canvas-foreground hover:bg-elevated'
-          "
-          :aria-pressed="following"
-          :title="t('ec.followHint')"
-          @click="toggleFollow"
-        >
-          <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
-          {{ following ? t("ec.following") : t("ec.follow") }}
-        </button>
+          variant="ec"
+          :following="following"
+          :label="label"
+          @toggle="toggleFollow"
+        />
         <template v-if="current.kind !== 'organization'">
           <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
           <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />

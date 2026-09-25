@@ -640,10 +640,13 @@ rendered piece to its design home:
   every surface (see "Saving"); visible signed-out (#1590), routing a tap to sign-in.
 - **`AddToCollectionButton`** — the compact "pin into a collection" control with inline
   create-new-collection (RFC-119); a detail-surface action, never part of the minimum row.
-- **`FollowButton`** — the ONE show-follow pill (`+ Follow` / `✓ Following`), so Follow looks and
-  behaves identically wherever a show can be followed: the show-page header (inline) and the
-  `ShowTile` artwork overlay (a smaller variant). Save ≠ Follow — this is the pill; the heart is
-  `FavoriteButton`.
+- **`FollowButton`** — the ONE follow pill/glyph (`+ Follow` / `✓ Following`) for every surface
+  where something can be followed: show-page header (`inline`), `ShowTile` artwork overlay
+  (`overlay`), action rows (`icon`), entity cards (`ec`, testid `ec-follow`), storyline pages
+  (`storyline`, testid `storyline-follow`), discovery list rows (`discovery`, testid
+  `discovery-follow`), and trending spark chips (`trend-spark`, testid `trend-spark-follow`). Each
+  variant keeps a static testid in the component source so the surface-map guard can extract it.
+  Save ≠ Follow — this is the pill; the heart is `FavoriteButton`.
 - **`FollowedInterests`** — the Library section listing followed topics, people and storylines
   grouped by type, each unfollowable inline (the "following" pattern applied to non-show entities).
 

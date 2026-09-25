@@ -9,6 +9,7 @@ import { useI18n } from "vue-i18n"
 import Sparkline from "./Sparkline.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import { THEME_NEUTRAL, type RisingTopic, type TopicTheme } from "./trending"
+import FollowButton from "./FollowButton.vue"
 
 const { t } = useI18n()
 
@@ -192,28 +193,13 @@ function toggleShown(): void {
             :style="{ color: colorOf(tp.id) }"
           />
         </button>
-        <button
+        <FollowButton
           v-if="canFollow"
-          type="button"
-          class="shrink-0 rounded-full px-2 py-1 text-base leading-none transition"
-          :class="isFollowed(tp.id) ? 'text-accent' : 'text-muted hover:text-accent'"
-          data-testid="trend-spark-follow"
-          :aria-pressed="isFollowed(tp.id)"
-          :aria-label="
-            isFollowed(tp.id) ? `Following ${tp.label}` : `Add ${tp.label} to my interests`
-          "
-          @click="emit('follow', tp.id)"
-        >
-          <!-- Glyph DECORATIVE, name in `sr-only` (2026-09-25, Android device tier).
-               As the button's only content the glyph became its accessible NAME, so six of these on
-               Home announced as "+" and the `aria-label` right above never applied. The label text
-               is duplicated rather than referenced because a button CAN hold a child, unlike the
-               scrubber and the search field. See `AccessibleNameAuditTests`. -->
-          <span aria-hidden="true">{{ isFollowed(tp.id) ? "✓" : "+" }}</span>
-          <span class="sr-only">{{
-            isFollowed(tp.id) ? `Following ${tp.label}` : `Add ${tp.label} to my interests`
-          }}</span>
-        </button>
+          variant="trend-spark"
+          :following="isFollowed(tp.id)"
+          :label="tp.label"
+          @toggle="emit('follow', tp.id)"
+        />
       </li>
     </ul>
 
