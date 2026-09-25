@@ -94,7 +94,8 @@ diagnosis), then measure.
 
 ```bash
 # On macOS arm64 (M1/M2) with Docker Desktop:
-env -u NODE_OPTIONS make stack-test-ml-ci
+# (`env -u` SUPERSEDED 2026-09-25 — `unexport NODE_OPTIONS`, Makefile line 17, covers every target.)
+make stack-test-ml-ci
 ```
 
 Before the workaround: `docker ps -a` shows `compose-api-1  Exited (139)`

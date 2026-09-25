@@ -58,12 +58,25 @@ const active = computed(() =>
     :class="active ? 'text-accent' : 'text-muted'"
   >
     <slot />
+    <!-- The accessible NAME, ANCHORED to this link's own box (2026-09-25).
+         The slot is a decorative `aria-hidden` icon and the badge below is `aria-hidden` too, so
+         the only text WebKit could see was the TOOLTIP — which is positioned `top-full`, BELOW the
+         control, and is `pointer-events-none`. WebKit derives the link's accessibility frame from
+         that text run, so the masthead Queue/Search controls reported a frame that was neither on
+         the icon nor tappable: measured `Link, {{265.0, 107.0}, {39.0, 16.0}}, label: 'Queue (3)'`
+         against a 36x36 icon sitting above it. XCUITest saw present-but-not-hittable; VoiceOver
+         draws the same wrong rectangle.
+         Anchoring (`left-0 top-0`, the link is already `relative`) puts the run back on the
+         control. Same fix, and the same reasoning, as the masthead profile link in App.vue. -->
+    <span class="sr-only left-0 top-0">{{ ariaLabel }}</span>
     <span
       v-if="badge"
       aria-hidden="true"
       data-testid="nav-badge"
       class="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-overlay px-1 text-[10px] font-bold text-canvas-foreground"
     >{{ badge }}</span>
+    <!-- Decorative to assistive tech: it repeats `ariaLabel` verbatim, and left exposed it is the
+         element whose frame WebKit reports for the whole link (see above). -->
     <span
       :class="[
         'pointer-events-none absolute top-full z-50 mt-1.5 whitespace-nowrap',
@@ -71,6 +84,7 @@ const active = computed(() =>
         'rounded-md bg-elevated px-2 py-1 text-xs font-medium text-canvas-foreground opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100',
       ]"
       role="tooltip"
+      aria-hidden="true"
     >{{ label }}</span>
   </RouterLink>
 </template>

@@ -608,7 +608,7 @@ const mainBottomPadding = computed(() =>
         <RouterLink
           v-if="auth.hasSession"
           :to="{ name: 'profile' }"
-          class="shrink-0 rounded-full no-underline transition hover:opacity-80"
+          class="relative shrink-0 rounded-full no-underline transition hover:opacity-80"
           :aria-label="auth.user?.name || t('profile.title')"
           :title="auth.user?.name || t('profile.title')"
           data-testid="header-profile"
@@ -621,8 +621,23 @@ const mainBottomPadding = computed(() =>
                visibly on screen and unreachable to assistive tech, and to XCUITest, which is how it
                was found: `app.links` listed the sibling Queue icon (whose tooltip span carries real
                text) and not this one.
-               `aria-label` alone is not enough when everything inside is hidden. -->
-          <span class="sr-only">{{ auth.user?.name || t('profile.title') }}</span>
+               `aria-label` alone is not enough when everything inside is hidden.
+
+               ANCHORED to the link's origin (`left-0 top-0`, with `relative` on the anchor above),
+               and that is load-bearing (2026-09-25). `sr-only` is `position:absolute` with NO
+               offsets, so the span took its STATIC position — after the 32px avatar, i.e. at the
+               link's right edge — and WebKit derives the link's accessibility frame from the text
+               RUN, which lays out at its natural width (48pt) even though the box is clipped to
+               1x1. On the masthead, which sits at the top-right, that frame ran off the display:
+               measured x=381 w=48 on a 402pt-wide screen, so its CENTRE was at 405 — three points
+               past the edge.
+               The control was therefore findable and untappable. XCUITest taps an element's
+               centre, so every `Journey.openProfile` "succeeded" and navigated nowhere; all four
+               `NativeOnlySurfacesTests` died in `startClean` reporting "neither Sign in nor Sign
+               out present" about an app that was signed in and sitting on Home.
+               VoiceOver has the same wrong rectangle — it would draw focus partly off-screen.
+               Anchoring moves the run to 349..397, centre 373, inside the avatar. -->
+          <span class="sr-only left-0 top-0">{{ auth.user?.name || t('profile.title') }}</span>
         </RouterLink>
         <!-- Sign out lives in Profile now (#1962), not here. The top-right of a mobile app is
              where the most-used action belongs, and this was the least-used one — styled as a

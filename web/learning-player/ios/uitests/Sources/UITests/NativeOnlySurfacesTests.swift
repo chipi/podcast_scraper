@@ -67,7 +67,19 @@ final class NativeOnlySurfacesTests: UITestCase {
     // for granted: before it existed, `/queue` was reachable only from the player or Home's resume
     // hero, and finishing everything made the queue unreachable without starting an episode you did
     // not want to play. If this regresses, the surface under test becomes unreachable on device.
-    guard Journey.tap(app, labels: ["Queue"], timeout: 15) else {
+    // MATCH THE BADGE, not the bare word (2026-09-25 — this test had never completed a run).
+    //
+    // `App.vue` renders the masthead entry as `NavIconLink :label="t('queue.title')" :badge=
+    // "queue.items.length"`, so its accessible name is "Queue" only while the queue is EMPTY. This
+    // test queues an episode four lines above, so by the time it looks, the name is "Queue (1)" —
+    // and `Journey.tap` defaults to `contains: false`. The test therefore changed the label it was
+    // about to search for, and could never have passed. Measured: `[link] … Search | Queue (1) |
+    // simtest …`.
+    //
+    // The prefix is "Queue (" and NOT "Queue": with `contains: true` a bare "Queue" also matches
+    // the player's "Queue & recently played" BUTTON, and `find` checks buttons before links — so it
+    // would tap the wrong control and open the wrong surface.
+    guard Journey.tap(app, labels: ["Queue ("], contains: true, timeout: 15) else {
       Journey.inventory(app, "queue-entry-missing")
       XCTFail("the masthead queue control was not reachable"); return
     }

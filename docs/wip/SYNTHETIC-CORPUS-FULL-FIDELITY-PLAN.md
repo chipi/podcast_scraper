@@ -30,6 +30,8 @@ final `ci-fast` + operator push approval).
   `entities_in_topic`) return rich results — the app + MCP read paths work.
 - `ci-fast` = the final gate (run with `env -u NODE_OPTIONS` — the markdownlint step trips on a
   stale cmux `NODE_OPTIONS` preload, environmental).
+  **SUPERSEDED 2026-09-25:** `unexport NODE_OPTIONS` (Makefile line 17) clears it for every target;
+  `make ci-fast` needs no prefix. Only hand-run `npm`/`npx`/`node` does.
 
 ## Rebuild recipe (reproducible)
 

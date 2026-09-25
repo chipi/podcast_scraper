@@ -87,6 +87,12 @@ enum AppSession {
   ) -> Bool {
     let signIn = app.links["Sign in"].firstMatch
     guard signIn.waitForExistence(timeout: 20) else {
+      // DUMP BEFORE FAILING. This message is reached in two opposite situations — genuinely signed
+      // out with a broken login page, and perfectly SIGNED IN where "Sign in" is correctly absent
+      // and the signed-in probe simply failed to see it. It has now been the latter three times
+      // (label change; capture-stats block above "Sign out", 2026-09-18; the 2026-09-25 wedge), and
+      // each time the log said only this sentence, which points at the wrong one.
+      Journey.inventory(app, "signin-miss")
       XCTFail("neither Sign in nor Sign out present")
       return false
     }

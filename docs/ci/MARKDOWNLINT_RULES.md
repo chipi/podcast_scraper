@@ -64,6 +64,9 @@ CFG=$(mktemp -t md.XXXX.json)
 cat > "$CFG" <<'EOF'
 {"default":true,"MD013":false,"MD022":true,"MD024":true,"MD025":true,"MD029":true,"MD031":true,"MD032":true,"MD036":false,"MD040":true,"MD041":true,"MD047":true,"MD051":false,"MD033":false,"<RULE>":true}
 EOF
+# `env -u NODE_OPTIONS` because this is a HAND-RUN npx, not a make recipe. The Makefile clears the
+# variable for every target (`unexport NODE_OPTIONS`, line 17); a bare shell does not, and the cmux
+# shim it carries points at a $TMPDIR path macOS eventually purges — MODULE_NOT_FOUND.
 env -u NODE_OPTIONS npx markdownlint-cli "**/*.md" \
   --ignore node_modules --ignore "**/node_modules/**" --ignore .venv --ignore "**/.venv/**" \
   --ignore .build/site --ignore "docs/wip/**" --ignore "tests/fixtures/**" --ignore "data/eval/runs/**" \

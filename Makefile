@@ -1,3 +1,21 @@
+# NEVER hand an inherited NODE_OPTIONS to a recipe. cmux launches Claude Code with
+# `--require=$TMPDIR/cmux-claude-node-options/restore-node-options.cjs`, a self-erasing shim that is
+# meant to delete itself from `process.env` at startup. It no longer does: Claude Code ships as a
+# native binary, which does not honour NODE_OPTIONS' `--require`, so the erase never runs and the
+# variable leaks into every child. Worse, macOS periodically purges $TMPDIR, so the path it points
+# at stops existing while the exported value lives on — and then every node step (`npm run build`,
+# `npx vite preview`, playwright) dies instantly with MODULE_NOT_FOUND.
+#
+# That failure surfaces three layers away: the origin never comes up, and the iOS tier reports
+# "no Play control" or "cannot reach the api" instead of "your terminal broke node".
+#
+# This replaces per-recipe `env -u NODE_OPTIONS`, which was applied to `ios-app-install` but NOT to
+# `ios-origin-up` or `test-app-ios-sim-download` — so whether the tier worked depended on which
+# entry point you used. Declared once here, it cannot be forgotten by a target nobody has written
+# yet. If a recipe ever genuinely needs a raised heap, set NODE_OPTIONS on that recipe explicitly
+# rather than inheriting it by accident from a terminal emulator.
+unexport NODE_OPTIONS
+
 # Auto-detect venv Python if .venv exists, otherwise use python3
 ifeq ($(wildcard .venv/bin/python),)
 PYTHON ?= python3
@@ -2062,8 +2080,8 @@ test-app-ios-journey:
 # PRECONDITION it does NOT set up: a signed-in session. These surfaces are all auth-gated (the
 # server 401s anonymous reads), so seed the native bearer first — `ios-journey-signin` does it.
 #
-# `NODE_OPTIONS` must be cleared for every node step: a cmux preload shim on this machine points at
-# a file that does not exist, and `npx vite preview` dies instantly with MODULE_NOT_FOUND.
+# (`NODE_OPTIONS` used to need clearing per node step; `unexport NODE_OPTIONS` at the top of this
+# file now does it for every recipe — see the comment there for the mechanism.)
 test-app-ios-journey-ui:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
@@ -2126,17 +2144,29 @@ test-app-ios-native:
 # ORDER IS LOAD-BEARING, and not obvious from the names:
 #   1. download  — signs in as the SHARED `simtest` account and downloads two episodes through the
 #                  UI. It SEEDS what the offline suites consume, so it cannot move.
-#   2. offline   — auto-advance from the seeded queue, with the api DOWN. Needs 1, AND needs
-#                  `ios-journey-signin` first: it mints a session through the mock provider's
-#                  native flow and writes it to the app's DURABLE store. Step 1's in-app sign-in
-#                  does not survive the cold boot this step performs — verified 2026-09-24, the
-#                  device had neither `lp_native_token` nor `auth.me` afterwards — so without the
-#                  seed the app boots SIGNED OUT and every assertion here fails as a consequence
-#                  rather than on its own merits. `test-app-ios-native-full` always did this; the
-#                  consolidated target omitted it.
+#   2. offline   — auto-advance from what step 1 downloaded, with the api DOWN. Needs 1. It calls
+#                  `app-e2e-api-down`, which removes the container AND the `lp-e2e-corpus` /
+#                  `lp-e2e-state` volumes — so it does not merely pause the backend, it destroys
+#                  the corpus and every account on it. That is the point of the step, and it is
+#                  also why step 3 cannot simply follow it.
+#   2b. RECOVER  — `ios-origin-up` rebuilds the api and restarts the media host + single origin;
+#                  `ios-journey-signin` then mints a fresh session through the mock provider's
+#                  native flow and writes it to the app's DURABLE store.
+#
+#                  BOTH are required and both were missing until 2026-09-25. Steps 3 and 4 ran
+#                  against a dead :$(APP_E2E_PORT) behind an origin that answered 502, with the app
+#                  signed out — so every assertion in them failed as a consequence rather than on
+#                  its own merits. `test-app-ios-native-full` chains these correctly; the
+#                  consolidated target omitted them, and the comment here CLAIMED the fix while
+#                  the recipe never had it. Order matters: origin first, sign-in second — minting
+#                  an account before `app-e2e-api-up` recreates the container leaves the app
+#                  holding a token for a user that no longer exists (the same trap
+#                  `ios-contact-sheet` documents).
 #   3. journey   — the signed-in walk, personalisation, offline cache.
 #   4. native    — native-shell capabilities, config toggle, stack depth, host links, boards,
-#                  and the native-only surfaces (inline download + /offline).
+#                  and the native-only surfaces (inline download + /offline). Reuses step 2b's
+#                  api and session; `NativeOnlySurfacesTests` re-signs-in per test via
+#                  `startClean`, but the suites in step 3 do NOT, which is why 2b cannot move.
 #
 # DELIBERATELY EXCLUDED — `test-app-ios-prod-tour`. It points at the REAL production backend and
 # wants NO session, where every step above wants the fixture api and a seeded one. Folding it in
@@ -2176,6 +2206,8 @@ test-ios:
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 2/4 offline auto-advance ==="; \
 	$(MAKE) test-app-ios-sim-offline; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 3/4 journey + personalisation + cache ==="; \
+	$(MAKE) ios-origin-up; \
+	$(MAKE) ios-journey-signin; \
 	$(MAKE) test-app-ios-journey-ui; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 4/4 native capabilities + native-only surfaces ==="; \
 	$(MAKE) test-app-ios-native; \
@@ -2381,8 +2413,8 @@ test-app-ios-server-degraded:
 # All three are invisible until something downstream fails oddly, so the recipe is the artefact.
 ios-app-install: ios-origin-up
 	@echo "--> building the player against the single origin on :$(IOS_ORIGIN_PORT) (api + audio)"
-	@cd $(APP_DIR) && env -u NODE_OPTIONS VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
-		npm run build >/dev/null && env -u NODE_OPTIONS npx cap sync ios >/dev/null
+	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
+		npm run build >/dev/null && npx cap sync ios >/dev/null
 	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
@@ -2663,7 +2695,7 @@ ios-device-install:
 	@cd $(APP_DIR)/ios/App && \
 	udid="$(IOS_DEVICE_UDID)"; \
 	if [ -z "$$udid" ]; then \
-		udid=$$(env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App \
+		udid=$$(xcodebuild -workspace App.xcworkspace -scheme App \
 			-showdestinations 2>/dev/null \
 			| grep 'platform:iOS,' | grep -vE 'Simulator|placeholder' \
 			| sed -n 's/.*id:\([0-9A-Fa-f-]*\).*/\1/p' | head -1); \
@@ -2674,7 +2706,7 @@ ios-device-install:
 	app="$(IOS_DEVICE_DD)/Build/Products/Debug-iphoneos/App.app"; \
 	echo "--> building for device $$udid"; \
 	build_once() { \
-		env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 			-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
 			-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
 			build; \
@@ -2748,7 +2780,7 @@ android-build:
 		echo "      Install it (Android Studio, or sdkmanager) or set ANDROID_SDK_DIR."; exit 1; }
 	@rm -f $(ANDROID_APK)
 	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) \
-		env -u NODE_OPTIONS ./gradlew assembleDebug --console=plain \
+		./gradlew assembleDebug --console=plain \
 		|| { echo "FAIL: gradle assembleDebug failed. No APK was produced."; exit 1; }
 	@[ -f $(ANDROID_APK) ] || { echo "FAIL: gradle reported success but there is no APK at"; \
 		echo "      $(ANDROID_APK)"; exit 1; }

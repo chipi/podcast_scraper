@@ -172,6 +172,10 @@ Gotcha for the next agent: `NODE_OPTIONS` in this shell carries a cmux preload s
 (`restore-node-options.cjs`) that does not exist, so `npx vite preview` dies instantly with
 `MODULE_NOT_FOUND`. Run node/npm/npx steps as `env -u NODE_OPTIONS …`.
 
+> **SUPERSEDED 2026-09-25.** `unexport NODE_OPTIONS` at the top of the Makefile now clears it for
+> every target, so no `make` invocation needs the prefix. Only hand-run `npm`/`npx`/`node` does.
+> Do not copy the `env -u` pattern into new recipes.
+
 ## CONFIRMED BUG — dead native token + no snapshot = signed-out UI on a route the guard admitted
 
 Reproduced by seeding `CapacitorStorage.lp_native_token` with a well-formed but invalid-HMAC token
