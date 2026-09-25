@@ -358,6 +358,16 @@ final class Journey {
      * app at the bottom breaks the NEXT step rather than this one — the iOS twin cost a diagnosis
      * exactly that way.
      */
+    /**
+     * NOTE FOR CALLERS: this searches DOWNWARD ONLY, from wherever the page currently sits.
+     *
+     * It does not rewind first, because several callers deliberately search from a known position.
+     * The consequence is that a section ABOVE the current scroll offset can never be found, and the
+     * failure reads as "the section is missing" rather than "you were already past it" — which is
+     * exactly how a suite reported the Downloaded section absent on an account that had just
+     * downloaded two episodes (2026-09-24). If you are searching a page you did not just arrive at
+     * the top of, swipe down a few times first.
+     */
     static UiObject2 scrollTo(List<String> names, boolean contains, int maxSwipes) {
         String lastSignature = "";
         int stalled = 0;

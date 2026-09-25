@@ -93,6 +93,15 @@ public class NativeOnlySurfacesTests extends UITestCase {
         // instead of this one. Operator: "queue actions exist only when you open queue in the upper
         // section under the artwork."
         assertTrue("Library was not reachable", Journey.openTab("Library"));
+        // REWIND FIRST. `scrollTo` only searches DOWNWARD from wherever the page currently sits,
+        // and `openTab` leaves it scrolled — its own scroll-clear swipes up to six times trying to
+        // lift the bottom-nav tab clear of the bottom nav, which it never can because the nav is
+        // fixed. So the page arrives near its end and a section ABOVE that point can never be
+        // found. This reported "the Downloaded section was not reachable — the download suite may
+        // not have run" about an account that had just downloaded two episodes (2026-09-24).
+        // `DownloadThroughUITests` already does this; forgetting it is silent, which is what makes
+        // it worth a comment rather than a one-liner.
+        for (int i = 0; i < 6; i++) Journey.swipeDown();
         assertNotNull("the Downloaded section was not reachable — the download suite may not have "
                         + "run. On screen: " + Journey.labelledInventory(24),
                 Journey.scrollTo("Downloaded", false));
