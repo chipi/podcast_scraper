@@ -2246,7 +2246,7 @@ test-android:
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=OfflineCacheTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=ConfigOfflineToggleTests || rc=$$?; }; fi; \
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 5/7 server-degraded + personalisation ==="; \
-		$(MAKE) android-suite SUITE=ServerDegradedTests || rc=$$?; \
+		$(MAKE) test-android-server-degraded || rc=$$?; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=PersonalisationTests || rc=$$?; }; fi; \
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/7 journey + native capabilities + stack depth ==="; \
 		$(MAKE) android-suite SUITE=AppJourneyTests || rc=$$?; \
@@ -2270,6 +2270,38 @@ android-suite:
 		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
 	echo "$$out"; \
 	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)"; exit 1; }
+
+# The degraded-server drill (#2139) — the sibling of `test-app-ios-server-degraded`.
+#
+# CANNOT be a plain `android-suite SUITE=ServerDegradedTests` run, which is how it was wired and why
+# it failed: the two tests need DIFFERENT host conditions around them, created between the halves.
+# Run together against a healthy api, 11b asks whether the app noticed a broken server while the
+# server is fine — so it correctly reports no degraded banner, and the failure reads like an app
+# defect.
+#
+# The incident being reproduced: a reboot lost prod's secrets, the services came back UP and
+# answered, but could not authenticate anyone. Rotating APP_SESSION_SECRET reproduces exactly that —
+# every stored token becomes unverifiable while the server stays healthy. NOTHING about the device
+# changes; only the server does.
+test-android-server-degraded:
+	@# SELF-SUFFICIENT. This target is runnable on its own, and `test-android` tears the origin down
+	@# on exit — so a standalone run met a dead server and reported "no dev identity input", which
+	@# reads as a harness bug. I diagnosed that against `origin:000` twice before checking (2026-09-25).
+	@$(MAKE) ios-origin-up
+	@$(ADB) reverse tcp:$(IOS_ORIGIN_PORT) tcp:$(IOS_ORIGIN_PORT) >/dev/null
+	@$(ADB) reverse tcp:$(IOS_MEDIA_PORT) tcp:$(IOS_MEDIA_PORT) >/dev/null
+	@echo "--> 1/3 warming the cache against a HEALTHY api"
+	@$(MAKE) android-suite SUITE=ServerDegradedTests\#test11aWarmTheCacheWhileHealthy
+	@echo "--> 2/3 restarting the api with a DIFFERENT signing secret (the reboot)"
+	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
+	@APP_SESSION_SECRET=rotated-by-the-degraded-server-drill $(MAKE) app-e2e-api-up
+	@$(ADB) reverse tcp:$(IOS_ORIGIN_PORT) tcp:$(IOS_ORIGIN_PORT) >/dev/null
+	@echo "--> 3/3 asserting the app notices, stays honest, and keeps its cache"
+	@rc=0; $(MAKE) android-suite SUITE=ServerDegradedTests\#test11bDegradedServerIsDetectedAndCacheSurvives || rc=$$?; \
+	echo "--> restoring the api to its normal secret so later suites are not left degraded"; \
+	docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true; \
+	$(MAKE) app-e2e-api-up >/dev/null; \
+	exit $$rc
 
 android-emulator-up:
 	@if $(ADB) shell true >/dev/null 2>&1; then echo "✓ a device is already attached"; else \
