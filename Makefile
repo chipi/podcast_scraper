@@ -1976,6 +1976,34 @@ ios-origin-up:
 		(echo "the origin does not serve /audio — a UI download would 404"; exit 1)
 	@echo "✓ origin healthy on :$(IOS_ORIGIN_PORT), api and audio both answering"
 
+# Restart the e2e api IN PLACE: same volumes, same corpus, same accounts — ONLY the signing secret
+# changes. `SECRET=` (empty) makes the server unable to authenticate anyone, which is the 2026-09-16
+# incident; `SECRET=e2e-secret` puts it back.
+#
+# This exists because `app-e2e-api-up` CANNOT express it: it hardcodes the secret, and it opens by
+# deleting both volumes — including `$(APP_E2E_STATE)`, the user store. Both degraded-server drills
+# tried to use it with an `APP_SESSION_SECRET=…` prefix, which it ignores, and so tested "the user
+# record was deleted" (a correct 401 and sign-out) while asserting incident behaviour. Restoring
+# through it is just as wrong: it wipes the accounts the SUBSEQUENT suites are still signed in as,
+# which on Android would break every phase after the drill.
+#
+# Deliberately not `.PHONY`-exported as a user-facing target — it is a step, and running it by hand
+# with no SECRET leaves an api that cannot log anyone in.
+_app-e2e-api-restart:
+	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
+	@docker run -d --name $(APP_E2E_CT) -p $(APP_E2E_PORT):8000 \
+		-v $(APP_E2E_VOL):/app/output -v $(APP_E2E_STATE):/app/state \
+		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET=$(SECRET) -e APP_SIGNUP_MODE=open \
+		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
+		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		$(APP_E2E_IMAGE) >/dev/null
+	@i=0; while [ $$i -lt 40 ]; do \
+		curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" 2>/dev/null && break; \
+		i=$$((i+1)); sleep 1; \
+	done; \
+	curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" || \
+		{ echo "FAIL: the api never became healthy after the restart"; exit 1; }
+
 ios-origin-down:
 	@# By pid AND by the exact command line: `npx` spawns a child, so the recorded pid is the
 	@# wrapper's and killing it alone can leave the server holding the port. Both patterns are
@@ -2302,22 +2330,25 @@ test-android:
 	@# session. That wedge is unrecoverable from inside a test, so it is handled here instead.
 	@$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null
 	@rc=0; \
-	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/6 harness (sign-in, nav, deep links, offline switch) ==="; \
+	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/7 harness (sign-in, nav, deep links, offline switch) ==="; \
 	$(MAKE) android-suite SUITE=HarnessSmokeTests || rc=$$?; \
-	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 2/6 download through the UI (seeds the offline suites) ==="; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 2/7 download through the UI (seeds the offline suites) ==="; \
 		$(MAKE) android-suite SUITE=DownloadThroughUITests || rc=$$?; fi; \
-	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 3/6 offline boot + playback from disk ==="; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 3/7 offline boot + playback from disk ==="; \
 		$(MAKE) android-suite SUITE=OfflineAutoAdvanceTests || rc=$$?; fi; \
-	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 4/6 offline playback + cache + the config toggle ==="; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 4/7 offline playback + cache + the config toggle ==="; \
 		$(MAKE) android-suite SUITE=OfflinePlaybackTests || rc=$$?; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=OfflineCacheTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=ConfigOfflineToggleTests || rc=$$?; }; fi; \
-	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 5/6 journey + native capabilities + stack depth ==="; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 5/7 journey + personalisation + native capabilities + stack depth ==="; \
 		$(MAKE) android-suite SUITE=AppJourneyTests || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=PersonalisationTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=NativeCapabilityTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=StackDepthProbeTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=AccessibleNameAuditTests || rc=$$?; }; fi; \
-	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/6 native-only surfaces (leaves the device offline+signed-out) ==="; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/7 degraded server (needs a session — BEFORE the sign-out suite) ==="; \
+		$(MAKE) test-android-server-degraded || rc=$$?; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 7/7 native-only surfaces (leaves the device offline+signed-out) ==="; \
 		$(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; fi; \
 	echo ""; echo "--> resetting the device (the last suite leaves it offline AND signed out by design)"; \
 	$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null 2>&1 || true; \
@@ -2330,10 +2361,56 @@ test-android:
 # both apks when it finishes — which would delete the downloads the offline suites exist to read.
 android-suite:
 	@test -n "$(SUITE)" || { echo "FAIL: android-suite needs SUITE=<ClassName>"; exit 1; }
-	@out=$$($(ADB) shell am instrument -w -e class $(ANDROID_PKG).$(SUITE) \
+	@# Optional `TEST=<method>` runs ONE test, via `am instrument`'s `Class#method` form. The
+	@# degraded-server drill needs it: its two tests require different HOST conditions, created
+	@# between them, so they cannot share an invocation (2026-09-25).
+	@target="$(ANDROID_PKG).$(SUITE)"; \
+	if [ -n "$(TEST)" ]; then target="$$target\#$(TEST)"; fi; \
+	out=$$($(ADB) shell am instrument -w -e class "$$target" \
 		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
 	echo "$$out"; \
-	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)"; exit 1; }
+	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; exit 1; }
+
+# The degraded-server drill (#2139) — the sibling of `test-app-ios-server-degraded`, and corrected
+# the same way (2026-09-25).
+#
+# `ServerDegradedTests` cannot run as a plain `android-suite SUITE=…`: its two tests need DIFFERENT
+# host conditions, created BETWEEN them. Run together against a healthy api, 11b asks whether the
+# app noticed a broken server while the server is fine, so it reports "no degraded banner" and the
+# failure reads like an app defect.
+#
+# This target existed once (131a84542) and was DELETED when the suite was parked (9aeca42bb),
+# because it failed and the failure was read as shared app behaviour. It was not: it broke the
+# server the wrong way. `APP_SESSION_SECRET=… $(MAKE) app-e2e-api-up` sets a variable that recipe
+# IGNORES, and that recipe deletes the state volume — so the drill tested "the user record was
+# deleted", where a 401 and a sign-out are correct, while asserting incident behaviour.
+#
+# The incident is a LOST secret. Measured: secret present -> /api/app/me 401; secret absent -> 503.
+# `services/api.ts` keys degraded state on 503 alone, because 401 means the caller's credential is
+# bad and MUST sign them out. Only the empty secret reaches the behaviour these tests assert.
+#
+# Unlike iOS this does NOT run last, so the restore must be non-destructive: `_app-e2e-api-restart`
+# keeps the volumes, and therefore the accounts every later Android suite is still signed in as.
+test-android-server-degraded:
+	@echo "--> 1/3 warming the cache against a HEALTHY api"
+	@$(MAKE) android-suite SUITE=ServerDegradedTests TEST=test11aWarmTheCacheWhileHealthy
+	@echo "--> 2/3 restarting the api with NO signing secret, same data (the reboot)"
+	@$(MAKE) _app-e2e-api-restart SECRET=
+	@# PROVE the scenario before asserting on it. A silently-wrong drill is what this cost.
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' \
+		-H "Authorization: Bearer probe.probe.probe" \
+		"http://127.0.0.1:$(APP_E2E_PORT)/api/app/me"); \
+	[ "$$code" = "503" ] || { \
+		echo "FAIL: the api answers $$code on /api/app/me, not 503 — it can still authenticate,"; \
+		echo "      so this is NOT the lost-secret incident and the assertions below are vacuous."; \
+		exit 1; }
+	@echo "✓ api is UP and cannot authenticate anyone (503) — the incident, reproduced"
+	@echo "--> 3/3 asserting the app notices, stays honest, and keeps its cache"
+	@$(MAKE) android-suite SUITE=ServerDegradedTests TEST=test11bDegradedServerIsDetectedAndCacheSurvives; \
+		rc=$$?; \
+		echo "--> restoring the api (this drill leaves it UNABLE TO AUTHENTICATE)"; \
+		$(MAKE) _app-e2e-api-restart SECRET=e2e-secret >/dev/null 2>&1 || true; \
+		exit $$rc
 
 android-emulator-up:
 	@if $(ADB) shell true >/dev/null 2>&1; then echo "✓ a device is already attached"; else \
@@ -2443,22 +2520,10 @@ test-app-ios-server-degraded:
 	@# It then asserted incident behaviour against it and failed, and that failure was read as a
 	@# product regression on BOTH platforms and used to park the suite.
 	@#
-	@# Hence a bare `docker run` rather than `app-e2e-api-up`: the volumes must SURVIVE. The cache
+	@# Hence `_app-e2e-api-restart` rather than `app-e2e-api-up`: the volumes must SURVIVE. The cache
 	@# and the user store being intact is the whole point — the server is up and healthy and simply
 	@# cannot verify a signature, exactly as it was on 2026-09-16.
-	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
-	@docker run -d --name $(APP_E2E_CT) -p $(APP_E2E_PORT):8000 \
-		-v $(APP_E2E_VOL):/app/output -v $(APP_E2E_STATE):/app/state \
-		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET= -e APP_SIGNUP_MODE=open \
-		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
-		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
-		$(APP_E2E_IMAGE) >/dev/null
-	@i=0; while [ $$i -lt 40 ]; do \
-		curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" 2>/dev/null && break; \
-		i=$$((i+1)); sleep 1; \
-	done; \
-	curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" || \
-		{ echo "FAIL: the secretless api never became healthy"; exit 1; }
+	@$(MAKE) _app-e2e-api-restart SECRET=
 	@# PROVE the drill is actually in the state it claims, before asserting anything about the app.
 	@# A silently-wrong scenario is what this whole recipe just cost.
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' \
@@ -2477,7 +2542,7 @@ test-app-ios-server-degraded:
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_DEGRADED_EXIT=$$rc"; \
 		echo "--> restoring a healthy api (this target leaves it UNABLE TO AUTHENTICATE)"; \
-		$(MAKE) -C $(CURDIR) app-e2e-api-up >/dev/null 2>&1 || true; \
+		$(MAKE) -C $(CURDIR) _app-e2e-api-restart SECRET=e2e-secret >/dev/null 2>&1 || true; \
 		exit $$rc
 	@# RESTORE, always, pass or fail — the line above runs before the exit.
 	@#

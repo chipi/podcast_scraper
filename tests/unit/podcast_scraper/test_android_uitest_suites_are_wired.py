@@ -37,27 +37,26 @@ _SUPPORT_FILES = {"Journey.java", "AppSession.java", "UITestCase.java"}
 #: Empty on purpose. Add an entry only with a reason that survives being read aloud — "it is slow"
 #: is not one (give it its own nightly target instead), and neither is "it is flaky" (fix it or
 #: delete it; a quarantined suite nobody runs is the exact thing this file exists to catch).
-_UNWIRED_BY_DESIGN: dict[str, str] = {
-    "PersonalisationTests": (
-        "PARKED with the operator 2026-09-25, alongside ServerDegradedTests. Measured by running "
-        "each platform's suite ALONE: iOS fails both too — PersonalisationTests.swift line 39 "
-        "('no Play control and nothing playing') and line 71 ('no Topics tab on Profile'). So this "
-        "is shared app behaviour, not an Android defect. Note the two tiers fail at DIFFERENT "
-        "points in the same tests — iOS fails earlier, before reaching the assertion Android "
-        "reaches — so the ports diverge as well. UNLIKE ServerDegradedTests this suite IS inside "
-        "the iOS gate (`test-app-ios-journey-ui`), so parking the Android half does not make "
-        "`test-ios` green; that tier is red on this too."
-    ),
-    "ServerDegradedTests": (
-        "PARKED, matching iOS, which excludes `test-app-ios-server-degraded` from every gate "
-        "(Makefile: 'ALSO EXCLUDED'). Measured 2026-09-25: the iOS test FAILS on the same two "
-        "assertions as the Android port — the degraded banner and cache-survived, Swift lines 58 "
-        "and 72. So this is shared app behaviour that regressed while the suite sat outside all "
-        "gates, NOT an Android defect. I claimed it was one before checking iOS, and it was not. "
-        "Parked deliberately with the operator until the app behaviour is addressed; both "
-        "platforms come back together."
-    ),
-}
+#: UNPARKED 2026-09-25, both of them, after the iOS side was actually diagnosed.
+#:
+#: They were parked on the reasoning that iOS failed the same assertions, so it must be shared app
+#: behaviour rather than an Android defect. The first half of that was true and the conclusion was
+#: wrong in BOTH cases, for different reasons:
+#:
+#:   PersonalisationTests — a REAL product bug, and now fixed. `InterestsPicker.save()` PUT the
+#:     interests and updated no store, so Home kept prompting after they were chosen from Profile.
+#:     Shared Vue code, so the fix is platform-agnostic. iOS test10 passes on device.
+#:     (The lines cited in the old note, 39 and 71, were a different failure entirely: `test-ios`
+#:     destroyed its own api at phase 2 and never restored it, so the app was signed out.)
+#:
+#:   ServerDegradedTests — a TEST defect, not the app. The drill rotated `APP_SESSION_SECRET`
+#:     instead of removing it, and the server only returns 503 ("cannot authenticate anyone") when
+#:     the secret is ABSENT; with one present it returns 401, which correctly signs the user out.
+#:     Measured: secret present -> /api/app/me 401, secret absent -> 503. With the real incident
+#:     reproduced, the iOS suite passes — the app degrades exactly as designed.
+#:
+#: Both now run in `test-android`; `test-android-server-degraded` sequences the second.
+_UNWIRED_BY_DESIGN: dict[str, str] = {}
 
 
 def _suite_names() -> list[str]:
