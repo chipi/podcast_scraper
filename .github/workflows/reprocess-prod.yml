@@ -82,12 +82,20 @@ on:
           without this option a scoped repair could only run against a paid gateway.
           Deliberately NOT offered: `reprocess_dgx_turbo` / `reprocess_dgx_no_llm`, which set
           `generate_metadata: false` and skip the very stage the speaker roster lives in.
+
+          THE DEFAULT IS `prod_dgx_full` BECAUSE THAT IS WHAT THE BOX DOES. `viewer_operator.yaml`
+          sets `profile: prod_dgx_full` and the scheduled pipeline passes `--profile
+          prod_dgx_full`, so self-hosted is prod's default for any processing. This input existed
+          with a `cloud_balanced` default, which contradicted the paragraph above it: the text
+          called DGX "the only sane profile for a repair batch" and listed it first, while the
+          default silently billed per episode. A dispatcher who trusted the form got the paid
+          gateway. Choose a cloud profile only deliberately, and pair it with `cost_cap_usd`.
         type: choice
         options:
           - config/profiles/prod_dgx_full.yaml
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
-        default: config/profiles/cloud_balanced.yaml
+        default: config/profiles/prod_dgx_full.yaml
       diagnose_hang_seconds:
         description: >-
           DIAGNOSTIC. 0 = off (normal). When > 0, the container runs with PYTHONFAULTHANDLER=1
@@ -161,6 +169,33 @@ jobs:
             echo "::error::confirm must be exactly PROD_REPROCESS (got '${{ github.event.inputs.confirm }}')"
             exit 1
           fi
+
+      - name: A cloud profile REQUIRES a cost cap
+        env:
+          PROFILE: ${{ github.event.inputs.profile }}
+          COST_CAP_USD: ${{ github.event.inputs.cost_cap_usd }}
+        run: |
+          set -euo pipefail
+          # A cloud profile bills per episode. The only thing standing between a dispatcher and an
+          # unbounded spend was reading a dropdown — and until this commit that dropdown DEFAULTED
+          # to `cloud_balanced` while the input's own description called DGX "the only sane profile
+          # for a repair batch". The default is fixed; this makes choosing cloud deliberate rather
+          # than merely possible.
+          #
+          # Self-hosted (`prod_dgx_full`) is unaffected: no per-token spend, so no cap is required.
+          # Runs BEFORE the tailnet/SSH/secret staging steps so a mistake costs nothing.
+          case "${PROFILE}" in
+            *cloud_*)
+              if [ -z "${COST_CAP_USD//[[:space:]]/}" ]; then
+                echo "::error::profile '${PROFILE}' bills per episode and cost_cap_usd is empty. Set cost_cap_usd, or use config/profiles/prod_dgx_full.yaml (prod's own default — self-hosted, no per-token spend). Use cost_cap_usd=0.01 to make the selection gate refuse before anything is downloaded."
+                exit 1
+              fi
+              echo "::notice::cloud profile '${PROFILE}' with cost_cap_usd='${COST_CAP_USD}'"
+              ;;
+            *)
+              echo "self-hosted profile '${PROFILE}' — no cost cap required"
+              ;;
+          esac
 
       - name: Pre-flight — required secrets/variables present?
         env:

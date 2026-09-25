@@ -32,12 +32,17 @@ on:
         type: boolean
         default: true
       profile:
-        description: "Config profile supplying the GI providers"
+        description: >-
+          Config profile supplying the GI providers. `prod_dgx_full` is prod's own default and
+          routes GI at the DGX's local vLLM — no per-token spend. It was not offered here at
+          all, so a GI repair could ONLY run against a paid gateway; the cloud ones bill per
+          episode. Pair a cloud choice with a cost cap.
         type: choice
         options:
+          - config/profiles/prod_dgx_full.yaml
           - config/profiles/cloud_balanced.yaml
           - config/profiles/cloud_thin.yaml
-        default: config/profiles/cloud_balanced.yaml
+        default: config/profiles/prod_dgx_full.yaml
       litellm_api_base:
         description: >-
           Leave EMPTY to use vars.PROD_LITELLM_API_BASE (prod's own gateway, ADR-142). Same

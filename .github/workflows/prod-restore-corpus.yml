@@ -165,8 +165,8 @@ jobs:
             printf '%s=%s\n' PODCAST_CORPUS_HOST_PATH   /srv/podcast-scraper/corpus
             printf '%s=%s\n' PODCAST_DEFAULT_CORPUS_PATH /app/output
             printf '%s=%s\n' PODCAST_ENV                 prod
-            printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin
-            printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     cloud_balanced
+            printf '%s=%s\n' PODCAST_AVAILABLE_PROFILES  cloud_balanced,cloud_thin,prod_dgx_full
+            printf '%s=%s\n' PODCAST_DEFAULT_PROFILE     prod_dgx_full
             printf '%s=%s\n' OPENAI_API_KEY     "$PROD_OPENAI_API_KEY"
             printf '%s=%s\n' ANTHROPIC_API_KEY  "$PROD_ANTHROPIC_API_KEY"
             printf '%s=%s\n' GEMINI_API_KEY     "$PROD_GEMINI_API_KEY"
