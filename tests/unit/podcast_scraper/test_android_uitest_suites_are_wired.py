@@ -37,7 +37,17 @@ _SUPPORT_FILES = {"Journey.java", "AppSession.java", "UITestCase.java"}
 #: Empty on purpose. Add an entry only with a reason that survives being read aloud — "it is slow"
 #: is not one (give it its own nightly target instead), and neither is "it is flaky" (fix it or
 #: delete it; a quarantined suite nobody runs is the exact thing this file exists to catch).
-_UNWIRED_BY_DESIGN: dict[str, str] = {}
+_UNWIRED_BY_DESIGN: dict[str, str] = {
+    "ServerDegradedTests": (
+        "PARKED, matching iOS, which excludes `test-app-ios-server-degraded` from every gate "
+        "(Makefile: 'ALSO EXCLUDED'). Measured 2026-09-25: the iOS test FAILS on the same two "
+        "assertions as the Android port — the degraded banner and cache-survived, Swift lines 58 "
+        "and 72. So this is shared app behaviour that regressed while the suite sat outside all "
+        "gates, NOT an Android defect. I claimed it was one before checking iOS, and it was not. "
+        "Parked deliberately with the operator until the app behaviour is addressed; both "
+        "platforms come back together."
+    ),
+}
 
 
 def _suite_names() -> list[str]:

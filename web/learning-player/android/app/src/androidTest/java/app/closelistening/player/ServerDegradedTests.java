@@ -44,17 +44,26 @@ public class ServerDegradedTests extends UITestCase {
     private static final String EPISODE_SLUG = "p09-a4bbb5dde3";
     private static final String EPISODE_TITLE = "Risk Is a Systems Property";
 
+    /**
+     * SHARED account, matching the iOS suite exactly.
+     *
+     * The iOS twin ASSERTS an existing `simtest` session rather than creating one ("not signed in —
+     * run `make ios-journey-signin` before this target"). The session under test has to predate the
+     * secret rotation: the whole scenario is a token the server can no longer verify. A per-suite
+     * identity signed in by this test is a different arrangement, so it is not the same test.
+     */
+    @Override
+    protected String accountIdentity() {
+        return SHARED_SEEDED_IDENTITY;
+    }
+
     /** ARRANGE (api healthy): browse enough surfaces that there is a cache worth preserving. */
     @Test
     public void test11aWarmTheCacheWhileHealthy() {
-        boolean ready = startClean();
-        assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
-
-        // Verify we are on-screen as a known identity — the 11b assertion reads "not signed out",
-        // and it only means something if 11a was actually signed in.
+        // LAUNCH and ASSERT — do not sign in. Exactly what iOS does.
+        AppSession.relaunch();
         assertTrue(
-                "not signed in — run the seeding step before this target. On screen: "
+                "not signed in — run the download/seeding step before this one. On screen: "
                         + Journey.labelledInventory(14),
                 Journey.find(Arrays.asList(accountIdentity(), "Your profile"), false, 20_000) != null);
 
