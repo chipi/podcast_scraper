@@ -43,6 +43,28 @@ describe('SavedColorControl', () => {
     expect(w.emitted('pick')?.[0]).toEqual([null])
   })
 
+  it('every swatch carries REAL TEXT, not just an aria-label (Android names it UNLABELLED)', async () => {
+    // Measured on device 2026-09-26, the first time this surface was ever exercised on Android:
+    // all five swatches came back `<UNLABELLED>[ToggleButton]`, so TalkBack announces "Button"
+    // five times and a screen-reader user cannot tell the colours apart.
+    //
+    // `aria-label` alone is NOT enough in Android System WebView when the button's subtree carries
+    // no text — the same finding the trigger's own comment in this component records, which was
+    // fixed there and missed one level down. The fix is a real text node.
+    const w = mountControl(null)
+    await w.find('[data-testid="saved-color"]').trigger('click')
+    const swatches = w.findAll('[data-testid="saved-swatch"]')
+    expect(swatches.length).toBeGreaterThan(0)
+    for (const s of swatches) {
+      expect(
+        s.text().trim(),
+        'a swatch has no text node — on Android it will be announced as an unnamed Button',
+      ).not.toBe('')
+    }
+    // And the names are the colours, so the device tier can tell them apart.
+    expect(w.text()).toContain('Amber')
+  })
+
   it('Escape closes the palette without picking', async () => {
     const w = mountControl(null)
     await w.find('[data-testid="saved-color"]').trigger('click')

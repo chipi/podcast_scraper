@@ -71,7 +71,7 @@ function pick(token: string): void {
           :key="c.token"
           type="button"
           data-testid="saved-swatch"
-          class="flex h-11 w-11 items-center justify-center rounded-full transition"
+          class="relative flex h-11 w-11 items-center justify-center rounded-full transition"
           :aria-pressed="color === c.token"
           :aria-label="t('highlights.setColor', { color: t(c.labelKey) })"
           :title="t(c.labelKey)"
@@ -81,6 +81,25 @@ function pick(token: string): void {
             class="h-3.5 w-3.5 rounded-full"
             :class="[c.swatch, color === c.token ? 'ring-2 ring-accent' : 'opacity-60']"
           />
+          <!-- The SAME fix the TRIGGER above already carries, one level down (2026-09-26 — the
+               first time this surface was ever exercised on Android). These buttons have exactly
+               the shape that comment describes: an `aria-label` and a child span with NO text.
+               Measured on device, all five came back `<UNLABELLED>[ToggleButton]` — TalkBack
+               announces "Button" five times and a screen-reader user cannot tell the colours
+               apart. `aria-pressed` is what maps them to ToggleButton; the absent NAME is what
+               makes them unusable.
+               Anchored (`left-0 top-0`, hence `relative` on the button) so the text run cannot
+               drag the control's reported bounds off the swatch — the iOS masthead lesson.
+
+               The text is the FULL `setColor` string, matching `aria-label` exactly rather than
+               just the colour name. Android's harness reads `getText()` BEFORE
+               `getContentDescription()`, so a bare "Rose" here would become the control's reported
+               name and shadow the aria-label — which silently broke the colour SEEDING loop in
+               `AppJourneyTests.test07`, since it addresses swatches as "Set colour: Rose". Two
+               strings naming one control is how they drift; keep them identical. -->
+          <span class="sr-only left-0 top-0">{{
+            t('highlights.setColor', { color: t(c.labelKey) })
+          }}</span>
         </button>
       </div>
     </Teleport>

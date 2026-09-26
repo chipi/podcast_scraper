@@ -148,7 +148,7 @@ function clearAll(): void {
         <button
           type="button"
           data-testid="saved-filter-swatch-any"
-          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
+          class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
           :aria-pressed="color === null"
           :aria-label="t('library.savedFilterColorAny')"
           :title="t('library.savedFilterColorAny')"
@@ -158,13 +158,19 @@ function clearAll(): void {
             class="h-4 w-4 rounded-full border border-border ring-offset-1 ring-offset-canvas transition"
             :class="color === null ? 'ring-2 ring-accent' : 'opacity-70'"
           />
+          <!-- FOURTH instance, and the one nobody had noticed: found by the class-level guard in
+               `__checks__/accessible-names.test.ts` rather than by a device run (2026-09-26). Same
+               shape as its siblings — `aria-label` over a subtree with no text — so on Android this
+               reset control is announced as an unnamed "Button", and a TalkBack user has no way to
+               know it clears the colour filter. -->
+          <span class="sr-only left-0 top-0">{{ t('library.savedFilterColorAny') }}</span>
         </button>
         <button
           v-for="c in colorOptions"
           :key="c.token"
           type="button"
           data-testid="saved-filter-swatch"
-          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
+          class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
           :aria-pressed="color === c.token"
           :aria-label="t('library.savedFilterColorOnly', { color: t(c.labelKey) })"
           :title="t(c.labelKey)"
@@ -174,6 +180,20 @@ function clearAll(): void {
             class="h-4 w-4 rounded-full ring-offset-1 ring-offset-canvas transition"
             :class="[c.swatch, color === c.token ? 'ring-2 ring-accent' : 'opacity-70']"
           />
+          <!-- THIRD instance of one defect (2026-09-26): an `aria-label` on a button whose subtree
+               carries no text is dropped by Android System WebView, so the control is announced as
+               an unnamed Button. Already fixed on `SavedColorControl`'s trigger (2026-09-24) and on
+               its swatches (same day as this); these filter swatches were the one left.
+               It cost a wrong diagnosis: `AppJourneyTests.test07` failed with "the Saved colour
+               filter offers 0 colour(s) — the seed coloured too few items", blaming the seed. The
+               seed was fine and the colours WERE applied — these buttons simply had no name to
+               find.
+               The text matches `aria-label` exactly: Android reads `getText()` before
+               `getContentDescription()`, so a shorter string here would shadow the label and the
+               two would drift. Anchored, hence `relative` on the button. -->
+          <span class="sr-only left-0 top-0">{{
+            t('library.savedFilterColorOnly', { color: t(c.labelKey) })
+          }}</span>
         </button>
       </div>
 
@@ -195,7 +215,7 @@ function clearAll(): void {
       <button
         v-if="showMuted"
         type="button"
-        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
+        class="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition"
         data-testid="saved-filter-muted"
         :aria-pressed="mutedOnly"
         :aria-label="t('library.savedFilterMuted')"
@@ -206,6 +226,10 @@ function clearAll(): void {
           class="flex h-7 w-7 items-center justify-center rounded-full border transition"
           :class="mutedOnly ? 'border-accent text-accent' : 'border-border text-muted'"
         ><BellOffIcon :size="14" /></span>
+        <!-- FIFTH instance, also found by the guard rather than by a device run: an icon component
+             is not a text node, so `aria-label` over `<BellOffIcon>` alone leaves this announced as
+             an unnamed "Button" on Android. -->
+        <span class="sr-only left-0 top-0">{{ t('library.savedFilterMuted') }}</span>
       </button>
 
       <button

@@ -133,7 +133,15 @@ public class AppJourneyTests extends UITestCase {
         }
 
         // Storylines: back to Home, switch the rail to Storylines, open the first openable one.
-        assertTrue("Home tab did not open", Journey.openTab("Home"));
+        // The topic tap above opens the topic CARD, which renders over the bottom tab bar. Dismiss
+        // it before asking for a tab, or the tap lands on the card and the failure blames the tab
+        // (measured 2026-09-26: "TOPIC | Close | systems thinking | Follow — systems thinking | …"
+        // on screen while this asserted "Home tab did not open").
+        Journey.dismissCards();
+        // SAY WHAT IS ON SCREEN. This assertion had no inventory, so its failure named the tab it
+        // could not find and nothing about why.
+        assertTrue("Home tab did not open. On screen: " + Journey.labelledInventory(40),
+                Journey.openTab("Home"));
         Journey.sleep(4_000);
 
         boolean storylinesTab = Journey.tap("Storylines", false, 15_000);
@@ -151,9 +159,18 @@ public class AppJourneyTests extends UITestCase {
         // Instead, find all controls whose name contains "momentum" and tap the one closest to
         // the top of the screen (tapTopmost). The visible set is the same because DiscoveryList
         // renders these as `<button>` with the same accessible name pattern on both platforms.
+        // SCROLL THE RAIL INTO VIEW FIRST. Android's accessibility tree contains only ON-SCREEN
+        // nodes, so a rail below the fold is not merely hard to reach — it is absent, and
+        // `tapTopmost` has nothing to enumerate. Measured 2026-09-26: the dump at this point ended
+        // at "Trends", well above the storyline rows, on a Home that was rendering them.
+        if (Journey.scrollTo("momentum", true) == null) {
+            fail("no storyline row anywhere on Home after scrolling. On screen: "
+                    + Journey.labelledInventory(80));
+        }
         boolean storylineTapped = tapTopmost(Arrays.asList("momentum"), true);
         if (!storylineTapped) {
-            fail("no storyline row was tappable. On screen: " + Journey.labelledInventory(20));
+            fail("storyline rows are on screen but none was tappable. On screen: "
+                    + Journey.labelledInventory(80));
         }
         Journey.sleep(5_000);
 
@@ -348,12 +365,19 @@ public class AppJourneyTests extends UITestCase {
             Journey.sleep(2_000);
             // highlights.colorPick = 'Colour' — EXACT match so we do not also hit
             // library.savedFilterColor = 'Filter by colour' (same trap as iOS 2026-09-16).
-            if (Journey.tap("Colour", false, 10_000) || Journey.tap("Color", false, 2_000)) {
-                Journey.sleep(2_000);
-                // highlights.setColor = 'Set colour: {color}'
-                Journey.tap("Set colour: " + colour, true, 8_000);
-                Journey.sleep(2_000);
-            }
+            // BOTH RESULTS CHECKED (2026-09-26). These were discarded, so a popover that never
+            // opened — or a swatch tap that missed — failed silently here and surfaced four
+            // episodes later as "the Saved colour filter offers 0 colour(s)", which blames the
+            // seed rather than naming the step. Same blindness as a discarded `openTab`.
+            boolean opened = Journey.tap("Colour", false, 10_000) || Journey.tap("Color", false, 2_000);
+            assertTrue("the colour control did not open while seeding " + colour
+                    + ". On screen: " + Journey.labelledInventory(60), opened);
+            Journey.sleep(2_000);
+            // highlights.setColor = 'Set colour: {color}'
+            boolean picked = Journey.tap("Set colour: " + colour, true, 8_000);
+            assertTrue("no swatch named 'Set colour: " + colour + "' in the open popover. "
+                    + "On screen: " + Journey.labelledInventory(60), picked);
+            Journey.sleep(2_000);
         }
 
         // Favourite the main episode so Saved has something to colour-code.
@@ -386,8 +410,11 @@ public class AppJourneyTests extends UITestCase {
                     Arrays.asList("Amber", "Rose", "Sky", "Emerald", "Violet"),
                     true, 10_000);
             if (swatch == null) {
+                // 20 items got as far as the masthead and the Library tabs — nowhere near a popover
+                // (2026-09-26). Same lesson as the insights dump: raise the ceiling or the
+                // diagnostic describes the wrong part of the screen.
                 fail("colour popover rendered no colour choices. On screen: "
-                        + Journey.labelledInventory(20));
+                        + Journey.labelledInventory(80));
             }
             try {
                 swatch.click();
@@ -450,6 +477,16 @@ public class AppJourneyTests extends UITestCase {
         // already reachable, and re-tap once if the first tap collapsed a section.
         List<String> topicNames = Arrays.asList("Open systems thinking", "Open risk management");
         if (Journey.find(topicNames, true, 4_000) == null) {
+            // SCROLL to the section first — this is a real iOS/Android difference, not a port slip.
+            // Android's accessibility tree contains only ON-SCREEN nodes, where iOS keeps off-screen
+            // ones with negative coordinates. So `find` cannot see "Topics & People" while the panel
+            // is scrolled to the top, and `tap` never had anything to aim at. Measured 2026-09-26:
+            // an 80-item inventory of the open panel returned 19 nodes and ended inside the
+            // key-points list — the section simply was not in the tree.
+            if (Journey.scrollTo("Topics & People", true) == null) {
+                fail("the Topics & People section is not in the insights panel at all. On screen: "
+                        + Journey.labelledInventory(80));
+            }
             Journey.tap("Topics & People", true, 12_000);
             Journey.sleep(3_000);
             if (Journey.find(topicNames, true, 6_000) == null) {
@@ -458,8 +495,12 @@ public class AppJourneyTests extends UITestCase {
             }
         }
         if (Journey.find(topicNames, true, 20_000) == null) {
+            // 20 was not enough to reach the Topics & People section at all — the dump ended in the
+            // key-points list and said nothing about the controls under test (2026-09-26). A
+            // diagnostic that stops before the thing it is diagnosing is worse than none: it looks
+            // like evidence.
             fail("no topic control in the insights panel. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
 
         // L1 — drill into a topic IN THE PANEL.
@@ -509,29 +550,50 @@ public class AppJourneyTests extends UITestCase {
      *
      * Returns false when no matching, clickable element is found.
      */
+    /**
+     * ENUMERATES. Do not put a `BySelector` back here (2026-09-26).
+     *
+     * This used `By.pkg(PKG).descContains(s)` with a `textContains` fallback, and BOTH are blind to
+     * what it is looking for. `By.desc` DOES NOT MATCH WEBVIEW CONTENT — the measurement that
+     * opened this whole arc, recorded at length on {@link Journey#find} — and the fallback cannot
+     * help because these rows are named by `aria-label`, which arrives as a contentDescription and
+     * never as text.
+     *
+     * So this could never find a storyline row, and said "no storyline row was tappable" about a
+     * rail that was rendering them. `Journey.find` and `AppSession.waitForField` were converted to
+     * enumeration when that was discovered; this one was missed, and nothing ran it until tonight.
+     * `StackDepthProbeTests` calls it too.
+     */
     private boolean tapTopmost(List<String> substrings, boolean requiresContains) {
         UiObject2 best     = null;
         int        bestTop = Integer.MAX_VALUE;
-        for (String s : substrings) {
-            java.util.List<UiObject2> hits;
-            try {
-                hits = Journey.device().findObjects(
-                        By.pkg(Journey.PKG).descContains(s).clickable(true));
-                if (hits.isEmpty()) {
-                    hits = Journey.device().findObjects(
-                            By.pkg(Journey.PKG).textContains(s).clickable(true));
+        java.util.List<UiObject2> all;
+        try {
+            all = Journey.device().findObjects(By.pkg(Journey.PKG));
+        } catch (Throwable t) {
+            return false;
+        }
+        for (UiObject2 o : all) {
+            Boolean clickable = Journey.attr(o, UiObject2::isClickable);
+            if (!Boolean.TRUE.equals(clickable)) continue;
+            String name = Journey.nameOf(o);
+            if (name.isEmpty()) continue;
+            boolean matches = false;
+            for (String s : substrings) {
+                if (requiresContains
+                        ? name.toLowerCase().contains(s.toLowerCase())
+                        : name.equalsIgnoreCase(s)) {
+                    matches = true;
+                    break;
                 }
-            } catch (Throwable t) {
-                continue;
             }
-            for (UiObject2 o : hits) {
-                android.graphics.Rect b;
-                try { b = o.getVisibleBounds(); } catch (Throwable t) { continue; }
-                if (b == null) continue;
-                if (b.centerY() < bestTop) {
-                    bestTop = b.centerY();
-                    best = o;
-                }
+            if (!matches) continue;
+            android.graphics.Rect b;
+            try { b = o.getVisibleBounds(); } catch (Throwable t) { continue; }
+            if (b == null) continue;
+            if (b.centerY() < bestTop) {
+                bestTop = b.centerY();
+                best = o;
             }
         }
         if (best == null) return false;

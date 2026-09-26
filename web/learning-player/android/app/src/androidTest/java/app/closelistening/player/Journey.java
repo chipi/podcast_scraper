@@ -425,6 +425,30 @@ final class Journey {
     }
 
     /**
+     * Dismiss an entity/topic/storyline card if one is open. Idempotent, and cheap when none is.
+     *
+     * These cards render OVER everything, including the bottom tab bar, so one left open silently
+     * swallows every later tap — and the failure then names the victim, never the culprit. Measured
+     * 2026-09-26: `test03` taps a topic row, which opens the topic card, then asserted
+     * `openTab("Home")` and failed with the card plainly on screen ("TOPIC | Close | systems
+     * thinking | Follow — systems thinking | …").
+     *
+     * The iOS twin omits the same dismissal and gets away with it only because it DISCARDS
+     * `openTab`'s result there, so a failed tab tap goes unnoticed. The Android assertion is the
+     * honest one, which is why the fix belongs here rather than in a weaker assertion.
+     *
+     * "Back" as well as "Close": an entity card labels its dismiss control Back, not Close, when
+     * `dismissAtRoot` is false, and a Close-only search finds nothing.
+     */
+    static void dismissCards() {
+        for (int i = 0; i < 3; i++) {
+            if (find(Arrays.asList("Close", "Back"), false, 1_200) == null) return;
+            if (!tap(Arrays.asList("Close", "Back"), false, 1_200)) return;
+            sleep(1_200);
+        }
+    }
+
+    /**
      * Name AND vertical position of the nodes BELOW the sticky chrome.
      *
      * Position as well as name, because names alone would assume the visible set changes as you
@@ -721,8 +745,14 @@ final class Journey {
 
     // ----------------------------------------------------------------- plumbing
 
-    /** Every accessor re-resolves the node, and a node that has gone stale throws. */
-    private static <T> T attr(UiObject2 o, Getter<T> getter) {
+    /**
+     * Every accessor re-resolves the node, and a node that has gone stale throws.
+     *
+     * Package-visible so suites that enumerate for themselves (`AppJourneyTests.tapTopmost`) share
+     * this null-and-stale handling instead of re-deriving it — the alternative is a second, subtly
+     * different accessor, which is how the two ports drifted in the first place.
+     */
+    static <T> T attr(UiObject2 o, Getter<T> getter) {
         if (o == null) return null;
         try {
             return getter.get(o);

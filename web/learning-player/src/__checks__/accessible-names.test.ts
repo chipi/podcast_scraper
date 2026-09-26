@@ -23,6 +23,41 @@ import { describe, expect, it } from 'vitest'
  */
 const APP_VUE = readFileSync(join(__dirname, '../App.vue'), 'utf8')
 
+/**
+ * Components whose icon-only buttons must carry a real text node, not just `aria-label`.
+ *
+ * Android System WebView drops an `aria-label` when the button's subtree has no text, so the
+ * control is announced as an unnamed "Button" and is unfindable by name. This has now been found
+ * THREE times in this codebase — `SavedColorControl`'s trigger (2026-09-24), its swatches, and
+ * `SavedFilterBar`'s filter swatches (both 2026-09-26) — each time only because a device test
+ * tripped over it, and the third one arrived disguised as "the seed coloured too few items".
+ *
+ * A regex cannot compute accessible names honestly, so this does the narrow, checkable thing:
+ * for the components listed here, every `<button>` that carries an `aria-label` must also contain
+ * an `sr-only` span. Add a component when a device run finds the shape again.
+ */
+const SR_ONLY_REQUIRED = ['SavedColorControl.vue', 'SavedFilterBar.vue']
+
+describe('icon-only buttons carry text, not only an aria-label', () => {
+  for (const file of SR_ONLY_REQUIRED) {
+    it(`${file}: every aria-labelled button has an sr-only name`, () => {
+      const src = readFileSync(join(__dirname, '../components', file), 'utf8')
+      const buttons = src.split('<button').slice(1)
+      const labelled = buttons.filter((b) => b.includes('aria-label'))
+      expect(labelled.length, `no aria-labelled buttons found in ${file} — did it move?`).toBeGreaterThan(0)
+      for (const b of labelled) {
+        const body = b.slice(0, b.indexOf('</button>'))
+        expect(
+          body.includes('sr-only'),
+          `a button in ${file} has an aria-label but no sr-only text. On Android System WebView ` +
+            `the label is dropped and the control is announced as an unnamed "Button" — and ` +
+            `unfindable by name, which is how a colour filter looked like a broken seed.`,
+        ).toBe(true)
+      }
+    })
+  }
+})
+
 describe('interactive elements keep a reachable accessible name', () => {
   it('the masthead profile link carries text, not just an aria-label', () => {
     // The avatar is aria-hidden by design, so SOMETHING else inside the anchor has to be readable.
