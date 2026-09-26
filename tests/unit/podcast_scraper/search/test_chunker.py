@@ -7,6 +7,7 @@ from typing import Any, cast
 import pytest
 
 from podcast_scraper.search.chunker import (
+    _fixed_window_spans,
     _merge_time_for_span,
     _paragraph_spans,
     _sentences_with_spans,
@@ -174,3 +175,12 @@ class TestBoundarylessTranscriptStillChunks:
         assert len(chunks) > 1
         # Sentence-split chunks end at punctuation; a blind window would not.
         assert any(c.text.rstrip().endswith((".", "!", "?")) for c in chunks)
+
+
+def test_fixed_window_spans_on_text_with_no_words() -> None:
+    """Whitespace-only text yields no spans rather than one empty span.
+
+    ``chunk_transcript`` short-circuits blank input before reaching the fallback, so this is the
+    helper's own contract: asked for windows over nothing, return nothing.
+    """
+    assert _fixed_window_spans("   \n\t  ", 256) == []

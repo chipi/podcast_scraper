@@ -197,3 +197,32 @@ def test_unchanged_episode_is_not_pruned(tmp_path, monkeypatch):
     assert stats.episodes_skipped_unchanged >= 1
     assert after_ids == before_ids, "an unchanged episode lost rows"
     assert stats.stale_rows_pruned == 0
+
+
+class TestCountEpisodeRowsFailsSafe:
+    """``count_episode_rows`` feeds the prune guard, so its failure mode decides data safety.
+
+    The guard refuses to prune when the emitted set is much smaller than what is indexed. If the
+    count blew up or raised, the guard would either crash the build or — worse, if it returned
+    something truthy-but-wrong — let a destructive prune through. It returns 0, which makes the
+    guard's ``if existing and …`` fall through to the normal prune path: the behaviour before this
+    guard existed, which is the right default for "I could not measure".
+    """
+
+    def test_a_tier_that_does_not_exist_counts_zero(self, tmp_path) -> None:
+        be = LanceDBBackend(str(tmp_path / "empty_index"))
+
+        assert be.count_episode_rows("insight", "ep-anything") == 0
+
+    def test_a_raising_table_counts_zero_rather_than_propagating(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        be = LanceDBBackend(str(tmp_path / "empty_index"))
+
+        class _Exploding:
+            def count_rows(self, *_a, **_k):
+                raise RuntimeError("lance blew up mid-count")
+
+        monkeypatch.setattr(be, "_open_if_exists", lambda _tier: _Exploding())
+
+        assert be.count_episode_rows("insight", "ep-anything") == 0

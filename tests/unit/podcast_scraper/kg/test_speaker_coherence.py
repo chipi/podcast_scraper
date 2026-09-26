@@ -320,6 +320,21 @@ class TestCollapseOntoOneSpeaker:
 
         assert len(check_not_collapsed_onto_one_speaker(GOOD_META, g)) == 1
 
+    def test_a_dangling_target_with_no_person_node_is_reported(self) -> None:
+        """The edge points at an id no Person node carries, so the role is unknowable.
+
+        Unknowable must mean REPORTED. If a lookup failure granted the exemption, a genuinely
+        collapsed episode with a broken graph would be silently waved through.
+        """
+        g = {
+            "nodes": [],  # no Person node at all — the target dangles
+            "edges": [
+                {"type": "SPOKEN_BY", "from": f"quote:{i}", "to": "person:ghost"} for i in range(8)
+            ],
+        }
+
+        assert len(check_not_collapsed_onto_one_speaker(GOOD_META, g)) == 1
+
     def test_guest_only_with_NO_host_on_the_roster_is_still_reported(self) -> None:
         """The exemption is the host/guest PAIR shape. Two guests and no host is not that."""
         two_guests = meta((GUEST, "guest"), ("Someone Else", "guest"))
