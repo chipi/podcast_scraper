@@ -3,7 +3,7 @@
  * Profile / account — where the signed-in user sees who they are and edits their personalization,
  * starting with their interest topics (chosen at sign-in via the onboarding card). Auth-gated.
  */
-import { computed, defineAsyncComponent, onMounted, ref, watch } from "vue"
+import { computed, defineAsyncComponent, onActivated, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 defineOptions({ name: "ProfileView" }) // stable name for <keep-alive :include> (App.vue)
@@ -322,7 +322,48 @@ async function onChannelToggle(type: CommsType, channel: CommsChannel): Promise<
   await saveMatrix()
 }
 
+// STATS AND CONSENT ARE VOLATILE — listening changes them while this view is kept alive.
+//
+// `ProfileView` is in App.vue's `KEEP_ALIVE_TABS`, so `onMounted` runs ONCE and returning to the
+// tab does not remount. Everything `load()` fetches was therefore frozen at whatever it was the
+// first time Profile was opened. Listen to an episode, come back to Stats, and the page still says
+// "Start listening to build your stats" — a 200 response with the right data had simply never been
+// asked for. Same staleness for interests and the notifications matrix.
+//
+// MEASURED on the Android tier, 2026-09-26 (`PersonalisationTests.test09PlayFillsStats`). The api
+// log is unambiguous — two fetches, then the listening, then nothing:
+//     16:15:29  GET  /api/app/me/stats   200
+//     16:16:20  GET  /api/app/me/stats   200
+//     16:16:58  POST /api/app/listen/p09 204
+//     16:17:20  POST /api/app/listen/p07 204
+//     (no further GET /me/stats)
+// The server held two episodes; the screen rendered the never-listened empty state.
+//
+// `onActivated` fires on first mount AND on every return to the tab, which is the convention
+// App.vue documents ("volatile sections refresh via onActivated in their view") and that HomeView,
+// LibraryView and BrowseView already follow. This view was the one that did not.
+//
+// Only Android's harness exposed it: it opens Profile during sign-in, so the view was already
+// mounted before playback. iOS mounts it after, gets a fresh `onMounted`, and passes — the defect
+// was there on both platforms, visible on neither until now.
+// BOTH hooks, and the flag is load-bearing.
+//
+// `onActivated` alone is wrong: it only fires inside `<keep-alive>`, so a ProfileView mounted
+// directly — which is exactly how every unit test mounts it — would never load at all. 19 of them
+// went red proving it.
+//
+// `onMounted` alone is the original bug. So: mount loads, and each RETURN to the tab reloads, with
+// the first activation skipped because `onMounted` has just done it (Vue fires mounted → activated
+// on the first render inside keep-alive).
+let activatedBefore = false
 onMounted(load)
+onActivated(() => {
+  if (!activatedBefore) {
+    activatedBefore = true
+    return
+  }
+  void load()
+})
 </script>
 
 <template>
