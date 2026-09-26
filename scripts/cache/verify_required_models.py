@@ -68,6 +68,15 @@ def _whisper_cached(name: str) -> bool:
 _WEIGHT_SUFFIXES = frozenset({".safetensors", ".bin", ".pt", ".pth", ".onnx", ".ckpt"})
 
 
+def _pinned_revision(model_id: str) -> str | None:
+    """The revision the RUNTIME will load, or None when the model is not pinned."""
+    try:
+        cc = _load_light("podcast_scraper.config_constants", "podcast_scraper/config_constants.py")
+        return cc.get_pinned_revision_for_model(model_id)
+    except Exception:  # noqa: BLE001 — an unresolvable pin degrades to the whole-dir check
+        return None
+
+
 def _hf_cached(model_id: str) -> bool:
     """True if the HF hub cache holds WEIGHTS for ``model_id``.
 
@@ -89,7 +98,15 @@ def _hf_cached(model_id: str) -> bool:
     model_dir = cache_dir / f"models--{model_id.replace('/', '--')}"
     if not model_dir.is_dir():
         return False
-    return any(p.suffix in _WEIGHT_SUFFIXES and p.is_file() for p in model_dir.rglob("*"))
+    # Look in the snapshot the runtime will ACTUALLY open, not anywhere under the model
+    # directory. Checking the whole directory is how this passed while test-e2e failed:
+    # weights present under some other revision satisfied it, and the loader — pinned to
+    # 7bcac572 for flan-t5-base — opened a snapshot holding only config.json and
+    # tokenizer.json. "a weight file exists somewhere" is not the question; "the pinned
+    # snapshot can be loaded" is.
+    rev = _pinned_revision(model_id)
+    root = model_dir / "snapshots" / rev if rev else model_dir
+    return any(p.suffix in _WEIGHT_SUFFIXES and p.is_file() for p in root.rglob("*"))
 
 
 def main(argv: list[str] | None = None) -> int:
