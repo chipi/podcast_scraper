@@ -183,18 +183,31 @@ test.describe('Dashboard tab', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
+
+    /* MAKE the activity this asserts on, instead of shipping it.
+     *
+     * The corpus used to commit `search/query_log.jsonl` so the chart had data. That made a
+     * TRACKED file the app writes into, and everything after it followed from that one
+     * choice: a clean run left the tree dirty, entries got committed, and since the API
+     * counts a rolling 30-day window over ABSOLUTE timestamps, the seeded block aged out
+     * and turned every branch red on 2026-09-03 for a reason no commit caused —
+     * prepare-corpus.mjs then grew a re-dating pass to shift it back into the window.
+     *
+     * Two searches remove all of it. The events are "now" by construction so no window can
+     * age them out; this spec no longer depends on some other spec having searched first;
+     * and it exercises the real write -> read -> render path rather than a pre-baked file.
+     * An empty corpus legitimately shows an empty chart, which is the honest default. */
+    await page.request.get('/api/corpus/search?q=climate')
+    await page.request.get('/api/corpus/search?q=policy')
+
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await page.getByRole('tablist', { name: 'Dashboard tabs' }).getByRole('tab', { name: 'Intelligence' }).click()
 
-    /* The corpus ships `search/query_log.jsonl`, so the chart has real data. Assert that it
-     * reports a positive count — NOT an exact one.
-     *
-     * The query log is APPEND-ONLY and live: every search any other spec runs during the same
-     * suite adds to it. Pinning the number read a moment earlier made this flaky, because a
-     * concurrent worker's search moved it between the read and the render. */
+    /* At least the two above. Not an exact count: the log is append-only and live, so a
+     * concurrent worker's search can land between the read and the render. */
     const resp = await page.request.get('/api/corpus/query-activity')
     const { total } = (await resp.json()) as { total: number }
-    expect(total).toBeGreaterThan(0)
+    expect(total).toBeGreaterThanOrEqual(2)
 
     const chart = page.getByTestId('query-activity-chart')
     await expect(chart).toBeVisible({ timeout: 15_000 })

@@ -453,3 +453,18 @@ AuthKey_*.p8
 # Disposable app-corpus copy the learning-player e2e seeds (see e2e/prepare-corpus.mjs).
 # The committed fixture is read-only; this is the tree the API is allowed to write into.
 web/learning-player/.e2e-corpus/
+
+# ── runtime state the app writes INTO a corpus — never a fixture ─────────────
+#
+# A corpus directory holds two different kinds of thing: INPUTS (episodes,
+# transcripts, the search index) which belong in git, and STATE the running app
+# appends to, which does not. On the server the distinction is invisible because
+# nothing there is version-controlled; in a fixture corpus it is the whole problem.
+#
+# `search/query_log.jsonl` was the one that got committed — 46 seeded entries plus
+# 39 that accumulated from e2e runs writing into the tracked tree. Its two siblings
+# do exactly the same thing and were never committed, which is the tell that the one
+# that was, was an accident. Listing all three so the accident cannot repeat.
+tests/fixtures/**/search/query_log.jsonl
+tests/fixtures/**/users/*/listen.jsonl
+tests/fixtures/**/.viewer/jobs.jsonl
