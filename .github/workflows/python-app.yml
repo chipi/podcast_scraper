@@ -809,12 +809,20 @@ jobs:
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
         # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache.
-        # `diar2` salt: forces a clean re-preload. `diar1` was saved incomplete by a cancelled run
-        # (missing MiniLM + gated pyannote models), so cache-hits served a broken cache. The broad
-        # restore-key warm-starts from the prior cache so only the missing models re-download.
-        key: ml-models-${{ runner.os }}-diar2-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        # `weights1` salt: forces a clean re-preload. THIRD time — `diar1` was saved incomplete
+        # by a cancelled run (missing MiniLM + gated pyannote), `diar2` was saved with a
+        # google/flan-t5-base snapshot carrying config.json and tokenizer.json but NO weights,
+        # which failed four test-e2e specs with "no file named model.safetensors, or
+        # pytorch_model.bin". Salting discards the poisoned cache and nothing more, which is why
+        # it keeps coming back; the detector is fixed alongside this (see the Verify step below
+        # and _hf_cached in scripts/cache/verify_required_models.py).
+        #
+        # The broad restore-key warm-starts from the prior cache so only missing models
+        # re-download. That is safe BECAUSE a restore-key match leaves cache-hit false, so the
+        # preload and the verify both still run over whatever it restored.
+        key: ml-models-${{ runner.os }}-weights1-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
         restore-keys: |
-          ml-models-${{ runner.os }}-diar2-
+          ml-models-${{ runner.os }}-weights1-
           ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
@@ -836,12 +844,20 @@ jobs:
     - name: Preload ML models (only if cache miss)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       run: make preload-ml-models-production
-    - name: Verify models were downloaded (only if cache miss)
-      if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
+    # ALWAYS, including on a cache HIT — which is the only moment this can catch anything.
+    # It used to carry `&& cache-hit != 'true'`, so the run that restored a poisoned cache
+    # skipped the preload AND the check, then handed the bad cache to every downstream job.
+    # That is how an incomplete flan-t5-base snapshot reddened test-e2e for two days.
+    #
+    # `python3`, not `python`: setup-python only runs on a cache miss, so on the hit path
+    # there is no `python` on PATH. The verifier is stdlib-only by design (it runs before
+    # the [ml] install) so the runner's system interpreter is enough.
+    - name: Verify models are actually cached (runs on hit and miss)
+      if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
       run: |
         # Single manifest (#917): verify_required_models.py reads
         # model_manifest.ci_artifact_model_ids() -- no duplicated bash arrays.
-        python scripts/cache/verify_required_models.py
+        python3 scripts/cache/verify_required_models.py
         echo "Cache will be saved at end of job for test jobs to use"
         du -sh "$HOME/.cache/whisper" 2>/dev/null || echo "  Whisper cache not found"
         du -sh "$HOME/.cache/huggingface" 2>/dev/null || echo "  HuggingFace cache not found"

@@ -62,8 +62,26 @@ def _whisper_cached(name: str) -> bool:
     return (Path.home() / ".cache" / "whisper" / f"{name}.pt").is_file()
 
 
+#: Extensions that mean the WEIGHTS are here, not merely a directory that looks populated.
+#: pyannote pipelines keep theirs one level down (``segmentation/pytorch_model.bin``), hence
+#: the rglob rather than a top-level check.
+_WEIGHT_SUFFIXES = frozenset({".safetensors", ".bin", ".pt", ".pth", ".onnx", ".ckpt"})
+
+
 def _hf_cached(model_id: str) -> bool:
-    """True if the HF hub cache has a non-empty dir for ``model_id``."""
+    """True if the HF hub cache holds WEIGHTS for ``model_id``.
+
+    This used to be "the dir exists and has any file in it", and that is how a poisoned CI
+    cache kept passing: a cancelled preload leaves a snapshot carrying ``config.json`` and
+    ``tokenizer.json`` and no weights at all, which satisfied the old check and then failed
+    at load time with ``no file named model.safetensors, or pytorch_model.bin``. Twice now
+    the response was to salt the cache key, which discards the bad cache without teaching
+    anything to notice the next one.
+
+    ``is_file()`` follows symlinks, and the HF cache stores snapshots as symlinks into
+    ``blobs/`` — so a half-downloaded model whose blob never landed reads as a dangling link
+    and correctly fails here too.
+    """
     directories = _load_light(
         "podcast_scraper.cache.directories", "podcast_scraper/cache/directories.py"
     )
@@ -71,7 +89,7 @@ def _hf_cached(model_id: str) -> bool:
     model_dir = cache_dir / f"models--{model_id.replace('/', '--')}"
     if not model_dir.is_dir():
         return False
-    return any(p.is_file() for p in model_dir.rglob("*"))
+    return any(p.suffix in _WEIGHT_SUFFIXES and p.is_file() for p in model_dir.rglob("*"))
 
 
 def main(argv: list[str] | None = None) -> int:

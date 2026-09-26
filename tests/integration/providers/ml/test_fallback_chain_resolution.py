@@ -74,14 +74,21 @@ def test_cloud_summary_stage_falls_over_to_a_different_vendor() -> None:
 
 def test_airgapped_dgx_prod_ladders_never_reach_cloud() -> None:
     """prod_dgx_full is fully airgapped (ADR-147): each stage falls back only to
-    DGX/local tiers — transcription to DGX-then-local whisper, diarization to local pyannote,
-    summary to DGX-local ollama — and never to a cloud vendor."""
+    DGX/local tiers — transcription to DGX-then-local whisper, diarization to local
+    pyannote — and never to a cloud vendor.
+
+    SUMMARY HAS NO LADDER, as of 916fe612. It fell back to DGX-local ollama until that
+    fallback was dropped for being unable to succeed while hiding the real failure, which
+    also removed ``ollama_summary_model`` and ``ollama_api_base`` from the profile. Asserting
+    absence rather than deleting the line: "no chain here" is the invariant now, and the
+    airgap guarantee below has to keep holding for whatever chains do exist.
+    """
     resolved = resolve_profile_to_settings("prod_dgx_full")
     assert resolved["transcription_provider"] == "tailnet_dgx_whisper"
     assert resolved["transcription_fallback_providers"] == ["tailnet_dgx_whisper", "whisper"]
     assert resolved["diarization_fallback_providers"] == ["local"]
-    assert resolved["summary_fallback_providers"] == ["ollama"]
-    for stage in ("transcription", "diarization", "summary"):
+    assert "summary_fallback_providers" not in resolved
+    for stage in ("transcription", "diarization"):
         chain = resolved[f"{stage}_fallback_providers"]
         assert not ({"openai", "deepgram", "gemini"} & set(chain)), chain
 
@@ -119,9 +126,9 @@ def test_the_emitted_chain_is_the_stage_options_provider_value() -> None:
     assert resolved["diarization_fallback_providers"] == [
         get_diarization_option("pyannote_diarization_community1").provider,
     ]
-    assert resolved["summary_fallback_providers"] == [
-        get_summary_option("ollama_qwen35_35b").provider,
-    ]
+    # Summary emits no chain at all since 916fe612 dropped the ollama fallback, so there is
+    # no provider string left to check the shape of. The two stages above still carry one.
+    assert "summary_fallback_providers" not in resolved
 
 
 def test_cloud_balanced_summary_ladder_fails_over_to_direct_deepseek() -> None:
