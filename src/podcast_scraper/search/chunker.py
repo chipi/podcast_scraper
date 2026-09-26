@@ -78,6 +78,32 @@ def _paragraph_spans(text: str) -> List[Tuple[str, int, int]]:
     return out
 
 
+def _fixed_window_spans(text: str, target_tokens: int) -> List[Tuple[str, int, int]]:
+    """Split on a fixed word window — the floor when the text carries NO boundary at all.
+
+    Not a chunking strategy anyone would choose: it cuts mid-thought. It exists because the
+    alternative is worse. A transcript with no sentence, paragraph or line boundary produced a
+    single chunk of the whole episode, and an embedder with a 512-token limit silently kept only
+    its opening. An arbitrary split indexes the whole episode imperfectly; one giant chunk indexes
+    a fraction of it and reports success.
+
+    Spans are built from real whitespace offsets in *text*, so ``char_start`` / ``char_end`` stay
+    truthful in the original coordinate space — quote and insight offsets are matched against it.
+    """
+    spans: List[Tuple[str, int, int]] = []
+    words: List[Tuple[int, int]] = [(m.start(), m.end()) for m in re.finditer(r"\S+", text)]
+    if not words:
+        return spans
+    step = max(1, int(target_tokens))
+    for i in range(0, len(words), step):
+        group = words[i : i + step]
+        start, end = group[0][0], group[-1][1]
+        chunk = text[start:end]
+        if chunk.strip():
+            spans.append((chunk, start, end))
+    return spans
+
+
 def _merge_time_for_span(
     char_start: int,
     char_end: int,
@@ -168,6 +194,20 @@ def chunk_transcript(
                 pos += len(line) + 1
             if len(lines) > 1:
                 sentences = lines
+
+    # LAST RESORT — a fixed word window. Every fallback above needs a boundary the text may simply
+    # not contain: 37 prod episodes (measured 2026-09-26) carry transcripts with no space after
+    # sentence punctuation and words run together ("scared.That", "theprevailing"), all on one line.
+    # So no sentence, paragraph or newline split fires and the whole transcript became ONE chunk —
+    # 44,924 characters for a 48-minute episode, which the embedder then truncates at 512 tokens,
+    # leaving only the opening ~400 words retrievable. A single giant chunk is never a correct
+    # output: it is worse than an arbitrary split, because it silently discards most of the episode
+    # instead of indexing it imperfectly. Splitting blind is the honest floor when the text offers
+    # no structure to split on. Fixing the text itself is #2096.
+    if len(sentences) <= 1 and _token_count(text) > target_tokens:
+        window = _fixed_window_spans(text, target_tokens)
+        if len(window) > 1:
+            sentences = window
 
     if not sentences:
         return []

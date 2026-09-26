@@ -113,3 +113,64 @@ def test_chunk_transcript_overlap_advances_window() -> None:
     chunks = chunk_transcript(text, target_tokens=25, overlap_tokens=8)
     assert len(chunks) >= 2
     assert all(c.char_end > c.char_start for c in chunks)
+
+
+class TestBoundarylessTranscriptStillChunks:
+    """A transcript with NO usable boundary must still split (#2158).
+
+    37 production episodes (measured 2026-09-26) carry transcripts with no space after sentence
+    punctuation and words run together — ``scared.That``, ``theprevailing`` — on a single line. The
+    sentence split needs punctuation-then-whitespace, the paragraph split needs a blank line and the
+    line split needs a newline, so none of the three fired and the whole episode became ONE chunk:
+    44,924 characters, which the embedder truncates at 512 tokens. Only the opening ~400 words of a
+    48-minute episode were retrievable, and nothing reported a problem.
+
+    An arbitrary split indexes the whole episode imperfectly; one giant chunk indexes a fraction and
+    claims success. These pin the former.
+    """
+
+    # The prod shape: punctuation with no following space, joined words, zero newlines.
+    _RUN_ON = (
+        "MG: So Putin is angry.That at least seems to be one of theprevailing talking points"
+        "within the Western media andplundocracy spheres.Is that really true?Hello "
+    ) * 60
+
+    def test_it_does_not_collapse_to_a_single_chunk(self) -> None:
+        assert "\n" not in self._RUN_ON, "fixture must have no newline, or it tests the wrong path"
+
+        chunks = chunk_transcript(self._RUN_ON, target_tokens=256, overlap_tokens=32)
+
+        assert len(chunks) > 1, (
+            f"{len(self._RUN_ON)} chars of boundaryless text collapsed into {len(chunks)} chunk(s) "
+            "— the embedder would keep only the first 512 tokens of the episode"
+        )
+
+    def test_offsets_stay_truthful_in_the_original_coordinate_space(self) -> None:
+        """Quote and insight char offsets are matched against these spans, so they cannot drift."""
+        chunks = chunk_transcript(self._RUN_ON, target_tokens=256, overlap_tokens=32)
+
+        for c in chunks:
+            assert self._RUN_ON[c.char_start : c.char_end] == c.text
+
+    def test_the_whole_transcript_is_covered_not_just_the_head(self) -> None:
+        chunks = chunk_transcript(self._RUN_ON, target_tokens=256, overlap_tokens=32)
+
+        assert chunks[0].char_start == 0
+        assert chunks[-1].char_end >= len(
+            self._RUN_ON.rstrip()
+        ), "the tail of the episode is unreachable"
+
+    def test_short_boundaryless_text_is_left_as_one_chunk(self) -> None:
+        """The fallback is for text that EXCEEDS the target — it must not fragment a short span."""
+        chunks = chunk_transcript("NoBoundariesHere.ButItIsShort", target_tokens=256)
+
+        assert len(chunks) == 1
+
+    def test_normal_prose_is_unaffected(self) -> None:
+        """Guard against the fallback stealing work from the sentence splitter."""
+        prose = "First sentence here. Second sentence follows! Third one? " * 40
+        chunks = chunk_transcript(prose, target_tokens=20, overlap_tokens=5)
+
+        assert len(chunks) > 1
+        # Sentence-split chunks end at punctuation; a blind window would not.
+        assert any(c.text.rstrip().endswith((".", "!", "?")) for c in chunks)
