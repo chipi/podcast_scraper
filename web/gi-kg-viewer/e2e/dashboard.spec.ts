@@ -197,15 +197,27 @@ test.describe('Dashboard tab', () => {
      * age them out; this spec no longer depends on some other spec having searched first;
      * and it exercises the real write -> read -> render path rather than a pre-baked file.
      * An empty corpus legitimately shows an empty chart, which is the honest default. */
-    await page.request.get('/api/corpus/search?q=climate')
-    await page.request.get('/api/corpus/search?q=policy')
+    const corpus = await liveCorpusRoot(page)
+    for (const q of ['climate', 'policy']) {
+      const hit = await page.request.get(
+        `/api/search?q=${q}&path=${encodeURIComponent(corpus)}`,
+      )
+      // Assert the SEARCH, not just the activity it should produce. The first version of
+      // this called `/api/corpus/search`, which does not exist — the 404 wrote no event and
+      // the failure surfaced as `total: 0`, i.e. "the chart is empty" rather than "you asked
+      // the wrong URL". A silent 404 upstream of the assertion is how a test lies about
+      // which thing is broken.
+      expect(hit.ok(), `search '${q}' failed: HTTP ${hit.status()}`).toBe(true)
+    }
 
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await page.getByRole('tablist', { name: 'Dashboard tabs' }).getByRole('tab', { name: 'Intelligence' }).click()
 
     /* At least the two above. Not an exact count: the log is append-only and live, so a
      * concurrent worker's search can land between the read and the render. */
-    const resp = await page.request.get('/api/corpus/query-activity')
+    const resp = await page.request.get(
+      `/api/corpus/query-activity?path=${encodeURIComponent(corpus)}`,
+    )
     const { total } = (await resp.json()) as { total: number }
     expect(total).toBeGreaterThanOrEqual(2)
 
