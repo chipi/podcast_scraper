@@ -75,7 +75,7 @@ class TestRevisionForSummaryModel:
         assert rev is not None and len(rev) == 40
 
     def test_long_t5_returns_pinned_revision(self):
-        """LongT5 model returns revision via get_pinned_revision_for_model (hybrid_ml)."""
+        """LongT5 model returns revision via get_pinned_revision_for_model."""
         import podcast_scraper.config_constants as cc
 
         rev = _revision_for_summary_model("google/long-t5-tglobal-base")

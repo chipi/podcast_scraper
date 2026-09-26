@@ -365,7 +365,6 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
         "litellm",  # #1356: gateway-routed LLM — an API LLM, same self-grounding treatment
         "qwen",
         "groq",
-        "hybrid_ml",
     }
 )
 
@@ -2718,7 +2717,7 @@ class Config(BaseModel):
         default=None,
         alias="ollama_reduce_temperature",
         description=(
-            "Override temperature for Ollama reduce stage in hybrid_ml pipeline. "
+            "Override temperature for the Ollama reduce stage. "
             "When None, falls back to ollama_temperature."
         ),
     )
@@ -3251,7 +3250,6 @@ class Config(BaseModel):
     )
     quote_extraction_provider: Literal[
         "transformers",
-        "hybrid_ml",
         "openai",
         "gemini",
         "grok",
@@ -3273,7 +3271,6 @@ class Config(BaseModel):
     )
     entailment_provider: Literal[
         "transformers",
-        "hybrid_ml",
         "openai",
         "gemini",
         "grok",
@@ -3298,7 +3295,7 @@ class Config(BaseModel):
         alias="gil_evidence_match_summary_provider",
         description=(
             "When True (default) and generate_gi is True: if summary_provider is an API LLM "
-            "(openai, gemini, anthropic, mistral, deepseek, grok, ollama) or hybrid_ml, and both "
+            "(openai, gemini, anthropic, mistral, deepseek, grok, ollama), and both "
             "quote_extraction_provider and entailment_provider are still the default "
             "'transformers', they are set to summary_provider so GIL grounding uses the same "
             "backend as summaries (applied in a model_validator before init, so Config(**d) "
@@ -3685,7 +3682,6 @@ class Config(BaseModel):
     kg_extraction_provider: Optional[
         Literal[
             "transformers",
-            "hybrid_ml",
             "openai",
             "gemini",
             "grok",
@@ -3828,7 +3824,6 @@ class Config(BaseModel):
     )
     summary_provider: Literal[
         "transformers",
-        "hybrid_ml",
         "summllama",
         "openai",
         "gemini",
@@ -3846,81 +3841,6 @@ class Config(BaseModel):
         alias="summary_provider",
         description=(
             "Summary generation provider " "(default: 'transformers' for HuggingFace Transformers)."
-        ),
-    )
-    hybrid_map_model: str = Field(
-        default="longt5-base",
-        alias="hybrid_map_model",
-        description=(
-            "Hybrid MAP model (classic summarizer). "
-            "Recommended: longt5-base (8k context) for medium-long transcripts."
-        ),
-    )
-    hybrid_reduce_model: str = Field(
-        default="google/flan-t5-base",
-        alias="hybrid_reduce_model",
-        description=(
-            "Hybrid REDUCE model (instruction-tuned). "
-            "Tier 1 default: google/flan-t5-base via transformers backend."
-        ),
-    )
-    hybrid_reduce_backend: Literal["transformers", "ollama", "llama_cpp"] = Field(
-        default="transformers",
-        alias="hybrid_reduce_backend",
-        description=(
-            "Hybrid REDUCE backend. "
-            "transformers = FLAN-T5 via local transformers; "
-            "ollama = send reduce step to local Ollama server; "
-            "llama_cpp = GGUF via llama.cpp (optional)."
-        ),
-    )
-    hybrid_map_device: Optional[str] = Field(
-        default=None,
-        alias="hybrid_map_device",
-        description="Device for hybrid MAP model (cpu/cuda/mps/auto). Defaults to summary_device.",
-    )
-    hybrid_reduce_device: Optional[str] = Field(
-        default=None,
-        alias="hybrid_reduce_device",
-        description=(
-            "Device for hybrid REDUCE model (cpu/cuda/mps/auto). "
-            "Defaults to summarization_device/summary_device."
-        ),
-    )
-    hybrid_quantization: Optional[str] = Field(
-        default=None,
-        alias="hybrid_quantization",
-        description=(
-            "Optional quantization hint for hybrid REDUCE backend "
-            "(e.g., '4bit', '8bit', 'q4'). Backend-specific; ignored if unsupported."
-        ),
-    )
-    hybrid_llama_n_ctx: Optional[int] = Field(
-        default=None,
-        alias="hybrid_llama_n_ctx",
-        description=(
-            "Context length for llama_cpp REDUCE backend (e.g., 4096). "
-            "When unset, provider uses 4096. Only used when hybrid_reduce_backend is llama_cpp."
-        ),
-    )
-    hybrid_reduce_instruction_style: Optional[Literal["structured", "paragraph"]] = Field(
-        default=None,
-        alias="hybrid_reduce_instruction_style",
-        description=(
-            "REDUCE instruction style: 'structured' = Takeaways/Outline/Actions (default); "
-            "'paragraph' = silver-style 4-6 paragraphs, no headings. Used for tuning toward silver."
-        ),
-    )
-    hybrid_internal_preprocessing_after_pattern: str = Field(
-        default="cleaning_hybrid_after_pattern",
-        alias="hybrid_internal_preprocessing_after_pattern",
-        description=(
-            "Registered preprocessing profile applied inside HybridMLProvider.summarize() when "
-            "summary_provider is hybrid_ml and transcript_cleaning_strategy is 'pattern', after "
-            "the workflow has already run PatternBasedCleaner (Issue #419). Avoids redundant "
-            "sponsor/outro passes versus full cleaning_v4 while keeping v4-only steps "
-            "(header strip, junk filter, anonymization, artifact_scrub_v1). "
-            "Must be a profile ID from preprocessing.profiles."
         ),
     )
     summary_2nd_pass_distill: bool = Field(
@@ -4468,8 +4388,8 @@ class Config(BaseModel):
         description=(
             "ML-only text cleaning profile ID (e.g. 'cleaning_v4', 'cleaning_v3') "
             "applied before BART/LED/SummLlama summarization. When set, overrides "
-            "the mode_cfg.preprocessing_profile default in ml_provider.py / "
-            "hybrid_ml_provider.py. Ignored by cloud LLM providers and Ollama, "
+            "the mode_cfg.preprocessing_profile default in ml_provider.py. "
+            "Ignored by cloud LLM providers and Ollama, "
             "which send raw transcripts (GitHub #634 Scope 2, Option A: ML-only "
             "scope made explicit in name)."
         ),
@@ -5913,7 +5833,6 @@ class Config(BaseModel):
     @classmethod
     def _validate_summary_provider(cls, value: Any) -> Literal[
         "transformers",
-        "hybrid_ml",
         "summllama",
         "openai",
         "gemini",
@@ -5933,7 +5852,6 @@ class Config(BaseModel):
 
         if value_str not in (
             "transformers",
-            "hybrid_ml",
             "summllama",
             "openai",
             "gemini",
@@ -5948,7 +5866,7 @@ class Config(BaseModel):
             "groq",
         ):
             raise ValueError(
-                "summary_provider must be 'transformers', 'hybrid_ml', 'summllama', "
+                "summary_provider must be 'transformers', 'summllama', "
                 "'openai', 'gemini', 'grok', 'mistral', 'deepseek', 'anthropic', 'ollama', "
                 "'vllm', 'litellm', 'qwen', or 'groq'"
             )
@@ -5958,7 +5876,6 @@ class Config(BaseModel):
     @classmethod
     def _validate_evidence_providers(cls, value: Any) -> Literal[
         "transformers",
-        "hybrid_ml",
         "openai",
         "gemini",
         "grok",
@@ -5976,7 +5893,6 @@ class Config(BaseModel):
         value_str = str(value).strip().lower()
         if value_str not in (
             "transformers",
-            "hybrid_ml",
             "openai",
             "gemini",
             "grok",
@@ -5991,7 +5907,7 @@ class Config(BaseModel):
         ):
             raise ValueError(
                 "quote_extraction_provider/entailment_provider must be one of: "
-                "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
+                "'transformers', 'openai', 'gemini', 'grok', "
                 "'mistral', 'deepseek', 'anthropic', 'ollama', 'vllm', 'litellm', 'qwen', 'groq'"
             )
         return value_str  # type: ignore[return-value]
@@ -6005,7 +5921,6 @@ class Config(BaseModel):
         value_str = str(value).strip().lower()
         if value_str not in (
             "transformers",
-            "hybrid_ml",
             "openai",
             "gemini",
             "grok",
@@ -6020,22 +5935,9 @@ class Config(BaseModel):
         ):
             raise ValueError(
                 "kg_extraction_provider must be one of: "
-                "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
+                "'transformers', 'openai', 'gemini', 'grok', "
                 "'mistral', 'deepseek', 'anthropic', 'ollama', 'vllm', 'litellm', 'qwen', 'groq'"
             )
-        return value_str
-
-    @field_validator("hybrid_map_device", "hybrid_reduce_device", mode="before")
-    @classmethod
-    def _coerce_hybrid_devices(cls, value: Any) -> Optional[str]:
-        """Coerce hybrid device fields to string or None (supports 'auto')."""
-        if value is None or value == "":
-            return None
-        value_str = str(value).strip().lower()
-        if value_str == "auto":
-            return None
-        if value_str not in ("cuda", "mps", "cpu"):
-            raise ValueError("hybrid_*_device must be 'cuda', 'mps', 'cpu', or 'auto'")
         return value_str
 
     @field_validator("openai_temperature", mode="before")

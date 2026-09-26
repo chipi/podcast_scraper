@@ -2,7 +2,7 @@
 
 Introduced under #382 (Phase F) to collapse the two parallel "load HF
 seq2seq checkpoint + generate summary" idioms that lived in
-:mod:`summarizer` (as ``SummaryModel``) and :mod:`hybrid_ml_provider`
+:mod:`summarizer` (as ``SummaryModel``)
 (as ``TransformersReduceBackend``). Both consumers now instantiate an
 :class:`HFSeq2SeqBackend` and lean on it for:
 

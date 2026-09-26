@@ -81,7 +81,6 @@ def create_summarization_provider(  # noqa: C901
             provider_type = cast(
                 Literal[
                     "transformers",
-                    "hybrid_ml",
                     "summllama",
                     "openai",
                     "gemini",
@@ -99,7 +98,6 @@ def create_summarization_provider(  # noqa: C901
             )
             if provider_type not in (
                 "transformers",
-                "hybrid_ml",
                 "summllama",
                 "openai",
                 "gemini",
@@ -123,7 +121,6 @@ def create_summarization_provider(  # noqa: C901
         # Type narrowing: validate it's one of the allowed values
         if provider_type_str not in (
             "transformers",
-            "hybrid_ml",
             "summllama",
             "openai",
             "gemini",
@@ -142,7 +139,6 @@ def create_summarization_provider(  # noqa: C901
         provider_type_value = cast(
             Literal[
                 "transformers",
-                "hybrid_ml",
                 "summllama",
                 "openai",
                 "gemini",
@@ -233,44 +229,6 @@ def create_summarization_provider(  # noqa: C901
             provider = MLProvider(cfg)
 
         # Runtime protocol verification (dev-mode only)
-        verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
-        return provider
-    elif provider_type == "hybrid_ml":
-        from ..providers.ml.hybrid_ml_provider import HybridMLProvider
-
-        if experiment_mode:
-            # Build minimal Config from params for experiment mode
-            assert isinstance(params, SummarizationParams)
-            map_max = params.max_length if params.max_length else 200
-            map_min = params.min_length if params.min_length else 80
-            reduce_max = params.max_length if params.max_length else 650
-            reduce_min = params.min_length if params.min_length else 220
-            cfg = config.Config(
-                rss="",
-                summary_provider="hybrid_ml",
-                hybrid_map_model=params.model_name or "longt5-base",
-                hybrid_reduce_model=params.reduce_model or "google/flan-t5-base",
-                hybrid_reduce_backend=params.reduce_backend or "transformers",
-                hybrid_map_device=params.device,
-                hybrid_reduce_device=params.device,
-                generate_summaries=True,
-                generate_metadata=True,
-                summary_map_params={
-                    "max_new_tokens": map_max,
-                    "min_new_tokens": map_min,
-                },
-                summary_reduce_params={
-                    "max_new_tokens": reduce_max,
-                    "min_new_tokens": reduce_min,
-                },
-                summary_cache_dir=params.cache_dir,
-                summary_word_chunk_size=params.word_chunk_size,
-                summary_word_overlap=params.word_overlap,
-            )
-            provider = HybridMLProvider(cfg)
-        else:
-            provider = HybridMLProvider(cfg)
-
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
         return provider
     elif provider_type == "summllama":

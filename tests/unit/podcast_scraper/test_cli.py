@@ -924,24 +924,6 @@ class TestBuildConfig(unittest.TestCase):
         self.assertAlmostEqual(cfg.gi_nli_entailment_min, 0.41)
         self.assertEqual(cfg.gi_embedding_model, "minilm-l6")
 
-    def test_build_config_hybrid_internal_preprocessing_after_pattern(self):
-        """Issue #419: CLI flag maps into Config.hybrid_internal_preprocessing_after_pattern."""
-        args = cli.parse_args(
-            [
-                "https://example.com/feed.xml",
-                "--summary-provider",
-                "hybrid_ml",
-                "--transcript-cleaning-strategy",
-                "pattern",
-                "--hybrid-internal-preprocessing-after-pattern",
-                "cleaning_none",
-            ]
-        )
-        cfg = cli._build_config(args)
-        self.assertEqual(cfg.summary_provider, "hybrid_ml")
-        self.assertEqual(cfg.transcript_cleaning_strategy, "pattern")
-        self.assertEqual(cfg.hybrid_internal_preprocessing_after_pattern, "cleaning_none")
-
     def test_build_config_download_resilience_cli_overrides(self):
         """Six download-resilience CLI flags map into Config when set."""
         args = cli.parse_args(
@@ -1884,23 +1866,6 @@ class TestParseArgs(unittest.TestCase):
         """Test that --openai-api-base defaults to None."""
         args = cli.parse_args(["https://example.com/feed.xml"])
         self.assertIsNone(args.openai_api_base)
-
-    def test_parse_args_hybrid_internal_preprocessing_after_pattern(self):
-        """Issue #419: --hybrid-internal-preprocessing-after-pattern is parsed."""
-        args = cli.parse_args(
-            [
-                "https://example.com/feed.xml",
-                "--summary-provider",
-                "hybrid_ml",
-                "--transcript-cleaning-strategy",
-                "pattern",
-                "--hybrid-internal-preprocessing-after-pattern",
-                "cleaning_none",
-            ]
-        )
-        self.assertEqual(args.summary_provider, "hybrid_ml")
-        self.assertEqual(args.transcript_cleaning_strategy, "pattern")
-        self.assertEqual(args.hybrid_internal_preprocessing_after_pattern, "cleaning_none")
 
     def test_parse_args_with_openai_transcription_model(self):
         """Test parsing --openai-transcription-model argument."""
@@ -3319,70 +3284,6 @@ class TestCLIErrorHandling(unittest.TestCase):
         with self.assertRaises(SystemExit) as cm:
             cli.parse_args(["--version"])
         self.assertEqual(cm.exception.code, 0)
-
-
-class TestLogConfigurationGilHybridWarning(unittest.TestCase):
-    """Runtime warning when API summary stack pairs with local GIL evidence (WIP hybrid note)."""
-
-    def test_warns_when_api_summary_and_local_evidence(self):
-        log = logging.getLogger("test_gil_hybrid_warn")
-        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
-            with self.assertLogs(log, level="WARNING") as cm:
-                cfg = config.Config(
-                    rss_url="https://example.com/feed.xml",
-                    generate_metadata=True,
-                    generate_gi=True,
-                    gi_require_grounding=True,
-                    summary_provider="openai",
-                    openai_api_key="sk-test-key-for-unit-tests",
-                    quote_extraction_provider="openai",
-                    entailment_provider="transformers",
-                    gil_evidence_match_summary_provider=False,
-                )
-                cli._log_configuration(cfg, log)
-        messages = " ".join(r.getMessage() for r in cm.records)
-        self.assertIn("GIL:", messages)
-        self.assertIn("sentence-transformers", messages)
-
-    def test_warns_when_hybrid_ml_summary_and_local_evidence(self):
-        """Same GIL hybrid warning when summary stack is hybrid_ml (in API-align set)."""
-        log = logging.getLogger("test_gil_hybrid_hybrid_ml")
-        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
-            with self.assertLogs(log, level="WARNING") as cm:
-                cfg = config.Config(
-                    rss_url="https://example.com/feed.xml",
-                    generate_metadata=True,
-                    generate_gi=True,
-                    gi_require_grounding=True,
-                    summary_provider="hybrid_ml",
-                    quote_extraction_provider="transformers",
-                    entailment_provider="transformers",
-                    gil_evidence_match_summary_provider=False,
-                )
-                cli._log_configuration(cfg, log)
-        messages = " ".join(r.getMessage() for r in cm.records)
-        self.assertIn("GIL:", messages)
-        self.assertIn("sentence-transformers", messages)
-
-    def test_no_hybrid_warning_when_evidence_matches_openai(self):
-        log = logging.getLogger("test_gil_hybrid_aligned")
-        with patch("podcast_scraper.config._is_pytest_run", return_value=False):
-            with patch.object(log, "warning") as mock_warn:
-                cfg = config.Config(
-                    rss_url="https://example.com/feed.xml",
-                    generate_metadata=True,
-                    generate_gi=True,
-                    gi_require_grounding=True,
-                    summary_provider="openai",
-                    openai_api_key="sk-test-key-for-unit-tests",
-                )
-                cli._log_configuration(cfg, log)
-                hybrid_calls = [
-                    c
-                    for c in mock_warn.call_args_list
-                    if c.args and "sentence-transformers" in str(c.args[0])
-                ]
-                self.assertEqual(hybrid_calls, [])
 
 
 class TestThereIsNoPlaceholderInsightWarningAnyMore(unittest.TestCase):

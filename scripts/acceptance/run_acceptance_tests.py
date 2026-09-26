@@ -1791,14 +1791,6 @@ def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
         provider_info["summary_model"] = config_dict.get("deepseek_summary_model", "deepseek-chat")
     elif summary_provider == "ollama":
         provider_info["summary_model"] = config_dict.get("ollama_summary_model", "llama3.1:8b")
-    elif summary_provider == "hybrid_ml":
-        provider_info["summary_map_model"] = config_dict.get("hybrid_map_model", "longt5-base")
-        provider_info["summary_reduce_model"] = config_dict.get(
-            "hybrid_reduce_model", "google/flan-t5-base"
-        )
-        provider_info["summary_reduce_backend"] = config_dict.get(
-            "hybrid_reduce_backend", "transformers"
-        )
 
     return provider_info
 

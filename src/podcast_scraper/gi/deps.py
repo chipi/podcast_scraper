@@ -10,7 +10,7 @@ from podcast_scraper.exceptions import ProviderDependencyError
 if TYPE_CHECKING:
     from podcast_scraper import config
 
-_LOCAL_ENTAILMENT_BACKENDS = frozenset({"transformers", "hybrid_ml"})
+_LOCAL_ENTAILMENT_BACKENDS = frozenset({"transformers"})
 
 
 def _provider_field_str(cfg: Any, name: str, default: str) -> str:
@@ -33,7 +33,7 @@ def validate_gil_grounding_dependencies(cfg: "config.Config") -> None:
         cfg: Resolved pipeline configuration.
 
     Raises:
-        ProviderDependencyError: When entailment uses transformers/hybrid_ml but
+        ProviderDependencyError: When entailment uses transformers but
             ``sentence_transformers`` is not importable.
     """
     if not getattr(cfg, "generate_gi", False):
@@ -48,7 +48,7 @@ def validate_gil_grounding_dependencies(cfg: "config.Config") -> None:
     except ImportError as exc:
         raise ProviderDependencyError(
             message=(
-                "GIL entailment is set to a local backend (transformers/hybrid_ml) but "
+                "GIL entailment is set to a local backend (transformers) but "
                 "sentence-transformers is not installed."
             ),
             provider="GIL/evidence",

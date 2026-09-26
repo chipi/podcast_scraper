@@ -2607,35 +2607,6 @@ def _append_transformers_local_summary_metadata(
         pass
 
 
-def _append_hybrid_ml_summary_metadata(provider_info: Dict[str, Any], cfg: config.Config) -> None:
-    """Populate hybrid_ml map/reduce/backend/device and optional model revision."""
-    map_model = getattr(cfg, "hybrid_map_model", None)
-    if map_model:
-        provider_info["map_model"] = str(map_model)
-    reduce_model = getattr(cfg, "hybrid_reduce_model", None)
-    if reduce_model:
-        provider_info["reduce_model"] = str(reduce_model)
-    reduce_backend = getattr(cfg, "hybrid_reduce_backend", "transformers")
-    provider_info["reduce_backend"] = str(reduce_backend)
-    provider_info["transcript_cleaning_strategy"] = str(
-        getattr(cfg, "transcript_cleaning_strategy", "hybrid")
-    )
-    provider_info["hybrid_internal_preprocessing_after_pattern"] = str(
-        getattr(cfg, "hybrid_internal_preprocessing_after_pattern", "cleaning_hybrid_after_pattern")
-    )
-    device = getattr(cfg, "hybrid_map_device", None) or getattr(cfg, "summary_device", None)
-    if device:
-        provider_info["device"] = device
-    try:
-        from .run_manifest import _revision_for_summary_model
-
-        summary_rev = _revision_for_summary_model(map_model)
-        if summary_rev:
-            provider_info["model_revision"] = summary_rev
-    except (ImportError, AttributeError, TypeError):
-        pass
-
-
 def _append_external_llm_summary_models(provider_info: Dict[str, Any], cfg: config.Config) -> None:
     """Set provider-specific summary model field for remote LLM summarization."""
     sp = str(cfg.summary_provider or "")
@@ -2684,8 +2655,6 @@ def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str,
 
     if sp in ("transformers", "local"):
         _append_transformers_local_summary_metadata(provider_info, cfg)
-    elif sp == "hybrid_ml":
-        _append_hybrid_ml_summary_metadata(provider_info, cfg)
     else:
         _append_external_llm_summary_models(provider_info, cfg)
 
@@ -2910,34 +2879,6 @@ def _build_processing_metadata(
     )
 
 
-def _hybrid_ml_layered_summarize_params(
-    cfg: config.Config, summary_provider: Any
-) -> Dict[str, Any]:
-    """Extra ``summarize()`` params for hybrid_ml layered cleaning (Issue #419).
-
-    When ``transcript_cleaning_strategy`` is ``pattern``, the workflow has already run
-    pattern-based cleaning (``clean_for_summarization``). The hybrid ML provider should
-    then use ``hybrid_internal_preprocessing_after_pattern`` instead of default
-    ``cleaning_v4`` to avoid redundant sponsor/outro removal while retaining v4-only steps.
-
-    For ``llm`` or ``hybrid`` cleaning strategies, upstream output is not guaranteed to
-    match the pattern cleaner; keep the provider default ``cleaning_v4``.
-    """
-    from ..providers.ml.hybrid_ml_provider import HybridMLProvider
-
-    if not isinstance(summary_provider, HybridMLProvider):
-        return {}
-    strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
-    if strategy != "pattern":
-        return {}
-    profile = getattr(
-        cfg,
-        "hybrid_internal_preprocessing_after_pattern",
-        "cleaning_hybrid_after_pattern",
-    )
-    return {"preprocessing_profile": profile}
-
-
 def _generate_episode_summary(  # noqa: C901
     transcript_file_path: str,
     output_dir: str,
@@ -3037,8 +2978,6 @@ def _generate_episode_summary(  # noqa: C901
                 params["chunk_parallelism"] = cfg.summary_chunk_parallelism
             if cfg.summary_prompt:
                 params["prompt"] = str(cfg.summary_prompt)
-
-            params.update(_hybrid_ml_layered_summarize_params(cfg, summary_provider))
 
             result: Optional[Dict[str, Any]] = None
             pipeline_mode = getattr(cfg, "llm_pipeline_mode", "staged")
@@ -4009,8 +3948,8 @@ def _get_nlp_model_for_reconciliation(
     Returns:
         NLP model or None if not needed
     """
-    # Only needed for ML providers (transformers, hybrid_ml) - LLM providers don't need spaCy
-    is_ml_provider = cfg.summary_provider in ("transformers", "hybrid_ml")
+    # Only needed for the ML provider (transformers) - LLM providers don't need spaCy
+    is_ml_provider = cfg.summary_provider == "transformers"
     if not (
         is_ml_provider
         and nlp is None
@@ -4308,9 +4247,9 @@ def _reconcile_entities_in_summary(
         return summary_text, corrected_entities
 
     # Entity reconciliation (faithfulness checking + name correction) is only needed for
-    # ML providers (transformers, hybrid_ml). LLM providers (OpenAI, Gemini, Grok, etc.) are
+    # The ML provider (transformers). LLM providers (OpenAI, Gemini, Grok, etc.) are
     # generally better at names and faithfulness, so we skip spaCy-based checks for them.
-    is_ml_provider = cfg.summary_provider in ("transformers", "hybrid_ml")
+    is_ml_provider = cfg.summary_provider == "transformers"
     if not (is_ml_provider and nlp and summary_text):
         if not is_ml_provider:
             logger.debug(

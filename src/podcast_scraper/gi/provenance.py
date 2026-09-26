@@ -20,7 +20,7 @@ _SUMMARY_MODEL_ATTR_BY_PROVIDER: dict[str, str] = {
 def _summary_model_from_cfg(cfg: Any) -> str:
     """Best-effort summarization model id from Config when provider has no .summary_model."""
     sp = getattr(cfg, "summary_provider", None)
-    if sp in ("transformers", "hybrid_ml"):
+    if sp == "transformers":
         for key in ("summary_model", "summary_reduce_model"):
             v = getattr(cfg, key, None)
             if v:

@@ -61,7 +61,7 @@ _DIARIZATION_MODEL_FIELD = {
     "deepgram": "deepgram_diarization_model",
 }
 # Summary providers whose model lives in ``{provider}_summary_model``. Local ML summarisers
-# (transformers / summllama / hybrid_ml) run a mode-pinned model, not a free-form field, so they are
+# (transformers / summllama) run a mode-pinned model, not a free-form field, so they are
 # not gated here.
 _SUMMARY_CLOUD_PROVIDERS = frozenset(
     {"gemini", "openai", "anthropic", "deepseek", "grok", "mistral", "ollama", "groq"}

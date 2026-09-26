@@ -69,26 +69,6 @@ class TestExtractProviderInfo:
         finally:
             config_path.unlink(missing_ok=True)
 
-    def test_hybrid_ml_provider_extracts_map_reduce_backend(self):
-        """hybrid_ml config extracts map_model, reduce_model, reduce_backend."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write(
-                "summary_provider: hybrid_ml\n"
-                "hybrid_map_model: longt5-base\n"
-                "hybrid_reduce_model: qwen2.5:7b\n"
-                "hybrid_reduce_backend: ollama\n"
-            )
-            config_path = Path(f.name)
-
-        try:
-            info = _extract_provider_info(config_path)
-            assert info.get("summary_provider") == "hybrid_ml"
-            assert info.get("summary_map_model") == "longt5-base"
-            assert info.get("summary_reduce_model") == "qwen2.5:7b"
-            assert info.get("summary_reduce_backend") == "ollama"
-        finally:
-            config_path.unlink(missing_ok=True)
-
 
 @pytest.mark.unit
 class TestLineIsDebugForConsoleFilter:

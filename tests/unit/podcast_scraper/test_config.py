@@ -394,23 +394,6 @@ class TestSummaryValidation(unittest.TestCase):
         self.assertTrue(cfg.generate_kg)
         self.assertTrue(cfg.generate_metadata)
 
-    def test_summary_provider_hybrid_ml_succeeds(self):
-        """hybrid_ml summary provider keeps default hybrid model fields."""
-        cfg = Config(
-            rss_url="https://example.com/feed.xml",
-            summary_provider="hybrid_ml",
-        )
-        self.assertEqual(cfg.summary_provider, "hybrid_ml")
-        self.assertIsNotNone(cfg.hybrid_map_model)
-        self.assertIsNotNone(cfg.hybrid_reduce_model)
-
-    def test_hybrid_reduce_instruction_style_paragraph(self):
-        cfg = Config(
-            rss_url="https://example.com/feed.xml",
-            hybrid_reduce_instruction_style="paragraph",
-        )
-        self.assertEqual(cfg.hybrid_reduce_instruction_style, "paragraph")
-
     def test_gi_models_override_when_generate_gi(self):
         cfg = Config(
             rss_url="https://example.com/feed.xml",
@@ -458,17 +441,6 @@ class TestSummaryValidation(unittest.TestCase):
         )
         self.assertEqual(cfg.quote_extraction_provider, "transformers")
         self.assertEqual(cfg.entailment_provider, "transformers")
-
-    def test_gil_evidence_aligns_with_hybrid_ml_summary_when_match_enabled(self):
-        cfg = Config(
-            rss_url="https://example.com/feed.xml",
-            generate_gi=True,
-            generate_metadata=True,
-            summary_provider="hybrid_ml",
-            gil_evidence_match_summary_provider=True,
-        )
-        self.assertEqual(cfg.quote_extraction_provider, "hybrid_ml")
-        self.assertEqual(cfg.entailment_provider, "hybrid_ml")
 
     def test_default_summary_prompt_params_include_bullet_defaults(self):
         cfg = Config(rss_url="https://example.com/feed.xml")
@@ -953,15 +925,6 @@ class TestConfigFieldValidators(unittest.TestCase):
         cfg = Config(rss_url="https://example.com/feed.xml", user_agent=None)
         # Should use default
         self.assertIsNotNone(cfg.user_agent)
-
-    def test_hybrid_map_device_invalid_raises(self):
-        """hybrid_*_device must be cuda, mps, cpu, auto, or empty."""
-        with self.assertRaises(ValidationError) as ctx:
-            Config(
-                rss_url="https://example.com/feed.xml",
-                hybrid_map_device="invalid-device",
-            )
-        self.assertIn("hybrid_*_device", str(ctx.exception))
 
     def test_log_level_validator_invalid(self):
         """Test that log_level validator rejects invalid values."""

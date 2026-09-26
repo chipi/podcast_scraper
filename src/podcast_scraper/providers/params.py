@@ -9,7 +9,7 @@ See ADR-028 for design rationale.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -127,14 +127,7 @@ class SummarizationParams(BaseModel):
     )
     reduce_model: Optional[str] = Field(
         default=None,
-        description="Optional separate model for REDUCE phase (transformers or hybrid_ml)",
-    )
-    reduce_backend: Optional[Literal["transformers", "ollama", "llama_cpp"]] = Field(
-        default=None,
-        description=(
-            "REDUCE backend for hybrid_ml only: 'transformers', 'ollama', or 'llama_cpp'. "
-            "Ignored for other providers."
-        ),
+        description="Optional separate model for the REDUCE phase (transformers)",
     )
     cache_dir: Optional[str] = Field(
         default=None,

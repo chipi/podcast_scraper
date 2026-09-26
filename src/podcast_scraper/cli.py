@@ -1385,7 +1385,6 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         "--kg-extraction-provider",
         choices=[
             "transformers",
-            "hybrid_ml",
             "openai",
             "gemini",
             "grok",
@@ -1410,7 +1409,6 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         "--quote-extraction-provider",
         choices=[
             "transformers",
-            "hybrid_ml",
             "openai",
             "gemini",
             "grok",
@@ -1427,7 +1425,6 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         "--entailment-provider",
         choices=[
             "transformers",
-            "hybrid_ml",
             "openai",
             "gemini",
             "grok",
@@ -1596,7 +1593,6 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         "--summary-provider",
         choices=[
             "transformers",
-            "hybrid_ml",
             "openai",
             "gemini",
             "anthropic",
@@ -1607,39 +1603,6 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         ],
         default="transformers",
         help="Summary provider to use (default: transformers)",
-    )
-    parser.add_argument(
-        "--hybrid-map-model",
-        default=None,
-        help="Hybrid MAP model (classic). Example: longt5-base, long-fast, pegasus-cnn.",
-    )
-    parser.add_argument(
-        "--hybrid-reduce-model",
-        default=None,
-        help="Hybrid REDUCE model (instruction-tuned). Example: google/flan-t5-base.",
-    )
-    parser.add_argument(
-        "--hybrid-reduce-backend",
-        choices=["transformers", "ollama", "llama_cpp"],
-        default=None,
-        help="Hybrid REDUCE backend (default: transformers).",
-    )
-    parser.add_argument(
-        "--hybrid-map-device",
-        choices=["cuda", "mps", "cpu", "auto"],
-        default=None,
-        help="Device for hybrid MAP model (default: summary_device/auto).",
-    )
-    parser.add_argument(
-        "--hybrid-reduce-device",
-        choices=["cuda", "mps", "cpu", "auto"],
-        default=None,
-        help="Device for hybrid REDUCE model (default: summary_device/auto).",
-    )
-    parser.add_argument(
-        "--hybrid-quantization",
-        default=None,
-        help="Quantization for hybrid models (e.g., llama_cpp). Optional.",
     )
     parser.add_argument(
         "--summary-mode-id",
@@ -1736,18 +1699,7 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         "'pattern': uses regex-based cleaning (default). "
         "'llm': uses LLM-based semantic cleaning. "
         "'hybrid': uses pattern-based, then conditionally LLM-based if needed (default: hybrid). "
-        "Applies to LLM summarization providers and hybrid_ml (Issue #419).",
-    )
-    parser.add_argument(
-        "--hybrid-internal-preprocessing-after-pattern",
-        default=None,
-        metavar="PROFILE_ID",
-        help=(
-            "When summary_provider is hybrid_ml and transcript_cleaning_strategy is pattern, "
-            "preprocessing profile applied inside HybridMLProvider.summarize after workflow "
-            "pattern cleaning (default: cleaning_hybrid_after_pattern). "
-            "Must be a registered profile ID from preprocessing.profiles."
-        ),
+        "Applies to LLM summarization providers (Issue #419).",
     )
 
 
@@ -4245,18 +4197,6 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     if getattr(args, "preprocessing_mp3_bitrate_kbps", None) is not None:
         payload["preprocessing_mp3_bitrate_kbps"] = int(args.preprocessing_mp3_bitrate_kbps)
     # Hybrid ML provider args: only set when provided so Config defaults apply.
-    if getattr(args, "hybrid_map_model", None) is not None:
-        payload["hybrid_map_model"] = args.hybrid_map_model
-    if getattr(args, "hybrid_reduce_model", None) is not None:
-        payload["hybrid_reduce_model"] = args.hybrid_reduce_model
-    if getattr(args, "hybrid_reduce_backend", None) is not None:
-        payload["hybrid_reduce_backend"] = args.hybrid_reduce_backend
-    if getattr(args, "hybrid_map_device", None) is not None:
-        payload["hybrid_map_device"] = args.hybrid_map_device
-    if getattr(args, "hybrid_reduce_device", None) is not None:
-        payload["hybrid_reduce_device"] = args.hybrid_reduce_device
-    if getattr(args, "hybrid_quantization", None) is not None:
-        payload["hybrid_quantization"] = args.hybrid_quantization
     # Add OpenAI model args only if provided (fields have non-Optional types with defaults)
     if args.openai_transcription_model is not None:
         payload["openai_transcription_model"] = args.openai_transcription_model
@@ -4460,13 +4400,6 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         and args.transcript_cleaning_strategy is not None
     ):
         payload["transcript_cleaning_strategy"] = args.transcript_cleaning_strategy
-    if (
-        hasattr(args, "hybrid_internal_preprocessing_after_pattern")
-        and args.hybrid_internal_preprocessing_after_pattern is not None
-    ):
-        payload["hybrid_internal_preprocessing_after_pattern"] = (
-            args.hybrid_internal_preprocessing_after_pattern
-        )
     # GIL / evidence tuning from the config file (see GIL_TUNING_KEYS).
     for _gil_key in GIL_TUNING_KEYS:
         if hasattr(args, _gil_key):
@@ -4625,7 +4558,7 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
     # there is no configuration that produces fabricated insight text any more. An episode with
     # no usable provider now gets an artifact with no Insight nodes, and `_no_insights` says so
     # at WARNING with the reason — a per-episode fact, which is more useful than a per-run one.
-    _local_gil = frozenset({"transformers", "hybrid_ml"})
+    _local_gil = frozenset({"transformers"})
     _sp = getattr(cfg, "summary_provider", "transformers")
     _qe = getattr(cfg, "quote_extraction_provider", "transformers")
     _en = getattr(cfg, "entailment_provider", "transformers")
@@ -4651,7 +4584,7 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
     if (
         getattr(cfg, "generate_kg", False)
         and getattr(cfg, "kg_extraction_source", "provider") == "provider"
-        and _kg_eff in ("transformers", "hybrid_ml")
+        and _kg_eff == "transformers"
         and not config._is_pytest_run()
     ):
         logger.warning(
@@ -4744,25 +4677,6 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
             else:
                 d("  Summary Model: auto-selected")
             d(f"  Summary Device: {cfg.summary_device or 'auto-detect'}")
-            if cfg.summary_chunk_size:
-                d(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
-        elif cfg.summary_provider == "hybrid_ml":
-            d(
-                f"  Hybrid MAP: {getattr(cfg, 'hybrid_map_model', 'longt5-base')}, "
-                f"REDUCE: {getattr(cfg, 'hybrid_reduce_model', 'google/flan-t5-base')}"
-            )
-            d(f"  Hybrid REDUCE backend: {getattr(cfg, 'hybrid_reduce_backend', 'transformers')}")
-            d(
-                f"  Hybrid devices: MAP={getattr(cfg, 'hybrid_map_device', None) or 'default'}, "
-                f"REDUCE={getattr(cfg, 'hybrid_reduce_device', None) or 'default'}"
-            )
-            _hybrid_after_pat = getattr(
-                cfg, "hybrid_internal_preprocessing_after_pattern", "cleaning_hybrid_after_pattern"
-            )
-            d(
-                f"  Transcript cleaning: {getattr(cfg, 'transcript_cleaning_strategy', 'hybrid')}; "
-                f"hybrid internal after-pattern profile: {_hybrid_after_pat}"
-            )
             if cfg.summary_chunk_size:
                 d(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
         d(

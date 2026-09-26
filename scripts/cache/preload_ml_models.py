@@ -335,7 +335,7 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             # truth instead of a second hand-maintained list. Resolves to:
             #   facebook/bart-base, allenai/led-base-16384,
             #   google/long-t5-tglobal-base, google/flan-t5-base
-            # (the bart/led test defaults + the hybrid_ml MAP/REDUCE models).
+            # (the bart/led test defaults).
             model_names = _mm.model_ids_for_tier("test", "summary")
 
     if not model_names:

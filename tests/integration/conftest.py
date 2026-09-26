@@ -127,7 +127,7 @@ def stub_transformers() -> dict[str, Any]:
             setattr(m, k, v)
         return m
 
-    # Only the paths the tests actually patch, plus GenerationConfig, which hybrid_ml_provider's
+    # Only the paths the tests actually patch, plus GenerationConfig, which the summarizer's
     # reduce() constructs for real before handing it to a mocked backend. Deliberately NOT a
     # blanket MagicMock package: a test patching a path this does not model must fail loudly at
     # patch time, not quietly pass against an auto-created attribute.

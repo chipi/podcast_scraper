@@ -44,7 +44,7 @@ PROFILE_DIR = Path(__file__).resolve().parents[3] / "config" / "profiles"
 
 #: Providers that run on hardware we own or in-process — no vendor account to exhaust, so a
 #: single-vendor outage is not a risk in the same way.
-LOCAL_PROVIDERS = {"spacy", "transformers", "summllama", "ollama", "vllm", "hybrid_ml", None, ""}
+LOCAL_PROVIDERS = {"spacy", "transformers", "summllama", "ollama", "vllm", None, ""}
 
 
 def _profiles() -> List[Tuple[Path, Dict[str, Any]]]:

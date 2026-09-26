@@ -60,11 +60,10 @@ dependencies = [
 # Canonical extras (no separate [gemini] / [openai] extras):
 #   dev       — tests, lint, typecheck, FastAPI/uvicorn (viewer API), text eval metrics; no torch/transformers
 #   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, lancedb,
-#               llama-cpp-python (GGUF hybrid REDUCE, RFC-042), etc.
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
 #   search    — Minimum local ML for the vector index (sentence-transformers + lancedb + torch CPU).
 #               Pulled into the cloud-API pipeline image alongside [llm] so cloud_balanced can
-#               build its LanceDB index without dragging in spaCy/Whisper/Pegasus/llama-cpp from [ml].
+#               build its LanceDB index without dragging in spaCy/Whisper/Pegasus from [ml].
 #   compare   — Streamlit compare UI (RFC-047)
 #   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
 #   (FastAPI / uvicorn / metrics / scheduler for ``podcast serve`` live in [dev], not a separate extra.)
@@ -168,7 +167,6 @@ ml = [
   "accelerate>=1.13.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
   # GGUF in-process inference for hybrid_ml Tier 2 REDUCE (RFC-042, Issue #352); Ollama needs no extra
-  "llama-cpp-python>=0.3.26,<0.4.0",
   # Neural speaker diarization (RFC-058): pyannote after local Whisper transcribe.
   # 4.x switched audio I/O to torchcodec (no torchaudio.AudioMetaData) so it works
   # with torch>=2.11/torchaudio>=2.9; 3.x is import-broken against that torchaudio.
@@ -203,7 +201,7 @@ llm = [
 ]
 # Minimum local ML to build the LanceDB vector index when running an otherwise cloud-only
 # pipeline (cloud_balanced on the pipeline-llm image). No spaCy / Whisper / Pegasus /
-# llama-cpp — those stay in [ml]. Image size delta on top of [llm]: ~700 MB → ~1.5 GB.
+# those stay in [ml]. Image size delta on top of [llm]: ~700 MB → ~1.5 GB.
 search = [
   "torch>=2.11.0,<3.0.0",
   # Kept aligned with [ml] pin (#382): transformers v5 + sentence-transformers 5.6+.
