@@ -117,7 +117,7 @@ public class NativeOnlySurfacesTests extends UITestCase {
 
         // Then the queue itself, from the masthead.
         assertTrue("the masthead queue control was not reachable. On screen: "
-                + Journey.labelledInventory(20), Journey.tap("Queue", false, 15_000));
+                + Journey.labelledInventory(80), Journey.tap("Queue", false, 15_000));
 
         // The claim: the download control is in the ROW, reachable without opening the ⋯.
         assertNotNull(

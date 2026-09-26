@@ -32,7 +32,7 @@ public class ConfigOfflineToggleTests extends UITestCase {
     public void togglesForcedOfflineOn() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         // Read the initial state from the banner (not the checkbox — see class-level note).
         boolean initiallyOn = Journey.forcedOfflineBannerShowing();
@@ -48,7 +48,7 @@ public class ConfigOfflineToggleTests extends UITestCase {
         boolean bannerOn = Journey.forcedOfflineBannerShowing();
         assertTrue(
                 "Offline mode did not take effect after being turned ON — the banner did not appear. "
-                        + "On screen: " + Journey.labelledInventory(20),
+                        + "On screen: " + Journey.labelledInventory(80),
                 bannerOn);
 
         // RESTORE. The switch is PERSISTED (localStorage), so leaving it flipped hands every later

@@ -46,7 +46,7 @@ public class OfflineAutoAdvanceTests extends UITestCase {
     public void bootsAndPlaysADownloadedEpisodeWithNoNetwork() {
         boolean ready = startClean();
         assertTrue("the precondition failed: this suite needs a stored session before the network "
-                + "goes away. On screen: " + Journey.labelledInventory(20), ready);
+                + "goes away. On screen: " + Journey.labelledInventory(80), ready);
 
         // TELL the app it is offline, as well as taking its network away at the make level.
         //
@@ -76,7 +76,7 @@ public class OfflineAutoAdvanceTests extends UITestCase {
             //    the journey on a name failed for something the listener never needed.
             assertTrue("offline boot did not reach Library — the app put a wall in front of "
                             + "episodes that are already on this device. On screen: "
-                            + Journey.labelledInventory(20),
+                            + Journey.labelledInventory(80),
                     Journey.openTab("Library"));
 
             // 2. The Downloaded list renders from the device registry, with zero successful

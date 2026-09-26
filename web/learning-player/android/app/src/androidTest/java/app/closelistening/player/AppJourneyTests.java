@@ -60,7 +60,7 @@ public class AppJourneyTests extends UITestCase {
     public void test01ProfileTabs() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         assertTrue("could not open Profile from the masthead avatar",
                 Journey.openProfile(profileLabels()));
@@ -72,7 +72,7 @@ public class AppJourneyTests extends UITestCase {
                 Journey.sleep(3_000);
             } else {
                 fail("profile tab '" + tab + "' not tappable. On screen: "
-                        + Journey.labelledInventory(20));
+                        + Journey.labelledInventory(80));
             }
         }
     }
@@ -83,7 +83,7 @@ public class AppJourneyTests extends UITestCase {
     public void test02EpisodeAndInsights() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
@@ -104,7 +104,7 @@ public class AppJourneyTests extends UITestCase {
         }
         // The panel's own section header (kp.title = 'Insights') must now be on screen.
         assertNotNull("the Insights panel section header did not appear. On screen: "
-                + Journey.labelledInventory(20),
+                + Journey.labelledInventory(80),
                 Journey.find("Insights", true, 10_000));
     }
 
@@ -114,7 +114,7 @@ public class AppJourneyTests extends UITestCase {
     public void test03TopicAndStoryline() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         // Topic ids carry a `topic:` prefix that the deep-link validator rejects by design, so
         // topics are reached the way a user reaches them: the Home entity rail's Topics tab.
@@ -129,7 +129,7 @@ public class AppJourneyTests extends UITestCase {
             Journey.sleep(5_000);
         } else {
             fail("no topic row was tappable from the Home rail. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
 
         // Storylines: back to Home, switch the rail to Storylines, open the first openable one.
@@ -147,7 +147,7 @@ public class AppJourneyTests extends UITestCase {
         boolean storylinesTab = Journey.tap("Storylines", false, 15_000);
         if (!storylinesTab) {
             fail("Storylines tab not found on the Home rail. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
         Journey.sleep(4_000);
 
@@ -178,7 +178,7 @@ public class AppJourneyTests extends UITestCase {
         // / ec.followingStoryline) exists ONLY on that sheet. The "Topics discussed together" heading
         // (home.storylineTopicsHeading) and "Open in page" also exist only there.
         assertNotNull(
-                "the storyline sheet did not open. On screen: " + Journey.labelledInventory(20),
+                "the storyline sheet did not open. On screen: " + Journey.labelledInventory(80),
                 Journey.find(Arrays.asList(
                         "Follow storyline", "Following storyline",
                         "Topics discussed together", "Open in page"),
@@ -191,7 +191,7 @@ public class AppJourneyTests extends UITestCase {
     public void test04PersonFromEpisode() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
@@ -225,7 +225,7 @@ public class AppJourneyTests extends UITestCase {
         boolean opened = Journey.tap(personNames, true, 15_000);
         if (!opened) {
             fail("no 'Open <person>' control on the episode. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
         Journey.sleep(5_000);
 
@@ -244,7 +244,7 @@ public class AppJourneyTests extends UITestCase {
     public void test05CollectionsCreateAndAdd() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         assertTrue("Library tab did not open", Journey.openTab("Library"));
         Journey.sleep(4_000);
@@ -253,7 +253,7 @@ public class AppJourneyTests extends UITestCase {
         // NOT "Collections" — that is the API name and matches nothing on screen.
         boolean boardsTab = Journey.tap("Boards", false, 12_000);
         if (!boardsTab) {
-            fail("no Boards tab in Library. On screen: " + Journey.labelledInventory(20));
+            fail("no Boards tab in Library. On screen: " + Journey.labelledInventory(80));
         }
         Journey.sleep(3_000);
 
@@ -267,7 +267,7 @@ public class AppJourneyTests extends UITestCase {
                         By.pkg(Journey.PKG).clazz("android.widget.EditText"));
             }
             if (field == null) {
-                fail("no collection-name field. On screen: " + Journey.labelledInventory(20));
+                fail("no collection-name field. On screen: " + Journey.labelledInventory(80));
                 break;
             }
             try {
@@ -282,7 +282,7 @@ public class AppJourneyTests extends UITestCase {
             boolean created = Journey.tap("Create", false, 8_000);
             if (!created) {
                 fail("Create button not tappable for " + name + ". On screen: "
-                        + Journey.labelledInventory(20));
+                        + Journey.labelledInventory(80));
                 break;
             }
             Journey.sleep(3_000);
@@ -298,11 +298,11 @@ public class AppJourneyTests extends UITestCase {
             Journey.sleep(3_000);
             assertNotNull(
                     "the Add-to-collection sheet did not list the collections that exist. "
-                            + "On screen: " + Journey.labelledInventory(20),
+                            + "On screen: " + Journey.labelledInventory(80),
                     Journey.find("Test Board A", true, 10_000));
         } else {
             fail("'Add to collection' not reachable from the episode. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
     }
 
@@ -312,7 +312,7 @@ public class AppJourneyTests extends UITestCase {
     public void test06SharePopover() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
@@ -325,13 +325,13 @@ public class AppJourneyTests extends UITestCase {
             // at least one must render, or nothing opened.
             assertNotNull(
                     "share popover did not render its options. On screen: "
-                            + Journey.labelledInventory(20),
+                            + Journey.labelledInventory(80),
                     Journey.find(
                             Arrays.asList("Share card", "Share link", "Share text"),
                             true, 10_000));
         } else {
             fail("Share control not reachable from the episode. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
     }
 
@@ -341,7 +341,7 @@ public class AppJourneyTests extends UITestCase {
     public void test07SavedColourPicker() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         // Seed every colour except the first (which is applied to the main episode below).
         // Saved is newest-first, so the episode favourited last is row one — each seed's colour
@@ -424,7 +424,7 @@ public class AppJourneyTests extends UITestCase {
             Journey.sleep(3_000);
         } else {
             fail("colour control not reachable from Saved. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
 
         // The FILTER (library.savedFilterColorOnly = 'Only {color}') offers only colours in use.
@@ -441,7 +441,7 @@ public class AppJourneyTests extends UITestCase {
         }
         assertTrue(
                 "the Saved colour filter offers " + offeredCount + " colour(s) — the seed "
-                        + "coloured too few items. On screen: " + Journey.labelledInventory(20),
+                        + "coloured too few items. On screen: " + Journey.labelledInventory(80),
                 offeredCount > 1);
     }
 
@@ -462,14 +462,14 @@ public class AppJourneyTests extends UITestCase {
     public void test11StorylineFromInsightsStacksOverTheTopic() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
 
         boolean panelOpened = Journey.tap("Insights", true, 15_000);
         if (!panelOpened) {
-            fail("could not open the knowledge panel. On screen: " + Journey.labelledInventory(20));
+            fail("could not open the knowledge panel. On screen: " + Journey.labelledInventory(80));
         }
         Journey.sleep(3_000);
 
@@ -514,7 +514,7 @@ public class AppJourneyTests extends UITestCase {
                 Arrays.asList("Managing risk across domains"), true, 12_000);
         if (!storylineTapped) {
             fail("storyline row not tappable in the panel. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
         Journey.sleep(5_000);
 
@@ -526,14 +526,14 @@ public class AppJourneyTests extends UITestCase {
                 Arrays.asList("Follow storyline", "Following storyline"), true, 12_000);
         assertNotNull(
                 "no storyline sheet on screen — the storyline never opened, or it opened behind "
-                        + "the panel's top layer. On screen: " + Journey.labelledInventory(20),
+                        + "the panel's top layer. On screen: " + Journey.labelledInventory(80),
                 followBtn);
 
         // And the topic underneath must STILL be identifiable by its title — stacking keeps it,
         // routing away destroys it.
         assertNotNull(
                 "the topic is gone — the storyline replaced it instead of stacking over it. "
-                        + "On screen: " + Journey.labelledInventory(20),
+                        + "On screen: " + Journey.labelledInventory(80),
                 Journey.find(
                         Arrays.asList("systems thinking", "risk management"), true, 8_000));
     }

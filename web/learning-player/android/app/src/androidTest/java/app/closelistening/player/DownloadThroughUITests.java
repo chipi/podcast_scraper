@@ -59,7 +59,7 @@ public class DownloadThroughUITests extends UITestCase {
     public void downloadsTwoEpisodesThroughTheUIAndQueuesThem() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         // In THIS order, so the queue ends up [first, second]: auto-advance downstream needs a
         // known one, and the queue control appends.
@@ -79,7 +79,7 @@ public class DownloadThroughUITests extends UITestCase {
             for (int i = 0; i < 6; i++) Journey.swipeDown();
             if (Journey.scrollTo(title, false) == null) {
                 fail(title + " is not in the Downloaded list after scrolling to the end of Saved — "
-                        + "the UI download did not land. On screen: " + Journey.labelledInventory(20));
+                        + "the UI download did not land. On screen: " + Journey.labelledInventory(80));
             }
         }
     }
@@ -88,13 +88,13 @@ public class DownloadThroughUITests extends UITestCase {
     private void download(String slug, String title) {
         AppSession.openEpisode(slug);
         assertTrue("the deep link did not land on " + title + ". On screen: "
-                + Journey.labelledInventory(14), Journey.find(title, true, 20_000) != null);
+                + Journey.labelledInventory(80), Journey.find(title, true, 20_000) != null);
 
         // The Download control lives in the player's OVERFLOW menu, not the action row, so the menu
         // must be opened before the control exists at all — the panel is `v-if="open"`.
         if (!Journey.tap(OVERFLOW, false, 20_000)) {
             fail("no \"" + OVERFLOW + "\" control on " + title + " after 20s. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
 
         // Already downloaded from an earlier run? Remove it, so this suite proves the DOWNLOAD path
@@ -107,7 +107,7 @@ public class DownloadThroughUITests extends UITestCase {
             Journey.tap(OVERFLOW, false, 15_000);
             if (Journey.find(DOWNLOAD, false, 25_000) == null) {
                 fail("removing the existing download never restored the Download control for "
-                        + title + ". On screen: " + Journey.labelledInventory(20));
+                        + title + ". On screen: " + Journey.labelledInventory(80));
             }
         }
 
@@ -121,7 +121,7 @@ public class DownloadThroughUITests extends UITestCase {
         if (candidates > 1) {
             fail(candidates + " Download controls are on screen for " + title + " — another surface "
                     + "(a kept-alive Library → Downloaded?) is offering one too, so tapping would "
-                    + "be a guess. On screen: " + Journey.labelledInventory(20));
+                    + "be a guess. On screen: " + Journey.labelledInventory(80));
         }
         if (!Journey.tap(DOWNLOAD, false, 20_000)) {
             // Deliberately NOT conflated with "signed out" or "never loaded": reaching here means
@@ -175,6 +175,6 @@ public class DownloadThroughUITests extends UITestCase {
         // the scheduler deliberately refuses to start on — from a real transfer failure or a tap
         // that never registered.
         fail(title + " never reached the downloaded state after ~90s. Last state observed on the "
-                + "control: " + lastSeen + ". On screen: " + Journey.labelledInventory(20));
+                + "control: " + lastSeen + ". On screen: " + Journey.labelledInventory(80));
     }
 }

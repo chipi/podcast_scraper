@@ -64,7 +64,7 @@ public class ServerDegradedTests extends UITestCase {
         AppSession.relaunch();
         assertTrue(
                 "not signed in — run the download/seeding step before this one. On screen: "
-                        + Journey.labelledInventory(14),
+                        + Journey.labelledInventory(80),
                 Journey.find(Arrays.asList(accountIdentity(), "Your profile"), false, 20_000) != null);
 
         AppSession.openEpisode(EPISODE_SLUG);
@@ -94,7 +94,7 @@ public class ServerDegradedTests extends UITestCase {
                 Arrays.asList("Can't reach the server", "Offline"), true, 15_000);
         assertNotNull(
                 "no degraded/offline banner while the server cannot authenticate — the app did "
-                        + "not notice. On screen: " + Journey.labelledInventory(20),
+                        + "not notice. On screen: " + Journey.labelledInventory(80),
                 banner);
 
         // 2. HONEST. A server fault must not be reported as the user's credential going bad.
@@ -102,7 +102,7 @@ public class ServerDegradedTests extends UITestCase {
         boolean signInShowing = Journey.find("Sign in", false, 5_000) != null;
         assertNull(
                 "app fell back to signed-out for a SERVER fault. On screen: "
-                        + Journey.labelledInventory(20),
+                        + Journey.labelledInventory(80),
                 signInShowing ? Journey.find("Sign in", false, 1_000) : null);
 
         // 3. CACHE SURVIVED. `refresh()` used to clear the whole content cache on the 401 that a
@@ -111,7 +111,7 @@ public class ServerDegradedTests extends UITestCase {
         UiObject2 cached = Journey.scrollTo(EPISODE_TITLE, false);
         assertNotNull(
                 "cached content was wiped by a server-side fault. On screen: "
-                        + Journey.labelledInventory(20),
+                        + Journey.labelledInventory(80),
                 cached);
     }
 }

@@ -50,10 +50,10 @@ public class OfflinePlaybackTests extends UITestCase {
     public void downloadedEpisodePlaysAndSeeksOffline() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         AppSession.openEpisode(SLUG);
-        assertTrue("the deep link did not land. On screen: " + Journey.labelledInventory(14),
+        assertTrue("the deep link did not land. On screen: " + Journey.labelledInventory(80),
                 Journey.find("Signal, Noise, and the Space Between", true, 20_000) != null);
 
         assertTrue("no Play control. On screen: " + Journey.labelledInventory(24),

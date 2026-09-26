@@ -32,14 +32,14 @@ public class HarnessSmokeTests extends UITestCase {
         boolean signedIn = startClean();
         assertTrue(
                 "sign-in did not complete as '" + accountIdentity() + "'. On screen: "
-                        + Journey.labelledInventory(14),
+                        + Journey.labelledInventory(80),
                 signedIn);
 
         // Tab navigation — Library is auth-gated, so reaching it proves the session is real to the
         // ROUTER, not just painted in the masthead.
         boolean library = Journey.openTab("Library");
         assertTrue(
-                "Library tab unreachable. On screen: " + Journey.labelledInventory(14),
+                "Library tab unreachable. On screen: " + Journey.labelledInventory(80),
                 library);
 
         // The offline switch drives to an ABSOLUTE state and reports what it observed afterwards.
@@ -65,7 +65,7 @@ public class HarnessSmokeTests extends UITestCase {
         AppSession.openEpisode("p06-7217050bc6");
         assertNotNull(
                 "the deep link did not land on a player — no transport control. On screen: "
-                        + Journey.labelledInventory(14),
+                        + Journey.labelledInventory(80),
                 Journey.find(java.util.Arrays.asList("Play", "Pause"), false, 25_000));
     }
 }

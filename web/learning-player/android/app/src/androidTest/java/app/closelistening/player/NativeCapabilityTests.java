@@ -79,14 +79,14 @@ public class NativeCapabilityTests extends UITestCase {
     public void testN1DictationAffordanceAppearsWhenEnabled() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         // Dictation is OFF by default and lives behind a Settings opt-in, so the mic cannot
         // appear until that switch is on — itself worth asserting, since a mic that showed up
         // unbidden would be a privacy surprise.
         boolean settingsOpen = Journey.openSettings(profileLabels());
         if (!settingsOpen) {
-            fail("could not reach Settings. On screen: " + Journey.labelledInventory(20));
+            fail("could not reach Settings. On screen: " + Journey.labelledInventory(80));
         }
         // settings.voiceInput = 'Voice input for notes'
         Journey.scrollTo("Voice input for notes", false);
@@ -94,12 +94,12 @@ public class NativeCapabilityTests extends UITestCase {
         UiObject2 voiceRow = Journey.find("Voice input for notes", false, 8_000);
         if (voiceRow == null) {
             fail("no 'Voice input for notes' control in Settings. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
         UiObject2 toggle = nearestCheckable(voiceRow);
         if (toggle == null) {
             fail("no toggle for Voice input for notes. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
 
         // Read the current state (isChecked is reliable for a native Switch/CheckBox but not for
@@ -147,7 +147,7 @@ public class NativeCapabilityTests extends UITestCase {
                         Arrays.asList("systems thinking", "risk management"), true, 12_000);
                 if (!topicTapped) {
                     fail("neither a person nor a topic was reachable for the note composer. "
-                            + "On screen: " + Journey.labelledInventory(20));
+                            + "On screen: " + Journey.labelledInventory(80));
                 }
                 Journey.sleep(5_000);
             }
@@ -158,7 +158,7 @@ public class NativeCapabilityTests extends UITestCase {
             UiObject2 composer = Journey.scrollTo("Your notes", false);
             if (composer == null) {
                 fail("no note composer ('Your notes' aria-label). On screen: "
-                        + Journey.labelledInventory(20));
+                        + Journey.labelledInventory(80));
             }
             try { composer.click(); } catch (Throwable t) {
                 // Click attempt; continue regardless.
@@ -169,7 +169,7 @@ public class NativeCapabilityTests extends UITestCase {
             UiObject2 mic = Journey.find("Dictate a note", true, 8_000);
             assertNotNull(
                     "no dictation control on the note field after enabling Voice input. "
-                            + "On screen: " + Journey.labelledInventory(20),
+                            + "On screen: " + Journey.labelledInventory(80),
                     mic);
 
             // Opt-in to actually tapping the mic — same threshold as iOS LP_TAP_MIC.
@@ -191,7 +191,7 @@ public class NativeCapabilityTests extends UITestCase {
                             + " reportedFailure=" + saidFailed + "=====");
                     assertTrue(
                             "the mic neither started nor reported a failure — a silent dead mic. "
-                                    + "On screen: " + Journey.labelledInventory(20),
+                                    + "On screen: " + Journey.labelledInventory(80),
                             recording || saidFailed);
                 }
             } else {
@@ -235,7 +235,7 @@ public class NativeCapabilityTests extends UITestCase {
     public void testN2NativeShareSheetOpens() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
@@ -243,7 +243,7 @@ public class NativeCapabilityTests extends UITestCase {
         // share.open = 'Share'
         boolean shareTapped = Journey.tap("Share", true, 12_000);
         if (!shareTapped) {
-            fail("no Share control on the episode. On screen: " + Journey.labelledInventory(20));
+            fail("no Share control on the episode. On screen: " + Journey.labelledInventory(80));
         }
         Journey.sleep(2_000);
 
@@ -254,7 +254,7 @@ public class NativeCapabilityTests extends UITestCase {
         boolean shareTextTapped = Journey.tap("Share text", true, 8_000);
         if (!shareTextTapped) {
             fail("share popover offered no 'Share text' option. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
         Journey.sleep(5_000);
 
@@ -279,7 +279,7 @@ public class NativeCapabilityTests extends UITestCase {
         System.out.println("=====SHARE_SHEET up=" + sheetUp
                 + " carriedOurContent=" + carriedContent + "=====");
         if (!sheetUp || !carriedContent) {
-            System.out.println("=====SHARE_SHEET on-screen: " + Journey.labelledInventory(20)
+            System.out.println("=====SHARE_SHEET on-screen: " + Journey.labelledInventory(80)
                     + "=====");
         }
 
@@ -317,7 +317,7 @@ public class NativeCapabilityTests extends UITestCase {
     public void testN3PushPermissionPromptOnEnable() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         assertTrue("could not open Profile", Journey.openProfile(profileLabels()));
         Journey.sleep(4_000);
@@ -342,7 +342,7 @@ public class NativeCapabilityTests extends UITestCase {
 
         if (cell == null) {
             fail("no push cell in the notifications matrix. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
 
         // Tap the cell.

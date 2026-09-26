@@ -214,7 +214,7 @@ final class AppSession {
             UiObject2 out = Journey.scrollTo("Sign out", false);
             if (out == null) {
                 System.out.println("=====SIGNOUT attempt " + attempt
-                        + ": no 'Sign out' control on Profile :: " + Journey.labelledInventory(20)
+                        + ": no 'Sign out' control on Profile :: " + Journey.labelledInventory(80)
                         + "=====");
                 continue;
             }
@@ -230,7 +230,7 @@ final class AppSession {
             Journey.sleep(3_000);
             if (!hasAnySession()) return true;
             System.out.println("=====SIGNOUT attempt " + attempt + " tapped=" + tapped
-                    + " but a session is still present :: " + Journey.labelledInventory(20) + "=====");
+                    + " but a session is still present :: " + Journey.labelledInventory(80) + "=====");
         }
         return false;
     }

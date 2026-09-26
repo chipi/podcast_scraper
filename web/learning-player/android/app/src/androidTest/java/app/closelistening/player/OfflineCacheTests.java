@@ -37,7 +37,7 @@ public class OfflineCacheTests extends UITestCase {
     public void browseThenOfflineShowsCachedContent() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         // --- 1. WARM THE CACHE: browse the surfaces we will later assert on, online.
         AppSession.openEpisode(EPISODE_SLUG);
@@ -66,7 +66,7 @@ public class OfflineCacheTests extends UITestCase {
             UiObject2 banner = Journey.find("Offline", true, 10_000);
             assertNotNull(
                     "no offline banner while forced-offline. On screen: "
-                            + Journey.labelledInventory(20),
+                            + Journey.labelledInventory(80),
                     banner);
 
             // THE ASSERTION THAT MATTERS: no retry affordance while the app knows it is offline.
@@ -77,7 +77,7 @@ public class OfflineCacheTests extends UITestCase {
             boolean retryShowing = Journey.find("Try again", false, 5_000) != null;
             assertNull(
                     "offline copy defect: 'Try again' is offered for requests the app deliberately "
-                            + "did not make. On screen: " + Journey.labelledInventory(20),
+                            + "did not make. On screen: " + Journey.labelledInventory(80),
                     retryShowing ? Journey.find("Try again", false, 1_000) : null);
 
             // The episode we browsed should still be reachable from cache.
@@ -87,7 +87,7 @@ public class OfflineCacheTests extends UITestCase {
             // The iOS twin asserted just that the episode page opened; we match that.
             assertTrue(
                     "episode page did not open from cache while forced-offline. On screen: "
-                            + Journey.labelledInventory(20),
+                            + Journey.labelledInventory(80),
                     Journey.find("Risk Is a Systems Property", true, 10_000) != null);
 
         } finally {

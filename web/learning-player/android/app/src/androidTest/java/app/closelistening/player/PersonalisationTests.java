@@ -53,7 +53,7 @@ public class PersonalisationTests extends UITestCase {
     public void test09PlayFillsStats() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         for (String slug : EPISODES) {
             AppSession.openEpisode(slug);
@@ -74,7 +74,7 @@ public class PersonalisationTests extends UITestCase {
                 boolean alreadyPlaying = Journey.find("Pause", false, 5_000) != null;
                 assertTrue(
                         "no Play control and nothing playing on " + slug + ". On screen: "
-                                + Journey.labelledInventory(20),
+                                + Journey.labelledInventory(80),
                         alreadyPlaying);
             }
 
@@ -90,7 +90,7 @@ public class PersonalisationTests extends UITestCase {
         // Navigate to Profile → Stats.
         assertTrue("Profile did not open", Journey.openProfile(profileLabels()));
         Journey.sleep(3_000);
-        assertTrue("no Stats tab on Profile. On screen: " + Journey.labelledInventory(14),
+        assertTrue("no Stats tab on Profile. On screen: " + Journey.labelledInventory(80),
                 Journey.tap("Stats", false, 12_000));
         Journey.sleep(4_000);
 
@@ -98,8 +98,10 @@ public class PersonalisationTests extends UITestCase {
         // i18n: stats.empty = "Start listening to build your stats."
         boolean emptyStillShowing = Journey.find("Start listening to build your stats", true, 5_000) != null;
         assertNull(
+                // 20 items stops in the masthead on this screen, which says nothing about Stats.
+                // Every dump raised tonight has changed the diagnosis it supported (2026-09-26).
                 "Stats still shows its never-listened empty state after playing two episodes. "
-                        + "On screen: " + Journey.labelledInventory(20),
+                        + "On screen: " + Journey.labelledInventory(80),
                 emptyStillShowing ? Journey.find("Start listening", true, 1_000) : null);
     }
 
@@ -109,18 +111,37 @@ public class PersonalisationTests extends UITestCase {
     public void test10InterestsRenderAndFeedHome() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         assertTrue("Profile did not open", Journey.openProfile(profileLabels()));
         Journey.sleep(3_000);
 
-        assertTrue("no Topics tab on Profile. On screen: " + Journey.labelledInventory(14),
+        assertTrue("no Topics tab on Profile. On screen: " + Journey.labelledInventory(80),
                 Journey.tap("Topics", false, 12_000));
         Journey.sleep(3_000);
 
+        // RECORD WHAT IS ALREADY CHOSEN, from the card, BEFORE opening the picker.
+        //
+        // The picker's own chips cannot tell us. Chromium maps their `aria-pressed` to a
+        // ToggleButton CLASS but exposes no state with it — measured 2026-09-26 on three chips that
+        // were all currently chosen:
+        //     'Show Themes' checked=false selected=false checkable=false class=ToggleButton
+        // So the `isChecked()` guard that used to stand here could never fire, and every run that
+        // began with interests already set toggled them OFF, saved an empty set, and then failed
+        // its own empty-state assertion. That is why this test alternated pass/fail across runs:
+        // `pm clear` resets the DEVICE, but interests live server-side on the account.
+        //
+        // The Profile card DOES render them, so read them there. Names arrive with the kind prefix
+        // flattened in ("THEMEShow Themes"), hence `contains` rather than equality below.
+        Set<String> alreadyChosen = new HashSet<>();
+        for (UiObject2 node : Journey.device().findObjects(By.pkg(Journey.PKG))) {
+            String n = Journey.nameOf(node);
+            if (!n.isEmpty()) alreadyChosen.add(n);
+        }
+
         // i18n: profile.editInterests = "Edit"
         assertTrue(
-                "no Edit control on the interests card. On screen: " + Journey.labelledInventory(14),
+                "no Edit control on the interests card. On screen: " + Journey.labelledInventory(80),
                 Journey.tap("Edit", true, 12_000));
         Journey.sleep(4_000);
 
@@ -131,7 +152,7 @@ public class PersonalisationTests extends UITestCase {
         // i18n: interests.title = "Choose your interests"
         boolean pickerReady = Journey.find("Choose your interests", true, 20_000) != null;
         assertTrue("the interests picker never finished loading its topics. On screen: "
-                + Journey.labelledInventory(20), pickerReady);
+                + Journey.labelledInventory(80), pickerReady);
         Journey.sleep(2_000);
 
         // DISCOVER chips from the live tree.
@@ -145,7 +166,7 @@ public class PersonalisationTests extends UITestCase {
         System.out.println("=====INTERESTS_CHIPS " + chipLabels.subList(0, Math.min(8, chipLabels.size())) + "=====");
         assertTrue(
                 "the interests picker offered nothing tappable. On screen: "
-                        + Journey.labelledInventory(20),
+                        + Journey.labelledInventory(80),
                 !chipLabels.isEmpty());
 
         // Tap only chips that are NOT already selected. These are toggles, so tapping a selected
@@ -166,15 +187,18 @@ public class PersonalisationTests extends UITestCase {
             if (picked >= 3) break;
             UiObject2 chip = Journey.find(label, false, 3_000);
             if (chip == null) continue;
-            // A chip that is already selected is still counted as "chosen" — we want it in the
-            // result set for the final assertion, but we do NOT tap it again (would deselect).
-            Boolean checked = null;
-            try {
-                checked = chip.isChecked();
-            } catch (Throwable ignored) {
-                // Node went stale; treat as unselected.
+            // A chip that is already chosen is still counted as "chosen" — we want it in the result
+            // set for the final assertion — but we must NOT tap it, because tapping toggles it OFF.
+            //
+            // Decided from the PROFILE CARD captured before the picker opened, not from the node.
+            // See the note at that capture: `aria-pressed` reaches Android as a ToggleButton class
+            // with NO state attached (checked/selected/checkable all false on a chosen chip), so
+            // the `isChecked()` read that used to live here was always false and this loop switched
+            // off exactly the interests it was supposed to keep.
+            boolean alreadySelected = false;
+            for (String rendered : alreadyChosen) {
+                if (rendered.contains(label)) { alreadySelected = true; break; }
             }
-            boolean alreadySelected = Boolean.TRUE.equals(checked);
             chosen.add(label);
             if (!alreadySelected) {
                 Journey.tap(label, false, 5_000);
@@ -185,7 +209,7 @@ public class PersonalisationTests extends UITestCase {
 
         System.out.println("=====INTERESTS_PICKED " + picked + " " + chosen + "=====");
         assertTrue("no chip was picked (discoverChips found " + chipLabels.size() + " candidates "
-                + "but none could be selected). On screen: " + Journey.labelledInventory(20),
+                + "but none could be selected). On screen: " + Journey.labelledInventory(80),
                 picked > 0);
 
         // Persist. i18n: interests.save = "Save" (also accept "Done" for picker variant).
@@ -197,7 +221,7 @@ public class PersonalisationTests extends UITestCase {
         boolean noInterestsShowing = Journey.find("No interests chosen yet", true, 5_000) != null;
         assertNull(
                 "interests card still shows its empty state after choosing interests. On screen: "
-                        + Journey.labelledInventory(20),
+                        + Journey.labelledInventory(80),
                 noInterestsShowing ? Journey.find("No interests chosen yet", true, 1_000) : null);
 
         // Interests feed Home's recommendations, so Home must REFLECT them — the first cut of this
@@ -211,7 +235,7 @@ public class PersonalisationTests extends UITestCase {
         boolean stillPrompting = Journey.find("Choose interests", true, 5_000) != null;
         assertNull(
                 "Home is still prompting to choose interests after interests were chosen. On screen: "
-                        + Journey.labelledInventory(20),
+                        + Journey.labelledInventory(80),
                 stillPrompting ? Journey.find("Choose interests", true, 1_000) : null);
 
         // Where the chosen labels DO render verbatim is the Profile Topics tab.
@@ -221,10 +245,20 @@ public class PersonalisationTests extends UITestCase {
         Journey.sleep(3_000);
 
         // At least one of the chosen chip labels must appear on the Topics tab.
-        UiObject2 rendered = Journey.scrollTo(chosen, false, 20);
+        //
+        // CONTAINS, not exact (2026-09-26). The chip renders a KIND prefix beside the label, and
+        // Android flattens the two into one node with NO separator, while iOS keeps them as
+        // separate elements — so an exact match sees nothing while the interests are plainly
+        // rendered. Measured:
+        //     THEMEShow Themes[TextView]
+        //     THEMELifelong Learning[TextView]
+        //     Open Managing risk across domains[Button,click]
+        // Note the third: a storyline chip is a BUTTON whose name is prefixed "Open …", so exact
+        // matching could never have found that one either.
+        UiObject2 rendered = Journey.scrollTo(chosen, true, 20);
         assertNotNull(
                 "none of the interests just chosen (" + chosen + ") render on the Profile Topics "
-                        + "tab. On screen: " + Journey.labelledInventory(20),
+                        + "tab. On screen: " + Journey.labelledInventory(80),
                 rendered);
     }
 

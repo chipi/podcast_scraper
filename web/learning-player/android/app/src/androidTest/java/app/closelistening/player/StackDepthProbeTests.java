@@ -42,14 +42,14 @@ public class StackDepthProbeTests extends UITestCase {
     public void testStackFourDeep() {
         boolean ready = startClean();
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
-                + Journey.labelledInventory(14), ready);
+                + Journey.labelledInventory(80), ready);
 
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
 
         boolean panelOpened = Journey.tap("Insights", true, 15_000);
         if (!panelOpened) {
-            fail("could not open the knowledge panel. On screen: " + Journey.labelledInventory(20));
+            fail("could not open the knowledge panel. On screen: " + Journey.labelledInventory(80));
         }
         Journey.sleep(3_000);
 
@@ -62,7 +62,7 @@ public class StackDepthProbeTests extends UITestCase {
         }
         if (Journey.find(topicNames, true, 15_000) == null) {
             fail("no topic control in the insights panel. On screen: "
-                    + Journey.labelledInventory(20));
+                    + Journey.labelledInventory(80));
         }
 
         // L1 — the topic, in the panel.
@@ -77,7 +77,7 @@ public class StackDepthProbeTests extends UITestCase {
         boolean storylineTapped = Journey.tap(
                 Arrays.asList("Managing risk across domains"), true, 12_000);
         if (!storylineTapped) {
-            fail("storyline row not tappable. On screen: " + Journey.labelledInventory(20));
+            fail("storyline row not tappable. On screen: " + Journey.labelledInventory(80));
         }
         Journey.sleep(4_000);
         System.out.println("=====STACK_L2_STORYLINE :: " + Journey.labelledInventory(12) + "=====");
@@ -107,12 +107,12 @@ public class StackDepthProbeTests extends UITestCase {
 
             if (!tappedL4) {
                 System.out.println("=====PROBE no L4 person in Top voices :: "
-                        + Journey.labelledInventory(20) + "=====");
+                        + Journey.labelledInventory(80) + "=====");
                 // Not a hard failure: Top voices depend on data quality. Log and continue.
             }
         } else {
             System.out.println("=====PROBE no L3 topic from the storyline :: "
-                    + Journey.labelledInventory(20) + "=====");
+                    + Journey.labelledInventory(80) + "=====");
         }
     }
 
