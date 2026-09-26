@@ -242,6 +242,13 @@ watch(
           @click="onCaptureParagraph(pi, para)"
         >
           <BookmarkIcon :size="16" :filled="paraSaved(para)" />
+          <!-- An icon COMPONENT is not a text node, so `aria-label` alone leaves this announced as
+               an unnamed "Button" on Android System WebView — a screen-reader user cannot tell what
+               saves a line of transcript. Found by the class-level guard rather than by a device
+               run (2026-09-26); no suite reaches this control. -->
+          <span class="sr-only">{{
+            gated ? t('auth.signInToCapture') : paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')
+          }}</span>
         </button>
       </div>
     </div>

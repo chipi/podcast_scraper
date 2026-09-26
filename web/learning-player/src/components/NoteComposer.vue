@@ -123,7 +123,7 @@ function onMicClick(): void {
         <button
           v-if="canDictate"
           type="button"
-          class="lp-tap flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition"
+          class="lp-tap relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition"
           :class="dictating ? 'border-accent text-accent' : 'border-border text-muted hover:text-canvas-foreground'"
           :aria-label="dictating ? t('notes.dictateStop') : t('notes.dictate')"
           :title="dictating ? t('notes.dictateStop') : t('notes.dictate')"
@@ -132,6 +132,15 @@ function onMicClick(): void {
           @click="onMicClick"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-4 w-4" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>
+          <!-- `aria-label` over a lone `aria-hidden` svg is dropped by Android System WebView, so
+               this announced as an unnamed "Button" and `NativeCapabilityTests` could not find the
+               mic at all — "no dictation control on the note field after enabling Voice input",
+               measured on its first ever run (2026-09-26). Seventh instance of this shape tonight.
+               Text matches `aria-label` exactly: Android reads `getText()` before
+               `getContentDescription()`, so a different string here would shadow the label. -->
+          <span class="sr-only left-0 top-0">{{
+            dictating ? t('notes.dictateStop') : t('notes.dictate')
+          }}</span>
         </button>
         <button
           type="button"

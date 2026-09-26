@@ -36,7 +36,15 @@ const APP_VUE = readFileSync(join(__dirname, '../App.vue'), 'utf8')
  * for the components listed here, every `<button>` that carries an `aria-label` must also contain
  * an `sr-only` span. Add a component when a device run finds the shape again.
  */
-const SR_ONLY_REQUIRED = ['SavedColorControl.vue', 'SavedFilterBar.vue']
+const SR_ONLY_REQUIRED = [
+  'SavedColorControl.vue',
+  'SavedFilterBar.vue',
+  // Added after the guard found them by scan, not by a device run: the dictation mic
+  // (`NativeCapabilityTests` could not find it at all on its first execution) and the transcript
+  // capture button, which no suite reaches.
+  'NoteComposer.vue',
+  'TranscriptList.vue',
+]
 
 describe('icon-only buttons carry text, not only an aria-label', () => {
   for (const file of SR_ONLY_REQUIRED) {
@@ -47,11 +55,17 @@ describe('icon-only buttons carry text, not only an aria-label', () => {
       expect(labelled.length, `no aria-labelled buttons found in ${file} — did it move?`).toBeGreaterThan(0)
       for (const b of labelled) {
         const body = b.slice(0, b.indexOf('</button>'))
+        // VISIBLE TEXT COUNTS. The requirement is a real text node, not the `sr-only` class
+        // specifically — a button rendering `{{ t('notes.remove') }}` is already named, and
+        // demanding a hidden span as well would be cargo-culting the fix rather than the reason.
+        // This guard flagged two such buttons as defects on its first outing (2026-09-26).
+        const hasTextNode = body.includes('sr-only') || body.includes('{{')
         expect(
-          body.includes('sr-only'),
-          `a button in ${file} has an aria-label but no sr-only text. On Android System WebView ` +
-            `the label is dropped and the control is announced as an unnamed "Button" — and ` +
-            `unfindable by name, which is how a colour filter looked like a broken seed.`,
+          hasTextNode,
+          `a button in ${file} has an aria-label but NO text node — neither visible text nor an ` +
+            `sr-only span. On Android System WebView the label is dropped and the control is ` +
+            `announced as an unnamed "Button", unfindable by name. That is how a colour filter ` +
+            `looked like a broken seed and a dictation mic looked like a missing feature.`,
         ).toBe(true)
       }
     })

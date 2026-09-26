@@ -57,12 +57,31 @@ public class StackDepthProbeTests extends UITestCase {
         // already reachable, to avoid collapsing a section a previous test left open.
         List<String> topicNames = Arrays.asList("Open systems thinking", "Open risk management");
         if (Journey.find(topicNames, true, 4_000) == null) {
+            // SCROLL to the section first — the same Android/iOS difference `AppJourneyTests.test11`
+            // documents. Android's accessibility tree holds only ON-SCREEN nodes, so with the panel
+            // at the top "Topics & People" is not merely out of reach, it is ABSENT, and `tap` has
+            // nothing to aim at. Measured 2026-09-26: the panel dump ended inside the key-points
+            // list, well above the section.
+            Journey.scrollTo("Topics & People", true);
             Journey.tap("Topics & People", true, 12_000);
             Journey.sleep(3_000);
         }
-        if (Journey.find(topicNames, true, 15_000) == null) {
-            fail("no topic control in the insights panel. On screen: "
-                    + Journey.labelledInventory(80));
+        // SCROLL AGAIN after expanding, and RE-TAP once if that finds nothing.
+        //
+        // Two compounding Android-only traps here, both measured 2026-09-26:
+        //   1. `find` only sees ON-SCREEN nodes, and the accordion's contents open BELOW its
+        //      header — so the section being visible is not the same as its topics being visible.
+        //   2. Because of (1), the decision to tap is made on incomplete information: with the
+        //      section already EXPANDED but scrolled past, `find` returns null and the tap
+        //      COLLAPSES it, removing exactly what we came for. The re-tap re-expands.
+        // `AppJourneyTests.test11` carries the same retry for the same reason.
+        if (Journey.scrollTo(topicNames, true, 20) == null) {
+            Journey.tap("Topics & People", true, 10_000);
+            Journey.sleep(3_000);
+            if (Journey.scrollTo(topicNames, true, 20) == null) {
+                fail("no topic control in the insights panel, after expanding and scrolling twice. "
+                        + "On screen: " + Journey.labelledInventory(80));
+            }
         }
 
         // L1 — the topic, in the panel.

@@ -1,129 +1,149 @@
 # Android device tier — handover, 2026-09-26
 
-Branch `fix/ui-followups-2026-09-18`. Supersedes `ANDROID-TIER-HANDOVER-2026-09-25.md`, whose
-conclusions about *why* suites were failing were wrong — see "What the previous handover got wrong".
+Branch `fix/ui-followups-2026-09-18`. Supersedes `ANDROID-TIER-HANDOVER-2026-09-25.md`.
 
 **iOS is green: `make test-ios` → 27 passed, 0 failed, `TEST_IOS_EXIT=0`.**
-**Android is red and needs its own session.**
+**Android: 10 of 12 suites green. Two open, both diagnosed.**
 
 ## Read this first
 
-Every claim below is followed by the measurement that produced it. Where something is
-unverified it says so. Three times in the session that produced this document I reached a
-confident conclusion before measuring and was wrong each time — twice in opposite directions
-about the same suite. Treat an unattributed claim here as a bug in the document.
+Every claim below is followed by the measurement behind it. Where something is unverified it
+says so. The dominant lesson of this session, on both platforms: **a failure message names a
+symptom, not a cause, and nearly every one of them was wrong about why.**
 
-## Android status, measured 2026-09-25 22:45–23:39 (warm emulator)
+- "the seed coloured too few items" → the seed worked; the filter buttons had no accessible name
+- "no storyline row was tappable" → the rail was rendering; `By.desc` cannot see WebView content
+- "Home tab did not open" → a topic card was covering the tab bar
+- "interests card still shows its empty state" → the test had switched its own interests off
+- "no dictation control" → the mic is not rendered at all; `voiceEnabled` never took
 
-| Phase | Suite | Result |
+## Status, measured
+
+| Suite | Result |
+| --- | --- |
+| HarnessSmokeTests | OK (2) |
+| DownloadThroughUITests | OK (1) |
+| OfflineAutoAdvanceTests | OK (1) |
+| OfflinePlaybackTests | OK (1) |
+| OfflineCacheTests | OK (1) |
+| ConfigOfflineToggleTests | OK (1) |
+| **AppJourneyTests** | **OK (8)** — first pass ever |
+| **PersonalisationTests** | **OK (2)** — verified twice consecutively |
+| **ServerDegradedTests** | **DEGRADED_EXIT=0** — first run ever |
+| **NativeOnlySurfacesTests** | **OK (4)** — first run ever |
+| AccessibleNameAuditTests | **1 finding** (pre-existing) |
+| StackDepthProbeTests | **FAILS** — see below |
+| NativeCapabilityTests | **FAILS** — see below |
+
+A full `make test-android` has NOT been run since these fixes.
+
+## Open 1 — StackDepthProbeTests
+
+    no topic control in the insights panel, after expanding and scrolling twice
+
+Four theories tried and all wrong: below-the-fold (scroll added), `By.desc` blindness (fixed
+in `tapTopmost`, real but not this), contents-open-below-header (second scroll added),
+expanded-section-collapsed-by-the-guard (re-tap added). It still fails, with the panel dump
+showing the top of the panel and no Topics section.
+
+`AppJourneyTests.test11` does the SAME sequence and PASSES. Diff those two paths first — that
+is the cheapest next step and I did not get to it.
+
+## Open 2 — NativeCapabilityTests
+
+    no dictation control on the note field after enabling Voice input
+
+NOT a naming bug. "Your notes" renders and the mic does not, so `canDictate` is false:
+
+    canDictate = voiceEnabled && (isNative || !!WebSR)     // NoteComposer.vue:73, useDictation.ts:79
+
+`isNative` is true under Capacitor, so `voiceEnabled` is false — the test's "enable Voice input"
+step is not taking effect. Check that step, not the mic.
+
+(The mic DID also lack an accessible name; that is fixed, and was a real TalkBack defect, but it
+was never why this test failed.)
+
+## Seven shipped accessibility defects fixed
+
+`aria-label` on a control whose subtree has no text node is DROPPED by Android System WebView:
+the control is announced as an unnamed "Button" and is unfindable by name. Found:
+
+| # | Control | Found by |
 | --- | --- | --- |
-| 1/7 | HarnessSmokeTests | OK (2 tests) |
-| 2/7 | DownloadThroughUITests | OK (1 test) |
-| 3/7 | OfflineAutoAdvanceTests | OK (1 test) |
-| 4/7 | OfflinePlaybackTests | OK (1 test) |
-| 4/7 | OfflineCacheTests | OK (1 test) |
-| 4/7 | ConfigOfflineToggleTests | OK (1 test) |
-| 5/7 | **AppJourneyTests** | **8 tests, 3 failures** — first execution ever |
-| 5/7 | PersonalisationTests | **2 tests, 2 failures** (run separately) |
-| 5/7 | NativeCapabilityTests | **NOT RUN** — phase stops on first failure |
-| 5/7 | StackDepthProbeTests | **NOT RUN** |
-| 5/7 | AccessibleNameAuditTests | **NOT RUN** |
-| 6/7 | ServerDegradedTests | **NOT RUN** — the drill is rewritten but has never executed |
-| 7/7 | NativeOnlySurfacesTests | **NOT RUN** |
+| 1 | `SavedColorControl` trigger | device run 2026-09-24 (already fixed) |
+| 2 | the five colour swatches | `AppJourneyTests.test07` |
+| 3 | Saved colour-filter swatches | `test07` |
+| 4 | "Any colour" reset | **static guard** |
+| 5 | muted-only toggle | **static guard** |
+| 6 | dictation mic | `NativeCapabilityTests` |
+| 7 | transcript capture button | **static guard** |
 
-`TEST_ANDROID_EXIT=2`.
+**Three of seven were found by a static check, not by any test**, and two of those are on
+surfaces no suite reaches. `AccessibleNameAuditTests` — the suite whose entire job this is —
+reported ONE finding throughout, because it walks static screens and never opens a popover or a
+note composer. That blind spot is now written down; it is not fixed.
 
-### The three AppJourneyTests failures (new — the suite had never run)
+The guard is `web/learning-player/src/__checks__/accessible-names.test.ts`. It requires a text
+node (visible text OR `sr-only`) inside any `aria-label`led button, for the components listed in
+`SR_ONLY_REQUIRED`. Add components as device runs find them. Mutation-tested.
 
-    Home tab did not open
-    no topic control in the insights panel
-    colour popover rendered no colour choices
+**Text must match `aria-label` EXACTLY.** Android reads `getText()` before
+`getContentDescription()`, so a shorter `sr-only` string shadows the label and the two drift. My
+first swatch fix used the bare colour name and silently broke the colour-seeding loop, which
+addresses swatches as "Set colour: Rose".
 
-Undiagnosed. The previous handover's table listed this suite as NEVER RUN, so these are not
-regressions; they are the first results it has ever produced.
+## The port was written against iOS accessibility semantics
 
-### The two PersonalisationTests failures
+Seven instances of one root cause. **Android's tree contains only ON-SCREEN nodes; iOS keeps
+off-screen ones with negative coordinates.** So on Android "X is missing" usually means "X is
+below the fold":
 
-    test09: Stats still shows its never-listened empty state after playing two episodes   (line 99)
-    test10: none of the interests just chosen render on the Profile Topics tab            (line 226)
+- insights Topics & People section (AppJourney, StackDepthProbe)
+- storyline rail on Home
+- masthead Queue control after the page scrolled (`NativeOnlySurfaces` a1)
+- Profile interests chips
 
-**The iOS-F1 fix DID carry to Android.** `test10`'s assertions run in this order: `:197` interests
-card empty state, `:211` Home stops showing "Choose interests", `:226` interests render on Profile
-Topics. The failure is at **226**, so **211 passed** — Home no longer prompts after interests are
-chosen, on both platforms. iOS `test10` passes outright.
+Related divergences, also measured:
 
-Both remaining failures are Android-only: iOS passes the equivalent assertions. They are genuinely
-new findings, invisible while the suite was parked.
+- `By.desc` DOES NOT MATCH WEBVIEW CONTENT. `Journey.find` and `waitForField` were converted to
+  enumeration on 2026-09-25; `tapTopmost` was missed and nothing ran it until now. Fixed.
+- Android FLATTENS a kind prefix into the label node with no separator — `THEMEShow Themes` —
+  where iOS keeps separate elements. Exact matching cannot see these.
+- `aria-pressed` arrives as a ToggleButton CLASS with NO state: `checked`, `selected` and
+  `checkable` are all false on a chosen chip. Measured. Any "is it selected?" read must come
+  from what the app renders, not from the node.
 
-### A cold-start flake at phase 2
+## Two tests destroyed the precondition they then asserted on
 
-On the FIRST run (cold emulator, fresh install) phase 2 failed:
+Worth calling out as a class, because both hid behind plausible messages:
 
-    sign-in did not complete as simtest.
-    On screen: <nothing labelled; foreground window = app.closelistening.player>
+- `PersonalisationTests.test10` toggled its own interests OFF, because the guard that was meant
+  to skip already-chosen chips read `isChecked()`, which is always false. It alternated pass/fail
+  across runs. `pm clear` masked it: the DEVICE resets, the ACCOUNT does not — interests live
+  server-side.
+- `StackDepthProbeTests` collapses the accordion it wants, because it decides whether to expand
+  by asking `find` (on-screen only) whether the contents are visible.
 
-It does not reproduce warm — verified three ways: the suite alone after `pm clear` (`OK (1 test)`),
-phase 1 → phase 2 in sequence with no clear between (`P1_EXIT=0`, `P2_EXIT=0`), and the full tier on
-a warm emulator. The only differing conditions were a freshly-booted emulator and a freshly-
-installed APK; phase 2 ran ~3 minutes after boot.
+**Account state is shared across runs and nothing resets it.** Same cause as the iOS `simtest`
+queue reaching (6). The tier's isolation stops at the device boundary.
 
-`AppSession.relaunch()` ends with a fixed `Journey.sleep(5_000)`. A fixed settle is the wrong shape
-— it passes warm and fails cold, which is backwards for a tier meant to run on CI. The fix is to
-wait for CONTENT (poll until the tree has labelled nodes) rather than for a duration. **Not done.**
+## Also open
 
-## What changed this session
-
-- **Both parked suites UNPARKED.** `_UNWIRED_BY_DESIGN` is now empty and all 7 wiring-guard tests
-  pass. The reasons the old parking gave were both wrong (next section).
-- **`test-android-server-degraded` restored and rewritten.** It had been deleted by `9aeca42bb`
-  when the suite was parked. It now restarts the api with **no** secret on the **same** volumes and
-  PROVES the state before asserting — it aborts unless `/api/app/me` answers 503.
-- **`_app-e2e-api-restart`** replaces a third copy of the container-run block. Round trip measured
-  against the live api: `me=401 → 503 → 401`, corpus intact. The old restore went through
-  `app-e2e-api-up`, which deletes both volumes — including the user store every later Android phase
-  is still signed in as.
-- **`android-suite` gained `TEST=<method>`** for single-method runs (`Class#method`). The drill needs
-  it. **It has never executed** — the tier stopped before phase 6.
-- Phases renumbered 6 → 7.
-
-## What the previous handover got wrong
-
-It parked both suites on the reasoning that iOS failed the same assertions, so the cause must be
-shared app behaviour rather than an Android defect. The observation was right; both conclusions
-were wrong, for different reasons.
-
-- **PersonalisationTests** — a REAL product bug, now fixed. `InterestsPicker.save()` PUT the
-  interests and updated no store, so Home kept prompting after they were chosen from Profile.
-  Present since #1111 (2026-06-28). The iOS lines the old note cited (39, 71) were a different
-  failure entirely: `test-ios` destroyed its own api at phase 2 and never restored it, so the app
-  was simply signed out.
-
-- **ServerDegradedTests** — a TEST defect, not the app. The drill rotated `APP_SESSION_SECRET`
-  instead of removing it. Measured: secret present → `/api/app/me` 401; secret absent → 503.
-  `services/api.ts` keys degraded state on 503 alone, because 401 means the caller's credential is
-  bad and must sign them out. Worse, the rotation never happened — `APP_SESSION_SECRET=… $(MAKE)
-  app-e2e-api-up` sets a variable that recipe ignores, and that recipe deletes the state volume, so
-  the drill actually tested "the user record was deleted". With the real incident reproduced, the
-  iOS suite passes: the app degrades exactly as designed.
-
-## Also still open (recorded, not fixed)
-
-- **`02391c3e0`'s a1 rewrite rests on a false premise.** It changed Android's a1 to queue from a Home
-  list row because "there is no add-to-queue on the player, and that is correct product behaviour".
-  iOS a1 queues from the player and passes. The premise is false; the change is unverified.
-- **A persisted FAILED download survives reinstall** and poisons `DownloadThroughUITests`
-  permanently, with a symptom that points at the UI. Cost two iOS runs. Android's tier does
-  `pm clear` every run and is immune — **iOS should copy that.**
-- `AppJourneyTests.test07SavedColourPicker` (iOS) takes ~210s against 26–88s for its siblings,
-  reproducibly (208.4s, 212.1s).
-- Shared-account pollution: the `simtest` queue reached (6) across a day of iOS runs.
-- `Backend target DEV, tap to switch` appears in every Android inventory. The previous handover
-  reported this stuck on PROD. Never investigated on either platform.
+- The one audit finding: `[Discover] <NO NAME> ToggleButton Rect(267, 674 - 354, 761) near=[]`.
+  Pre-existing. I could not identify the control from source; screenshot Discover and tap around
+  that rect.
+- Sign-in intermittently leaves a Capacitor `BrowserControllerActivity` in front of the app, so
+  the app's own WebView is empty and the failure reads "<nothing labelled>". Seen twice.
+  NOTE: `AppSession.relaunch()` already polls for content up to 30s — the earlier handover's
+  "fixed sleep" framing (and mine) was wrong; that was fixed on 2026-09-25.
+- `02391c3e0`'s a1 rewrite rests on a premise iOS falsified ("there is no add-to-queue on the
+  player"; iOS a1 queues from the player and passes). a1 passes on Android via the Home list row,
+  so this is a deliberate parity decision, not a bug. Raised, not changed.
+- iOS should copy Android's `pm clear` every run: a persisted FAILED download survives reinstall
+  and poisoned two iOS runs.
 
 ## Where to start
 
-1. `make test-android` on a warm emulator to reproduce the current state.
-2. `AppJourneyTests`' three failures — most likely Android port issues rather than app bugs, but
-   nobody has looked. Screenshot the emulator at failure; on iOS that answered in one look what
-   three rounds of log-reading could not.
-3. Then run phases 6 and 7, which have never executed.
+1. Diff `StackDepthProbeTests`' insights sequence against `AppJourneyTests.test11`, which passes.
+2. Find why `voiceEnabled` is false in `NativeCapabilityTests`.
+3. Then a full `make test-android`.
