@@ -133,12 +133,12 @@ def test_the_hybrid_summarisers_are_pinned_but_deliberately_not_preloaded():
     """
     manifest_ids = {m.model_id for m in mm.REQUIRED_ML_MODELS}
     for model_id in ("google/flan-t5-base", "google/long-t5-tglobal-base"):
-        assert cc.get_pinned_revision_for_model(model_id) is not None, (
-            f"{model_id} must stay pinned -- it is supported, just not preloaded"
-        )
-        assert model_id not in manifest_ids, (
-            f"{model_id} is back in the CI preload; ADR-154 retired the only thing using it"
-        )
+        assert (
+            cc.get_pinned_revision_for_model(model_id) is not None
+        ), f"{model_id} must stay pinned -- it is supported, just not preloaded"
+        assert (
+            model_id not in manifest_ids
+        ), f"{model_id} is back in the CI preload; ADR-154 retired the only thing using it"
 
 
 def test_every_pinned_manifest_model_resolves_the_revision_the_loader_will_open():
@@ -154,9 +154,9 @@ def test_every_pinned_manifest_model_resolves_the_revision_the_loader_will_open(
         rev = cc.get_pinned_revision_for_model(spec.model_id)
         if rev is None:
             continue
-        assert len(rev) == 40 and all(c in "0123456789abcdef" for c in rev), (
-            f"{spec.model_id} has a pin that is not a full commit sha: {rev!r}"
-        )
+        assert len(rev) == 40 and all(
+            c in "0123456789abcdef" for c in rev
+        ), f"{spec.model_id} has a pin that is not a full commit sha: {rev!r}"
 
 
 def test_airgapped_thin_summary_is_the_trimmed_pair():

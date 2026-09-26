@@ -132,8 +132,8 @@ def test_verifier_fails_when_weights_sit_under_the_wrong_revision(tmp_path, monk
 
     model_dir = hub / f"models--{victim.replace('/', '--')}"
     pinned_snap = model_dir / "snapshots" / pinned
-    (pinned_snap / "model.safetensors").unlink()          # pinned snapshot loses its weights
-    other = model_dir / "snapshots" / ("0" * 40)          # ...which exist under another rev
+    (pinned_snap / "model.safetensors").unlink()  # pinned snapshot loses its weights
+    other = model_dir / "snapshots" / ("0" * 40)  # ...which exist under another rev
     other.mkdir(parents=True)
     (other / "model.safetensors").write_bytes(b"weights")
 
