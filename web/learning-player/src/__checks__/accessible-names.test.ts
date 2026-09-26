@@ -37,19 +37,28 @@ const APP_VUE = readFileSync(join(__dirname, '../App.vue'), 'utf8')
  * an `sr-only` span. Add a component when a device run finds the shape again.
  */
 const SR_ONLY_REQUIRED = [
-  'SavedColorControl.vue',
-  'SavedFilterBar.vue',
+  'components/SavedColorControl.vue',
+  'components/SavedFilterBar.vue',
   // Added after the guard found them by scan, not by a device run: the dictation mic
   // (`NativeCapabilityTests` could not find it at all on its first execution) and the transcript
   // capture button, which no suite reaches.
-  'NoteComposer.vue',
-  'TranscriptList.vue',
+  'components/NoteComposer.vue',
+  'components/TranscriptList.vue',
+  // VIEWS TOO (2026-09-26). Paths are relative to `src/` now, because this list used to resolve
+  // against `src/components/` alone — so a view could not be listed here at all. That blind spot
+  // is why the five controls below survived: `collections.remove`, `collections.removeItem`,
+  // `revisit.dismiss`, `revisit.retire` and `revisit.remove`, every one an icon-only button with
+  // an `aria-label` and no text node. No device suite reaches either surface, and
+  // `AccessibleNameAuditTests` does not walk them either (it covers Home/Discover/Library/player
+  // and the player overflow), so nothing else in the repo would ever have caught them. (#2156)
+  'views/CollectionsView.vue',
+  'views/ResurfacingInbox.vue',
 ]
 
 describe('icon-only buttons carry text, not only an aria-label', () => {
   for (const file of SR_ONLY_REQUIRED) {
     it(`${file}: every aria-labelled button has an sr-only name`, () => {
-      const src = readFileSync(join(__dirname, '../components', file), 'utf8')
+      const src = readFileSync(join(__dirname, '..', file), 'utf8')
       const buttons = src.split('<button').slice(1)
       const labelled = buttons.filter((b) => b.includes('aria-label'))
       expect(labelled.length, `no aria-labelled buttons found in ${file} — did it move?`).toBeGreaterThan(0)

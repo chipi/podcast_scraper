@@ -502,7 +502,14 @@ onMounted(load)
                   :aria-label="t('revisit.dismiss')"
                   :title="t('revisit.dismiss')"
                   @click="dismiss(item)"
-                ><CheckIcon /></button>
+                >
+                  <CheckIcon />
+                  <!-- Android System WebView DROPS `aria-label` when the subtree has no text node,
+                       so these three announce as unnamed "Button" and no name-based lookup reaches
+                       them. The text must match the label EXACTLY — Android reads `getText()`
+                       before `getContentDescription()`, so a shorter string shadows the label. -->
+                  <span class="sr-only">{{ t('revisit.dismiss') }}</span>
+                </button>
                 <button
                   type="button"
                   class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
@@ -510,7 +517,10 @@ onMounted(load)
                   :aria-label="t('revisit.retire')"
                   :title="t('revisit.retire')"
                   @click="retire(item)"
-                ><BellOffIcon /></button>
+                >
+                  <BellOffIcon />
+                  <span class="sr-only">{{ t('revisit.retire') }}</span>
+                </button>
                 <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18). This action is an UNSAVE,
                      and an unsave should show the glyph that did the saving, filled, so that tapping
                      it reads as undoing the save rather than as a generic delete.
@@ -532,7 +542,10 @@ onMounted(load)
                   :aria-label="t('revisit.remove')"
                   :title="t('revisit.remove')"
                   @click="pendingDelete = item.highlight.id"
-                ><BookmarkIcon filled /></button>
+                >
+                  <BookmarkIcon filled />
+                  <span class="sr-only">{{ t('revisit.remove') }}</span>
+                </button>
               </span>
             </div>
           </li>

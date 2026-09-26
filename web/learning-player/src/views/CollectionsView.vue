@@ -770,6 +770,12 @@ onMounted(() => {
             @click="pendingDelete = c.id"
           >
             <CloseIcon />
+            <!-- Android System WebView DROPS `aria-label` when the button's subtree has no text
+                 node, so an icon-only control announces as an unnamed "Button" and no name-based
+                 lookup can reach it. Text must match the label EXACTLY: Android reads `getText()`
+                 before `getContentDescription()`, so a shorter string shadows the label and the
+                 two drift apart silently. -->
+            <span class="sr-only">{{ t('collections.remove') }}</span>
           </button>
         </div>
 
@@ -836,6 +842,7 @@ onMounted(() => {
                 @click="removeItem(it)"
               >
                 <CloseIcon />
+                <span class="sr-only">{{ t('collections.removeItem') }}</span>
               </button>
             </li>
           </ul>
