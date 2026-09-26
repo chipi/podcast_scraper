@@ -88,8 +88,6 @@ def test_ci_artifact_set_covers_the_offline_test_dependencies():
         cc.TEST_DEFAULT_NER_MODEL,
         "facebook/bart-base",
         "allenai/led-base-16384",
-        "google/long-t5-tglobal-base",
-        "google/flan-t5-base",
         cc.DEFAULT_EMBEDDING_MODEL,
     }
     missing = expected - ci
@@ -117,12 +115,48 @@ def test_pinned_models_are_registry_known():
         assert model_id in ModelRegistry._registry, f"pinned {model_id} not in registry"
 
 
-def test_preloaded_pinned_summaries_are_in_the_manifest():
-    # The pinned summarizers we actually preload must be in the manifest.
+def test_the_hybrid_summarisers_are_pinned_but_deliberately_not_preloaded():
+    """ADR-154 retired the hybrid MAP-REDUCE summariser on 2026-09-24.
+
+    This assertion INVERTED on that date, so it is written out rather than deleted. It used
+    to read "pinned therefore preloaded", which was right while hybrid shipped: its MAP
+    (long-t5-tglobal-base) and REDUCE (flan-t5-base, 990 MB) models had to be in CI because
+    tests/e2e/test_hybrid_ml_provider_e2e.py loaded them for real.
+
+    That spec is gone with the provider, and nothing else in the suite ever asked for either
+    model -- all twelve require_transformers_model_cached calls for them lived in that one
+    file. Both stay PINNED and registry-known, because they are still supported; they are
+    simply not baked into the CI artifact any more. CI carries what the tests exercise.
+
+    Deleting the old assertion outright would have left nothing watching, and something
+    re-adding them to REQUIRED_ML_MODELS would put 1 GB back into every run silently.
+    """
     manifest_ids = {m.model_id for m in mm.REQUIRED_ML_MODELS}
     for model_id in ("google/flan-t5-base", "google/long-t5-tglobal-base"):
-        assert cc.get_pinned_revision_for_model(model_id) is not None
-        assert model_id in manifest_ids, f"pinned {model_id} not in manifest"
+        assert cc.get_pinned_revision_for_model(model_id) is not None, (
+            f"{model_id} must stay pinned -- it is supported, just not preloaded"
+        )
+        assert model_id not in manifest_ids, (
+            f"{model_id} is back in the CI preload; ADR-154 retired the only thing using it"
+        )
+
+
+def test_every_pinned_manifest_model_resolves_the_revision_the_loader_will_open():
+    """The preload and the runtime must ask for the SAME revision.
+
+    When they disagree, the preload builds a cache at one revision and the loader opens
+    another -- the cache looks complete and is unreadable. That is precisely how six e2e
+    specs failed for two days while every upstream signal reported success.
+    """
+    for spec in mm.REQUIRED_ML_MODELS:
+        if spec.kind in ("whisper", "spacy"):
+            continue
+        rev = cc.get_pinned_revision_for_model(spec.model_id)
+        if rev is None:
+            continue
+        assert len(rev) == 40 and all(c in "0123456789abcdef" for c in rev), (
+            f"{spec.model_id} has a pin that is not a full commit sha: {rev!r}"
+        )
 
 
 def test_airgapped_thin_summary_is_the_trimmed_pair():

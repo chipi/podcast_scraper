@@ -32,10 +32,22 @@ def _load_verifier():
 pytestmark = pytest.mark.unit
 
 
-def _write_hf_model(hub: Path, model_id: str) -> Path:
-    # Real HF hub layout: models--{org}--{name}/snapshots/<rev>/<file> + blobs.
+def _write_hf_model(hub: Path, model_id: str, revision: str | None = None) -> Path:
+    """Real HF hub layout: models--{org}--{name}/snapshots/<rev>/<file>.
+
+    The snapshot goes under the model's PINNED revision when it has one. That detail is the
+    whole point: the loader opens exactly the pinned snapshot, so a helper that writes to an
+    arbitrary revision models a cache the runtime cannot read while looking complete — which
+    is the failure this suite exists to catch, and which it missed once already.
+    """
+    import sys
+
+    sys.path.insert(0, str(_ROOT / "src"))
+    from podcast_scraper import config_constants as cc
+
     model_dir = hub / f"models--{model_id.replace('/', '--')}"
-    snap = model_dir / "snapshots" / "deadbeef"
+    rev = revision or cc.get_pinned_revision_for_model(model_id) or "deadbeef"
+    snap = model_dir / "snapshots" / rev
     snap.mkdir(parents=True)
     (snap / "config.json").write_text("{}")
     (snap / "model.safetensors").write_bytes(b"weights")
@@ -84,6 +96,46 @@ def test_verifier_fails_when_a_model_is_missing(tmp_path, monkeypatch):
     import shutil
 
     shutil.rmtree(hub / "models--sentence-transformers--all-MiniLM-L6-v2")
+
+    verifier = _load_verifier()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr("podcast_scraper.cache.directories.get_transformers_cache_dir", lambda: hub)
+
+    assert verifier.main(["--tier", "ci_artifact"]) == 1
+
+
+def test_verifier_fails_when_weights_sit_under_the_wrong_revision(tmp_path, monkeypatch):
+    """The regression guard for the flan-t5-base outage (2026-09-24 to 2026-09-26).
+
+    A snapshot directory existed for the pinned revision carrying config.json and
+    tokenizer.json, while the weights lived under a different revision. The verifier
+    answered "cached" because it looked anywhere under the model directory; the loader
+    opened the pinned snapshot and found nothing, and six e2e specs failed three steps
+    downstream with a message about missing safetensors.
+
+    Present-but-unloadable must read as MISSING.
+    """
+    import sys
+
+    sys.path.insert(0, str(_ROOT / "src"))
+    from podcast_scraper import config_constants as cc
+
+    home = tmp_path / "home"
+    hub = tmp_path / "hub"
+    home.mkdir()
+    hub.mkdir()
+    _build_real_cache(home, hub)
+
+    victim = "facebook/bart-base"
+    pinned = cc.get_pinned_revision_for_model(victim)
+    assert pinned, "this guard needs a pinned model to be meaningful"
+
+    model_dir = hub / f"models--{victim.replace('/', '--')}"
+    pinned_snap = model_dir / "snapshots" / pinned
+    (pinned_snap / "model.safetensors").unlink()          # pinned snapshot loses its weights
+    other = model_dir / "snapshots" / ("0" * 40)          # ...which exist under another rev
+    other.mkdir(parents=True)
+    (other / "model.safetensors").write_bytes(b"weights")
 
     verifier = _load_verifier()
     monkeypatch.setenv("HOME", str(home))

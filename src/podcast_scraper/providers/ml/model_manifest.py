@@ -130,8 +130,13 @@ REQUIRED_ML_MODELS: tuple[MLModelSpec, ...] = (
     MLModelSpec("facebook/bart-base", "summary", _T_AIR),  # airgapped-thin bart-small
     # pickle-only -> not in `test`; see the note above the tier constants
     MLModelSpec("allenai/led-base-16384", "summary", _CI_AIR),  # airgapped-thin long-fast
-    MLModelSpec("google/long-t5-tglobal-base", "summary", _CI),
-    MLModelSpec("google/flan-t5-base", "summary", _T),
+    # google/long-t5-tglobal-base and google/flan-t5-base are GONE from the preload.
+    # They were the hybrid MAP and REDUCE models, and ADR-154 retired that summariser on
+    # 2026-09-24. The only thing that ever asked CI to cache them was
+    # tests/e2e/test_hybrid_ml_provider_e2e.py -- 12 require_transformers_model_cached
+    # calls, all in that one file, now deleted with the specs it guarded. Both remain
+    # supported and registry-known; they are simply not baked into CI, because CI should
+    # carry what the tests exercise and nothing else. flan-t5-base alone was 990 MB.
     # Evidence stack -- ids from config_constants DEFAULT_* (also registry keys).
     # MiniLM is corpus-wide core -> ci_artifact (the model missing from the #897 CI).
     MLModelSpec(cc.DEFAULT_EMBEDDING_MODEL, "embedding", _T),

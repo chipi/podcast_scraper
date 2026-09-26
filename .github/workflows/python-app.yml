@@ -861,31 +861,16 @@ jobs:
         echo "Cache will be saved at end of job for test jobs to use"
         du -sh "$HOME/.cache/whisper" 2>/dev/null || echo "  Whisper cache not found"
         du -sh "$HOME/.cache/huggingface" 2>/dev/null || echo "  HuggingFace cache not found"
-    # The HF cache stores every snapshot entry as a symlink into blobs/ — ALL of them,
-    # config.json included. The consumer jobs receive this tree through upload-artifact /
-    # download-artifact, and what they end up with is a snapshots/<rev>/ directory the
-    # loader cannot read: six e2e specs died on "no file named model.safetensors, or
-    # pytorch_model.bin" in the PINNED snapshot while the artifact downloaded intact
-    # (19.4 GB, digest verified) and the preload reported 1895.1 MB across 16 files.
-    #
-    # Rather than keep guessing which end drops them, make the tree self-contained before
-    # it travels: replace each link with its target. Idempotent — a no-op if the transfer
-    # was already dereferencing — and the listing below makes the before/after state a fact
-    # in the log instead of an inference from a stack trace.
-    - name: Materialise HF cache symlinks so the artifact is self-contained
+    # Paired with the identical listing in test-e2e after download. Costs nothing and turns
+    # "the loader cannot find weights" into a two-line before/after comparison, instead of
+    # something deduced from a transformers stack trace three steps downstream.
+    - name: Show the cache as uploaded (pairs with the listing in test-e2e)
       if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
       run: |
         HUB="$HOME/.cache/huggingface/hub"
-        [ -d "$HUB" ] || { echo "no hub cache at $HUB"; exit 0; }
-        echo "symlinks before: $(find "$HUB" -type l | wc -l)"
-        find "$HUB" -type l -print0 | while IFS= read -r -d '' link; do
-          target=$(readlink -f "$link") || continue
-          [ -f "$target" ] && cp --remove-destination "$target" "$link"
-        done
-        echo "symlinks after:  $(find "$HUB" -type l | wc -l)"
-        echo "--- pinned flan-t5-base snapshot as uploaded:"
-        ls -la "$HUB"/models--google--flan-t5-base/snapshots/*/ 2>/dev/null | head -20
-        df -h /home/runner | tail -1
+        echo "model dirs: $(find "$HUB" -maxdepth 1 -name 'models--*' -type d 2>/dev/null | wc -l)"
+        du -sh "$HUB" 2>/dev/null || true
+        find "$HUB" -maxdepth 1 -name 'models--*' -type d -exec du -sh {} + 2>/dev/null | sort -h
     - name: Upload ML models artifact (for dependent test jobs in same run)
       if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
       uses: actions/upload-artifact@v7
@@ -1316,9 +1301,10 @@ jobs:
     - name: Show what the pinned snapshots actually arrived as
       run: |
         HUB="$HOME/.cache/huggingface/hub"
-        echo "symlinks in the received cache: $(find "$HUB" -type l 2>/dev/null | wc -l)"
-        echo "--- pinned flan-t5-base snapshot as received:"
-        ls -la "$HUB"/models--google--flan-t5-base/snapshots/*/ 2>/dev/null | head -20
+        echo "model dirs received: $(find "$HUB" -maxdepth 1 -name 'models--*' -type d 2>/dev/null | wc -l)"
+        echo "symlinks: $(find "$HUB" -type l 2>/dev/null | wc -l)   broken: $(find "$HUB" -xtype l 2>/dev/null | wc -l)"
+        du -sh "$HUB" 2>/dev/null || true
+        find "$HUB" -maxdepth 1 -name 'models--*' -type d -exec du -sh {} + 2>/dev/null | sort -h
     - name: Validate ML model cache
       id: validate-cache
       run: |
