@@ -104,7 +104,24 @@ const art = (): string | null => showArtwork(props.show)
          artwork happens to be underneath. -->
     <!-- `z-10` keeps these above the stretched link below, so a tap on Follow or the heart reaches
          the button instead of navigating. -->
-    <div class="absolute right-1.5 top-1.5 z-10 flex flex-col items-end gap-1.5">
+    <!-- The plate is applied FROM HERE, not by wrapping the heart in a span (2026-09-26).
+
+         A wrapper `<span>` around the button cost it its accessible name on Android: the audit
+         reported `[Discover] <NO NAME> ToggleButton Rect(267, 674 - 354, 761)`, so TalkBack
+         announced nothing and no test could address it. Bisected on device — heart removed: pass;
+         heart in normal flow: pass; heart in THIS overlay with no wrapper: pass; heart in this
+         overlay inside the span: NO NAME. The span was the whole cause. Position over artwork,
+         the link nesting and the `sr-only` anchoring were all investigated and are all innocent.
+
+         Scoped to `:last-child` rather than every `>button` (the form `EpisodeActions` uses)
+         because FollowButton's `overlay` variant is already a plated pill and would be
+         double-plated. The heart is always last here, with or without Follow.
+
+         `z-10` keeps both above the stretched link below, so a tap reaches the button instead of
+         navigating. -->
+    <div
+      class="absolute right-1.5 top-1.5 z-10 flex flex-col items-end gap-1.5 [&>button:last-child]:border-white/25 [&>button:last-child]:bg-black/55 [&>button:last-child]:shadow-lg [&>button:last-child]:backdrop-blur-sm"
+    >
       <FollowButton
         v-if="followable"
         variant="overlay"
@@ -113,26 +130,10 @@ const art = (): string | null => showArtwork(props.show)
         :gated="isGated"
         @toggle="toggleFollow"
       />
-      <!-- NO `@click` ON THIS WRAPPER (2026-09-26). It is a plate for the styling below, nothing
-           more.
-
-           With a click handler the span becomes an interactive node in its own right, and Chromium
-           collapses it with its single child: the reported node keeps the button's ToggleButton
-           role but takes the span's name, which is none. `AccessibleNameAuditTests` flagged exactly
-           that — `[Discover] <NO NAME> ToggleButton Rect(267, 674 - 354, 761) near=[]`, the empty
-           neighbours being this wrapper isolating the heart from the Follow pill beside it. The
-           same FavoriteButton announces "Save to favorites" on a topic card, where nothing wraps
-           it.
-
-           It was redundant anyway: `FavoriteButton.onGatedClick` already calls `preventDefault()`
-           and `stopPropagation()`, so the tile does not navigate when the heart is tapped. -->
-      <span
-        class="[&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg [&>button]:backdrop-blur-sm"
-      >
-        <FavoriteButton
-          :item="{ kind: 'show', ref: show.feed_id, label: show.title ?? show.feed_id }"
-        />
-      </span>
+      <!-- No wrapper element around this button — see the plate comment above. -->
+      <FavoriteButton
+        :item="{ kind: 'show', ref: show.feed_id, label: show.title ?? show.feed_id }"
+      />
     </div>
     <!--
       The NAME IS NOT CLIPPED (#2004 items 3/3c).
