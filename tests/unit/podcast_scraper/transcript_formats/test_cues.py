@@ -266,3 +266,93 @@ class TestCueEscapesAreDecoded:
     def test_the_voice_span_still_names_the_speaker(self) -> None:
         _plain, segs = parse_webvtt(self._cue("Spoke &amp; Wrench"))
         assert [s.get("speaker") for s in segs] == ["Joe"]
+
+
+class TestWebVttSpeakerWrittenAsCueText:
+    """A WebVTT can name its turns as cue TEXT, not only as a `<v>` tag (#2096).
+
+    Measured on prod 2026-09-26. Six Odd Lots episodes published a roster of two hosts and NO guest
+    while every title named one. Their WebVTT writes each turn as `Speaker 1: …` instead of
+    `<v Speaker 1>`, and `parse_webvtt` only read the tag — so the label stayed embedded in the
+    prose: 280 literal `Speaker 1` strings in one 81 KB transcript, `speaker=None` on all 1,290
+    segments. That wrecks two consumers at once: attribution matches markers at LINE START (and the
+    labels are mid-line), and the chunker finds no sentence boundary. 51 corpus episodes carry the
+    shape.
+
+    `parse_srt` already handled it. Identical input produced opposite results from the two parsers,
+    which is the asymmetry these pin.
+    """
+
+    _TEXT_PREFIX = (
+        "WEBVTT\n\n"
+        "00:00:00.000 --> 00:00:04.000\n"
+        "Speaker 1: Hello, Odd Lots listeners. I am Joe Weisenthal.\n\n"
+        "00:00:04.000 --> 00:00:07.000\n"
+        "Speaker 2: And I am Tracy Alloway.\n"
+    )
+
+    def test_the_speaker_is_read_from_the_cue_text(self) -> None:
+        _plain, segs = parse_webvtt(self._TEXT_PREFIX)
+
+        assert [s.get("speaker") for s in segs] == ["Speaker 1", "Speaker 2"]
+
+    def test_the_label_does_not_survive_into_the_prose(self) -> None:
+        """Left in the text it becomes a mid-line marker attribution cannot use and chunking trips
+        over. Stripping it matches what ``parse_srt`` has always done."""
+        plain, _segs = parse_webvtt(self._TEXT_PREFIX)
+
+        assert "Speaker 1:" not in plain
+        assert "Speaker 2:" not in plain
+        assert plain.startswith("Hello, Odd Lots listeners.")
+
+    def test_a_voice_tag_still_wins_when_both_are_present(self) -> None:
+        """Explicit markup beats a text convention."""
+        doc = (
+            "WEBVTT\n\n"
+            "00:00:00.000 --> 00:00:04.000\n"
+            "<v Joe Weisenthal>Speaker 9: the tag must win.\n"
+        )
+
+        _plain, segs = parse_webvtt(doc)
+
+        assert [s.get("speaker") for s in segs] == ["Joe Weisenthal"]
+
+    def test_a_voice_tagged_file_is_unchanged(self) -> None:
+        """Guard: the 781-voice-span path must not regress."""
+        doc = (
+            "WEBVTT\n\n"
+            "00:00:00.000 --> 00:00:04.000\n"
+            "<v Joe Weisenthal>Hello there.\n\n"
+            "00:00:04.000 --> 00:00:07.000\n"
+            "<v Tracy Alloway>And hello from me.\n"
+        )
+
+        plain, segs = parse_webvtt(doc)
+
+        assert [s.get("speaker") for s in segs] == ["Joe Weisenthal", "Tracy Alloway"]
+        assert plain == "Hello there. And hello from me."
+
+    def test_prose_that_merely_contains_a_colon_is_not_a_speaker(self) -> None:
+        """Why the pattern stays narrow to ``Speaker N``: a free ``Name:`` is indistinguishable
+        from prose, and treating it as a label would invent speakers."""
+        doc = "WEBVTT\n\n" "00:00:00.000 --> 00:00:04.000\n" "Note: this is not a speaker label.\n"
+
+        plain, segs = parse_webvtt(doc)
+
+        assert [s.get("speaker") for s in segs] == [None]
+        assert plain.startswith("Note:")
+
+    def test_webvtt_and_srt_now_agree_on_the_same_input(self) -> None:
+        """The asymmetry itself, as a property."""
+        srt = (
+            "1\n00:00:00,000 --> 00:00:04,000\n"
+            "Speaker 1: Hello, Odd Lots listeners. I am Joe Weisenthal.\n\n"
+            "2\n00:00:04,000 --> 00:00:07,000\n"
+            "Speaker 2: And I am Tracy Alloway.\n"
+        )
+
+        vtt_plain, vtt_segs = parse_webvtt(self._TEXT_PREFIX)
+        srt_plain, srt_segs = parse_srt(srt)
+
+        assert [s.get("speaker") for s in vtt_segs] == [s.get("speaker") for s in srt_segs]
+        assert vtt_plain == srt_plain

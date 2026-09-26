@@ -29,11 +29,23 @@ _HTML_TAG = re.compile(r"<[^>]+>")
 # as one repetition or two, and the engine tries every split. CodeQL: exponential backtracking on
 # `<v.` followed by many `.x`. Excluding the dot makes each `.segment` match exactly one way.
 _VOICE_SPAN = re.compile(r"<v(?:\.[^\s>.]+)*\s+([^>]+)>")
-# SubRip has no voice tag; publishers write the speaker as a line prefix instead: `Speaker 3: …`
-# (Odd Lots, whose feed lists the SRT FIRST, so a fixed WebVTT parser never saw its speakers).
+# A speaker written as a CUE-TEXT prefix — `Speaker 3: …` — rather than as a voice tag. SubRip has
+# no voice tag, so this was added for it (Odd Lots, whose feed lists the SRT FIRST, so a fixed
+# WebVTT parser never saw its speakers).
+#
+# WebVTT NEEDS IT TOO, and not having it cost 50 episodes. Measured on prod 2026-09-26: six Odd Lots
+# episodes published a roster of two hosts and NO guest while their titles named one, because their
+# WebVTT writes each turn as text (`Speaker 1: …`) instead of `<v Speaker 1>`. `parse_webvtt` only
+# read the tag, so the label stayed embedded in the prose — 280 literal `Speaker 1` strings in one
+# 81 KB transcript with `speaker=None` on all 1,290 segments — where it corrupts BOTH attribution
+# (which matches markers at line start) and chunking (which finds no sentence boundary). 51 corpus
+# episodes carry that shape. Identical input gave opposite results from the two parsers.
+#
 # Deliberately only the generic `Speaker N` form: a free `<Name>:` prefix is indistinguishable
 # from prose ("Note: …"), and In Moscow's Shadows writes its `MG:` on the first cue only.
-_SRT_SPEAKER_PREFIX = re.compile(r"^\s*(Speaker\s+\d+)\s*:\s*", re.IGNORECASE)
+_CUE_SPEAKER_PREFIX = re.compile(r"^\s*(Speaker\s+\d+)\s*:\s*", re.IGNORECASE)
+#: Retained name — this pattern was SubRip-only until WebVTT started using it too.
+_SRT_SPEAKER_PREFIX = _CUE_SPEAKER_PREFIX
 
 
 def _separate_cues(segments: List[Dict[str, Any]]) -> None:
@@ -176,6 +188,12 @@ def parse_webvtt(data: str) -> Tuple[str, List[Dict[str, Any]]]:
         # voice — 128 of 128. Odd Lots' own WebVTT carries 781 voice spans and names both hosts in
         # the first minute.
         voice = _VOICE_SPAN.search(raw_text)
+        # A text prefix is the OTHER way a WebVTT names its turns, and the tag wins when both are
+        # present: explicit markup beats a text convention. Stripped from the cue body exactly as
+        # `parse_srt` does, so the label does not survive into the prose it would otherwise corrupt.
+        prefix = None if voice else _CUE_SPEAKER_PREFIX.match(raw_text)
+        if prefix:
+            raw_text = raw_text[prefix.end() :]
         norm = _normalize_cue_text(raw_text)
         if norm.strip():
             seg: Dict[str, Any] = {"start": start_s, "end": end_s, "text": norm}
@@ -183,6 +201,8 @@ def parse_webvtt(data: str) -> Tuple[str, List[Dict[str, Any]]]:
                 speaker = voice.group(1).strip()
                 if speaker:
                     seg["speaker"] = speaker
+            elif prefix:
+                seg["speaker"] = " ".join(prefix.group(1).split())
             segments.append(seg)
 
     _separate_cues(segments)

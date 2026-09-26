@@ -82,6 +82,26 @@ _DEFAULT_MAX_PERSONS = 200
 #: a 404'd name. The TTL keeps it self-healing: someone who GETS an article later is picked up on
 #: the next expiry rather than never, without a manual `refresh`.
 _MISS_TTL_S = 30 * 24 * 3600
+
+#: Why a successfully-fetched payload derived to no row. Recorded in the raw envelope as
+#: ``empty_reason`` so "this card is empty" is answerable from the artifact instead of by
+#: re-deriving payloads on prod, and so the pre-budget filter can skip them (see
+#: :func:`_empty_reason_is_fresh`). Each mirrors one ``derive`` branch that returns None.
+_REASON_DISAMBIGUATION = "disambiguation"  # Wikipedia REST type=disambiguation ("may refer to:")
+_REASON_NO_EXTRACT = "no_extract"  # article exists but carries no prose
+_REASON_NO_ARTICLE = "no_article"  # resolved to a human on Wikidata with no enwiki article
+_REASON_AMBIGUOUS = "ambiguous"  # several article-bearing candidates, none at the bare name
+#: Distinguished: the payload predates the resolved provider and cannot be derived by it. Not a
+#: reason to record — a reason to DROP the payload so the current provider re-fetches it.
+_LEGACY_PAYLOAD_REASON = "legacy_payload"
+
+#: Stamped on a REST summary that the RESOLVED provider fetched via its own direct-title
+#: fallback (no Wikidata candidate had an article). Shape-identical to a provider-#1 fossil, so
+#: without this marker the two are indistinguishable — and treating a fresh fallback as a fossil
+#: would re-fetch it on EVERY run, since the resolver would just take the same fallback again.
+#: Still != ``_RESOLVED_SCHEMA``, so ``derive`` keeps delegating it to the Wikipedia provider.
+_FALLBACK_SCHEMA = "wikipedia-fallback/1"
+
 _USER_AGENT = "close-listening/1.0 (podcast knowledge base; contact via app)"
 
 #: Minimum seconds between consecutive hits on one upstream host. Wikimedia's robot policy
@@ -392,6 +412,16 @@ class WikipediaProvider:
         title = urllib.parse.quote(display_name.replace(" ", "_"), safe="")
         return self._get_json(self._summary_base + title)
 
+    def classify_empty(self, raw: dict[str, Any]) -> str:
+        """Why :meth:`derive` returned None for this payload. Mirrors its branches, in order.
+
+        Kept beside ``derive`` so the two cannot drift into separate stories about the same
+        payload; ``test_classify_empty_agrees_with_derive`` pins that.
+        """
+        if raw.get("type") == "disambiguation":
+            return _REASON_DISAMBIGUATION
+        return _REASON_NO_EXTRACT
+
     def derive(
         self, person_id: str, display_name: str, raw: dict[str, Any]
     ) -> PersonWebInfo | None:
@@ -590,6 +620,75 @@ def _write_miss(corpus_root: Path, person_id: str, display_name: str, now: int) 
         path.write_text(json.dumps(envelope, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError:
         pass  # best-effort: a failed miss-write only costs a retry next run
+
+
+def _empty_reason_is_fresh(corpus_root: Path, person_id: str, now: int) -> bool:
+    """True when we already know WHY this person derives to nothing, recently.
+
+    The coverage-ceiling bug in its third disguise. A payload that fetches fine but derives to
+    nothing (a disambiguation page; a human with no article) used to leave NO marker: no row,
+    and no miss either, because ``raw`` was not None. So it passed the pre-budget filter on
+    every run, took a slot, re-derived from cache and produced nothing — and since ``fresh`` is
+    ID-sorted and sliced, the same early-alphabet dead entries held the same slots forever. On
+    prod that truncated coverage at person "j" and org "b": nothing sorting later was ever
+    fetched once. Recording the reason is what lets the filter skip them.
+
+    Shares ``_MISS_TTL_S`` deliberately — one duration for "we looked and there was nothing
+    usable", so someone who gains an article is retried on the same cadence either way.
+    """
+    path = _raw_path(corpus_root, person_id)
+    if not path.is_file():
+        return False
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not (isinstance(doc, dict) and doc.get("empty_reason")):
+        return False
+    at = doc.get("empty_reason_at")
+    if not isinstance(at, (int, float)):
+        return False
+    return (now - int(at)) < _MISS_TTL_S
+
+
+def _write_empty_reason(corpus_root: Path, person_id: str, reason: str, now: int) -> None:
+    """Record WHY a fetched payload derived to nothing, PRESERVING the payload.
+
+    Unlike ``_write_miss`` this must not replace the envelope: the provider's disambiguation
+    contract is that "every candidate is persisted regardless, so a future re-derive can
+    revisit the choice without re-fetching". Dropping the payload would forfeit exactly that.
+    """
+    path = _raw_path(corpus_root, person_id)
+    if not path.is_file():
+        return
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if not isinstance(doc, dict):
+        return
+    doc["empty_reason"] = reason
+    doc["empty_reason_at"] = now
+    try:
+        path.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        pass  # best-effort: a failed write only costs a re-derive next run
+
+
+def _invalidate_raw_cache(corpus_root: Path, person_id: str) -> None:
+    """Drop a cached payload so the NEXT run re-fetches it through the current provider.
+
+    Only called for a payload the current provider cannot derive AND that predates it
+    (reason ``_LEGACY_PAYLOAD_REASON``). The 148 such payloads on prod are disambiguation pages
+    fetched by the old title-guessing provider; the resolved provider asks Wikidata for the
+    exact article title and does not land on one. Safe because a payload yielding no row serves
+    nothing — and a payload that DOES derive never reaches here, which is what keeps the 793
+    legacy-payload rows the provider docstring warns about untouched.
+    """
+    try:
+        _raw_path(corpus_root, person_id).unlink(missing_ok=True)
+    except OSError:
+        pass  # best-effort: it simply derives to nothing again next run
 
 
 def _write_raw_cache(
@@ -849,7 +948,7 @@ class WikidataResolvedProvider:
             # Almost every article has a Wikidata item, but `wbsearchentities` can still miss
             # one that a direct title hit would have found, and losing a person we currently
             # have would be a regression dressed as an improvement.
-            return self._wikipedia.fetch_raw(person_id, display_name)
+            return self._stamp_fallback(self._wikipedia.fetch_raw(person_id, display_name))
 
         ids = [str(h["id"]) for h in hits if isinstance(h.get("id"), str)]
         entities = self._entities(ids[:_WD_MAX_CANDIDATES])
@@ -882,7 +981,7 @@ class WikidataResolvedProvider:
             # back: a direct title guess would pick one of them blindly, which is the exact
             # failure this provider exists to prevent.
             if not articled:
-                legacy = self._wikipedia.fetch_raw(person_id, display_name)
+                legacy = self._stamp_fallback(self._wikipedia.fetch_raw(person_id, display_name))
                 if legacy is not None:
                     return legacy
             return payload
@@ -915,6 +1014,47 @@ class WikidataResolvedProvider:
         REST summaries written by provider #1. They carry no ``schema`` key and must keep
         deriving exactly as before — a re-derive pass must not silently drop 793 existing rows.
         """
+        return self._derive_resolved(person_id, display_name, raw)
+
+    @staticmethod
+    def _stamp_fallback(payload: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Mark a direct-title fallback payload as OURS, not a provider-#1 fossil."""
+        if payload is None:
+            return None
+        return {**payload, "schema": _FALLBACK_SCHEMA}
+
+    def classify_empty(self, raw: dict[str, Any]) -> str:
+        """Why :meth:`derive` returned None. Mirrors its branches, in the same order.
+
+        A provider-#1 fossil returns ``_LEGACY_PAYLOAD_REASON`` rather than the underlying
+        Wikipedia reason: the answer is not "record why", it is "re-fetch through the resolver".
+        Provider #1 guessed the article title from the display name and landed on disambiguation
+        pages; this provider asks Wikidata for the exact title. Our OWN fallback payloads carry
+        ``_FALLBACK_SCHEMA`` and are classified normally — re-fetching one would only take the
+        same fallback again, every run.
+        """
+        schema = raw.get("schema")
+        if schema is None:
+            return _LEGACY_PAYLOAD_REASON
+        if schema != _RESOLVED_SCHEMA:
+            return self._wikipedia.classify_empty(raw)
+        if not raw.get("wikidata_id"):
+            # `_pick` refused. The discriminator is the ARTICLE, so distinguish "nobody had one"
+            # from "several did and none sat at the bare name" — the first self-heals when the
+            # person gains an article, the second needs a better rule (see #2158).
+            articled = raw.get("articled_ids")
+            if isinstance(articled, list) and len(articled) > 1:
+                return _REASON_AMBIGUOUS
+            return _REASON_NO_ARTICLE
+        wiki = raw.get("wikipedia")
+        if not isinstance(wiki, dict):
+            return _REASON_NO_ARTICLE
+        return self._wikipedia.classify_empty(wiki)
+
+    def _derive_resolved(
+        self, person_id: str, display_name: str, raw: dict[str, Any]
+    ) -> PersonWebInfo | None:
+        """The body of :meth:`derive`; split out only so ``classify_empty`` can sit beside it."""
         if raw.get("schema") != _RESOLVED_SCHEMA:
             return self._wikipedia.derive(person_id, display_name, raw)
 
@@ -1083,11 +1223,18 @@ class PersonWebEnricher:
         # Filtering misses only inside the loop would let them eat the budget: with
         # max_persons=3 and three permanently-unknown names, no new person would ever be
         # fetched — the coverage-ceiling bug this change exists to remove, in a new disguise.
+        # ...and exclude entities whose emptiness we have already EXPLAINED. Same reasoning as
+        # the miss filter one line down, for the case that filter misses: a payload that fetches
+        # fine but derives to nothing is neither `known` nor a miss, so it used to hold a budget
+        # slot on every run forever. Measured on prod 2026-09-26: 250 such persons and 229 orgs
+        # pinned the front of this ID-sorted list and coverage stopped dead at person "j" and
+        # org "b" — nothing later in the alphabet had EVER been fetched. See #2158.
         fresh = [
             (pid, name)
             for pid, name in all_persons
             if pid not in known
             and (refresh or not _miss_is_fresh(corpus_root, pid, now_for_budget))
+            and (refresh or not _empty_reason_is_fresh(corpus_root, pid, now_for_budget))
         ]
         persons = fresh[:max_persons]
         now = int(time.time())
@@ -1144,6 +1291,16 @@ class PersonWebEnricher:
                     continue
                 info = self._provider.derive(pid, name, raw)
                 if info is None:
+                    # We fetched fine and still have no row. Say WHY, or this entity silently
+                    # holds a budget slot forever (the bug #2158 fixes). A payload the current
+                    # provider cannot derive at all is dropped instead, so the next run
+                    # re-fetches it through the resolver rather than re-failing on a fossil.
+                    classify = getattr(self._provider, "classify_empty", None)
+                    reason = classify(raw) if callable(classify) else _REASON_NO_EXTRACT
+                    if reason == _LEGACY_PAYLOAD_REASON:
+                        _invalidate_raw_cache(corpus_root, pid)
+                    else:
+                        _write_empty_reason(corpus_root, pid, reason, now)
                     continue
                 row = asdict(info)
                 if info.image_url:

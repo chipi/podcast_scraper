@@ -477,13 +477,43 @@ def _prune_superseded_rows(
     if clear_requested or backend is None or not reindexed_episode_ids:
         return 0
     pruned = 0
+    refused = 0
     for tier, by_episode in emitted_ids.items():
         for episode_id, keep in by_episode.items():
             if not keep:
                 # Never prune an episode this build emitted nothing for — that would delete a
                 # healthy episode's rows on the strength of an empty buffer.
                 continue
+            # ...and never prune on the strength of a PARTIAL buffer either. The empty-buffer
+            # guard above was not enough: a build that read a half-written gi.json emits a few
+            # rows for the episode, and pruning to that set DELETES the healthy rows it failed to
+            # re-emit. Measured on prod 2026-09-26: two episodes had been cut to 2 insights and
+            # 2 quotes (from 41 and 65), with kg_topic removed outright, and the fingerprint
+            # written as current — so every later incremental build skipped them and the loss was
+            # invisible. Deleting MORE than we keep is that signature; a genuine reprocess that
+            # really shrank an episode that much is rare enough to be worth a loud log and a
+            # deliberate full rebuild (which bypasses this path via ``clear_requested``).
+            existing = backend.count_episode_rows(tier, episode_id)
+            if existing and len(keep) * 2 < existing:
+                refused += 1
+                logger.warning(
+                    "two-tier index: REFUSING to prune tier=%s episode_id=%s — this build emitted "
+                    "%d row(s) but %d are indexed, so pruning would delete %d. That is the "
+                    "partial-artifact signature, not a superseded run. Stale rows may remain; "
+                    "re-run with a full rebuild if this episode really did shrink (#2158).",
+                    tier,
+                    episode_id,
+                    len(keep),
+                    existing,
+                    existing - len(keep),
+                )
+                continue
             pruned += backend.prune_episode_rows(tier, episode_id, keep)
+    if refused:
+        logger.warning(
+            "two-tier index: refused %d partial-emission prune(s) — see the per-episode warnings",
+            refused,
+        )
     if pruned:
         logger.info(
             "two-tier index: pruned %d stale row(s) from superseded runs across %d "

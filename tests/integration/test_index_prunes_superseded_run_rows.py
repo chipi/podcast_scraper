@@ -136,6 +136,46 @@ def test_full_reindex_is_untouched_by_the_prune(tmp_path, monkeypatch):
     assert stats.stale_rows_pruned == 0, "a full reindex must not need the incremental prune"
 
 
+def test_partial_emission_does_not_prune_the_healthy_rows(tmp_path, monkeypatch, caplog):
+    """A build that emits FEWER rows than are indexed must refuse to prune (#2158).
+
+    The empty-buffer guard was not enough. On prod 2026-09-26 two episodes had been cut to 2
+    insights and 2 quotes (from 41 and 65), kg_topic removed outright, because a build read a
+    half-written ``gi.json``, emitted a handful of rows and pruned to that set. The fingerprint was
+    then written as current, so every later incremental build skipped the episode and the loss
+    stayed invisible until a fingerprint was dropped by hand.
+
+    Here run 2 re-derives the SAME episode with 1 insight where 6 are indexed — the
+    partial-artifact signature — and the healthy rows must survive.
+    """
+    import logging
+
+    monkeypatch.setattr(tti, "_embed", _embed_stub)
+    corpus = tmp_path / "corpus"
+    lance = corpus / "search" / "lance_index"
+
+    _write_run(corpus, "20260101-000000", [f"alpha insight {i}" for i in range(6)])
+    tti.build_two_tier_index(corpus, lance, drop_existing=True)
+    before_ids = {r["id"] for tier in _rows(lance) for r in _rows(lance)[tier]}
+    assert len(before_ids) > 3, "fixture must index several rows to have something to lose"
+
+    # Run 2: same episode, but the artifact yields a single insight — as a truncated read would.
+    _write_run(corpus, "20260202-000000", ["beta insight only one"])
+    with caplog.at_level(logging.WARNING, logger="podcast_scraper.search.two_tier_indexer"):
+        tti.build_two_tier_index(corpus, lance, drop_existing=False)
+
+    texts = {str(r.get("text") or "") for tier in _rows(lance) for r in _rows(lance)[tier]}
+
+    assert any("alpha insight" in t for t in texts), (
+        "healthy rows were deleted on the strength of a partial emission — the #2158 data loss. "
+        f"surviving texts: {sorted(texts)}"
+    )
+    assert any("beta insight" in t for t in texts), "the new row should still be written"
+    assert (
+        "REFUSING to prune" in caplog.text
+    ), "the refusal must be logged loudly — a silent skip trades data loss for mystery"
+
+
 def test_unchanged_episode_is_not_pruned(tmp_path, monkeypatch):
     """The fingerprint skip must keep an untouched episode's rows intact.
 
@@ -157,3 +197,32 @@ def test_unchanged_episode_is_not_pruned(tmp_path, monkeypatch):
     assert stats.episodes_skipped_unchanged >= 1
     assert after_ids == before_ids, "an unchanged episode lost rows"
     assert stats.stale_rows_pruned == 0
+
+
+class TestCountEpisodeRowsFailsSafe:
+    """``count_episode_rows`` feeds the prune guard, so its failure mode decides data safety.
+
+    The guard refuses to prune when the emitted set is much smaller than what is indexed. If the
+    count blew up or raised, the guard would either crash the build or — worse, if it returned
+    something truthy-but-wrong — let a destructive prune through. It returns 0, which makes the
+    guard's ``if existing and …`` fall through to the normal prune path: the behaviour before this
+    guard existed, which is the right default for "I could not measure".
+    """
+
+    def test_a_tier_that_does_not_exist_counts_zero(self, tmp_path) -> None:
+        be = LanceDBBackend(str(tmp_path / "empty_index"))
+
+        assert be.count_episode_rows("insight", "ep-anything") == 0
+
+    def test_a_raising_table_counts_zero_rather_than_propagating(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        be = LanceDBBackend(str(tmp_path / "empty_index"))
+
+        class _Exploding:
+            def count_rows(self, *_a, **_k):
+                raise RuntimeError("lance blew up mid-count")
+
+        monkeypatch.setattr(be, "_open_if_exists", lambda _tier: _Exploding())
+
+        assert be.count_episode_rows("insight", "ep-anything") == 0

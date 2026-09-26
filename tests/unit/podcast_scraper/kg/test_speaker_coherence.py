@@ -279,6 +279,69 @@ class TestCollapseOntoOneSpeaker:
         few = gi([("quote:1", "person:ryan-knutson"), ("quote:2", "person:ryan-knutson")])
         assert check_not_collapsed_onto_one_speaker(GOOD_META, few) == []
 
+    # --- the interview-shape exemption (#2158) ------------------------------------------------
+    #
+    # The rule's own docstring recorded this false positive and could not act on it: an interview
+    # where one voice says everything quotable. Talk Eastern Europe, "Book Talk: Betrayal" — roster
+    # [Adam Reichardt host, Luke Harding guest], diarization cleanly separated them (273/118
+    # segments), all 82 quotes on the guest, and 81 of 82 CORRECT on a char-offset check. 22 prod
+    # episodes had this shape and were being counted as damage.
+    #
+    # These fixtures give Person nodes a real display name, which the shared ``gi()`` helper does
+    # not (it uses the node id), because the role lookup resolves edge -> node name -> roster entry.
+
+    @staticmethod
+    def _named_gi(target_name: str, target_id: str, n: int = 8):
+        return {
+            "nodes": [{"id": target_id, "type": "Person", "properties": {"name": target_name}}],
+            "edges": [
+                {"type": "SPOKEN_BY", "from": f"quote:{i}", "to": target_id} for i in range(n)
+            ],
+        }
+
+    def test_every_quote_on_the_GUEST_is_an_interview_not_a_collapse(self) -> None:
+        g = self._named_gi(GUEST, "person:sharon-turlip")
+
+        assert check_not_collapsed_onto_one_speaker(GOOD_META, g) == [], (
+            "the host asks questions; questions are not claims. This is the documented shape of "
+            "22 prod episodes that were being reported as damage"
+        )
+
+    def test_every_quote_on_the_HOST_is_still_reported(self) -> None:
+        """The defect this rule exists for: marker-blind attribution latches onto the host."""
+        g = self._named_gi(HOST, "person:ryan-knutson")
+
+        v = check_not_collapsed_onto_one_speaker(GOOD_META, g)
+        assert len(v) == 1 and "8 attributed quotes" in v[0]
+
+    def test_an_unresolvable_target_is_reported_not_exempted(self) -> None:
+        """An exemption must never be granted on a lookup failure — fail toward reporting."""
+        g = self._named_gi("Somebody Not On The Roster", "person:stranger")
+
+        assert len(check_not_collapsed_onto_one_speaker(GOOD_META, g)) == 1
+
+    def test_a_dangling_target_with_no_person_node_is_reported(self) -> None:
+        """The edge points at an id no Person node carries, so the role is unknowable.
+
+        Unknowable must mean REPORTED. If a lookup failure granted the exemption, a genuinely
+        collapsed episode with a broken graph would be silently waved through.
+        """
+        g = {
+            "nodes": [],  # no Person node at all — the target dangles
+            "edges": [
+                {"type": "SPOKEN_BY", "from": f"quote:{i}", "to": "person:ghost"} for i in range(8)
+            ],
+        }
+
+        assert len(check_not_collapsed_onto_one_speaker(GOOD_META, g)) == 1
+
+    def test_guest_only_with_NO_host_on_the_roster_is_still_reported(self) -> None:
+        """The exemption is the host/guest PAIR shape. Two guests and no host is not that."""
+        two_guests = meta((GUEST, "guest"), ("Someone Else", "guest"))
+        g = self._named_gi(GUEST, "person:sharon-turlip")
+
+        assert len(check_not_collapsed_onto_one_speaker(two_guests, g)) == 1
+
 
 class TestTheCombinedCheck:
     def test_a_coherent_episode_reports_nothing(self) -> None:
