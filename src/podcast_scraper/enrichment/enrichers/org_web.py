@@ -69,6 +69,16 @@ _RAW_SUBDIR = "org_web_raw"
 #: The TTL keeps it self-healing — an org that GETS a Wikidata entity later is picked up at the
 #: next expiry rather than never, without a manual `refresh`. Mirrors person_web's _MISS_TTL_S.
 _MISS_TTL_S = 30 * 24 * 3600
+
+#: Why a successfully-fetched payload derived to no row, recorded in the raw envelope as
+#: ``empty_reason``. The TTL comment above describes this bug from the MISS angle and only the
+#: miss half was fixed: an org whose payload FETCHES fine but derives to nothing is neither a row
+#: nor a miss, so it kept its place at the head of the ID-sorted queue anyway. Measured on prod
+#: 2026-09-26: 229 such orgs, and org coverage had never once reached a name sorting after "b".
+_REASON_NOT_AN_ORG = "not_an_org"  # no candidate was an organization (a law, a plan, an event)
+_REASON_NO_ENTITY = "no_entity"  # payload carried no entity block at all
+_REASON_NOTHING_SURFACEABLE = "nothing_surfaceable"  # org resolved, but no description and no logo
+
 #: Hosted org logos (served by /api/app/organizations/{id}/logo).
 _LOGO_SUBDIR = "org_logos"
 
@@ -330,6 +340,41 @@ class WikidataProvider:
                 out.append({"_scalar": val})
         return out
 
+    def classify_empty(self, raw: dict[str, Any]) -> str:
+        """Why :meth:`derive` returned None for this payload. Mirrors its branches, in order.
+
+        Deliberately re-walks the same candidate selection rather than guessing from shape: the
+        P31 organisation check is the SELECTOR, so "was anything org-like here" is only
+        answerable by applying it. ``test_classify_empty_agrees_with_derive`` pins the agreement.
+        """
+        entities = (raw.get("entity") or {}).get("entities") or {}
+        if not isinstance(entities, dict) or not entities:
+            return _REASON_NO_ENTITY
+        if self._select_org(raw, entities)[0] is None:
+            return _REASON_NOT_AN_ORG
+        return _REASON_NOTHING_SURFACEABLE
+
+    def _select_org(
+        self, raw: dict[str, Any], entities: dict[str, Any]
+    ) -> tuple[dict[str, Any] | None, str]:
+        """First organization-like candidate in SEARCH-RANK order, and its qid.
+
+        Extracted from ``derive`` so ``classify_empty`` cannot drift from the selection rule.
+        """
+        candidates = raw.get("candidate_qids")
+        if not isinstance(candidates, list) or not candidates:
+            candidates = [str(raw.get("qid") or "")]
+        for cand in candidates:
+            ent = entities.get(str(cand))
+            if not isinstance(ent, dict):
+                continue
+            instance_qids = {
+                str(v.get("id")) for v in self._claim_values(ent, "P31") if isinstance(v, dict)
+            }
+            if instance_qids & self._ORG_INSTANCE_QIDS:
+                return ent, str(cand)
+        return None, ""
+
     def derive(self, org_id: str, display_name: str, raw: dict[str, Any]) -> OrgWebInfo | None:
         """Extract description + logo + founded + site from a stored Wikidata payload (pure)."""
         entities = (raw.get("entity") or {}).get("entities") or {}
@@ -339,24 +384,9 @@ class WikidataProvider:
         # check is the SELECTOR, not merely a veto on the top hit: "Stanford" ranks the town above
         # the university, so vetoing hits[0] used to discard a correct answer that was one rank
         # down. Falls back to the single stored qid for payloads cached before candidate ranking.
-        candidates = raw.get("candidate_qids")
-        if not isinstance(candidates, list) or not candidates:
-            candidates = [str(raw.get("qid") or "")]
-        entity = None
-        qid = ""
-        for cand in candidates:
-            ent = entities.get(str(cand))
-            if not isinstance(ent, dict):
-                continue
-            instance_qids = {
-                str(v.get("id")) for v in self._claim_values(ent, "P31") if isinstance(v, dict)
-            }
-            if instance_qids & self._ORG_INSTANCE_QIDS:
-                entity = ent
-                # The SELECTED candidate, not hits[0] — source_url must cite the entity we
-                # actually described, or the provenance link points at the wrong thing.
-                qid = str(cand)
-                break
+        # The qid is the SELECTED candidate, not hits[0] — source_url must cite the entity we
+        # actually described, or the provenance link points at the wrong thing.
+        entity, qid = self._select_org(raw, entities)
         if entity is None:
             return None  # no candidate was an organization — e.g. a drug brand typed as one
         desc = ((entity.get("descriptions") or {}).get("en") or {}).get("value")
@@ -537,6 +567,51 @@ def _write_miss(corpus_root: Path, org_id: str, display_name: str, now: int) -> 
         pass
 
 
+def _empty_reason_is_fresh(corpus_root: Path, org_id: str, now: int) -> bool:
+    """True when we already know WHY this org derives to nothing, recently.
+
+    The half of the head-of-queue bug the miss TTL does not cover. Shares ``_MISS_TTL_S`` so a
+    ``not_an_org`` verdict is re-checked on the same cadence as an absence — cheap, and it means
+    an entity that stops being mis-typed upstream recovers without a manual ``refresh``.
+    """
+    path = _raw_path(corpus_root, org_id)
+    if not path.is_file():
+        return False
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not (isinstance(doc, dict) and doc.get("empty_reason")):
+        return False
+    at = doc.get("empty_reason_at")
+    if not isinstance(at, (int, float)):
+        return False
+    return (now - int(at)) < _MISS_TTL_S
+
+
+def _write_empty_reason(corpus_root: Path, org_id: str, reason: str, now: int) -> None:
+    """Record WHY a fetched payload derived to no row, PRESERVING the payload.
+
+    Must not replace the envelope the way ``_write_miss`` does: every candidate qid is persisted
+    so a future re-derive can revisit the choice without re-fetching Wikidata.
+    """
+    path = _raw_path(corpus_root, org_id)
+    if not path.is_file():
+        return
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if not isinstance(doc, dict):
+        return
+    doc["empty_reason"] = reason
+    doc["empty_reason_at"] = now
+    try:
+        path.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        pass  # best-effort: a failed write only costs a re-derive next run
+
+
 def _logo_meta_path(corpus_root: Path, org_id: str) -> Path:
     return _logo_dir(corpus_root) / f"{_safe_name(org_id)}.meta.json"
 
@@ -712,6 +787,11 @@ class OrgWebEnricher:
             for oid, name in all_orgs
             if oid not in known
             and (refresh or not _miss_is_fresh(corpus_root, oid, now_for_budget))
+            # Same reason as the miss filter above, for the case it does not catch: an org whose
+            # payload fetches fine but derives to nothing is neither a row nor a miss, so it held
+            # its head-of-queue slot on every run. 229 such orgs on prod pinned coverage to names
+            # sorting before "c". See #2158.
+            and (refresh or not _empty_reason_is_fresh(corpus_root, oid, now_for_budget))
         ]
         orgs = fresh[:max_orgs]
         now = int(time.time())
@@ -757,6 +837,10 @@ class OrgWebEnricher:
                     continue
                 info = self._provider.derive(oid, name, raw)
                 if info is None:
+                    # Say WHY, or this org keeps its head-of-queue slot forever (#2158).
+                    classify = getattr(self._provider, "classify_empty", None)
+                    reason = classify(raw) if callable(classify) else _REASON_NOTHING_SURFACEABLE
+                    _write_empty_reason(corpus_root, oid, reason, now)
                     continue
                 row = asdict(info)
                 if info.logo_url:

@@ -26,6 +26,8 @@ import httpx
 import pytest
 
 from podcast_scraper.enrichment.enrichers.person_web import (
+    _FALLBACK_SCHEMA,
+    _RESOLVED_SCHEMA,
     _wiki_file_title,
     TransientFetchError,
     WikidataResolvedProvider,
@@ -323,7 +325,13 @@ class TestNoRegressionFallback:
         raw = p.fetch_raw("person:x", "Obscure Person")
 
         assert raw is not None, "must fall back rather than declare absence"
-        assert "schema" not in raw, "fallback yields a legacy-shaped payload"
+        # What matters is that the fallback derives via the WIKIPEDIA path — its schema is not the
+        # resolved one. It used to carry no ``schema`` key at all, which made it indistinguishable
+        # from a provider-#1 fossil, and #2158 must tell those apart: a fossil is dropped so the
+        # resolver can retry it, whereas dropping THIS would just take the same fallback again on
+        # every run. Hence the explicit self-identifying marker.
+        assert raw.get("schema") == _FALLBACK_SCHEMA, "the fallback must mark itself"
+        assert raw.get("schema") != _RESOLVED_SCHEMA, "still derives via Wikipedia"
         info = p.derive("person:x", "Obscure Person", raw)
         assert info is not None and info.bio == "A person."
 

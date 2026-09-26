@@ -497,6 +497,22 @@ class LanceDBBackend:
             )
             return 0
 
+    def count_episode_rows(self, tier: str, episode_id: str) -> int:
+        """Rows currently stored for *episode_id* in *tier*, or 0 when the tier does not exist.
+
+        Exists so the caller can compare what a build EMITTED against what is already indexed
+        before deleting anything — see ``_prune_superseded_rows``. Without that comparison a
+        build that read a half-written artifact prunes the healthy rows it failed to re-emit.
+        """
+        table = self._open_if_exists(tier)
+        if table is None:
+            return 0
+        try:
+            return int(table.count_rows(f"episode_id = '{self._sql_str(episode_id)}'"))
+        except Exception:  # noqa: BLE001 - a count failure must not fail the build
+            logger.warning("count_episode_rows failed for tier=%s episode_id=%s", tier, episode_id)
+            return 0
+
     def prune_episode_rows(self, tier: str, episode_id: str, keep_ids: set[str]) -> int:
         """Delete rows for *episode_id* in *tier* whose id is NOT in *keep_ids* (#1969).
 

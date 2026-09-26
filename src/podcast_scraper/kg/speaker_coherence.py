@@ -349,21 +349,72 @@ def check_not_collapsed_onto_one_speaker(
     interview-shaped episodes — and this rule cannot separate them, because the edges alone do not
     say whether the other speaker had anything quotable to say.
 
-    TREAT A HIT AS "look at this episode", not as "attribution is broken". The discriminator that
-    would settle it is a quote's char offset against the transcript's markers (the check above),
-    which needs the transcript this function is not given. Tightening it that way is worth doing
-    and is not done here.
+    NARROWED 2026-09-26 by the interview-shape exemption below, which removes most of the population
+    this rule could not separate. The full discriminator is still a quote's char offset against the
+    transcript's markers (the check above), which needs the transcript this function is not given.
     """
-    if len(roster_names(metadata)) < 2:
+    roster = _roster_entries(metadata)
+    if len([r for r in roster if r.get("name")]) < 2:
         return []
     targets = [
         e.get("to")
         for e in (gi.get("edges") or [])
         if isinstance(e, dict) and e.get("type") == "SPOKEN_BY"
     ]
-    if len(targets) >= min_quotes and len(set(targets)) == 1:
-        return [f"{label}all {len(targets)} attributed quotes -> {targets[0]}"]
-    return []
+    if not (len(targets) >= min_quotes and len(set(targets)) == 1):
+        return []
+
+    # THE INTERVIEW-SHAPE EXEMPTION. The false positive documented above is specific: every quote
+    # lands on the GUEST while a distinct HOST exists. That is what an interview looks like — the
+    # host asks questions, questions are not claims, and claims are what become quotes. On the
+    # measured example (Talk Eastern Europe, "Book Talk: Betrayal") 81 of 82 such quotes were
+    # CORRECTLY attributed. The sticky-attribution defect this rule exists to catch has the
+    # opposite shape: quotes pile onto whoever the marker-blind attribution latched onto first,
+    # which on a host-led show is the host. So exempt guest-only, keep reporting host-only.
+    #
+    # A narrowing, not a silencing: a genuinely broken episode whose quotes happen to land on the
+    # guest is still missed, exactly as before. It stops 22 interview-shaped prod episodes being
+    # counted as damage, which was inflating every "remaining violations" figure in the #2097 arc.
+    sole_target = next(iter(set(targets)))
+    role = _roster_role_for_target(sole_target, roster, gi)
+    if role == "guest" and any(str(r.get("role") or "").lower() == "host" for r in roster):
+        return []
+    return [f"{label}all {len(targets)} attributed quotes -> {targets[0]}"]
+
+
+def _roster_entries(metadata: Mapping[str, Any]) -> List[dict]:
+    """``content.speakers`` entries the roster actually PLACED — same filter as ``roster_names``.
+
+    ``content.speakers`` is a LIST of ``{id, name, role, placed, …}``, not a mapping with an
+    ``entries`` key; reading it as the latter is a mistake this codebase has already paid for.
+    """
+    speakers = (metadata.get("content") or {}).get("speakers") or []
+    return [
+        s
+        for s in speakers
+        if isinstance(s, dict) and s.get("name") and s.get("placed") is not False
+    ]
+
+
+def _roster_role_for_target(target_id: Any, roster: List[dict], gi: Mapping[str, Any]) -> str:
+    """The roster role of the Person a SPOKEN_BY edge points at, or ``""`` when unresolvable.
+
+    The edge carries a graph node id, and the roster keys on name, so this goes through the GI
+    Person node to get a name and then matches it with ``same_person`` (the roster may spell it
+    differently). Unresolvable returns empty, which keeps the caller REPORTING — an exemption must
+    never be granted on a lookup failure.
+    """
+    name = ""
+    for node in gi.get("nodes") or []:
+        if isinstance(node, dict) and node.get("id") == target_id:
+            name = str((node.get("properties") or {}).get("name") or "").strip()
+            break
+    if not name:
+        return ""
+    for entry in roster:
+        if same_person(name, str(entry.get("name") or "")):
+            return str(entry.get("role") or "").lower()
+    return ""
 
 
 def check_no_show_as_speaker(
