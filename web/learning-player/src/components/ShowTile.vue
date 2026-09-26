@@ -60,10 +60,22 @@ const art = (): string | null => showArtwork(props.show)
 </script>
 
 <template>
-  <RouterLink
-    :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
-    class="relative flex h-full flex-col no-underline text-canvas-foreground"
-  >
+  <!-- The Follow and Save controls are SIBLINGS of the link, not children of it (2026-09-26).
+
+       They used to sit inside the RouterLink, which put a <button> inside an <a> — interactive
+       content nested in interactive content, which HTML forbids. Chromium's accessibility mapping
+       then failed to compute a name for the heart, and `AccessibleNameAuditTests` reported
+       `[Discover] <NO NAME> ToggleButton Rect(267, 674 - 354, 761) near=[]` — a control TalkBack
+       announces as an unnamed toggle. The same `FavoriteButton` names itself correctly on a topic
+       card ("Save to favorites"), where nothing wraps it, which is what localised the bug here
+       rather than in the component.
+
+       FollowButton survived only because it carries VISIBLE text; the heart's name is an `sr-only`
+       span, and that is what the nesting dropped.
+
+       The link now covers the tile via `absolute inset-0` and the controls layer above it, so the
+       whole tile still navigates and the buttons still act without navigating. -->
+  <div class="relative flex h-full flex-col text-canvas-foreground">
     <img
       v-if="art()"
       :src="art()!"
@@ -84,13 +96,15 @@ const art = (): string | null => showArtwork(props.show)
          Save is not Follow — following surfaces new episodes in Your Week, saving puts the show in
          the Library. `PodcastView` already offers both; the tile offered only one.
 
-         `.prevent.stop` so acting does not also navigate: the whole tile is a link, and the point is
-         to act without leaving the page. FollowButton stops its own click; the heart's wrapper does
-         it for the heart.
+         Acting must not also navigate: the tile is a link, and the point is to act without leaving
+         the page. Both controls stop their own click — FollowButton internally, FavoriteButton in
+         `onGatedClick` — so no wrapper has to do it for them.
 
          The plate classes match EpisodeActions' `overlay`, so contrast never depends on whatever
          artwork happens to be underneath. -->
-    <div class="absolute right-1.5 top-1.5 flex flex-col items-end gap-1.5">
+    <!-- `z-10` keeps these above the stretched link below, so a tap on Follow or the heart reaches
+         the button instead of navigating. -->
+    <div class="absolute right-1.5 top-1.5 z-10 flex flex-col items-end gap-1.5">
       <FollowButton
         v-if="followable"
         variant="overlay"
@@ -99,9 +113,21 @@ const art = (): string | null => showArtwork(props.show)
         :gated="isGated"
         @toggle="toggleFollow"
       />
+      <!-- NO `@click` ON THIS WRAPPER (2026-09-26). It is a plate for the styling below, nothing
+           more.
+
+           With a click handler the span becomes an interactive node in its own right, and Chromium
+           collapses it with its single child: the reported node keeps the button's ToggleButton
+           role but takes the span's name, which is none. `AccessibleNameAuditTests` flagged exactly
+           that — `[Discover] <NO NAME> ToggleButton Rect(267, 674 - 354, 761) near=[]`, the empty
+           neighbours being this wrapper isolating the heart from the Follow pill beside it. The
+           same FavoriteButton announces "Save to favorites" on a topic card, where nothing wraps
+           it.
+
+           It was redundant anyway: `FavoriteButton.onGatedClick` already calls `preventDefault()`
+           and `stopPropagation()`, so the tile does not navigate when the heart is tapped. -->
       <span
         class="[&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg [&>button]:backdrop-blur-sm"
-        @click.prevent.stop
       >
         <FavoriteButton
           :item="{ kind: 'show', ref: show.feed_id, label: show.title ?? show.feed_id }"
@@ -124,5 +150,14 @@ const art = (): string | null => showArtwork(props.show)
     <div class="mt-1 flex-1 text-xs font-bold leading-tight">
       {{ show.title ?? show.feed_id }}
     </div>
-  </RouterLink>
+    <!-- Stretched link, LAST so it does not cover the controls above it in the stacking order.
+         It carries the show name as its accessible name, because it has no text of its own. -->
+    <RouterLink
+      :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
+      class="absolute inset-0 z-0 no-underline"
+      :aria-label="show.title ?? show.feed_id"
+    >
+      <span class="sr-only">{{ show.title ?? show.feed_id }}</span>
+    </RouterLink>
+  </div>
 </template>

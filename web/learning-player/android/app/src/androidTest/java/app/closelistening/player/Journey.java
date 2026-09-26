@@ -787,8 +787,18 @@ final class Journey {
      */
     static void shot(String name) {
         try {
-            java.io.File dir = new java.io.File("/sdcard/lp-shots");
-            if (!dir.exists()) dir.mkdirs();
+            // The APP'S external files dir, not /sdcard directly: scoped storage refuses the
+            // latter, and `mkdirs()` reports that by returning false rather than throwing — so the
+            // first version failed with ENOENT inside UiDevice and produced no screenshot at all.
+            // Pull with:
+            //   adb pull /sdcard/Android/data/app.closelistening.player/files/lp-shots/<name>.png
+            java.io.File base = InstrumentationRegistry.getInstrumentation()
+                    .getTargetContext().getExternalFilesDir(null);
+            java.io.File dir = new java.io.File(base, "lp-shots");
+            if (!dir.exists() && !dir.mkdirs()) {
+                System.out.println("=====SHOT could not create " + dir.getAbsolutePath() + "=====");
+                return;
+            }
             java.io.File out = new java.io.File(dir, name + ".png");
             boolean ok = device().takeScreenshot(out);
             System.out.println("=====SHOT " + (ok ? "saved " : "FAILED ") + out.getAbsolutePath()

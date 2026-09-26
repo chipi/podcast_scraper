@@ -148,7 +148,17 @@ public class AccessibleNameAuditTests extends UITestCase {
                 continue;
             }
             Journey.sleep(3_000);
-            for (String bad : unusableOn(tab)) findings.add("[" + tab + "] " + bad);
+            List<String> badOnTab = unusableOn(tab);
+            for (String bad : badOnTab) findings.add("[" + tab + "] " + bad);
+            // PHOTOGRAPH THE SCREEN THAT PRODUCED THE FINDING (2026-09-26).
+            //
+            // A rect alone cannot identify a control, and matching one against a screenshot taken
+            // later is guesswork — the surface does not have to be at the same scroll position when
+            // you go back to look. I did exactly that on the Discover finding and "confirmed" the
+            // wrong control by eye, then changed two components on the strength of it. `near` was
+            // telling me otherwise the whole time: it was EMPTY, and the control I had picked sits
+            // beside a clearly-named one.
+            if (!badOnTab.isEmpty()) Journey.shot("audit-" + tab);
         }
 
         // The player is where the most icon-only controls live, and where all three defects above
