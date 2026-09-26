@@ -529,6 +529,13 @@ onMounted(() => {
           >
             <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
           </svg>
+          <!-- `aria-label` over a lone `aria-hidden` svg is DROPPED by Android System WebView, so
+               this announces as an unnamed "Button" and a TalkBack user cannot tell the two view
+               modes apart. No test reaches this control — found by the repo-wide scan behind
+               `__checks__/accessible-names.test.ts` (2026-09-26). Text matches `aria-label`
+               exactly: Android reads `getText()` before `getContentDescription()`, so a different
+               string here would shadow the label. -->
+          <span class="sr-only">{{ t('list.viewList') }}</span>
         </button>
         <button
           type="button"
@@ -554,6 +561,9 @@ onMounted(() => {
           >
             <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
           </svg>
+          <!-- Same as its sibling above: without a text node this is an unnamed "Button" to
+               TalkBack. -->
+          <span class="sr-only">{{ t('list.viewGrid') }}</span>
         </button>
       </div>
     </div>

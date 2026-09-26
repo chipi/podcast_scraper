@@ -56,31 +56,33 @@ public class StackDepthProbeTests extends UITestCase {
         // Expand "Topics & People" accordion — tap only when the topic controls are not
         // already reachable, to avoid collapsing a section a previous test left open.
         List<String> topicNames = Arrays.asList("Open systems thinking", "Open risk management");
+        // THE SAME SEQUENCE AS `AppJourneyTests.test11`, deliberately, because that one passes and
+        // four variations of my own did not (2026-09-26). Three things in it are load-bearing and
+        // none is obvious:
+        //   1. SCROLL to the section before tapping. Android's tree holds only ON-SCREEN nodes, so
+        //      a section below the fold is ABSENT and `tap` has nothing to aim at.
+        //   2. RE-TAP once if the topics do not appear. The decision to tap is made from `find`,
+        //      which is on-screen-only — so an already-EXPANDED section that is merely scrolled
+        //      past reads as collapsed, the tap closes it, and the re-tap reopens it.
+        //   3. A LONG final wait. The accordion's contents render lazily; `scrollTo`'s internal
+        //      probes are ~1.5s and give up too early, which is what my version got wrong. This is
+        //      the whole difference between the two tests.
         if (Journey.find(topicNames, true, 4_000) == null) {
-            // SCROLL to the section first — the same Android/iOS difference `AppJourneyTests.test11`
-            // documents. Android's accessibility tree holds only ON-SCREEN nodes, so with the panel
-            // at the top "Topics & People" is not merely out of reach, it is ABSENT, and `tap` has
-            // nothing to aim at. Measured 2026-09-26: the panel dump ended inside the key-points
-            // list, well above the section.
-            Journey.scrollTo("Topics & People", true);
+            if (Journey.scrollTo("Topics & People", true) == null) {
+                fail("the Topics & People section is not in the insights panel at all. On screen: "
+                        + Journey.labelledInventory(80));
+            }
             Journey.tap("Topics & People", true, 12_000);
             Journey.sleep(3_000);
+            if (Journey.find(topicNames, true, 6_000) == null) {
+                Journey.tap("Topics & People", true, 10_000);
+                Journey.sleep(3_000);
+            }
         }
-        // SCROLL AGAIN after expanding, and RE-TAP once if that finds nothing.
-        //
-        // Two compounding Android-only traps here, both measured 2026-09-26:
-        //   1. `find` only sees ON-SCREEN nodes, and the accordion's contents open BELOW its
-        //      header — so the section being visible is not the same as its topics being visible.
-        //   2. Because of (1), the decision to tap is made on incomplete information: with the
-        //      section already EXPANDED but scrolled past, `find` returns null and the tap
-        //      COLLAPSES it, removing exactly what we came for. The re-tap re-expands.
-        // `AppJourneyTests.test11` carries the same retry for the same reason.
-        if (Journey.scrollTo(topicNames, true, 20) == null) {
-            Journey.tap("Topics & People", true, 10_000);
-            Journey.sleep(3_000);
-            if (Journey.scrollTo(topicNames, true, 20) == null) {
-                fail("no topic control in the insights panel, after expanding and scrolling twice. "
-                        + "On screen: " + Journey.labelledInventory(80));
+        {
+            if (Journey.find(topicNames, true, 20_000) == null) {
+                fail("no topic control in the insights panel. On screen: "
+                        + Journey.labelledInventory(80));
             }
         }
 

@@ -375,6 +375,12 @@ onMounted(load)
       >
         <svg v-if="paused" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
         <svg v-else viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+        <!-- `aria-label` over a lone `aria-hidden` svg is DROPPED by Android System WebView, so
+             this pause/resume control announces as an unnamed "Button" — and a screen-reader user
+             has no way to know whether resurfacing is paused, which is the one thing it says. No
+             test reaches it; found by the repo-wide scan (2026-09-26). Text matches `aria-label`
+             exactly, including the paused/resumed swap. -->
+        <span class="sr-only">{{ paused ? t('revisit.resume') : t('revisit.pause') }}</span>
       </button>
     </div>
 

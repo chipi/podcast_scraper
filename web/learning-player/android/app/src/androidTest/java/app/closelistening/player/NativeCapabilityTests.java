@@ -81,95 +81,49 @@ public class NativeCapabilityTests extends UITestCase {
         assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
                 + Journey.labelledInventory(80), ready);
 
-        // Dictation is OFF by default and lives behind a Settings opt-in, so the mic cannot
-        // appear until that switch is on — itself worth asserting, since a mic that showed up
-        // unbidden would be a privacy surprise.
-        boolean settingsOpen = Journey.openSettings(profileLabels());
-        if (!settingsOpen) {
-            fail("could not reach Settings. On screen: " + Journey.labelledInventory(80));
-        }
-        // settings.voiceInput = 'Voice input for notes'
-        Journey.scrollTo("Voice input for notes", false);
+        // OBSERVE THE MIC; NEVER READ THE CHECKBOX (2026-09-26).
+        //
+        // The Settings switch reports `checkable=false checked=false` through the Chromium bridge
+        // whatever its real state, so `isChecked()` can only ever say "false". The previous version
+        // therefore clicked it UNCONDITIONALLY — which is correct only when the opt-in happens to
+        // start OFF. When it started ON, the click turned dictation OFF and the test then failed on
+        // the mic it had just removed, reporting "no dictation control ... after enabling Voice
+        // input" about a switch it had disabled itself.
+        //
+        // Reproduced deterministically: with voice input left ON and no `pm clear`, this test failed
+        // first try, every time. It also self-poisons — the old `finally` clicked blind to "restore",
+        // so ON -> OFF -> ON left the flag set for the next run, which then failed the same way.
+        //
+        // The mic IS readable, so it is the signal. Same discipline as `Journey.setOfflineMode`:
+        // look at what the APP does, one interaction at a time, instead of trusting a node attribute
+        // that is pinned. Checking first also makes the already-ON case free — no click, nothing to
+        // restore — and it can never turn dictation off.
+        //
+        // This is NOT the retry that was removed on 2026-09-26. That one re-read the unreadable
+        // checkbox and clicked again in Settings, so a landed first click was undone by the second.
+        // Here the decision to click comes from the mic, and there is exactly one click.
+        UiObject2 mic = openComposerAndFindMic();
+        boolean weEnabledIt = false;
 
-        UiObject2 voiceRow = Journey.find("Voice input for notes", false, 8_000);
-        if (voiceRow == null) {
-            fail("no 'Voice input for notes' control in Settings. On screen: "
-                    + Journey.labelledInventory(80));
-        }
-        UiObject2 toggle = nearestCheckable(voiceRow);
-        if (toggle == null) {
-            fail("no toggle for Voice input for notes. On screen: "
-                    + Journey.labelledInventory(80));
-        }
-
-        // Read the current state (isChecked is reliable for a native Switch/CheckBox but not for
-        // web checkboxes; this IS a native Android Switch rendered by Capacitor Preferences). If
-        // the Chromium bridge exposes this like it does the Offline Mode checkbox (checkable=false
-        // pinned) fall back to treating it as unknown and attempting to enable.
-        boolean wasChecked = false;
-        try { wasChecked = Boolean.TRUE.equals(toggle.isChecked()); } catch (Throwable ignored) {}
-
-        if (!wasChecked) {
-            try { toggle.click(); } catch (Throwable t) {
-                fail("could not click Voice input toggle: " + t);
-            }
-            Journey.sleep(2_000);
-        }
-
-        // On leaving Settings we restore the toggle — same as the iOS `defer` block.
-        final boolean toggleWasOn = wasChecked;
         try {
-            // A PERSON card, not a topic one. Both carry a note composer, but the topic card
-            // ends with a long annotated episode list, so notes sit far below the fold — the iOS
-            // comment noted sixteen swipes still landed mid-list (2026-09-16). The person card is
-            // short enough that notes are reachable, making this a test of dictation, not scrolling.
-            assertTrue("Home tab did not open", Journey.openTab("Home"));
-            Journey.sleep(4_000);
-
-            // People rail on Home — any person row that carries momentum but no episode count.
-            // On Android there is no `.buttons.allElementsBoundByIndex`, so scan for buttons
-            // whose contentDescription contains "momentum" and does NOT contain "(".
-            UiObject2 personRow = findPersonRow();
-            if (personRow != null) {
-                try { personRow.click(); } catch (Throwable t) {
-                    // Click failed — fall back to a topic row instead.
-                    personRow = null;
-                }
-                Journey.sleep(5_000);
+            if (mic == null) {
+                clickVoiceInputToggleOnce();
+                weEnabledIt = true;
+                mic = openComposerAndFindMic();
             }
 
-            if (personRow == null) {
-                // People rail depends on trending state. Any entity card carries a note
-                // composer, so fall back to a topic.
-                Journey.tap("Topics", false, 10_000);
-                Journey.sleep(2_000);
-                boolean topicTapped = Journey.tap(
-                        Arrays.asList("systems thinking", "risk management"), true, 12_000);
-                if (!topicTapped) {
-                    fail("neither a person nor a topic was reachable for the note composer. "
-                            + "On screen: " + Journey.labelledInventory(80));
-                }
-                Journey.sleep(5_000);
+            // The assertion lives INSIDE the try so the restore below still runs when it fires.
+            // Outside it, a failure skipped the restore and left the opt-in ON for the next run —
+            // reintroducing, in a new place, the poisoning this rewrite removed (2026-09-26).
+            if (mic == null) {
+                // A screenshot, because the node's absence cannot tell us WHY. If the mic is drawn
+                // in this picture the control is unreadable to UI Automator; if it is not, the
+                // opt-in did not take. Two different bugs, one identical failure message.
+                Journey.shot("n1-fail-no-mic");
             }
-
-            // "Your notes" — the textarea's aria-label (notes.title). Matching the placeholder
-            // 'Add a note…' found nothing because aria-label wins over placeholder (same on iOS).
-            // Notes are the LAST section of a long card, so allow many swipes.
-            UiObject2 composer = Journey.scrollTo("Your notes", false);
-            if (composer == null) {
-                fail("no note composer ('Your notes' aria-label). On screen: "
-                        + Journey.labelledInventory(80));
-            }
-            try { composer.click(); } catch (Throwable t) {
-                // Click attempt; continue regardless.
-            }
-            Journey.sleep(2_000);
-
-            // notes.dictate = 'Dictate a note'
-            UiObject2 mic = Journey.find("Dictate a note", true, 8_000);
             assertNotNull(
-                    "no dictation control on the note field after enabling Voice input. "
-                            + "On screen: " + Journey.labelledInventory(80),
+                    "no dictation control on the note field after enabling Voice input. On screen: "
+                            + Journey.labelledInventory(80),
                     mic);
 
             // Opt-in to actually tapping the mic — same threshold as iOS LP_TAP_MIC.
@@ -199,21 +153,127 @@ public class NativeCapabilityTests extends UITestCase {
                         + "(pass -e lp.tap.mic 1 to try)=====");
             }
         } finally {
-            // Restore the toggle to the state it was in before this test ran.
-            if (!toggleWasOn) {
-                Journey.openSettings(profileLabels());
-                Journey.scrollTo("Voice input for notes", false);
-                UiObject2 restoreRow = Journey.find("Voice input for notes", false, 8_000);
-                if (restoreRow != null) {
-                    UiObject2 restoreToggle = nearestCheckable(restoreRow);
-                    if (restoreToggle != null) {
-                        try { restoreToggle.click(); } catch (Throwable ignored) {}
-                        Journey.sleep(1_500);
-                    }
-                }
+            // Restore ONLY what this test changed. If dictation was already on when we arrived we
+            // never clicked, so there is nothing to put back — and clicking anyway is precisely the
+            // blind "restore" that used to leave the flag set for the following run.
+            if (weEnabledIt) {
+                clickVoiceInputToggleOnce();
                 Journey.openTab("Home");
             }
         }
+    }
+
+    /**
+     * Open a note composer and return its dictation mic, or {@code null} when the mic is absent.
+     *
+     * Absence is a legitimate answer here — it is how the caller learns the Voice input opt-in is
+     * off — so this only fails hard when the COMPOSER itself is unreachable, which would mean the
+     * navigation broke rather than the setting being off.
+     */
+    private UiObject2 openComposerAndFindMic() {
+        // A PERSON card, not a topic one. Both carry a note composer, but the topic card ends with
+        // a long annotated episode list, so notes sit far below the fold — the iOS comment noted
+        // sixteen swipes still landed mid-list (2026-09-16). The person card is short enough that
+        // notes are reachable, making this a test of dictation, not of scrolling.
+        assertTrue("Home tab did not open", Journey.openTab("Home"));
+        Journey.sleep(4_000);
+
+        // People rail on Home — any person row that carries momentum but no episode count. On
+        // Android there is no `.buttons.allElementsBoundByIndex`, so scan for buttons whose
+        // contentDescription contains "momentum" and does NOT contain "(".
+        UiObject2 personRow = findPersonRow();
+        if (personRow != null) {
+            try { personRow.click(); } catch (Throwable t) {
+                // Click failed — fall back to a topic row instead.
+                personRow = null;
+            }
+            Journey.sleep(5_000);
+        }
+
+        if (personRow == null) {
+            // People rail depends on trending state. Any entity card carries a note composer, so
+            // fall back to a topic.
+            Journey.tap("Topics", false, 10_000);
+            Journey.sleep(2_000);
+            boolean topicTapped = Journey.tap(
+                    Arrays.asList("systems thinking", "risk management"), true, 12_000);
+            if (!topicTapped) {
+                fail("neither a person nor a topic was reachable for the note composer. "
+                        + "On screen: " + Journey.labelledInventory(80));
+            }
+            Journey.sleep(5_000);
+        }
+
+        // "Your notes" — the textarea's aria-label (notes.title). Matching the placeholder
+        // 'Add a note…' found nothing because aria-label wins over placeholder (same on iOS).
+        // Notes are the LAST section of a long card, so allow many swipes.
+        UiObject2 composer = Journey.scrollTo("Your notes", false);
+        if (composer == null) {
+            fail("no note composer ('Your notes' aria-label). On screen: "
+                    + Journey.labelledInventory(80));
+        }
+        // DO NOT CLICK THE TEXTAREA (2026-09-26). Clicking focuses it, which opens the soft
+        // keyboard, and the keyboard covers the row of buttons DIRECTLY BENEATH the field — the
+        // mic and Add. Android's accessibility tree holds only ON-SCREEN nodes, so the mic drops
+        // out of the tree at exactly the moment it is drawn, and the test reports "no dictation
+        // control" about a control that is right there.
+        //
+        // That is why this failed intermittently (keyboard timing), only in-suite (1 pass / 2 fail
+        // vs 4 / 0 solo), only on Android (the iOS simulator uses a hardware keyboard, so its twin
+        // never sees one), and why the failing dumps showed the note field with NO buttons after
+        // it — not the mic, and not the always-rendered Add button either.
+        //
+        // The click was never needed: this asserts the affordance EXISTS, it does not type.
+        //
+        // Scroll once more instead, so the button row is fully on screen before we look.
+        Journey.swipeUp();
+        Journey.sleep(1_500);
+
+        // notes.dictate = 'Dictate a note'
+        return Journey.find("Dictate a note", true, 8_000);
+    }
+
+    /**
+     * Flip the "Voice input for notes" switch EXACTLY ONCE.
+     *
+     * No read-back, because there is none to be had: the bridge pins `checkable`/`checked` to false.
+     * The caller decides whether a click is warranted by looking at the mic, and never calls this
+     * twice in a row on the strength of the node's own state.
+     */
+    private void clickVoiceInputToggleOnce() {
+        boolean settingsOpen = Journey.openSettings(profileLabels());
+        if (!settingsOpen) {
+            fail("could not reach Settings. On screen: " + Journey.labelledInventory(80));
+        }
+        // settings.voiceInput = 'Voice input for notes'
+        Journey.scrollTo("Voice input for notes", false);
+
+        UiObject2 voiceRow = Journey.find("Voice input for notes", false, 8_000);
+        if (voiceRow == null) {
+            fail("no 'Voice input for notes' control in Settings. On screen: "
+                    + Journey.labelledInventory(80));
+        }
+        UiObject2 toggle = nearestCheckable(voiceRow);
+        if (toggle == null) {
+            fail("no toggle for Voice input for notes. On screen: "
+                    + Journey.labelledInventory(80));
+        }
+
+        // Log the identity and geometry of what is being clicked against the row it belongs to.
+        // Measured across six runs: the toggle sits a constant 63px below the row's title span, so
+        // `nearestCheckable` does resolve the right control — the bug was never which node it found.
+        android.util.Log.i("VOICE_TOGGLE", "checkable=" + Journey.attr(toggle, UiObject2::isCheckable)
+                + " class=" + Journey.attr(toggle, UiObject2::getClassName)
+                + " toggleBounds=" + Journey.attr(toggle, UiObject2::getVisibleBounds)
+                + " rowBounds=" + Journey.attr(voiceRow, UiObject2::getVisibleBounds)
+                + " rowClass=" + Journey.attr(voiceRow, UiObject2::getClassName));
+
+        try {
+            toggle.click();
+        } catch (Throwable t) {
+            fail("could not click Voice input toggle: " + t);
+        }
+        Journey.sleep(2_000);
     }
 
     // ------------------------------------------------------------------ N2 native share sheet

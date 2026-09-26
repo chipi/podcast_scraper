@@ -772,4 +772,29 @@ final class Journey {
             Thread.currentThread().interrupt();
         }
     }
+
+    /**
+     * Save a screenshot to {@code /sdcard/lp-shots/<name>.png}.
+     *
+     * The iOS suite has had {@code Journey.shot} from the start; Android never did, and the gap
+     * cost real time on 2026-09-26. An assertion reading "no dictation control" reports THE ABSENCE
+     * OF AN ACCESSIBILITY NODE, which cannot distinguish "the control is not rendered" from "the
+     * control is drawn but unreadable" — and on Android, where the tree holds only on-screen nodes
+     * and drops labels whose subtree has no text, that difference IS the diagnosis. A picture
+     * separates the two in one glance; an inventory dump never can.
+     *
+     * Best-effort: failing to write a screenshot must never mask the assertion that asked for it.
+     */
+    static void shot(String name) {
+        try {
+            java.io.File dir = new java.io.File("/sdcard/lp-shots");
+            if (!dir.exists()) dir.mkdirs();
+            java.io.File out = new java.io.File(dir, name + ".png");
+            boolean ok = device().takeScreenshot(out);
+            System.out.println("=====SHOT " + (ok ? "saved " : "FAILED ") + out.getAbsolutePath()
+                    + "=====");
+        } catch (Throwable t) {
+            System.out.println("=====SHOT threw " + t + "=====");
+        }
+    }
 }
