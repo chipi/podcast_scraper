@@ -116,8 +116,19 @@ public class NativeOnlySurfacesTests extends UITestCase {
                 + Journey.labelledInventory(30), queued);
 
         // Then the queue itself, from the masthead.
+        //
+        // TO THE TOP FIRST. Queueing above scrolled Home down, and the masthead scrolls with the
+        // page — on Android an off-screen node is not merely unreachable, it is ABSENT from the
+        // accessibility tree, so `tap` has nothing to find and the failure reads as "the control is
+        // not there". Measured 2026-09-26: the dump here showed Your Week, Trends and the
+        // time-range chips — the middle of Home, with the masthead well above it.
+        for (int i = 0; i < 12; i++) Journey.swipeDown();
+        Journey.sleep(1_000);
+        // CONTAINS, because the badge joins the name as soon as anything is queued ("Queue (1)") —
+        // which is the state this test has just created. Exact "Queue" only matches an EMPTY queue,
+        // so it could never match here. The iOS twin hit precisely this and was fixed the same way.
         assertTrue("the masthead queue control was not reachable. On screen: "
-                + Journey.labelledInventory(80), Journey.tap("Queue", false, 15_000));
+                + Journey.labelledInventory(80), Journey.tap("Queue", true, 15_000));
 
         // The claim: the download control is in the ROW, reachable without opening the ⋯.
         assertNotNull(
