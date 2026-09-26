@@ -2312,6 +2312,24 @@ test-android:
 	}
 	@echo ""; echo "=== test-android START $$(date '+%Y-%m-%d %H:%M:%S') — avd '$(ANDROID_AVD)' ==="
 	@$(MAKE) android-emulator-up
+	@# DISABLE THE CACHED-APP FREEZER (2026-09-26). Sign-in opens the OAuth consent page in a
+	@# Capacitor `BrowserControllerActivity` — a Chrome Custom Tab, hosted by com.android.chrome.
+	@# Android's freezer suspends that process mid-flow, so the consent page never finishes, no
+	@# redirect comes back, and sign-in hangs until the test gives up. MEASURED in the 2026-09-26
+	@# tier run, where it took out `NativeOnlySurfacesTests`:
+	@#     20:23:35  BrowserControllerActivity OPENS
+	@#     20:23:45  ActivityManager: freezing com.android.chrome
+	@#     20:24:42  AssertionError: sign-in did not complete as simtest
+	@#     20:24:44  sync unfroze com.android.chrome          <- one second too late
+	@# That is the "Capacitor browser left in front of the app" flake the handovers had recorded
+	@# twice without a cause. It is intermittent because it depends on whether the freezer happens
+	@# to pick that process.
+	@#
+	@# Pinning the environment rather than adding retry logic: the tier runs on one declared AVD, so
+	@# it may depend on how that image behaves. Both knobs are set because which one governs varies
+	@# by API level; neither survives an emulator wipe, so this belongs here and not in a setup doc.
+	@$(ADB) shell settings put global cached_apps_freezer disabled >/dev/null 2>&1 || true
+	@$(ADB) shell device_config put activity_manager_native_boot use_freezer false >/dev/null 2>&1 || true
 	@$(MAKE) ios-origin-up
 	@# `adb reverse` rather than the emulator's 10.0.2.2 alias, so the Android build's API base is
 	@# BYTE-IDENTICAL to the iOS one and the two tiers cannot drift apart on configuration.
