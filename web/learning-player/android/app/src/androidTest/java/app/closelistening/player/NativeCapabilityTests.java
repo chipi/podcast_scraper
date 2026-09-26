@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * The Capacitor-only capabilities (#2139, porting the iOS suite of the same name).
@@ -47,14 +48,23 @@ import java.util.Arrays;
  *   without asserting).
  *
  * - **N4 (avatar upload):** iOS drives a PHPicker (out-of-process) via Springboard. Android opens
- *   a stock file chooser (Intent.ACTION_GET_CONTENT) or the Android photo picker, also
- *   out-of-process. The test is OMITTED: the file-chooser package and activity names vary
- *   significantly across Android versions and OEM skins, and there is no package-agnostic anchor
- *   equivalent to iOS's "Photo, <date>" cell label — a working version would encode emulator
- *   internals and break on a real device. The iOS comment already notes that `app.images` reaches
- *   into the wrong process tree; the Android version of that problem has no clean workaround, and
- *   a test that passes vacuously on the emulator by picking app chrome is worse than no test.
- *   The crop modal (AvatarCropModal.vue) and the upload path are covered by the unit suite.
+ *   the system photo picker or a file chooser, also out-of-process. WRITTEN 2026-09-26, reversing
+ *   an earlier decision to omit it (operator).
+ *
+ *   The omission argued that chooser package and activity names vary across Android versions and
+ *   OEM skins, so any working version would encode emulator internals. That is a reason to PIN the
+ *   environment, not to leave the app's only native upload path unverified: this tier runs on one
+ *   AVD, declared as `ANDROID_AVD ?= Pixel_8`, exactly so a test can depend on what that image
+ *   does. Same principle as the iOS tier depending on `IOS_SIM ?= iPhone 17`.
+ *
+ *   The stronger half of the old argument — "a test that passes vacuously by picking app chrome is
+ *   worse than no test" — is answered by WHAT IS ASSERTED rather than by how the cell is found:
+ *   the crop step must open, and its title only appears once a real image has reached the app. Tap
+ *   the wrong node and this FAILS. It cannot pass vacuously.
+ *
+ *   Units cover the crop modal and the upload path. What no unit can cover, and what this exists
+ *   for, is the leg between them: a web `<input type=file>` in Android System WebView handing a
+ *   file across a process boundary into the app.
  *
  * PRECONDITIONS: app installed, signed in via dev picker, fixture api reachable.
  */
@@ -427,7 +437,198 @@ public class NativeCapabilityTests extends UITestCase {
                 Journey.PKG.equals(pkg));
     }
 
+    // ------------------------------------------------------------------ N4 avatar upload + crop
+
+    /**
+     * Picking a photo for the avatar reaches the app's crop step and saves without error.
+     *
+     * PORTED FROM iOS 2026-09-26 — the Android suite had N1–N3 and iOS had N1–N4, so avatar
+     * upload was the one native capability verified on only one platform. It is worth having on
+     * both: the picker plumbing is entirely different (a web `<input type=file>` in Android System
+     * WebView opens the system photo picker or a chooser, in ANOTHER PACKAGE), while the crop
+     * modal and upload path that follow are shared web code.
+     *
+     * ANDROID DIFFERENCES from the iOS twin:
+     *  - The picker is out of process, so it is queried WITHOUT a package filter — the same
+     *    approach `testN2` uses for the share sheet and `grantSystemPrompt` for permissions.
+     *  - The emulator starts with an EMPTY photo library, so this seeds one image into MediaStore
+     *    first. iOS relies on `xcrun simctl addmedia`; doing it in-test keeps the Android tier
+     *    self-sufficient rather than adding a precondition to the Makefile.
+     *  - No `springboard` equivalent is needed; `UiDevice` already sees every window.
+     *
+     * What it asserts: the crop modal OPENS (proof the picked file reached the app at all) and,
+     * after confirming, that the modal is gone and no upload error is shown. A silent failure that
+     * kept the old picture would otherwise look identical to success.
+     */
+    @Test
+    public void testN4AvatarUploadAndCrop() {
+        boolean ready = startClean();
+        assertTrue("sign-in did not complete as " + accountIdentity() + ". On screen: "
+                + Journey.labelledInventory(80), ready);
+
+        String seeded = seedPhotoIntoMediaStore();
+        System.out.println("=====AVATAR seeded=" + seeded + "=====");
+
+        assertTrue("could not open Profile. On screen: " + Journey.labelledInventory(80),
+                Journey.openProfile(profileLabels()));
+        Journey.sleep(3_000);
+
+        // profile.changePhoto = 'Change photo'
+        UiObject2 trigger = Journey.scrollTo("Change photo", true);
+        if (trigger == null) {
+            Journey.shot("n4-a-no-trigger");
+            fail("no 'Change photo' control on the profile. On screen: "
+                    + Journey.labelledInventory(80));
+        }
+        if (!Journey.tap("Change photo", true, 12_000)) {
+            Journey.shot("n4-a-trigger-untappable");
+            fail("'Change photo' was present but not tappable. On screen: "
+                    + Journey.labelledInventory(80));
+        }
+        Journey.sleep(5_000);
+        Journey.shot("n4-b-picker");
+
+        // The picker is another package. Record what actually came up before touching it — when
+        // this breaks, "which chooser appeared" is the first thing anyone needs.
+        String pickerPkg = String.valueOf(Journey.device().getCurrentPackageName());
+        System.out.println("=====AVATAR_PICKER pkg=" + pickerPkg + "=====");
+
+        // Some devices show a source chooser first (Photos / Files / Camera). Take a gallery source
+        // when offered; when the picker opens directly this finds nothing and we carry on.
+        for (String source : Arrays.asList("Photos", "Gallery", "Files", "Photo picker")) {
+            UiObject2 src = Journey.device().wait(Until.findObject(By.text(source)), 2_000);
+            if (src != null) {
+                System.out.println("=====AVATAR_SOURCE " + source + "=====");
+                try { src.click(); } catch (Throwable ignored) { }
+                Journey.sleep(3_000);
+                break;
+            }
+        }
+
+        boolean picked = pickFirstPhoto();
+        if (!picked) {
+            Journey.shot("n4-b2-picker-miss");
+            fail("no photo was selectable in the picker (package " + pickerPkg + "). A photo was "
+                    + "seeded into MediaStore as " + seeded + ", so either the seed did not land "
+                    + "or the picker's cells are not addressable. On screen: "
+                    + Journey.labelledInventory(80));
+        }
+        Journey.sleep(6_000);
+
+        // profile.avatarCropTitle = 'Position your photo' — the tell that the file reached the app.
+        UiObject2 crop = Journey.find("Position your photo", true, 15_000);
+        if (crop == null) {
+            Journey.shot("n4-c-no-crop-modal");
+            fail("the crop step did not open after picking a photo. On screen: "
+                    + Journey.labelledInventory(80));
+        }
+        Journey.shot("n4-c-crop-modal");
+
+        // profile.avatarCropConfirm = 'Save photo'
+        if (!Journey.tap("Save photo", true, 10_000)) {
+            Journey.shot("n4-c2-no-confirm");
+            fail("no confirm control on the crop step. On screen: "
+                    + Journey.labelledInventory(80));
+        }
+        Journey.sleep(6_000);
+        Journey.shot("n4-d-after-save");
+
+        assertNull("the crop step is still open after confirming. On screen: "
+                        + Journey.labelledInventory(80),
+                Journey.find("Position your photo", true, 3_000));
+        // profile.avatarUploadFailed = "Couldn't upload that image. …" — matched on a fragment so a
+        // curly apostrophe in the copy cannot make this assertion quietly stop matching.
+        assertNull("the avatar upload reported a failure. On screen: "
+                        + Journey.labelledInventory(80),
+                Journey.find("upload that image", true, 3_000));
+    }
+
     // ------------------------------------------------------------------ helpers
+
+    /**
+     * Put one small PNG into MediaStore so the photo picker has something to offer.
+     *
+     * The emulator's library is empty on a fresh AVD, and a picker with no photos fails this test
+     * for a reason that has nothing to do with the app. Returns the display name used, so a
+     * failure message can say what should have been there.
+     */
+    private String seedPhotoIntoMediaStore() {
+        String name = "lp-uitest-avatar.png";
+        try {
+            android.content.Context ctx = androidx.test.platform.app.InstrumentationRegistry
+                    .getInstrumentation().getTargetContext();
+            android.content.ContentResolver cr = ctx.getContentResolver();
+
+            android.content.ContentValues v = new android.content.ContentValues();
+            v.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name);
+            v.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png");
+            v.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures");
+
+            android.net.Uri uri = cr.insert(
+                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
+            if (uri == null) return "<insert returned null>";
+
+            android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                    256, 256, android.graphics.Bitmap.Config.ARGB_8888);
+            bmp.eraseColor(android.graphics.Color.rgb(0xF2, 0x8C, 0x28));
+            try (java.io.OutputStream os = cr.openOutputStream(uri)) {
+                bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, os);
+            }
+            return name;
+        } catch (Throwable t) {
+            return "<seed failed: " + t + ">";
+        }
+    }
+
+    /**
+     * Tap the first real photo in the picker, whatever package owns it.
+     *
+     * Cells are addressed by content-description because the picker labels them (e.g. "Photo taken
+     * on …"); a blind "tap the first image" also matches chrome, and a non-photo then fails to load
+     * in the crop step, surfacing as the app's own "Couldn't upload that image" — an app error
+     * caused entirely by the test picking the wrong thing. That exact trap is recorded in the iOS
+     * twin (2026-09-16), so it is avoided here rather than rediscovered.
+     */
+    private boolean pickFirstPhoto() {
+        // "Photo taken on <date>" is what com.google.android.photopicker labels its cells —
+        // MEASURED on the pinned Pixel_8 AVD (API 36) by opening ACTION_GET_CONTENT and dumping
+        // the tree, not guessed:
+        //     content-desc="Photo taken on Sep 26, 2026 1:12 PM"
+        // It is the direct analogue of the iOS picker's "Photo, <date>", and it names a REAL photo
+        // rather than chrome, which is the whole point — the earlier decision to skip this test
+        // assumed no such anchor existed on Android. Fallbacks follow for a chooser that is not the
+        // photo picker; the crop-step assertion catches a wrong pick either way.
+        List<BySelector> candidates = Arrays.asList(
+                By.descContains("Photo taken on"),
+                By.descContains("Photo"),
+                By.descContains("Image"),
+                By.clazz("android.widget.ImageView").clickable(true));
+        for (BySelector sel : candidates) {
+            UiObject2 cell = Journey.device().wait(Until.findObject(sel), 4_000);
+            if (cell == null) continue;
+            String desc = String.valueOf(Journey.attr(cell, UiObject2::getContentDescription));
+            android.graphics.Rect b = Journey.attr(cell, UiObject2::getVisibleBounds);
+            System.out.println("=====AVATAR_PICK desc=" + desc + " bounds=" + b + "=====");
+            try {
+                cell.click();
+            } catch (Throwable t) {
+                continue;
+            }
+            Journey.sleep(2_000);
+            // The modern photo picker SELECTS on tap and waits for confirmation rather than
+            // dismissing itself — the same behaviour that stalled the iOS version.
+            for (String confirm : Arrays.asList("Add", "Done", "Choose", "Select")) {
+                UiObject2 ok = Journey.device().wait(Until.findObject(By.text(confirm)), 2_000);
+                if (ok != null) {
+                    System.out.println("=====AVATAR_CONFIRM " + confirm + "=====");
+                    try { ok.click(); } catch (Throwable ignored) { }
+                    break;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 
     /**
      * Grant a system permission prompt if one is present.

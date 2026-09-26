@@ -1,149 +1,115 @@
-# Android device tier — handover, 2026-09-26
+# Device tiers (iOS + Android) — handover, 2026-09-26
 
 Branch `fix/ui-followups-2026-09-18`. Supersedes `ANDROID-TIER-HANDOVER-2026-09-25.md`.
 
-**iOS is green: `make test-ios` → 27 passed, 0 failed, `TEST_IOS_EXIT=0`.**
-**Android: 10 of 12 suites green. Two open, both diagnosed.**
+**Living document — being updated as the session runs. Status lines are timestamped.**
 
-## Read this first
+## Status
 
-Every claim below is followed by the measurement behind it. Where something is unverified it
-says so. The dominant lesson of this session, on both platforms: **a failure message names a
-symptom, not a cause, and nearly every one of them was wrong about why.**
-
-- "the seed coloured too few items" → the seed worked; the filter buttons had no accessible name
-- "no storyline row was tappable" → the rail was rendering; `By.desc` cannot see WebView content
-- "Home tab did not open" → a topic card was covering the tab bar
-- "interests card still shows its empty state" → the test had switched its own interests off
-- "no dictation control" → the mic is not rendered at all; `voiceEnabled` never took
-
-## Status, measured
-
-| Suite | Result |
+| Tier | State |
 | --- | --- |
-| HarnessSmokeTests | OK (2) |
-| DownloadThroughUITests | OK (1) |
-| OfflineAutoAdvanceTests | OK (1) |
-| OfflinePlaybackTests | OK (1) |
-| OfflineCacheTests | OK (1) |
-| ConfigOfflineToggleTests | OK (1) |
-| **AppJourneyTests** | **OK (8)** — first pass ever |
-| **PersonalisationTests** | **OK (2)** — verified twice consecutively |
-| **ServerDegradedTests** | **DEGRADED_EXIT=0** — first run ever |
-| **NativeOnlySurfacesTests** | **OK (4)** — first run ever |
-| AccessibleNameAuditTests | **1 finding** (pre-existing) |
-| StackDepthProbeTests | **FAILS** — see below |
-| NativeCapabilityTests | **FAILS** — see below |
+| iOS | `make test-ios` RUNNING (started 13:31). Phases 1–3 green; phase 4/6 in progress, all green so far. |
+| Android | All suites measured green individually. Full `make test-android` NOT yet run this session. |
 
-A full `make test-android` has NOT been run since these fixes.
+**Nothing here claims a full-tier pass.** Both full runs are the gate and only one is in flight.
 
-## Open 1 — StackDepthProbeTests
+## Issues opened this session
 
-    no topic control in the insights panel, after expanding and scrolling twice
-
-Four theories tried and all wrong: below-the-fold (scroll added), `By.desc` blindness (fixed
-in `tapTopmost`, real but not this), contents-open-below-header (second scroll added),
-expanded-section-collapsed-by-the-guard (re-tap added). It still fails, with the panel dump
-showing the top of the panel and no Topics section.
-
-`AppJourneyTests.test11` does the SAME sequence and PASSES. Diff those two paths first — that
-is the cheapest next step and I did not get to it.
-
-## Open 2 — NativeCapabilityTests
-
-    no dictation control on the note field after enabling Voice input
-
-NOT a naming bug. "Your notes" renders and the mic does not, so `canDictate` is false:
-
-    canDictate = voiceEnabled && (isNative || !!WebSR)     // NoteComposer.vue:73, useDictation.ts:79
-
-`isNative` is true under Capacitor, so `voiceEnabled` is false — the test's "enable Voice input"
-step is not taking effect. Check that step, not the mic.
-
-(The mic DID also lack an accessible name; that is fixed, and was a real TalkBack defect, but it
-was never why this test failed.)
-
-## Seven shipped accessibility defects fixed
-
-`aria-label` on a control whose subtree has no text node is DROPPED by Android System WebView:
-the control is announced as an unnamed "Button" and is unfindable by name. Found:
-
-| # | Control | Found by |
+| Issue | What it owns | Why it is not being done now |
 | --- | --- | --- |
-| 1 | `SavedColorControl` trigger | device run 2026-09-24 (already fixed) |
-| 2 | the five colour swatches | `AppJourneyTests.test07` |
-| 3 | Saved colour-filter swatches | `test07` |
-| 4 | "Any colour" reset | **static guard** |
-| 5 | muted-only toggle | **static guard** |
-| 6 | dictation mic | `NativeCapabilityTests` |
-| 7 | transcript capture button | **static guard** |
+| [#2157](https://github.com/chipi/podcast_scraper/issues/2157) | Native push is not wired end to end: Android crashed on enable, and no device-token sender exists server-side | Needs a Firebase project + an FCM sender in the delivery worker. Next arc, operator's call. |
+| [#2156](https://github.com/chipi/podcast_scraper/issues/2156) | 37 icon-only buttons unnamed on Android | Deliberately out of this arc. Widening the audit to find them turns the tier red. |
 
-**Three of seven were found by a static check, not by any test**, and two of those are on
-surfaces no suite reaches. `AccessibleNameAuditTests` — the suite whose entire job this is —
-reported ONE finding throughout, because it walks static screens and never opens a popover or a
-note composer. That blind spot is now written down; it is not fixed.
+`#2156` carries a long comment added 2026-09-26 recording the audit's blind spot, the iOS gap, and a
+SECOND failure mode — read it before touching accessible names.
 
-The guard is `web/learning-player/src/__checks__/accessible-names.test.ts`. It requires a text
-node (visible text OR `sr-only`) inside any `aria-label`led button, for the components listed in
-`SR_ONLY_REQUIRED`. Add components as device runs find them. Mutation-tested.
+## Commits this session
 
-**Text must match `aria-label` EXACTLY.** Android reads `getText()` before
-`getContentDescription()`, so a shorter `sr-only` string shadows the label and the two drift. My
-first swatch fix used the bare colour name and silently broke the colour-seeding loop, which
-addresses swatches as "Set colour: Rose".
+| Commit | What |
+| --- | --- |
+| `18c498cc7` | Push plugin guarded on Android — enabling push killed the process |
+| `9669fcc7f` | `testN1` tapped the note field and the keyboard hid the mic |
+| `a41cbf146` | Tile buttons out of the link; `Journey.shot` for Android |
+| `39e6d7a3f` | A wrapper span cost the tile's heart its accessible name |
 
-## The port was written against iOS accessibility semantics
+## Open
 
-Seven instances of one root cause. **Android's tree contains only ON-SCREEN nodes; iOS keeps
-off-screen ones with negative coordinates.** So on Android "X is missing" usually means "X is
-below the fold":
+1. **Fragilities** — not currently red; being adjudicated by the two full tier runs rather than
+   hardened speculatively. Shared ACCOUNT state across runs (the tier's isolation stops at the
+   device boundary — `pm clear` resets the device, not the server), iOS has no `pm clear` equivalent,
+   a Capacitor `BrowserControllerActivity` sign-in overlay seen twice, `test07SavedColourPicker`
+   ~210s.
+2. **Five unnamed controls + guard coverage** — agreed for AFTER both tiers. `aria-label` with no
+   text node: `CollectionsView` (`collections.remove`, `collections.removeItem`) and
+   `ResurfacingInbox` (`revisit.dismiss`, `revisit.retire`, `revisit.remove`). Then extend
+   `src/__checks__/accessible-names.test.ts` to resolve paths from `src/` rather than
+   `src/components/`, and add both views. Closes 5 of #2156's 37.
 
-- insights Topics & People section (AppJourney, StackDepthProbe)
-- storyline rail on Home
-- masthead Queue control after the page scrolled (`NativeOnlySurfaces` a1)
-- Profile interests chips
+## Parity gap found 2026-09-26 — NOT closed, deliberately not written
 
-Related divergences, also measured:
+`NativeCapabilityTests` has FOUR tests on iOS and THREE on Android:
 
-- `By.desc` DOES NOT MATCH WEBVIEW CONTENT. `Journey.find` and `waitForField` were converted to
-  enumeration on 2026-09-25; `tapTopmost` was missed and nothing ran it until now. Fixed.
-- Android FLATTENS a kind prefix into the label node with no separator — `THEMEShow Themes` —
-  where iOS keeps separate elements. Exact matching cannot see these.
-- `aria-pressed` arrives as a ToggleButton CLASS with NO state: `checked`, `selected` and
-  `checkable` are all false on a chosen chip. Measured. Any "is it selected?" read must come
-  from what the app renders, not from the node.
+| | iOS | Android |
+| --- | --- | --- |
+| N1 dictation affordance | yes | yes |
+| N2 native share sheet | yes | yes |
+| N3 push permission on enable | yes | yes |
+| **N4 avatar upload and crop** | **yes** | **MISSING** |
 
-## Two tests destroyed the precondition they then asserted on
+Avatar upload/crop is a native capability — camera and photo-picker plumbing that is entirely
+different on Android — so it is currently unverified on that platform. Not written here because the
+standing instruction for this arc is to FINISH the suite as it exists, not to add tests during
+stabilisation. Decide whether to port it in the next arc.
 
-Worth calling out as a class, because both hid behind plausible messages:
+## Closed, with the reasoning, so it is not reopened
 
-- `PersonalisationTests.test10` toggled its own interests OFF, because the guard that was meant
-  to skip already-chosen chips read `isChecked()`, which is always false. It alternated pass/fail
-  across runs. `pm clear` masked it: the DEVICE resets, the ACCOUNT does not — interests live
-  server-side.
-- `StackDepthProbeTests` collapses the accordion it wants, because it decides whether to expand
-  by asking `find` (on-screen only) whether the contents are visible.
+- **The a1 product question — RETRACTED.** There is no add-to-queue on the player and there never
+  was (operator, 2026-09-26), so `02391c3e0`'s premise was correct. The "iOS falsifies it" claim
+  came from misreading iOS `NativeOnlySurfacesTests` line 63's error string, "neither queue control
+  was reachable on the player". That test calls `AppSession.openEpisode` and taps "Add to queue" on
+  the EPISODE surface, where `EpisodeActions` renders `QueueButton`. Nothing to decide.
+- **The audit blind spot** — parked into #2156 rather than fixed, because widening the audit's walk
+  IS the #2156 work and would re-block the tier.
 
-**Account state is shared across runs and nothing resets it.** Same cause as the iOS `simtest`
-queue reaching (6). The tier's isolation stops at the device boundary.
+## Traps that cost real time today — read before debugging either tier
 
-## Also open
+**A failure message names a symptom and is usually wrong about the cause.** Every one below was
+diagnosed in the wrong place first.
 
-- The one audit finding: `[Discover] <NO NAME> ToggleButton Rect(267, 674 - 354, 761) near=[]`.
-  Pre-existing. I could not identify the control from source; screenshot Discover and tap around
-  that rect.
-- Sign-in intermittently leaves a Capacitor `BrowserControllerActivity` in front of the app, so
-  the app's own WebView is empty and the failure reads "<nothing labelled>". Seen twice.
-  NOTE: `AppSession.relaunch()` already polls for content up to 30s — the earlier handover's
-  "fixed sleep" framing (and mine) was wrong; that was fixed on 2026-09-25.
-- `02391c3e0`'s a1 rewrite rests on a premise iOS falsified ("there is no add-to-queue on the
-  player"; iOS a1 queues from the player and passes). a1 passes on Android via the Home list row,
-  so this is a deliberate parity decision, not a bug. Raised, not changed.
-- iOS should copy Android's `pm clear` every run: a persisted FAILED download survives reinstall
-  and poisoned two iOS runs.
+- **"no dictation control after enabling Voice input"** → the mic was rendered. The test TAPPED the
+  note field first, which raises the soft keyboard, and the keyboard covers the button row beneath
+  it. Android's tree holds only ON-SCREEN nodes, so the mic left the tree exactly when drawn. The
+  tell was in the dump the whole time: the note field followed by NO buttons, not even the
+  always-rendered Add. Two missing buttons means something covered the row.
+- **`<NO NAME>` on a control that has both `aria-label` and `sr-only`** → a wrapper `<span>` around
+  the button, there only for styling. See #2156's comment; bisect table included.
+- **A rect in an audit finding cannot identify a control.** Matching one against a screenshot you
+  navigated to yourself is guesswork — the surface need not be at the same scroll position. Doing
+  that produced a confident wrong identification and two pointless component changes. `Journey.shot`
+  now exists on Android and the audit photographs any surface that produces a finding.
+- **A control whose state you cannot READ must never be driven blind.** The Settings switches report
+  `checkable=false checked=false` through the Chromium bridge whatever their real state, so
+  `isChecked()` can only answer false. `testN1` therefore clicked unconditionally and, when the
+  opt-in happened to start ON, DISABLED dictation and then failed on the mic it had just removed.
+  Same class as `test10` and `StackDepthProbeTests`. The pattern that works is
+  `Journey.setOfflineMode`'s: observe what the APP does, one interaction per round.
+- **Check the origin is alive before believing a suite result.** A `ctx_shell` job that starts
+  `ios-origin-up` in the background takes the origin down with it when it ends; a whole suite run
+  then tests against a dead server and reports app bugs. Probe `/api/health` AND `/api/app/me` —
+  503 means "cannot authenticate anyone" (the degraded drill's leftover), 401 means healthy.
+
+## Tooling added
+
+- **`Journey.shot(name)` on Android** (`Journey.java`). iOS has had this from the start; its absence
+  is why most of a day went into inference. Writes to the app's external files dir —
+  `/sdcard` directly fails ENOENT under scoped storage, and `mkdirs()` reports that by returning
+  false rather than throwing. Pull with
+  `adb pull /sdcard/Android/data/app.closelistening.player/files/lp-shots/<name>.png`.
+- **`make android-suite SUITE=<Class> TEST=<method>`** runs a single test. Use it. Running the whole
+  tier to check one test wastes ~10 minutes per iteration.
 
 ## Where to start
 
-1. Diff `StackDepthProbeTests`' insights sequence against `AppJourneyTests.test11`, which passes.
-2. Find why `voiceEnabled` is false in `NativeCapabilityTests`.
-3. Then a full `make test-android`.
+1. Finish `make test-ios`, then `make test-android`, then stabilise.
+2. Then the five controls + guard coverage (item 2 above).
+3. Then push and update the open PR.
