@@ -864,6 +864,15 @@ jobs:
     # Paired with the identical listing in test-e2e after download. Costs nothing and turns
     # "the loader cannot find weights" into a two-line before/after comparison, instead of
     # something deduced from a transformers stack trace three steps downstream.
+    # Reconcile the cache against the manifest BEFORE it is uploaded. The cache only grows:
+    # a model dropped from REQUIRED_ML_MODELS stops being preloaded, but the copy already
+    # cached is restored every run and re-shipped in the artifact, and `restore-keys`
+    # re-seed it even after the key is salted. ADR-154's two retired hybrid models were
+    # still riding along at 5.5 GB after they left the manifest. Runs on hit and miss,
+    # because the stale copy arrives via the restore, not via the download.
+    - name: Prune models the manifest does not list
+      if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
+      run: python3 scripts/cache/prune_unlisted_models.py --tier production
     - name: Show the cache as uploaded (pairs with the listing in test-e2e)
       if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
       run: |
