@@ -32,7 +32,6 @@ import importlib
 import importlib.util
 import shutil
 import sys
-import types
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parents[2] / "src"
@@ -44,26 +43,27 @@ def _ensure_src_on_path() -> None:
 
 
 def _load_light(module_name: str, rel_path: str):
-    """Import a leaf ``podcast_scraper`` module without the heavy deps.
+    """Reuse the loader from verify_required_models.py — do not copy it.
 
-    Same approach as verify_required_models.py: this may run before ``pip install``.
+    This script is a sibling of that one and needs the same trick: import a leaf
+    ``podcast_scraper`` module without executing the package ``__init__``, because this may
+    run before ``pip install``. The first version of this file COPIED that helper and got
+    one line wrong — it stubbed the parent package with ``__path__ = []`` instead of the
+    real source directory, so ``model_manifest``'s own ``from podcast_scraper import
+    config_constants`` could not resolve and the preload job died with
+    ``ImportError: cannot import name 'config_constants'``.
+
+    It passed locally and failed in CI, because locally the package is installed, the
+    normal import succeeds, and the stub branch never runs at all. One copy, loaded from
+    the sibling, cannot drift from itself.
     """
-    try:
-        return importlib.import_module(module_name)
-    except Exception:  # noqa: BLE001 — pre-install path: stub the parents, load the leaf by file
-        parts = module_name.split(".")
-        for i in range(1, len(parts)):
-            parent = ".".join(parts[:i])
-            if parent not in sys.modules:
-                stub = types.ModuleType(parent)
-                stub.__path__ = []  # type: ignore[attr-defined]
-                sys.modules[parent] = stub
-        spec = importlib.util.spec_from_file_location(module_name, str(_SRC / rel_path))
-        assert spec and spec.loader
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = mod
-        spec.loader.exec_module(mod)
-        return mod
+    spec = importlib.util.spec_from_file_location(
+        "_verify_required_models", Path(__file__).resolve().parent / "verify_required_models.py"
+    )
+    assert spec and spec.loader
+    sibling = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sibling)
+    return sibling._load_light(module_name, rel_path)
 
 
 def dir_name_for(model_id: str) -> str:
@@ -74,6 +74,17 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--tier", default="production", help="manifest tier that defines what to keep")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument(
+        "--hub",
+        default=None,
+        help=(
+            "HF hub directory to reconcile. Defaults to the resolved cache. EXPLICIT because "
+            "this deletes: a destructive tool that discovers its own target by importing a "
+            "module cannot be pointed somewhere safe by a caller, and a test that tried to "
+            "redirect it by monkeypatching that module deleted 4 GB from a real cache instead "
+            "— the script re-imports the module, so it never saw the patch."
+        ),
+    )
     args = ap.parse_args(argv)
 
     _ensure_src_on_path()
@@ -81,10 +92,13 @@ def main(argv: list[str] | None = None) -> int:
         "podcast_scraper.providers.ml.model_manifest",
         "podcast_scraper/providers/ml/model_manifest.py",
     )
-    directories = _load_light(
-        "podcast_scraper.cache.directories", "podcast_scraper/cache/directories.py"
-    )
-    hub = directories.get_transformers_cache_dir()
+    if args.hub:
+        hub = Path(args.hub)
+    else:
+        directories = _load_light(
+            "podcast_scraper.cache.directories", "podcast_scraper/cache/directories.py"
+        )
+        hub = directories.get_transformers_cache_dir()
     if not hub.is_dir():
         print(f"no hub cache at {hub} — nothing to prune")
         return 0
