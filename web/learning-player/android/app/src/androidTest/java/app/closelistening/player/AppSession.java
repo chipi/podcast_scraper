@@ -292,6 +292,35 @@ final class AppSession {
             if (!Journey.labelledInventory(1).startsWith("<nothing labelled")) break;
             Journey.sleep(500);
         }
+
+        // ONE RELAUNCH IF THE WEBVIEW NEVER PAINTED (2026-09-27).
+        //
+        // Waiting longer is not the answer past this point: if Chromium has not built a tree in
+        // 30s the load has FAILED rather than slowed, and another 30s of polling changes nothing.
+        // A fresh launch does — it is what a person would do — and it is bounded to one attempt so
+        // a genuinely blank app still fails instead of looping.
+        //
+        // MEASURED twice on 2026-09-27, in two different suites, with the BACKEND HEALTHY both
+        // times: the api was serving 200s and recording playback within a minute of the failure,
+        // so this is a client-side paint failure, not an outage.
+        //     sign-in did not complete as personalisationtests
+        //     On screen: <nothing labelled; foreground window = app.closelistening.player>
+        // Each occurrence cost a full tier run (~70 min), landing on whichever suite came next.
+        //
+        // DISTINCT from the OAuth-tab freeze fixed in the Makefile (the cached-app freezer
+        // suspending com.android.chrome mid-consent): there the browser was in front and stalled,
+        // here the app's own WebView is foregrounded and empty.
+        if (Journey.labelledInventory(1).startsWith("<nothing labelled")) {
+            System.out.println("=====RELAUNCH webview never painted in 30s; one more attempt=====");
+            ctx.startActivity(launch);
+            Journey.device().wait(Until.hasObject(By.pkg(Journey.PKG).depth(0)), 30_000);
+            long retry = System.currentTimeMillis() + 30_000;
+            while (System.currentTimeMillis() < retry) {
+                if (!Journey.labelledInventory(1).startsWith("<nothing labelled")) break;
+                Journey.sleep(500);
+            }
+        }
+
         // Boot paints the device snapshot and then revalidates; assert after that lands.
         Journey.sleep(5_000);
     }
