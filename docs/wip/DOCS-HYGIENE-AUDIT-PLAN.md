@@ -83,7 +83,8 @@ must not depend on a doc that gets deleted when its arc ends.
   (cited from `tests/e2e/conftest.py` + `tests/integration/conftest.py`), `MCP-E2E-GUIDE.md`
   (cited from `docs/guides/MCP_SERVER_GUIDE.md`), `SYNTHETIC-CORPUS-FULL-FIDELITY-PLAN.md`
   (cited from the fixture README), `PLAYER-CURATION-DELIVERY-MOAT-ARCH.md` (`PRD-046:164`).
-- **2 are promote-candidates, not deletes**: `manual-test-plan-gi-kg.md` and
-  `2026-08-13-e2e-on-intel-mac.md` are the only written copies of live procedures.
+- **2 were promote-candidates, not deletes**: `manual-test-plan-gi-kg.md` (still pending) and
+  `2026-08-13-e2e-on-intel-mac.md` → **promoted in pass 3** to
+  `docs/guides/E2E_ON_INTEL_MAC.md`.
 - The other two NOT-covered items above (the ~376 permanent docs, the reverse reference map)
   remain untouched.

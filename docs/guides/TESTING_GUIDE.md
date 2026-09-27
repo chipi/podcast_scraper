@@ -41,6 +41,40 @@ catch testing-policy violations before they reach CI:
 Run `make check-test-policy` locally after adding or moving tests. Pass `--fix-hint`
 for remediation suggestions. Both scripts live in `scripts/tools/`.
 
+### Known gaps neither script catches
+
+Findings from the 2026-08-18 audit, re-verified 2026-09-27. Recorded here because both
+cost real time to re-discover.
+
+**Markers that select nothing.** These are declared in `pyproject.toml` and applied to zero
+tests, so `pytest -m <name>` silently runs an empty suite instead of erroring — a selector
+that looks like it worked:
+
+```text
+analysis, app, chaos, data_quality, golden, infrastructure, module_cache,
+module_evaluation, module_exceptions, module_groq_providers, multi_episode, offline
+```
+
+Verified by `git grep -c "pytest.mark.<name>" -- tests/` returning zero files for each.
+Either wire one to real tests or drop the declaration; do not leave a selector advertising
+a suite that does not exist.
+
+**Tests that cannot fail.** Three wrap the call in `try/except`, swallow the exception and
+assert nothing — they pass whether the code works or not:
+
+| Test | Location |
+| ---- | -------- |
+| `test_pipeline_handles_invalid_config_gracefully` | `tests/e2e/test_pipeline_error_recovery_e2e.py:448` |
+| `test_cleanup_after_failed_initialization` | `tests/integration/providers/test_provider_error_handling_extended.py:98` |
+| `test_provider_cleanup_on_exception` | `tests/integration/providers/test_provider_error_handling_extended.py:467` |
+
+Each needs a decision about what it was meant to prove before it can be strengthened —
+which is why they are listed rather than deleted.
+
+**`check_doc_structure.py` and IETF RFCs.** The citation checker flags RFC-1918, 7636, 8058,
+8252, 8259, 8414, 8707 and 9728 as missing internal RFCs. They are IETF internet standards
+cited correctly. Zero real drift — do not re-investigate.
+
 **Decision Tree:**
 
 1. Testing the **GI/KG viewer UI** in a real browser (graph, search shell, keyboard, theme)? --> **`make test-ui-e2e`** (Playwright). See [Browser E2E (GI / KG Viewer v2)](#browser-e2e-gi-kg-viewer-v2) and [Testing Strategy -- Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).

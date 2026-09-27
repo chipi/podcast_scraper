@@ -39,6 +39,7 @@ nav:
       - Player public launch (#1163): guides/PLAYER_PUBLIC_LAUNCH.md
       - Operator surface deploy (RFC-108): guides/OPERATOR_SURFACE_DEPLOY.md
       - Operator surface post-deploy smoke test: guides/OPERATOR_SMOKE_TEST.md
+      - "Consumer e2e on an Intel Mac (container harness)": guides/E2E_ON_INTEL_MAC.md
       - Observability runbook (operate/debug + current state): guides/OBSERVABILITY_RUNBOOK.md
       - Observability architecture (emit/ship, ADR-119): guides/OBSERVABILITY_ARCHITECTURE.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md

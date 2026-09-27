@@ -96,7 +96,13 @@ class TestTranscriptionProviderErrorHandling(unittest.TestCase):
                 os.environ["OPENAI_API_KEY"] = original_key
 
     def test_cleanup_after_failed_initialization(self):
-        """Test that cleanup() works even after failed initialization."""
+        """Test that cleanup() works even after failed initialization.
+
+        THIS TEST CANNOT FAIL — try/except swallows the exception and nothing is
+        asserted, so it passes whether cleanup works or not. Flagged by the 2026-08-18
+        test audit, re-verified 2026-09-27. Fixing it needs a decision about the
+        intended assertion; see docs/guides/TESTING_GUIDE.md.
+        """
         cfg = config.Config(
             rss_url="https://example.com/feed.xml", transcription_provider="whisper"
         )
@@ -465,7 +471,12 @@ class TestGracefulDegradation(unittest.TestCase):
     """Test graceful degradation scenarios."""
 
     def test_provider_cleanup_on_exception(self):
-        """Test that providers can be cleaned up even if exceptions occur."""
+        """Test that providers can be cleaned up even if exceptions occur.
+
+        THIS TEST CANNOT FAIL — try/except swallows the exception and nothing is
+        asserted. Flagged by the 2026-08-18 test audit, re-verified 2026-09-27.
+        See docs/guides/TESTING_GUIDE.md, "Tests that cannot fail".
+        """
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             transcription_provider="whisper",
