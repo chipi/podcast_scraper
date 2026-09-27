@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import glob as _glob
 import json
+import logging
 import os
 import re
 import time
@@ -16,6 +17,8 @@ from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.path_validation import safe_resolve_directory
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_feed_id(feed_id: Any) -> Optional[str]:
@@ -94,6 +97,55 @@ def run_segment_from_flat_relpath(rel_posix: str) -> Optional[str]:
     parts = [p for p in rel_posix.replace("\\", "/").split("/") if p]
     if len(parts) >= 3 and parts[0].startswith("run_") and parts[1] == "metadata":
         return parts[0]
+    return None
+
+
+def corpus_relpath_is_excluded(rel_posix: str) -> bool:
+    """True when a corpus-relative path lies under a RETIRED / non-content directory (#2161).
+
+    Corpus cleanup moves superseded artifacts to ``.trash/<ts>/feeds/<feed>/run_*/metadata/``.
+    Those files are real metadata for a real episode id, so every stage that walks the corpus for
+    membership used to collect them as if they were live — and because the trash path parses as
+    NEITHER corpus layout it was kept unconditionally and never compared against the live copy. The
+    episode was then collected twice, its id-keyed rows collided, and the index prune deleted the
+    LIVE copy's rows as "superseded".
+
+    The rule is by leading dot rather than a ``.trash`` literal: every dot-directory here
+    (``.trash``, ``.viewer`` job logs, caches) is bookkeeping, not corpus content, and a future
+    retirement directory should be excluded on the day it is introduced rather than after it
+    deletes data. Judged on the path RELATIVE to the corpus root, so a root that itself sits under
+    a dotted directory is unaffected.
+    """
+    return any(
+        seg.startswith(".") and seg not in (".", "..")
+        for seg in rel_posix.replace("\\", "/").split("/")
+        if seg
+    )
+
+
+#: Corpus-relative layouts this module knows how to reconcile. Anything else is unrecognised and
+#: must not become canonical silently — see :func:`classify_metadata_relpath`.
+LAYOUT_FEED_RUN = "feeds/<feed>/run_*/metadata"
+LAYOUT_FLAT_RUN = "run_*/metadata"
+LAYOUT_ROOT_FLAT = "metadata"
+
+
+def classify_metadata_relpath(rel_posix: str) -> Optional[str]:
+    """Name the corpus layout *rel_posix* belongs to, or ``None`` when unrecognised (#2162).
+
+    Exists so "I could not classify this path" is a distinguishable state rather than being folded
+    into the legitimate flat-corpus case. The root-flat shape (``metadata/<file>``) genuinely has no
+    cross-run identity to reconcile and is common in fixtures, so it must NOT warn; a path that is
+    none of the three known shapes is a surprise and must.
+    """
+    parts = [p for p in rel_posix.replace("\\", "/").split("/") if p]
+    feed_dir, run_seg = feed_dir_and_run_segment_from_relpath(rel_posix)
+    if feed_dir is not None and run_seg is not None:
+        return LAYOUT_FEED_RUN
+    if run_segment_from_flat_relpath(rel_posix) is not None:
+        return LAYOUT_FLAT_RUN
+    if len(parts) >= 2 and parts[0] == filesystem.METADATA_SUBDIR:
+        return LAYOUT_ROOT_FLAT
     return None
 
 
@@ -250,37 +302,59 @@ def dedupe_metadata_paths_newest_run_per_episode(
       incremental-add case) all survive; a reprocessed episode's older "trophy" copy is dropped.
 
     Files whose ``episode_id`` cannot be read are kept (never silently dropped).
+
+    Paths under a retired / bookkeeping directory are dropped outright
+    (:func:`corpus_relpath_is_excluded`), and a path matching NO known layout is logged rather
+    than silently promoted to canonical — see the unrecognised handling below (#2161 / #2162).
     """
     root_res = corpus_root.resolve()
     by_feed_dir: dict[str, list[Tuple[str, Path]]] = {}
     keep: list[Path] = []
+    # Kept paths that DID classify into a known layout. Used only to adjudicate unrecognised
+    # paths (below), so the ids are read lazily — a corpus with no surprises pays nothing.
+    classified_kept: list[Path] = []
+    unrecognised: list[Tuple[str, Path]] = []
     for p in paths:
         try:
             rel = p.resolve().relative_to(root_res).as_posix()
         except ValueError:
             keep.append(p)
             continue
-        feed_dir, run_seg = feed_dir_and_run_segment_from_relpath(rel)
-        if feed_dir is None or run_seg is None:
+        if corpus_relpath_is_excluded(rel):
+            logger.debug("corpus membership: excluding retired/non-content path %s (#2161)", rel)
+            continue
+        layout = classify_metadata_relpath(rel)
+        if layout == LAYOUT_FEED_RUN:
+            feed_dir, run_seg = feed_dir_and_run_segment_from_relpath(rel)
+            by_feed_dir.setdefault(str(feed_dir), []).append((str(run_seg), p))
+            continue
+        if layout == LAYOUT_FLAT_RUN:
             # Flat ``run_<tag>/metadata/`` — a single-feed output dir, which is the layout
-            # skip-existing reads during a run. Falling through to ``keep`` here left the
-            # caller's first-wins loop to pick the OLDEST run for a reprocessed episode.
-            flat_run = run_segment_from_flat_relpath(rel)
-            if flat_run is None:
-                keep.append(p)
-                continue
-            feed_dir, run_seg = FLAT_CORPUS_FEED_KEY, flat_run
-        by_feed_dir.setdefault(feed_dir, []).append((run_seg, p))
+            # skip-existing reads during a run. Leaving it unreconciled left the caller's
+            # first-wins loop to pick the OLDEST run for a reprocessed episode.
+            by_feed_dir.setdefault(FLAT_CORPUS_FEED_KEY, []).append(
+                (str(run_segment_from_flat_relpath(rel)), p)
+            )
+            continue
+        if layout == LAYOUT_ROOT_FLAT:
+            # Root ``metadata/`` — the hybrid/fixture shape, deliberately unioned with the feed
+            # tree. No cross-run identity to reconcile, and NOT a surprise, so it does not warn.
+            keep.append(p)
+            classified_kept.append(p)
+            continue
+        unrecognised.append((rel, p))
 
     for entries in by_feed_dir.values():
         if len({rs for rs, _ in entries}) <= 1:
             keep.extend(p for _, p in entries)
+            classified_kept.extend(p for _, p in entries)
             continue
         winners: dict[Tuple[Optional[str], str], Tuple[float, str, str, Path]] = {}
         for run_seg, p in entries:
             _fid, eid = _read_feed_episode_ids(p)
             if eid is None:
                 keep.append(p)
+                classified_kept.append(p)
                 continue
             key = (_fid, eid)
             cand = (run_recency_epoch(p, run_seg), run_seg, p.as_posix(), p)
@@ -288,6 +362,44 @@ def dedupe_metadata_paths_newest_run_per_episode(
             if cur is None or cand[:3] > cur[:3]:
                 winners[key] = cand
         keep.extend(w[3] for w in winners.values())
+        classified_kept.extend(w[3] for w in winners.values())
+
+    if unrecognised:
+        # Defence in depth (#2162). The old code kept an unclassifiable path unconditionally and
+        # never compared it with the copy that legitimately owns its ``(feed_id, episode_id)``, so
+        # ``.trash/`` copies were walked as independent episodes sharing a live id: duplicate row
+        # ids every build, and the prune deleting the live rows. Reading ids here is gated on a
+        # surprise actually existing.
+        owned: dict[Tuple[Optional[str], str], Path] = {}
+        for p in classified_kept:
+            _fid, eid = _read_feed_episode_ids(p)
+            if eid is not None:
+                owned.setdefault((_fid, eid), p)
+        for rel, p in unrecognised:
+            _fid, eid = _read_feed_episode_ids(p)
+            owner = owned.get((_fid, eid)) if eid is not None else None
+            if owner is not None:
+                logger.warning(
+                    "corpus membership: REFUSING to treat unrecognised path %s as canonical — it "
+                    "carries (feed_id=%r, episode_id=%r), already owned by the recognised copy %s. "
+                    "Indexing both would collide their row ids and let the prune delete the live "
+                    "rows (#2162).",
+                    rel,
+                    _fid,
+                    eid,
+                    owner.as_posix(),
+                )
+                continue
+            logger.warning(
+                "corpus membership: path %s matches no known corpus layout (%s | %s | %s) and is "
+                "being kept as canonical by default. If this is a retired or bookkeeping "
+                "directory it must be EXCLUDED instead of indexed (#2162).",
+                rel,
+                LAYOUT_FEED_RUN,
+                LAYOUT_FLAT_RUN,
+                LAYOUT_ROOT_FLAT,
+            )
+            keep.append(p)
 
     return sorted(set(keep))
 
@@ -350,6 +462,10 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
         md = os.path.normpath(meta_dir_str)
         if not md.startswith(safe_prefix) and md != root_normed:
             return
+        # Retired / bookkeeping trees are not corpus content (#2161). Belt-and-braces with the
+        # walk pruning below: this also covers the glob-driven branches, which do not walk.
+        if corpus_relpath_is_excluded(os.path.relpath(md, root_normed).replace(os.sep, "/")):
+            return
         if not os.path.isdir(md):
             return
         for pat in patterns:
@@ -362,7 +478,11 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
 
     feeds_str = os.path.normpath(os.path.join(root_normed, "feeds"))
     if feeds_str.startswith(safe_prefix) and os.path.isdir(feeds_str):
-        for dirpath, _dirnames, _filenames in os.walk(root_normed):
+        for dirpath, dirnames, _filenames in os.walk(root_normed):
+            # Never descend into retired / bookkeeping trees (#2161). Pruning in place stops the
+            # walk entering them at all: both the fix, and a real saving on a corpus whose
+            # ``.trash/`` has accumulated every superseded run.
+            dirnames[:] = [d for d in dirnames if not corpus_relpath_is_excluded(d)]
             dp = os.path.normpath(dirpath)
             if not dp.startswith(safe_prefix) and dp != root_normed:
                 continue
@@ -406,6 +526,10 @@ def discover_all_metadata_files(output_root: Path) -> List[Path]:
         md = os.path.normpath(meta_dir_str)
         if not md.startswith(safe_prefix) and md != root_normed:
             return
+        # Retired / bookkeeping trees are not corpus content (#2161). Belt-and-braces with the
+        # walk pruning below: this also covers the glob-driven branches, which do not walk.
+        if corpus_relpath_is_excluded(os.path.relpath(md, root_normed).replace(os.sep, "/")):
+            return
         if not os.path.isdir(md):
             return
         for pat in patterns:
@@ -418,7 +542,11 @@ def discover_all_metadata_files(output_root: Path) -> List[Path]:
 
     feeds_str = os.path.normpath(os.path.join(root_normed, "feeds"))
     if feeds_str.startswith(safe_prefix) and os.path.isdir(feeds_str):
-        for dirpath, _dirnames, _filenames in os.walk(root_normed):
+        for dirpath, dirnames, _filenames in os.walk(root_normed):
+            # Never descend into retired / bookkeeping trees (#2161). Pruning in place stops the
+            # walk entering them at all: both the fix, and a real saving on a corpus whose
+            # ``.trash/`` has accumulated every superseded run.
+            dirnames[:] = [d for d in dirnames if not corpus_relpath_is_excluded(d)]
             dp = os.path.normpath(dirpath)
             if not dp.startswith(safe_prefix) and dp != root_normed:
                 continue
