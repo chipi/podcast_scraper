@@ -196,20 +196,34 @@ async function createAndAdd(): Promise<void> {
         <span aria-hidden="true">+</span>
         {{ t('collections.pill') }}
       </template>
-      <!-- A FOLDER with a plus — no longer a bookmark (operator 2026-09-27).
-           It drew `M6 3v18l6-4 6 4V3z`, which is the bookmark, and the bookmark is the app's
-           highlight mark: `CaptureMoment` in the player transport draws the same shape for
-           mark-a-moment, and the transcript's line save draws it too. The operator read the
-           transport's capture button as this one and asked for it to be removed as a duplicate —
-           it is not one, and on a phone it is the only way to mark a moment.
-           One glyph per concept: bookmark = highlight a fragment, heart = favourite a whole object,
-           and filing something into a named board is its own idea, so it gets its own mark. A
-           folder says "put it somewhere" without borrowing either. Still one stroke weight and no
-           detail below 16px — the reason the busier glyph was dropped in the first place
-           (operator 2026-09-13). -->
+      <!-- A BOARD — four cells, no plus (operator 2026-09-27, picked from a rendered comparison).
+           THE GLYPH IT REPLACED. It drew `M6 3v18l6-4 6 4V3z`, the bookmark — which is this app's
+           HIGHLIGHT mark: `CaptureMoment` in the player transport draws it for mark-a-moment, and
+           the transcript's line save draws it too. So a collection control and a capture control
+           were the same shape, and the operator read the transport's capture button as a stray
+           copy of this one and asked for it to be deleted. It is not a copy, and on a phone it is
+           the only way to mark a moment: a glyph collision came one instruction from removing a
+           feature. One glyph per concept now — see UXS-014.
+           WHY A GRID, NOT A FOLDER. A folder was tried first and rejected on sight: it is the
+           filesystem's metaphor, and these are `Boards` (RFC-119 calls them pinboards) — the wrong
+           idea before it is the wrong drawing. It also carried a `+`, which is what made it the
+           busiest mark in the set at 16px.
+           WHY NO PLUS. The pill variant already says "+ Collection" in words and the icon variant
+           carries `collections.addTo` as its accessible name, so the `+` was a third stroke paying
+           for nothing. Dropping it is the same call made against the folded-corner-plus-plus glyph
+           on 2026-09-13, for the same reason.
+           WHY FOUR CELLS RATHER THAN OFFSET CARDS. Stacked cards say "a set kept together" more
+           precisely, and were the first recommendation — but their whole meaning is the OVERLAP,
+           and at 16px, the size that actually ships in a card row, the overlap mushes into a thick
+           square. Four separated cells keep air between the strokes and stay crisp. Rendered at
+           16/24/64 side by side before choosing; legibility at the shipping size won over the
+           better metaphor.
+           Nothing else in the app draws a grid — checked against the compass (Browse) and the
+           4-bar (Library) at 16px in the muted state they share. The "grid means app launcher"
+           worry is a convention imported from other software, not a collision here. -->
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <path d="M12 11v6" /><path d="M9 14h6" />
+        <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
       </svg>
       <!-- A non-hidden accessible name for the ICON-ONLY variant (2026-09-24, Android device tier).
            `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System

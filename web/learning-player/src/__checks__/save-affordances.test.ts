@@ -59,17 +59,36 @@ describe("one glyph per concept", () => {
     )
   })
 
-  it("add-to-collection does NOT draw a bookmark", () => {
-    // It did until 2026-09-27, which is what made the player's capture button look like a duplicate
-    // of the header's collect button.
+  it("add-to-collection draws a BOARD — not a bookmark, and not a plus", () => {
+    const src = code(addToCollectionSrc)
+
+    // It drew the bookmark until 2026-09-27, which is what made the player's capture button look
+    // like a stray copy of the header's collect button.
     expect(
-      code(addToCollectionSrc),
+      src,
       "the collections glyph is colliding with the capture bookmark again — give it its own mark",
     ).not.toContain(BOOKMARK)
-    expect(
-      code(addToCollectionSrc),
-      "...and not the outlined bookmark it used to draw either",
-    ).not.toContain("M6 3v18l6-4 6 4V3z")
+    expect(src, "...and not the outlined bookmark it used to draw either").not.toContain(
+      "M6 3v18l6-4 6 4V3z",
+    )
+
+    // Four cells, positively asserted — "not a bookmark" alone would pass on a blank icon, or on a
+    // folder, which was tried and rejected as the filesystem's metaphor for something the product
+    // calls a Board (RFC-119: pinboards).
+    const cells = [...src.matchAll(/<rect [^>]*width="7" height="7"/g)]
+    expect(cells.length, "the board grid lost cells").toBe(4)
+
+    /*
+     * No plus. The pill variant already says "+ Collection" in words and the icon variant carries
+     * `collections.addTo` as its accessible name, so a `+` is a third stroke paying for nothing —
+     * and at 16px, the size that ships in a card row, it is exactly what made the rejected folder
+     * the busiest mark in the set. Same call made against the folded-corner-plus-plus glyph on
+     * 2026-09-13; this keeps it from being re-added a third time.
+     */
+    const iconBlock = src.slice(src.indexOf("v-else viewBox"), src.indexOf("</svg>"))
+    expect(iconBlock, "a plus crept back into the collections glyph").not.toMatch(
+      /d="M\d+ \d+v\d+"|d="M\d+ \d+h\d+"/,
+    )
   })
 
   it("the heart is FAVOURITES only — it cannot be pointed at another store", () => {

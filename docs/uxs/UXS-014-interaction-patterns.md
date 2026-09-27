@@ -297,7 +297,7 @@ of these rows is a bug, not a style choice.
 | --- | --- | --- | --- |
 | **heart** `.lp-fav` | favourite | a WHOLE object — episode, show, topic, person | favorites |
 | **bookmark** `HighlightToggle` | highlight / capture | a FRAGMENT — a transcript span, an insight, a timestamp | capture → `/api/app/highlights` |
-| **folder+** `AddToCollectionButton` | file into a named board | anything, including a highlight | collections |
+| **2×2 board grid** `AddToCollectionButton` | file into a named board | anything, including a highlight | collections |
 
 This had to be written down because the app had broken it in both directions at once, and the
 operator found it from the outside — *"we can favourite insights and bookmark parts of transcript,
@@ -321,6 +321,25 @@ rather than left unused — while a parent could own the state, the heart could 
 non-favourite store again, which is exactly how this happened. The insight save and the transcript
 line now render from **one** component. And collections took a new glyph, because it was the one
 borrowing rather than the one being borrowed from.
+
+**Choosing the collections mark — the rule the process produced.** A folder was drawn first and
+rejected on sight: it is the *filesystem's* metaphor, and the product calls these **Boards**
+(RFC-119: "pinboards"). Wrong idea before it was a wrong drawing. Candidates were then rendered at
+**16px — the size that actually ships in a card row** — sat beside the heart and the bookmark,
+because the only question that matters is whether a mark is instantly *not the other two*. Two
+findings worth keeping:
+
+- **The `+` was the cost, not the shape.** Every "add" glyph tested got busier for it, and it buys
+  nothing: the pill variant already reads "+ Collection" in words and the icon variant carries
+  `collections.addTo` as its accessible name. Same conclusion the folded-corner-plus-plus glyph
+  reached on 2026-09-13 — reached twice now, which is why the guard asserts its absence.
+- **Legibility at the shipping size beats the better metaphor.** Offset stacked cards say "a set
+  kept together" more precisely and were the first recommendation; but their meaning *is* the
+  overlap, and at 16px the overlap mushes into a thick square. Four separated cells keep air
+  between the strokes. Rendered and compared before choosing rather than argued.
+
+Grid-means-app-launcher is a convention imported from other software, not a collision here —
+checked against the compass (Browse) and the 4-bar (Library) at 16px in the muted state they share.
 
 **"Can I favourite an insight / collect a transcript line?"** — favouriting a fragment stays banned
 (#1593): a favourite is about a whole object. Collecting one already works, in two honest steps —
