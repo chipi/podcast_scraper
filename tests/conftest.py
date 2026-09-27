@@ -1040,3 +1040,29 @@ def cleanup_ml_resources_after_test(request):
     _cleanup_ml_reset_preloaded_after()
     _cleanup_ml_find_and_clean_models()
     _cleanup_ml_gc_after_test()
+
+
+@pytest.fixture(autouse=True)
+def _zero_web_enricher_throttle():
+    """Zero the web enrichers' shared Wikimedia throttle for the duration of each test (#2163).
+
+    The production limiter is deliberately PROCESS-WIDE and cluster-keyed, so every test that
+    drives a mocked Wikipedia/Wikidata provider would otherwise sleep for real against a single
+    1 req/s bucket — measured 17s -> 52s on
+    ``tests/unit/enrichment/test_person_web_wikidata_resolver.py`` alone.
+
+    This removes wall-clock cost, not the guarantee: the pacing itself is asserted explicitly with
+    a fake clock in ``tests/unit/enrichment/test_web_shared_rate_limiter.py``, and tests that care
+    about spacing inject their own limiter. Reset to ``None`` afterwards so no test leaks a limiter
+    into the next one.
+    """
+    try:
+        from podcast_scraper.enrichment.enrichers import person_web
+    except Exception:  # pragma: no cover - enrichment extras absent in some tiers
+        yield
+        return
+    person_web.set_shared_web_limiter(person_web.ClusterRateLimiter(0.0))
+    try:
+        yield
+    finally:
+        person_web.set_shared_web_limiter(None)

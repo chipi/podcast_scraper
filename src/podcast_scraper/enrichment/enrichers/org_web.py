@@ -28,7 +28,6 @@ from typing import Any, Protocol
 
 import httpx
 
-from podcast_scraper.archive.backfill import HostRateLimiter
 from podcast_scraper.enrichment.enrichers._loaders import load_kg, nodes_of_type
 from podcast_scraper.enrichment.enrichers.person_web import (
     _build_web_client,
@@ -40,9 +39,10 @@ from podcast_scraper.enrichment.enrichers.person_web import (
     _image_sniff_ok,
     _ImageSkip,
     _USER_AGENT,
-    _WEB_MIN_INTERVAL_S,
+    ClusterRateLimiter,
     FetchedImage,
     IMAGE_SKIP,
+    shared_web_limiter,
     TransientFetchError,
 )
 from podcast_scraper.enrichment.protocol import (
@@ -267,6 +267,7 @@ class WikidataProvider:
         api_base: str | None = None,
         commons_api_base: str | None = None,
         commons_filepath_base: str | None = None,
+        limiter: ClusterRateLimiter | None = None,
     ) -> None:
         import os
 
@@ -277,12 +278,16 @@ class WikidataProvider:
         )
         self._commons_filepath = commons_filepath_base or _COMMONS_FILEPATH_DEFAULT
         self._commons_host = (urllib.parse.urlsplit(self._commons_filepath).hostname or "").lower()
-        self._limiter = HostRateLimiter(_WEB_MIN_INTERVAL_S)
+        # The SAME limiter instance person_web uses (#2163). This enricher runs concurrently with
+        # it (EnricherTier.WEB concurrency=2) against the same Wikimedia text edge, and building a
+        # second HostRateLimiter here meant neither could see the other's traffic.
+        self._limiter = limiter if limiter is not None else shared_web_limiter()
 
     def _get_json(self, url: str) -> dict[str, Any] | None:
         """``None`` ONLY for an authoritative 404; every other failure raises
         :class:`TransientFetchError` so the caller does not record a false miss.
-        Throttled per host — see ``_WEB_MIN_INTERVAL_S`` in ``person_web``."""
+        Throttled per upstream CLUSTER via the shared limiter — see ``ClusterRateLimiter`` and
+        ``_WEB_MIN_INTERVAL_S`` in ``person_web``."""
         self._limiter.wait(url)
         try:
             resp = self._client.get(url, headers={"User-Agent": _USER_AGENT})

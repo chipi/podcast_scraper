@@ -22,6 +22,7 @@ import pytest
 
 from podcast_scraper.enrichment.enrichers.person_web import (
     _WEB_MIN_INTERVAL_S,
+    ClusterRateLimiter,
     TransientFetchError,
     WikipediaProvider,
 )
@@ -73,16 +74,30 @@ class TestThrottle:
     """~43 req/s is what got us blocked. The limiter is what keeps us under the policy."""
 
     def test_consecutive_requests_are_spaced(self):
+        """Injects the limiter rather than patching its internals.
+
+        The throttle is now a process-wide ``ClusterRateLimiter`` metered by upstream cluster, not
+        a per-provider ``HostRateLimiter`` metered by hostname (#2163) — the old per-instance
+        design meant the 1 req/s this test asserts was never what Wikimedia actually saw, because
+        ``person_web`` and ``org_web`` each had their own budget for each of four hosts.
+        """
         slept: list[float] = []
-        p = _provider(lambda req: httpx.Response(200, json={"ok": True}))
-        p._limiter._sleep = slept.append  # type: ignore[attr-defined]
-        clock = iter([0.0, 0.0, 0.01, 0.01, 0.02, 0.02])
-        p._limiter._clock = lambda: next(clock)  # type: ignore[attr-defined]
+        now = [0.0]
+
+        def _sleep(seconds: float) -> None:
+            slept.append(seconds)
+            now[0] += seconds
+
+        limiter = ClusterRateLimiter(_WEB_MIN_INTERVAL_S, sleep=_sleep, clock=lambda: now[0])
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda req: httpx.Response(200, json={"ok": True}))
+        )
+        p = WikipediaProvider(client=client, limiter=limiter)
 
         p.fetch_raw("a", "A")
         p.fetch_raw("b", "B")
 
-        assert slept, "second request to the same host must be delayed"
+        assert slept, "second request to the same cluster must be delayed"
         assert slept[0] <= _WEB_MIN_INTERVAL_S
 
     def test_interval_is_at_least_one_second(self):

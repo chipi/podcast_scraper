@@ -102,15 +102,124 @@ _LEGACY_PAYLOAD_REASON = "legacy_payload"
 #: Still != ``_RESOLVED_SCHEMA``, so ``derive`` keeps delegating it to the Wikipedia provider.
 _FALLBACK_SCHEMA = "wikipedia-fallback/1"
 
-_USER_AGENT = "close-listening/1.0 (podcast knowledge base; contact via app)"
+#: Wikimedia's UA policy (https://w.wiki/4wJS) wants a contact URL or address, and the 403 body it
+#: serves says "Please set a user-agent". "contact via app" satisfied neither — this is the app's
+#: public site, which is a reachable contact point (#2163).
+_USER_AGENT = "close-listening/1.0 (+https://closelistening.app)"
 
-#: Minimum seconds between consecutive hits on one upstream host. Wikimedia's robot policy
+#: Minimum seconds between consecutive hits on one upstream CLUSTER. Wikimedia's robot policy
 #: (https://w.wiki/4wJS, phabricator T400119) is explicit that unthrottled clients get 403'd,
 #: and on 2026-09-16 this enricher issued ~911 requests in 65 seconds (~43/s) and was blocked
 #: outright — every lookup returned 403 "Please set a user-agent and respect our robot policy".
 #: 1 req/s turns a 911-entity pass into ~15 minutes, which is irrelevant for a background job
 #: and is the difference between being a good citizen and losing access to the source entirely.
+#:
+#: It happened AGAIN on 2026-09-27, which is why the pacing below is now cluster-wide rather than
+#: per-host: the interval was being honoured per (host, provider-instance), so four hosts times two
+#: enrichers drew eight independent 1/s budgets against one meter.
 _WEB_MIN_INTERVAL_S = 1.0
+
+#: Wikimedia meters its shared **text** edge per client IP across wikidata / wikipedia / commons, so
+#: those hosts MUST draw on one bucket. ``upload.wikimedia.org`` is a separate cluster — it carried
+#: sustained image-byte traffic through the 2026-09-27 incident without a single 429 — so it keeps
+#: its own budget rather than being starved behind the text bucket (#2163).
+_WIKIMEDIA_TEXT_BUCKET = "wikimedia-text"
+_WIKIMEDIA_TEXT_SUFFIXES = (".wikipedia.org", ".wikidata.org", ".wikimedia.org")
+_WIKIMEDIA_OWN_BUCKET_HOSTS = frozenset({"upload.wikimedia.org"})
+
+
+def rate_limit_bucket(url: str) -> str:
+    """Name the throttle bucket for *url* — the upstream CLUSTER, not the hostname (#2163).
+
+    Per-host pacing is the wrong unit for a provider that fronts several hostnames from one
+    rate-limited edge: honouring 1 req/s against each of ``www.wikidata.org``,
+    ``en.wikipedia.org`` and ``commons.wikimedia.org`` independently emits 3 req/s at the meter
+    that actually counts.
+    """
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    if not host or host in _WIKIMEDIA_OWN_BUCKET_HOSTS:
+        return host
+    if host.endswith(_WIKIMEDIA_TEXT_SUFFIXES) or host in {
+        "wikipedia.org",
+        "wikidata.org",
+        "wikimedia.org",
+    }:
+        return _WIKIMEDIA_TEXT_BUCKET
+    return host
+
+
+class ClusterRateLimiter:
+    """:class:`HostRateLimiter` metered by :func:`rate_limit_bucket` instead of by hostname."""
+
+    def __init__(
+        self,
+        min_interval_s: float = _WEB_MIN_INTERVAL_S,
+        *,
+        sleep: Any = time.sleep,
+        clock: Any = time.monotonic,
+    ) -> None:
+        self._inner = HostRateLimiter(min_interval_s, sleep=sleep, clock=clock)
+
+    @property
+    def min_interval_s(self) -> float:
+        return float(self._inner.min_interval_s)
+
+    def wait(self, url: str) -> None:
+        """Block until this URL's CLUSTER may be hit again."""
+        bucket = rate_limit_bucket(url)
+        # HostRateLimiter keys on the hostname, so hand it a synthetic URL whose host IS the
+        # bucket name — every real host in that cluster then shares one slot.
+        self._inner.wait(f"https://{bucket}/" if bucket else url)
+
+
+_SHARED_WEB_LIMITER: ClusterRateLimiter | None = None
+
+
+def shared_web_limiter() -> ClusterRateLimiter:
+    """The ONE limiter every web enricher shares, created on first use.
+
+    Both ``person_web`` and ``org_web`` run concurrently (``EnricherTier.WEB`` has
+    ``concurrency=2``), and each used to build its own limiter — so neither could see the other's
+    traffic and the intended 1 req/s was never what reached Wikimedia.
+    """
+    global _SHARED_WEB_LIMITER
+    if _SHARED_WEB_LIMITER is None:
+        _SHARED_WEB_LIMITER = ClusterRateLimiter(_WEB_MIN_INTERVAL_S)
+    return _SHARED_WEB_LIMITER
+
+
+def set_shared_web_limiter(limiter: ClusterRateLimiter | None) -> None:
+    """Test seam — inject a limiter with a fake clock/sleep, or ``None`` to reset.
+
+    Replaces the old "construct per provider so tests stay isolated" arrangement, which bought
+    test isolation at the cost of the production guarantee.
+    """
+    global _SHARED_WEB_LIMITER
+    _SHARED_WEB_LIMITER = limiter
+
+
+def _log_retry_after(response: httpx.Response, url: str) -> None:
+    """Record WHY an upstream throttled us (#2163).
+
+    :class:`RetryTransport` otherwise logs only the ``Response`` repr and then drains the body, so
+    the ``Retry-After`` value, the edge cache node, and the body — which on Wikimedia's edge names
+    the policy that fired — were all discarded. A 76-minute run produced 118 of these and not one
+    recorded its wait, which is why diagnosis had to guess.
+    """
+    try:
+        response.read()
+        body = " ".join((response.text or "").split())[:200]
+    except Exception:  # pragma: no cover - defensive; never break the retry path to log it
+        body = "<unreadable>"
+    _logger.warning(
+        "web enrichment throttled: HTTP %s %s retry_after=%r x-cache=%r server=%r body=%r",
+        response.status_code,
+        url,
+        response.headers.get("Retry-After"),
+        response.headers.get("x-cache"),
+        response.headers.get("server"),
+        body,
+    )
 
 
 class TransientFetchError(Exception):
@@ -338,6 +447,8 @@ def _build_web_client() -> httpx.Client:
             backoff_factor=policy.backoff_factor,
             status_forcelist=_WEB_RETRY_STATUS,
             allowed_methods=_WEB_RETRY_METHODS,
+            # Without this the transport discards the only evidence of WHY we were throttled.
+            on_retry_after=_log_retry_after,
         )
 
     return create_client(
@@ -358,15 +469,18 @@ class WikipediaProvider:
         client: httpx.Client | None = None,
         summary_base: str | None = None,
         api_base: str | None = None,
+        limiter: ClusterRateLimiter | None = None,
     ) -> None:
         # Injectable client so tests drive an httpx.MockTransport (no network); the default carries
         # the shared proxy/TLS + retry resilience. Base URLs are env-overridable so the e2e mock can
         # stand in for the live host.
         self._client = client or _build_web_client()
         base = summary_base or os.environ.get(_WIKIPEDIA_SUMMARY_ENV) or _WIKIPEDIA_SUMMARY_DEFAULT
-        # Per-host throttle shared by every request this provider makes. Constructed here (not
-        # module-global) so tests get an isolated limiter and can inject a fake sleep.
-        self._limiter = HostRateLimiter(_WEB_MIN_INTERVAL_S)
+        # PROCESS-WIDE, cluster-keyed throttle (#2163). This used to be a per-provider
+        # HostRateLimiter "so tests get an isolated limiter" — which meant the 1 req/s the comment
+        # promised was never what Wikimedia saw. Tests now inject via ``set_shared_web_limiter``
+        # or the ``limiter=`` argument, so isolation no longer costs the guarantee.
+        self._limiter = limiter if limiter is not None else shared_web_limiter()
         self._summary_base = base if base.endswith("/") else base + "/"
         self._api_base = api_base or os.environ.get(_WIKIPEDIA_API_ENV) or _WIKIPEDIA_API_DEFAULT
         # Host allowlist for the image download (SSRF guard): the image URL comes from an external
@@ -391,7 +505,8 @@ class WikipediaProvider:
         "there is nothing there". The RetryTransport has already retried transient 429/5xx
         before we see a non-200 here, so reaching this point means retries were exhausted.
 
-        Throttled per host: see ``_WEB_MIN_INTERVAL_S``.
+        Throttled per upstream CLUSTER by the shared limiter: see :class:`ClusterRateLimiter`
+        and ``_WEB_MIN_INTERVAL_S``.
         """
         self._limiter.wait(url)
         try:
