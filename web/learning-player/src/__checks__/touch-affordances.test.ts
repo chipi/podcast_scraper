@@ -7,6 +7,7 @@ import addToCollectionSrc from "../components/AddToCollectionButton.vue?raw"
 import downloadSrc from "../components/DownloadButton.vue?raw"
 import episodeActionsSrc from "../components/EpisodeActions.vue?raw"
 import favoriteSrc from "../components/FavoriteButton.vue?raw"
+import navIconLinkSrc from "../components/NavIconLink.vue?raw"
 import queueButtonSrc from "../components/QueueButton.vue?raw"
 import transcriptSrc from "../components/TranscriptList.vue?raw"
 import savedColorControlSrc from "../components/SavedColorControl.vue?raw"
@@ -38,15 +39,54 @@ describe("affordances survive on touch", () => {
     // hover. `opacity-0 + group-hover` alone leaves the control transparent but tappable —
     // undiscoverable rather than obviously missing, which is worse than absent. This is the entry
     // point to capture → highlights → notes → resurfacing, i.e. the whole learning loop.
-    const buttons = transcriptSrc.split("<button").filter((b) => HOVER_HIDDEN.test(b))
-    expect(buttons.length, "expected a hover-quiet capture button to exist").toBeGreaterThan(0)
-    for (const b of buttons) {
+    //
+    // Split on `<Highlight`, not `<button`: the control became the shared `HighlightToggle` on
+    // 2026-09-27. Splitting on a tag the file no longer contains yields ONE chunk — the whole
+    // source — which still matched the regex and still contained the required class, somewhere.
+    // The check went on passing while testing nothing in particular, which is the failure mode
+    // this whole file exists to catch in the app.
+    const controls = transcriptSrc.split("<HighlightToggle").filter((b) => HOVER_HIDDEN.test(b))
+    expect(
+      controls.length,
+      "expected a hover-quiet capture control to exist — if it was renamed again, re-anchor this " +
+        "split rather than letting it match the whole file",
+    ).toBeGreaterThan(0)
+    for (const b of controls) {
       expect(
         b,
         "A hover-hidden control must also carry [@media(hover:none)]:opacity-100, or it is " +
           "invisible on the primary platform."
       ).toContain("[@media(hover:none)]:opacity-100")
     }
+  })
+
+  it("a hover TOOLTIP is gated to devices that hover, so a tap cannot leave it stuck", () => {
+    /*
+     * The mirror image of the check above, and the operator found it on device (2026-09-27): "why
+     * the queue label under button stays when I press it?"
+     *
+     * iOS applies `:hover` on tap and leaves it applied until you tap elsewhere. There is no hover
+     * to end, so a `group-hover` tooltip lights on tap, SURVIVES the navigation, and sits under the
+     * icon on the page it just opened — captioning a control the user is no longer looking at.
+     *
+     * A control hidden behind hover needs `[@media(hover:none)]:opacity-100` so touch can reach it.
+     * A tooltip needs the opposite: `[@media(hover:hover)]:` so touch never triggers it. Both rules
+     * live here because they are one question — what does hover mean on a device without one — and
+     * getting them backwards is easy.
+     */
+    const tooltip = navIconLinkSrc.slice(
+      navIconLinkSrc.indexOf('role="tooltip"') - 900,
+      navIconLinkSrc.indexOf('role="tooltip"'),
+    )
+    expect(tooltip, "the tooltip span moved — re-anchor this check").toContain("opacity-0")
+    expect(
+      tooltip,
+      "the nav tooltip reveals on a bare `group-hover`, so tapping the icon leaves the label " +
+        "stuck under it on the next page. Gate it with [@media(hover:hover)]:group-hover:…",
+    ).not.toMatch(/(?<!\]:)group-hover:opacity-100/)
+    expect(tooltip).toContain("[@media(hover:hover)]:group-hover:opacity-100")
+    // Keyboard focus is a real state that ends, so it must still reveal.
+    expect(tooltip, "keyboard users lost the label").toContain("group-focus-visible:opacity-100")
   })
 
   it("search is reachable from the primary nav (#1588)", () => {
