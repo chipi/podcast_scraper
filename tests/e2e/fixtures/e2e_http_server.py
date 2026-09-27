@@ -1067,7 +1067,16 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(png)
 
     def _handle_wikipedia_imageinfo(self, head_only: bool) -> None:
-        """Canned imageinfo extmetadata — a license + artist so the photo can be attributed."""
+        """Canned imageinfo: license + artist for attribution, AND the direct file URLs.
+
+        ``url`` / ``thumburl`` are what let the enricher download the bytes in ONE request instead
+        of walking a ``Special:FilePath`` redirect chain (#2163). Serving them here is what makes
+        the e2e exercise that path against a real HTTP server rather than only the unit-level
+        ``MockTransport`` — which is where URL-encoding mistakes actually show up. Omitting them
+        would silently test only the fallback branch.
+        """
+        host = self.headers.get("Host", "127.0.0.1")
+        direct = f"http://{host}/wikimedia/mock_direct.png"
         payload = {
             "query": {
                 "pages": {
@@ -1075,10 +1084,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         "title": "File:mock.png",
                         "imageinfo": [
                             {
+                                "url": direct,
+                                "thumburl": direct,
                                 "extmetadata": {
                                     "LicenseShortName": {"value": "CC BY-SA 4.0"},
                                     "Artist": {"value": "Mock Photographer"},
-                                }
+                                },
                             }
                         ],
                     }
