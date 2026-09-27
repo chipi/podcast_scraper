@@ -232,15 +232,40 @@ async function createAndAdd(): Promise<void> {
            of what it means here. -->
       <ul class="max-h-48 overflow-y-auto">
         <li v-for="c in collections" :key="c.id">
+          <!--
+            The row states its own colour and its own width (operator 2026-09-27: the board NAMES
+            did not render on device — "✓ Added" was there, the name beside it was not).
+
+            NOT REPRODUCED, so this is the two ways it could happen removed, not a diagnosis. What
+            was ruled out, each by measurement rather than by reading: the stored rows on prod carry
+            their names (`AI`, `Investments`, `Tech`); the Vue DOM renders all three with the right
+            classes; the compiled CSS paints them at full width and full contrast in Chromium, both
+            standalone and underneath the sheet this was opened from; and prod runs this exact file.
+            What is left is the iOS WKWebView the screenshot came from, which is not reachable here.
+
+            So both remaining candidates are closed off by construction:
+
+            1. COLOUR was inherited. The name was the ONLY text in this teleported panel with no
+               colour of its own — the header, the "✓ Added", the input and Create all state theirs,
+               which is why they survived and it did not. The panel teleports to `<body>` or into an
+               open `<dialog>`, and a `<dialog>`'s UA style sets `color: CanvasText`, so a control
+               relying on inheritance can land black-on-black through no fault of the theme. Both
+               branches are explicit now.
+            2. WIDTH was `flex-basis: auto` plus `min-w-0`, which lets this span — and only this
+               span, since its sibling is `shrink-0` — be shrunk to zero by the flex algorithm.
+               At zero width `truncate` (`overflow: hidden`) renders nothing at all: no text, not
+               even an ellipsis. Exactly the symptom. `flex-1` gives it a definite basis and the
+               remaining space instead.
+          -->
           <button
             type="button"
             class="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-overlay"
-            :class="holds(c.id) ? 'text-grounded' : ''"
+            :class="holds(c.id) ? 'text-grounded' : 'text-canvas-foreground'"
             data-testid="add-to-collection-pick"
             :data-contains="holds(c.id) ? 'true' : undefined"
             @click="pick(c.id)"
           >
-            <span class="min-w-0 truncate">{{ c.name }}</span>
+            <span class="min-w-0 flex-1 truncate">{{ c.name }}</span>
             <span
               v-if="addedTo === c.id || holds(c.id)"
               class="shrink-0 whitespace-nowrap text-xs text-grounded"

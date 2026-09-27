@@ -63,6 +63,53 @@ describe('AddToCollectionButton (#1839)', () => {
     expect(add).toHaveBeenCalledWith('col_1', { kind: 'episode', ref: 'ep-x' })
   })
 
+  it('every board row states its own colour and its own width', async () => {
+    /*
+     * The board NAMES did not render on the operator's device (2026-09-27) while the "✓ Added"
+     * beside them did. Never reproduced off-device — the data, the DOM and the compiled CSS in
+     * Chromium were all measured correct — so what is pinned here is the two properties that make
+     * the symptom impossible, rather than a reproduction of it.
+     *
+     * COLOUR: the name was the only text in this teleported panel inheriting its colour. A panel
+     * teleported into an open `<dialog>` inherits the UA's `CanvasText`, so an inheriting control
+     * can land black-on-black with a perfectly good theme. Both branches must be explicit.
+     *
+     * WIDTH: `min-w-0` with `flex-basis: auto` lets this span — and only this one, its sibling is
+     * `shrink-0` — shrink to zero, and at zero width `truncate`'s `overflow: hidden` paints no
+     * text and no ellipsis. `flex-1` gives it a definite basis.
+     *
+     * Asserted on the rendered class list rather than the source, so it also covers the branch
+     * being picked correctly for held vs unheld rows.
+     */
+    vi.spyOn(api, 'getCollections').mockResolvedValue([
+      col({ id: 'col_1', name: 'AI' }),
+      col({ id: 'col_2', name: 'Investments' }),
+    ])
+    vi.spyOn(api, 'getCollectionsContaining').mockResolvedValue({ ids: ['col_2'], checked: true })
+    const w = await mountIt()
+    await w.get('[data-testid="add-to-collection"]').trigger('click')
+    await flushPromises()
+
+    const rows = w.findAll('[data-testid="add-to-collection-pick"]')
+    expect(rows, 'expected one row per board').toHaveLength(2)
+
+    const [plain, held] = rows
+    // The names are on screen at all — the thing the operator could not see.
+    expect(plain.text()).toContain('AI')
+    expect(held.text()).toContain('Investments')
+
+    // An explicit colour in BOTH states, never inherited through the teleport.
+    expect(plain.classes(), 'an unheld row must state its colour').toContain('text-canvas-foreground')
+    expect(held.classes(), 'a held row is grounded, and says so').toContain('text-grounded')
+
+    // A definite basis on the name, so the flex algorithm cannot collapse it to nothing.
+    for (const row of rows) {
+      const name = row.find('span')
+      expect(name.classes(), 'the board name must not be shrinkable to zero width').toContain('flex-1')
+      expect(name.classes()).toContain('min-w-0')
+    }
+  })
+
   it('creates a new collection and pins into it', async () => {
     vi.spyOn(api, 'getCollections').mockResolvedValue([])
     const create = vi.spyOn(api, 'createCollection').mockResolvedValue(col({ id: 'col_2', name: 'New' }))
