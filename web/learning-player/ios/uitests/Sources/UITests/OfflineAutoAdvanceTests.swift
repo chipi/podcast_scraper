@@ -92,11 +92,44 @@ final class OfflineAutoAdvanceTests: UITestCase {
     XCTAssertTrue(episode.waitForExistence(timeout: 15), "no downloaded episode listed offline")
 
     // 3. It opens and plays off disk.
-    app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Investing' OR label CONTAINS[c] 'Signal' OR label CONTAINS[c] 'Conversation'"))
-      .firstMatch.tap()
+    //
+    // TAP THE TITLE ON THE DOWNLOADED ROW, not the first matching title on the page (2026-09-27).
+    //
+    // `.firstMatch` assumed the downloaded episode's title appears exactly once. It does not: with
+    // anything in the queue, an Up next section renders carrying the SAME titles, and the first
+    // match is then a queue row whose tap goes through a path that needs the network. Offline that
+    // lands on "Couldn't load this episode." while the downloaded copy sits further down — so the
+    // test reported "no Play control offline" about an episode it had never opened.
+    //
+    // MEASURED, from the inventory this failure now prints:
+    //     Offline mode is on — showing saved | Couldn't load this episode. | … | Queue (1)
+    //
+    // `episode` above is the download toggle ON the downloaded row, so its vertical centre
+    // identifies that row. Match the title sharing it.
+    let rowY = episode.frame.midY
+    let titles = app.staticTexts.matching(
+      NSPredicate(format: "label CONTAINS[c] 'Investing' OR label CONTAINS[c] 'Signal' OR label CONTAINS[c] 'Conversation'"))
+    var openedFromDownloaded = false
+    for i in 0..<titles.count {
+      let candidate = titles.element(boundBy: i)
+      guard candidate.exists, abs(candidate.frame.midY - rowY) < 60 else { continue }
+      candidate.tap()
+      openedFromDownloaded = true
+      break
+    }
+    if !openedFromDownloaded {
+      Journey.inventory(app, "offline-no-downloaded-title")
+    }
+    XCTAssertTrue(openedFromDownloaded, "no episode title on the downloaded row")
 
     let play = app.buttons["Play"].firstMatch
-    XCTAssertTrue(play.waitForExistence(timeout: 20), "no Play control offline")
+    if !play.waitForExistence(timeout: 20) {
+      // SAY WHAT IS ON SCREEN (2026-09-27). This named the control it could not find and nothing
+      // about why, so "no Play control offline" reads identically whether the episode never opened,
+      // the transport shows Pause because something auto-resumed, or the tap hit the wrong row.
+      Journey.inventory(app, "offline-no-play")
+    }
+    XCTAssertTrue(play.exists, "no Play control offline")
     var scrolls = 0
     while play.frame.maxY > app.frame.height - 90 && scrolls < 6 {
       app.swipeUp(); sleep(1); scrolls += 1
