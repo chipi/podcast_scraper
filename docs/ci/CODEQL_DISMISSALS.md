@@ -411,3 +411,15 @@ matching row from "Still open."
 | 1 | (PR #2126, fill on dismissal) | perf_cache.py | 154 | 2026-09-19 | `corpus_mtime`: read-only `os.path.getmtime(root / name)` where `name` comes from a **constant tuple** of four filenames. Every server caller anchor-guards the root first — `app_corpus_access` via `safe_resolve_directory(root)` (line 68), likewise `app_catalog_cache`, `app_cache_warm`, `cil_queries`. Same shape as dismissed #500/#501. An inline pragma is already present on the line above and does not clear the PR check. |
 | 1 | (PR #2126, fill on dismissal) | kg/entity_clusters.py | 500 | 2026-09-19 | `cached_entity_id_map`: the flagged line is `key = (str(root.resolve()), bool(same_show_required))` — a **cache key**, not a filesystem sink. `.resolve()` normalises; nothing is opened, globbed or stat'd on this line. |
 | 1 | (PR #2126, fill on dismissal) | search/corpus_graph.py | 563 | 2026-09-19 | `get_corpus_graph`: the flagged line is `_root = str(Path(corpus_dir).resolve())`, again a **cache key** rather than a sink. Same no-filesystem-access argument as the entity_clusters entry above. |
+| 1 | #596 | search/storylines.py | 58 | 2026-09-27 | **Re-issue caused by a RENAME, not by new code** (PR #2127): `theme_clusters.py` → `storylines.py`. CodeQL treats a renamed file as new, so sinks already dismissed under the old names re-fire with fresh ids. Path is `safe_resolve_directory(corpus_root)` + the **constant** `STORYLINES_REL`, with an inline `os.path.normpath` + `startswith(safe_prefix)` guard in the same function immediately above the sink. No request-derived component reaches the path. |
+| 1 | #598 | server/routes/corpus_storylines.py | 121 | 2026-09-27 | Same rename re-issue (`corpus_theme_clusters.py` → `corpus_storylines.py`); direct successor to dismissed #414/#415. `joined = normpath(join(root_s, *parts))` with `parts` constant, guarded by `joined != root_s and not joined.startswith(safe_prefix)` → 404, immediately above `os.path.isfile`. |
+| 1 | #599 | server/routes/corpus_storylines.py | 152 | 2026-09-27 | Same rename re-issue; successor to dismissed #531. `os.path.getmtime(joined)` only **stats** a path already normpath'd and `startswith(safe_prefix)`-guarded earlier in the same function; the value feeds a perf_cache token. |
+| 1 | #600 | search/storylines.py | 55 | 2026-09-27 | Same rename re-issue as #596 — the `os.path.isfile(joined)` sink a few lines above the `os.stat` one. Same constant-segment + inline-guard argument. |
+
+**Note for the next rename (2026-09-27).** Moving a file that contains dismissed
+`py/path-injection` sinks WILL turn the PR's CodeQL check red with "new alerts in
+code changed by this pull request", even though no logic changed and the inline
+``# codeql[...]`` pragmas moved with the code. The pragmas are documentation; they
+do not suppress. Re-dismiss the new ids against this table and name which old ids
+they succeed. ``gh api`` caps ``dismissed_comment`` at **280 characters**, so keep
+the API comment short and put the reasoning here.
