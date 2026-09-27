@@ -88,21 +88,32 @@ function notesUrl(ext: 'md' | 'html'): string {
 }
 
 /**
- * The print-styled notes, for the browser's Save-as-PDF.
+ * The print-styled notes.
  *
- * On NATIVE this fetches the document and shares the file; it does not hand the URL to a browser.
- * `openExternal` opens SFSafariViewController, which does not share the app's cookie jar — so the
- * export route arrived unauthenticated and rendered the sign-in gate instead of the notes. The
- * operator reported exactly that, along with the tell: "when I copy the link from there and open
- * it in a normal browser, it works fine" — because that browser had a session.
+ * On NATIVE this now OPENS them, in the app (operator 2026-09-27: "when I click a PDF, he offers
+ * me to download HTML rather than opening me PDF in a new browser window"). It used to go straight
+ * to the share sheet — which is a SAVE dialog. Reasonable if you wanted the file; wrong as the
+ * answer to a control the reader takes to mean "show me the document".
  *
- * Shared as `.html` rather than converted here: iOS renders it in the share sheet's preview and
- * offers Print -> Save as PDF, which is the real print-to-PDF path on the platform. Bundling a PDF
- * library to re-implement a renderer the OS already has would be the wrong trade.
+ * Note what this is NOT: it is not the external-browser route, which was tried and failed.
+ * `openExternal` opens SFSafariViewController, which does not share the app's cookie jar, so the
+ * export arrived unauthenticated and rendered the sign-in gate — the operator's tell at the time
+ * was "when I copy the link and open it in a normal browser, it works fine", because that browser
+ * had a session. The document here is FETCHED by the app (`apiFetch`, carrying the shell's bearer
+ * token) and then displayed from memory. There is no second request, so there is nothing to
+ * authenticate twice.
  *
- * Web keeps opening a tab, where the cookie travels and the user can see what they are printing.
+ * Sharing stays one tap away INSIDE the viewer, because the share sheet is the route to iOS's
+ * Print -> Save as PDF, and that is the real print-to-PDF path on the platform. Bundling a PDF
+ * library to re-implement a renderer the OS already has would still be the wrong trade.
+ *
+ * Web keeps opening a tab: the cookie travels there, and a browser tab is already the thing the
+ * native side is approximating.
  */
 const printingNotes = ref(false)
+const notesHtml = ref<string | null>(null)
+const notesError = ref(false)
+
 async function openPrintableNotes(): Promise<void> {
   if (!isNative()) {
     await openExternal(notesUrl('html'))
@@ -110,16 +121,26 @@ async function openPrintableNotes(): Promise<void> {
   }
   if (printingNotes.value) return
   printingNotes.value = true
+  notesError.value = false
   try {
-    const html = await fetchEpisodeNotes(props.episode.slug, 'html')
-    await saveAndShareText(
-      exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes'),
-      html,
-      'text/html',
-    )
+    notesHtml.value = await fetchEpisodeNotes(props.episode.slug, 'html')
+  } catch {
+    // A failed export has to SAY so. Silence reads as a dead control — the same failure mode as
+    // the `<a download>` this button replaced, which did nothing at all on the phone.
+    notesError.value = true
   } finally {
     printingNotes.value = false
   }
+}
+
+/** Hand the already-fetched document to the share sheet — the way to iOS Print -> Save as PDF. */
+async function shareOpenNotes(): Promise<void> {
+  if (!notesHtml.value) return
+  await saveAndShareText(
+    exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes'),
+    notesHtml.value,
+    'text/html',
+  )
 }
 
 /**
@@ -644,12 +665,76 @@ watch(() => auth.isAuthenticated, loadCaptures)
           >{{ t("kp.exportMarkdownShort") }}</a>
           <button
             type="button"
+            :disabled="printingNotes"
             :aria-label="t('kp.exportNotesPdf')"
             data-testid="episode-notes-pdf"
-            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay"
+            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
             @click="openPrintableNotes"
           >{{ t("kp.exportPdfShort") }}</button>
+          <!-- The export can fail (offline, a dead session), and it used to fail in silence. -->
+          <span v-if="notesError" class="text-xs text-danger" data-testid="episode-notes-error">
+            {{ t("kp.exportFailed") }}
+          </span>
         </div>
+
+        <!--
+          The notes, OPEN, on native (operator 2026-09-27).
+
+          Teleported to `body` and `fixed inset-0` rather than rendered in place: this panel is a
+          `<dialog>`, and on mobile a MODAL one, so anything inside it is clipped by the dialog's
+          own box and sits under its top layer. The viewer has to be able to cover it.
+
+          An `<iframe srcdoc>` is what makes this work without a second request. The export is a
+          COMPLETE standalone document — its own `<html>`, its own print stylesheet — so injecting
+          it into this page would both break the page's styling and lose the print styling that is
+          the entire point of the .html format. An iframe gives it its own document, and `srcdoc`
+          means the bytes we already fetched with the shell's bearer token are the bytes rendered:
+          no URL for SFSafariViewController to re-request without a cookie, which is exactly how
+          the previous attempt at "open it" ended up on the sign-in gate.
+
+          `sandbox` with nothing granted: the document is ours, but it is assembled from episode
+          content, and a viewer has no reason to run script or navigate anywhere.
+        -->
+        <Teleport to="body">
+          <div
+            v-if="notesHtml"
+            class="fixed inset-0 z-[60] flex flex-col bg-canvas"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="t('kp.exportNotesPdf')"
+            data-testid="episode-notes-viewer"
+          >
+            <div
+              class="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]"
+            >
+              <button
+                type="button"
+                class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+                data-testid="episode-notes-viewer-close"
+                @click="notesHtml = null"
+              >
+                {{ t("kp.exportClose") }}
+              </button>
+              <!-- The share sheet is still here, because it is the route to Print -> Save as PDF.
+                   It is an action WITHIN the document now, not the whole answer to opening it. -->
+              <button
+                type="button"
+                class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
+                data-testid="episode-notes-viewer-share"
+                @click="shareOpenNotes"
+              >
+                {{ t("kp.exportShare") }}
+              </button>
+            </div>
+            <iframe
+              :srcdoc="notesHtml"
+              sandbox=""
+              class="min-h-0 flex-1 w-full border-0 bg-white"
+              :title="t('kp.exportNotesPdf')"
+              data-testid="episode-notes-frame"
+            />
+          </div>
+        </Teleport>
 
         <!--
         The digest, under the summary and above the insights. Its own labelled block rather than
