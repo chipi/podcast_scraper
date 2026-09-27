@@ -702,14 +702,27 @@ class WikipediaProvider:
             license="CC-BY-SA 4.0",
         )
 
-    def _image_attribution(self, image_url: str) -> tuple[str | None, str | None] | None:
-        """(license, artist) for the image FILE via the imageinfo API — the image's OWN license,
-        not the article's. Returns ``None`` on a NETWORK/parse failure (transient — the caller
-        retries), or a ``(license, artist)`` tuple when the API answered (``license`` may itself be
-        None → resolved-but-unlicensed, which is a PERMANENT skip)."""
+    def _image_attribution(
+        self, image_url: str
+    ) -> tuple[str | None, str | None, str | None] | None:
+        """(license, artist, direct_url) for the image FILE via the imageinfo API — the image's OWN
+        license, not the article's. Returns ``None`` on a NETWORK/parse failure (transient — the
+        caller retries), or the triple when the API answered (``license`` may itself be None →
+        resolved-but-unlicensed, which is a PERMANENT skip).
+
+        ``direct_url`` is the point of asking for ``url``/``iiurlwidth`` here (#2163). Downloading
+        via ``Special:FilePath`` costs a redirect chain — measured on prod as
+        ``301 -> 302 -> 301 -> upload.wikimedia.org``, i.e. FOUR physical requests for one image,
+        THREE of them against ``commons.wikimedia.org``, which is the rate-metered text cluster.
+        Worse, ``follow_redirects=True`` resolves those hops inside ``httpx.Client`` above our
+        transport, so one ``limiter.wait()`` covers all four and the hops are unthrottled. The
+        imageinfo call we already make can hand back the final ``upload.wikimedia.org`` URL in the
+        SAME response, taking the metered cost of an image from 4 requests to 1.
+        """
         file_name = _wiki_file_title(image_url)
         query = (
-            f"{self._api_base}?action=query&format=json&prop=imageinfo&iiprop=extmetadata"
+            f"{self._api_base}?action=query&format=json&prop=imageinfo"
+            f"&iiprop=extmetadata%7Curl&iiurlwidth={_COMMONS_THUMB_WIDTH}"
             f"&titles=File:{urllib.parse.quote(file_name)}"
         )
         try:
@@ -728,14 +741,22 @@ class WikipediaProvider:
         pages = (doc.get("query") or {}).get("pages") or {}
         for page in pages.values() if isinstance(pages, dict) else []:
             infos = page.get("imageinfo") if isinstance(page, dict) else None
-            meta = (infos[0].get("extmetadata") or {}) if isinstance(infos, list) and infos else {}
+            info = infos[0] if isinstance(infos, list) and infos else {}
+            meta = (info.get("extmetadata") or {}) if isinstance(info, dict) else {}
             lic = (meta.get("LicenseShortName") or {}).get("value")
             artist = (meta.get("Artist") or {}).get("value")
+            # ``thumburl`` is the rendition at ``iiurlwidth`` (and for an SVG source it is a
+            # rendered PNG, which our allowlist accepts where the raw SVG would be skipped).
+            # Fall back to the full-size ``url``, then to the caller's URL, so a file type that
+            # cannot be thumbnailed still behaves exactly as before.
+            direct = info.get("thumburl") or info.get("url") if isinstance(info, dict) else None
             return (
                 lic if isinstance(lic, str) else None,
                 artist if isinstance(artist, str) else None,
+                direct if isinstance(direct, str) and direct else None,
             )
-        return (None, None)  # API answered with no imageinfo → resolved, unlicensed → permanent
+        # API answered with no imageinfo → resolved, unlicensed → permanent
+        return (None, None, None)
 
     def fetch_image(self, image_url: str) -> FetchedImage | _ImageSkip | None:
         """Resolve the image's license (imageinfo) then download+validate the bytes.
@@ -751,18 +772,25 @@ class WikipediaProvider:
         attribution = self._image_attribution(image_url)
         if attribution is None:
             return None  # transient imageinfo failure → retry next run
-        license_, artist = attribution
+        license_, artist, direct_url = attribution
         if license_ is None:
             return IMAGE_SKIP  # no license → never host what we cannot attribute (permanent)
-        if not self._image_host_allowed(image_url):
+        # Download the direct upload.wikimedia.org rendition when imageinfo gave us one, which
+        # skips the Special:FilePath redirect chain entirely (#2163). Falls back to the caller's
+        # URL so an un-thumbnailable file behaves exactly as before.
+        fetch_url = direct_url or image_url
+        # The SSRF guard must judge the URL we ACTUALLY fetch. ``direct_url`` comes from an
+        # external payload just like ``image_url`` does, so checking the original here would leave
+        # the real request unvalidated.
+        if not self._image_host_allowed(fetch_url):
             return IMAGE_SKIP  # off-allowlist host (SSRF guard) → never fetch it (permanent)
         try:
             # Stream so an oversize image is bounded, never read whole into memory (read cap+1 then
             # reject) — the same defence the urllib version had.
-            # Same per-host throttle as _get_json: image bytes come from
+            # Same cluster throttle as _get_json: image bytes come from
             # upload./commons.wikimedia.org, which are covered by the same robot policy.
-            self._limiter.wait(image_url)
-            with self._client.stream("GET", image_url, headers={"User-Agent": _USER_AGENT}) as resp:
+            self._limiter.wait(fetch_url)
+            with self._client.stream("GET", fetch_url, headers={"User-Agent": _USER_AGENT}) as resp:
                 if resp.status_code in (404, 410):
                     return IMAGE_SKIP  # the image is gone → do not retry forever (permanent)
                 if resp.status_code != 200:

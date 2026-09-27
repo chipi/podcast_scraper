@@ -31,6 +31,7 @@ import httpx
 from podcast_scraper.enrichment.enrichers._loaders import load_kg, nodes_of_type
 from podcast_scraper.enrichment.enrichers.person_web import (
     _build_web_client,
+    _COMMONS_THUMB_WIDTH,
     _downscale_image,
     _EXT_MEDIA,
     _IMAGE_ALLOWED,
@@ -445,14 +446,21 @@ class WikidataProvider:
             return True
         return host == "wikimedia.org" or host.endswith((".wikimedia.org", ".wikipedia.org"))
 
-    def _logo_license(self, logo_file_url: str) -> str | None | _ImageSkip:
-        """License of the Commons logo file. None → transient (retry); IMAGE_SKIP → no license
-        (permanent, do not host); a string → resolved license."""
+    def _logo_license(self, logo_file_url: str) -> tuple[str | _ImageSkip, str | None] | None:
+        """``(license_or_IMAGE_SKIP, direct_url)`` for the Commons logo file, or ``None``.
+
+        ``None`` → transient (retry next run). ``IMAGE_SKIP`` in the first slot → no license, a
+        permanent do-not-host. ``direct_url`` is the ``upload.wikimedia.org`` rendition, asked for
+        in this same call via ``url``/``iiurlwidth`` so the download skips the ``Special:FilePath``
+        redirect chain — 4 physical requests down to 1, three of which were landing on the
+        rate-metered text cluster (#2163).
+        """
         # Special:FilePath/<File> → the file name is the last path segment.
         last_seg = urllib.parse.urlsplit(logo_file_url).path.rsplit("/", 1)[-1]
         file_name = urllib.parse.unquote(last_seg)
         query = (
-            f"{self._commons_api}?action=query&format=json&prop=imageinfo&iiprop=extmetadata"
+            f"{self._commons_api}?action=query&format=json&prop=imageinfo"
+            f"&iiprop=extmetadata%7Curl&iiurlwidth={_COMMONS_THUMB_WIDTH}"
             f"&titles=File:{urllib.parse.quote(file_name)}"
         )
         try:
@@ -467,10 +475,17 @@ class WikidataProvider:
         pages = (doc.get("query") or {}).get("pages") or {}
         for page in pages.values() if isinstance(pages, dict) else []:
             infos = page.get("imageinfo") if isinstance(page, dict) else None
-            meta = (infos[0].get("extmetadata") or {}) if isinstance(infos, list) and infos else {}
+            info = infos[0] if isinstance(infos, list) and infos else {}
+            meta = (info.get("extmetadata") or {}) if isinstance(info, dict) else {}
             lic = (meta.get("LicenseShortName") or {}).get("value")
-            return lic if isinstance(lic, str) and lic.strip() else IMAGE_SKIP
-        return IMAGE_SKIP  # answered with no imageinfo → unlicensed → permanent
+            # For an SVG logo ``thumburl`` is a rendered PNG, which the allowlist accepts where the
+            # raw SVG is skipped as an unsupported type — so this also recovers logos we discard.
+            direct = info.get("thumburl") or info.get("url") if isinstance(info, dict) else None
+            return (
+                lic if isinstance(lic, str) and lic.strip() else IMAGE_SKIP,
+                direct if isinstance(direct, str) and direct else None,
+            )
+        return (IMAGE_SKIP, None)  # answered with no imageinfo → unlicensed → permanent
 
     def fetch_image(self, image_url: str) -> FetchedImage | _ImageSkip | None:
         """Resolve the logo's license (Commons) then download+validate. Mirrors person_web.
@@ -478,18 +493,22 @@ class WikidataProvider:
         Raises :class:`UpstreamBlockedError` when the shared breaker is open, so a block is never
         mistaken for "this logo is un-hostable" and cached as a permanent skip (#2163)."""
         web_block_breaker().raise_if_open()
-        license_ = self._logo_license(image_url)
-        if license_ is None:
+        resolved = self._logo_license(image_url)
+        if resolved is None:
             return None  # transient license lookup → retry next run
+        license_, direct_url = resolved
         if isinstance(license_, _ImageSkip):
             return IMAGE_SKIP  # no license → never host what we cannot attribute (permanent)
-        if not self._logo_host_allowed(image_url):
+        # Direct rendition when Commons gave us one, else the caller's URL (unchanged behaviour).
+        fetch_url = direct_url or image_url
+        # The SSRF guard judges the URL actually fetched: ``direct_url`` is external payload too.
+        if not self._logo_host_allowed(fetch_url):
             return IMAGE_SKIP  # off-allowlist host (SSRF guard)
         try:
-            # Same per-host throttle as _get_json: image bytes come from
+            # Same cluster throttle as _get_json: image bytes come from
             # upload./commons.wikimedia.org, which are covered by the same robot policy.
-            self._limiter.wait(image_url)
-            with self._client.stream("GET", image_url, headers={"User-Agent": _USER_AGENT}) as resp:
+            self._limiter.wait(fetch_url)
+            with self._client.stream("GET", fetch_url, headers={"User-Agent": _USER_AGENT}) as resp:
                 if resp.status_code in (404, 410):
                     return IMAGE_SKIP
                 if resp.status_code != 200:
