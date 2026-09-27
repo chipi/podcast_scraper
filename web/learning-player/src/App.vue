@@ -43,6 +43,7 @@ import {
   removeInterest,
   unfollowShow,
   addToCollection,
+  reorderCollections,
   createCollection,
   detectTimezone,
   getComms,
@@ -303,6 +304,7 @@ async function pushPendingWrites({ revalidate = true }: { revalidate?: boolean }
       await createCollection(action.name, action.clientId)
     else if (action.op === 'collection.addItem')
       await addToCollection(action.collectionId, action.item)
+    else if (action.op === 'collection.reorder') await reorderCollections(action.order)
     else if (action.op === 'queue.add') await addQueueItem(action.slug, action.after)
     else if (action.op === 'queue.remove') await removeQueueItem(action.slug)
     else if (action.op === 'completed.add') await markCompleted(action.slug)
@@ -518,30 +520,48 @@ const mainBottomPadding = computed(() =>
           the bottom of the same screen. Two navs is worse than either one — it makes the app feel
           like two designs stacked, and it wastes the scarcest space on a phone.
 
+          Search is the exception now (2026-09-20) and is hoisted out of this span: it is no longer a
+          tab, so it no longer appears twice, and it needs to stay reachable on a phone.
+
           Browse lives only here, and that is fine: it is a corpus index, not a daily destination
           (the reason it did not take a tab), and Home carries a "Browse all →" link plus the
           catalogue link in the empty shows state. The auth buttons below stay visible at every
           width — signing in is not a tab.
         -->
+        <!-- Search is the differentiator — corpus-wide semantic search with jump-to-moment, which
+             neither Spotify nor Apple Podcasts offers. It had exactly ONE entry point (the Home
+             search box), so from the catalogue, player, library or a show page there was no way to
+             reach it at all (#1588). Public, like Browse: reads are open.
+
+             Visible at EVERY width (operator 2026-09-20), unlike the icons below. The note above
+             hid these on phones because "Search appeared twice" — masthead AND bottom tab. Search
+             is no longer a tab, so that duplication is gone and the objection with it. This is now
+             the only always-available search control, which is what keeps folding search into
+             Discovery from re-opening #1588. -->
+        <NavIconLink
+          :to="{ name: 'search' }"
+          :label="t('nav.search')"
+          data-testid="masthead-search"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+          </svg>
+        </NavIconLink>
         <span class="hidden items-center gap-1.5 sm:flex">
         <!-- `browse`, not `catalog` (#2013). This link is labelled "Browse" and the bottom tab bar's
              "Browse" goes to `/browse`, so desktop and mobile disagreed on where the same word led:
              the hub with Episodes · Shows · Topics · People, versus a bare episode list. `/browse`
              is a strict superset — it renders `<CatalogView embedded />` as its Episodes tab — so
              the catalogue was never missing, three indexes were. -->
-        <NavIconLink :to="{ name: 'browse' }" :label="t('nav.browse')">
+        <NavIconLink
+          :to="{ name: 'browse' }"
+          :label="t('nav.browse')"
+          owns="browse"
+          data-testid="masthead-browse"
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-          </svg>
-        </NavIconLink>
-        <!-- Search is the differentiator — corpus-wide semantic search with jump-to-moment, which
-             neither Spotify nor Apple Podcasts offers. It had exactly ONE entry point (the Home
-             search box), so from the catalogue, player, library or a show page there was no way to
-             reach it at all (#1588). Public, like Browse: reads are open. -->
-        <NavIconLink :to="{ name: 'search' }" :label="t('nav.search')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
           </svg>
         </NavIconLink>
         <template v-if="auth.hasSession">
@@ -550,6 +570,7 @@ const mainBottomPadding = computed(() =>
             :to="resurfacing.dueCount ? { name: 'library', query: { tab: 'revisit' } } : { name: 'library' }"
             :label="t('library.title')"
             :badge="resurfacing.dueCount"
+            owns="library"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
               <path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" />
@@ -557,6 +578,27 @@ const mainBottomPadding = computed(() =>
           </NavIconLink>
         </template>
         </span>
+        <!-- Queue, at EVERY width (operator 2026-09-23).
+             `/queue` had no nav entry at all: the only ways in were the player's queue button and
+             Home's resume hero — and that hero renders only while something is IN PROGRESS. Finish
+             everything you were listening to and the queue you had been filling became unreachable
+             without first starting an episode you did not want to play. Which is also the state you
+             are most likely to be in offline, on a plane, wanting the thing you queued.
+             Not inside the `sm:` group with Browse/Library: the whole point is that it survives at
+             phone width. The badge is the queue's own length, so the control answers "is there
+             anything in there" without being opened. -->
+        <NavIconLink
+          v-if="auth.hasSession"
+          :to="{ name: 'queue' }"
+          :label="t('queue.title')"
+          :badge="queue.items.length"
+          owns="queue"
+          data-testid="masthead-queue"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+            <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3z" />
+          </svg>
+        </NavIconLink>
         <!-- Notification bell, at EVERY width (wave-I): the in-app inbox surface. Authenticated
              only — a signed-out visitor has no inbox. Sits left of the profile avatar. -->
         <NotificationsBell v-if="auth.hasSession" />
@@ -566,12 +608,36 @@ const mainBottomPadding = computed(() =>
         <RouterLink
           v-if="auth.hasSession"
           :to="{ name: 'profile' }"
-          class="shrink-0 rounded-full no-underline transition hover:opacity-80"
+          class="relative shrink-0 rounded-full no-underline transition hover:opacity-80"
           :aria-label="auth.user?.name || t('profile.title')"
           :title="auth.user?.name || t('profile.title')"
           data-testid="header-profile"
         >
           <ProfileAvatar :name="auth.user?.name" :email="auth.user?.email" :src="auth.user?.image" :size="32" />
+          <!-- A real, non-hidden accessible name INSIDE the link (2026-09-24).
+               `ProfileAvatar`'s root is `aria-hidden="true"` — correct, it is decorative — but it
+               was this anchor's ONLY child, so the whole subtree was hidden and WebKit dropped the
+               LINK from the accessibility tree despite its `aria-label`. On device the control was
+               visibly on screen and unreachable to assistive tech, and to XCUITest, which is how it
+               was found: `app.links` listed the sibling Queue icon (whose tooltip span carries real
+               text) and not this one.
+               `aria-label` alone is not enough when everything inside is hidden.
+
+               ANCHORED to the link's origin (`left-0 top-0`, with `relative` on the anchor above),
+               and that is load-bearing (2026-09-25). `sr-only` is `position:absolute` with NO
+               offsets, so the span took its STATIC position — after the 32px avatar, i.e. at the
+               link's right edge — and WebKit derives the link's accessibility frame from the text
+               RUN, which lays out at its natural width (48pt) even though the box is clipped to
+               1x1. On the masthead, which sits at the top-right, that frame ran off the display:
+               measured x=381 w=48 on a 402pt-wide screen, so its CENTRE was at 405 — three points
+               past the edge.
+               The control was therefore findable and untappable. XCUITest taps an element's
+               centre, so every `Journey.openProfile` "succeeded" and navigated nowhere; all four
+               `NativeOnlySurfacesTests` died in `startClean` reporting "neither Sign in nor Sign
+               out present" about an app that was signed in and sitting on Home.
+               VoiceOver has the same wrong rectangle — it would draw focus partly off-screen.
+               Anchoring moves the run to 349..397, centre 373, inside the avatar. -->
+          <span class="sr-only left-0 top-0">{{ auth.user?.name || t('profile.title') }}</span>
         </RouterLink>
         <!-- Sign out lives in Profile now (#1962), not here. The top-right of a mobile app is
              where the most-used action belongs, and this was the least-used one — styled as a

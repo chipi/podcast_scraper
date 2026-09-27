@@ -185,6 +185,12 @@ const healthDotClass = computed(() => {
   if (!shell.healthStatus) {
     return 'bg-muted'
   }
+  // Auth being down is not the same kind of yellow. Sessions cannot be minted or verified, so every
+  // user is signed out or about to be, and nothing the operator does in this UI repairs it. It read
+  // as an ordinary degraded badge before (cross-surface review 2026-09-18).
+  if (shell.authDegraded) {
+    return 'bg-danger'
+  }
   const st = String(shell.healthStatus).toLowerCase()
   if (st !== 'ok') {
     return 'bg-warning'

@@ -37,22 +37,38 @@ async function mountNav(opts: { signedIn?: boolean; at?: string } = {}) {
 }
 
 describe('BottomNav (#1594)', () => {
-  it('offers four destinations including Browse (#14); Profile moved to the masthead avatar', async () => {
-    // Browse got its own tab: it is the destination that unifies the catalogue, topic and people
-    // indexes, and it must be reachable from anywhere on mobile (incl. Search — #6). Profile is no
-    // longer a bottom-nav tab — it lives in the masthead avatar now (2026-09-09).
+  it('offers three destinations; Profile is in the masthead and Search folded into Discovery', async () => {
+    // Browse got its own tab (#14): it is the destination that unifies the catalogue, topic and
+    // people indexes. Profile left the bar for the masthead avatar (2026-09-09). Search left it for
+    // Discovery (operator 2026-09-20) — it IS a discovery surface, and it keeps the masthead
+    // magnifier, Discovery's own box and Home's Ask box, so it gained entry points rather than
+    // losing them.
     const w = await mountNav()
-    expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(4)
-    for (const name of ['home', 'browse', 'search', 'library']) {
+    expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(3)
+    for (const name of ['home', 'browse', 'library']) {
       expect(w.find(`[data-testid="bottom-nav-${name}"]`).exists()).toBe(true)
     }
     expect(w.find('[data-testid="bottom-nav-profile"]').exists()).toBe(false)
+    expect(w.find('[data-testid="bottom-nav-search"]').exists()).toBe(false)
     expect(w.get('[data-testid="bottom-nav-browse"]').attributes('href')).toBe('/browse')
   })
 
   it('marks the current tab with aria-current', async () => {
+    const w = await mountNav({ at: '/library', signedIn: true })
+    expect(w.get('[data-testid="bottom-nav-library"]').attributes('aria-current')).toBe('page')
+    expect(w.get('[data-testid="bottom-nav-home"]').attributes('aria-current')).toBeUndefined()
+  })
+
+  /**
+   * `/search` lights DISCOVERY (operator 2026-09-20).
+   *
+   * This knowingly overrules the rule the player test below enforces: someone who searched from
+   * Home's Ask box did not come via Discovery, and the bar says they did. Accepted because search,
+   * unlike an episode, has a canonical parent. Pinned so the decision cannot be quietly undone.
+   */
+  it('lights up Discovery on the search results page', async () => {
     const w = await mountNav({ at: '/search' })
-    expect(w.get('[data-testid="bottom-nav-search"]').attributes('aria-current')).toBe('page')
+    expect(w.get('[data-testid="bottom-nav-browse"]').attributes('aria-current')).toBe('page')
     expect(w.get('[data-testid="bottom-nav-home"]').attributes('aria-current')).toBeUndefined()
   })
 
@@ -104,13 +120,13 @@ describe('BottomNav (#1594)', () => {
         w.get('[data-testid="bottom-nav-browse"]').attributes('aria-current'),
         `${path} should light up Browse`,
       ).toBe('page')
-      expect(w.get('[data-testid="bottom-nav-search"]').attributes('aria-current')).toBeUndefined()
+      expect(w.get('[data-testid="bottom-nav-home"]').attributes('aria-current')).toBeUndefined()
     }
   })
 
   it('lights up NOTHING on the player — no tab may claim a path the user might not have taken', async () => {
     const w = await mountNav({ at: '/episode/ep-1' })
-    for (const name of ['home', 'browse', 'search', 'library']) {
+    for (const name of ['home', 'browse', 'library']) {
       expect(
         w.get(`[data-testid="bottom-nav-${name}"]`).attributes('aria-current'),
         `${name} must not claim the player route`,

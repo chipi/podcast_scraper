@@ -57,8 +57,8 @@ import {
   findClusterByCompoundId,
   findTopicClusterContextForGraphNode,
   clusterTimelineCilTopicIdsForCluster,
-  themeClusterMemberTopicIdsForTopic,
-  themeClusterInfoForTopic,
+  storylineMemberTopicIdsForTopic,
+  storylineInfoForTopic,
   topicClusterMemberRowsForDetail,
 } from "../../utils/topicClustersOverlay"
 import GraphConnectionsSection from "./GraphConnectionsSection.vue"
@@ -870,13 +870,13 @@ const showInlineClusterTimeline = computed(
 // a theme is a storyline, so its members' activity is the theme's lifespan.
 // Reuses the cluster-mode merge path with the theme members' topic ids.
 const themeTimelineMemberTopicIds = computed((): string[] =>
-  themeClusterMemberTopicIdsForTopic(artifacts.themeClustersDoc, props.nodeId ?? "")
+  storylineMemberTopicIdsForTopic(artifacts.storylinesDoc, props.nodeId ?? "")
 )
 // Theme-cluster IDENTITY (label + "discussed together" members) for the Details
 // tab's Theme block — mirrors the player entity card. Topic nodes only.
-const themeClusterInfo = computed(() =>
+const storylineInfo = computed(() =>
   isTopicNode.value
-    ? themeClusterInfoForTopic(artifacts.themeClustersDoc, props.nodeId ?? "")
+    ? storylineInfoForTopic(artifacts.storylinesDoc, props.nodeId ?? "")
     : null
 )
 
@@ -884,14 +884,14 @@ const themeClusterInfo = computed(() =>
 // walk (Insight / Episode / Person / Org / Podcast), surface the human label
 // of the theme region they're painted as. Answers "why is this node this
 // colour" without needing the graph legend. Topic nodes already carry the
-// full theme identity via themeClusterInfo above. Propagation runs artifact-
-// side in applyThemeClustersOverlay so themeClusterId is on the raw node.
+// full theme identity via storylineInfo above. Propagation runs artifact-
+// side in applyStorylinesOverlay so storylineId is on the raw node.
 const propagatedThemeRegionLabel = computed<string | null>(() => {
   if (isTopicNode.value) return null
-  const raw = node.value as { themeClusterId?: unknown } | null
-  const id = typeof raw?.themeClusterId === "string" ? raw.themeClusterId.trim() : ""
+  const raw = node.value as { storylineId?: unknown } | null
+  const id = typeof raw?.storylineId === "string" ? raw.storylineId.trim() : ""
   if (!id) return null
-  const doc = artifacts.themeClustersDoc
+  const doc = artifacts.storylinesDoc
   const clusters = doc?.clusters ?? []
   for (const cl of clusters) {
     const cid =
@@ -2412,7 +2412,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
           <!-- Theme (co-occurrence "discussed together") identity + members — mirrors
            the player entity card. Teal, distinct from the semantic Topic cluster. -->
           <div
-            v-if="isTopicNode && themeClusterInfo"
+            v-if="isTopicNode && storylineInfo"
             class="mb-2"
             data-testid="node-detail-theme-cluster"
           >
@@ -2420,7 +2420,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
               class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide"
               style="color: #7dd3c0"
             >
-              <span class="min-w-0 truncate">Theme · {{ themeClusterInfo.label }}</span>
+              <span class="min-w-0 truncate">Theme · {{ storylineInfo.label }}</span>
               <HelpTip :pref-width="270" button-aria-label="About themes">
                 <p
                   class="font-sans text-[10px] normal-case leading-snug tracking-normal text-muted"
@@ -2433,9 +2433,9 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 </p>
               </HelpTip>
             </div>
-            <div v-if="themeClusterInfo.members.length" class="flex flex-wrap gap-1.5">
+            <div v-if="storylineInfo.members.length" class="flex flex-wrap gap-1.5">
               <button
-                v-for="m in themeClusterInfo.members"
+                v-for="m in storylineInfo.members"
                 :key="m.topic_id"
                 type="button"
                 class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"

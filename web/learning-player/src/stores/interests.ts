@@ -29,6 +29,23 @@ export const useInterestsStore = defineStore('interests', {
       this.loaded = true
     },
     /**
+     * Adopt the authoritative set returned by an absolute write.
+     *
+     * `InterestsPicker` PUTs the whole list rather than toggling, so it cannot use `toggle` — and
+     * before this existed it updated NOTHING here. Each parent was left to cope: `ProfileView`
+     * assigned a local ref (so Profile looked right) and `HomeView` set its DISMISSED flag (so Home
+     * looked right for the wrong reason, and only on the path that starts from Home). Choose
+     * interests from Profile and Home went on showing "Personalize your Home", because this store —
+     * which is what `showInterestsCard` reads — still held the empty list it loaded at boot.
+     * `ensureLoaded()` short-circuits on `loaded`, so nothing ever refetched it either.
+     *
+     * Present since #1111 (2026-06-28) and caught by `PersonalisationTests.test10` on device.
+     */
+    replaceAll(ids: string[]): void {
+      this.ids = ids
+      this.loaded = true
+    },
+    /**
      * Best-effort hydration — it does NOT reject.
      *
      * Six call sites treat it as fire-and-forget; four remembered `.catch(() => {})` and two did

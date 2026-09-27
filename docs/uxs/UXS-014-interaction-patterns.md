@@ -205,6 +205,41 @@ Two components, and the choice is not stylistic:
   player, top-aligned, with a `#trailing` slot for a row action. It is the one idiom for the dense
   episode lists inside a card or sheet (the entity card, the storyline sheet, the Knowledge Panel's
   "More like this"), where the full `EpisodeCard`'s summary column would be noise.
+- **`EntityEpisodeList`** is the "discussed in N episodes" LIST that every entity surface renders —
+  topic, storyline, person, org. It owns two things: the `EpisodeRow` stack, and the cap. Ten rows,
+  then a full-width control that adds ten more, re-collapsing when the entity changes because these
+  surfaces drill in place.
+
+  **The cap is the point.** The four surfaces each rendered their own uncapped list, so a topic with
+  sixty episodes emitted sixty rows and pushed the conversation arc, the perspectives and the notes
+  somewhere no reader reaches (operator 2026-09-19). The four had also drifted: three stated "newest
+  first" under the heading and the storyline did not. A shared component is how that stops
+  recurring — the next entity surface inherits the behaviour instead of re-deciding it.
+
+  The HEADING stays with the caller, because each words its own ("Discussed in N episodes", "In N
+  episodes", and the person card switches between two depending on whether it is showing host
+  episodes). The list owns the rows, the cap, and the paging.
+
+### The summary window — full lines only, and always a way to the rest
+
+`EpisodeCard`'s summary is clipped by a WINDOW whose height comes from the artwork column, not by a
+fixed line count: a fixed `line-clamp-4` stopped the text short of the artwork's bottom and left dead
+space beside the picture. Two rules govern what that window may do.
+
+**It may not cut a line in half.** The artwork column has no reason to be a whole multiple of the
+prose's line-height, so `overflow: hidden` sliced the last line through the middle of the glyphs and
+left a strip of half-letters above "Read more" (operator 2026-09-23). The card measures the window,
+divides by the computed line-height, and clamps the prose to the number of lines that actually FIT —
+so the text ends on a real line, with an ellipsis, and the cut reads as deliberate rather than as a
+rendering fault. The clamp is applied to the prose, which is absolutely positioned inside the window,
+so it changes what is drawn and never a height — it cannot feed back into the observer that set it.
+
+**"Read more" appears wherever text is actually cut — including COMPACT cards.** It was withheld from
+compact outright, so the queue's recently-played list showed prose visibly truncated with no way to
+reach the rest — the same complaint that put the toggle on the full card in the first place. The
+toggle is offered when the prose is measurably clipped, never merely because a summary exists; and
+expanding RELEASES the clamp, or "Read more" would open onto text still cut at the same line.
+
 - **`ShowRow`** is `EpisodeCard`'s shape with a show's content — 128px artwork with the episode count
   and the surface's controls beneath it, the name and description filling the right. It is the one
   show row: Discover → Shows (list view) and Library → Saved both render it, differing only through
@@ -276,10 +311,48 @@ density rule.
 | ------- | -------- | ----- | -------- | ------------ |
 | Home rails / Browse / Search / detail episode-lists | add | add | native | add-to-collection, add-note, share |
 | Library › Saved | see **OPEN-1** | add | native | remove |
-| Queue | add | **remove** (inverted — you are in the queue) | native | … |
+| Queue › **Up next** | add | **remove** (inverted — you are in the queue) | **INLINE, native** | add-to-collection, reorder ↑/↓ |
+| Queue › **Recently played** | add | **in the `⋯`** | native (in the `⋯`) | queue, download, add-to-collection |
 | Downloaded list | add | add | **downloaded → delete** state | … |
 | Collection detail | add | add | native | add-to-collection *for this collection* omitted |
 | Player (current episode) | add | **n/a** (it is playing) → **mark-as-played** | native | add-to-collection inline (roomy) |
+
+**Two per-surface levers on the row, and they are the same lever (operator 2026-09-23).** Both are
+applications of the density rule above, not exceptions to it — the row stays at most three wide, and
+what occupies the slots changes with the question the surface is answering.
+
+- **`showDownload` promotes download out of the `⋯` (Up next).** There, "is this on the device?" IS
+  the question — you are looking at what you are about to play, often right before losing signal —
+  and it was two taps and a menu away, so the answer was invisible. Native-only by construction, so
+  on web this adds nothing.
+
+  **The glyph says what the control IS; the colour says whether it is ON.** Downloaded keeps the
+  download arrow and takes the **accent** border and stroke — the same language the queue toggle
+  uses one slot to its left. It first swapped to a bare check, and that was wrong: a tick scanned
+  down a list reads as "selected" or "done" rather than "on your device", and the control changed
+  identity between its two states so it no longer matched its neighbour (operator 2026-09-23).
+
+  **It sits LAST, after the surface's own controls.** The artwork-width column wraps at three, so
+  ending row one on the `⋯` and row two on download makes the pair read as a grid — `♡ ⧉ ⋯` above
+  `↑ ↓ ⬇` — instead of a row that overflowed. Placed before the `⋯` it pushed the overflow onto the
+  second line, leaving the first row ending on a control that is not the "more" affordance, which is
+  where the eye goes looking for it.
+- **`hideQueue` demotes the queue toggle into the `⋯` (Recently played).** That list exists to FIND
+  and resume something you heard, not to re-queue it, so the queue toggle is the wrong primary
+  action there. Demoted, never deleted — it is still the only way to queue something you just
+  finished. It also buys back a slot the compact card badly needed: an 80px column holds two 32px
+  targets, so three wrapped the `⋯` onto its own line under the artwork.
+
+Both mirror `hideFavorite` exactly (Library › Saved), and the rule they share is worth stating
+plainly: **a control that is wrong as a PRIMARY action on a surface moves into the `⋯`; it never
+disappears.** Dropping it would remove a capability; leaving it inline would spend a slot saying
+something the surface already says.
+
+**Recently played states WHEN, with the clock.** Each row carries the last-played stamp under the
+artwork as date **and** time of day. The list was already ordered by that timestamp and then refused
+to show it, so two sittings with the same show were indistinguishable. This is deliberately unlike a
+publish date, which is rendered as a day alone — a feed's date IS a day, and adding 00:00 to it would
+invent precision the data never had.
 
 > **OPEN-1 — RESOLVED (RFC-121): Library favorite = keep the heart, inverted.** On Library the heart
 > shows saved-state truth and is **one-tap unfavorite** — not dropped. This matches invert-don't-drop
@@ -310,11 +383,12 @@ listed alongside collections in the Library Collections tab.
 
 ## Storyline page (`StorylineView`)
 
-A storyline (theme cluster — topics discussed together) is a full **page** (`/storyline/:id`, keyed
-by the anchor topic id), not a sheet: same detail template as the topic/person page — back on its
-own row, title + follow-storyline on one row, then the member topics (ordered), top episodes, the
-people involved, and notes. There is no storyline endpoint; the anchor topic's card carries the
-cluster (`theme_*`), so the route param is the anchor topic id.
+A storyline (topics discussed together — co-occurrence) is a full **page** (`/storyline/:id`,
+keyed by the anchor topic id), not a sheet: same detail template as the topic/person page — back on
+its own row, title + follow-storyline on one row, then the member topics (ordered), top episodes,
+the people involved, and notes. There is no storyline endpoint; the anchor topic's card carries it,
+so the route param is the anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
+"theme cluster", which is the opposite of what a reader means by theme.
 
 ## Insight type marks (#2004 item 8)
 
@@ -345,6 +419,42 @@ hover away. The visible type word carries it everywhere else, which is why the m
 and it rendered on the same condition as that row's `▶ mm:ss` button, so it distinguished nothing
 while diluting the mark beside it. That is the failure this pattern exists to prevent, and a test
 asserts the type mark is the first element in the row.
+
+## Played state (`PlayedBadge`) — operator 2026-09-23
+
+**"Have I heard this?" is ONE question and gets ONE answer.** It used to have two, and the app only
+ever read one of them. `completed` was the list you built by hand from the player's ⋯ → **Mark as
+played**; `finished` was what the player recorded for itself when an episode ran out. Nothing joined
+them, so an episode listened to the END was played *nowhere*: it stayed in Home's **Jump back in**,
+it carried no marker in the queue or recently-played, and the catalogue's **Played** filter returned
+"no episodes match" for a listener who had finished plenty.
+
+**The join is server-side.** `GET /api/app/completed` returns the union of both records. Doing it in
+each view instead — every surface asking two questions and combining them — is exactly how the two
+drifted apart in the first place, and it would have been true only on the device where the finish
+happened. Server-side, it is also true RETROACTIVELY: episodes finished before the fix read as
+played without anyone replaying them.
+
+**Un-playing retracts the finish, not just the mark.** Otherwise the toggle goes one way: tap **Mark
+as unplayed** on something you actually heard, and the finish record puts it straight back. "I did
+not finish this" is what the listener is asserting, so the finish history is part of what they are
+retracting — a recap that still counted it would be reporting something they explicitly denied. The
+resume POSITION survives: not-finished is not never-started.
+
+**The badge is a labelled check, never a bare tick.** A tick alone has to be learned, it carries
+nothing to a screen reader, and this app already spends a bare check on "reviewed" for Revisit
+cards — two meanings, one glyph. The word costs about thirty pixels.
+
+**Muted, not accent.** Played is settled history, not something to act on; `--lp-accent` stays
+reserved for the live and the actionable. A column of bright ticks down a finished list would
+out-shout the episodes the listener still has to get to.
+
+**Absence is the unplayed state.** There is no "Unplayed" badge. It would render on the common case,
+on every row, to say nothing.
+
+**It shows in COMPACT cards too**, unlike the date/duration row it sits under. Compact is what the
+queue's recently-played list renders, and a list of things you have heard is the one place the
+marker is load-bearing rather than incidental.
 
 ## Destructive confirmation (#1594)
 
@@ -441,7 +551,8 @@ constant regardless of content length.
   Saved tab is topped by **`SavedFilterBar`**, lifted out of the Highlights list so one bar governs
   every section: **type** chips (which saved kinds show — none selected = all, and a chip renders only
   for a kind that has items, per the #1962 presence rule), a collapsed **colour** filter (only
-  colours in use), and a **sort** — **Recent** (default) or **A–Z**, the one sort model shared with
+  colours in use), and a **sort** — **Yours** (default, the manual drag order the server persists) or
+  **A–Z**, the one sort model shared with
   Following. Colour is a filter, not a sort; per-episode grouping of highlights is structural and
   unaffected (sort only orders the groups). When the active filters empty every section while the
   account is not empty, the tab says so rather than showing a blank that reads as a bug.
@@ -529,10 +640,13 @@ rendered piece to its design home:
   every surface (see "Saving"); visible signed-out (#1590), routing a tap to sign-in.
 - **`AddToCollectionButton`** — the compact "pin into a collection" control with inline
   create-new-collection (RFC-119); a detail-surface action, never part of the minimum row.
-- **`FollowButton`** — the ONE show-follow pill (`+ Follow` / `✓ Following`), so Follow looks and
-  behaves identically wherever a show can be followed: the show-page header (inline) and the
-  `ShowTile` artwork overlay (a smaller variant). Save ≠ Follow — this is the pill; the heart is
-  `FavoriteButton`.
+- **`FollowButton`** — the ONE follow pill/glyph (`+ Follow` / `✓ Following`) for every surface
+  where something can be followed: show-page header (`inline`), `ShowTile` artwork overlay
+  (`overlay`), action rows (`icon`), entity cards (`ec`, testid `ec-follow`), storyline pages
+  (`storyline`, testid `storyline-follow`), discovery list rows (`discovery`, testid
+  `discovery-follow`), and trending spark chips (`trend-spark`, testid `trend-spark-follow`). Each
+  variant keeps a static testid in the component source so the surface-map guard can extract it.
+  Save ≠ Follow — this is the pill; the heart is `FavoriteButton`.
 - **`FollowedInterests`** — the Library section listing followed topics, people and storylines
   grouped by type, each unfollowable inline (the "following" pattern applied to non-show entities).
 
@@ -566,6 +680,201 @@ related-episodes rail already lives on the page, and duplicating it made the end
 recap model (key points + quote + insights + topics + storylines) is assembled once server-side
 (`GET /api/app/episodes/{slug}/recap`) so the same shape can feed the daily digest email (#2039)
 without drifting. Bridge-only: transcript-derived text + KG metadata + artwork, never audio.
+
+## The queue has one meaning, wherever you reach it (`RecentlyPlayedList`, 2026-09-23)
+
+**The queue gained a front door.** `/queue` had no nav entry at all: the only ways in were the
+player's queue button and Home's resume hero — and that hero renders only while something is IN
+PROGRESS. Finish everything you were listening to and the queue you had been filling became
+unreachable without first starting an episode you did not want to play. Which is also, exactly, the
+state you are in on a plane wanting the thing you queued. The masthead now carries it at **every
+width**, badged with the queue's own length, so the control answers "is there anything in there"
+without being opened.
+
+**And the mini-player gave one up.** Its queue button is gone: two routes to one place, on a screen
+already showing the other, in the most space-constrained strip in the app. Its slots went to
+**favourite** and **add-to-collection** for the playing episode — the shared components, so
+grey-when-off / filled-when-on is inherited rather than re-decided.
+
+**Both halves travel together.** Recently played was a section inside `QueuePanel`. With the
+masthead pointing at the `/queue` PAGE, leaving it there would have meant the queue showed Up next
+alone from the header and both sections from the player — the same thing meaning two different
+things depending on how you arrived. Extracted into one component used by both. The rule this is an
+instance of: **when a surface gains a second entry point, the surface does not get to differ by
+entry point.**
+
+**The mini-player line is a compact ROW, not a sentence.** Show as kicker, episode below — the shape
+Podcast, Queue and the entity lists already use. One truncated line ended in an ellipsis having said
+nothing about whose show it was, and the bar is often the only thing on screen that knows what is
+playing.
+
+## Output routing (`RouteButton`, operator 2026-09-23)
+
+**We own the button; the platform owns the list.** Tapping opens the SYSTEM device sheet — AirPlay
+on iOS, the Cast/output picker on Android — which is where This iPhone, the Bluetooth speaker and
+the MacBook are listed.
+
+**An in-app device list is not a future improvement, it is impossible.** Neither platform exposes an
+API for a page — or even a native app — to enumerate AirPlay / Cast / Bluetooth audio targets.
+Spotify's in-app list works because those are **Spotify Connect** devices: their own protocol, their
+own servers, their own registry. Its AirPlay row still hands off to the system sheet, exactly as
+this does. Stated plainly because "finish this by listing the devices" is the obvious next thought
+and the data does not exist on this side of the boundary.
+
+**Two APIs, chosen by FEATURE not by platform.** iOS/WKWebView has
+`webkitShowPlaybackTargetPicker()` with `webkitplaybacktargetavailabilitychanged`; Chromium has the
+Remote Playback API (`remote.prompt()` / `remote.watchAvailability()`). MDN marks the latter "limited
+availability" and does not say whether the Android System WebView carries it as opposed to Chrome —
+so a platform check would be a guess where a capability check is a fact. Capacitor already sets
+`allowsAirPlayForMediaPlayback = true`, so no native change was needed.
+
+**Absent when there is nowhere to send audio.** The control renders only once the platform reports a
+route available. A speaker icon that opens an empty sheet offers a capability the room cannot
+provide. On a platform carrying neither API it never appears — and Android users still have the
+system output switcher on the media notification, which MediaSession already populates.
+
+**The active state earns the accent more than most.** Audio leaving the phone is the one player
+state you cannot see by looking at the screen; a listener who does not know where the sound went
+concludes the app is broken. Same "this is on" language as the queue and download toggles.
+
+**On BOTH players.** The mini-player is where you NOTICE the audio went astray; the full player is
+where you go to do something about it (operator: "we need such a control somewhere else, not only
+when the player is small").
+
+## Offline, signed out — "On this device" (`OfflineDownloadsView`, operator 2026-09-23)
+
+**The gap.** Every route is behind the login-first guard (RFC-120), and signing in requires a
+network. So a listener whose session had lapsed, on a plane, could not reach the episodes they had
+already downloaded — from the one device holding them, at the one moment they mattered. In the
+operator's words: *"if I'm not logged in, offline mode is useless for playing things I anyway
+downloaded already."*
+
+**Two answers, and the first one carries most of the weight.** A returning user stays SIGNED IN
+offline — `auth.hydrateFromDevice()` repaints the cached identity before any network call and a
+transport failure never clears it (only a real 401 does). That already covers the common case, and
+it is the better answer because nothing about the account changes. `/offline` is the fallback for
+when it is not enough: a genuine sign-out, a cleared snapshot, a session too old to trust.
+
+**What it is.** The last signed-in account's download registry, rendered read-only: artwork, title,
+show, and play. No delete, no queue, no favourite, no library, no account information, and no API
+call — the absence of the API is the point, not a degradation.
+
+**The gates ARE the privacy boundary.** Downloads are namespaced per account precisely so a shared
+phone cannot show one person's listening history to the next (#1905), and this route deliberately
+reads ACROSS that namespace. That exposure is real and was accepted knowingly, so it is bounded by
+construction rather than by intent: the view renders only when **offline AND signed out**, redirects
+Home when signed in (the full Library is already there) and to the landing when online (where you
+can actually sign in). Online it would be a back-door; offline it is the only door. Its unit tests
+cover all four gates for that reason — they are not smoke tests, they are the boundary.
+
+**The route is `public`, which buys reachability, not openness.** A non-public route bounces to the
+landing, which is exactly where this listener already is and exactly where they cannot get past. The
+view does the real gating.
+
+**Entered from the landing.** Offline and signed out, both landing CTAs are dead ends, so the link
+to this page sits there (`landing-offline-downloads`) and is hidden while online — where signing in
+is the better answer and this page has nothing to offer.
+
+## Offline, signed IN — what must survive with no network
+
+One rule, stated once because it kept being applied per-surface: **a list built from a per-account
+API call needs a cache, or it renders empty at the exact moment it is most wanted.**
+
+The queue panel had this half-right, which is worse than having it wrong: **Up next** came from the
+queue store, which caches and flags `stale`, while **Recently played** was built straight from
+`GET /playback` with no cache at all. Opening the panel offline showed a working queue above an
+empty history, so the panel looked half-broken on the one trip it was opened for (operator
+2026-09-23). It now paints the cached copy first and revalidates.
+
+The corollary is easy to get wrong in the other direction: **an empty answer from a FAILED request
+is not an empty list.** Both the request and the per-item hydration fall back to the cached copy
+rather than overwriting it with `[]` — discarding the only copy at the moment it is the only copy.
+
+## What the NATIVE app brings that the web cannot (operator 2026-09-24)
+
+The app ships as one Vue codebase to three places: the web player, an iOS Capacitor shell, and an
+Android one. Most surfaces are identical by design. This section is the list of places where they
+are NOT, because that boundary kept being rediscovered expensively — three separate investigations
+into "the page never rendered its action row" ended at a control that is `v-if="native"` and was
+never going to be there.
+
+**The rule: a capability is native-only when the WEB PLATFORM cannot honour the product promise, not
+when native is merely nicer.** Each entry below names the promise it is protecting.
+
+| Capability | Native-only because | Web behaviour |
+| --- | --- | --- |
+| **Downloads** (`DownloadButton`, `DownloadedList`, `downloads`/`downloadScheduler`) | Audio is BRIDGED, never rehosted, and the service worker deliberately does not cache it. There is no web mechanism that stores an episode for a flight without breaking that rule. | The control self-hides. Not disabled — an affordance that cannot work is worse than an absent one. |
+| **"On this device"** (`/offline`, `OfflineDownloadsView`) | It lists the download registry, which only exists on a device. | Route resolves, list is empty by construction. |
+| **Device settings** (`DeviceSettings`, network policy) | Governs Wi-Fi-vs-cellular for downloads; meaningless without downloads. | Hidden. |
+| **Share as an image card** (`ShareMenu`, `useShareCard`, `entityShareCard`) | The native share sheet takes a FILE; the Web Share API's file support is uneven and silently degrades. | Falls back to link/text sharing. |
+| **Push** (`usePushSubscription`) | APNs/FCM registration is a shell capability. | Web push where the browser supports it; otherwise absent. |
+| **App update prompt** (`useAppUpdate`) | The shell knows about a downloaded binary; a web page knows about a service worker. | The PWA update toast instead — a different mechanism for the same intent. |
+| **Session auth** (`stores/auth`, `services/native`) | The shell authenticates with a BEARER TOKEN; the web uses the session cookie. Same accounts, different credential. | Cookie session. |
+| **Deep links** | `closelistening://` is an OS registration. | Ordinary URLs. |
+| **Background audio** | `AVAudioSession` / an Android foreground service; a backgrounded WebView gets suspended. | Playback stops with the tab. |
+| **Output routing** (`RouteButton`) | Opens the platform's AirPlay/Cast sheet. See below — the *button* is not native-only, the useful RESULT is. | Renders only if the browser exposes a remote-playback API; usually absent. |
+
+### iOS versus Android
+
+Same Vue code, and **four** things genuinely differ. All are platform mechanics rather than product
+decisions — the product is meant to behave identically on both. The last two were found on
+2026-09-24 by the Android device tier's first run against the app (#2139), and neither was a
+curiosity: one had broken a whole feature on Android, the other had made four controls unusable
+with a screen reader.
+
+- **Output routing is two APIs.** iOS/WKWebView has `webkitShowPlaybackTargetPicker()` with
+  `webkitplaybacktargetavailabilitychanged`; Chromium has the Remote Playback API
+  (`remote.prompt()` / `remote.watchAvailability()`). `RouteButton` feature-detects rather than
+  branching on platform, because MDN marks Remote Playback "limited availability" and does not say
+  whether the Android System WebView carries it as opposed to Chrome. On a platform with neither,
+  the control does not render — and Android still has the system output switcher on the media
+  notification, which MediaSession already populates.
+- **Background audio is two mechanisms.** iOS uses `AVAudioSession` + `UIBackgroundModes`; Android
+  needs a foreground service, which is why a local `BackgroundAudio` plugin exists and no-ops on iOS.
+- **`Filesystem.downloadFile` resolves a different set of directories.** It is served by the
+  plugin's LEGACY Android implementation, whose `getDirectory()` has no case for
+  `LIBRARY_NO_CLOUD` — it returns null and `FileOutputStream(null)` throws. Every download on
+  Android failed with "Error downloading file: null" and recorded itself as retryable, so the user
+  saw "Download failed — tap to retry" for ever. Downloads now fetch into `Directory.Data`, which
+  on Android is the SAME `filesDir` the modern implementation maps `LIBRARY_NO_CLOUD` to, so every
+  other call still reads the bytes back at the same path. iOS is unchanged: `LibraryNoCloud` is how
+  podcast audio is kept out of an iCloud backup, which is not an Android concern.
+- **`aria-haspopup` costs a control its accessible NAME on Android when nothing inside it is
+  readable.** Measured on Android System WebView 150: the overflow ⋯, Notifications, Share and Add
+  to collection each arrived as a zero-child `Button` with an EMPTY contentDescription — the label
+  string appeared nowhere in the accessibility tree, so TalkBack announced only "Button". Neither
+  condition alone does it: `Play`, `Skip back 15 seconds` and `Mark this moment` are icon-only with
+  `aria-label` and all named, because they open no popup; `Playback speed` has `aria-haspopup` and
+  IS named, because its pill renders readable text beside the icon. The fix is the `sr-only` span
+  this codebase already uses for the masthead profile link — the same remedy as the WebKit defect
+  below, which the two engines express differently (WebKit drops the element; Chromium keeps it and
+  strips the name).
+**Not a difference — a SETTLED decision, recorded so it is not reopened as one.** Using the OS
+picker is the answer on both platforms (operator 2026-09-24: "I'm okay with the generic AirPlay way
+to trigger the iOS native dialog"). Neither platform lets a page — or a native app — enumerate
+AirPlay, Cast or Bluetooth targets, so an in-app device list would require our own device protocol,
+as Spotify Connect is. It is listed here only because "build the device list for Android" is the
+obvious next thought and there is nothing to build.
+
+### Testing consequence — and the trap that has already cost days
+
+**The browser tier cannot see any of the above.** A Playwright spec against a native-only control
+asserts an empty page and PASSES, which is worse than failing: it certifies the opposite of the
+truth. Anything in the table above belongs in a device tier (`make test-ios`, `make test-android`)
+or in a unit test with `isNative` mocked — never in `e2e/*.spec.ts`.
+
+**And a DOM-driven device test would not have helped either.** `Espresso.onWebView()` runs WebDriver
+atoms against the DOM, so on the `aria-haspopup` defect above it would have found every control and
+passed — the same blind spot Playwright has, at device-tier cost. The Android tier uses UI Automator
+precisely because it reads the accessibility tree, which is the surface TalkBack consumes. Choosing
+the runner that can see the bug is not a detail; it is the reason the tier is worth running.
+
+**And XCUITest cannot see what the DOM says it should.** It reads the accessibility tree, where
+WebKit maps a `<button>` to a Button only if it is plain: `aria-haspopup` makes it a PopUpButton,
+`aria-pressed` a toggle, `role="menuitem"` a MenuItem. On the player page `app.buttons` returned
+twelve controls and NONE of favourite, add-to-collection, share or ⋯ — all four on screen, all four
+carrying ARIA state. The markup is correct; the query was wrong. Device-tier selectors therefore go
+through `Journey.control(app, label:)`, which matches by accessible label across element types.
 
 ## Conformance checklist
 

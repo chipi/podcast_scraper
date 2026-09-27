@@ -67,6 +67,12 @@ export interface EpisodeSummary {
   feed_image_url: string | null
   /** Preferred artwork (our locally-stored copy, thumb size) when present; else use image urls. */
   artwork_url: string | null
+  /**
+   * The SHOW's own locally-stored artwork — distinct from `artwork_url`, which prefers the
+   * EPISODE's image when it has one. A surface grouping episodes by show needs this; `artwork_url`
+   * would give it whichever episode came first, which is that episode's art, not the show's.
+   */
+  feed_artwork_url?: string | null
   status: EpisodeStatus
   /** Short, clean one-line lede for the card (NOT the bullets joined). */
   summary_preview: string | null
@@ -216,8 +222,8 @@ export interface PodcastSignals {
   }>
   key_people: Array<{ person_id: string; name: string; episode_count: number }>
   recurring_guests: Array<{ person_id: string; name: string; episode_count: number }>
-  dominant_themes: Array<{
-    theme_id: string
+  dominant_storylines: Array<{
+    storyline_id: string
     label: string
     topic_count: number
     anchor_topic_id: string | null
@@ -315,16 +321,18 @@ export interface Entity {
 }
 
 /** A KG topic. Cluster fields (RFC-102) drive cluster-first grouping; null/0 = singleton/no artifact.
- *  `cluster_*` = semantic ("Similar"); `theme_cluster_*` = co-occurrence ("Theme"). */
+ *  `cluster_*` = semantic (`tc:`, the product calls these **Themes**);
+ *  `storyline_*` = co-occurrence (`thc:`, **Storylines**). See UXS-013 — the wire prefixes invert
+ *  against the reader-facing names, which is the single most re-made mistake in this codebase. */
 export interface Topic {
   id: string
   label: string
   cluster_id: string | null
   cluster_label: string | null
   cluster_size: number
-  theme_cluster_id?: string | null
-  theme_cluster_label?: string | null
-  theme_cluster_size?: number
+  storyline_id?: string | null
+  storyline_label?: string | null
+  storyline_size?: number
 }
 
 export interface EntitiesResponse {
@@ -664,14 +672,14 @@ export interface YourWeekResponse {
   generated_at: string
 }
 
-/** One selectable interest cluster (GET /api/app/clusters — AppInterestCluster). */
+/** One selectable theme (GET /api/app/themes — AppInterestCluster). */
 export interface InterestCluster {
   id: string
   label: string
   size: number
 }
 
-/** One storyline — a THEME cluster (topics discussed together). GET /api/app/theme-clusters.
+/** One storyline — topics discussed together. GET /api/app/storylines.
  *  `id` is the `thc:` interest token; `anchor_topic_id` is the representative topic card to open. */
 export interface Storyline {
   id: string
@@ -696,6 +704,14 @@ export interface TrendingEntity {
   window?: string
   /** Served hosted-photo route for a person entity with a hosted photo; null otherwise. */
   image_url?: string | null
+  /**
+   * For a storyline (`thc:`) entity: its most-central member topic — the CLICK TARGET, since a
+   * storyline is read as that topic's card and has no endpoint of its own. Null for every other
+   * kind, and for a storyline whose anchor could not be resolved, which means the row is not
+   * openable. Never fall back to `entity_id` here: that is a `thc:` id, and handing it to a topic
+   * lookup is what made storyline rows dead on tap.
+   */
+  anchor_topic_id?: string | null
 }
 
 /** A resolved person/topic reference (GET /api/app/entities/search — AppEntityRef). */
@@ -789,10 +805,10 @@ export interface TopicCard {
   cluster_label: string | null
   cluster_size: number
   sibling_topics: Topic[]
-  theme_cluster_id?: string | null
-  theme_cluster_label?: string | null
-  theme_cluster_size?: number
-  theme_sibling_topics?: Topic[]
+  storyline_id?: string | null
+  storyline_label?: string | null
+  storyline_size?: number
+  storyline_sibling_topics?: Topic[]
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]
@@ -928,7 +944,7 @@ export interface TrendingTopicsResponse {
     total: number
     monthly_counts: Record<string, number>
   }>
-  theme_clusters: Array<{
+  storylines: Array<{
     graph_compound_parent_id?: string | null
     canonical_label?: string | null
     members: Array<{ topic_id: string }>
@@ -1007,7 +1023,7 @@ export interface EpisodeStats {
 }
 
 /** A topic or person that recurred across a recap window's episodes (#1914). */
-export interface RecapTheme {
+export interface RecapRecurring {
   token: string
   label: string
   episodes: number
@@ -1053,8 +1069,8 @@ export interface RecapResponse {
   distinct_episodes: number
   top_episodes: { slug: string; starts: number }[]
   episodes_finished: number
-  topics: RecapTheme[]
-  people: RecapTheme[]
+  topics: RecapRecurring[]
+  people: RecapRecurring[]
   top_by_strength: RecapStrongEpisode[]
   best_line: RecapLine | null
   days_recorded: number

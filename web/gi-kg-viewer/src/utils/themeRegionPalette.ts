@@ -28,7 +28,7 @@ export const THEME_REGION_PALETTE: readonly string[] = [
 /** Stable, cheap djb2-style hash → palette index. Same `thc:...` id
  *  always maps to the same colour across sessions and browsers (no
  *  `Math.random`, no `Date.now`). */
-export function themeRegionIndex(clusterId: string): number {
+export function storylineRegionIndex(clusterId: string): number {
   let h = 0
   for (let i = 0; i < clusterId.length; i++) {
     h = (h * 31 + clusterId.charCodeAt(i)) | 0
@@ -38,5 +38,5 @@ export function themeRegionIndex(clusterId: string): number {
 
 /** Convenience: hex swatch for a `thc:...` id. */
 export function themeRegionColor(clusterId: string): string {
-  return THEME_REGION_PALETTE[themeRegionIndex(clusterId)] ?? THEME_REGION_PALETTE[0]
+  return THEME_REGION_PALETTE[storylineRegionIndex(clusterId)] ?? THEME_REGION_PALETTE[0]
 }

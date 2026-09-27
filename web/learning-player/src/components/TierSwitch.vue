@@ -6,11 +6,20 @@
  * re-resolve. dev = the local machine (make serve-app); prod = the live player.
  */
 import { computed, ref } from 'vue'
-import { getTier, setTier, tierSwitchEnabled, type Tier } from '../services/tier'
+import { getTier, isTargetingProd, resolveApiBase, setTier, tierSwitchEnabled, type Tier } from '../services/tier'
 
 const enabled = tierSwitchEnabled()
 const tier = ref<Tier>(getTier())
-const label = computed(() => (tier.value === 'dev' ? 'DEV' : 'PROD'))
+/*
+ * The label names where requests ACTUALLY go, not what the switch is set to.
+ *
+ * `getTier()` alone said PROD on every simulator and e2e build — those bake `VITE_API_BASE_URL`,
+ * which `resolveApiBase()` honours over the prod base while the stored tier stays 'prod'. So the
+ * pill claimed the live backend while the app talked to `127.0.0.1`, which is precisely backwards
+ * from what the badge is for: it exists so you can tell, at a glance, which backend you are looking
+ * at (operator 2026-09-24).
+ */
+const label = computed(() => (isTargetingProd() ? 'PROD' : 'DEV'))
 
 function toggle(): void {
   const next: Tier = tier.value === 'dev' ? 'prod' : 'dev'
@@ -28,11 +37,11 @@ function toggle(): void {
     data-testid="tier-switch"
     class="shrink-0 rounded-full border px-1.5 py-px text-[9px] font-bold tracking-wide transition"
     :class="
-      tier === 'dev'
+      label === 'DEV'
         ? 'border-danger text-danger hover:bg-danger/10'
         : 'border-border text-muted hover:bg-overlay'
     "
-    :title="`Target: ${label} — tap to switch (internal build only)`"
+    :title="`Target: ${label} (${resolveApiBase()}) — tap to switch (internal build only)`"
     :aria-label="`Backend target ${label}, tap to switch`"
     @click="toggle"
   >

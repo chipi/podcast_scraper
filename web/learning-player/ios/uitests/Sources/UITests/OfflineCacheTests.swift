@@ -17,13 +17,9 @@ import XCTest
  * The suite leaves the switch OFF whatever happens (`defer`), so a failure here cannot poison
  * every later run by stranding the app in forced-offline.
  */
-final class OfflineCacheTests: XCTestCase {
+final class OfflineCacheTests: UITestCase {
   private let episodeSlug = "p09-a4bbb5dde3"
 
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true
-  }
 
   func test08BrowseThenOfflineShowsCachedContent() {
     let app = Journey.launch()

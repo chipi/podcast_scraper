@@ -188,23 +188,33 @@ def co_occurring_entities(ctx: CorpusContext, entity_id: str, k: int = 20) -> Di
 
 
 def topic_clusters(ctx: CorpusContext, topic_id: str) -> Dict[str, Any]:
-    """A topic's cluster siblings — semantic + theme neighbours (PRD-043).
+    """A topic's cluster siblings — themes + storylines (PRD-043).
 
     Where ``related_topics`` gives co-occurrence neighbours, this gives *cluster membership*:
-    the ``semantic`` siblings (embedding cluster) and ``theme`` siblings (theme cluster) that
-    share this topic's group. Each sibling ``{id, label}`` pivots on into any topic tool.
-    Empty lists when the topic is a singleton or the cluster artifact is absent.
+
+    - ``themes`` — siblings in the same **embedding-similarity** cluster (``tc:``). Topics that
+      MEAN something similar.
+    - ``storylines`` — siblings in the same **co-occurrence** cluster (``thc:``). Topics that keep
+      being DISCUSSED TOGETHER.
+
+    Each sibling ``{id, label}`` pivots on into any topic tool. Empty lists when the topic is a
+    singleton or the cluster artifact is absent.
+
+    The keys were ``semantic`` / ``theme`` until 2026-09-20, and ``theme`` carried the
+    ``thc:`` siblings — i.e. STORYLINES under the name of the other object, on a surface external
+    clients read. See UXS-013: the wire prefixes invert against the reader-facing names, and this
+    payload had inherited the inversion.
     """
     from pathlib import Path
 
-    from ...search.theme_clusters import consumer_theme_cluster_siblings
-    from ...search.topic_clusters import consumer_cluster_siblings
+    from ...search.storylines import storyline_siblings_by_topic
+    from ...search.topic_clusters import theme_siblings_by_topic
 
     root = Path(ctx.corpus_dir)
-    semantic = consumer_cluster_siblings(root, topic_id)
-    theme = consumer_theme_cluster_siblings(root, topic_id)
-    note = "" if (semantic or theme) else "topic is a singleton or cluster artifacts are absent"
-    return _ok("topic", {"id": topic_id}, {"semantic": semantic, "theme": theme}, note)
+    themes = theme_siblings_by_topic(root, topic_id)
+    storylines = storyline_siblings_by_topic(root, topic_id)
+    note = "" if (themes or storylines) else "topic is a singleton or cluster artifacts are absent"
+    return _ok("topic", {"id": topic_id}, {"themes": themes, "storylines": storylines}, note)
 
 
 def ego_network(

@@ -152,6 +152,40 @@ describe('player store', () => {
     expect(p.duration).toBe(100)
   })
 
+  /**
+   * Offline, a downloaded file often makes the element report NO duration at all — so the transport
+   * showed `0:00` as the total and the scrub bar sat at zero for a whole episode while the elapsed
+   * time climbed (operator 2026-09-19, listening offline at 1:02:57 of an episode reading 0:00).
+   */
+  describe('duration falls back to the episode metadata', () => {
+    it('uses the hint while the element reports nothing', () => {
+      const p = usePlayerStore()
+      const el = stubAudio({ duration: 0 })
+      p.load({ slug: 'ep-1', url: 'file:///a.mp3', title: 'An Episode', durationSeconds: 3600 })
+      p.onDurationChange()
+      expect(el.duration).toBe(0)
+      expect(p.duration).toBe(3600)
+    })
+
+    it('the element WINS once it knows — the file is the truth about the file', () => {
+      const p = usePlayerStore()
+      const el = stubAudio({ duration: 3550 })
+      p.load({ slug: 'ep-1', url: 'file:///a.mp3', title: 'An Episode', durationSeconds: 3600 })
+      p.onDurationChange()
+      expect(el.duration).toBe(3550)
+      expect(p.duration).toBe(3550)
+    })
+
+    it('a later load() without a hint does not keep the previous episode length', () => {
+      const p = usePlayerStore()
+      stubAudio({ duration: 0 })
+      p.load({ slug: 'ep-1', url: 'file:///a.mp3', title: 'One', durationSeconds: 3600 })
+      expect(p.duration).toBe(3600)
+      p.load({ slug: 'ep-2', url: 'file:///b.mp3', title: 'Two' })
+      expect(p.duration).toBe(0)
+    })
+  })
+
   it('toggle() plays when paused and pauses when playing', () => {
     const p = usePlayerStore()
     const el = stubAudio({ paused: true })
@@ -225,7 +259,8 @@ describe('player store — MediaSession (#1308)', () => {
     ms = { metadata: null, playbackState: 'none', setActionHandler: vi.fn(), setPositionState: vi.fn() }
     ;(navigator as unknown as { mediaSession: unknown }).mediaSession = ms
     ;(globalThis as unknown as { MediaMetadata: unknown }).MediaMetadata = class {
-      constructor(public init: Record<string, unknown>) {}
+      init: Record<string, unknown>
+      constructor(init: Record<string, unknown>) { this.init = init }
     }
   })
   afterEach(() => {
@@ -736,3 +771,86 @@ describe('listen logging', () => {
     expect(p.currentSlug).toBe('ep-2')
   })
 })
+
+
+describe('output routing — the system picker, never our own device list (operator 2026-09-23)', () => {
+  /*
+   * Two platform APIs of the same shape sit behind one control, and the store picks between them by
+   * FEATURE, not by platform string — MDN marks Remote Playback "limited availability" and does not
+   * say whether the Android System WebView carries it as opposed to Chrome.
+   *
+   * What is NOT tested, because it cannot be: the device list. Neither iOS nor Android exposes an
+   * API for a page to enumerate AirPlay / Cast / Bluetooth targets, so the sheet is the platform's
+   * and its contents are outside the app entirely.
+   */
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('starts with no route, so the control is hidden until a platform says otherwise', () => {
+    const p = usePlayerStore()
+    loaded(p, stubAudio())
+    expect(p.routeAvailable).toBe(false)
+    expect(p.playingRemotely).toBe(false)
+  })
+
+  it('iOS: availability follows the webkit event', () => {
+    const el = stubAudio({ webkitShowPlaybackTargetPicker: vi.fn() } as never)
+    const p = usePlayerStore()
+    loaded(p, el)
+
+    // The event carries `availability`, and WebKit fires it once on subscribe with the current
+    // state — which is what lets the button appear without polling.
+    const handler = (el as never as { addEventListener: { mock: { calls: [string, (e: unknown) => void][] } } })
+      .addEventListener.mock.calls.find(([k]) => k === 'webkitplaybacktargetavailabilitychanged')?.[1]
+    expect(handler, 'the store never subscribed to the webkit availability event').toBeTruthy()
+
+    handler!({ availability: 'available' })
+    expect(p.routeAvailable).toBe(true)
+    handler!({ availability: 'not-available' })
+    expect(p.routeAvailable).toBe(false)
+  })
+
+  it('iOS: the picker call is delegated to the element, not reimplemented', () => {
+    const show = vi.fn()
+    const el = stubAudio({ webkitShowPlaybackTargetPicker: show } as never)
+    const p = usePlayerStore()
+    loaded(p, el)
+    p.showRoutePicker()
+    expect(show).toHaveBeenCalled()
+  })
+
+  it('Android: falls through to the Remote Playback API when webkit is absent', () => {
+    const prompt = vi.fn(() => Promise.resolve())
+    let availabilityCb: ((a: boolean) => void) | null = null
+    const remote = {
+      watchAvailability: vi.fn((cb: (a: boolean) => void) => {
+        availabilityCb = cb
+        return Promise.resolve(1)
+      }),
+      prompt,
+      addEventListener: vi.fn(),
+    }
+    const el = stubAudio({ remote } as never)
+    const p = usePlayerStore()
+    loaded(p, el)
+
+    expect(remote.watchAvailability).toHaveBeenCalled()
+    availabilityCb!(true)
+    expect(p.routeAvailable).toBe(true)
+
+    p.showRoutePicker()
+    expect(prompt).toHaveBeenCalled()
+  })
+
+  it('a platform with neither API is silent, not broken', () => {
+    // A desktop browser, or an Android WebView without Remote Playback. The store must not throw —
+    // these are optional APIs on a detached element, and a throw here costs the listener their
+    // player over a control they cannot use anyway.
+    const el = stubAudio()
+    const p = usePlayerStore()
+    loaded(p, el)
+    expect(() => p.showRoutePicker()).not.toThrow()
+    expect(p.routeAvailable).toBe(false)
+  })
+})
+

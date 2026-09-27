@@ -32,7 +32,7 @@ function signals(over: Partial<PodcastSignals> = {}): PodcastSignals {
     top_topics: [],
     key_people: [],
     recurring_guests: [],
-    dominant_themes: [],
+    dominant_storylines: [],
     trending_topics: [],
     ...over,
   }

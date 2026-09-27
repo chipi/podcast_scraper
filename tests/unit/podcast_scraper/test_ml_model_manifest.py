@@ -17,12 +17,18 @@ import pytest
 
 from podcast_scraper import config_constants as cc
 from podcast_scraper.providers.ml import model_manifest as mm, summarizer
+
+# Imported by NAME, not reached through the module alias: `-> mm.MLModelSpec | None` is a
+# NamedTuple behind an alias in an annotation, and mypy resolves that only for some module
+# graph orderings — it started failing here when an unrelated test added an import edge
+# elsewhere in the tree, with the error landing in THIS file.
+from podcast_scraper.providers.ml.model_manifest import MLModelSpec
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
 
 pytestmark = pytest.mark.unit
 
 
-def _spec(model_id: str) -> mm.MLModelSpec | None:
+def _spec(model_id: str) -> MLModelSpec | None:
     return next((m for m in mm.REQUIRED_ML_MODELS if m.model_id == model_id), None)
 
 

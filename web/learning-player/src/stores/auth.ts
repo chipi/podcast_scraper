@@ -96,7 +96,17 @@ export const useAuthStore = defineStore('auth', {
           // 2026-09-16 incident. The API now reports that case as 503 (so `getMe` rethrows and we
           // land in `catch`), and this guard is the belt to that braces: never destroy cached
           // content while we believe the server is unwell.
-          await removeDeviceKey(SNAPSHOT_KEY)
+          //
+          // The SNAPSHOT is now under that same guard, below. It used to be removed here,
+          // unconditionally, ahead of the very check that decides whose fault the 401 is — so a
+          // server-fault 401 kept the token (correctly) and destroyed the identity anyway. That is
+          // not a lesser version of signing out, it is the WORST version: a session that exists for
+          // the router and cannot name its user, with no snapshot left to paint offline.
+          //
+          // Measured on device 2026-09-24: across a full run the token was present in all 34
+          // samples and `auth.me` in none, while the downloads registry — written through the same
+          // Preferences path — persisted fine. The snapshot was not failing to write. It was being
+          // written and then deleted by a 401 this code had already judged not to be ours.
           // Is this 401 OURS, or the platform's? A 401 alone cannot say: it is emitted both when
           // one user's token has aged out and when the server has rotated or lost its signing key
           // and invalidated EVERY token at once. Only the second is a server fault, and treating it
@@ -110,7 +120,23 @@ export const useAuthStore = defineStore('auth', {
           const keysRotated = noteAuthEpoch(health?.auth_epoch)
           const serverAtFault =
             offlineReason() === 'server' || health?.auth_ready === false || keysRotated
-          if (!serverAtFault) await clearCached(CACHE_KEYS)
+          if (!serverAtFault) {
+            // Genuinely our dead credential: the identity goes with the content and the token.
+            await removeDeviceKey(SNAPSHOT_KEY)
+            await clearCached(CACHE_KEYS)
+            // The bearer token is the OTHER HALF of the credential, and it was never dropped here.
+            //
+            // On native `hasSession` is `user !== null || (isNative() && token)`, so a surviving
+            // token kept the app looking signed in with NO identity: the router guard admitted
+            // every authed route, each call 401'd, and offline there was no snapshot to paint —
+            // a session that exists for the guard and for nobody else. Reachable in the field
+            // whenever the server rotates its signing key while the app is online.
+            //
+            // Cleared under the SAME `serverAtFault` guard as the cached content, and for the same
+            // reason: a 401 from an unwell server is not the user's credential going bad, and
+            // signing everyone out over an outage is the 2026-09-16 incident in a different shape.
+            if (isNative()) storeAuthToken(null)
+          }
         }
       } catch {
         // Transport or server failure — NOT an auth failure. Keep whatever identity we have, and

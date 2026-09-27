@@ -26,7 +26,7 @@ const panelEl = ref<HTMLElement | null>(null)
 // Shared popover shell — teleported, viewport-clamped placement, outside-pointer/Escape dismissal.
 // This is why the menu no longer runs off the left edge when the trigger sits near it (a storyline
 // share opened from Home): `anchorPanel` clamps it on screen (operator 2026-09-13).
-const { open, toggle, close } = useAnchoredMenu(triggerEl, panelEl, { align: "end" })
+const { open, toggle, close, teleportTarget } = useAnchoredMenu(triggerEl, panelEl, { align: "end" })
 
 async function onCard(): Promise<void> {
   close()
@@ -98,10 +98,17 @@ function flash(msg: string): void {
         <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
         <path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" />
       </svg>
+      <!-- A non-hidden accessible name INSIDE the trigger (2026-09-24, Android device tier).
+           `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System
+           WebView 150 — the label string appears nowhere in the accessibility tree, so TalkBack
+           announces only "Button". Neither condition alone does it: `Play` and `Skip back 15
+           seconds` are icon-only with `aria-label` and named, because they open no popup. See
+           OverflowMenu.vue for the measurement. -->
+      <span class="sr-only">{{ t('share.open') }}</span>
     </button>
     <!-- Teleported + viewport-clamped via the shared shell (was `absolute right-0`, which ran off the
          left edge when the trigger sat near it). -->
-    <Teleport to="body">
+    <Teleport :to="teleportTarget">
       <div
         v-if="open"
         ref="panelEl"

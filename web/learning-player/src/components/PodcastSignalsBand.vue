@@ -44,7 +44,7 @@ async function load(): Promise<void> {
 
 watch(() => props.feedId, () => void load(), { immediate: true })
 
-const themes = computed(() => signals.value?.dominant_themes ?? [])
+const themes = computed(() => signals.value?.dominant_storylines ?? [])
 const topics = computed(() => signals.value?.top_topics ?? [])
 const people = computed(() => signals.value?.key_people ?? [])
 
@@ -126,7 +126,7 @@ const hasAny = computed(
       <div class="flex flex-wrap gap-1.5">
         <button
           v-for="th in themes"
-          :key="th.theme_id"
+          :key="th.storyline_id"
           type="button"
           data-testid="ps-theme"
           class="lp-theme-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground transition disabled:opacity-60"

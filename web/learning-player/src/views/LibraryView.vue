@@ -4,7 +4,7 @@
  * per-kind sections — episodes, insights, …) · Highlights · Revisit · Queue · Recent. One place,
  * tabbed; the Saved tab grows a new section as new favourite kinds arrive. Auth-gated.
  */
-import { computed, onActivated, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
@@ -133,7 +133,10 @@ const savedSearchActive = computed(() => savedSearch.value.trim() !== '')
 // Saved's per-type sections page 10 at a time (operator 2026-09-18) rather than the default 6 with
 // an all-or-nothing expand: at a hundred saved episodes "Show all" produces a scroll with no
 // landmarks, so each press adds another ten.
-const savedCaps = useCappedSections(10, 10)
+// Five, then five more per press (operator 2026-09-19). It was ten-and-ten: on a phone that is
+// most of a screen per section before you reach the next one, and Saved is a hub you scan rather
+// than a list you read. Shows joins Episodes on the same cap — it had none at all.
+const savedCaps = useCappedSections(5, 5)
 
 /** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
  *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
@@ -200,6 +203,9 @@ const filteredSearches = computed(() =>
 // Cap each section to the top N (lifted while searching), with a "Show all" expand in place.
 const visibleEpisodes = computed(() =>
   savedCaps.visible('episodes', filteredEpisodes.value, savedSearchActive.value),
+)
+const visibleSavedShows = computed(() =>
+  savedCaps.visible('shows', savedShowPodcasts.value, savedSearchActive.value),
 )
 /**
  * Saved entities, split ONE SECTION PER KIND (operator 2026-09-17).
@@ -303,6 +309,26 @@ const tabs = computed<TabSpec<Tab>[]>(() =>
 const route = useRoute()
 const initialTab = String(route.query.tab || '')
 const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initialTab) ? (initialTab as Tab) : 'saved')
+
+/**
+ * Re-sync the tab when the QUERY changes, not just at setup.
+ *
+ * This view is kept-alive (`KEEP_ALIVE_TABS` in App.vue), so setup runs ONCE. `initialTab` is read
+ * there and never again — meaning every later deep link from Home landed on whatever tab the user
+ * had left Library on. Home's "See all" on the boards teaser sends `?tab=collections` and the user
+ * arrived on Saved (operator 2026-09-19).
+ *
+ * BrowseView documents this exact trap and guards it; Library never got the guard. The `?board=`
+ * half always worked — CollectionsView watches it reactively — so the deep link opened the right
+ * board inside a tab nobody could see.
+ */
+watch(
+  () => route.query.tab,
+  (v) => {
+    const q = String(v || '')
+    if (TAB_KEYS.some((tb) => tb.key === q)) tab.value = q as Tab
+  },
+)
 
 // Followed shows — the same derivation Home's "Your shows" rail uses (shared so they can't drift).
 // Section-state so a catalogue/library outage renders error+retry, never a fake "you follow nothing".
@@ -614,7 +640,7 @@ onMounted(async () => {
           </h2>
           <ul class="flex flex-col" data-testid="saved-shows-list">
             <li
-              v-for="{ entity, show } in savedShowPodcasts"
+              v-for="{ entity, show } in visibleSavedShows"
               :key="show.feed_id"
               data-testid="saved-entity"
             >
@@ -630,6 +656,13 @@ onMounted(async () => {
               </ShowRow>
             </li>
           </ul>
+          <ShowAllToggle
+            v-if="savedCaps.overflows(savedShowPodcasts.length, savedSearchActive, 'shows')"
+            :expanded="savedCaps.remaining('shows', savedShowPodcasts.length) === 0"
+            :count="savedShowPodcasts.length"
+            :remaining="savedCaps.remaining('shows', savedShowPodcasts.length)"
+            @toggle="savedCaps.toggle('shows', savedShowPodcasts.length)"
+          />
         </section>
 
         <!-- Episodes — each carries the shared colour control (phase B) in the card's action row.

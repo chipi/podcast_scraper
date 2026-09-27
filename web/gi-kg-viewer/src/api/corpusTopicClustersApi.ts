@@ -121,21 +121,21 @@ export async function fetchTopicClustersFromApi(corpusPath: string): Promise<Top
  * the viewer API. Same document shape as the semantic clusters. ``missing`` on 404
  * so the caller degrades to "no theme rings on the graph".
  */
-export async function fetchThemeClustersFromApi(
+export async function fetchStorylinesFromApi(
   corpusPath: string,
 ): Promise<TopicClustersFetchResult> {
-  const url = `/api/corpus/theme-clusters${corpusQuery(corpusPath)}`
+  const url = `/api/corpus/storylines${corpusQuery(corpusPath)}`
   // Parse inside the dedup (see fetchTopicClustersFromApi) so concurrent callers share the parsed
   // result, not a single-read Response.
   return dedupeInFlight(url, async () => {
     try {
-      const res = await fetchWithTimeout(url, undefined, { timeoutDetail: 'corpus/theme-clusters' })
+      const res = await fetchWithTimeout(url, undefined, { timeoutDetail: 'corpus/storylines' })
       if (res.status === 404) {
         return { status: 'missing' }
       }
       if (!res.ok) {
         const text = await res.text().catch(() => '')
-        return { status: 'error', message: text.trim() || `HTTP ${res.status} theme-clusters` }
+        return { status: 'error', message: text.trim() || `HTTP ${res.status} storylines` }
       }
       const document = (await res.json()) as TopicClustersDocument
       return { status: 'ok', document }

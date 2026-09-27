@@ -37,7 +37,7 @@ beforeEach(() => {
     ['a-1', 'b-2'].filter((x) => x !== slug),
   )
   // The cards embed FavoriteButton, which hydrates favorites on mount — stub so it doesn't fetch.
-  vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [], insights: [] })
+  vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [] })
 })
 afterEach(() => vi.restoreAllMocks())
 

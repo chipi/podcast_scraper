@@ -519,12 +519,12 @@ export function recordDiscoverClick(slug: string, position: number): void {
 
 /** Top interest clusters for the picker, by corpus prevalence. */
 export async function getTopClusters(limit = 12): Promise<InterestCluster[]> {
-  return (await getJSON<{ items: InterestCluster[] }>("/clusters", { limit })).items
+  return (await getJSON<{ items: InterestCluster[] }>("/themes", { limit })).items
 }
 
 /** Top storylines (theme clusters — topics discussed together) for the Home rail + picker. */
 export async function getStorylines(limit = 12): Promise<Storyline[]> {
-  return (await getJSON<{ items: Storyline[] }>("/theme-clusters", { limit })).items
+  return (await getJSON<{ items: Storyline[] }>("/storylines", { limit })).items
 }
 
 /** Trending entities of a kind (RFC-103 momentum), corpus-wide or the signed-in user's ('mine'). */
@@ -1098,8 +1098,11 @@ export function highlightsExportUrl(
 export async function fetchHighlightsExport(
   color?: string | null,
   opts?: { mutedOnly?: boolean; q?: string },
+  format: "md" | "html" = "md",
 ): Promise<string> {
-  const resp = await apiFetch(highlightsExportUrl(color, opts), { credentials: "include" })
+  const url =
+    format === "html" ? highlightsPrintUrl(color, opts) : highlightsExportUrl(color, opts)
+  const resp = await apiFetch(url, { credentials: "include" })
   if (!resp.ok) throw new Error(`highlights export failed: ${resp.status}`)
   return resp.text()
 }
@@ -1108,8 +1111,8 @@ export async function fetchHighlightsExport(
  * The episode-notes Markdown as TEXT — the native shell's path, where `<a download>` saves nothing.
  * Web keeps the plain download link.
  */
-export async function fetchEpisodeNotes(slug: string): Promise<string> {
-  const resp = await apiFetch(episodeNotesUrl(slug, "md"), { credentials: "include" })
+export async function fetchEpisodeNotes(slug: string, ext: "md" | "html" = "md"): Promise<string> {
+  const resp = await apiFetch(episodeNotesUrl(slug, ext), { credentials: "include" })
   if (!resp.ok) throw new Error(`episode notes export failed: ${resp.status}`)
   return resp.text()
 }
@@ -1415,6 +1418,21 @@ export async function getCollections(): Promise<Collection[]> {
 }
 
 /**
+ * Which collections already hold an item.
+ *
+ * Its own call rather than a flag on the list, because membership is a question about the ITEM.
+ * `checked` distinguishes "we looked and it is in none of them" from "we could not look" — an
+ * empty `ids` under `checked: false` must never render as a confident "not added", since that is
+ * the answer a user acts on by saving the thing twice.
+ */
+export async function getCollectionsContaining(
+  item: CollectionItemRef
+): Promise<{ ids: string[]; checked: boolean }> {
+  const q = `?kind=${encodeURIComponent(item.kind)}&ref=${encodeURIComponent(item.ref)}`
+  return await getJSON<{ ids: string[]; checked: boolean }>(`/collections/containing${q}`)
+}
+
+/**
  * Absolutise each board's `cover_url` for the native shell.
  *
  * The API returns it RELATIVE (`/api/app/artwork?ref=…`). On web that is correct — the app and the
@@ -1462,6 +1480,15 @@ export async function reorderCollections(order: string[]): Promise<Collection[]>
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ order }),
+    // The ONE write the user starts and then immediately walks away from: a drag ends with a drop,
+    // and the next thing they do is leave the screen. Nothing awaits this call (the drop handler
+    // fires it with `void`), so without `keepalive` a navigation or a backgrounded tab ABORTS the
+    // request mid-flight and the arrangement they just made is gone. The outbox catches that case
+    // now, but only on the NEXT boot — the order flashes back to the old one in between.
+    // `keepalive` lets the request finish on its own after the page goes away, which is what makes
+    // the drop durable rather than merely recoverable. The body is a list of ids, far under the
+    // 64 KB keepalive cap.
+    keepalive: true,
   })
   if (!resp.ok) throw new ApiError(resp.status, `PATCH /collections/order → ${resp.status}`)
   return withAbsoluteCovers(((await resp.json()) as { items: Collection[] }).items)

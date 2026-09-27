@@ -51,10 +51,11 @@ describe('StorylineView', () => {
       cluster_id: null,
       cluster_label: null,
       cluster_size: 0,
-      theme_cluster_id: 'thc:energy',
-      theme_cluster_label: 'Energy transition',
-      theme_cluster_size: 2,
-      theme_sibling_topics: [
+      sibling_topics: [],
+      storyline_id: 'thc:energy',
+      storyline_label: 'Energy transition',
+      storyline_size: 2,
+      storyline_sibling_topics: [
         { id: 'topic:grid', label: 'Grid', cluster_id: null, cluster_label: null, cluster_size: 0 },
       ],
       episode_count: 1,
@@ -81,7 +82,7 @@ describe('StorylineView', () => {
           has_bridge: false,
         },
       ],
-      related_people: [{ id: 'person:jane', name: 'Jane', role: 'host' }],
+      related_people: [{ id: 'person:jane', name: 'Jane', kind: 'person' as const, role: 'host' }],
     })
     const w = await mountView()
     expect(w.get('[data-testid="storyline-view"]').text()).toContain('Energy transition')
@@ -108,17 +109,18 @@ describe('StorylineView', () => {
   // Follow subscribes to the storyline's THEME CLUSTER (distinct from the heart, which favorites the
   // storyline). The e2e always skips — the fixture corpus has no `thc:` cluster — so this unit test
   // is the only guard on the toggle wiring.
-  function mockCard(themeClusterId: string | null) {
+  function mockCard(storylineId: string | null) {
     vi.spyOn(api, 'getTopicCard').mockResolvedValue({
       id: 'topic:energy',
       label: 'Energy',
       cluster_id: null,
       cluster_label: null,
       cluster_size: 0,
-      theme_cluster_id: themeClusterId,
-      theme_cluster_label: 'Energy transition',
-      theme_cluster_size: 2,
-      theme_sibling_topics: [],
+      sibling_topics: [],
+      storyline_id: storylineId,
+      storyline_label: 'Energy transition',
+      storyline_size: 2,
+      storyline_sibling_topics: [],
       episode_count: 0,
       episodes: [],
       related_people: [],

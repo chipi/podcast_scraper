@@ -56,12 +56,13 @@ function ep(slug: string, publish_date: string | null): EpisodeSummary {
     summary_preview: null,
     summary_bullets: [],
     topics: [],
+    summary_text: null,
     has_transcript: true,
     has_summary: false,
     has_gi: false,
     has_kg: false,
     has_bridge: false,
-  } as EpisodeSummary
+  }
 }
 
 function topic(over: Partial<TopicCard> = {}): TopicCard {

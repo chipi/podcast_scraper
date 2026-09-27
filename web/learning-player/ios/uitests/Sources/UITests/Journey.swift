@@ -99,6 +99,111 @@ enum Journey {
     return nil
   }
 
+  /**
+   * Find a control by its accessible LABEL, whatever XCUIElement type WebKit mapped it to.
+   *
+   * `app.buttons["…"]` is not enough for this app, and the way it fails is silent. WebKit maps an
+   * HTML `<button>` to a Button only when it is a plain one: add `aria-haspopup` and it becomes a
+   * PopUpButton, add `aria-pressed` and it becomes a toggle, and `role="menuitem"` becomes a
+   * MenuItem. Every one of those is a11y-CORRECT markup, so the app is right and the query was
+   * wrong — it just reported "the episode page never rendered its action row".
+   *
+   * Measured on the player page (2026-09-24): `app.buttons` returned 12 controls — Back, the tier
+   * pill, summary, Insights, transcript, mark-moment, the transport — and NONE of favourite,
+   * add-to-collection, share or ⋯, all four of which were plainly on screen. They carry
+   * `aria-pressed` / `aria-haspopup`.
+   *
+   * `.any` is slower than a typed query; that cost is worth paying to stop a passing selector from
+   * depending on which ARIA attributes a component happens to carry today.
+   */
+  static func control(_ app: XCUIApplication, label: String) -> XCUIElement {
+    app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", label))
+      .firstMatch
+  }
+
+  /**
+   * A bounded, failure-PROOF inventory for diagnostic messages.
+   *
+   * This walked `descendants(matching: .any)` and blew up on its own snapshot — "No matches found
+   * for Element at index 120": the tree mutates while you iterate it, and a diagnostic that can
+   * fail is worse than no diagnostic, because it replaces the real failure with its own.
+   *
+   * So: a few CONCRETE types, small caps, and every access guarded. It is allowed to return less
+   * than the whole truth. It is not allowed to throw.
+   */
+  static func labelledInventory(_ app: XCUIApplication, limit: Int = 8) -> String {
+    // PER-TYPE caps, not one global budget. With a single budget the first type consumes it — Home
+    // has a dozen buttons, so `links` never appeared, and the element actually being hunted (the
+    // masthead avatar, a LINK) was invisible in every diagnostic it produced. A cap that hides the
+    // thing you are looking for is worse than no cap, because it reads as evidence of absence.
+    var out: [String] = []
+    let sources: [(String, XCUIElementQuery)] = [
+      ("button", app.buttons), ("link", app.links), ("menuItem", app.menuItems),
+      ("popUp", app.popUpButtons), ("image", app.images), ("other", app.otherElements),
+    ]
+    for (kind, query) in sources {
+      var taken = 0
+      let n = min(query.count, 40)
+      guard n > 0 else { continue }
+      for i in 0..<n where taken < limit {
+        let label = query.element(boundBy: i).label
+        // UNLABELLED elements are reported, not skipped. Filtering them out was a blind spot in
+        // exactly the case this helper exists for: an interactive element that IS in the tree but
+        // carries no accessible name is invisible both here and to `find` (which matches on label),
+        // so "absent from the inventory" was being read as "absent from the tree" — two very
+        // different bugs with opposite fixes.
+        out.append(label.isEmpty ? "<UNLABELLED>[\(kind)]" : "\(label)[\(kind)]")
+        taken += 1
+      }
+    }
+    return out.isEmpty ? "<nothing labelled>" : out.joined(separator: " | ")
+  }
+
+  /**
+   * Everything in a REGION of the screen, identified by FRAME rather than by label.
+   *
+   * The masthead avatar could not be found by name, and that is precisely why name-based evidence
+   * was useless: if an element is present but unnamed, a label query cannot see it, so "absent from
+   * my list" never meant "absent from the tree". Position does not have that problem — the avatar
+   * is top-right at ~32pt whatever it is called.
+   *
+   * Reports type, label (or <UNLABELLED>) and frame for every element intersecting `region`, so the
+   * two hypotheses separate cleanly: something at that frame means exposed-but-unnamed; nothing
+   * there means not rendered at all. Those need opposite fixes.
+   */
+  static func inventoryInRegion(_ app: XCUIApplication, _ region: CGRect, limit: Int = 14) -> String {
+    // ATOMIC capture. Walking a query with `element(boundBy:)` and reading `.frame` raised
+    // "Failed to get matching snapshot: No matches found for Element at index 25" — the tree
+    // mutates while you iterate it, and an XCUITest snapshot failure is an XCTest failure, not a
+    // Swift error, so it cannot be caught. It replaces the real failure with its own, which is the
+    // second time a diagnostic of mine has done that.
+    //
+    // `debugDescription` is one snapshot of the whole tree, taken at once, and it carries the
+    // element TYPE, its frame and its label — everything this needs, with nothing to go stale.
+    let dump = app.debugDescription
+    var out: [String] = []
+    // Lines look like: "    Button, 0x…, {{338.0, 47.0}, {32.0, 32.0}}, label: 'Queue'"
+    let frameRe = try? NSRegularExpression(pattern: #"\{\{([-\d.]+), ([-\d.]+)\}, \{([-\d.]+), ([-\d.]+)\}\}"#)
+    for raw in dump.split(separator: "\n") {
+      let line = String(raw).trimmingCharacters(in: .whitespaces)
+      guard let re = frameRe,
+        let m = re.firstMatch(in: line, range: NSRange(line.startIndex..., in: line))
+      else { continue }
+      func num(_ i: Int) -> CGFloat {
+        guard let r = Range(m.range(at: i), in: line) else { return 0 }
+        return CGFloat(Double(line[r]) ?? 0)
+      }
+      let f = CGRect(x: num(1), y: num(2), width: num(3), height: num(4))
+      guard f.intersects(region), f.width > 0, f.height > 0 else { continue }
+      // Keep the whole line: it already names the type and the label (or shows none at all, which
+      // is exactly the case that matters here).
+      out.append(line.replacingOccurrences(of: ", 0x", with: " 0x"))
+      if out.count >= limit { break }
+    }
+    return out.isEmpty ? "<NOTHING intersecting \(region)>" : out.joined(separator: " || ")
+  }
+
   /// Find and tap, scrolling the element clear of the bottom tab bar first (the transport/tab-bar
   /// overlap trap the playback suite documents — an unscrolled tap lands on a nav tab instead).
   @discardableResult
@@ -116,12 +221,76 @@ enum Journey {
     while el.frame.maxY > app.frame.height - 90 && tries < 6 {
       app.swipeUp(); usleep(700_000); tries += 1
     }
-    guard el.isHittable else {
-      print("=====TAP_NOT_HITTABLE \(labels) frame=\(el.frame)=====")
+    // ...and the MIRROR CASE, which was missing (2026-09-25). An element scrolled ABOVE the
+    // viewport stays in the accessibility tree with a NEGATIVE y, where it is not hittable — so a
+    // masthead control (profile, Queue, Search) is unreachable from any page that has been scrolled
+    // down, which is most of them. Measured: `["Queue ("] frame=(265.0, -345.0, …)` and
+    // `["simtest"] frame=(349.0, -619.0, …)`.
+    //
+    // `openProfile` already worked around this with 12 hand-rolled `swipeDown()`s. That fixed ONE
+    // call site and left the shared helper wrong, which is how a1 then failed on the masthead Queue
+    // control for the same reason months later. Fix it here, once, for every caller.
+    var upTries = 0
+    while el.frame.minY < 0 && upTries < 12 {
+      app.swipeDown(); usleep(700_000); upTries += 1
+    }
+    // RE-RESOLVE after scrolling (2026-09-25). `el` is a QUERY (`…firstMatch`), not a snapshot:
+    // every property access re-runs it. `find` only returns a HITTABLE element, so the thing we
+    // scrolled into view was hittable when chosen — but scrolling changes layout, and this app
+    // renders the masthead controls TWICE (measured: `Search | Queue (2) | simtest | … | Search |
+    // Queue (2) | …`). After the scroll, `firstMatch` can resolve to the OTHER copy, which is not
+    // the interactive one, and the tap then reports NOT_HITTABLE about an element that is plainly
+    // on screen — measured `["Queue ("] frame=(265.0, 107.0, 39.0, 16.0)`, fully inside a 402pt
+    // screen and still refused.
+    //
+    // Asking `find` again is the whole fix: it re-applies the hittable requirement against the
+    // CURRENT tree and hands back whichever copy is actually usable now.
+    guard let settled = find(app, labels: labels, contains: contains, timeout: 5) else {
+      print("=====TAP_LOST_AFTER_SCROLL \(labels) — matched, scrolled, then no hittable match=====")
       return false
     }
-    el.tap()
+    tapWithinScreen(app, settled, labels)
     return true
+  }
+
+  /// Tap a point guaranteed to be INSIDE the screen.
+  ///
+  /// `XCUIElement.tap()` taps the element's CENTRE. An element only partially on screen is therefore
+  /// tapped at a coordinate outside the display, where the synthesized event lands on nothing — and
+  /// NOTHING reports it: `exists` is true, `isHittable` is true, `tap()` returns normally, and the
+  /// app simply does not react. A silent no-op is the worst failure shape there is, because the
+  /// symptom surfaces somewhere else entirely as "the control is not there".
+  ///
+  /// That is what 2026-09-25 cost. The masthead profile link's accessible frame was driven by an
+  /// unanchored `sr-only` text run — measured x=381 w=48 on a 402pt screen, centre at 405, three
+  /// points past the edge. Every `openProfile` reported success and navigated nowhere, and all four
+  /// `NativeOnlySurfacesTests` failed in `startClean` claiming "neither Sign in nor Sign out
+  /// present" about an app that was signed in and sitting on Home.
+  ///
+  /// The app defect is fixed at cause (App.vue anchors the span). This exists so the NEXT one is
+  /// LOUD: it re-centres into the visible part and says so, rather than tapping into space.
+  private static func tapWithinScreen(
+    _ app: XCUIApplication, _ el: XCUIElement, _ labels: [String]
+  ) {
+    let screen = app.frame
+    // ONE read each: every property access re-resolves the query, and a query that has stopped
+    // matching raises an XCTest failure rather than returning nil.
+    let f = el.frame
+    guard screen.width > 0, f.width > 0, f.height > 0 else { el.tap(); return }
+    if screen.contains(CGPoint(x: f.midX, y: f.midY)) { el.tap(); return }
+
+    let visible = f.intersection(screen)
+    guard !visible.isNull, visible.width > 1, visible.height > 1 else {
+      // Nothing to aim at. Tap anyway so behaviour is unchanged, but NAME it — silence here is
+      // exactly what made this class of bug invisible.
+      print("=====TAP_OFFSCREEN \(labels) frame=\(f) screen=\(screen) — no visible part=====")
+      el.tap()
+      return
+    }
+    let dx = (visible.midX - f.minX) / f.width
+    let dy = (visible.midY - f.minY) / f.height
+    print("=====TAP_RECENTRED \(labels) frame=\(f) screen=\(screen) offset=(\(dx), \(dy))=====")
+    el.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: dy)).tap()
   }
 
   /// Scroll down until a matching element appears, or the page stops moving.
@@ -147,8 +316,12 @@ enum Journey {
       if let el = find(app, labels: labels, contains: contains, timeout: 2) { return el }
       app.swipeUp()
       usleep(800_000)
+      // Label AND vertical position. Labels alone assume the first twelve change as you scroll —
+      // true on these surfaces today (only "Skip to content" is fixed chrome) but nowhere written
+      // down, so a sticky header would silently make every page look stalled after two swipes.
+      // Frames move whenever the page does, which is the thing actually being detected.
       let signature = app.staticTexts.allElementsBoundByIndex
-        .prefix(12).map(\.label).joined(separator: "|")
+        .prefix(12).map { "\($0.label)@\(Int($0.frame.origin.y))" }.joined(separator: "|")
       if signature == lastSignature {
         stalled += 1
         if stalled >= 2 { break }
@@ -191,6 +364,18 @@ enum Journey {
     // lands on nothing. Whatever the previous step left on screen, the header is reachable from the
     // top (2026-09-18).
     for _ in 0..<12 { app.swipeDown() }
+    // DIAGNOSTIC (2026-09-25): say WHERE the control is before tapping it. A tap that "succeeds"
+    // and does not navigate has two opposite causes — a frame above the viewport (negative y, the
+    // hazard the swipes above exist to prevent) or a node being replaced under the tap — and
+    // `TAP_MISS`/success alone cannot tell them apart. `.exists` first: reading `.frame` on a query
+    // that matches nothing is an XCTest FAILURE, not a nil, and would replace the real result.
+    for label in ["Your profile", "simtest", "uitest"] {
+      for (kind, q) in [("link", app.links[label]), ("button", app.buttons[label])] {
+        let e = q.firstMatch
+        guard e.exists else { continue }
+        print("=====PROFILE_CTL \(kind) '\(label)' frame=\(e.frame) hittable=\(e.isHittable)=====")
+      }
+    }
     return tap(app, labels: ["Your profile", "simtest", "uitest"], timeout: 25)
   }
 
@@ -305,7 +490,14 @@ enum Journey {
   static func openSettings(_ app: XCUIApplication) -> Bool {
     guard openProfile(app) else { return false }
     sleep(3)
-    guard tap(app, labels: ["Settings"], contains: true, timeout: 20) else { return false }
+    guard tap(app, labels: ["Settings"], contains: true, timeout: 20) else {
+      // SAY WHAT PAGE WE ARE ON. `tap` logs only `TAP_MISS ["Settings"]`, which is indistinguishable
+      // between "Profile opened and Settings moved" and "the Profile tap did nothing and we are
+      // still on Home" — and those need opposite fixes. Without this the 2026-09-25 wedge was four
+      // identical 157s failures with no way to tell which, from the log alone.
+      inventory(app, "open-settings-miss")
+      return false
+    }
     sleep(3)
     return true
   }
@@ -328,16 +520,25 @@ enum Journey {
     }
     // Web checkboxes surface their checked state as "0"/"1" in `value`.
     let isOn = String(describing: control.value).contains("1")
-    print("=====OFFLINE_SET current=\(isOn) wanted=\(wanted)=====")
     if isOn == wanted { return true }
+    // RE-CHECK before touching `.frame`. Every property access re-resolves the query, and resolving
+    // a query that now matches nothing is an XCTest FAILURE, not a nil — so it cannot be caught and
+    // it aborts the test outright. `startClean` deliberately ignores this helper's return value,
+    // which only works if the helper actually RETURNS on trouble: the caller's tolerance was being
+    // defeated by a hard failure underneath it.
+    //
+    // It really can vanish between the two lines. On a fresh simulator the app is signed out,
+    // Settings is unreachable, and the control the existence check saw belonged to a page the app
+    // was already leaving (2026-09-24).
+    guard control.exists else { return false }
     var tries = 0
-    while control.frame.maxY > app.frame.height - 90 && tries < 6 {
+    while control.exists && control.frame.maxY > app.frame.height - 90 && tries < 6 {
       app.swipeUp(); usleep(700_000); tries += 1
     }
+    guard control.exists, control.isHittable else { return false }
     control.tap()
     sleep(2)
-    let now = String(describing: control.value).contains("1")
-    print("=====OFFLINE_SET now=\(now)=====")
-    return now == wanted
+    guard control.exists else { return false }
+    return String(describing: control.value).contains("1") == wanted
   }
 }

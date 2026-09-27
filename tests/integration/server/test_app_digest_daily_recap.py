@@ -33,18 +33,18 @@ _SCHEMA = json.loads(
 )
 
 
-def _write_corpus(root: Path, *, stem: str = "0001-hello") -> None:
+def _write_corpus(root: Path, *, stem: str = "0001-hello", ep_id: str = "ep1") -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
     doc = {
         "feed": {"feed_id": "myfeed", "title": "My Show", "url": "https://pod.example/f.xml"},
-        "episode": {"episode_id": "ep1", "title": "Hello", "published_date": "2024-03-10T00:00:00"},
+        "episode": {"episode_id": ep_id, "title": "Hello", "published_date": "2024-03-10T00:00:00"},
         "summary": {"title": "Sum", "bullets": ["First point", "Second point"]},
         "content": {"transcript_file_path": f"transcripts/{stem}.txt"},
     }
     (root / "metadata" / f"{stem}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
     gi = {
-        "episode_id": "ep1",
+        "episode_id": ep_id,
         "nodes": [
             {
                 "id": "insight:1",
@@ -61,7 +61,7 @@ def _write_corpus(root: Path, *, stem: str = "0001-hello") -> None:
     }
     (root / "metadata" / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
     kg = {
-        "episode_id": "ep1",
+        "episode_id": ep_id,
         "nodes": [{"id": "topic:ai", "type": "Topic", "properties": {"label": "AI"}}],
     }
     (root / "metadata" / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
@@ -204,3 +204,71 @@ def test_finished_today_buckets_by_the_users_local_day(tmp_path: Path) -> None:
     app_user_state.set_playback(data_dir, uid, "ep-x", 100.0, updated_at=finish, finished=True)
     assert app_digest_daily_recap._finished_today(data_dir, uid, now, "Asia/Tokyo") == ["ep-x"]
     assert app_digest_daily_recap._finished_today(data_dir, uid, now, None) == []  # UTC: yesterday
+
+
+# --- the traveller case (operator 2026-09-23) -------------------------------------------------
+#
+# Reported: "I listened to two episodes offline on a two-hour flight, finished a third after
+# landing, and only got an email about ONE." Same day, same timezone -- so no local-day edge, and
+# the 0/1/many rule means ONE email is correct. The question is what that email CONTAINED.
+#
+# Offline finishes replay with their own timestamp (#1913), so they land BACKDATED by the length of
+# the flight. These pin that a backdated finish is still today's finish.
+
+
+def _write_corpus_n(root: Path, n: int) -> list[str]:
+    """n episodes in one corpus, so a digest can carry more than one."""
+    for i in range(n):
+        # Distinct episode_id per file: the catalog keys on it, so three files sharing "ep1"
+        # collapse to one row and the fan-out this test needs never exists.
+        _write_corpus(root, stem=f"000{i + 1}-ep{i + 1}", ep_id=f"ep{i + 1}")
+    rows = build_catalog_rows_cumulative(root)
+    return [slug_for_row(r) for r in rows]
+
+
+def test_a_digest_carries_EVERY_episode_finished_today_including_backdated_ones(
+    tmp_path: Path,
+) -> None:
+    """Two finished offline hours ago + one finished just now = one email naming all three.
+
+    The offline pair are stamped when the listener actually finished them -- mid-flight -- which is
+    hours before the replay. Same local day, so all three belong in today's recap.
+    """
+    root, data_dir = tmp_path / "corpus", tmp_path / "app"
+    slugs = _write_corpus_n(root, 3)
+    uid = _user(data_dir)
+
+    two_hours = 2 * 60 * 60
+    _finish(data_dir, uid, slugs[0], when=_NOW - two_hours)  # in the air
+    _finish(data_dir, uid, slugs[1], when=_NOW - two_hours + 600)  # in the air
+    _finish(data_dir, uid, slugs[2], when=_NOW)  # after landing
+
+    payload = app_digest_daily_recap.assemble_daily_recap_payload(root, data_dir, uid, _NOW)
+    assert payload is not None, "three episodes finished today must produce a digest"
+    assert payload["count"] == 3, (
+        f"the email named {payload['count']} episode(s); the listener finished 3 today. "
+        "A backdated (offline-replayed) finish is still today's finish."
+    )
+    assert {ep["slug"] for ep in payload["episodes"]} == set(slugs)
+
+
+def test_the_replay_ORDER_does_not_decide_what_the_digest_carries(tmp_path: Path) -> None:
+    """Writing the online finish FIRST, then replaying the offline pair, must not lose them.
+
+    This is the real sequence: the third episode finishes while connected, and only afterwards does
+    the outbox drain the two from the flight. A digest assembled from whatever arrived first would
+    carry one episode -- the reported symptom.
+    """
+    root, data_dir = tmp_path / "corpus", tmp_path / "app"
+    slugs = _write_corpus_n(root, 3)
+    uid = _user(data_dir)
+
+    _finish(data_dir, uid, slugs[2], when=_NOW)  # lands first, chronologically last
+    _finish(data_dir, uid, slugs[0], when=_NOW - 7200)  # replayed after
+    _finish(data_dir, uid, slugs[1], when=_NOW - 6600)
+
+    payload = app_digest_daily_recap.assemble_daily_recap_payload(root, data_dir, uid, _NOW)
+    assert payload is not None
+    assert payload["count"] == 3, f"arrival order dropped episodes: got {payload['count']} of 3"
+    # Most-recently-FINISHED first, by the finish time -- not by when the write arrived.
+    assert payload["episodes"][0]["slug"] == slugs[2]

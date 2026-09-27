@@ -59,6 +59,25 @@ defineProps<{
    * UNSAVE, so it becomes a menu item rather than disappearing (operator 2026-09-16).
    */
   hideFavorite?: boolean
+  /**
+   * Drop the queue toggle from the visible row, moving it into the ⋯ — the mirror of
+   * `hideFavorite`, for the same reason.
+   *
+   * Set by the queue panel's **Recently played** list, where the point is to FIND and resume
+   * something you heard, not to re-queue it (operator 2026-09-23). It also buys back a slot: the
+   * compact card's column is 80px, which holds two targets, so with three the ⋯ wrapped onto its
+   * own line under the artwork.
+   */
+  hideQueue?: boolean
+  /**
+   * Promote download OUT of the ⋯ and into the visible row.
+   *
+   * Set by **Up next**, where "is this on the device?" is the question you are asking — you are
+   * looking at what you are about to play, possibly before losing signal. It was two taps and a
+   * menu away, so the answer was invisible (operator 2026-09-23). Native-only by construction:
+   * `DownloadButton` self-hides on web, so this adds nothing to a browser row.
+   */
+  showDownload?: boolean
 }>()
 const { t } = useI18n()
 </script>
@@ -77,11 +96,12 @@ const { t } = useI18n()
          its colour picker here, so the row stays three wide and does not wrap). -->
     <slot name="lead" />
     <FavoriteButton v-if="!hideFavorite" :item="{ kind: 'episode', ref: slug }" />
-    <QueueButton :slug="slug" />
+    <QueueButton v-if="!hideQueue" :slug="slug" />
     <OverflowMenu :label="t('common.moreActions')">
       <template #default="{ close }">
-        <!-- Download self-hides on web, so on web this menu carries collection alone. -->
-        <DownloadButton :slug="slug" variant="menuitem" @activated="close" />
+        <!-- Download self-hides on web, so on web this menu carries collection alone. Omitted when
+             it is already inline — never offer the same control in two places. -->
+        <DownloadButton v-if="!showDownload" :slug="slug" variant="menuitem" @activated="close" />
         <AddToCollectionButton :item="{ kind: 'episode', ref: slug }" variant="menuitem" />
         <!-- Only when it is NOT in the row above — never offer the same toggle in two places. -->
         <FavoriteButton
@@ -89,9 +109,15 @@ const { t } = useI18n()
           :item="{ kind: 'episode', ref: slug }"
           variant="menuitem"
         />
+        <QueueButton v-if="hideQueue" :slug="slug" variant="menuitem" />
       </template>
     </OverflowMenu>
     <!-- Extra, surface-specific controls in the same row (e.g. the queue's reorder ↑/↓). -->
     <slot />
+    <!-- Inline download LAST (operator 2026-09-23), so the two rows the artwork-width column wraps
+         into read as a grid rather than as a row that overflowed: `♡ ⧉ ⋯` above `↑ ↓ ⬇`. Placed
+         before the ⋯ it pushed the overflow onto the second line and left the first ending on a
+         control that is not the "more" affordance, which is where the eye expects it. -->
+    <DownloadButton v-if="showDownload" :slug="slug" />
   </div>
 </template>

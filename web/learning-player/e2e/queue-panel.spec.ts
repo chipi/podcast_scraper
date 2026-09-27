@@ -32,7 +32,9 @@ test('the full player opens the Queue & Recent panel and dismisses it', async ({
   await expect(panel).toHaveCount(0)
 })
 
-test('the mini-player opens the same Queue panel from anywhere', async ({ page }, testInfo) => {
+test('the mini-player hands the queue to the masthead, which lands on the full page', async ({
+  page,
+}, testInfo) => {
   await signInIsolated(page, 'queue-panel-mini', testInfo)
   // Start playback so the mini-player is present, then leave the player in-app.
   await page.goto('/podcast/p05')
@@ -47,7 +49,38 @@ test('the mini-player opens the same Queue panel from anywhere', async ({ page }
   await navTo(page, 'search')
   await expect(page.getByTestId('mini-player')).toBeVisible()
 
-  await page.getByTestId('mini-player-queue').click()
+  /*
+   * The mini-player's queue button is GONE (operator 2026-09-23). The masthead now carries a queue
+   * control at every width, so the bar kept a second route to the same place on a screen that
+   * already showed the first — and the bar is the most space-constrained strip in the app.
+   *
+   * Asserted as an ABSENCE as well as a replacement: a spec that only checks the new path would
+   * stay green if the old button quietly came back.
+   */
+  await expect(page.getByTestId('mini-player-queue')).toHaveCount(0)
+  // What the bar carries instead: save and collect, for the episode that is playing.
+  await expect(page.getByTestId('mini-player').getByRole('button', { name: /save|remove/i }).first()).toBeVisible()
+
+  await page.getByTestId('masthead-queue').click()
+  await expect(page).toHaveURL(/\/queue/)
+  // The destination shows BOTH halves — Up next and the history — because it is now the queue's
+  // primary surface, not a subset of the panel reached from the player.
+  await expect(page.getByRole('heading', { name: 'Up next' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently played' })).toBeVisible()
+  await expect(page.getByTestId('queue-panel-recent')).toBeVisible()
+})
+
+test('the panel is still reachable from the FULL player, with both sections', async ({
+  page,
+}, testInfo) => {
+  // The panel did not go away — only the mini-player's route into it. The full player keeps it,
+  // because there the queue is a transport concern and a modal beats leaving the episode.
+  await signInIsolated(page, 'queue-panel-player', testInfo)
+  await page.goto('/podcast/p05')
+  await page.getByText('Index Investing Without the Myths').first().click()
+  await expect(page).toHaveURL(/\/episode\//)
+
+  await page.getByTestId('player-queue').click()
   const panel = page.getByTestId('queue-panel')
   await expect(panel).toBeVisible()
   await expect(panel.getByRole('heading', { name: 'Up next' })).toBeVisible()

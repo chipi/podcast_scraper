@@ -9,38 +9,20 @@
  *
  * Modal bottom-sheet shell mirrors EntityCard (teleport, focus trap, ESC / backdrop dismiss).
  */
-import { onMounted, ref } from "vue"
+import { ref } from "vue"
 import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import QueueView from "../views/QueueView.vue"
-import EpisodeCard from "./EpisodeCard.vue"
-import { getEpisode, getPlaybackList } from "../services/api"
-import type { EpisodeDetail } from "../services/types"
-import { summaryFromDetail } from "../utils/episode"
+import RecentlyPlayedList from "./RecentlyPlayedList.vue"
 import { useModalSheet } from "../composables/useModalSheet"
 
 const emit = defineEmits<{ (e: "close"): void }>()
 const { t } = useI18n()
 
-const recent = ref<EpisodeDetail[]>([])
-const recentLoading = ref(true)
-
 // Modal a11y (teleport, focus trap, ESC / backdrop dismiss) — the shared sheet plumbing. No
 // history entry: this panel has no URL of its own.
 const dialogEl = ref<HTMLElement | null>(null)
 useModalSheet(dialogEl, () => emit("close"))
-
-onMounted(async () => {
-  try {
-    const positions = await getPlaybackList().catch(() => [])
-    const hydrated = await Promise.all(
-      positions.slice(0, 30).map((p) => getEpisode(p.slug).catch(() => null))
-    )
-    recent.value = hydrated.filter((d): d is EpisodeDetail => !!d)
-  } finally {
-    recentLoading.value = false
-  }
-})
 </script>
 
 <template>
@@ -79,27 +61,8 @@ onMounted(async () => {
             <QueueView hide-title />
           </section>
 
-          <!-- Recently played — resume, don't re-queue. -->
-          <section>
-            <h3 class="lp-kicker mb-2">{{ t("queue.recentlyPlayed") }}</h3>
-            <p v-if="recentLoading" class="text-sm text-muted">{{ t("catalog.loading") }}</p>
-            <p v-else-if="!recent.length" class="text-sm text-muted">
-              {{ t("queue.recentEmpty") }}
-            </p>
-            <div
-              v-else
-              class="flex flex-col"
-              data-testid="queue-panel-recent"
-              @click="emit('close')"
-            >
-              <EpisodeCard
-                v-for="d in recent"
-                compact
-                :key="d.slug"
-                :episode="summaryFromDetail(d)"
-              />
-            </div>
-          </section>
+          <!-- Recently played — resume, don't re-queue. Shared with the /queue page. -->
+          <RecentlyPlayedList />
         </div>
       </div>
     </div>

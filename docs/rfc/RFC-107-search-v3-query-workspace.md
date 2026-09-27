@@ -127,7 +127,7 @@ Operator bar (`ResultSetOperatorBar.vue`) sits above the result list. Each opera
 
 | Operator | Backend module (shipped) | Client action |
 | --- | --- | --- |
-| **Cluster** | `search/insight_clusters.py` + `search/theme_clusters.py` | Server groups hits by cluster; UI renders `ClusterGroupCard`. Fetch `top_k * 3` when Cluster is active (default; config `search.cluster.overfetch_factor`). |
+| **Cluster** | `search/insight_clusters.py` + `search/storylines.py` | Server groups hits by cluster; UI renders `ClusterGroupCard`. Fetch `top_k * 3` when Cluster is active (default; config `search.cluster.overfetch_factor`). |
 | **Show on graph** | client — reuse `subjectStore.focusHit` per hit; union bbox in `App.vue` graph camera | Compute the union of derived node ids; call graph camera with a set-focus request (new `graphNavigation.focusSet(ids)`). |
 | **Timeline** | client — bucket hits by `publish_date` month | Renders `SubjectTimelineChart` with hit counts; bucket-click filters `WorkspaceResults` client-side. |
 | **Compare (2 subjects)** | `search/context_pack.py::build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)` (RFC-093 **shipped API**) | Client picks 2 subjects; server runs hybrid scoped to each, calls `build_briefing_pack` twice, returns two `CorpusBriefingPack`s (each with `top_insight`, `supporting_segments`, `coverage_summary`, `confidence_p50`). 2-column view. Judge summary from `search/judged_eval.py` muted below when available. **Optional `insight_type` filter** (RFC-072 GIL v1.1 — `claim` / `recommendation` / `observation` / `question`) narrows both sides symmetrically. |

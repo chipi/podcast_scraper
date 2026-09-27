@@ -71,11 +71,24 @@ const details = ref<Record<string, EpisodeDetail>>({})
  */
 const listenedAt = ref<Record<string, number>>({})
 
+const loadError = ref(false)
+
 async function load(): Promise<void> {
-  const resp = await getResurfacing()
-  items.value = resp.items
-  paused.value = resp.paused
-  loaded.value = true
+  // A throw here used to leave `loaded` false FOREVER: neither the items branch nor the empty-state
+  // branch renders, so the tab showed its intro line and a pause button over nothing. Indis-
+  // tinguishable from "you have no captures" — and the route 503s whenever the corpus is briefly
+  // unavailable, so a restart blanked Revisit for everyone with no retry (review 2026-09-18).
+  loadError.value = false
+  try {
+    const resp = await getResurfacing()
+    items.value = resp.items
+    paused.value = resp.paused
+  } catch {
+    loadError.value = true
+    return
+  } finally {
+    loaded.value = true
+  }
   void hydrateEpisodes()
   void hydrateListenedAt()
 }
@@ -218,8 +231,18 @@ function quoteOf(item: ResurfacingItem): string {
 
 /** Mark a highlight seen → drop it from the list (the server advances its ladder). */
 async function dismiss(item: ResurfacingItem): Promise<void> {
+  // Optimistic, but REVERSIBLE. The card left the screen before the write was awaited and there was
+  // no way back: a failed POST left the user believing they had reviewed something they had not,
+  // and it reappeared on the next load with no explanation. The resurfacing store has had this
+  // rollback since it was written; this view simply did not follow it (review 2026-09-18).
+  const before = items.value
   items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
-  await markSurfaced(item.highlight.id)
+  try {
+    await markSurfaced(item.highlight.id)
+  } catch {
+    items.value = before
+    return
+  }
   // Keep the nav badge honest: reviewing an item is exactly when the count should drop.
   void resurfacing.load()
 }
@@ -263,8 +286,14 @@ watch(
 )
 
 async function retire(item: ResurfacingItem): Promise<void> {
+  const before = items.value
   items.value = items.value.filter((i) => i.highlight.id !== item.highlight.id)
-  await retireHighlight(item.highlight.id)
+  try {
+    await retireHighlight(item.highlight.id)
+  } catch {
+    items.value = before
+    return
+  }
   void resurfacing.load()
 }
 
@@ -285,8 +314,17 @@ async function confirmDelete(): Promise<void> {
   // Gated (#1590): signed out this write returns 401, the store swallows it, and the card would
   // disappear from the list and then reappear — which reads as the user's own action failing.
   await gated(async () => {
+    // Restored on failure like the other two. The capture store rolls `highlights` back on a
+    // permanent error, so without this the two surfaces disagree: the capture is gone from Revisit
+    // and still present in Saved, in the same session (review 2026-09-18).
+    const before = items.value
     items.value = items.value.filter((i) => i.highlight.id !== id)
-    await capture.remove(id)
+    try {
+      await capture.remove(id)
+    } catch {
+      items.value = before
+      return
+    }
     void resurfacing.load()
   })()
 }
@@ -337,17 +375,36 @@ onMounted(load)
       >
         <svg v-if="paused" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
         <svg v-else viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+        <!-- `aria-label` over a lone `aria-hidden` svg is DROPPED by Android System WebView, so
+             this pause/resume control announces as an unnamed "Button" — and a screen-reader user
+             has no way to know whether resurfacing is paused, which is the one thing it says. No
+             test reaches it; found by the repo-wide scan (2026-09-26). Text matches `aria-label`
+             exactly, including the paused/resumed swap. -->
+        <span class="sr-only">{{ paused ? t('revisit.resume') : t('revisit.pause') }}</span>
       </button>
     </div>
 
-    <p v-if="paused" class="text-muted">{{ t('revisit.paused') }}</p>
+    <!-- An error is NOT an empty state. Saying "nothing due" when the request failed tells the user
+         something false about their own captures. -->
+    <div v-if="loadError" class="text-muted" data-testid="revisit-load-error">
+      <p>{{ t('revisit.loadError') }}</p>
+      <button
+        type="button"
+        class="lp-tap mt-2 rounded-full border border-border px-3 py-1 text-sm font-bold text-accent"
+        data-testid="revisit-retry"
+        @click="load"
+      >
+        {{ t('common.retry') }}
+      </button>
+    </div>
+    <p v-else-if="paused" class="text-muted">{{ t('revisit.paused') }}</p>
     <p v-else-if="loaded && !items.length" class="text-muted">{{ t('revisit.empty') }}</p>
 
     <!-- Revisit IS Saved, in a different context (operator 2026-09-18): the same captures, surfaced
          because they are due rather than because you went looking. So it renders the same way —
          episode heading, fold control, flat list of captures — and only the framing differs: a
          reflection prompt on each, "Mark reviewed" instead of the Saved row's edit controls. -->
-    <template v-else>
+    <template v-else-if="!loadError">
       <section v-for="g in visibleGroups" :key="g.slug" class="mb-6" data-testid="revisit-group">
         <!-- Same shape as Library → Saved (operator 2026-09-18): the shared `EpisodeRow` as the
              heading, with the fold control in its `#trailing` slot, and the moments as a flat list
@@ -445,7 +502,14 @@ onMounted(load)
                   :aria-label="t('revisit.dismiss')"
                   :title="t('revisit.dismiss')"
                   @click="dismiss(item)"
-                ><CheckIcon /></button>
+                >
+                  <CheckIcon />
+                  <!-- Android System WebView DROPS `aria-label` when the subtree has no text node,
+                       so these three announce as unnamed "Button" and no name-based lookup reaches
+                       them. The text must match the label EXACTLY — Android reads `getText()`
+                       before `getContentDescription()`, so a shorter string shadows the label. -->
+                  <span class="sr-only">{{ t('revisit.dismiss') }}</span>
+                </button>
                 <button
                   type="button"
                   class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
@@ -453,7 +517,10 @@ onMounted(load)
                   :aria-label="t('revisit.retire')"
                   :title="t('revisit.retire')"
                   @click="retire(item)"
-                ><BellOffIcon /></button>
+                >
+                  <BellOffIcon />
+                  <span class="sr-only">{{ t('revisit.retire') }}</span>
+                </button>
                 <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18). This action is an UNSAVE,
                      and an unsave should show the glyph that did the saving, filled, so that tapping
                      it reads as undoing the save rather than as a generic delete.
@@ -475,7 +542,10 @@ onMounted(load)
                   :aria-label="t('revisit.remove')"
                   :title="t('revisit.remove')"
                   @click="pendingDelete = item.highlight.id"
-                ><BookmarkIcon filled /></button>
+                >
+                  <BookmarkIcon filled />
+                  <span class="sr-only">{{ t('revisit.remove') }}</span>
+                </button>
               </span>
             </div>
           </li>

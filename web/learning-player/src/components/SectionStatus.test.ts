@@ -32,7 +32,7 @@ describe('SectionStatus', () => {
     const w = mountIt({ phase: 'error' })
     const err = w.get('[data-testid="section-error"]')
     expect(err.attributes('role')).toBe('status')
-    expect(w.get('[data-testid="section-retry"]').exists()).toBe(true)
+    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
     expect(w.text()).toContain('Try again')
   })
 

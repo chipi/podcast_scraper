@@ -1,3 +1,21 @@
+# NEVER hand an inherited NODE_OPTIONS to a recipe. cmux launches Claude Code with
+# `--require=$TMPDIR/cmux-claude-node-options/restore-node-options.cjs`, a self-erasing shim that is
+# meant to delete itself from `process.env` at startup. It no longer does: Claude Code ships as a
+# native binary, which does not honour NODE_OPTIONS' `--require`, so the erase never runs and the
+# variable leaks into every child. Worse, macOS periodically purges $TMPDIR, so the path it points
+# at stops existing while the exported value lives on — and then every node step (`npm run build`,
+# `npx vite preview`, playwright) dies instantly with MODULE_NOT_FOUND.
+#
+# That failure surfaces three layers away: the origin never comes up, and the iOS tier reports
+# "no Play control" or "cannot reach the api" instead of "your terminal broke node".
+#
+# This replaces per-recipe `env -u NODE_OPTIONS`, which was applied to `ios-app-install` but NOT to
+# `ios-origin-up` or `test-app-ios-sim-download` — so whether the tier worked depended on which
+# entry point you used. Declared once here, it cannot be forgotten by a target nobody has written
+# yet. If a recipe ever genuinely needs a raised heap, set NODE_OPTIONS on that recipe explicitly
+# rather than inheriting it by accident from a terminal emulator.
+unexport NODE_OPTIONS
+
 # Auto-detect venv Python if .venv exists, otherwise use python3
 ifeq ($(wildcard .venv/bin/python),)
 PYTHON ?= python3
@@ -59,12 +77,12 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download test-app-ios-journey
+.PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
-.PHONY: test-app-ios-native test-app-ios-native-full test-app-ios-prod-tour
+.PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-app-ios-sim test-app-ios-sim-offline seed-ios-download seed-ios-offline-queue app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -126,7 +144,7 @@ help:
 	@echo "  make test-app            Vitest unit tests + coverage gate for $(APP_DIR)"
 	@echo "  make test-app-e2e        Playwright E2E for $(APP_DIR) (needs npm install + chromium in that dir)"
 	@echo "  make test-app-e2e-docker Same suite against a CONTAINERISED api (hosts where [search] cannot install)"
-	@echo "  make test-app-ios-sim    Device-tier UI tests on an iOS simulator (needs xcodegen + cocoapods)"
+	@echo "  make test-ios            THE iOS device tier — 6 phases, the one thing to run (needs xcodegen)"
 	@echo "  make test-app-ios-sim-offline  The offline journey with the api DOWN (boot, library, play, auto-advance)"
 	@echo "  make build-app           Production Learning Player bundle (vue-tsc -b && vite build)"
 	@echo "  make app-docker-build    Build the Learning Player Docker image"
@@ -364,6 +382,9 @@ lint-search-v3:
 CORPUS ?= tests/fixtures/viewer-validation-corpus/v3
 QUERIES ?= tests/fixtures/viewer-validation-corpus/v3/search-queries.json
 OUT ?= data/eval/search-v3/eval/latest.json
+# `data/eval/**`: eval runs write their reports there. The `eval-data` ignores below point at
+# a directory that no longer exists (the path moved), so 320 generated reports were being
+# linted locally. CI never saw it — they are gitignored, so a fresh checkout has none.
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	".github/**/*.md" \
 	".cursor/**/*.md" \
@@ -379,6 +400,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore .build/site \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" --ignore "eval-data/**" --ignore eval-data \
+	--ignore "data/eval/**" --ignore data/eval \
 	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
 	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
 	--ignore "$(WEB_VIEWER_DIR)/validation-results/**" \
@@ -1715,6 +1737,26 @@ build-viewer:
 test-app:
 	@echo "Vitest unit tests + coverage gate (Learning Player)..."
 	@cd $(APP_DIR) && npm install && npm run test:coverage
+	@# Type-check the TESTS. `tsconfig.app.json` excludes `src/**/*.test.ts` and nothing else
+	@# covered them, so no fixture was ever checked against the types it claims — three
+	@# `EpisodeSummary` factories had drifted from the API contract and were exercising a shape the
+	@# app never receives. vitest transpiles without type-checking, so it cannot catch this.
+	@# Deliberately a separate invocation rather than a project reference in `tsconfig.json`:
+	@# `composite: true` requires the project to list every file it imports, which is the whole
+	@# `src` tree and collides with the app project (176 TS6307s when tried).
+	@#
+	@# `tsconfig.test.json` carries no comments because no tsconfig in this repo does — the
+	@# pre-commit JSON validator parses them as strict JSON, not JSONC. Two things in it are
+	@# load-bearing and non-obvious, so they are recorded here instead:
+	@#   "exclude": []  — `extends` INHERITS `exclude: ["src/**/*.test.ts"]` from the app config,
+	@#     i.e. exactly the files this project exists to check. Without clearing it the program
+	@#     resolves to a single `env.d.ts` and reports zero errors having checked nothing. That is
+	@#     how the first version of this config passed while a known defect was still present.
+	@#   "types": [... "node", "vitest/globals"] — tests use `node:fs`, `__dirname` and `process`,
+	@#     which the browser build's types do not carry. 51 of the original 111 errors were this
+	@#     alone, and none of them were real defects.
+	@echo "Type-checking the Learning Player test files..."
+	@cd $(APP_DIR) && npm run type-check:test
 
 # Consumer Learning Player — Playwright E2E (mobile + desktop projects).
 # Install browsers once: cd $(APP_DIR) && npx playwright install chromium
@@ -1888,11 +1930,24 @@ ios-origin-up:
 	if [ -n "$$stale" ]; then \
 		echo "--> containerised api predates its inputs — rebuilding before the device run"; \
 		$(MAKE) app-e2e-api-up; \
-	elif curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1; then \
+	elif curl -fsS "http://127.0.0.1:$(APP_E2E_PORT)/api/health" >/dev/null 2>&1 && \
+	     [ "$$(curl -s -o /dev/null -w '%{http_code}' \
+	         "http://127.0.0.1:$(APP_E2E_PORT)/api/app/me")" != "503" ]; then \
 		echo "✓ api already healthy on :$(APP_E2E_PORT)"; \
 	else \
 		$(MAKE) app-e2e-api-up; \
 	fi
+	@# "HEALTHY" HAS TO MEAN "CAN AUTHENTICATE", not just "/api/health is 200" (2026-09-25).
+	@#
+	@# `test-app-ios-server-degraded` deliberately leaves an api with no signing secret, and such an
+	@# api serves /api/health perfectly — auth is not involved. Reusing it made the NEXT device run
+	@# fail in phase 1 with "Signal, Noise, and the Space Between is not in the Downloaded list …
+	@# the UI download did not land": a sign-in failure wearing a downloads costume, with the real
+	@# cause an api left behind by a different target. Measured, after it cost a full tier run.
+	@#
+	@# `/api/app/me` answers 401 when the server CAN authenticate and merely has no caller
+	@# (see `routes/app_auth.py`), and 503 only when it cannot authenticate anyone. So 503 is the
+	@# precise signal, and no credential is needed to ask.
 	@$(MAKE) ios-origin-down >/dev/null 2>&1 || true
 	@echo "--> mock podcast host on :$(IOS_MEDIA_PORT) (serves tests/fixtures/audio)"
 	@nohup $(PYTHON) scripts/tools/run_e2e_mock_server.py --port $(IOS_MEDIA_PORT) \
@@ -1920,6 +1975,34 @@ ios-origin-up:
 	@curl -fsS -o /dev/null "http://127.0.0.1:$(IOS_ORIGIN_PORT)/audio/p06_e04.mp3" || \
 		(echo "the origin does not serve /audio — a UI download would 404"; exit 1)
 	@echo "✓ origin healthy on :$(IOS_ORIGIN_PORT), api and audio both answering"
+
+# Restart the e2e api IN PLACE: same volumes, same corpus, same accounts — ONLY the signing secret
+# changes. `SECRET=` (empty) makes the server unable to authenticate anyone, which is the 2026-09-16
+# incident; `SECRET=e2e-secret` puts it back.
+#
+# This exists because `app-e2e-api-up` CANNOT express it: it hardcodes the secret, and it opens by
+# deleting both volumes — including `$(APP_E2E_STATE)`, the user store. Both degraded-server drills
+# tried to use it with an `APP_SESSION_SECRET=…` prefix, which it ignores, and so tested "the user
+# record was deleted" (a correct 401 and sign-out) while asserting incident behaviour. Restoring
+# through it is just as wrong: it wipes the accounts the SUBSEQUENT suites are still signed in as,
+# which on Android would break every phase after the drill.
+#
+# Deliberately not `.PHONY`-exported as a user-facing target — it is a step, and running it by hand
+# with no SECRET leaves an api that cannot log anyone in.
+_app-e2e-api-restart:
+	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
+	@docker run -d --name $(APP_E2E_CT) -p $(APP_E2E_PORT):8000 \
+		-v $(APP_E2E_VOL):/app/output -v $(APP_E2E_STATE):/app/state \
+		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET=$(SECRET) -e APP_SIGNUP_MODE=open \
+		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
+		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		$(APP_E2E_IMAGE) >/dev/null
+	@i=0; while [ $$i -lt 40 ]; do \
+		curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" 2>/dev/null && break; \
+		i=$$((i+1)); sleep 1; \
+	done; \
+	curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" || \
+		{ echo "FAIL: the api never became healthy after the restart"; exit 1; }
 
 ios-origin-down:
 	@# By pid AND by the exact command line: `npx` spawns a child, so the recorded pid is the
@@ -1967,29 +2050,34 @@ IOS_DD ?= /tmp/lp-ios-dd
 IOS_ORIGIN_PORT ?= 4174
 IOS_MEDIA_PORT ?= 18765
 
-test-app-ios-sim:
+# `OfflinePlaybackTests` — plays an episode from disk and seeks in it.
+#
+# REPLACED `test-app-ios-sim` (deleted 2026-09-25), which built the app, installed it, ran
+# `seed-ios-download` and then this suite — and which NOTHING called. That is the failure mode the
+# wiring guard was written for and could not see: the suite WAS reachable from a target, so the
+# guard passed, while the target itself was reachable from nothing. It is now step 2 of `test-ios`.
+#
+# No build, no install, no seeding: step 1 downloads two real episodes through the UI as the shared
+# `simtest` account, and this suite reads those.
+#
+# MEASURED, after asserting it twice without checking: `seed-ios-download` writes
+# `downloads.registry.$(UITEST_NS)` = u_bc76c56b88bcec16904531b0, the `uitest` identity's namespace,
+# while `simtest` on device is u_1e9f7e3c36157a4b6262cafc. The seed was therefore INVISIBLE to this
+# suite however often it ran — and the suite asserted on the seed's invented episode title, so it
+# could not pass either way. That went unnoticed because its only home, `test-app-ios-sim`, was
+# called by nothing. The suite now asserts on an episode phase 1 genuinely downloaded.
+#
+# The api stays UP: despite the name, this suite plays from DISK but still signs in and reads
+# Library (see its own header). It therefore runs BEFORE `test-app-ios-sim-offline` tears the api
+# down, not alongside it.
+test-app-ios-playback:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
-	@command -v pod >/dev/null || { echo "FAIL: cocoapods missing — brew install cocoapods"; exit 1; }
-	@$(MAKE) app-e2e-api-up
-	@echo "--> building the app against the fixture api and installing it on '$(IOS_SIM)'"
-	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(APP_E2E_PORT)/api/app npm run build >/dev/null && npx cap sync ios >/dev/null
-	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
-		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
-		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
-	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
-	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
-	@$(MAKE) seed-ios-download
-	@echo "--> running the UI tests"
-	@# ONLY the playback suite. OfflineAutoAdvanceTests has preconditions this target does not set
-	@# up — the api DOWN and a session already established — and XCTest runs suites alphabetically,
-	@# so it went first and failed on a fresh install with no stored session. Its home is
-	@# `test-app-ios-sim-offline`, run AFTER this target has signed in.
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/OfflinePlaybackTests \
-			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -20; \
-		rc=$${PIPESTATUS[0]}; $(MAKE) -C $(CURDIR) app-e2e-api-down; exit $$rc
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_PLAYBACK_EXIT=$$rc"; exit $$rc
 
 # Decision 4 of the #1925 arc: DOWNLOAD through the UI rather than seeding a registry.
 #
@@ -1999,14 +2087,15 @@ test-app-ios-sim:
 # `test-app-ios-sim-offline` can then run with nothing seeded at all.
 test-app-ios-sim-download:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
-	@$(MAKE) ios-origin-up
-	@echo "--> building the app against the single origin and installing it on '$(IOS_SIM)'"
-	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app npm run build >/dev/null && npx cap sync ios >/dev/null
-	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
-		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
-		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
-	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
-	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
+	@# ONE build-and-install, shared with `ios-app-install` (deduplicated 2026-09-25). This target
+	@# carried a byte-identical copy — origin-up, npm build against $(IOS_ORIGIN_PORT), cap sync,
+	@# xcodebuild, boot, install — MINUS the two integrity probes, which is the half that matters:
+	@# `ios-app-install` proves the installed bundle actually targets the origin (otherwise it runs
+	@# against PROD and every fixture assertion fails at once) and that the origin serves /audio
+	@# (otherwise the episode page renders "Couldn't load the audio from the source" with no
+	@# transport, and a test reports the Play control missing rather than the audio). Both are
+	@# documented as having cost whole sessions; phase 1 was running without either.
+	@$(MAKE) ios-app-install
 	@echo "--> downloading two episodes through the UI"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
@@ -2015,20 +2104,11 @@ test-app-ios-sim-download:
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
 		rc=$${PIPESTATUS[0]}; exit $$rc
 
-# The full device journey in the order the preconditions demand: download with the network UP,
-# then prove the offline half with everything DOWN. Nothing is seeded — what plays offline is what
-# the UI actually downloaded.
-test-app-ios-journey:
-	@$(MAKE) test-app-ios-sim-download
-	@$(MAKE) ios-origin-down
-	@$(MAKE) app-e2e-api-down
-	@echo "--> api, media and origin are ALL down; running the offline journey"
-	@cd $(IOS_UITESTS_DIR) && \
-		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
-			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
-			-only-testing:OfflineSpikeUITests/OfflineAutoAdvanceTests \
-			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -25; \
-		rc=$${PIPESTATUS[0]}; exit $$rc
+# `test-app-ios-journey` was DELETED 2026-09-25. It chained download -> everything-down ->
+# auto-advance, which is exactly `test-ios` phases 1 and 2, and nothing called it. Two ways to run
+# the same sequence is how they drift: this copy still piped through `| tail -25`, the bug
+# `test-app-ios-sim-offline` documents at length (the pipeline's status becomes the TAIL's, so the
+# target reports success while its suite fails).
 
 # Consumer-surface journey suite on the simulator (2026-09-16): profile tabs, episode → insights,
 # topic → storyline, person, collections, share, saved colour picker, personalisation, and the
@@ -2038,8 +2118,8 @@ test-app-ios-journey:
 # PRECONDITION it does NOT set up: a signed-in session. These surfaces are all auth-gated (the
 # server 401s anonymous reads), so seed the native bearer first — `ios-journey-signin` does it.
 #
-# `NODE_OPTIONS` must be cleared for every node step: a cmux preload shim on this machine points at
-# a file that does not exist, and `npx vite preview` dies instantly with MODULE_NOT_FOUND.
+# (`NODE_OPTIONS` used to need clearing per node step; `unexport NODE_OPTIONS` at the top of this
+# file now does it for every recipe — see the comment there for the mechanism.)
 test-app-ios-journey-ui:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
@@ -2084,15 +2164,309 @@ test-app-ios-native:
 			-only-testing:OfflineSpikeUITests/StackDepthProbeTests \
 			-only-testing:OfflineSpikeUITests/HostShowLinkTests \
 			-only-testing:OfflineSpikeUITests/BoardsShotTests \
+			-only-testing:OfflineSpikeUITests/NativeOnlySurfacesTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_NATIVE_EXIT=$$rc"; exit $$rc
 
-#: The same, but sets up its own preconditions end to end (build, install, origin, sign-in).
-test-app-ios-native-full:
-	@$(MAKE) test-app-ios-sim-download
+#: THE iOS entry point. Everything device-tier, in dependency order, guarded by platform.
+#
+# There were NINE `test-app-ios-*` targets and the split was the problem, not the granularity.
+# Each one set up its own preconditions, each was run by hand, and none was in a gate — which is
+# exactly how `DownloadThroughUITests.swift` sat UNCOMPILABLE from 71fc75965 until 2026-09-24
+# without anyone noticing that the whole bundle, and therefore every suite in it, was dead.
+#
+# One entry point, so there is one thing to run and one thing to gate. The step targets below still
+# exist and are still individually runnable — that is how you debug a single suite — but they are
+# INTERNALS now: `test-ios` is the contract.
+#
+# ORDER IS LOAD-BEARING, and not obvious from the names:
+#   1. download  — signs in as the SHARED `simtest` account and downloads two episodes through the
+#                  UI. It SEEDS what the offline suites consume, so it cannot move.
+#   2. offline   — auto-advance from what step 1 downloaded, with the api DOWN. Needs 1. It calls
+#                  `app-e2e-api-down`, which removes the container AND the `lp-e2e-corpus` /
+#                  `lp-e2e-state` volumes — so it does not merely pause the backend, it destroys
+#                  the corpus and every account on it. That is the point of the step, and it is
+#                  also why step 3 cannot simply follow it.
+#   2b. RECOVER  — `ios-origin-up` rebuilds the api and restarts the media host + single origin;
+#                  `ios-journey-signin` then mints a fresh session through the mock provider's
+#                  native flow and writes it to the app's DURABLE store.
+#
+#                  BOTH are required and both were missing until 2026-09-25. Steps 3 and 4 ran
+#                  against a dead :$(APP_E2E_PORT) behind an origin that answered 502, with the app
+#                  signed out — so every assertion in them failed as a consequence rather than on
+#                  its own merits. `test-app-ios-native-full` chains these correctly; the
+#                  consolidated target omitted them, and the comment here CLAIMED the fix while
+#                  the recipe never had it. Order matters: origin first, sign-in second — minting
+#                  an account before `app-e2e-api-up` recreates the container leaves the app
+#                  holding a token for a user that no longer exists (the same trap
+#                  `ios-contact-sheet` documents).
+#   3. journey   — the signed-in walk, personalisation, offline cache.
+#   4. native    — native-shell capabilities, config toggle, stack depth, host links, boards,
+#                  and the native-only surfaces (inline download + /offline). Reuses step 2b's
+#                  api and session; `NativeOnlySurfacesTests` re-signs-in per test via
+#                  `startClean`, but the suites in step 3 do NOT, which is why 2b cannot move.
+#
+# TWO SUITES JOINED THE TIER ON 2026-09-25, having sat outside every gate:
+#
+#   playback — `OfflinePlaybackTests` plays what step 1 downloaded. Its old home was
+#              `test-app-ios-sim`, which nothing called — the suite was reachable from a target and
+#              therefore passed the wiring guard while never actually running.
+#
+#              It runs AFTER the auto-advance step, not before, and that is load-bearing. Placed at
+#              step 2 it broke step 3 immediately: it PLAYS an episode, playback position persists
+#              SERVER-SIDE, and `OfflineAutoAdvanceTests` then opened the same slug and found a
+#              resumed episode showing a "NEXT · IN 0:06" countdown and no Play control at all —
+#              "no Play control offline", measured 2026-09-25. `PersonalisationTests` documents the
+#              same trap from the other side. It needs the api UP, so it sits after the recovery
+#              rather than before the teardown.
+#
+#   degraded — `ServerDegradedTests` is LAST because it is destructive: it restarts the api with a
+#              different `APP_SESSION_SECRET`, which invalidates every token the steps above
+#              depend on. Running it anywhere else poisons whatever follows. It was previously
+#              excluded from the tier outright for that reason; ordering solves it without giving
+#              up the coverage, and the 2026-09-16 secrets-lost incident is worth a gate.
+#
+# DELIBERATELY EXCLUDED — `test-app-ios-prod-tour`. It points at the REAL production backend and
+# wants NO session, where every step above wants the fixture api and a seeded one. Folding it in
+# would mean a prod outage reads as a native-shell regression, and that nothing-that-talks-to-prod
+# -runs-by-accident stops being true. Run it on purpose or not at all.
+#
+# NO LONGER EXCLUDED — `test-app-ios-server-degraded` is phase 6. It restarts the api with NO
+# `APP_SESSION_SECRET` to reproduce the 2026-09-16 incident, which makes every stored token
+# unverifiable. That is destructive to shared state, which is why it runs LAST rather than not at
+# all: everything above has finished with the session by then.
+test-ios:
+	@if [ "$$(uname -s)" != "Darwin" ]; then \
+		echo "SKIP: test-ios — the iOS tier needs macOS, this is $$(uname -s)."; \
+		echo "      Not a pass: NOTHING on the device tier was verified here."; \
+		exit 0; \
+	fi
+	@command -v xcodebuild >/dev/null 2>&1 || { \
+		echo "SKIP: test-ios — macOS but no xcodebuild (install Xcode + run xcode-select)."; \
+		echo "      Not a pass: NOTHING on the device tier was verified here."; \
+		exit 0; \
+	}
+	@# Past this point the machine CAN run the tier, so a missing piece is a broken setup rather
+	@# than an absent platform — and a broken setup must fail, not skip. A skip that covers real
+	@# breakage is how a tier stops running quietly, which is the failure this target exists to end.
+	@command -v xcodegen >/dev/null 2>&1 || { \
+		echo "FAIL: test-ios — xcodegen missing on a Mac that has Xcode. brew install xcodegen"; \
+		exit 1; \
+	}
+	@xcrun simctl list devices available 2>/dev/null | grep -q "$(IOS_SIM)" || { \
+		echo "FAIL: test-ios — no '$(IOS_SIM)' simulator available. Create it in Xcode, or set"; \
+		echo "      IOS_SIM=<name> to one from: xcrun simctl list devices available"; \
+		exit 1; \
+	}
+	@echo ""; echo "=== test-ios START $$(date '+%Y-%m-%d %H:%M:%S') — sim '$(IOS_SIM)' ==="
+	@# A CLEAN APP, every run — the iOS half of Android's `pm clear` (2026-09-27).
+	@#
+	@# App state SURVIVES a reinstall on the simulator, and a download left in a FAILED state
+	@# survives with it: the Downloaded list then never fills, and phase 1 fails hunting episodes
+	@# that were never written. MEASURED — `DownloadThroughUITests` failed the post-rebase run at
+	@# 103.6s, then passed in 103.7s after nothing but `simctl uninstall`. Same commit, same code.
+	@#
+	@# The Android tier has done `pm clear` every run since the tier was written; iOS did nothing,
+	@# and the handovers carried "a persisted FAILED download poisoned two iOS runs" as a known
+	@# fragility rather than a fixed one. Uninstall is the simulator's equivalent: the next target
+	@# installs a fresh bundle anyway, so this costs nothing but removes the carry-over.
+	@xcrun simctl uninstall booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
+	@set -e; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/6 download (seeds the offline suites) ==="; \
+	$(MAKE) test-app-ios-sim-download; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 2/6 offline auto-advance (api DOWN) ==="; \
+	$(MAKE) test-app-ios-sim-offline; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 3/6 offline playback (plays what 1 downloaded) ==="; \
+	$(MAKE) ios-origin-up; \
+	$(MAKE) ios-journey-signin; \
+	$(MAKE) test-app-ios-playback; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 4/6 journey + personalisation + cache ==="; \
+	$(MAKE) test-app-ios-journey-ui; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 5/6 native capabilities + native-only surfaces ==="; \
+	$(MAKE) test-app-ios-native; \
+	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 6/6 degraded server (DESTRUCTIVE — runs last) ==="; \
+	$(MAKE) test-app-ios-server-degraded; \
+	echo ""; echo "=== test-ios PASS $$(date '+%Y-%m-%d %H:%M:%S') ==="
+
+# ANDROID device tier (#2139) — the sibling of `test-ios`, one entry point, same guard shape.
+#
+# The app is a Capacitor WebView on both platforms, but almost nothing transfers: XCUITest is
+# iOS-only, so `ios/uitests/` cannot exercise the Android shell. These suites are a port of the iOS
+# DESIGN in Java against UI Automator, which reads the Android accessibility tree — the surface
+# TalkBack consumes. That choice is the point: `Espresso.onWebView()` drives the DOM and would
+# share the browser tier's blind spot, and on its first real run this tier found two Android-only
+# product bugs (downloads broken outright; four controls with no accessible name) that no DOM-based
+# test could have seen.
+ANDROID_AVD ?= Pixel_8
+ANDROID_PKG ?= app.closelistening.player
+ANDROID_SDK_DIR ?= $(HOME)/Library/Android/sdk
+ADB ?= $(ANDROID_SDK_DIR)/platform-tools/adb
+ANDROID_DIR = $(APP_DIR)/android
+
+test-android:
+	@# ASYMMETRIC GUARD, same as test-ios: skip LOUDLY where the tier cannot run, FAIL where it
+	@# can run but the setup is broken. A skip that covers real breakage is how a tier stops
+	@# running without anyone noticing — which is precisely how `DownloadThroughUITests.swift` sat
+	@# uncompilable for weeks on the iOS side.
+	@if [ ! -d "$(ANDROID_SDK_DIR)" ]; then \
+		echo "SKIP: test-android — no Android SDK at $(ANDROID_SDK_DIR)."; \
+		echo "      Not a pass: NOTHING on the Android device tier was verified here."; \
+		exit 0; \
+	fi
+	@test -x $(ADB) || { \
+		echo "FAIL: test-android — an Android SDK exists but adb is missing at $(ADB)."; \
+		exit 1; \
+	}
+	@$(ANDROID_SDK_DIR)/emulator/emulator -list-avds 2>/dev/null | grep -qx "$(ANDROID_AVD)" || { \
+		echo "FAIL: test-android — no '$(ANDROID_AVD)' AVD. Create it in Android Studio, or set"; \
+		echo "      ANDROID_AVD=<name> to one from: $(ANDROID_SDK_DIR)/emulator/emulator -list-avds"; \
+		exit 1; \
+	}
+	@echo ""; echo "=== test-android START $$(date '+%Y-%m-%d %H:%M:%S') — avd '$(ANDROID_AVD)' ==="
+	@$(MAKE) android-emulator-up
+	@# DISABLE THE CACHED-APP FREEZER (2026-09-26). Sign-in opens the OAuth consent page in a
+	@# Capacitor `BrowserControllerActivity` — a Chrome Custom Tab, hosted by com.android.chrome.
+	@# Android's freezer suspends that process mid-flow, so the consent page never finishes, no
+	@# redirect comes back, and sign-in hangs until the test gives up. MEASURED in the 2026-09-26
+	@# tier run, where it took out `NativeOnlySurfacesTests`:
+	@#     20:23:35  BrowserControllerActivity OPENS
+	@#     20:23:45  ActivityManager: freezing com.android.chrome
+	@#     20:24:42  AssertionError: sign-in did not complete as simtest
+	@#     20:24:44  sync unfroze com.android.chrome          <- one second too late
+	@# That is the "Capacitor browser left in front of the app" flake the handovers had recorded
+	@# twice without a cause. It is intermittent because it depends on whether the freezer happens
+	@# to pick that process.
+	@#
+	@# Pinning the environment rather than adding retry logic: the tier runs on one declared AVD, so
+	@# it may depend on how that image behaves. Both knobs are set because which one governs varies
+	@# by API level; neither survives an emulator wipe, so this belongs here and not in a setup doc.
+	@$(ADB) shell settings put global cached_apps_freezer disabled >/dev/null 2>&1 || true
+	@$(ADB) shell device_config put activity_manager_native_boot use_freezer false >/dev/null 2>&1 || true
 	@$(MAKE) ios-origin-up
-	@$(MAKE) ios-journey-signin
-	@$(MAKE) test-app-ios-native
+	@# `adb reverse` rather than the emulator's 10.0.2.2 alias, so the Android build's API base is
+	@# BYTE-IDENTICAL to the iOS one and the two tiers cannot drift apart on configuration.
+	@$(ADB) reverse tcp:$(IOS_ORIGIN_PORT) tcp:$(IOS_ORIGIN_PORT) >/dev/null
+	@$(ADB) reverse tcp:$(IOS_MEDIA_PORT) tcp:$(IOS_MEDIA_PORT) >/dev/null
+	@echo "--> building the app against the single origin and installing it on '$(ANDROID_AVD)'"
+	@cd $(APP_DIR) && CAP_ANDROID_TEST_ORIGIN=1 \
+		VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
+		npm run build >/dev/null && CAP_ANDROID_TEST_ORIGIN=1 npx cap sync android >/dev/null
+	@cd $(ANDROID_DIR) && ./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest >/dev/null
+	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk >/dev/null
+	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
+	@# A CLEAN DEVICE, every time. Forced-offline is device-local and survives both a relaunch and
+	@# an account change, and a run that leaves it on cannot sign in on the NEXT run either — the
+	@# switch is in Settings, Settings is behind the masthead avatar, and the avatar needs a
+	@# session. That wedge is unrecoverable from inside a test, so it is handled here instead.
+	@$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null
+	@rc=0; \
+	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/7 harness (sign-in, nav, deep links, offline switch) ==="; \
+	$(MAKE) android-suite SUITE=HarnessSmokeTests || rc=$$?; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 2/7 download through the UI (seeds the offline suites) ==="; \
+		$(MAKE) android-suite SUITE=DownloadThroughUITests || rc=$$?; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 3/7 offline boot + playback from disk ==="; \
+		$(MAKE) android-suite SUITE=OfflineAutoAdvanceTests || rc=$$?; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 4/7 offline playback + cache + the config toggle ==="; \
+		$(MAKE) android-suite SUITE=OfflinePlaybackTests || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=OfflineCacheTests || rc=$$?; }; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=ConfigOfflineToggleTests || rc=$$?; }; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 5/7 journey + personalisation + native capabilities + stack depth ==="; \
+		$(MAKE) android-suite SUITE=AppJourneyTests || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=PersonalisationTests || rc=$$?; }; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=NativeCapabilityTests || rc=$$?; }; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=StackDepthProbeTests || rc=$$?; }; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=AccessibleNameAuditTests || rc=$$?; }; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/7 degraded server (needs a session — BEFORE the sign-out suite) ==="; \
+		$(MAKE) test-android-server-degraded || rc=$$?; fi; \
+	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 7/7 native-only surfaces (leaves the device offline+signed-out) ==="; \
+		$(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; fi; \
+	echo ""; echo "--> resetting the device (the last suite leaves it offline AND signed out by design)"; \
+	$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null 2>&1 || true; \
+	$(MAKE) ios-origin-down >/dev/null 2>&1 || true; \
+	if [ $$rc -eq 0 ]; then echo "=== test-android PASS $$(date '+%Y-%m-%d %H:%M:%S') ==="; \
+	else echo "=== test-android FAIL ($$rc) $$(date '+%Y-%m-%d %H:%M:%S') ==="; fi; \
+	exit $$rc
+
+# One suite. `am instrument` rather than gradle's `connectedAndroidTest`, because gradle UNINSTALLS
+# both apks when it finishes — which would delete the downloads the offline suites exist to read.
+android-suite:
+	@test -n "$(SUITE)" || { echo "FAIL: android-suite needs SUITE=<ClassName>"; exit 1; }
+	@# Optional `TEST=<method>` runs ONE test, via `am instrument`'s `Class#method` form. The
+	@# degraded-server drill needs it: its two tests require different HOST conditions, created
+	@# between them, so they cannot share an invocation (2026-09-25).
+	@target="$(ANDROID_PKG).$(SUITE)"; \
+	if [ -n "$(TEST)" ]; then target="$$target\#$(TEST)"; fi; \
+	out=$$($(ADB) shell am instrument -w -e class "$$target" \
+		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
+	echo "$$out"; \
+	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; exit 1; }
+
+# The degraded-server drill (#2139) — the sibling of `test-app-ios-server-degraded`, and corrected
+# the same way (2026-09-25).
+#
+# `ServerDegradedTests` cannot run as a plain `android-suite SUITE=…`: its two tests need DIFFERENT
+# host conditions, created BETWEEN them. Run together against a healthy api, 11b asks whether the
+# app noticed a broken server while the server is fine, so it reports "no degraded banner" and the
+# failure reads like an app defect.
+#
+# This target existed once (131a84542) and was DELETED when the suite was parked (9aeca42bb),
+# because it failed and the failure was read as shared app behaviour. It was not: it broke the
+# server the wrong way. `APP_SESSION_SECRET=… $(MAKE) app-e2e-api-up` sets a variable that recipe
+# IGNORES, and that recipe deletes the state volume — so the drill tested "the user record was
+# deleted", where a 401 and a sign-out are correct, while asserting incident behaviour.
+#
+# The incident is a LOST secret. Measured: secret present -> /api/app/me 401; secret absent -> 503.
+# `services/api.ts` keys degraded state on 503 alone, because 401 means the caller's credential is
+# bad and MUST sign them out. Only the empty secret reaches the behaviour these tests assert.
+#
+# Unlike iOS this does NOT run last, so the restore must be non-destructive: `_app-e2e-api-restart`
+# keeps the volumes, and therefore the accounts every later Android suite is still signed in as.
+test-android-server-degraded:
+	@echo "--> 1/3 warming the cache against a HEALTHY api"
+	@$(MAKE) android-suite SUITE=ServerDegradedTests TEST=test11aWarmTheCacheWhileHealthy
+	@echo "--> 2/3 restarting the api with NO signing secret, same data (the reboot)"
+	@$(MAKE) _app-e2e-api-restart SECRET=
+	@# PROVE the scenario before asserting on it. A silently-wrong drill is what this cost.
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' \
+		-H "Authorization: Bearer probe.probe.probe" \
+		"http://127.0.0.1:$(APP_E2E_PORT)/api/app/me"); \
+	[ "$$code" = "503" ] || { \
+		echo "FAIL: the api answers $$code on /api/app/me, not 503 — it can still authenticate,"; \
+		echo "      so this is NOT the lost-secret incident and the assertions below are vacuous."; \
+		exit 1; }
+	@echo "✓ api is UP and cannot authenticate anyone (503) — the incident, reproduced"
+	@echo "--> 3/3 asserting the app notices, stays honest, and keeps its cache"
+	@$(MAKE) android-suite SUITE=ServerDegradedTests TEST=test11bDegradedServerIsDetectedAndCacheSurvives; \
+		rc=$$?; \
+		echo "--> restoring the api (this drill leaves it UNABLE TO AUTHENTICATE)"; \
+		$(MAKE) _app-e2e-api-restart SECRET=e2e-secret >/dev/null 2>&1 || true; \
+		exit $$rc
+
+android-emulator-up:
+	@if $(ADB) shell true >/dev/null 2>&1; then echo "✓ a device is already attached"; else \
+		echo "--> booting '$(ANDROID_AVD)'"; \
+		nohup $(ANDROID_SDK_DIR)/emulator/emulator -avd $(ANDROID_AVD) -no-snapshot-load -no-boot-anim \
+			> /tmp/lp-android-emu.log 2>&1 < /dev/null & \
+		$(ADB) wait-for-device; \
+	fi
+	@i=0; while [ $$i -lt 90 ]; do \
+		[ "$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break; \
+		i=$$((i+1)); sleep 5; \
+	done; \
+	[ "$$($(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || \
+		{ echo "FAIL: '$(ANDROID_AVD)' never finished booting; see /tmp/lp-android-emu.log"; exit 1; }
+	@echo "✓ emulator ready"
+
+# Scoped to THIS avd by name so a sibling worktree's emulator is never touched (AGENTS.md).
+android-emulator-down:
+	@$(ADB) emu kill >/dev/null 2>&1 || true
+	@echo "✓ '$(ANDROID_AVD)' emulator reaped"
+
+# `test-app-ios-native-full` was DELETED 2026-09-25: download -> origin -> sign-in -> native is
+# what `test-ios` phases 1-5 do, and nothing called it. It is worth recording WHY it existed,
+# because that is the bug it was quietly compensating for: `test-ios` omitted the `ios-journey-signin`
+# its own comment said it ran, so this target was the only way to get the native suites a session.
+# The tier does it properly now; the workaround goes.
 
 # The signed-out PRODUCTION tour. Separate because its preconditions are different in kind: it wants
 # the real prod backend and NO session, where every target above wants the fixture api and a seeded
@@ -2129,30 +2503,90 @@ ios-journey-signin:
 
 # The 2026-09-16 production incident, reproduced end to end: a reboot lost the signing secret, so
 # the server stayed UP and answered while being unable to authenticate anyone. Simulated by
-# restarting the SAME api with a different APP_SESSION_SECRET — every stored token becomes
-# unverifiable, exactly as it did in prod. Nothing about the device changes.
+# restarting the SAME api, on the SAME volumes, with NO `APP_SESSION_SECRET` — which is the one
+# thing that makes the server return 503 ("cannot authenticate anyone") instead of 401 ("your
+# credential is bad"). Nothing about the device changes.
+#
+# It previously claimed to do this by passing a DIFFERENT secret. That was wrong twice: the variable
+# was ignored (`app-e2e-api-up` hardcodes the secret) and that target deletes the state volume, so
+# the drill really tested "the user record was deleted" — where a 401 and a sign-out are correct.
+# Step 2 now runs the container directly and PROVES the 503 before asserting anything.
 #
 # Sequence matters: warm the cache while healthy, THEN break the server, then assert. Asserting on
 # a cold cache proves nothing (the first attempt at this flipped the offline switch on a fresh
 # install and "found" an empty app — a test artifact, not a finding).
 test-app-ios-server-degraded:
 	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@# A SESSION FIRST (2026-09-25). `test11a` asserts "not signed in — run `make ios-journey-signin`
+	@# before this target" as its very first check, and this target never ran it. Standalone, the
+	@# suite therefore failed on its own stated precondition, and that failure was then reported as a
+	@# real Android-vs-iOS behaviour difference and used to park the suite on BOTH platforms. Same
+	@# defect `test-ios` had: a precondition documented in prose and never wired.
+	@$(MAKE) ios-origin-up
+	@$(MAKE) ios-journey-signin
 	@echo "--> 1/3 warming the cache against a HEALTHY api"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/ServerDegradedTests/test11aWarmTheCacheWhileHealthy \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -5
-	@echo "--> 2/3 restarting the api with a DIFFERENT signing secret (the reboot)"
-	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
-	@APP_SESSION_SECRET=rotated-by-the-degraded-server-drill $(MAKE) app-e2e-api-up
+	@echo "--> 2/3 restarting the api with NO signing secret, same data (the reboot)"
+	@# THE INCIDENT IS A *LOST* SECRET, NOT A ROTATED ONE (rewritten 2026-09-25).
+	@#
+	@# `app_auth.py` returns 503 — "cannot authenticate ANYONE" — only when the secret is ABSENT
+	@# (`if not secret or data_dir is None`). With any secret present it takes the normal path, the
+	@# token fails to verify, and it returns 401. Measured against this very api:
+	@#     secret present  -> /api/app/me  bogus-token=401
+	@#     secret absent   -> /api/app/me  bogus-token=503
+	@# And the client keys its degraded state on 503 alone (`services/api.ts`:
+	@# `reportServerReachable(resp.status !== 503)`), because 401 means "your credential is bad"
+	@# and MUST sign you out. So a rotated secret can never produce the banner this drill asserts.
+	@#
+	@# What the old recipe did was worse than imprecise. `APP_SESSION_SECRET=… $(MAKE)
+	@# app-e2e-api-up` set a variable that recipe IGNORES — it hardcodes `-e
+	@# APP_SESSION_SECRET=e2e-secret` — and `app-e2e-api-up` opens by DELETING both volumes,
+	@# including `$(APP_E2E_STATE)` (`APP_DATA_DIR`, the user store). So the secret never changed and
+	@# the drill silently tested "the user was deleted", for which 401 and a sign-out are correct.
+	@# It then asserted incident behaviour against it and failed, and that failure was read as a
+	@# product regression on BOTH platforms and used to park the suite.
+	@#
+	@# Hence `_app-e2e-api-restart` rather than `app-e2e-api-up`: the volumes must SURVIVE. The cache
+	@# and the user store being intact is the whole point — the server is up and healthy and simply
+	@# cannot verify a signature, exactly as it was on 2026-09-16.
+	@$(MAKE) _app-e2e-api-restart SECRET=
+	@# PROVE the drill is actually in the state it claims, before asserting anything about the app.
+	@# A silently-wrong scenario is what this whole recipe just cost.
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' \
+		-H "Authorization: Bearer probe.probe.probe" \
+		"http://127.0.0.1:$(APP_E2E_PORT)/api/app/me"); \
+	[ "$$code" = "503" ] || { \
+		echo "FAIL: the api answers $$code on /api/app/me, not 503 — it can still authenticate,"; \
+		echo "      so this is NOT the lost-secret incident and the assertions below are vacuous."; \
+		exit 1; }
+	@echo "✓ api is UP and cannot authenticate anyone (503) — the incident, reproduced"
 	@echo "--> 3/3 asserting the app notices, stays honest, and keeps its cache"
 	@cd $(IOS_UITESTS_DIR) && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/ServerDegradedTests/test11bDegradedServerIsDetectedAndCacheSurvives \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
-		rc=$${PIPESTATUS[0]}; echo "IOS_DEGRADED_EXIT=$$rc"; exit $$rc
+		rc=$${PIPESTATUS[0]}; echo "IOS_DEGRADED_EXIT=$$rc"; \
+		echo "--> restoring a healthy api (this target leaves it UNABLE TO AUTHENTICATE)"; \
+		$(MAKE) -C $(CURDIR) _app-e2e-api-restart SECRET=e2e-secret >/dev/null 2>&1 || true; \
+		exit $$rc
+	@# RESTORE, always, pass or fail — the line above runs before the exit.
+	@#
+	@# This target ends with an api that cannot authenticate anyone, and a secretless api answers
+	@# `/api/health` perfectly. `ios-origin-up` reuses any api whose health endpoint is 200, so
+	@# WITHOUT this the next `make test-ios` silently inherits the broken one and phase 1 fails with
+	@# "the UI download did not land" — a sign-in failure wearing a downloads costume, four phases
+	@# away from the cause. Measured 2026-09-25: that is exactly what happened on the first run after
+	@# this drill was rewritten.
+	@#
+	@# The OLD recipe self-healed by accident: its last act was `app-e2e-api-up`, which rebuilt a
+	@# normal api. Rewriting step 2 to a bare `docker run` removed the accident, so the cleanup is
+	@# now deliberate. `ios-origin-up` also probes for this independently — belt and braces, because
+	@# a destructive target that is interrupted (Ctrl-C) never reaches this line at all.
 
 # ONE image of every screen, for a visual sweep (operator 2026-09-16). Reviewing screenshots one at
 # a time hides exactly the thing a sweep is for — surfaces drifting apart from each other.
@@ -2180,8 +2614,8 @@ test-app-ios-server-degraded:
 # All three are invisible until something downstream fails oddly, so the recipe is the artefact.
 ios-app-install: ios-origin-up
 	@echo "--> building the player against the single origin on :$(IOS_ORIGIN_PORT) (api + audio)"
-	@cd $(APP_DIR) && env -u NODE_OPTIONS VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
-		npm run build >/dev/null && env -u NODE_OPTIONS npx cap sync ios >/dev/null
+	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
+		npm run build >/dev/null && npx cap sync ios >/dev/null
 	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
@@ -2256,51 +2690,43 @@ ios-journey-shots:
 	[ -n "$$xcr" ] || { echo "FAIL: no .xcresult — run a UI-test target first"; exit 1; }; \
 	$(PYTHON) scripts/tools/export_xcresult_shots.py --xcresult "$$xcr" --out $(IOS_SHOTS_DIR)
 
-# NOTE on defaults, which cost two wrong diagnoses: WRITE through `xcrun simctl spawn ... defaults
-# write` — that goes via the simulator's cfprefsd, which is what the app actually reads. Writing
-# the container plist file directly LOOKS right and is then silently clobbered by cfprefsd's
-# cached copy. Conversely, READ the container plist file: `simctl spawn defaults read` can return
-# a stale value for a write the app has already made. Write through the daemon, read from the file.
-# The app is stopped first either way, so it cannot flush over the seed on exit.
+# `seed-ios-download` and `seed-ios-offline-queue` were DELETED 2026-09-25, with the
+# `defaults write` note that justified them.
 #
-# Seeds one downloaded episode for the dedicated `uitest` identity, so the offline path has
-# something to play without driving a real download through the UI. The namespace is the
-# user_id the mock provider derives for that hint (see server/app_user_store.user_id_for).
-UITEST_NS ?= u_bc76c56b88bcec16904531b0
-seed-ios-download:
-	@xcrun simctl terminate booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
-	@DATA=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID) data); \
-	mkdir -p "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)"; \
-	cp tests/fixtures/audio/v3/p01_e01.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3"; \
-	BYTES=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3" | tr -d ' '); \
-	REG='{"p05-ee8e47b94b":{"slug":"p05-ee8e47b94b","state":"downloaded","updatedAt":1,"uri":"file:///stale/old.mp3","path":"offline-audio/$(UITEST_NS)/p05-ee8e47b94b.mp3","title":"Index Investing Without the Myths","showTitle":"Long Horizon Notes","feedId":"p05","durationSeconds":416,"bytes":'"$$BYTES"'}}'; \
-	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) "CapacitorStorage.downloads.registry.$(UITEST_NS)" -string "$$REG"; \
-	echo "seeded a downloaded episode for $(UITEST_NS)"
-
-# Seeds the OFFLINE journey (#1925 slice 3): two downloaded episodes and a cached queue holding
-# both, so auto-advance has somewhere to advance TO with no network. Uses the shortest fixture
-# audio so an episode actually reaches its end inside a test.
-UITEST_EP1 ?= p06-7217050bc6
-UITEST_EP2 ?= p06-5416bc0968
-seed-ios-offline-queue:
-	@xcrun simctl terminate booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
-	@DATA=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID) data); \
-	mkdir -p "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)" "$$DATA/Library/NoCloud/content-cache/$(UITEST_NS)"; \
-	cp tests/fixtures/audio/v3/p06_e05.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3"; \
-	cp tests/fixtures/audio/v3/p01_multi_e05.mp3 "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3"; \
-	B1=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3" | tr -d ' '); \
-	B2=$$(wc -c < "$$DATA/Library/NoCloud/offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3" | tr -d ' '); \
-	REG='{"$(UITEST_EP1)":{"slug":"$(UITEST_EP1)","state":"downloaded","updatedAt":2,"uri":"file:///stale/1.mp3","path":"offline-audio/$(UITEST_NS)/$(UITEST_EP1).mp3","title":"Signal Offline One","showTitle":"The Drift","feedId":"p06","durationSeconds":6,"bytes":'"$$B1"'},"$(UITEST_EP2)":{"slug":"$(UITEST_EP2)","state":"downloaded","updatedAt":1,"uri":"file:///stale/2.mp3","path":"offline-audio/$(UITEST_NS)/$(UITEST_EP2).mp3","title":"The Conversation About Conversations","showTitle":"The Drift","feedId":"p06","durationSeconds":6,"bytes":'"$$B2"'}}'; \
-	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) "CapacitorStorage.downloads.registry.$(UITEST_NS)" -string "$$REG"; \
-	printf '["%s","%s"]' "$(UITEST_EP1)" "$(UITEST_EP2)" > "$$DATA/Library/NoCloud/content-cache/$(UITEST_NS)/queue.json"; \
-	echo "seeded 2 downloads + a cached queue for $(UITEST_NS)"
+# Both hand-wrote a downloads registry through `xcrun simctl spawn defaults write` into
+# `UITEST_NS` (u_bc76c56b88bcec16904531b0), the namespace the mock provider derives for the
+# `uitest` hint. Every suite that consumed them signs in as the SHARED `simtest` account, whose
+# registry on device is u_1e9f7e3c36157a4b6262cafc — measured. The seeds were therefore invisible
+# to their own consumers, and `OfflinePlaybackTests` asserted on an episode title
+# ("Index Investing Without the Myths") that only the seed invented, so it could not pass either
+# way. Nobody noticed because its only caller, `test-app-ios-sim`, was called by nothing.
+#
+# `seed-ios-offline-queue` had already been abandoned in place: `test-app-ios-sim-offline`
+# documents at length why it stopped seeding (the mechanism is unreliable — `defaults read` reports
+# the seeded value while the app reads the previous one) and relies on real downloads instead.
+#
+# The tier now downloads through the UI in phase 1 and every offline suite reads THAT. Decision 4
+# of #1925 said to prefer a real download over a manufactured registry; this finishes the job.
 
 # The OFFLINE journey: the api is deliberately DOWN for the whole run, so the app must boot from
 # its cached identity, render Library from the content cache, play from disk and auto-advance
-# without a single successful request. Requires a prior `make test-app-ios-sim` to have installed
-# the app and signed in as the uitest identity.
+# without a single successful request. Requires a prior `make test-app-ios-sim-download` to have
+# installed the app and signed in — which is phase 1 of `test-ios`, where this runs as phase 3.
 test-app-ios-sim-offline:
-	@$(MAKE) seed-ios-offline-queue
+	@# NO `defaults write` seeding (2026-09-24). This used to run `seed-ios-offline-queue`, which
+	@# manufactures a downloads registry and a cached queue by writing straight into the app's
+	@# preferences — a mechanism THIS SUITE'S OWN HEADER documents as unreliable: "`xcrun simctl
+	@# spawn defaults read` reports the seeded value while the app reads the previous one, so the
+	@# test asserted a state that was not the state under test". Auto-advance was already scoped out
+	@# of the suite because of it; the session and registry were still riding on it.
+	@#
+	@# It is also redundant. `test-app-ios-sim-download` signs in through the real login and
+	@# downloads two episodes through the UI, so the session and the files are genuinely on the
+	@# device by the time we get here. Seeding on top could only overwrite what the app itself
+	@# wrote — and the app booted SIGNED OUT with both seeds in place (measured 2026-09-24).
+	@#
+	@# What remains is the journey a person actually takes: sign in online, close the app, lose
+	@# connectivity, open it again.
 	@$(MAKE) app-e2e-api-down
 	@echo "--> api is DOWN; running the offline journey"
 	@# `| tail` makes the pipeline's status the TAIL's, so this target reported success while its
@@ -2351,6 +2777,22 @@ mobile-build-release:
 	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
 		MOBILE_RELEASE=1 npm install && npm run build && npx cap sync
+	@# The gate credential must not reach a SHIPPED app. `.env.mobile.example` states this as a
+	@# fact ("never baked into a shipped app"), but it is not one: `VITE_PREVIEW_BASIC_AUTH` is a
+	@# build-time substitution, so the literal lands in the bundle and only disappears if the
+	@# bundler happens to constant-fold `tierSwitchEnabled()` to false and drop the now-unused
+	@# const. That is an optimisation, not a guarantee — so verify it on the artifact, at the one
+	@# moment it matters, instead of trusting it.
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
+		if [ -n "$$VITE_PREVIEW_BASIC_AUTH" ] && \
+		   grep -rqF "$$VITE_PREVIEW_BASIC_AUTH" dist/ 2>/dev/null; then \
+			echo ""; \
+			echo "FAIL: the preview gate credential is present in the RELEASE bundle (dist/)."; \
+			echo "      It was expected to be tree-shaken out of a prod-locked build."; \
+			echo "      Do not ship this artifact; rotate the credential if it already shipped."; \
+			exit 1; \
+		fi; \
+		echo "OK: preview gate credential absent from the release bundle"
 
 # --- TestFlight (iOS) -------------------------------------------------------------------
 # Requires App Store Connect credentials in web/learning-player/ios/fastlane/.env — copy
@@ -2433,7 +2875,7 @@ ios-device-install:
 	@cd $(APP_DIR)/ios/App && \
 	udid="$(IOS_DEVICE_UDID)"; \
 	if [ -z "$$udid" ]; then \
-		udid=$$(env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App \
+		udid=$$(xcodebuild -workspace App.xcworkspace -scheme App \
 			-showdestinations 2>/dev/null \
 			| grep 'platform:iOS,' | grep -vE 'Simulator|placeholder' \
 			| sed -n 's/.*id:\([0-9A-Fa-f-]*\).*/\1/p' | head -1); \
@@ -2444,7 +2886,7 @@ ios-device-install:
 	app="$(IOS_DEVICE_DD)/Build/Products/Debug-iphoneos/App.app"; \
 	echo "--> building for device $$udid"; \
 	build_once() { \
-		env -u NODE_OPTIONS xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+		xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 			-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
 			-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
 			build; \
@@ -2518,7 +2960,7 @@ android-build:
 		echo "      Install it (Android Studio, or sdkmanager) or set ANDROID_SDK_DIR."; exit 1; }
 	@rm -f $(ANDROID_APK)
 	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) \
-		env -u NODE_OPTIONS ./gradlew assembleDebug --console=plain \
+		./gradlew assembleDebug --console=plain \
 		|| { echo "FAIL: gradle assembleDebug failed. No APK was produced."; exit 1; }
 	@[ -f $(ANDROID_APK) ] || { echo "FAIL: gradle reported success but there is no APK at"; \
 		echo "      $(ANDROID_APK)"; exit 1; }
@@ -3565,7 +4007,13 @@ ci-ui-fast:
 # break main. ci-ui-full closes that gap locally without slowing down the
 # default per-commit gate.
 ci-ui-full:
-	# Note: ci-ui-full = ci-ui-fast + stack-test-ml-ci. Requires Docker
+	# Note: ci-ui-full = ci-ui-fast + stack-test-ml-ci + BOTH DEVICE tiers (`test-ios` + `test-android`,
+	# operator 2026-09-24). The device tier lives HERE and not in `ci-ui-fast` because it boots a
+	# simulator/emulator and stand up the containerised api — minutes, which is the opposite of what a fast
+	# gate is for. `test-ios` self-SKIPS off macOS and says out loud that nothing was verified; a
+	# SILENT skip is how that tier sat dead from 71fc75965 until 2026-09-24. On a Mac with Xcode but
+	# no simulator it fails instead — a broken setup is not an absent platform.
+	# Requires Docker
 	# (Buildx + Compose v2). Same airgapped_thin profile as the public CI
 	# Stack-test workflow.
 	@set -e; \
@@ -3589,6 +4037,8 @@ ci-ui-full:
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-app ==="; $(MAKE) test-app; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-app-e2e ==="; $(MAKE) test-app-e2e; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build-app ==="; $(MAKE) build-app; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-ios (device tier) ==="; $(MAKE) test-ios; \
+	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] test-android (device tier) ==="; $(MAKE) test-android; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-ui-full [$$(date '+%Y-%m-%d %H:%M:%S')] stack-test-ml-ci ==="; $(MAKE) stack-test-ml-ci; \

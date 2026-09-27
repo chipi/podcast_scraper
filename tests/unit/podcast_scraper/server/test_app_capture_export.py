@@ -279,3 +279,66 @@ def test_duration_renders_as_a_length_not_a_count_of_seconds() -> None:
     # Off a JSON file: absent, the wrong type, or nonsense must not raise.
     for bad in (None, "", "twelve", -5, True):
         assert format_duration(bad) == ""
+
+
+class TestEveryPrintableDocumentIsBranded:
+    """A loose PDF has to say where it came from (operator 2026-09-19).
+
+    The complaint was that the export came out "white and black" — an anonymous sheet of text with
+    nothing on it identifying the app. These pin the chrome to the DOCUMENTS, not to
+    ``brand_header``/``brand_footer``, because the way this regresses is not someone deleting the
+    helpers: it is a new export path added without calling them, or an existing one losing the call
+    in a refactor. A test that only asserted the helpers return a string would pass in both cases.
+    """
+
+    def _docs(self) -> dict[str, str]:
+        from podcast_scraper.server.app_episode_notes import (
+            EpisodeNotes,
+            render_episode_notes_html,
+        )
+
+        return {
+            "highlights (with rows)": render_highlights_html(_doc()),
+            "highlights (empty state)": render_highlights_html([]),
+            "episode notes": render_episode_notes_html(
+                EpisodeNotes(slug="ep", title="An Episode", show="A Show")
+            ),
+        }
+
+    def test_each_document_carries_the_brand_header_and_footer(self) -> None:
+        for name, doc in self._docs().items():
+            assert 'class="brandbar"' in doc, f"{name} has no brand header"
+            assert 'class="brandfoot"' in doc, f"{name} has no brand footer"
+            assert "Close Listening" in doc, f"{name} never names the app"
+
+    def test_the_footer_links_home_rather_than_just_naming_the_app(self) -> None:
+        # The point of the footer is that a reader can GET BACK. A footer that named the app
+        # without a link would satisfy the check above and be useless on paper.
+        from podcast_scraper.server.app_capture_export import public_origin
+
+        origin = public_origin()
+        for name, doc in self._docs().items():
+            assert f'<a href="{origin}"' in doc, f"{name}'s footer has no link home"
+
+    def test_the_printed_page_never_paints_a_dark_background(self) -> None:
+        """Deliberate: the app is dark, an A4 page is not.
+
+        This used to slice from the first ``body`` to the first ``}`` and check that window alone.
+        That window is not the whole story — ``@media print`` further down declares ``body`` AGAIN,
+        so a dark rule added there would have shipped with this test green. The question is not
+        "is the first body block light", it is "does anything paint a dark BACKGROUND".
+        """
+        import re
+
+        from podcast_scraper.server.app_capture_export import _PRINT_CSS
+
+        # The ink colour legitimately appears as TEXT (the wordmark) — only a background may not be
+        # dark. Match any background declaration carrying the canvas navy, anywhere in the sheet.
+        dark_bg = re.findall(r"background[^;{}]*:[^;{}]*#080d1b", _PRINT_CSS, re.I)
+        assert not dark_bg, f"the printed page paints the app's dark canvas: {dark_bg}"
+
+        # And the premise: the sheet does use that colour somewhere, so a future refactor that
+        # renames the token does not leave this passing over a string that no longer appears.
+        assert (
+            "#080d1b" in _PRINT_CSS
+        ), "the canvas colour is gone — is this guard still meaningful?"

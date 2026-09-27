@@ -19,19 +19,28 @@
  * the failure was reported on exactly one route, the one route where the user is least likely to be
  * when auto-advance hits a bad episode.
  */
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute } from 'vue-router'
 import { usePlayerStore } from '../stores/player'
-import QueuePanel from './QueuePanel.vue'
+import FavoriteButton from './FavoriteButton.vue'
+import RouteButton from './RouteButton.vue'
+import AddToCollectionButton from './AddToCollectionButton.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const player = usePlayerStore()
-const queueOpen = ref(false) // issue 1838 — queue & recently-played, from the player
-const { playing, currentTime, duration, currentSlug, currentTitle, currentArtwork, audioError } =
-  storeToRefs(player)
+const {
+  playing,
+  currentTime,
+  duration,
+  currentSlug,
+  currentTitle,
+  currentShowTitle,
+  currentArtwork,
+  audioError,
+} = storeToRefs(player)
 
 const onPlayerPage = computed(() => route.name === 'player' && route.params.slug === currentSlug.value)
 const visible = computed(() => !!currentSlug.value && !onPlayerPage.value)
@@ -69,6 +78,11 @@ const progress = computed(() =>
         />
         <div v-else class="h-9 w-9 shrink-0 rounded bg-canvas" />
         <span class="min-w-0 flex-1">
+          <!-- Show above, episode below — the compact-row shape the rest of the app uses.
+               It was ONE line of episode title, so a long one ended in an ellipsis having said
+               nothing about whose show it was. The kicker is omitted rather than faked when the
+               caller did not supply a show. -->
+          <span v-if="currentShowTitle" class="lp-kicker block truncate">{{ currentShowTitle }}</span>
           <span class="block truncate text-xs font-bold">{{ currentTitle ?? t('player.loading') }}</span>
           <!-- role=status so a screen-reader user hears it too; the icon change alone is silent. -->
           <span
@@ -80,18 +94,26 @@ const progress = computed(() =>
         </span>
       </RouterLink>
 
-      <button
-        type="button"
-        data-testid="mini-player-queue"
-        class="flex h-11 w-9 shrink-0 items-center justify-center rounded-full text-canvas-foreground transition hover:bg-overlay"
-        :aria-label="t('queue.open')"
-        :title="t('queue.open')"
-        @click="queueOpen = true"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-          <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3" />
-        </svg>
-      </button>
+      <!-- Save and collect, on the line itself (operator 2026-09-23).
+           The SHARED components, not a local copy: grey when off, filled when on, identical to the
+           heart on every card and on the player page. A hand-rolled pair here is exactly how the
+           same affordance ends up behaving differently per surface (UXS-014).
+           The queue control that used to sit here is GONE — the masthead now carries it at every
+           width, so keeping it would be the same destination twice on one screen. -->
+      <FavoriteButton
+        v-if="currentSlug"
+        :item="{ kind: 'episode', ref: currentSlug }"
+        class="shrink-0"
+      />
+      <AddToCollectionButton
+        v-if="currentSlug"
+        :item="{ kind: 'episode', ref: currentSlug }"
+        class="shrink-0"
+      />
+
+      <!-- Output routing, next to the transport it affects. Self-hides when the platform reports
+           no route available, so this costs nothing on a device with nowhere to send audio. -->
+      <RouteButton />
 
       <button
         type="button"
@@ -110,6 +132,5 @@ const progress = computed(() =>
         </svg>
       </button>
     </div>
-    <QueuePanel v-if="queueOpen" @close="queueOpen = false" />
   </div>
 </template>

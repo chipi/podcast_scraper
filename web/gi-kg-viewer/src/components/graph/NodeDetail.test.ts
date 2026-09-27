@@ -543,20 +543,20 @@ describe('NodeDetail', () => {
 
   describe('propagatedThemeRegionLabel (Tier 5A-2)', () => {
     /* The label surfaces the human-readable theme region for NON-Topic
-     * nodes that inherited a `themeClusterId` via the propagation walk
+     * nodes that inherited a `storylineId` via the propagation walk
      * (Insight → Person → Podcast → Org → Episode). Topic nodes already
      * carry the full theme identity in the themeCluster block above and
      * must NOT render this row. Requires:
      *   1. non-Topic node (Insight, Episode, Person, Podcast, Org)
-     *   2. `node.themeClusterId` matches a cluster's `graph_compound_parent_id`
-     *   3. `artifacts.themeClustersDoc` is loaded */
-    async function mountWithThemeDoc(
+     *   2. `node.storylineId` matches a cluster's `graph_compound_parent_id`
+     *   3. `artifacts.storylinesDoc` is loaded */
+    async function mountWithStorylineDoc(
       node: RawGraphNode,
-      themeClustersDoc: unknown,
+      storylinesDoc: unknown,
     ) {
       const { useArtifactsStore } = await import('../../stores/artifacts')
       const artifacts = useArtifactsStore()
-      artifacts.themeClustersDoc = themeClustersDoc as never
+      artifacts.storylinesDoc = storylinesDoc as never
       return mountDetail({
         viewArtifact: artifactOf([node]),
         nodeId: String(node.id),
@@ -569,9 +569,9 @@ describe('NodeDetail', () => {
         id: 'g:insight:x',
         type: 'Insight',
         properties: { text: 'An insight' },
-        themeClusterId: 'tc:health-care',
+        storylineId: 'tc:health-care',
       }
-      const themeClustersDoc = {
+      const storylinesDoc = {
         clusters: [
           {
             graph_compound_parent_id: 'tc:health-care',
@@ -583,7 +583,7 @@ describe('NodeDetail', () => {
           },
         ],
       }
-      const w = await mountWithThemeDoc(insight, themeClustersDoc)
+      const w = await mountWithStorylineDoc(insight, storylinesDoc)
       const el = w.find('[data-testid="node-detail-theme-region"]')
       expect(el.exists()).toBe(true)
       expect(el.text()).toContain('Health care')
@@ -594,45 +594,45 @@ describe('NodeDetail', () => {
         id: 'g:topic:business',
         type: 'Topic',
         properties: { label: 'Business' },
-        themeClusterId: 'tc:business',
+        storylineId: 'tc:business',
       }
-      const themeClustersDoc = {
+      const storylinesDoc = {
         clusters: [
           { graph_compound_parent_id: 'tc:business', canonical_label: 'Business & markets' },
         ],
       }
-      const w = await mountWithThemeDoc(topic, themeClustersDoc)
+      const w = await mountWithStorylineDoc(topic, storylinesDoc)
       expect(w.find('[data-testid="node-detail-theme-region"]').exists()).toBe(false)
     })
 
-    it('does NOT render the row when the node has no themeClusterId (propagation missed)', async () => {
+    it('does NOT render the row when the node has no storylineId (propagation missed)', async () => {
       const insight: RawGraphNode = {
         id: 'g:insight:y',
         type: 'Insight',
         properties: { text: 'Untagged' },
       }
-      const themeClustersDoc = {
+      const storylinesDoc = {
         clusters: [
           { graph_compound_parent_id: 'tc:health-care', canonical_label: 'Health care' },
         ],
       }
-      const w = await mountWithThemeDoc(insight, themeClustersDoc)
+      const w = await mountWithStorylineDoc(insight, storylinesDoc)
       expect(w.find('[data-testid="node-detail-theme-region"]').exists()).toBe(false)
     })
 
-    it('does NOT render the row when the themeClusterId does not match any cluster in the doc', async () => {
+    it('does NOT render the row when the storylineId does not match any cluster in the doc', async () => {
       const insight: RawGraphNode = {
         id: 'g:insight:z',
         type: 'Insight',
         properties: { text: 'Insight with stale cluster' },
-        themeClusterId: 'tc:removed-cluster',
+        storylineId: 'tc:removed-cluster',
       }
-      const themeClustersDoc = {
+      const storylinesDoc = {
         clusters: [
           { graph_compound_parent_id: 'tc:different', canonical_label: 'Different' },
         ],
       }
-      const w = await mountWithThemeDoc(insight, themeClustersDoc)
+      const w = await mountWithStorylineDoc(insight, storylinesDoc)
       expect(w.find('[data-testid="node-detail-theme-region"]').exists()).toBe(false)
     })
 
@@ -641,14 +641,14 @@ describe('NodeDetail', () => {
         id: 'g:insight:w',
         type: 'Insight',
         properties: { text: 'X' },
-        themeClusterId: 'tc:unlabelled',
+        storylineId: 'tc:unlabelled',
       }
-      const themeClustersDoc = {
+      const storylinesDoc = {
         clusters: [
           { graph_compound_parent_id: 'tc:unlabelled' /* no canonical_label */ },
         ],
       }
-      const w = await mountWithThemeDoc(insight, themeClustersDoc)
+      const w = await mountWithStorylineDoc(insight, storylinesDoc)
       const el = w.find('[data-testid="node-detail-theme-region"]')
       expect(el.exists()).toBe(true)
       expect(el.text()).toContain('tc:unlabelled')

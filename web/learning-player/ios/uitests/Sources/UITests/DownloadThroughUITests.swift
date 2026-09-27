@@ -20,7 +20,11 @@ import XCTest
  * alone on :8011 every download 404s. That, not the defaults plumbing, is why nothing downloaded
  * here before.
  */
-final class DownloadThroughUITests: XCTestCase {
+final class DownloadThroughUITests: UITestCase {
+
+  /// SHARED account, deliberately: this suite is the target that CREATES the seed the two offline suites consume.
+  /// Per-suite isolation (#2091) would give it an empty account and the seed would be invisible.
+  override var accountIdentity: String { Self.sharedSeededIdentity }
   /// Real episodes of "The Drift" (p06) — slugs and titles read from the fixture corpus, not
   /// invented. The old seed wrote titles ("Signal Offline One") that no episode has, so it could
   /// not have noticed the app disagreeing with the server.
@@ -36,12 +40,14 @@ final class DownloadThroughUITests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
 
-    if !AppSession.isSignedIn(app) {
-      guard AppSession.signIn(app, springboard) else {
-        print("=====SIGNIN_TREE_START====="); print(app.debugDescription); print("=====SIGNIN_TREE_END=====")
-        XCTFail("sign-in did not complete"); return
-      }
+    // Known state, then THIS suite's account (#2091). `startClean` also forces offline OFF, which
+    // is device-local and therefore survives both a relaunch and an account change — the exact leak
+    // that made `ConfigOfflineToggleTests` break three unrelated suites on 2026-09-16.
+    guard startClean(app) else {
+      print("=====SIGNIN_TREE_START====="); print(app.debugDescription); print("=====SIGNIN_TREE_END=====")
+      XCTFail("sign-in did not complete as \(accountIdentity)"); return
     }
+    _ = springboard
 
     // Downloaded in order so the QUEUE ends up [first, second] — auto-advance needs a known one,
     // and the queue button appends.
@@ -118,28 +124,91 @@ final class DownloadThroughUITests: XCTestCase {
       "the deep link did not land on \(title)"
     )
 
-    // SCOPED to the episode page. `app.buttons[...].firstMatch` searches the whole app, and the
-    // download states are label-only — so a DIFFERENT episode that is already downloaded (p05,
-    // left by an earlier run) satisfied the query instantly and this test reported a success it
-    // had not produced. That is the exact failure mode a device test must not have.
-    let page = app.otherElements["main"]
-    let already = page.buttons["Downloaded — tap to remove"].firstMatch
+    // The Download control lives in the player's OVERFLOW menu (operator 2026-09-13), not in the
+    // action row — so it must be opened before it exists at all: the panel is `v-if="open"`.
+    //
+    // The test was looking in the right place for where the button used to be. How the scope is
+    // replaced is argued at the query below.
+    let trigger = Journey.control(app, label: "More actions")
+    guard trigger.waitForExistence(timeout: 20) else {
+      // The failure MESSAGE carries the diagnosis, not a `print`.
+      //
+      // This guard used to dump `app.debugDescription` to stdout, and xcodebuild does not reliably
+      // forward test stdout — three separate investigations reached "the page never rendered" from
+      // a truncated log while a screenshot of the same moment showed the page rendered perfectly,
+      // ⋯ included. A failure that says what WAS on screen is worth more than one that repeats what
+      // was not: the useful question here is what the accessibility bridge is actually exposing,
+      // since that is the only thing XCUITest can see.
+      let buttons = app.buttons.allElementsBoundByIndex.prefix(25).map {
+        "\($0.label)\($0.isHittable ? "" : " [not hittable]")"
+      }
+      XCTFail(
+        "no \"More actions\" button on \(title) after 20s. "
+          + "Buttons present (\(app.buttons.count)): \(buttons.joined(separator: " | ")). "
+          + "Links (\(app.links.count)), otherElements (\(app.otherElements.count))."
+      )
+      return
+    }
+    trigger.tap()
+
+    // `role="menuitem"` maps to MenuItem, not Button — see `Journey.control`.
+    let already = Journey.control(app, label: "Downloaded — tap to remove")
     if already.waitForExistence(timeout: 10) {
       already.tap()
       // Removal deletes the file and rewrites the registry; give it room, and CONFIRM the control
       // actually went back to offering a download rather than assuming the tap took.
-      if !page.buttons["Download for offline"].firstMatch.waitForExistence(timeout: 30) {
+      //
+      // RE-OPEN the menu first. The comment here used to say "the menu stays open — the item
+      // re-renders in place", and that is not what the component does: both call sites render
+      // `<DownloadButton variant="menuitem" @activated="close" />`, so activating an item CLOSES
+      // the panel by design. The control we then waited 30s for was not slow, it was off-screen.
+      _ = Journey.control(app, label: "More actions").waitForExistence(timeout: 10)
+      Journey.control(app, label: "More actions").tap()
+      if !Journey.control(app, label: "Download for offline").waitForExistence(timeout: 30) {
         print("=====REMOVE_TREE_START====="); print(app.debugDescription); print("=====REMOVE_TREE_END=====")
         XCTFail("removing the existing download never restored the Download control for \(title)")
         return
       }
     }
 
-    let downloadButton = page.buttons["Download for offline"].firstMatch
+    // UNIQUENESS instead of a container. The old scope was `app.otherElements["main"]`, which
+    // cannot work now for two reasons: the control moved into the overflow menu, and that menu
+    // teleports to `<body>` to escape clipped ancestors — so it is not inside `main` even when
+    // open. Scoping to the panel instead would mean selecting it by `data-testid`, and nothing in
+    // this suite resolves that way: every selector that works here is an accessible NAME.
+    //
+    // So assert there is exactly ONE, which is strictly stronger than the scope it replaces. The
+    // scope existed because an unscoped `firstMatch` once matched a DIFFERENT episode that was
+    // already downloaded and reported a success it had not produced — `Library → Downloaded`
+    // renders these controls bare, and that view is kept alive. A count of one cannot pick wrong,
+    // and a count above one says so out loud instead of guessing.
+    // Type-AGNOSTIC and matched on LABEL. This was `app.buttons.matching(identifier:)`, which is
+    // wrong twice over for web content: the menu variant carries `role="menuitem"` so it is not a
+    // Button, and `identifier` maps from `accessibilityIdentifier`, which the DOM does not set —
+    // the accessible NAME is what `aria-label` produces. See `Journey.control`.
+    let candidates = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", "Download for offline"))
+    if candidates.count > 1 {
+      print("=====AMBIGUOUS_DOWNLOAD_TREE_START====="); print(app.debugDescription)
+      print("=====AMBIGUOUS_DOWNLOAD_TREE_END=====")
+      XCTFail(
+        "\(candidates.count) Download controls are on screen for \(title) — another surface "
+          + "(kept-alive Library → Downloaded?) is offering one too, so tapping would be a guess"
+      )
+      return
+    }
+    let downloadButton = candidates.firstMatch
     if !downloadButton.waitForExistence(timeout: 20) {
       print("=====NO_DOWNLOAD_CONTROL_TREE_START====="); print(app.debugDescription)
       print("=====NO_DOWNLOAD_CONTROL_TREE_END=====")
-      XCTFail("no Download control on \(title) — signed out, or the episode never loaded")
+      // No longer conflated (the issue asked for this split): reaching here means the page
+      // rendered AND the menu opened, so neither "signed out" nor "never loaded" applies. The
+      // control is native-only and self-hides on web — if it is absent here, the app does not
+      // believe it is running natively.
+      XCTFail(
+        "the overflow menu opened on \(title) but carries no \"Download for offline\" control. "
+          + "Labelled elements on screen: \(Journey.labelledInventory(app))"
+      )
       return
     }
     downloadButton.tap()
@@ -147,15 +216,52 @@ final class DownloadThroughUITests: XCTestCase {
     // The transfer is real: a few MB of fixture audio over the loopback proxy, plus artwork and
     // the transcript. "Downloaded" is the app's OWN report that the bytes are on disk and the
     // registry says so — the assertion the seed could never make.
-    let done = page.buttons["Downloaded — tap to remove"].firstMatch
-    if !done.waitForExistence(timeout: 90) {
-      print("=====DOWNLOAD_TREE_START====="); print(app.debugDescription); print("=====DOWNLOAD_TREE_END=====")
-      XCTFail("\(title) never reached the downloaded state")
+    //
+    // POLL BY RE-OPENING. Activating a menu item closes the panel (`@activated="close"`), and every
+    // download STATE label lives on the control inside that panel — so waiting 90s on a closed menu
+    // watches an element that cannot appear. It reported "<none of the known states>", which was
+    // true and completely misleading: the control was not in a bad state, it was not on screen.
+    var settled = false
+    let states = [
+      "Downloaded — tap to remove", "Downloading", "Waiting for Wi-Fi",
+      "Waiting for a connection", "Download failed — tap to retry", "Download for offline",
+    ]
+    var lastSeen = "<never observed>"
+    for _ in 0..<9 {
+      if Journey.control(app, label: "Downloaded — tap to remove").waitForExistence(timeout: 2) {
+        settled = true
+        break
+      }
+      // Re-open and read the state. A transfer in flight keeps the panel's item on "Downloading",
+      // so this doubles as the progress observation.
+      if Journey.control(app, label: "More actions").waitForExistence(timeout: 5) {
+        Journey.control(app, label: "More actions").tap()
+      }
+      let seen = states.filter { Journey.control(app, label: $0).exists }
+      if !seen.isEmpty { lastSeen = seen.joined(separator: ", ") }
+      if Journey.control(app, label: "Downloaded — tap to remove").exists {
+        settled = true
+        break
+      }
+      sleep(10)
+    }
+    if !settled {
+      // WHICH state it reached, not just "not downloaded". The control's accessible name encodes
+      // the whole state machine, so naming the one on screen distinguishes "queued behind the
+      // Wi-Fi policy" (the simulator has no radio, so `Network.getStatus()` can report `unknown`,
+      // which `downloadScheduler.allows` deliberately refuses to start on) from a real transfer
+      // failure or a tap that never registered.
+      XCTFail(
+        "\(title) never reached the downloaded state after ~90s. "
+          + "Last state observed on the control: \(lastSeen). "
+          + "Labelled elements: \(Journey.labelledInventory(app, limit: 20))"
+      )
       return
     }
 
     // Queue it, so the offline auto-advance run has somewhere to advance TO.
-    let queue = page.buttons["Add to queue"].firstMatch
+    // QueueButton carries `aria-pressed`, so it is not a Button to XCUITest either.
+    let queue = Journey.control(app, label: "Add to queue")
     if queue.waitForExistence(timeout: 10) { queue.tap() }
 
   }

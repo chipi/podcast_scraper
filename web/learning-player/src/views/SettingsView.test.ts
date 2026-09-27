@@ -68,7 +68,7 @@ describe('SettingsView (#8)', () => {
     // __APP_VERSION__ comes from the shared vite define (package.json version).
     expect(w.get('[data-testid="settings-version"]').text()).toMatch(/^v\d+\.\d+\.\d+$/)
     expect(w.get('[data-testid="settings-copy"]').text()).toContain('Copy build info')
-    expect(w.get('[data-testid="settings-help"]').exists()).toBe(true)
+    expect(w.find('[data-testid="settings-help"]').exists()).toBe(true)
     expect(w.text()).toContain('web') // platform; capitalize is CSS-only, DOM text stays 'web'
   })
 

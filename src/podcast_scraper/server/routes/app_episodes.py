@@ -21,8 +21,8 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
-from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
-from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
+from podcast_scraper.search.storylines import storyline_map_by_topic
+from podcast_scraper.search.topic_clusters import theme_map_by_topic
 from podcast_scraper.server import app_stats, app_user_state
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_audio_bridge import resolve_audio
@@ -198,7 +198,7 @@ def podcast_signals(
         top_topics=s.top_topics,
         key_people=s.key_people,
         recurring_guests=s.recurring_guests,
-        dominant_themes=s.dominant_themes,
+        dominant_storylines=s.dominant_storylines,
         trending_topics=s.trending_topics,
     )
 
@@ -440,13 +440,13 @@ def episode_entities(
     # topic — semantic (search/topic_clusters.json, "Similar") and theme
     # (enrichments/topic_theme_clusters.json, co-occurrence "Theme"). Each is a no-op when its
     # artifact is absent → flat list / no theme markers, today's behaviour.
-    cluster_map = consumer_topic_cluster_map(root)
-    theme_map = consumer_theme_cluster_map(root)
-    if cluster_map or theme_map:
+    cluster_map = theme_map_by_topic(root)
+    storyline_map = storyline_map_by_topic(root)
+    if cluster_map or storyline_map:
         topics = [
             (
-                t.model_copy(update={**cluster_map.get(t.id, {}), **theme_map.get(t.id, {})})
-                if (t.id in cluster_map or t.id in theme_map)
+                t.model_copy(update={**cluster_map.get(t.id, {}), **storyline_map.get(t.id, {})})
+                if (t.id in cluster_map or t.id in storyline_map)
                 else t
             )
             for t in topics

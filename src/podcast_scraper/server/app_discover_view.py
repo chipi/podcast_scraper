@@ -20,8 +20,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
-from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map
+from podcast_scraper.search.storylines import storyline_map_by_topic
+from podcast_scraper.search.topic_clusters import theme_map_by_topic
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_kg_view import entities_from_kg
@@ -157,7 +157,7 @@ def _episode_features(
     root: Path,
     row: CatalogEpisodeRow,
     cluster_map: dict[str, dict[str, object]],
-    theme_map: dict[str, dict[str, object]],
+    storyline_map: dict[str, dict[str, object]],
 ) -> tuple[set[str], set[str], set[str]]:
     """Interest-matchable ids this episode touches: (cluster ids, topic ids, person ids).
 
@@ -181,8 +181,8 @@ def _episode_features(
         cid = info.get("cluster_id") if info else None
         if isinstance(cid, str):
             clusters.add(cid)
-        tinfo = theme_map.get(topic.id)
-        tcid = tinfo.get("theme_cluster_id") if tinfo else None
+        tinfo = storyline_map.get(topic.id)
+        tcid = tinfo.get("storyline_id") if tinfo else None
         if isinstance(tcid, str):
             clusters.add(tcid)
     return clusters, topic_ids, {p.id for p in persons}
@@ -456,8 +456,8 @@ def rank_discover(
 
     explicit_persons, explicit_topics, explicit_clusters = _split(explicit_set)
     derived_persons, derived_topics, derived_clusters = _split(derived_set)
-    cluster_map = consumer_topic_cluster_map(root)
-    theme_map = consumer_theme_cluster_map(root)
+    cluster_map = theme_map_by_topic(root)
+    storyline_map = storyline_map_by_topic(root)
     sig_params = config.params_of(SIGNAL_SIGNIFICANCE)
     affinity_weight = config.weight_of(SIGNAL_INTEREST_AFFINITY)
     affinity_params = config.params_of(SIGNAL_INTEREST_AFFINITY)
@@ -477,7 +477,7 @@ def rank_discover(
     newest = _newest_publish_date(rows) if recency_weight > 0 else None
     scored: list[tuple[float, int, CatalogEpisodeRow]] = []
     for idx, row in enumerate(rows):
-        clusters, topics, persons = _episode_features(root, row, cluster_map, theme_map)
+        clusters, topics, persons = _episode_features(root, row, cluster_map, storyline_map)
         matched_explicit = (
             len(clusters & explicit_clusters)
             + len(topics & explicit_topics)

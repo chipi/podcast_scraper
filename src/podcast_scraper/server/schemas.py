@@ -128,6 +128,15 @@ class AppEpisodeSummary(BaseModel):
         description="Preferred artwork: our locally-stored copy (thumb size) when present. "
         "Clients use this, falling back to the remote image URLs.",
     )
+    feed_artwork_url: str | None = Field(
+        default=None,
+        description=(
+            "The SHOW's locally-stored artwork (thumb size) — distinct from ``artwork_url``, which "
+            "prefers the EPISODE's own image when it has one. A surface that groups episodes by "
+            "show and wants a cover per show needs this: ``artwork_url`` would hand it whichever "
+            "episode happened to come first, which is that episode's art, not the show's."
+        ),
+    )
     status: Literal["ready", "pending"] = Field(
         default="ready",
         description="Playability: 'ready' when a transcript exists, else 'pending'. "
@@ -299,22 +308,22 @@ class AppTopic(BaseModel):
     cluster_size: int = Field(
         default=0, ge=0, description="Cross-corpus member count of the topic's cluster (0 if none)."
     )
-    theme_cluster_id: str | None = Field(
+    storyline_id: str | None = Field(
         default=None,
         description="Corpus THEME-cluster id (thc:{slug}) — topics discussed together "
         "(co-occurrence), distinct from the semantic cluster_id. Null when not in a theme. "
         "From enrichments/topic_theme_clusters.json.",
     )
-    theme_cluster_label: str | None = Field(
-        default=None, description="Canonical label of the topic's theme cluster, when in one."
+    storyline_label: str | None = Field(
+        default=None, description="Canonical label of the topic's storyline, when in one."
     )
-    theme_cluster_size: int = Field(
-        default=0, ge=0, description="Member count of the topic's theme cluster (0 if none)."
+    storyline_size: int = Field(
+        default=0, ge=0, description="Member count of the topic's storyline (0 if none)."
     )
 
 
 class AppStorylineRef(BaseModel):
-    """A storyline (theme cluster) an episode belongs to, as a navigable reference (RFC-122).
+    """A storyline an episode belongs to, as a navigable reference (RFC-122).
 
     Addressed by ``id`` = the cluster's anchor topic id, which is the param the client storyline
     route takes (``/storyline/:id``) — not the ``thc:`` id.
@@ -363,7 +372,7 @@ class AppEpisodeRecap(BaseModel):
     )
     storylines: list[AppStorylineRef] = Field(
         default_factory=list,
-        description="Storylines (theme clusters) the episode belongs to, linking to the storyline.",
+        description="Storylines the episode belongs to, linking to the storyline.",
     )
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
 
@@ -601,18 +610,18 @@ class AppTopicCard(BaseModel):
         default_factory=list,
         description="Other topics in the same SEMANTIC ('Similar') cluster.",
     )
-    theme_cluster_id: str | None = Field(
+    storyline_id: str | None = Field(
         default=None,
         description="Corpus THEME-cluster id (thc:{slug}) — topics discussed together "
         "(co-occurrence), distinct from the semantic cluster_id.",
     )
-    theme_cluster_label: str | None = Field(
-        default=None, description="Canonical label of the topic's theme cluster, when in one."
+    storyline_label: str | None = Field(
+        default=None, description="Canonical label of the topic's storyline, when in one."
     )
-    theme_cluster_size: int = Field(
-        default=0, ge=0, description="Member count of the topic's theme cluster (0 if none)."
+    storyline_size: int = Field(
+        default=0, ge=0, description="Member count of the topic's storyline (0 if none)."
     )
-    theme_sibling_topics: list[AppTopic] = Field(
+    storyline_sibling_topics: list[AppTopic] = Field(
         default_factory=list,
         description="Other topics in the same THEME ('discussed together') cluster.",
     )
@@ -670,7 +679,7 @@ class AppInterestCluster(BaseModel):
 
 
 class AppInterestClustersResponse(BaseModel):
-    """Top interest clusters for the picker (GET /api/app/clusters)."""
+    """Top themes for the picker (GET /api/app/themes)."""
 
     items: list[AppInterestCluster] = Field(default_factory=list)
 
@@ -689,7 +698,7 @@ class AppStoryline(BaseModel):
 
 
 class AppStorylinesResponse(BaseModel):
-    """Top storylines (theme clusters) for the Home rail + picker (GET /api/app/theme-clusters)."""
+    """Top storylines for the Home rail + picker (GET /api/app/storylines)."""
 
     items: list[AppStoryline] = Field(default_factory=list)
 
@@ -698,7 +707,7 @@ class AppTrendingEntity(BaseModel):
     """One trending entity (RFC-103 momentum) — velocity (rising) + volume (recent level)."""
 
     entity_id: str = Field(description="Namespaced id (topic:/tc:/thc:/person:, slug, or feed_id).")
-    kind: str = Field(description="topic|cluster|storyline|person|episode|show|insight.")
+    kind: str = Field(description="topic|theme|storyline|person|episode|show|insight.")
     label: str = Field(description="Display label.")
     velocity: float = Field(
         description="Rising signal (RFC-103 R2): recent-window rate ÷ prior rate."
@@ -721,6 +730,16 @@ class AppTrendingEntity(BaseModel):
         default=None,
         description="Served hosted-photo route for a person entity when the web enricher hosts a "
         "photo; null for non-person kinds and people without a hosted photo.",
+    )
+    anchor_topic_id: str | None = Field(
+        default=None,
+        description=(
+            "For a storyline (thc:) entity: its most-central member topic. That is the CLICK "
+            "TARGET — a storyline is read as its anchor topic's card, there being no dedicated "
+            "storyline endpoint. Null for every other kind, and for a storyline whose anchor "
+            "cannot be resolved, which means the row is not openable and the client must say so "
+            "rather than navigate somewhere empty."
+        ),
     )
 
 
@@ -1012,18 +1031,18 @@ class AppCorpusEnrichmentResponse(BaseModel):
 #     fetches KB, not the whole ~25 MB corpus-enrichment payload, to render a rail/card. ---
 
 
-class AppThemeClusterMember(BaseModel):
-    """A topic that belongs to a co-occurrence theme cluster ("storyline")."""
+class AppStorylineMember(BaseModel):
+    """A topic that belongs to a storyline (co-occurrence cluster)."""
 
     topic_id: str
 
 
-class AppThemeCluster(BaseModel):
-    """A co-occurrence theme cluster; the trending rail colours + groups its topics by these."""
+class AppStorylineDetail(BaseModel):
+    """A storyline (co-occurrence cluster) the trending rail colours and groups topics by."""
 
     graph_compound_parent_id: str | None = None
     canonical_label: str | None = None
-    members: list[AppThemeClusterMember] = Field(default_factory=list)
+    members: list[AppStorylineMember] = Field(default_factory=list)
 
 
 class AppTrendingTopicRow(BaseModel):
@@ -1072,7 +1091,7 @@ class AppTrendingTopicsResponse(BaseModel):
         default_factory=list, description="Ordered YYYY-MM axis the monthly_counts are keyed on."
     )
     topics: list[AppTrendingTopicRow] = Field(default_factory=list)
-    theme_clusters: list[AppThemeCluster] = Field(default_factory=list)
+    storylines: list[AppStorylineDetail] = Field(default_factory=list)
 
 
 class AppEntitySignalsResponse(BaseModel):
@@ -1462,6 +1481,27 @@ class Collection(BaseModel):
             "those keep their newest-first place AFTER every positioned board. Not a timestamp: "
             "position 0 and a created_at epoch cannot share one sort key."
         ),
+    )
+
+
+class CollectionsContainingResponse(BaseModel):
+    """GET /api/app/collections/containing — which boards already hold one item.
+
+    A question ABOUT an item, so it is its own resource rather than a flag on ``Collection``: as a
+    field it meant different things depending on how the collection was fetched, which needed a
+    nullable tri-state to express and a doctrine to keep straight.
+    """
+
+    ids: list[str] = Field(
+        default_factory=list, description="Collection ids holding the item ([] when none do)."
+    )
+    checked: bool = Field(
+        description=(
+            "Whether the lookup actually happened. FALSE when the user's collections file could "
+            "not be read — an empty ``ids`` then means 'we could not look', NOT 'it is in none of "
+            "them'. The second is what a user acts on by saving the item a second time, so it must "
+            "never be inferred from a failed read."
+        )
     )
 
 
@@ -2347,14 +2387,14 @@ class SearchClusterGroupModel(BaseModel):
         default=None,
         description=(
             "Cluster identifier — topic_cluster compound id (``tc:…``) when the group "
-            "is a topic cluster, theme cluster compound id (``thc:…``) when the group "
-            "is a theme cluster, a bare ``topic:…`` id when the group is a single "
+            "is a theme, storyline compound id (``thc:…``) when the group "
+            "is a storyline, a bare ``topic:…`` id when the group is a single "
             "topic (fallback), or null for the ungrouped bucket."
         ),
     )
     cluster_kind: str = Field(
         description=(
-            "``topic_cluster`` / ``theme_cluster`` / ``topic`` / ``ungrouped`` — which "
+            "``topic_cluster`` / ``storyline`` / ``topic`` / ``ungrouped`` — which "
             "aggregation surface produced the group. Callers may filter or badge "
             "clusters by kind (e.g. render a 'Theme' chip on theme-cluster groups)."
         ),
@@ -2755,10 +2795,10 @@ class FeedSignalPerson(BaseModel):
     episode_count: int = Field(ge=1, description="Episodes of this show that mention the person.")
 
 
-class FeedSignalTheme(BaseModel):
-    """A theme cluster (topic_theme_clusters) the show's topics fall into."""
+class FeedSignalStoryline(BaseModel):
+    """A storyline (from the topic_theme_clusters artifact) the show's topics fall into."""
 
-    theme_id: str = Field(description="Graph compound id (thc:…) for graph linking.")
+    storyline_id: str = Field(description="Graph compound id (thc:…) for graph linking.")
     label: str
     topic_count: int = Field(ge=1, description="Show topics that are members of this theme.")
     anchor_topic_id: str | None = Field(
@@ -2851,7 +2891,7 @@ class CorpusFeedSignalsResponse(BaseModel):
     recurring_guests: list[FeedSignalPerson] = Field(
         default_factory=list, description="People in ≥2 of this show's episodes."
     )
-    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
+    dominant_storylines: list[FeedSignalStoryline] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
     grounding: FeedGroundingSummary | None = None
     connectivity: FeedConnectivity | None = None
@@ -2870,7 +2910,7 @@ class AppPodcastSignalsResponse(BaseModel):
     top_topics: list[FeedSignalTopic] = Field(default_factory=list)
     key_people: list[FeedSignalPerson] = Field(default_factory=list)
     recurring_guests: list[FeedSignalPerson] = Field(default_factory=list)
-    dominant_themes: list[FeedSignalTheme] = Field(default_factory=list)
+    dominant_storylines: list[FeedSignalStoryline] = Field(default_factory=list)
     trending_topics: list[FeedSignalTrend] = Field(default_factory=list)
 
 

@@ -15,6 +15,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { getDiscover, getTrendingTopics } from '../services/api'
 import type { EpisodeSummary } from '../services/types'
 import { safeInternalPath } from '../utils/redirect'
+import { useOnline } from '../composables/useOnline'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -30,6 +31,7 @@ function signupTo(deepLink?: string) {
   const redir = deepLink ?? redirect.value
   return { name: 'login', query: { mode: 'signup', ...(redir ? { redirect: redir } : {}) } }
 }
+const { isOnline } = useOnline()
 const signInTo = computed(() => ({
   name: 'login',
   query: redirect.value ? { redirect: redirect.value } : {},
@@ -93,6 +95,22 @@ onMounted(async () => {
           {{ t('auth.signIn') }}
         </RouterLink>
       </div>
+      <!-- The one way out when there is no way in (operator 2026-09-23).
+           Offline and signed out, both buttons above are dead ends: signing in needs a network.
+           This is where a listener with downloaded episodes actually lands, so the route to them
+           has to be HERE. Hidden while online, where signing in is the better answer. -->
+      <RouterLink
+        v-if="!isOnline"
+        :to="{ name: 'offline-downloads' }"
+        class="mt-4 inline-block text-sm font-bold text-accent no-underline hover:opacity-80"
+        data-testid="landing-offline-downloads"
+      >
+        {{ t('offlineDownloads.link') }}
+        <!-- Decorative: the arrow is direction, not information, and it lands in the accessible
+             NAME otherwise — a screen reader announcing "Play what's downloaded right arrow", and
+             any test matching the real label failing on a glyph. -->
+        <span aria-hidden="true">→</span>
+      </RouterLink>
     </section>
 
     <!-- Featured teaser rail (read-only; a card funnels to signup for that episode) -->

@@ -4,11 +4,15 @@
  *  - **Native (iOS/Android Capacitor app):** APNs/FCM via `@capacitor/push-notifications`. The
  *    WKWebView has no Service Worker / `PushManager`, so Web Push cannot work in the app — the plugin
  *    registers with the OS, hands back a device token, and we store it server-side as an `apns`
- *    subscription. This is why "enable push" now works in the iOS app (operator 2026-09-14).
+ *    subscription. Android is gated off here entirely; see `ANDROID_PUSH_NATIVE_READY` (#2157).
  *  - **Web (PWA / browser):** the W3C Push API + VAPID, as before.
  *
- * `enablePush` returns false when push can't be enabled (permission denied / plugin error / not
- * configured server-side) so the UI can revert the toggle.
+ * `enablePush` returns false when push can't be enabled (permission denied / plugin error / platform
+ * not stood up / not configured server-side) so the UI can revert the toggle.
+ *
+ * SCOPE: this registers a device token; it does not mean a notification arrives. No device-token
+ * sender exists server-side — the store keeps W3C subscriptions and the worker signs with VAPID,
+ * which cannot reach APNs or FCM. Treat native push as unverified end-to-end until #2157 closes.
  */
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
@@ -21,9 +25,26 @@ import { isNative } from '../services/native'
 const APNS_ENDPOINT_KEY = 'push.apnsEndpoint'
 const REGISTER_TIMEOUT_MS = 15_000
 
-/** Whether this platform can do push at all. Native always can (the OS owns it); web needs the APIs. */
+/**
+ * Android push is not stood up yet (#2157), so we must not talk to the plugin there.
+ *
+ * Android push means FCM, and `google-services.json` is gitignored by design, so no build carries
+ * Firebase config. Calling into the plugin without it raises `IllegalStateException: Default
+ * FirebaseApp is not initialized` on a native handler thread — which JS cannot catch, so it kills
+ * the process rather than rejecting a promise. Gating here rather than at the `register()` call is
+ * deliberate: it also covers `requestPermissions()` and `unregister()`, so the guard does not
+ * depend on knowing which plugin method throws first.
+ *
+ * Flip to true once #2157 lands the Firebase config AND an FCM sender server-side; delete the
+ * constant once delivery is verified on a real device.
+ */
+const ANDROID_PUSH_NATIVE_READY = false
+
+/** Whether this platform can do push at all. Native owns it via the OS; web needs the APIs. */
 export function pushSupported(): boolean {
-  if (isNative()) return true
+  if (isNative()) {
+    return Capacitor.getPlatform() !== 'android' || ANDROID_PUSH_NATIVE_READY
+  }
   return (
     typeof navigator !== 'undefined' &&
     'serviceWorker' in navigator &&
@@ -95,7 +116,7 @@ async function disablePushNative(): Promise<void> {
 
 /** Subscribe this device/browser + register with the server. Returns false if push can't be enabled. */
 export async function enablePush(): Promise<boolean> {
-  if (isNative()) return enablePushNative()
+  if (isNative()) return pushSupported() ? enablePushNative() : false
   if (!pushSupported()) return false
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') return false
@@ -119,7 +140,9 @@ export async function enablePush(): Promise<boolean> {
 /** Unsubscribe this device/browser + deregister with the server. Safe to call when not subscribed. */
 export async function disablePush(): Promise<void> {
   if (isNative()) {
-    await disablePushNative()
+    // Nothing was ever subscribed where push is unsupported, so skipping the plugin loses nothing
+    // — and `unregister()` deletes the FCM token, which is the second way to hit the #2157 crash.
+    if (pushSupported()) await disablePushNative()
     return
   }
   if (!pushSupported()) return

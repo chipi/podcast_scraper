@@ -25,7 +25,7 @@
  *
  * The full artifact is scanned once for bridge nodes (`.graph-bridge`
  * style class isn't present at build time — instead we look up nodes
- * whose `themeClusterId` propagates to ≥2 super-themes by joining
+ * whose `storylineId` propagates to ≥2 super-themes by joining
  * against the theme cluster doc). No cytoscape dependency here — pure
  * data transform, easy to test.
  */
@@ -42,7 +42,7 @@ import type { TopicClustersDocument } from '../api/corpusTopicClustersApi'
 export const VIEWER_SUPER_THEME_MAX = 8
 
 export interface BuildTopDownSliceOptions {
-  themeDoc: TopicClustersDocument | null | undefined
+  storylineDoc: TopicClustersDocument | null | undefined
   /** Full merged artifact used to project expanded super-themes'
    *  children (TopicClusters + Topics + one-hop Insights/Persons)
    *  into the slice. Also used to discover bridge Topics. */
@@ -57,8 +57,8 @@ export interface BuildTopDownSliceOptions {
 
 /** graph-v3 tier 8-1 — emit an ArtifactData for the top-down initial view. */
 export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData {
-  const themeDoc = opts.themeDoc
-  const clusters = Array.isArray(themeDoc?.clusters) ? themeDoc!.clusters : []
+  const storylineDoc = opts.storylineDoc
+  const clusters = Array.isArray(storylineDoc?.clusters) ? storylineDoc!.clusters : []
 
   // super_theme_id → { label, member cluster ids }
   const superById = new Map<string, { label: string; clusterIds: Set<string> }>()
@@ -149,8 +149,8 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
   for (const n of fullNodesForBridges) {
     if (!n || n.id == null) continue
     const tcid =
-      typeof (n as { themeClusterId?: unknown }).themeClusterId === 'string'
-        ? String((n as { themeClusterId?: unknown }).themeClusterId).trim()
+      typeof (n as { storylineId?: unknown }).storylineId === 'string'
+        ? String((n as { storylineId?: unknown }).storylineId).trim()
         : ''
     if (!tcid) continue
     const sid = clusterToSuper.get(tcid)
@@ -199,7 +199,7 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
   // into the slice. Pipeline:
   //   1. For each expanded super_theme_id, collect its child cluster_ids
   //      from the theme doc.
-  //   2. Pull every node in the full artifact whose themeClusterId is
+  //   2. Pull every node in the full artifact whose storylineId is
   //      in that child set — these become the projected sub-graph.
   //   3. Also pull one-hop neighbours in the full artifact so Insights /
   //      Persons connected to the projected Topics come along.
@@ -229,8 +229,8 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
   for (const n of fullNodes) {
     if (!n || n.id == null) continue
     const tcid =
-      typeof (n as { themeClusterId?: unknown }).themeClusterId === 'string'
-        ? String((n as { themeClusterId?: unknown }).themeClusterId).trim()
+      typeof (n as { storylineId?: unknown }).storylineId === 'string'
+        ? String((n as { storylineId?: unknown }).storylineId).trim()
         : ''
     if (!tcid) continue
     const sid = clusterToSuper.get(tcid)
@@ -239,8 +239,8 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
   }
 
   // One-hop expansion — pull direct neighbours that either have no
-  // themeClusterId of their own (Insights, Persons, Podcasts w/o a tag)
-  // OR whose themeClusterId also rolls up to an expanded super-theme.
+  // storylineId of their own (Insights, Persons, Podcasts w/o a tag)
+  // OR whose storylineId also rolls up to an expanded super-theme.
   // This respects the boundary: expanding sth:a doesn't leak into sth:b
   // via cross-super-theme edges.
   const seeded = new Set(projected.keys())
@@ -253,8 +253,8 @@ export function buildTopDownSlice(opts: BuildTopDownSliceOptions): ArtifactData 
       const nbNode = nodeById.get(nb)
       if (!nbNode) continue
       const nbTcid =
-        typeof (nbNode as { themeClusterId?: unknown }).themeClusterId === 'string'
-          ? String((nbNode as { themeClusterId?: unknown }).themeClusterId).trim()
+        typeof (nbNode as { storylineId?: unknown }).storylineId === 'string'
+          ? String((nbNode as { storylineId?: unknown }).storylineId).trim()
           : ''
       if (nbTcid) {
         const nbSid = clusterToSuper.get(nbTcid)

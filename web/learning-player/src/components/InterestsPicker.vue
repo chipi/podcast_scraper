@@ -12,9 +12,14 @@ import { getStorylines, getTopClusters, getUserInterests, putUserInterests } fro
 import type { InterestCluster, Storyline } from "../services/types"
 import { useModalSheet } from "../composables/useModalSheet"
 import { dedupeByLabel, interestKind, interestLabel } from "../utils/interests"
+import { useInterestsStore } from "../stores/interests"
 
 const emit = defineEmits<{ (e: "close"): void; (e: "saved", ids: string[]): void }>()
 const { t } = useI18n()
+// The picker OWNS the write, so it owns telling the store. Leaving that to each parent is what
+// broke Home: `ProfileView` updated a local ref and `HomeView` set its dismissed flag, so the
+// authoritative set was never written back here — see `replaceAll`.
+const interests = useInterestsStore()
 
 const clusters = ref<InterestCluster[]>([])
 const storylines = ref<Storyline[]>([])
@@ -72,6 +77,9 @@ async function save(): Promise<void> {
     const preserved = initialInterests.value.filter((id) => !offered.has(id))
     const chosen = [...offered].filter((id) => selected.value.has(id))
     const stored = await putUserInterests([...preserved, ...chosen])
+    // BEFORE the emit: every surface reading the store must be correct by the time a parent's
+    // `saved` handler runs (HomeView's re-pulls discovery).
+    interests.replaceAll(stored)
     emit("saved", stored)
     emit("close")
   } catch {

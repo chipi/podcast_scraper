@@ -88,7 +88,7 @@ class TestClusterHits:
     def test_insight_hits_with_shared_about_topic_id_group_via_topic_fallback(
         self, empty_corpus: Path
     ) -> None:
-        # No topic_cluster on hit metadata, no theme_clusters.json — fallback to
+        # No topic_cluster on hit metadata, no storylines.json — fallback to
         # bare-topic groups. Two insights ABOUT the same topic collapse into one
         # single-topic group; a third insight ABOUT a different topic makes its own.
         hits = [
@@ -108,7 +108,7 @@ class TestClusterHits:
     def test_theme_cluster_map_takes_priority_over_bare_topic_fallback(
         self, tmp_path: Path
     ) -> None:
-        # Wire a theme_clusters.json so topic:llm resolves to a theme cluster.
+        # Wire a storylines.json so topic:llm resolves to a theme cluster.
         enrich = tmp_path / "enrichments"
         enrich.mkdir()
         (enrich / "topic_theme_clusters.json").write_text(
@@ -131,7 +131,7 @@ class TestClusterHits:
         groups = cluster_hits(hits, tmp_path)
         assert len(groups) == 1
         assert groups[0]["cluster_id"] == "thc:ai"
-        assert groups[0]["cluster_kind"] == "theme_cluster"
+        assert groups[0]["cluster_kind"] == "storyline"
         assert groups[0]["label"] == "Artificial intelligence"
 
     def test_groups_are_ordered_by_descending_size_then_ungrouped_last(

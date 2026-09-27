@@ -9,12 +9,21 @@
  *
  * "All" is an explicit chip rather than an implicit empty state so clearing a filter is one tap,
  * and selection is a plain array so the caller can persist or watch it.
+ *
+ * ONE ROW, scrolled horizontally — never wrapped (operator 2026-09-19). It used to `flex-wrap`, so
+ * adding a fifth kind dropped the last chip onto a line of its own and pushed the content below it
+ * down. Since this component now backs four surfaces (Following, Saved, Notes, Search) that was
+ * four places to notice it. The idiom is the Knowledge Panel's insight-type strip: `overflow-x-auto`
+ * with the scrollbar hidden and `shrink-0` on every chip, so they run off the edge instead of
+ * squashing or reflowing.
  */
 import { useI18n } from "vue-i18n"
 
 export interface TypeFilterOption {
   key: string
   label: string
+  /** Optional tally shown after the label — how many items this filter would leave. */
+  count?: number
 }
 
 const props = defineProps<{
@@ -43,12 +52,12 @@ function toggle(key: string): void {
 
 <template>
   <div
-    class="flex flex-wrap items-center gap-2"
+    class="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     :data-testid="`${testidPrefix}-filter`"
   >
     <button
       type="button"
-      class="rounded-full border px-3 py-1 text-xs font-semibold transition"
+      class="shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition"
       :class="
         modelValue.length === 0
           ? 'border-accent bg-accent/10 text-accent'
@@ -64,7 +73,7 @@ function toggle(key: string): void {
       v-for="ty in options"
       :key="ty.key"
       type="button"
-      class="rounded-full border px-3 py-1 text-xs font-semibold transition"
+      class="shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition"
       :class="
         modelValue.includes(ty.key)
           ? 'border-accent bg-accent/10 text-accent'
@@ -75,6 +84,10 @@ function toggle(key: string): void {
       @click="toggle(ty.key)"
     >
       {{ ty.label }}
+      <!-- Tabular so the chips do not twitch as counts change under a search. -->
+      <span v-if="ty.count != null" class="ml-1 font-mono tabular-nums opacity-70">{{
+        ty.count
+      }}</span>
     </button>
   </div>
 </template>

@@ -34,11 +34,11 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 from podcast_scraper.identity.bare_name_scope import scoped_person_id, SCOPED_PREFIX
-from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map
+from podcast_scraper.search.storylines import storyline_map_by_topic
 from podcast_scraper.search.topic_clusters import (
-    _load_topic_clusters_payload,
-    consumer_topic_cluster_map,
-    top_clusters_by_member_count,
+    _load_theme_payload,
+    theme_map_by_topic,
+    top_themes_by_member_count,
 )
 from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_discover_view import (
@@ -49,7 +49,7 @@ from podcast_scraper.server.app_discover_view import (
 )
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
-#: The picker's default page size, mirroring ``GET /api/app/clusters?limit=``.
+#: The picker's default page size, mirroring ``GET /api/app/themes?limit=``.
 DEFAULT_PICKER_LIMIT = 12
 #: The discover feed length these measurements compare.
 DEFAULT_FEED_LIMIT = 12
@@ -88,12 +88,12 @@ def _coverage(root: Path, rows: Sequence[Any]) -> Tuple[Counter, Dict[str, set]]
     per-feed map is what distinguishes a cluster that merges two names for the same idea inside
     ONE show from one that genuinely spans shows.
     """
-    cluster_map = consumer_topic_cluster_map(root)
-    theme_map = consumer_theme_cluster_map(root)
+    cluster_map = theme_map_by_topic(root)
+    storyline_map = storyline_map_by_topic(root)
     counts: Counter = Counter()
     feeds: Dict[str, set] = {}
     for row in rows:
-        clusters, topics, persons = _episode_features(root, row, cluster_map, theme_map)
+        clusters, topics, persons = _episode_features(root, row, cluster_map, storyline_map)
         feed_id = str(getattr(row, "feed_id", "") or "?")
         for token in (*clusters, *topics, *persons):
             counts[token] += 1
@@ -134,8 +134,8 @@ def measure_cluster_structure(root: Path, rows: Sequence[Any], counts: Counter) 
     meaningfully" — so any picker fix decided without this number is a guess about which.
     """
     total = len(rows)
-    offered = top_clusters_by_member_count(root, DEFAULT_PICKER_LIMIT)
-    all_clusters = top_clusters_by_member_count(root, 10_000)
+    offered = top_themes_by_member_count(root, DEFAULT_PICKER_LIMIT)
+    all_clusters = top_themes_by_member_count(root, 10_000)
     sizes = [int(c.get("size") or 0) for c in all_clusters]
     coverage = [
         TokenCoverage(
@@ -175,11 +175,11 @@ def measure_cluster_reach(
     `topic_cluster_threshold` (0.75, tuned on v2 fixtures in June and never re-measured on real
     data) is doing the job it was tuned for.
     """
-    # Read the PAYLOAD, not `top_clusters_by_member_count` — that returns {id,label,size} and
+    # Read the PAYLOAD, not `top_themes_by_member_count` — that returns {id,label,size} and
     # DROPS `members`, so asking it for member topic ids silently yields nothing. My first
     # version did exactly that and reported "0 topics across 0 feeds" for every cluster,
     # which read like a finding and was a bug in the measurement.
-    payload = _load_topic_clusters_payload(root) or {}
+    payload = _load_theme_payload(root) or {}
     raw = payload.get("clusters")
     clusters = [c for c in raw if isinstance(c, Mapping)] if isinstance(raw, list) else []
     spans: List[Dict[str, Any]] = []
@@ -609,18 +609,23 @@ def measure_bare_name_resolvability(root: Path, rows: Sequence[Any]) -> Dict[str
     resolvable in one episode and orphan in another — `person:alex` demonstrably is. Per-token
     rollups say how consistent each one is.
     """
-    from podcast_scraper.search.theme_clusters import consumer_theme_cluster_map as _themes
-    from podcast_scraper.search.topic_clusters import consumer_topic_cluster_map as _topics
+    # Imported under their own names: aliasing the storyline reader to ``_themes`` and the theme
+    # reader to ``_topics`` re-created, locally, the exact inversion this module's callers were
+    # renamed to remove.
+    from podcast_scraper.search.storylines import storyline_map_by_topic
+    from podcast_scraper.search.topic_clusters import theme_map_by_topic
 
-    cluster_map = _topics(root)
-    theme_map = _themes(root)
+    cluster_map = theme_map_by_topic(root)
+    storyline_map = storyline_map_by_topic(root)
 
     verdicts: Counter = Counter()
     per_token: Dict[str, Counter] = {}
     examples: Dict[str, List[Dict[str, str]]] = {"resolvable": [], "ambiguous": [], "orphan": []}
 
     for row in rows:
-        _clusters, _topics_set, kg_persons = _episode_features(root, row, cluster_map, theme_map)
+        _clusters, _topics_set, kg_persons = _episode_features(
+            root, row, cluster_map, storyline_map
+        )
         persons = _episode_person_ids(root, row, kg_persons)
         bare = [p for p in persons if len(_slug(p).split("-")) == 1]
         for token in sorted(bare):
@@ -1043,7 +1048,7 @@ def measure_picker_discrimination(
     have got by picking anything else — so the choice is decorative.
     """
     total = len(rows)
-    offered = [str(c["id"]) for c in top_clusters_by_member_count(root, DEFAULT_PICKER_LIMIT)]
+    offered = [str(c["id"]) for c in top_themes_by_member_count(root, DEFAULT_PICKER_LIMIT)]
     offered_feeds = {t: _feed_slugs(root, rows, [t], limit) for t in offered}
 
     band = [

@@ -60,9 +60,23 @@ describe('ShowTile', () => {
     // #1584's requirement is real — a 1-line name beside a 2-line one leaves the row ragged. It is
     // now paid for by the layout: the tile is a flex column that fills its grid cell and the label
     // takes the remaining space. Deleting either class reopens #1584, so both are asserted.
+    // The ROOT carries the layout, not the anchor. The link became a stretched `absolute inset-0`
+    // overlay on 2026-09-26 so the Follow/Save buttons could stop being nested inside an <a>, which
+    // is invalid HTML and cost the heart its accessible name on Android. The #1584 guarantee is
+    // unchanged — it just lives on the element that is actually the grid cell now.
     const w = mountTile(show('Acquired'))
-    expect(w.get('a').classes()).toEqual(expect.arrayContaining(['flex', 'h-full', 'flex-col']))
+    expect(w.get('div.relative').classes()).toEqual(
+      expect.arrayContaining(['flex', 'h-full', 'flex-col']),
+    )
     expect(w.get('div.mt-1').classes()).toContain('flex-1')
+  })
+
+  it('keeps the action buttons OUT of the link (invalid nesting cost the heart its name)', () => {
+    // A <button> inside an <a> is interactive content inside interactive content. Chromium then
+    // would not compute a name for the heart, and the Android audit reported it as an unnamed
+    // ToggleButton on Discover. Guard the structure, since the symptom is invisible in the DOM.
+    const w = mountTile(show('Acquired'))
+    expect(w.get('a').findAll('button')).toHaveLength(0)
   })
 
   it('falls back to the feed id when a show has no title', () => {

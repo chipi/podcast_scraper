@@ -35,7 +35,7 @@ test.describe('public API contracts', () => {
     expect(Array.isArray(ep.items)).toBe(true)
     expect(ep.total).toBeGreaterThan(0)
 
-    for (const path of ['/api/app/podcasts', '/api/app/theme-clusters?limit=3']) {
+    for (const path of ['/api/app/podcasts', '/api/app/storylines?limit=3']) {
       const r = await request.get(path, { headers: bearer() })
       expect(r.status(), path).toBe(200)
       expect(Array.isArray((await r.json()).items), path).toBe(true)

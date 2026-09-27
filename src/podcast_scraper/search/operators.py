@@ -13,7 +13,7 @@ Two operators today, both additive on the existing ``CorpusSearchApiResponse``:
 * ``operator=cluster`` — group the hit page by topic-cluster (from the
   shipped ``enrichments/topic_clusters.json`` join in
   ``_attach_topic_cluster_metadata``) with fallback to theme-cluster
-  (via ``theme_clusters.consumer_theme_cluster_map``) and finally to a
+  (via ``storylines.storyline_map_by_topic``) and finally to a
   single-topic anchor. Hits with no resolvable cluster surface land in
   an ungrouped bucket (``cluster_id=null``).
 * ``operator=consensus`` — read ``enrichments/topic_consensus.json``
@@ -35,9 +35,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.search.theme_clusters import (
-    consumer_theme_cluster_map,
-    THEME_CLUSTERS_REL,
+from podcast_scraper.search.storylines import (
+    storyline_map_by_topic,
+    STORYLINES_REL,
 )
 
 _logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def _topic_label_from_hit(hit_meta: dict[str, Any]) -> str | None:
 
 def _hit_cluster_key(
     hit_meta: dict[str, Any],
-    theme_map: dict[str, dict[str, Any]],
+    storyline_map: dict[str, dict[str, Any]],
 ) -> tuple[str, str, str] | None:
     """Return ``(kind, id, label)`` for the hit's best cluster surface, or None.
 
@@ -103,13 +103,13 @@ def _hit_cluster_key(
             return ("topic_cluster", cid.strip(), str(clabel or cid).strip())
 
     topic_id = _topic_id_from_hit(hit_meta)
-    if topic_id and theme_map:
-        theme = theme_map.get(topic_id)
+    if topic_id and storyline_map:
+        theme = storyline_map.get(topic_id)
         if theme:
-            thc = theme.get("theme_cluster_id")
-            tlabel = theme.get("theme_cluster_label") or thc
+            thc = theme.get("storyline_id")
+            tlabel = theme.get("storyline_label") or thc
             if isinstance(thc, str) and thc.strip():
-                return ("theme_cluster", thc.strip(), str(tlabel or thc).strip())
+                return ("storyline", thc.strip(), str(tlabel or thc).strip())
 
     if topic_id:
         label = _topic_label_from_hit(hit_meta) or topic_id
@@ -128,7 +128,7 @@ def cluster_hits(
     non-empty. Hit indices point back into the caller's ``hits`` list in
     original order so the client can render groups without re-sorting.
     """
-    theme_map = consumer_theme_cluster_map(corpus_root)
+    storyline_map = storyline_map_by_topic(corpus_root)
     # (kind, cluster_id) -> {label, indices}
     groups: dict[tuple[str, str], dict[str, Any]] = {}
     ungrouped: list[int] = []
@@ -137,7 +137,7 @@ def cluster_hits(
         if not isinstance(meta, dict):
             ungrouped.append(idx)
             continue
-        key = _hit_cluster_key(meta, theme_map)
+        key = _hit_cluster_key(meta, storyline_map)
         if key is None:
             ungrouped.append(idx)
             continue
@@ -326,7 +326,7 @@ def _maybe_str(v: Any) -> str | None:
 
 
 __all__ = [
-    "THEME_CLUSTERS_REL",  # re-export for callers that need the path constant
+    "STORYLINES_REL",  # re-export for callers that need the path constant
     "cluster_hits",
     "consensus_pairs_for_hits",
 ]

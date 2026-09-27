@@ -5,10 +5,20 @@
  * is passed as the default slot (an inline `currentColor` SVG so it inherits theme colours).
  */
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
+import { ownsRoute } from '../utils/navOwnership'
 
 const props = defineProps<{ to: RouteLocationRaw; label: string; badge?: number
+  /**
+   * Which nav destination this icon represents, for highlighting (`utils/navOwnership.ts`).
+   *
+   * Without it this fell back to `RouterLink`'s exact-active, which answers a DIFFERENT question:
+   * "is this the current URL" rather than "does this destination own the current screen". On
+   * `/search` that lit Search here while the phone bar lit Discovery — the same URL answered two
+   * ways depending on window width. Omit it and the link simply never reads active.
+   */
+  owns?: string
   /**
    * Which edge the hover tooltip hangs from.
    *
@@ -32,21 +42,41 @@ const props = defineProps<{ to: RouteLocationRaw; label: string; badge?: number
 const ariaLabel = computed(() =>
   props.badge ? `${props.label} (${props.badge})` : props.label,
 )
+
+const route = useRoute()
+const active = computed(() =>
+  props.owns ? ownsRoute(props.owns, route.name as string | undefined) : false,
+)
 </script>
 
 <template>
   <RouterLink
     :to="to"
     :aria-label="ariaLabel"
-    class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
+    :aria-current="active ? 'page' : undefined"
+    class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
+    :class="active ? 'text-accent' : 'text-muted'"
   >
     <slot />
+    <!-- The accessible NAME, ANCHORED to this link's own box (2026-09-25).
+         The slot is a decorative `aria-hidden` icon and the badge below is `aria-hidden` too, so
+         the only text WebKit could see was the TOOLTIP — which is positioned `top-full`, BELOW the
+         control, and is `pointer-events-none`. WebKit derives the link's accessibility frame from
+         that text run, so the masthead Queue/Search controls reported a frame that was neither on
+         the icon nor tappable: measured `Link, {{265.0, 107.0}, {39.0, 16.0}}, label: 'Queue (3)'`
+         against a 36x36 icon sitting above it. XCUITest saw present-but-not-hittable; VoiceOver
+         draws the same wrong rectangle.
+         Anchoring (`left-0 top-0`, the link is already `relative`) puts the run back on the
+         control. Same fix, and the same reasoning, as the masthead profile link in App.vue. -->
+    <span class="sr-only left-0 top-0">{{ ariaLabel }}</span>
     <span
       v-if="badge"
       aria-hidden="true"
       data-testid="nav-badge"
       class="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-overlay px-1 text-[10px] font-bold text-canvas-foreground"
     >{{ badge }}</span>
+    <!-- Decorative to assistive tech: it repeats `ariaLabel` verbatim, and left exposed it is the
+         element whose frame WebKit reports for the whole link (see above). -->
     <span
       :class="[
         'pointer-events-none absolute top-full z-50 mt-1.5 whitespace-nowrap',
@@ -54,6 +84,7 @@ const ariaLabel = computed(() =>
         'rounded-md bg-elevated px-2 py-1 text-xs font-medium text-canvas-foreground opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100',
       ]"
       role="tooltip"
+      aria-hidden="true"
     >{{ label }}</span>
   </RouterLink>
 </template>

@@ -211,11 +211,17 @@ function noteKindLabel(target: string): string {
   return out === key ? target : out
 }
 const availableNoteTypes = computed(() => {
-  const present = new Set(capture.notes.map((n) => n.target))
-  return NOTE_KIND_ORDER.filter((k) => present.has(k)).map((k) => ({
+  // Each chip carries how many notes it would leave (operator 2026-09-19) — the same idiom the
+  // Saved section headings and the Knowledge Panel's insight chips already use. Counted over ALL
+  // notes, not the search-filtered set: a chip that changed its number as you typed would be
+  // answering a different question from the one it asks.
+  const byKind = new Map<string, number>()
+  for (const n of capture.notes) byKind.set(n.target, (byKind.get(n.target) ?? 0) + 1)
+  return NOTE_KIND_ORDER.filter((k) => byKind.has(k)).map((k) => ({
     key: k,
     // Same words as the row's own kicker, so a chip and the rows it governs name the same thing.
     label: t(`notes.kind_${k}`),
+    count: byKind.get(k),
   }))
 })
 // A chip for a kind whose last note was just removed would stay selected and hide everything.
@@ -523,6 +529,13 @@ onMounted(() => {
           >
             <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
           </svg>
+          <!-- `aria-label` over a lone `aria-hidden` svg is DROPPED by Android System WebView, so
+               this announces as an unnamed "Button" and a TalkBack user cannot tell the two view
+               modes apart. No test reaches this control — found by the repo-wide scan behind
+               `__checks__/accessible-names.test.ts` (2026-09-26). Text matches `aria-label`
+               exactly: Android reads `getText()` before `getContentDescription()`, so a different
+               string here would shadow the label. -->
+          <span class="sr-only">{{ t('list.viewList') }}</span>
         </button>
         <button
           type="button"
@@ -548,6 +561,9 @@ onMounted(() => {
           >
             <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
           </svg>
+          <!-- Same as its sibling above: without a text node this is an unnamed "Button" to
+               TalkBack. -->
+          <span class="sr-only">{{ t('list.viewGrid') }}</span>
         </button>
       </div>
     </div>
@@ -561,6 +577,9 @@ onMounted(() => {
       :class="collections.length || capture.notes.length ? 'border-t border-border pt-6' : ''"
     >
       {{ t("collections.sectionTitle") }}
+      <!-- The tally, in the same `lp-kicker` slot every Saved and Following heading uses (operator
+           2026-09-19). Boards was the one tab whose sections did not say how much was in them. -->
+      <span v-if="collections.length" class="lp-kicker ml-1 font-normal">{{ collections.length }}</span>
     </h2>
 
     <!-- create -->
@@ -751,6 +770,12 @@ onMounted(() => {
             @click="pendingDelete = c.id"
           >
             <CloseIcon />
+            <!-- Android System WebView DROPS `aria-label` when the button's subtree has no text
+                 node, so an icon-only control announces as an unnamed "Button" and no name-based
+                 lookup can reach it. Text must match the label EXACTLY: Android reads `getText()`
+                 before `getContentDescription()`, so a shorter string shadows the label and the
+                 two drift apart silently. -->
+            <span class="sr-only">{{ t('collections.remove') }}</span>
           </button>
         </div>
 
@@ -817,6 +842,7 @@ onMounted(() => {
                 @click="removeItem(it)"
               >
                 <CloseIcon />
+                <span class="sr-only">{{ t('collections.removeItem') }}</span>
               </button>
             </li>
           </ul>
@@ -866,7 +892,15 @@ onMounted(() => {
       class="mt-8 border-t border-border pt-6"
       data-testid="collections-notes"
     >
-      <h2 class="lp-section mb-2">{{ t("notes.title") }}</h2>
+      <h2 class="lp-section mb-2">
+        {{ t("notes.title") }}
+        <!-- The FILTERED count, not the raw total. With a kind chip active the heading said
+             "Your notes 18" over a list of 3 — the same disagreement LibraryView's highlights
+             count was made filter-aware to fix, reintroduced here by adding a count to a heading
+             whose list was already filtered. The chips keep their unfiltered numbers on purpose:
+             a chip's count answers "how many would this leave", which must not move as you type. -->
+        <span class="lp-kicker ml-1 font-normal">{{ visibleNotes.length }}</span>
+      </h2>
       <!-- Kind chips at the TOP of the section (operator 2026-09-17), filtering by the entity a note
            is ON. The section is gated on `capture.notes.length`, not on the filtered list: gating on
            the result would delete the filter bar the moment a chip matched nothing, stranding the

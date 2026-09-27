@@ -148,6 +148,7 @@ def row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSumma
         episode_image_url=row.episode_image_url,
         feed_image_url=row.feed_image_url,
         artwork_url=artwork_url(local_art, "thumb"),
+        feed_artwork_url=artwork_url(row.feed_image_local_relpath, "thumb"),
         status="ready" if has_transcript else "pending",
         summary_preview=_card_lede(row),
         summary_text=(row.summary_text or "").strip() or None,

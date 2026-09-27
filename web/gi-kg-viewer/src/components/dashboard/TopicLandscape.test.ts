@@ -6,16 +6,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TopicLandscape from './TopicLandscape.vue'
 import { useShellStore } from '../../stores/shell'
 import {
-  fetchThemeClustersFromApi,
+  fetchStorylinesFromApi,
   fetchTopicClustersFromApi,
 } from '../../api/corpusTopicClustersApi'
 
 vi.mock('../../api/corpusTopicClustersApi', () => ({
   fetchTopicClustersFromApi: vi.fn(),
-  fetchThemeClustersFromApi: vi.fn(),
+  fetchStorylinesFromApi: vi.fn(),
 }))
 const fetchClusters = vi.mocked(fetchTopicClustersFromApi)
-const fetchThemes = vi.mocked(fetchThemeClustersFromApi)
+const fetchThemes = vi.mocked(fetchStorylinesFromApi)
 
 const DOC = {
   status: 'ok' as const,

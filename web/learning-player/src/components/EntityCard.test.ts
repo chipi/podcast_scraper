@@ -52,6 +52,7 @@ function personCard(over: Partial<PersonCard> = {}): PersonCard {
         artwork_url: null,
         status: "ready",
         summary_preview: null,
+        summary_text: null,
         summary_bullets: [],
         topics: [],
         has_transcript: true,
@@ -99,6 +100,7 @@ function topicCard(over: Partial<TopicCard> = {}): TopicCard {
         artwork_url: null,
         status: "ready",
         summary_preview: null,
+        summary_text: null,
         summary_bullets: [],
         topics: [],
         has_transcript: true,
@@ -134,9 +136,32 @@ describe("EntityCard", () => {
     vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
-    expect(w.text()).toContain("similar topics") // all-members heading
+    // ONE sibling, so the count is 1 and the copy is singular. It used to say 2, because the
+    // section counted the topic you are on as a member of its own similar-topics list and led with
+    // it as a ringed chip (operator 2026-09-19).
+    expect(w.text()).toContain("1 similar topic")
     expect(w.text()).toContain("Machine Learning") // sibling chip
     expect(w.text()).toContain("Discussed in 3 episodes")
+  })
+
+  it("the similar-topics list excludes the topic you are already reading", async () => {
+    // The heading says "N similar topics"; a topic is not similar to itself, and listing it first
+    // made the count disagree with what a reader could see (operator 2026-09-19).
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    const w = mountCard({ kind: "topic", id: "topic:ai" })
+    await flushPromises()
+
+    // Scoped to the SECTION, not to the chip testid. The old shape rendered the current topic as a
+    // ringed `<span>` WITHOUT that testid, so asserting over `ec-similar-topic` alone would pass
+    // with the bug restored — it would simply not see the element it is supposed to catch.
+    const section = w.find('[data-testid="ec-similar-topics"]')
+    expect(section.exists()).toBe(true)
+    expect(section.text()).toContain("Machine Learning")
+    expect(section.text()).not.toContain("AI")
+
+    // And the count agrees with what is listed — the half that made the heading a lie.
+    expect(section.text()).toContain("1 similar topic")
+    expect(section.findAll('[data-testid="ec-similar-topic"]')).toHaveLength(1)
   })
 
   it("the library search lives inside the card (button → search route, then closes)", async () => {
@@ -167,7 +192,7 @@ describe("EntityCard", () => {
     // The storyline no longer sits under the title as a caption/heading; it is one link near the
     // foot, labelled with the cluster, that opens the storyline overlay.
     vi.spyOn(api, "getTopicCard").mockResolvedValue(
-      topicCard({ theme_cluster_label: "Agent infrastructure", theme_cluster_size: 5 }) as never
+      topicCard({ storyline_label: "Agent infrastructure", storyline_size: 5 }) as never
     )
     const w = mountCard({ kind: "topic", id: "topic:ai" })
     await flushPromises()
@@ -188,7 +213,7 @@ describe("EntityCard", () => {
       .trigger("click")
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith("topic:ai")
-    expect(w.text()).toContain("similar topics") // topic view now shown
+    expect(w.text()).toContain("1 similar topic") // topic view now shown
     // Back → returns to the person.
     await w.find('button[aria-label="Back"]').trigger("click")
     await flushPromises()

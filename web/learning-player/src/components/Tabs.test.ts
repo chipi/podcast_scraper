@@ -18,7 +18,7 @@ function make(selected: K = 'a', extra: Record<string, unknown> = {}) {
       tabs: TABS,
       label: 'Sections',
       idPrefix: 'demo',
-      'onUpdate:modelValue': (v: K) => void v,
+      'onUpdate:modelValue': (v: string) => void v,
       ...extra,
     },
     attachTo: document.body,
@@ -176,7 +176,7 @@ describe('Tabs (#1594 item 7)', () => {
           label: 'Window',
           idPrefix: 'win',
           pattern: 'radio' as const,
-          'onUpdate:modelValue': (v: K) => void v,
+          'onUpdate:modelValue': (v: string) => void v,
         },
         attachTo: document.body,
       })
@@ -186,7 +186,7 @@ describe('Tabs (#1594 item 7)', () => {
       // "Tab" is the wrong announcement for "set this to one of four values", and these controls
       // switch no panel — the trend window re-queries a rail its PARENT owns.
       const w = radio()
-      expect(w.get('[role="radiogroup"]').exists()).toBe(true)
+      expect(w.find('[role="radiogroup"]').exists()).toBe(true)
       expect(w.find('[role="tablist"]').exists()).toBe(false)
       expect(w.findAll('[role="radio"]')).toHaveLength(3)
     })

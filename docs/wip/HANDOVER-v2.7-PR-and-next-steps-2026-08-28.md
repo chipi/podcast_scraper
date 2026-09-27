@@ -157,6 +157,8 @@ autonomous agent (needs a live viewer + human-captured screenshots). Left in the
 - **Local `NODE_OPTIONS` gotcha:** a stale `--require=.../restore-node-options.cjs` preload crashes
   node/npm/vue-tsc/pre-commit-markdownlint. Run `unset NODE_OPTIONS; export NODE_OPTIONS=""` in the
   same shell as any node/git-commit invocation.
+  **SUPERSEDED 2026-09-25:** `unexport NODE_OPTIONS` (Makefile line 17) covers every make target.
+  Still applies to hand-run node and to `git commit` (pre-commit hooks run outside make).
 - **Local `ci-fast` caveat:** cannot be green under the ML `.venv` (ML breaks the no-ML dedupe
   guards). Use `PYTHON=.venv-dev` (`.[dev,llm]` + docs); ML e2e skips via `@requires`. See memory
   `reference_ci_fast_local_no_ml_recipe.md`; tier-split tracked in #1805.

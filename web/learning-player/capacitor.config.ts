@@ -4,6 +4,23 @@ import type { CapacitorConfig } from '@capacitor/cli'
 // it for on-device debugging. MUST be unset in every release build (guarded by NODE_ENV below).
 const devServer = process.env.CAP_DEV_SERVER
 
+/**
+ * The Android DEVICE TIER build (#2139). Set `CAP_ANDROID_TEST_ORIGIN=1` and the app will load
+ * plaintext subresources from the fixture origin.
+ *
+ * Needed because the WebView origin is `https://localhost` (androidScheme below) while the tier's
+ * fixture origin is `http://127.0.0.1:4174`, reached from the emulator through `adb reverse`.
+ * API calls survive that on their own — `CapacitorHttp` routes fetch/XHR through the NATIVE stack,
+ * which never sees the WebView's mixed-content rule — but `<audio src>` does not: media is loaded
+ * by the WebView itself, so an http audio URL on an https page is blocked, and the offline suites
+ * exist precisely to prove audio plays.
+ *
+ * Guarded the same way `devServer` is, and belt-and-braces: cleartext is ALSO gated by
+ * `android/app/src/debug/`, a source set a release build cannot include whatever this flag says.
+ */
+const androidTestOrigin =
+  process.env.CAP_ANDROID_TEST_ORIGIN === '1' && process.env.NODE_ENV !== 'production'
+
 // #0e0d10 is the app's real dark canvas (--lp-canvas, theme/tokens.css) — the native background +
 // splash must match it exactly so the shell never shows a white flash on launch or between views.
 const CANVAS = '#0e0d10'
@@ -64,7 +81,11 @@ const config: CapacitorConfig = {
     limitsNavigationsToAppBoundDomains: true, // App Store req; external links go via @capacitor/browser (#1310)
     allowsLinkPreview: false,
   },
-  android: { backgroundColor: CANVAS, captureInput: true },
+  android: {
+    backgroundColor: CANVAS,
+    captureInput: true,
+    ...(androidTestOrigin ? { allowMixedContent: true } : {}),
+  },
   // Route the WebView's fetch/XHR through the native HTTP stack. The API lives on a DIFFERENT
   // origin than the shell (capacitor://localhost → https://closelistening.app), so browser fetch
   // hits CORS: the cross-origin reads need Access-Control-* the coming-soon edge never sends, and an

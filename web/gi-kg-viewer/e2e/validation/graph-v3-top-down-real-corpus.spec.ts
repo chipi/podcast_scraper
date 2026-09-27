@@ -52,20 +52,26 @@ test.describe('Tier-3 graph-v3 tier 8 — top-down mount + expand-on-tap (real c
     // artifact. Fail LOUDLY here (not skip) — the operator's fixture is
     // committed and enriched deterministically, so a miss means the
     // corpus wasn't re-enriched before the walk.
-    const themeRes = await request.get(
-      `/api/corpus/theme-clusters?path=${encodeURIComponent(CORPUS_PATH)}`,
+    //
+    // ``min_members=0`` deliberately: this asserts what the ARTIFACT holds, not what the surface
+    // chooses to show. The endpoint has floored at DEFAULT_MIN_STORYLINE_MEMBERS (4) since #1936
+    // and every cluster in the synthetic corpus has 2 members, so the floored default returns
+    // zero clusters — this check then failed with "re-run the enricher", accusing a corpus that
+    // was never the problem.
+    const storylineRes = await request.get(
+      `/api/corpus/storylines?path=${encodeURIComponent(CORPUS_PATH)}&min_members=0`,
     )
     expect(
-      themeRes.status(),
+      storylineRes.status(),
       `topic_theme_clusters.json must exist under ${CORPUS_PATH}. ` +
         'Run `make enrich CORPUS=tests/fixtures/viewer-validation-corpus/v3 PROFILE=airgapped CORPUS_ONLY=1` first.',
     ).toBe(200)
-    type ThemeCluster = { super_theme_id?: string; super_theme_label?: string }
-    type ThemeDoc = { clusters?: ThemeCluster[]; super_theme_count?: number }
-    const themeBody = (await themeRes.json()) as { data?: ThemeDoc } | ThemeDoc
-    const themeDoc: ThemeDoc =
-      'data' in themeBody && themeBody.data ? themeBody.data : (themeBody as ThemeDoc)
-    const clusters = themeDoc.clusters ?? []
+    type StorylineCluster = { super_theme_id?: string; super_theme_label?: string }
+    type StorylineDoc = { clusters?: StorylineCluster[]; super_theme_count?: number }
+    const storylineBody = (await storylineRes.json()) as { data?: StorylineDoc } | StorylineDoc
+    const storylineDoc: StorylineDoc =
+      'data' in storylineBody && storylineBody.data ? storylineBody.data : (storylineBody as StorylineDoc)
+    const clusters = storylineDoc.clusters ?? []
     const supersInDoc = new Set(
       clusters
         .map((c) => c.super_theme_id ?? '')

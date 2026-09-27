@@ -117,6 +117,19 @@ export function insightStartSeconds(insight: Insight): number | null {
  */
 export const INSIGHT_LINGER_MS = 4000
 
+/**
+ * Playhead floor (seconds) before any insight may surface (operator 2026-09-19).
+ *
+ * The 0/0 degenerate-quote guard in {@link quoteContains} stops UNPLACED quotes from claiming t=0,
+ * but it cannot stop a quote that is genuinely placed at `start_ms: 0` with a real end — that
+ * window legitimately contains 0, so an insight painted over the artwork the instant the page
+ * opened, before a word had been played. Opening an episode should show the artwork, not a claim.
+ *
+ * This is the floor only; the caller also requires that playback has actually begun, because a
+ * resumed episode parks the playhead mid-recording where an insight is legitimately active.
+ */
+export const INSIGHT_MIN_CONTENT_SECONDS = 1
+
 function quoteContains(q: Quote, tMs: number, lingerMs = 0): boolean {
   if (q.start_ms == null) return false
   // A DEGENERATE WINDOW IS NOT A MOMENT IN THE AUDIO (#1978 follow-up).

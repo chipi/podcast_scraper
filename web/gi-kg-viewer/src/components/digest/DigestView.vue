@@ -52,7 +52,7 @@ const shell = useShellStore()
 const dashboardNav = useDashboardNavStore()
 const artifacts = useArtifactsStore()
 // Topic ids in any co-occurrence THEME cluster — teal ring on the pills below.
-const themeMemberIds = computed(() => themeMemberTopicIdSet(artifacts.themeClustersDoc))
+const themeMemberIds = computed(() => themeMemberTopicIdSet(artifacts.storylinesDoc))
 const graphHandoff = useGraphHandoffStore()
 const graphNav = useGraphNavigationStore()
 

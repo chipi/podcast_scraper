@@ -7,14 +7,15 @@
  * `PersonCard`. Graph navigation (tapping a related chip / a signal) emits `open`; `close` dismisses
  * the whole card (the shell re-emits it upward).
  */
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, ref } from "vue"
+import { useClampedProse } from "../composables/useClampedProse"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, PersonCard, PersonShow, Topic } from "../services/types"
 import EntitySignals from "./EntitySignals.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import NoteComposer from "./NoteComposer.vue"
-import EpisodeRow from "./EpisodeRow.vue"
+import EntityEpisodeList from "./EntityEpisodeList.vue"
 
 const props = defineProps<{ person: PersonCard }>()
 const emit = defineEmits<{
@@ -32,25 +33,11 @@ const personWeb = computed(() => props.person.web ?? null)
 // never hidden before layout has happened.
 const bioEl = ref<HTMLElement | null>(null)
 const bioExpanded = ref(false)
-const bioClipped = ref(true)
 
-function measureBio(): void {
-  const el = bioEl.value
-  if (!el || bioExpanded.value) return // expanded: the window no longer constrains anything
-  const prose = el.firstElementChild
-  if (!prose || el.clientHeight === 0) return
-  // The PROSE against the WINDOW — see EpisodeCard.measureSummary for why the reverse never fired.
-  bioClipped.value = prose.scrollHeight - el.clientHeight > 1
-}
-
-onMounted(() => {
-  measureBio()
-  if (typeof ResizeObserver !== "undefined" && bioEl.value) {
-    const ro = new ResizeObserver(() => measureBio())
-    ro.observe(bioEl.value)
-    onBeforeUnmount(() => ro.disconnect())
-  }
-})
+// Shared measurement — see `useClampedProse`. This file's copy observed via `onMounted`, which
+// misses a window that only appears in a second render, so the bio could sit stuck on its safe
+// "clipped" default forever.
+const { clipped: bioClipped } = useClampedProse(bioEl, bioExpanded)
 
 const photoArtist = computed(() =>
   (personWeb.value?.image_artist ?? "")
@@ -203,26 +190,6 @@ function searchLibrary(): void {
   <EntitySignals kind="person" :id="person.id" @open="(p) => emit('open', p)" />
 
 
-  <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). Host-show
-       back-catalogue is dropped above, so this is "also appears in" when they host anything. -->
-  <section v-if="shownEpisodes.length" class="mb-4">
-    <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
-      <span>{{
-        hostShows.length
-          ? t("ec.personOtherEpisodes", shownEpisodes.length, {
-              named: { count: shownEpisodes.length },
-            })
-          : t("ec.personEpisodes", episodeCount, { named: { count: episodeCount } })
-      }}</span>
-      <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
-    </h3>
-    <ul class="flex flex-col">
-      <li v-for="e in shownEpisodes" :key="e.slug">
-        <EpisodeRow :episode="e" />
-      </li>
-    </ul>
-  </section>
-
   <section v-if="relatedPeople.length" class="mb-4">
     <h3 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h3>
     <div class="flex flex-wrap gap-1.5">
@@ -251,7 +218,7 @@ function searchLibrary(): void {
     {{ t("ec.searchLibrary", { term: label }) }}
   </button>
 
-  <section v-if="relatedTopics.length">
+  <section v-if="relatedTopics.length" class="mb-4">
     <h3 class="lp-section mb-2">{{ t("ec.relatedTopics") }}</h3>
     <div class="flex flex-wrap gap-1.5">
       <button
@@ -264,6 +231,28 @@ function searchLibrary(): void {
         {{ tp.label }}
       </button>
     </div>
+  </section>
+
+  <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). Host-show
+       back-catalogue is dropped above, so this is "also appears in" when they host anything.
+
+       BELOW related people and related topics (operator 2026-09-19). It used to sit directly under
+       the biography, which put a long list between the two chip groups and the reader: on a
+       frequent guest you scrolled past dozens of episode rows to reach two rows of pills. Who this
+       person is connected to is the shorter, denser answer, so it comes first; the episodes are the
+       archive you descend into, and they sit above the notes where the page bottoms out. -->
+  <section v-if="shownEpisodes.length" class="mb-4">
+    <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
+      <span>{{
+        hostShows.length
+          ? t("ec.personOtherEpisodes", shownEpisodes.length, {
+              named: { count: shownEpisodes.length },
+            })
+          : t("ec.personEpisodes", episodeCount, { named: { count: episodeCount } })
+      }}</span>
+      <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
+    </h3>
+    <EntityEpisodeList :episodes="shownEpisodes" />
   </section>
 
   <!-- Notes on this person (PD.4). -->

@@ -85,6 +85,20 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/LoginView.vue'),
     meta: { public: true },
   },
+  {
+    /*
+     * "On this device" — downloads, offline, signed out (operator 2026-09-23).
+     *
+     * PUBLIC by necessity, not by preference: the whole point is that it is reachable when there is
+     * no network to sign in over, and every non-public route bounces to the landing. The view
+     * itself is the real gate — it redirects unless BOTH offline and signed out — so `public` here
+     * buys reachability, not openness.
+     */
+    path: '/offline',
+    name: 'offline-downloads',
+    component: () => import('../views/OfflineDownloadsView.vue'),
+    meta: { public: true },
+  },
   // #1261-6: subject deep-link + browse routes — full-page equivalents of the
   // modal EntityCard for topic / person ids, plus trending-backed index pages.
   {
@@ -180,7 +194,21 @@ router.beforeEach(async (to) => {
   const signedIn = auth.hasSession
   if (to.meta.public) {
     // Don't strand a signed-in user on the landing/login — bounce to their destination.
-    if (signedIn && (to.name === 'landing' || to.name === 'login')) {
+    //
+    // `isAuthenticated`, NOT `signedIn` (2026-09-24). `hasSession` is true on a bearer token ALONE,
+    // which is right for ADMITTING someone to authed routes — a transport failure must not strand a
+    // returning user on the landing. It is wrong for BLOCKING. With a token the server no longer
+    // honours and no resolved user, the app believed it was signed in, showed nothing (every authed
+    // call 401s) and redirected away from `/login` — the one screen that could have fixed it. A
+    // locked-out user with no way back in.
+    //
+    // Found on device: the dev picker "never rendered" across a dozen runs because `/login` kept
+    // bouncing to Home, while the masthead showed Search, Queue and "Your profile" — auth-gated
+    // controls on a session that could not name its own user.
+    //
+    // The asymmetry is the point: a token may ADMIT you, but only a known identity may BLOCK you
+    // from signing in. If the app cannot say who you are, you must always be able to say it.
+    if (auth.isAuthenticated && (to.name === 'landing' || to.name === 'login')) {
       return safeInternalPath(to.query.redirect) ?? { name: 'home' }
     }
     return true

@@ -126,4 +126,46 @@ describe('native delivery (operator 2026-09-18)', () => {
         `comment and add it to this assertion deliberately.`,
     ).toEqual([])
   })
+
+  /**
+   * A SECOND class, found on the device after the first was fixed (operator 2026-09-19).
+   *
+   * `openExternal` satisfies the check above — it is the native branch. But it opens
+   * SFSafariViewController, which does NOT share the app's WKWebView cookie jar. Hand it an
+   * AUTHENTICATED url and the request arrives signed-out: the export route returned the sign-in
+   * gate instead of the document, and the operator's report carried the tell — "when I copy the
+   * link from there and open it in a normal browser, it works fine", because that browser had a
+   * session.
+   *
+   * This failure is not silent, which is why it took a person rather than a test to find: something
+   * DOES open, it just shows the wrong page. It reads as a rendering bug rather than an auth one.
+   *
+   * So: an `/api/app/*` url may not be handed to `openExternal` on the native path. Fetch it with
+   * the app's credentials and share the bytes — the pattern every other export already uses.
+   */
+  it('no authenticated API url is handed to an external browser on native', () => {
+    const offenders: string[] = []
+    for (const f of sources(SRC)) {
+      if (EXEMPT.has(f.name)) continue
+      for (const m of f.text.matchAll(/openExternal\(([^)]*)\)/g)) {
+        const arg = m[1]
+        // The url-building helpers for auth-gated export routes. A literal `/api/app/` path counts
+        // too — the point is the route, not how the string was assembled.
+        const authed = /Url\(|\/api\/app\//.test(arg)
+        if (!authed) continue
+        // Acceptable only when the call is guarded by a web-only branch, i.e. native takes the
+        // fetch-and-share path instead.
+        const guarded = /if\s*\(!isNative\(\)\)/.test(f.text)
+        if (!guarded) offenders.push(`${f.name} → openExternal(${arg.trim()})`)
+      }
+    }
+
+    expect(
+      offenders,
+      `These hand an authenticated /api/app url to openExternal, which opens an external browser ` +
+        `with NO session cookie — so the user sees the sign-in gate instead of their document. ` +
+        `Fetch it with credentials and pass the bytes to saveAndShareText, the way the Markdown ` +
+        `and Obsidian exports already do, and keep openExternal for the web branch only.`,
+    ).toEqual([])
+  })
 })

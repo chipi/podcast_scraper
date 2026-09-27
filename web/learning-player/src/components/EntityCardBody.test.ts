@@ -181,10 +181,10 @@ describe("EntityCardBody — Follow control", () => {
         cluster_id: null,
         cluster_label: null,
         cluster_size: 0,
-        theme_cluster_id: "thc:sanctions",
-        theme_cluster_label: "sanctions",
-        theme_cluster_size: 3,
-        theme_sibling_topics: [
+        storyline_id: "thc:sanctions",
+        storyline_label: "sanctions",
+        storyline_size: 3,
+        storyline_sibling_topics: [
           { id: "topic:oil", label: "oil", cluster_id: null, cluster_label: null, cluster_size: 0 },
         ],
       })
@@ -204,9 +204,9 @@ describe("EntityCardBody — Follow control", () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
     vi.spyOn(api, "getTopicCard").mockResolvedValue(
       topicCard({
-        theme_cluster_id: "thc:sanctions",
-        theme_cluster_label: "sanctions",
-        theme_cluster_size: 3,
+        storyline_id: "thc:sanctions",
+        storyline_label: "sanctions",
+        storyline_size: 3,
       })
     )
     const w = mountAuthed({ kind: "topic", id: "topic:ai" })
@@ -220,7 +220,7 @@ describe("EntityCardBody — Follow control", () => {
   it("says so, quietly, when a topic is not part of any storyline", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
     vi.spyOn(api, "getTopicCard").mockResolvedValue(
-      topicCard({ theme_cluster_id: null, theme_cluster_label: null, theme_cluster_size: 0 })
+      topicCard({ storyline_id: null, storyline_label: null, storyline_size: 0 })
     )
     const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()

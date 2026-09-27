@@ -22,6 +22,7 @@
  */
 import { nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue"
 import { anchorPanel, type AnchorOptions } from "../utils/anchorPanel"
+import { sheetTeleportTarget } from "./sheetStack"
 
 /**
  * The component creates the trigger/panel template refs (so the template `ref=` bindings count as
@@ -34,6 +35,21 @@ export function useAnchoredMenu(
   hooks: { onOpened?: () => void } = {}
 ) {
   const open = ref(false)
+
+  /**
+   * Where this menu's panel teleports — `body`, or the open modal `<dialog>` when one is on screen.
+   *
+   * `body` alone was wrong inside a sheet (operator 2026-09-19: Collection and Share "do not work"
+   * on the topic sheet). A sheet opened from the Knowledge Panel lives in the panel's `showModal()`
+   * TOP LAYER, which sits above every z-index; a panel teleported to `body` therefore rendered
+   * UNDERNEATH it — invisible and untappable, while open/aria state all said it had opened. That is
+   * the same trap {@link sheetTeleportTarget} was written for, and every anchored menu was walking
+   * into it.
+   *
+   * Resolved on each OPEN, not at setup: the same trigger can be mounted while no dialog is open
+   * and tapped later with one on screen, and only the moment of opening knows which.
+   */
+  const teleportTarget = ref<HTMLElement | string>("body")
 
   function place(): void {
     const trigger = triggerEl.value
@@ -65,6 +81,9 @@ export function useAnchoredMenu(
   }
   function openMenu(): void {
     if (open.value) return
+    // Before `open`, so the panel's first render already lands in the right layer — resolving it
+    // after would teleport the panel a tick later, which is the flash `place()` avoids.
+    teleportTarget.value = sheetTeleportTarget()
     open.value = true
     void afterOpen()
   }
@@ -123,5 +142,5 @@ export function useAnchoredMenu(
   watch(open, (isOpen) => bind(isOpen))
   onBeforeUnmount(() => bind(false))
 
-  return { open, toggle, close, place }
+  return { open, toggle, close, place, teleportTarget }
 }

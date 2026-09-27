@@ -9,7 +9,7 @@
  * v-show (not v-if) keeps each panel mounted so switching tabs never refetches; supports ?tab= for
  * deep links.
  */
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
@@ -19,6 +19,7 @@ import CatalogView from './CatalogView.vue'
 import ShowBrowseView from './ShowBrowseView.vue'
 import DiscoveryExplorer from '../components/DiscoveryExplorer.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
+import SectionHeading from '../components/SectionHeading.vue'
 import { getPodcasts } from '../services/api'
 import type { Podcast } from '../services/types'
 import { scrollBehavior } from '../utils/motion'
@@ -26,6 +27,22 @@ import { scrollBehavior } from '../utils/motion'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+
+/** Discovery's search box (operator 2026-09-20). Same target as Home's Ask box and the masthead
+ *  magnifier — one capability, three doors. Blank submits are ignored rather than routing to an
+ *  empty result page. */
+const searchQuery = ref('')
+/* This view is kept-alive, so setup runs once and the box kept whatever you last typed — you
+   returned to Discovery and found a stale query sitting in it, which reads as the app having
+   remembered something you did not ask it to. Cleared on re-entry; the search you ran is still on
+   the results page, which is where it belongs. */
+onActivated(() => {
+  searchQuery.value = ''
+})
+function onSearchSubmit(): void {
+  const term = searchQuery.value.trim()
+  if (term) void router.push({ name: 'search', query: { q: term } })
+}
 
 // Trending-shows area at the very top of Discover (operator 2026-09-14): the catalogue supplies the
 // cover art the rail joins by feed_id (same as Home). "See all →" drops into the Shows tab below,
@@ -132,6 +149,35 @@ watch(
       see-all
       @see-all="onShowsSeeAll"
     />
+
+    <!-- Search, folded into Discovery (operator 2026-09-20): search stopped being a tab, because it
+         IS a discovery surface. Sits between trending shows and the trends dashboard, where the page
+         turns from "what's popular" to "go find something".
+
+         Same `lp-search` markup as Home's Ask box deliberately — two entry points to one capability
+         should be the same control, not two dialects of it. Half width from `lg` up, matching the
+         trends section directly below rather than stretching a single input across the column. -->
+    <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="browse-search-section">
+      <SectionHeading :title="t('ask.title')" />
+      <form class="lp-search mt-3 flex gap-2" @submit.prevent="onSearchSubmit">
+        <label class="sr-only" for="browse-search">{{ t('ask.kicker') }}</label>
+        <input
+          id="browse-search"
+          v-model="searchQuery"
+          type="search"
+          :placeholder="t('ask.placeholder')"
+          data-testid="browse-search-input"
+          class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
+        />
+        <button
+          type="submit"
+          data-testid="browse-search-submit"
+          class="h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-accent-foreground"
+        >
+          {{ t('search.title') }}
+        </button>
+      </form>
+    </section>
 
     <!-- The entity trends are their own section (operator 2026-09-14): the SAME tabbed DiscoveryList
          Home uses, capped at 10 here (5 on Home). The "Trends" title + "See all →" ride one header

@@ -13,13 +13,9 @@ import XCTest
  * PERFORM the action first (play episodes / choose interests) and then assert the panel changed —
  * and, for interests, that Home reacts, since interests are what feed its recommendations.
  */
-final class PersonalisationTests: XCTestCase {
+final class PersonalisationTests: UITestCase {
   private let episodes = ["p09-a4bbb5dde3", "p07-2aceab172c"]
 
-  override func setUp() {
-    super.setUp()
-    continueAfterFailure = true
-  }
 
   // MARK: - 09 play → stats
 
