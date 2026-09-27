@@ -289,7 +289,38 @@ async function createAndAdd(): Promise<void> {
             :data-contains="holds(c.id) ? 'true' : undefined"
             @click="pick(c.id)"
           >
-            <span class="min-w-0 flex-1 truncate">{{ c.name }}</span>
+            <!--
+              NO TRUNCATION. The board name wraps rather than being clipped (operator 2026-09-27,
+              after three wrong fixes and a diagnostic build).
+
+              The bug: on the SECOND open of this menu the names vanished, leaving only "✓ Added".
+              It read as a colour problem for three attempts and it was a LAYOUT problem.
+
+              Proven on device by tinting this span's box. First open: full-width box, names
+              visible. Second open: the box collapsed to a sliver, wide enough only for the
+              diagnostic's character count, with the name clipped away. The discriminator is the
+              `shrink-0` "✓ Added" sibling, which only exists once the item is in that board — i.e.
+              from the second open onwards. With no sibling the name is the row's only child and
+              gets full width whatever the flex maths says; with one, the distribution matters, and
+              it was being computed against the wrong container width — `place()` forces a
+              synchronous layout while the panel is still `visibility:hidden` at `left:0;top:0`,
+              and nothing invalidates it after the reveal.
+
+              `flex-1` did not save it: `flex: 1 1 0%` distributes FREE SPACE, and there was none to
+              distribute. `truncate`'s `overflow:hidden` then hid the text instead of letting it
+              spill, which is precisely what made a layout fault look like an invisible colour.
+
+              So the fix removes the need for the measurement to be right rather than trying to fix
+              the measurement: no `overflow:hidden`, no `nowrap`, no `flex-1`. A 224px panel with
+              short board names has room to wrap, and a wrapped name is legible where a clipped one
+              is nothing. `break-words` keeps a pathological name from widening the panel.
+
+              Deliberately NOT touched: `useAnchoredMenu`'s invisible-measure-reveal flow. Every
+              menu in the app shares it and it exists to prevent a focus-blur and an off-position
+              flash. If it needs fixing it should be fixed in `place()`, for all of them, not worked
+              around here.
+            -->
+            <span class="min-w-0 flex-1 break-words">{{ c.name }}</span>
             <span
               v-if="addedTo === c.id || holds(c.id)"
               class="shrink-0 whitespace-nowrap text-xs text-grounded"

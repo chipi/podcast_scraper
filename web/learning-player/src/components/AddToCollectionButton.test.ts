@@ -102,11 +102,26 @@ describe('AddToCollectionButton (#1839)', () => {
     expect(plain.classes(), 'an unheld row must state its colour').toContain('text-canvas-foreground')
     expect(held.classes(), 'a held row is grounded, and says so').toContain('text-grounded')
 
-    // A definite basis on the name, so the flex algorithm cannot collapse it to nothing.
+    /*
+     * The name must not be CLIPPABLE. Proven on device 2026-09-27: from the second open onwards —
+     * once the `shrink-0` "✓ Added" sibling exists — the flex distribution was computed against the
+     * wrong container width (a forced sync layout while the panel is still `visibility:hidden`),
+     * the name span collapsed to a sliver, and `truncate`'s `overflow:hidden` hid the text rather
+     * than letting it spill. Three fixes chased it as a colour bug because clipped and invisible
+     * look identical.
+     *
+     * So this asserts the ABSENCE of the clipping, not the presence of a width. A width can be
+     * computed wrong; `overflow: visible` cannot hide anything whatever the width comes out as.
+     */
     for (const row of rows) {
       const name = row.find('span')
-      expect(name.classes(), 'the board name must not be shrinkable to zero width').toContain('flex-1')
-      expect(name.classes()).toContain('min-w-0')
+      expect(
+        name.classes(),
+        'the board name is truncatable again — a mis-measured flex row will clip it to nothing, ' +
+          'which is the bug that took three attempts because it looks exactly like invisible text',
+      ).not.toContain('truncate')
+      expect(name.classes(), 'nor may it be clipped by hand').not.toContain('overflow-hidden')
+      expect(name.classes(), 'it wraps instead').toContain('break-words')
     }
   })
 
