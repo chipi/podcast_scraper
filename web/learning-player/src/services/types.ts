@@ -220,7 +220,17 @@ export interface PodcastSignals {
      */
     lift: number | null
   }>
-  key_people: Array<{ person_id: string; name: string; episode_count: number }>
+  /**
+   * Show-level people, ordered host > guest > mentioned then by footprint — ordered SERVER-side,
+   * so the client renders the array as given. `role` is null on older KGs that carried none; the
+   * chip renders unbadged rather than guessing "mentioned".
+   */
+  key_people: Array<{
+    person_id: string
+    name: string
+    episode_count: number
+    role?: string | null
+  }>
   recurring_guests: Array<{ person_id: string; name: string; episode_count: number }>
   dominant_storylines: Array<{
     storyline_id: string
