@@ -762,6 +762,46 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     ).not.toHaveBeenCalled()
   })
 
+  it("search collapses identical hits and drops the keyboard", async () => {
+    /*
+     * Two defects from one screenshot (operator 2026-09-27). The SAME chunk came back twice,
+     * filling a phone screen with room for about one result; and the keyboard covered the results,
+     * which render below the input.
+     *
+     * The dedupe is PRESENTATION, not a fix — duplicate chunks in the index are an index-side
+     * defect (same neighbourhood as #2159's chunking bug). Keyed on text, because the doc_ids
+     * differ; identical ids would already have been collapsed server-side.
+     */
+    const hit = (doc_id: string, text: string) =>
+      ({ doc_id, text, score: 1, metadata: {}, source_tier: "transcript" }) as never
+    vi.spyOn(api, "searchEpisode").mockResolvedValue({
+      query: "agents",
+      results: [hit("a", "Agentic engineering."), hit("b", "Agentic engineering."), hit("c", "Other.")],
+      error: null,
+    } as never)
+
+    const w = mountPanel()
+    await flushPromises()
+    const input = w.get("#kp-ask")
+    const blur = vi.spyOn(input.element as HTMLInputElement, "blur")
+    await input.setValue("agents")
+    await w.get("form").trigger("submit")
+    await flushPromises()
+
+    const texts = w.findAll("li p").map((p) => p.text())
+    expect(texts.filter((t) => t === "Agentic engineering.")).toHaveLength(1)
+    expect(texts).toContain("Other.")
+    expect(blur, "the keyboard must get out of the way of the results it just produced").toHaveBeenCalled()
+  })
+
+  it("the control says Search, because that is what it does", () => {
+    // It was labelled "Ask" while running `searchEpisode()` and rendering raw chunks. There is no
+    // synthesis endpoint in the app, so the label promised something nothing could produce.
+    const w = mountPanel()
+    expect(w.get("#kp-ask").attributes("placeholder")).toBe("Search this episode…")
+    expect(w.text()).not.toContain("Ask this episode")
+  })
+
   it("the viewer mounts INSIDE an open dialog, or the top layer hides it", async () => {
     /*
      * The regression this exists for (operator 2026-09-27): "on last deploy nothing happens when I

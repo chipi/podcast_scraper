@@ -441,17 +441,51 @@ const q = ref("")
 const results = ref<SearchHit[]>([])
 const searching = ref(false)
 const askError = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
+
+/**
+ * Collapse hits whose text is identical.
+ *
+ * The operator's screenshot showed the SAME chunk returned twice, filling a phone screen that only
+ * has room for about one result. This is presentation, NOT a fix: duplicate chunks in the index are
+ * an index-side defect, in the same neighbourhood as the chunking bug in #2159 (a boundaryless
+ * transcript became one 44,924-char chunk, and overlapping chunks return near-identical text).
+ * Collapsing them here stops the reader paying for it; it does not stop it happening, and the
+ * duplicate is still in the index for whoever picks that up.
+ *
+ * Keyed on trimmed text rather than `doc_id`, precisely because the ids differ — identical ids
+ * would have been deduped by the backend already.
+ */
+function dedupeByText(hits: SearchHit[]): SearchHit[] {
+  const seen = new Set<string>()
+  return hits.filter((h) => {
+    const key = (h.text ?? '').trim()
+    if (!key || seen.has(key)) return seen.has(key) ? false : true
+    seen.add(key)
+    return true
+  })
+}
+
 async function runSearch(): Promise<void> {
   const query = q.value.trim()
   if (!query) {
     results.value = []
     return
   }
+  /*
+   * Drop the keyboard before the results land (operator 2026-09-27).
+   *
+   * Results render BELOW the input, and on a phone the keyboard covers most of the panel — so a
+   * search you had just run showed you roughly one hit of however many it found. Blurring on
+   * submit dismisses it, which is also what the platform expects once a query is committed: the
+   * text field has done its job.
+   */
+  searchInput.value?.blur()
   searching.value = true
   askError.value = false
   try {
     const resp = await searchEpisode(props.slug, query)
-    results.value = resp.results
+    results.value = dedupeByText(resp.results)
     askError.value = Boolean(resp.error)
   } catch {
     askError.value = true
@@ -592,22 +626,38 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </p>
         </section>
 
-        <!-- Ask -->
+        <!--
+          SEARCH, not "Ask" (operator 2026-09-27: "Ask episode doesn't feel right here").
+
+          It was labelled Ask and it runs `searchEpisode()`, rendering ranked transcript chunks —
+          `hit.text`, with `kp.noResults` when empty. There is no synthesis endpoint in the app:
+          `app_search.py` exposes `GET /search` and nothing else. So the label promised an answer
+          that nothing in the stack could produce, which is the whole of why it "didn't feel right".
+
+          Renamed rather than built, deliberately and on the operator's call. Making it answer means
+          a new backend route, per-question gateway cost, and deterministic fixtures to keep CI
+          airgapped (LLMs in CI are banned). That is its own piece of work, not a label fix.
+
+          The three sibling keys — `searching`, `searchError`, `noResults` — already said "search".
+          Only the two user-facing ones lied, and the i18n KEYS were renamed too so the code stops
+          carrying the fiction.
+        -->
         <form class="mb-5" @submit.prevent="runSearch">
-          <label class="sr-only" for="kp-ask">{{ t("kp.ask") }}</label>
+          <label class="sr-only" for="kp-ask">{{ t("kp.searchAction") }}</label>
           <div class="lp-search flex gap-2">
             <input
               id="kp-ask"
+              ref="searchInput"
               v-model="q"
               type="search"
-              :placeholder="t('kp.askPlaceholder')"
+              :placeholder="t('kp.searchPlaceholder')"
               class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
             />
             <button
               type="submit"
               class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
             >
-              {{ t("kp.ask") }}
+              {{ t("kp.searchAction") }}
             </button>
           </div>
           <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
