@@ -310,8 +310,24 @@ final class AppSession {
         // DISTINCT from the OAuth-tab freeze fixed in the Makefile (the cached-app freezer
         // suspending com.android.chrome mid-consent): there the browser was in front and stalled,
         // here the app's own WebView is foregrounded and empty.
-        if (Journey.labelledInventory(1).startsWith("<nothing labelled")) {
-            System.out.println("=====RELAUNCH webview never painted in 30s; one more attempt=====");
+        for (int attempt = 1;
+                attempt <= 2 && Journey.labelledInventory(1).startsWith("<nothing labelled");
+                attempt++) {
+            // FORCE-STOP FIRST. Re-issuing the launch intent into the same process does not help —
+            // measured 2026-09-27, where exactly that retry fired and the tree stayed empty. The
+            // process is up and its WebView is wedged, so the only clean recovery is to end it and
+            // start again.
+            //
+            // The api log shows the shape precisely: app traffic right up to the moment of the
+            // relaunch, then NOTHING but the docker healthcheck. The bundle never loaded, so the
+            // app made no requests at all — an empty tree, not a slow one.
+            System.out.println("=====RELAUNCH webview blank; force-stop + retry " + attempt + "/2");
+            try {
+                Journey.device().executeShellCommand("am force-stop " + Journey.PKG);
+            } catch (Throwable ignored) {
+                // Best effort: if the shell is unavailable the plain relaunch below still runs.
+            }
+            Journey.sleep(2_000);
             ctx.startActivity(launch);
             Journey.device().wait(Until.hasObject(By.pkg(Journey.PKG).depth(0)), 30_000);
             long retry = System.currentTimeMillis() + 30_000;
