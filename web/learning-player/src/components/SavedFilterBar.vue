@@ -132,11 +132,30 @@ function clearAll(): void {
          the width on a phone and the mute bell dropped onto a line of its own, reading as a second,
          unrelated control. The swatches scroll horizontally instead; mute and clear are pinned
          right behind a hairline separator, which is what marks them as a different question from
-         "which colour" rather than position alone doing that job. -->
-    <div class="flex items-center gap-2">
+         "which colour" rather than position alone doing that job.
+
+         AND THEN IT FIT ON NO PHONE (operator 2026-09-27: "the colours are too spaced and there's
+         like some invisible scroll"). One row that scrolls is not one row — it is a row with a
+         hidden half, and the scrollbar is suppressed here, so nothing on screen says the sixth
+         colour exists. Measured off the device screenshot at 393pt: the content box is 324.6pt, the
+         strip was clipped at 263.6pt, and six `w-11` targets with `gap-1` need 284pt — 20.4pt over,
+         which is why violet was cut exactly in half.
+
+         The gaps were the whole overspend, and removing them is also what the operator asked for
+         visually: a 16pt dot centred in a 44pt target already shows 28pt of space, so the `gap-1`
+         was padding padding. The budget now reads 6x44 + 4 + 1 + 4 + 44 = 317pt in 324.6pt. `ml-auto`
+         below absorbs the 7.6pt of slack into the one place it belongs — between the colours and the
+         thing that is not a colour.
+
+         `overflow-x-auto` STAYS, on purpose. It is inert at this width and every wider one; it is
+         the fallback for a phone narrower than the operator's (a 375pt one is ~10pt short), where
+         scrolling to a swatch beats clipping it with no way to reach it at all. If the strip ever
+         needs a seventh colour, this arithmetic is what has to be redone — see the guard in
+         `__checks__/touch-affordances.test.ts`, which fails on a re-added gap. -->
+    <div class="flex items-center gap-1">
       <div
         v-if="showColors"
-        class="flex min-w-0 items-center gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        class="flex min-w-0 items-center overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="group"
         :aria-label="t('library.savedFilterColor')"
       >
@@ -204,9 +223,10 @@ function clearAll(): void {
            A toggle rather than an any/muted/active triple like the colours: "everything except the
            muted" is the default minus a handful, and the operator asked for one icon. If reviewing
            the ACTIVE set alone turns out to matter, this becomes a three-state control. -->
-      <div class="ml-auto flex shrink-0 items-center gap-2">
+      <div class="ml-auto flex shrink-0 items-center gap-1">
         <!-- A hairline, not a gap: "which colour" and "muted or not" are different questions, and
-             spacing alone did not say so once they shared a row. -->
+             spacing alone did not say so once they shared a row. It is doing more work at `gap-1`
+             than it was at `gap-2`, which is the point of keeping it while the gaps came down. -->
         <span
           v-if="showColors && showMuted"
           aria-hidden="true"

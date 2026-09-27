@@ -150,6 +150,55 @@ describe("affordances survive on touch", () => {
       )
     }
   })
+
+  it("the Saved colour strip FITS a phone, so its last swatch is not hidden behind a scroll", () => {
+    /*
+     * The strip is `overflow-x-auto` with the scrollbar suppressed, so overspending the width does
+     * not look like a bug — it looks like five colours. Measured off the operator's 393pt device on
+     * 2026-09-27: the content box is 324.6pt, and the row was asking for 284pt of swatches (6 x 44
+     * + 5 x gap-1) plus 8 + 1 + 8 + 44 on the right = 345pt. Violet was clipped exactly in half.
+     *
+     * The budget below is what makes the row honest. It is asserted from the source rather than
+     * from a layout, because jsdom does not lay anything out and the failure is purely dimensional
+     * — the same reason every other check in this file is static.
+     */
+    const PHONE_CONTENT_PT = 324.6 // measured; 393pt device less its ~34pt margins
+    const TARGET = 44 // h-11 / w-11, the touch floor the check above pins
+    const SWATCHES = 6 // "any colour" + HIGHLIGHT_COLORS
+    const SEPARATOR = 1 // the w-px hairline
+
+    // The row and the right-hand cluster must both be at gap-1 (4pt), and the swatch group at no
+    // gap at all. A `gap-2` anywhere here is 4pt the strip does not have.
+    // The LAST such div before the swatches, not the first — the first is the search+sort row
+    // above, which has its own width budget and would let a `gap-2` here pass unnoticed.
+    const anyAt = savedFilterBarSrc.indexOf("savedFilterColorAny")
+    const row = savedFilterBarSrc.slice(
+      savedFilterBarSrc.lastIndexOf('<div class="flex items-center gap-', anyAt),
+      anyAt,
+    )
+    expect(row, "the colour row went back to gap-2 — that is 4pt the strip cannot spare").toContain(
+      '<div class="flex items-center gap-1">',
+    )
+    expect(
+      row,
+      "the swatch group must carry NO gap: a 16pt dot inside a 44pt target is already spaced, and " +
+        "the gap is what pushed the sixth colour off screen",
+    ).not.toMatch(/class="flex min-w-0 items-center gap-\d/)
+    expect(
+      savedFilterBarSrc,
+      "the muted/clear cluster went back to gap-2",
+    ).toContain('class="ml-auto flex shrink-0 items-center gap-1"')
+
+    // And the arithmetic those classes buy, stated so a seventh colour fails HERE rather than on a
+    // device: strip + gap + hairline + gap + bell must clear the phone's content box.
+    const needed = SWATCHES * TARGET + 4 + SEPARATOR + 4 + TARGET
+    expect(
+      needed,
+      `the Saved filter row needs ${needed}pt but a phone gives ${PHONE_CONTENT_PT}pt — something ` +
+        "was added to the row. Adding a colour or a control here means re-deriving this budget, " +
+        "not letting the strip scroll: the scrollbar is hidden, so the overflow is invisible",
+    ).toBeLessThanOrEqual(PHONE_CONTENT_PT)
+  })
 })
 
 /**
