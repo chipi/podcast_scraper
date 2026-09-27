@@ -703,6 +703,18 @@ things depending on how you arrived. Extracted into one component used by both. 
 instance of: **when a surface gains a second entry point, the surface does not get to differ by
 entry point.**
 
+**And then the second entry point went too** (operator 2026-09-27). The full player's opener was
+removed for the same reason the mini-player's was, which left `QueuePanel` with no way in at all, so
+it was deleted; `/queue` is the one surface. Worth noting what the extraction bought: because both
+halves had already been made to travel together, deleting the panel cost nothing but the panel. Had
+Recently played still lived inside it, removing a *button* would have removed a *feature*.
+
+**What replaced it is an action, not a route.** The player's title row now carries the shared
+`QueueButton` — add/remove THIS episode, marked when it is already queued. The general form:
+**a control on an item's own surface should act on that item.** A button that only navigates
+somewhere the global nav already reaches is spending a slot to duplicate the masthead, and it has no
+state to show while it does it.
+
 **The mini-player line is a compact ROW, not a sentence.** Show as kicker, episode below — the shape
 Podcast, Queue and the entity lists already use. One truncated line ended in an ellipsis having said
 nothing about whose show it was, and the bar is often the only thing on screen that knows what is

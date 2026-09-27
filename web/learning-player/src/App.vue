@@ -586,7 +586,11 @@ const mainBottomPadding = computed(() =>
              are most likely to be in offline, on a plane, wanting the thing you queued.
              Not inside the `sm:` group with Browse/Library: the whole point is that it survives at
              phone width. The badge is the queue's own length, so the control answers "is there
-             anything in there" without being opened. -->
+             anything in there" without being opened.
+
+             This is also the ONLY nav-level way into the queue since 2026-09-27 — Home's resume
+             hero and the player's panel button were both removed as redundant with it, so the
+             reachability guard that used to sit on HomeView now sits on this control. -->
         <NavIconLink
           v-if="auth.hasSession"
           :to="{ name: 'queue' }"
@@ -595,8 +599,13 @@ const mainBottomPadding = computed(() =>
           owns="queue"
           data-testid="masthead-queue"
         >
+          <!-- A BARE list — no plus, no wedge (operator 2026-09-27).
+               It drew the list WITH a trailing wedge, which put it in the same family as
+               `QueueButton`'s lines-plus-a-plus, so both read as "add to the queue" and one of them
+               is a destination. The modifier is what says "act on this episode"; the plain list
+               says "go to the list". -->
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-            <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3z" />
+            <path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h10" />
           </svg>
         </NavIconLink>
         <!-- Notification bell, at EVERY width (wave-I): the in-app inbox surface. Authenticated

@@ -485,27 +485,17 @@ describe('the primary controls share one height (#2004 item 2)', () => {
     )
   })
 
-  it('the queue is reachable from the resume hero', () => {
-    // Its only other entrances are the full player and the mini-player, and the mini-player only
-    // exists while something is loaded — so with nothing playing the queue could not be opened at
-    // all (operator 2026-09-19). Source-level for the same reason as the two above.
-    expect(homeViewSource).toContain('data-testid="home-open-queue"')
-    expect(homeViewSource).toMatch(
-      /data-testid="home-open-queue"[\s\S]{0,300}?name:\s*'queue'|name:\s*'queue'[\s\S]{0,300}?data-testid="home-open-queue"/,
-    )
-  })
-
-  it('the queue control is legible over the hero artwork, and named', () => {
-    // It sits ON the episode cover. A `border-border text-muted` circle — the app's default quiet
-    // control — disappeared into whatever the artwork happened to be, so it carries the same
-    // plating `ShowRow` gives its over-artwork controls.
-    const block = homeViewSource.slice(
-      homeViewSource.indexOf('data-testid="home-open-queue"') - 600,
-      homeViewSource.indexOf('data-testid="home-open-queue"') + 300,
-    )
-    expect(block, 'the queue control lost its scrim over the artwork').toMatch(/bg-black\/\d+/)
-    expect(block, 'an icon-only control needs an accessible name').toContain('aria-label')
-    expect(block, 'touch target').toMatch(/\bh-11\b/)
+  it('the resume hero is Resume ALONE — the queue link moved to the masthead', () => {
+    // It carried a queue link from 2026-09-19 until 2026-09-27, added because nothing else could
+    // open the queue with no episode in progress. The masthead now carries one at every width and
+    // on every screen, which covers that case strictly better — a hero that only renders WHILE
+    // something is in progress is the worst possible home for "I finished everything, show me what
+    // I queued". Removed as duplication, not as a capability.
+    //
+    // The invariant it was really guarding — the queue stays reachable without playing something
+    // first — did not go away with it. It moved to `queue is reachable at every width` in
+    // __checks__/touch-affordances.test.ts, against the masthead control.
+    expect(homeViewSource).not.toContain('data-testid="home-open-queue"')
   })
 })
 

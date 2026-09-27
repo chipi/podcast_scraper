@@ -52,7 +52,11 @@ function code(src: string): string {
 const css = code(readFileSync(projectFile('src/style.css'), 'utf8'))
 const components = Object.entries(vue).map(([p, src]) => [p, code(src)] as const)
 
-const SHEETS = ['EntityCard', 'QueuePanel', 'InterestsPicker']
+// `QueuePanel` was one of these until 2026-09-27, when its last opener was removed and the
+// component deleted — the queue's one surface is the `/queue` page now. Dropped from the list
+// rather than the list dropped: the check below exists precisely so a deleted sheet cannot make the
+// three checks above pass vacuously, so it has to be told, not left to notice.
+const SHEETS = ['EntityCard', 'InterestsPicker']
 
 describe('sheet geometry is defined once', () => {
   it('.lp-sheet sets a MIN height, not only a max', () => {

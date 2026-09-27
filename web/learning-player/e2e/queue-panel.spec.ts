@@ -2,37 +2,21 @@ import { expect, test } from '@playwright/test'
 import { navTo, signInIsolated } from './helpers'
 
 /**
- * Player-surface Queue & Recently-played panel (#1838).
+ * Where the queue lives, and how you get to it.
  *
- * The Up-next / Recently-played lists used to be Library tabs; they now open FROM the player — a
- * queue button on the full player (next to the speed pill) and on the mini-player. This proves that
- * wiring at the level the component test can't: a real browser, the real modal, opened off the real
- * transport, and dismissed. Contents (queue rows, recent rows) are covered by QueuePanel.test.ts and
- * queue-reorder.spec — here we assert the surface exists where #1838 moved it.
+ * #1838 moved Up next / Recently played out of the Library tabs into a bottom-sheet panel opened
+ * from the transport — first from both players, then (2026-09-23) from the full player only, and
+ * now from neither: the operator removed the last opener on 2026-09-27 because it crowded the one
+ * row whose job is playback, and the masthead already carries a queue control at every width and on
+ * every screen. `QueuePanel` is deleted; `/queue` (`QueueView`) is the queue's one surface and it
+ * renders BOTH halves.
+ *
+ * So what this file proves is the ROUTE, not a modal: the masthead reaches the queue from a page
+ * that is not the player, both sections are there on arrival, and neither removed opener has
+ * quietly come back. The rows themselves are covered by queue-reorder.spec.
  */
 
-test('the full player opens the Queue & Recent panel and dismisses it', async ({ page }, testInfo) => {
-  await signInIsolated(page, 'queue-panel-full', testInfo)
-  // Reach the episode via its show page — date-independent, same route the other specs use.
-  await page.goto('/podcast/p05')
-  await page.getByText('Index Investing Without the Myths').first().click()
-  await expect(page).toHaveURL(/\/episode\//)
-
-  // The queue button is a static transport affordance (no playback required to open it).
-  const openQueue = page.getByTestId('player-queue')
-  await expect(openQueue).toBeVisible()
-  await openQueue.click()
-
-  const panel = page.getByTestId('queue-panel')
-  await expect(panel).toBeVisible()
-  await expect(panel.getByRole('heading', { name: 'Up next' })).toBeVisible()
-
-  // Dismiss via the close button (ESC / backdrop paths are covered by QueuePanel.test.ts).
-  await page.getByTestId('queue-panel-close').click()
-  await expect(panel).toHaveCount(0)
-})
-
-test('the mini-player hands the queue to the masthead, which lands on the full page', async ({
+test('the masthead reaches the queue, and the destination carries both halves', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'queue-panel-mini', testInfo)
@@ -64,27 +48,40 @@ test('the mini-player hands the queue to the masthead, which lands on the full p
   await page.getByTestId('masthead-queue').click()
   await expect(page).toHaveURL(/\/queue/)
   // The destination shows BOTH halves — Up next and the history — because it is now the queue's
-  // primary surface, not a subset of the panel reached from the player.
+  // primary surface, not a subset of a panel reached from the player.
   await expect(page.getByRole('heading', { name: 'Up next' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Recently played' })).toBeVisible()
   await expect(page.getByTestId('queue-panel-recent')).toBeVisible()
 })
 
-test('the panel is still reachable from the FULL player, with both sections', async ({
+test('the full player queues THIS episode instead of opening a panel', async ({
   page,
 }, testInfo) => {
-  // The panel did not go away — only the mini-player's route into it. The full player keeps it,
-  // because there the queue is a transport concern and a modal beats leaving the episode.
+  /*
+   * The opener that used to sit in the transport row is gone (operator 2026-09-27), and what took
+   * its place beside the heart is a different control: it acts on the episode rather than
+   * navigating, and it SHOWS whether this episode is already queued — which an open-a-panel button
+   * structurally could not.
+   *
+   * Both halves are asserted. Checking only that the new toggle works would stay green if the old
+   * opener came back beside it, which is the arrangement the operator objected to.
+   */
   await signInIsolated(page, 'queue-panel-player', testInfo)
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
   await expect(page).toHaveURL(/\/episode\//)
 
-  await page.getByTestId('player-queue').click()
-  const panel = page.getByTestId('queue-panel')
-  await expect(panel).toBeVisible()
-  await expect(panel.getByRole('heading', { name: 'Up next' })).toBeVisible()
+  await expect(page.getByTestId('player-queue')).toHaveCount(0)
+  await expect(page.getByTestId('queue-panel')).toHaveCount(0)
 
-  await page.getByTestId('queue-panel-close').click()
-  await expect(panel).toHaveCount(0)
+  // The heart's row owns it now. Named by its action, and the name flips once the write lands.
+  const add = page.getByRole('button', { name: 'Add to queue' })
+  await expect(add).toBeVisible()
+  await add.click()
+  await expect(page.getByRole('button', { name: 'Remove from queue' })).toBeVisible()
+
+  // ...and the episode really is in the queue, not merely relabelled optimistically.
+  await page.getByTestId('masthead-queue').click()
+  await expect(page).toHaveURL(/\/queue/)
+  await expect(page.getByText('Index Investing Without the Myths').first()).toBeVisible()
 })

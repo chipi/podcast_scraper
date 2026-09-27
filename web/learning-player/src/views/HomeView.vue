@@ -510,6 +510,11 @@ async function loadContinue(): Promise<void> {
         <!-- `play=1`: Resume means RESUME (operator 2026-09-18). This reads as a play control and
              behaved as a link — it opened the episode paused at the saved position, so continuing
              took a second tap on a transport further down the page. -->
+        <!-- Resume alone. The queue link that sat beside it is GONE (operator 2026-09-27): the
+             masthead carries a queue entry at every width and on every screen, which is strictly
+             more reach than a control that only exists while something is in progress — the exact
+             gap it was added for in the first place (2026-09-19). Two ways in, one of them
+             conditional, is one too many. -->
         <div class="mt-3 flex items-center gap-2">
           <RouterLink
             :to="{ name: 'player', params: { slug: resumeTop.detail.slug }, query: { play: '1' } }"
@@ -517,41 +522,6 @@ async function loadContinue(): Promise<void> {
             class="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 font-bold text-accent-foreground no-underline"
           >
             ▶ {{ t("home.resume") }} · {{ formatTime(resumeTop.position) }}
-          </RouterLink>
-          <!-- The queue, reachable without playing something first (operator 2026-09-19). Its only
-               entrances were the full player and the mini-player, and the mini-player is only there
-               while something is loaded — so with nothing playing the queue could not be opened at
-               all. This is the one place on Home that is already about "what I am listening to", so
-               it is where the way in belongs.
-
-               Same list glyph `QueueButton` draws, deliberately: that button ADDS to the queue and
-               this one OPENS it, and they are the same object.
-
-               Plated the way `ShowRow` plates its over-artwork controls, not left as a quiet muted
-               outline: this hero sits ON the episode artwork, so a `border-border text-muted`
-               circle disappeared into whatever the cover happened to be. Resuming is still the
-               primary action — that is the filled accent pill — and this reads as secondary
-               without depending on the image behind it being calm. -->
-
-          <RouterLink
-            :to="{ name: 'queue' }"
-            data-testid="home-open-queue"
-            class="lp-tap inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white no-underline shadow-lg backdrop-blur-sm transition hover:text-white"
-            :aria-label="t('queue.title')"
-            :title="t('queue.title')"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="h-5 w-5"
-              aria-hidden="true"
-            >
-              <path d="M13 6H3" /><path d="M13 12H3" /><path d="M13 18H3" /><path d="M15 16l2 2 4-4" />
-            </svg>
           </RouterLink>
         </div>
       </div>

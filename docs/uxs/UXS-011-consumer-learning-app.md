@@ -802,15 +802,24 @@ a **role badge** — the person's strongest KG role across the corpus (**host > 
 `trend-spark-role`) — so a trending person reads with *why* they trend (a frequent host vs a
 much-discussed guest); topics never carry a role.
 
-### Player-surface Queue & Recent (#1838)
+### Queue & Recent — one surface (#1838, settled 2026-09-27)
 
-**Up next** and **Recently played** are no longer Library tabs — they open FROM the transport as a
-bottom-sheet modal (`QueuePanel`, `queue-panel`, close `queue-panel-close`; mirrors the EntityCard
-modal shell — teleport, focus trap, Esc/backdrop dismiss). Triggers: `player-queue` on the full
-player (next to the speed pill, reachable while playing) and `mini-player-queue` on the mini-player.
-Two sections — **Up next** (the play queue, reused `QueueView`) and **Recently played**
-(`queue-panel-recent`; tapping a row **resumes**, it does not re-queue — the intent is find/resume,
-not build a queue).
+**Up next** and **Recently played** are no longer Library tabs, and no longer a panel either. They
+live together on the `/queue` PAGE (`QueueView`, root `queue-page`): **Up next** (the play queue)
+and **Recently played** (`queue-panel-recent`, the shared `RecentlyPlayedList`; tapping a row
+**resumes**, it does not re-queue — the intent is find/resume, not build a queue).
+
+Issue #1838 first put them in a bottom-sheet modal (`QueuePanel`), opened from the transport. Both openers
+were removed for the same reason, a few days apart: `mini-player-queue` on 2026-09-23 and
+`player-queue` on 2026-09-27. The masthead's `masthead-queue` reaches the queue at every width and
+on every screen, so each transport button was a second route to the same place, spending a slot on
+the most constrained strips in the app. With no opener left, `QueuePanel` was **deleted** —
+`queue-panel` and `queue-panel-close` no longer exist.
+
+What the full player keeps instead is the shared `QueueButton`, beside the heart in the title row:
+it adds or removes **this** episode and shows whether it is already queued. That is the thing a
+destination link cannot do, and the thing an open-a-panel button could not do either — it had no
+state to show.
 
 ### Collections (RFC-119 / #1839)
 

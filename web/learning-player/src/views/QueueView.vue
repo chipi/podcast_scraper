@@ -76,7 +76,11 @@ watch(() => queue.items.slice(), hydrateSafely)
 </script>
 
 <template>
-  <section>
+  <!-- `queue-page` gives the queue's one surface something to scope to, now that `QueuePanel` —
+       which specs used as their container — is gone with its last opener (2026-09-27). It is on the
+       root, so it is also present in the Library's embedded (`hideTitle`) mount; scope by the tab
+       there, as those specs already do. -->
+  <section data-testid="queue-page">
     <h1 v-if="!hideTitle" class="mb-5 font-display text-3xl font-extrabold tracking-tight">{{ t('queue.title') }}</h1>
     <!-- "Up next" labels the list only on the PAGE, and only since it gained a second section
          below it (2026-09-23): an unlabelled list followed by a labelled one reads as though the

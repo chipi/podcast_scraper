@@ -88,7 +88,7 @@ import Sparkline from '../components/Sparkline.vue'
 import { formatDuration, formatPublishDate, speakerLabel } from '../utils/format'
 import { episodeArtwork } from '../utils/episode'
 import { getPlayerViewSnapshot, setPlayerViewSnapshot } from './player-view-cache'
-import QueuePanel from '../components/QueuePanel.vue'
+import QueueButton from '../components/QueueButton.vue'
 
 const props = defineProps<{ slug: string }>()
 const { t, locale } = useI18n()
@@ -236,7 +236,6 @@ function onPanelBackdropClick(e: MouseEvent): void {
   if (e.target === panelDialog.value) panelOpen.value = false
 }
 const focusInsightId = ref<string | null>(null)
-const queueOpen = ref(false) // issue 1838 — queue & recently-played, from the player
 const loading = ref(true)
 const notFound = ref(false)
 /** The episode exists (or we cannot tell) but loading it failed — offer a retry, not a denial. */
@@ -1257,7 +1256,6 @@ onBeforeUnmount(() => {
     <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
     <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
-    <QueuePanel v-if="queueOpen" @close="queueOpen = false" />
 
     <!-- F1.3: reserve the player's shape on a cold uncached load (a cached episode paints instantly
          from its snapshot and never reaches here), so the surface fills in place with no jump. -->
@@ -1319,6 +1317,18 @@ onBeforeUnmount(() => {
               @capture="markMoment"
             />
             <FavoriteButton :item="favItem" class="text-xl" />
+
+            <!--
+              Queue THIS episode, beside the heart (operator 2026-09-27).
+
+              What sat in the transport row was a different control: it OPENED the queue panel. It
+              crowded the one row whose job is playback, and being an open-a-panel control it had no
+              state to show — you could not tell from the player whether this episode was already
+              queued. The masthead link already answers "take me to the queue" from every screen, so
+              the player keeps the action the masthead cannot do: add or remove THIS episode, with
+              the same marked state the icon carries on every card.
+            -->
+            <QueueButton :slug="props.slug" />
 
             <!--
               Pin THIS episode into a collection (#2013 follow-up).
@@ -1687,26 +1697,17 @@ onBeforeUnmount(() => {
               />
               </div>
             </template>
-            <!-- Queue & recently-played — a transport affordance next to the speed pill, where it's
-                 reachable while playing (was misplaced at the top of the page). -->
             <template #corner-right>
               <!-- Output routing, on the FULL player too (operator 2026-09-23: "we need such a
                    control somewhere else, not only when the player is small"). The mini-player is
                    where you notice audio went astray; this is where you go to do something about
-                   it. Self-hides when the platform reports no route available. -->
-              <RouteButton class="mr-2 h-11 w-11" />
-              <button
-                type="button"
-                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border text-canvas-foreground transition"
-                :aria-label="t('queue.open')"
-                :title="t('queue.open')"
-                data-testid="player-queue"
-                @click="queueOpen = true"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true">
-                  <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3" />
-                </svg>
-              </button>
+                   it. Self-hides when the platform reports no route available.
+
+                   The queue button that used to sit beside it is GONE (operator 2026-09-27): it
+                   opened the queue panel, which the masthead link already does from everywhere, and
+                   it made this row read as a grab-bag instead of a transport. The queue action that
+                   is specific to this episode moved up beside the heart. -->
+              <RouteButton class="h-11 w-11" />
             </template>
           </PlayerControls>
           <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">

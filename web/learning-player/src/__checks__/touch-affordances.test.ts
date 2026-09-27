@@ -193,3 +193,64 @@ describe("search survives the loss of its tab (#1588)", () => {
   })
 })
 
+/**
+ * Guardrail (operator 2026-09-23, re-homed 2026-09-27) — the queue must stay reachable without
+ * playing something first.
+ *
+ * `/queue` once had no nav entry: the only ways in were the player's queue button and Home's resume
+ * hero, and that hero renders ONLY while an episode is in progress. Finish everything you were
+ * listening to and the queue you had been filling became unreachable unless you first started an
+ * episode you did not want to play — which is also the state you are in offline, wanting exactly
+ * the thing you queued.
+ *
+ * Both of those entrances were removed on 2026-09-27 as duplication, leaving the masthead control
+ * as the ONLY one. That makes these checks load-bearing in a way they were not before: with the
+ * fallbacks gone, this link slipping inside the `hidden … sm:flex` span takes the queue off phones
+ * entirely, and the desktop layout would still look correct.
+ *
+ * Static source checks for the same reason as the rest of this file — the breakage is a media
+ * query, and jsdom does not evaluate one.
+ */
+describe("the queue is reachable at every width", () => {
+  it("the masthead queue link sits OUTSIDE the desktop-only icon span", () => {
+    const queueAt = appSrc.indexOf('data-testid="masthead-queue"')
+    expect(queueAt, "masthead queue link not found in App.vue").toBeGreaterThan(-1)
+
+    const desktopOnlyAt = appSrc.indexOf('class="hidden items-center gap-1.5 sm:flex"')
+    expect(desktopOnlyAt, "desktop-only icon span not found in App.vue").toBeGreaterThan(-1)
+    const spanClosesAt = appSrc.indexOf("</span>", desktopOnlyAt)
+    expect(spanClosesAt, "desktop-only span never closes").toBeGreaterThan(desktopOnlyAt)
+
+    // After the span closes => not inside it => visible at every width.
+    expect(
+      queueAt,
+      "the masthead queue icon must not be inside the `hidden … sm:flex` span: since Home's " +
+        "resume hero and the player's panel button were removed, it is the only way into /queue",
+    ).toBeGreaterThan(spanClosesAt)
+  })
+
+  it("the go-to-queue glyph carries no add-modifier", () => {
+    // It drew the list WITH a trailing wedge, which read as the same "add to queue" mark
+    // `QueueButton` draws with a plus — a destination dressed as an action (operator 2026-09-27).
+    // The modifier is the whole difference, so the absence of one is the thing to pin.
+    const start = appSrc.indexOf('data-testid="masthead-queue"')
+    const glyph = appSrc.slice(start, appSrc.indexOf("</svg>", start))
+    const paths = [...glyph.matchAll(/<path d="([^"]+)"/g)].map((m) => m[1])
+    expect(paths.length, "expected the masthead queue glyph's paths").toBeGreaterThan(0)
+    for (const d of paths) {
+      expect(
+        d,
+        `"${d}" is not a plain horizontal rule — a queue DESTINATION must not draw a plus, a ` +
+          "tick or a wedge, or it reads as add-to-queue",
+      ).toMatch(/^M\d+ \d+h\d+$/)
+    }
+  })
+
+  it("QueueButton keeps a modifier, so the two are never the same mark", () => {
+    // The other half of the pair: if QueueButton ever lost its plus/tick, the check above would
+    // still pass while both controls drew the identical bare list.
+    expect(queueButtonSrc, "the add state needs its plus").toContain('d="M21 12h-6"')
+    expect(queueButtonSrc, "the queued state needs its tick").toContain('d="M15 16l2 2 4-4"')
+  })
+})
+
