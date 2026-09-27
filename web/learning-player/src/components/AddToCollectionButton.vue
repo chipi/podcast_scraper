@@ -196,10 +196,20 @@ async function createAndAdd(): Promise<void> {
         <span aria-hidden="true">+</span>
         {{ t('collections.pill') }}
       </template>
-      <!-- A plain bookmark — the folded-corner-plus-plus glyph was too busy at 16px (operator
-           2026-09-13). "Add to collection" is carried by the aria-label / menu, not by icon detail. -->
+      <!-- A FOLDER with a plus — no longer a bookmark (operator 2026-09-27).
+           It drew `M6 3v18l6-4 6 4V3z`, which is the bookmark, and the bookmark is the app's
+           highlight mark: `CaptureMoment` in the player transport draws the same shape for
+           mark-a-moment, and the transcript's line save draws it too. The operator read the
+           transport's capture button as this one and asked for it to be removed as a duplicate —
+           it is not one, and on a phone it is the only way to mark a moment.
+           One glyph per concept: bookmark = highlight a fragment, heart = favourite a whole object,
+           and filing something into a named board is its own idea, so it gets its own mark. A
+           folder says "put it somewhere" without borrowing either. Still one stroke weight and no
+           detail below 16px — the reason the busier glyph was dropped in the first place
+           (operator 2026-09-13). -->
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-        <path d="M6 3v18l6-4 6 4V3z" />
+        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <path d="M12 11v6" /><path d="M9 14h6" />
       </svg>
       <!-- A non-hidden accessible name for the ICON-ONLY variant (2026-09-24, Android device tier).
            `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System

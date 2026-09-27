@@ -288,6 +288,46 @@ player. This section is the single contract; components conform, they do not re-
   `✓ Following`), rendered/behaving identically wherever it appears. It is not a save; the two are
   never merged and the episode heart is never swapped for a follow pill.
 
+### One glyph per concept (operator 2026-09-27)
+
+Three save-ish marks exist, and each belongs to exactly one destination. A glyph that appears in two
+of these rows is a bug, not a style choice.
+
+| Glyph | Concept | Scope | Store |
+| --- | --- | --- | --- |
+| **heart** `.lp-fav` | favourite | a WHOLE object — episode, show, topic, person | favorites |
+| **bookmark** `HighlightToggle` | highlight / capture | a FRAGMENT — a transcript span, an insight, a timestamp | capture → `/api/app/highlights` |
+| **folder+** `AddToCollectionButton` | file into a named board | anything, including a highlight | collections |
+
+This had to be written down because the app had broken it in both directions at once, and the
+operator found it from the outside — *"we can favourite insights and bookmark parts of transcript,
+feels inconsistent"*:
+
+- The **heart meant two things.** The Knowledge panel's insight save rendered `FavoriteButton` in a
+  `controlled` variant and announced *"Save to favorites"*, while writing an insight HIGHLIGHT
+  through the capture store. `services/types.ts` already carried the comment *"Saveable favorite
+  kinds. `insight` is NOT one — an insight is a capture"* (#1593 banned it). So the data layer was
+  right and the interface said the opposite, out loud, to a screen reader. The identical action one
+  panel away — saving a transcript line — drew a bookmark.
+- The **bookmark meant two things.** `AddToCollectionButton` drew `M6 3v18l6-4 6 4V3z`, and
+  `CaptureMoment` in the player transport draws the same shape for mark-a-moment. The operator read
+  the transport's capture control as a stray add-to-collection button and asked for it to be
+  deleted as a duplicate. It is not one: on a phone it is the ONLY way to mark a moment, because the
+  masthead's copy is `hidden lg:inline-flex`. A glyph collision came within one instruction of
+  removing a feature.
+
+The remedies are structural, not cosmetic. `FavoriteButton`'s `controlled` variant is **deleted**
+rather than left unused — while a parent could own the state, the heart could be reattached to a
+non-favourite store again, which is exactly how this happened. The insight save and the transcript
+line now render from **one** component. And collections took a new glyph, because it was the one
+borrowing rather than the one being borrowed from.
+
+**"Can I favourite an insight / collect a transcript line?"** — favouriting a fragment stays banned
+(#1593): a favourite is about a whole object. Collecting one already works, in two honest steps —
+highlight it, then add the highlight to a board (`kind: highlight` is a first-class collection
+item). Do not add a second control to a fragment to shortcut that; add it to the board from the
+highlight.
+
 **The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · queue inline
 plus a `⋯` overflow carrying download · add-to-collection, via the one component. Two inline + `⋯` is
 120px and fits the artwork-width card column in one row; four inline (176px of 44px targets) wrapped

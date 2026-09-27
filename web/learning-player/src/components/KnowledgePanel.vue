@@ -31,7 +31,7 @@ import { scrollBehavior } from "../utils/motion"
 import { useQueueStore } from "../stores/queue"
 import { useCaptureStore } from "../stores/capture"
 import CollapsibleSection from "./CollapsibleSection.vue"
-import FavoriteButton from "./FavoriteButton.vue"
+import HighlightToggle from "./HighlightToggle.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
@@ -959,18 +959,26 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   >
                     ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
                   </button>
-                  <!-- Favorite this insight (RFC-121): the ONE save affordance, the shared `.lp-fav`
-                     heart. It writes an insight highlight via the capture store — NOT the favorites
-                     store (favorite(insight) is banned, #1593). Auth-gated means deferred, not
-                     hidden (#1590): renders signed-out and routes to sign-in.
-                     `controlled` variant: FavoriteButton renders + names the button; KnowledgePanel
-                     owns the active state and toggle side-effect (capture store path). `label` is
-                     truncated insight text, giving each heart a distinct accessible name so multiple
-                     insights on one panel don't all announce identically (2026-09-25, Android tier). -->
-                  <FavoriteButton
-                    variant="controlled"
+                  <!-- Save this insight — a BOOKMARK, like every other highlight (operator
+                       2026-09-27).
+
+                       It was a heart, the shared `FavoriteButton` in its `controlled` variant. The
+                       destination was always right — it writes an insight highlight via the capture
+                       store, never the favorites store, because favourite(insight) is banned
+                       (#1593) — but the GLYPH said favourite, and the accessible name literally
+                       said "Save to favorites". So the heart meant a favourite on an episode header
+                       and a highlight here, while the identical action on a transcript line two
+                       panels away drew a bookmark.
+
+                       One glyph per concept now: bookmark = highlight, heart = favourite, and the
+                       transcript line and this share `HighlightToggle` rather than agreeing by
+                       coincidence. `label` is truncated insight text, so several on one panel do
+                       not all announce identically (2026-09-25, Android tier). -->
+                  <HighlightToggle
+                    context="insight"
                     :label="ins.text.slice(0, 60)"
-                    :active="savedInsightIds.has(ins.id)"
+                    :saved="savedInsightIds.has(ins.id)"
+                    :gated="isGated"
                     @toggle="captureInsight(ins)"
                   />
                 </span>

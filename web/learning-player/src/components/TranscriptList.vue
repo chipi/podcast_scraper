@@ -8,7 +8,7 @@
  * selected phrase, or the whole paragraph when nothing is selected.
  */
 import { computed, nextTick, ref, watch } from 'vue'
-import BookmarkIcon from './BookmarkIcon.vue'
+import HighlightToggle from './HighlightToggle.vue'
 import { useI18n } from 'vue-i18n'
 import { scrollBehavior } from '../utils/motion'
 import type { Segment } from '../services/types'
@@ -231,25 +231,20 @@ watch(
              point to the whole learning loop — transparent but still tappable: undiscoverable rather
              than obviously missing, which is worse than absent. PlayerView solved the same problem
              for its summary overlay with this media query. -->
-        <button
+        <!-- The shared `HighlightToggle` (operator 2026-09-27). This and the Knowledge panel's
+             insight save write to the SAME store, and now render from the same component rather
+             than agreeing by coincidence — the insight one used to draw a heart. The positioning
+             and the reveal behaviour stay HERE, because they are this list's problem, not the
+             affordance's; the glyph, the naming and the a11y text belong to the component. -->
+        <HighlightToggle
           v-if="canCapture"
-          type="button"
-          class="absolute right-0 top-1 rounded-full p-1 opacity-0 transition focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-          :class="paraSaved(para) ? 'text-accent opacity-100' : 'text-muted hover:text-accent'"
-          :aria-label="gated ? t('auth.signInToCapture') : paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
-          :title="gated ? t('auth.signInToCapture') : paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')"
-          :aria-pressed="gated ? undefined : paraSaved(para)"
-          @click="onCaptureParagraph(pi, para)"
-        >
-          <BookmarkIcon :size="16" :filled="paraSaved(para)" />
-          <!-- An icon COMPONENT is not a text node, so `aria-label` alone leaves this announced as
-               an unnamed "Button" on Android System WebView — a screen-reader user cannot tell what
-               saves a line of transcript. Found by the class-level guard rather than by a device
-               run (2026-09-26); no suite reaches this control. -->
-          <span class="sr-only">{{
-            gated ? t('auth.signInToCapture') : paraSaved(para) ? t('capture.savedLine') : t('capture.saveLine')
-          }}</span>
-        </button>
+          class="absolute right-0 top-1 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+          :class="{ 'opacity-100': paraSaved(para) }"
+          context="line"
+          :saved="paraSaved(para)"
+          :gated="gated"
+          @toggle="onCaptureParagraph(pi, para)"
+        />
       </div>
     </div>
   </div>
