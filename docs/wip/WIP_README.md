@@ -23,6 +23,20 @@ target.) When a permanent doc needs WIP content, **promote it** — copy the sub
 the durable source (shipped code, commit hash, issue/PR, or the ADR/RFC/PRD that superseded it).
 This is the rule the 2026-08-02 hygiene pass had to retrofit; the templates and AGENTS.md carry it.
 
+## Start here — the live handover
+
+**`BRANCH-HANDOVER-ui-followups-2026-09-27.md`** is the current entry point. It
+covers PR #2127 (110 commits, 2026-09-18 → 09-27) and links down to
+`DEVICE-TIERS-HANDOVER-2026-09-27.md` for the device-tier detail. Read the branch
+one first: it says which issues close on merge, which four are deliberately open,
+and what is NOT done.
+
+Every other `HANDOVER-*` / `*-handover.md` / `*-HANDOFF-*` file below belongs to an
+earlier, unrelated arc — 17 of them as of 2026-09-27. **They are not a reading
+list.** Several describe work that has since shipped and none has been re-checked;
+retiring them is the pending hygiene pass (`DOCS-HYGIENE-AUDIT-PLAN.md`, untracked).
+Open one only when its topic is the topic at hand.
+
 ## Current contents
 
 | File | Description | Status |
