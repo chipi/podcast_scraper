@@ -54,12 +54,32 @@ const SENT_CLASS: Record<'negative' | 'neutral' | 'positive', string> = {
 </script>
 
 <template>
-  <!-- Error says so and offers retry; a genuinely arc-less topic still renders nothing. No
-       skeleton — this sits inside an already-loading card. -->
+  <!-- A genuinely arc-less topic still renders nothing. -->
   <!-- The heading stays visible when this fails, so the error names what broke (#2004 item 12).
        See TopicPerspectives for the full reasoning — both render into the same slot on a topic
        page, and an unlabelled box could have been either. -->
   <section v-if="section.isError.value" class="mb-4" data-testid="topic-arc-error">
+    <h3 class="lp-section mb-2">{{ t('ec.conversationArc') }}</h3>
+    <SectionStatus :phase="section.phase.value" @retry="load()" />
+  </section>
+
+  <!--
+    LOADING SAYS SO (operator 2026-09-27: "conversation over time showed up later after I clicked
+    some buttons and was not there when I opened the page").
+
+    It was not the clicking — it was the wait. This section rendered literally nothing until the
+    fetch resolved, so it appeared out of nowhere however many seconds later; from the reader's side
+    that is indistinguishable from a section that comes and goes at random.
+
+    The comment that used to justify having no skeleton said "this sits inside an already-loading
+    card". True of the card, false of this: `topic_conversation_arc` reuses `topic_timeline`, a
+    corpus-wide scan that tags every insight with sentiment and rolls it up by ISO week, and it is
+    NOT cached — unlike episode reach, which memoises for 30s precisely because it is a big scan.
+    The card finishes long before this does, so "already loading" described a state that had ended.
+
+    Same heading in all three states, so the box never changes identity as it resolves.
+  -->
+  <section v-else-if="section.isLoading.value" class="mb-4" data-testid="topic-arc-loading">
     <h3 class="lp-section mb-2">{{ t('ec.conversationArc') }}</h3>
     <SectionStatus :phase="section.phase.value" @retry="load()" />
   </section>
@@ -76,11 +96,22 @@ const SENT_CLASS: Record<'negative' | 'neutral' | 'positive', string> = {
       style="height: 64px"
       data-testid="tca-bars"
     >
+      <!--
+        Bars GROW to fill the box when a topic has few weeks (operator 2026-09-27).
+
+        They were a fixed 8px, left-aligned, in a full-width scroller — sized for a topic with
+        dozens of weeks. A topic with two paints two hairlines against a wide empty rectangle, and
+        "53 insights" sitting beside it reads as a chart that failed to load rather than as a
+        conversation that happened in two weeks. Sparse data should look sparse, not broken.
+
+        `flex: 1 1 8px` with a 28px cap: few weeks spread across the width, many stay at their 8px
+        basis and scroll exactly as before. The cap is what stops three weeks becoming three slabs.
+      -->
       <div
         v-for="w in weeks"
         :key="w.week"
-        class="flex shrink-0 flex-col justify-end rounded-sm"
-        style="width: 8px"
+        class="flex flex-col justify-end rounded-sm"
+        style="flex: 1 1 8px; min-width: 8px; max-width: 28px"
         :style="{ height: Math.round((w.volume / maxVolume) * 48) + 6 + 'px' }"
         :title="`${w.week} · ${w.volume} · ${w.negative} ${t('ec.convNeg')} / ${w.neutral} ${t('ec.convNeu')} / ${w.positive} ${t('ec.convPos')} · avg ${w.avg_compound.toFixed(2)}`"
         :data-testid="`tca-bar-${w.week}`"
