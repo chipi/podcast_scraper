@@ -114,10 +114,27 @@ tier / locally.
 make enrich CORPUS=tests/fixtures/app-validation-corpus/v3 # corpus-scope + per-episode enrichers
 ```
 
+Prefix both commands with `HF_HUB_OFFLINE=1` — the build is deterministic and must not reach
+the network for models.
+
 The generator reuses the viewer generator's construction helpers
 (`scripts/build_synthetic_validation_corpus.py`: `build_gi`, `build_kg`,
-`parse_diarized_segments`, …) so GI/KG can't drift from what the readers expect. Full recipe:
-`docs/wip/SYNTHETIC-CORPUS-FULL-FIDELITY-PLAN.md`.
+`parse_diarized_segments`, …) so GI/KG can't drift from what the readers expect.
+
+**The shape this corpus targets** (from the 2026-09 full-fidelity realignment — check against
+these before assuming a validation failure is a generator bug):
+
+- **GI `schema_version` "3.1"** — Insight carries `episode_id`, `insight_type`
+  (claim / observation / recommendation) and `position_hint`; Episode matches the v3
+  `additionalProperties: false` shape and carries `feed_id`; insights carry `ABOUT` topic edges.
+- **KG `schema_version` "2.0"** — Episode is `{podcast_id, title, publish_date}`; Topic carries
+  `slug`; the edge is `MENTIONS`, not the older `RELATES_TO`; extraction `model_version` is
+  `provider:…`.
+- `topic_theme_clusters` v1.1.0 carries the `super_theme_id` / `super_theme_label` rollup.
+
+**The two-tier search index (`search/lance_index/`) is built at test setup and is NOT
+committed.** A stale one left behind here gets copied into the e2e corpus and silently indexes
+the wrong episode count — that failure presents as a search bug and is not one.
 
 ## Used by — the tier-3 layers that rely on this corpus (for other agents)
 

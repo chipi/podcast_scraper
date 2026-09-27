@@ -26,7 +26,7 @@ import {
  * every live result carries a `publish_date` (so the Timeline "undated" tally is 0, not 1), and
  * consensus pairs come back with `person_a_label` / `person_b_label` / `cosine_similarity` **null**
  * — the speakers are unnamed in this corpus. Those are noted at the tests and recorded in
- * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 const QUERY = 'systems thinking'
 

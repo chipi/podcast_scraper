@@ -49,7 +49,7 @@
  *
  * The relational routes it also stubs (``/api/relational/{positions,topics,co-speakers}``) DO
  * serve real data and can be migrated in the same pass, once the entry path exists. Recorded in
- * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 
 import { expect, test } from '@playwright/test'

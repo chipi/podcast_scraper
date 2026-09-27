@@ -166,12 +166,31 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
-   PHASE 3 CANDIDATES (#1950) — executed from the hands in docs/wip/REDESIGN-PHASE3-HANDS.md.
+   PHASE 3 CANDIDATES (#1950) — dealt from a fixed deck, then executed here.
 
-   Nothing here was chosen. Structure, colour, posture, typography and world were dealt from a
-   fixed deck; hue angle, ground lightness, chroma ceiling, radius, density and motion were dealt
-   as NUMBERS. Where a dealt number contradicts a dealt card, the resolution is written down rather
-   than quietly dropped.
+   Nothing here was chosen. Structure, colour, posture, typography and world were dealt as CARDS;
+   hue angle, ground lightness, chroma ceiling, radius, density and motion were dealt as NUMBERS.
+   Where a dealt number contradicts a dealt card, the resolution is written down rather than
+   quietly dropped.
+
+   THE RULES THESE WERE GENERATED UNDER — why the blocks look the way they do, and the constraints
+   any future direction must also meet:
+
+   · Every direction MUST set the font tokens. They are as value-open as the colours, and the
+     previous attempt rendered "hierarchy through type alone" in Inter at shipping weights. A
+     direction that does not touch type is a recolour, not a direction.
+   · Collisions are NOT resolved by ignoring a card. Where two cards cannot both hold literally,
+     the resolution is stated in that direction's own comment — e.g. "loud, three or more
+     saturated hues" dealt against a chroma ceiling of 4 (near-grey), so loudness had to come
+     from scale, weight and lightness instead of chroma.
+   · The artwork zone is a per-direction choice (operator ruling): fill it as the live
+     intelligence surface UXS-011 §43 promises, or shrink it to a band. Each block states which.
+
+   ACCEPTANCE TEST, applied AS RENDERED rather than as intended: a direction must differ from every
+   other candidate on at least three of four axes — palette, typography, posture, and what it does
+   with the artwork zone. "All square, all desaturated, all Inter" was the failure signature of the
+   previous attempt; if it reappears, the interpretation layer is winning and the deck is not the
+   problem.
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* ── SHRINE ───────────────────────────────────────────────────────────────────────────────────

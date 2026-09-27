@@ -1,6 +1,6 @@
 """The OG card renderer — a Pillow port of ``entityShareCard.ts``'s canvas draw.
 
-Same design as the client card (design note ``docs/wip/2026-09-11-share-card-design.md``):
+Same design as the client card (design note ``docs/uxs/UXS-017-share-cards.md``):
 near-black canvas, serif display, mono kickers/stats, ONE accent, square, lots of air. Kept in
 lock-step with the TS renderer by eye — this is the server twin used for ``og:image`` so a shared
 link unfurls as the card.

@@ -1,5 +1,5 @@
 # RECONSTRUCTED, not frozen. These diarization turns are built from the documented episode
-# structure in docs/wip/CORPUS-V4-FIXTURE-LADDER.md ("The anatomy of a real episode" / §G),
+# structure in docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md ("The anatomy of a real episode" / §G),
 # NOT extracted from a real pyannote run — no audio for this episode is on this machine.
 # Timings/proportions follow the doc's own measured breakdown (pre-roll ad ~30s of self-
 # introducing voices that never return; hosts alternating 26-42% of talk each; a guest holding

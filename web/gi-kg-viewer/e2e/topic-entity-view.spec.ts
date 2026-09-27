@@ -34,7 +34,7 @@
  * So "key voices" would migrate today, but the surfaces those two tests are actually named for —
  * cross-show coverage (FR4.2) and adjacent themes (#1055) — return empty for every topic in the
  * corpus. v4 requirement: a topic discussed on more than one show, and topics with genuine
- * adjacency. Recorded in docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * adjacency. Recorded in docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 
 import { expect, test } from '@playwright/test'

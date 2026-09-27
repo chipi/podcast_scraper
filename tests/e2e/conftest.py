@@ -1015,8 +1015,13 @@ def assert_cost_fields_populated(
 # Both sleep via a module-level `import time`, so we patch each module's `time` — scoped, so
 # global time.sleep and everything else are untouched. The retry LOGIC still runs (N attempts →
 # correct terminal error/behaviour), just instantly. e2e asserts behaviour + one-sided timing
-# (`elapsed < N`), never "backoff took ≥ N", so faster is safe. See
-# docs/wip/nightly-test-time-analysis.md.
+# (`elapsed < N`), never "backoff took ≥ N", so faster is safe.
+#
+# Why (2026-08-03 timing analysis): the nightly timeout had crept 30 → 45 → 60 minutes and the
+# cause was a handful of tests sitting in real backoff, not uniform growth — the two HTTP retry
+# tests above at ~248s each, plus six Gemini error-path tests at 59–123s. Whisper/ML tests that
+# are genuinely slow (~95–183s) are a separate class and are NOT neutralised here. If the
+# nightly creeps again, find the new real-`sleep` path before raising the timeout.
 import time as _e2e_real_time  # noqa: E402
 from unittest.mock import patch as _e2e_patch  # noqa: E402
 

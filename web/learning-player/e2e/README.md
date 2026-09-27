@@ -48,7 +48,7 @@ so specs exercise the actual server. The audio stub is gone (#1618). Remaining e
 
 - **5 data-shape stubs** in `perspectives`, `entity-signals` and `search-listener-features`, for
   states the corpus cannot produce (no speaker has >2 insights on one topic, etc). Each is a fixture
-  gap, recorded in [`CORPUS-V4-FIXTURE-LADDER.md`](../../../docs/wip/CORPUS-V4-FIXTURE-LADDER.md)
+  gap, recorded in [`TEST_CORPUS_FIXTURE_LADDER.md`](../../../docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md)
   (#1189) so corpus v4 can retire them.
 
 Do not add a sixth. If you need a state the corpus lacks, extend the corpus — a per-spec stub is

@@ -138,7 +138,7 @@ card server-side with Pillow (`server/og/`), and `server/spa.py` (`SpaStaticFile
 static rule reach the backend without the coming-soon gate. Kinds: topic, person, organization,
 episode, show, storyline. The server card layouts (full-bleed episode background, framed square,
 guest gallery, KPI trend tile) are richer than the client canvas card — kept in step by eye; the
-SSOT is `docs/wip/2026-09-11-share-card-design.md`.
+SSOT is `docs/uxs/UXS-017-share-cards.md`.
 
 ## Tab strips and option groups (#1594 item 7)
 

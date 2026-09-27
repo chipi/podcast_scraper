@@ -26,7 +26,7 @@ const TRANSCRIPT_BODY =
  * as `search-to-graph-mocks.spec.ts`: it drives a designed graph, not corpus content.
  *
  * v4 requirement: audio inside the corpus tree, so `/api/corpus/media` can serve it. Recorded in
- * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 test.describe('Transcript viewer dialog (mocked API)', () => {
   test.beforeEach(async ({ page }) => {

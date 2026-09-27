@@ -18,7 +18,7 @@
  * and prove nothing; migrating the matrix means redesigning the helpers, which is its own piece of
  * work rather than part of the per-spec sweep. Two of its rows additionally depend on states the
  * v3 corpus lacks (topic bands, and ``/api/corpus/runs/summary`` returning runs — both recorded in
- * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B).
+ * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B).
  */
 
 import { expect, test } from '@playwright/test'

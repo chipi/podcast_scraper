@@ -3,7 +3,7 @@
 Golden diarization fixtures for the speaker roster (`resolve_speaker_roster`,
 `src/podcast_scraper/providers/ml/diarization/roster.py`). Tracked by #1189;
 sequencing lives in `docs/wip/1000-EPISODES-REPROCESS-PLAN.md`; the case
-catalogue and rationale live in `docs/wip/CORPUS-V4-FIXTURE-LADDER.md` (§G,
+catalogue and rationale live in `docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md` (§G,
 "The anatomy of a real episode").
 
 ## The one rule
@@ -17,7 +17,7 @@ the shipped code.
 
 ## Friendly shorthand vs. the dataclass — read this before writing a fixture
 
-The fixture-ladder spec (`CORPUS-V4-FIXTURE-LADDER.md` §G) writes examples like:
+The fixture-ladder spec (`TEST_CORPUS_FIXTURE_LADDER.md` §G) writes examples like:
 
 ```yaml
 expected_roster:
@@ -155,6 +155,6 @@ verified empirically against the real roster before being wired up:
 - Fails → left defined (the transform exists and can be inspected/re-run) but
   NOT parametrized into the asserted suite, with a `# PENDING:` comment
   stating exactly what the roster does vs. what the spec expects, and a
-  reference to the relevant CORPUS-V4-FIXTURE-LADDER.md case number or issue.
+  reference to the relevant TEST_CORPUS_FIXTURE_LADDER.md case number or issue.
   Never `xfail`ed — an `xfail` still runs the assertion and a suite full of
   expected failures stops being read (§F, "a red suite is not a nuisance").
