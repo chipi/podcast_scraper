@@ -50,3 +50,40 @@ now references `docs/wip/`.
   enumerated here; that reverse map is the next hygiene sub-task if we want to find which WIP notes
   are ready to promote.
 - The remaining ~130 WIP docs were not re-classified beyond the original DONE/KEEP audit.
+  → **Pass 2 started this, 2026-09-27. See below.**
+
+## Pass 2 — 2026-09-27 (the ~130 re-classification)
+
+116 docs re-classified against git history, source, and issue state rather than their own
+status headers. **8 deleted** (app/UI + CI-test domain, every open item verified landed,
+zero referrers), **1 promoted** — `OPERATOR-SMOKE-TEST-PLAN.md` →
+`docs/guides/OPERATOR_SMOKE_TEST.md`, because `deploy-operator.yml` cited it and a workflow
+must not depend on a doc that gets deleted when its arc ends.
+
+**Three lessons this pass, which are the reusable part:**
+
+1. **The referrer sweep must not filter by file extension.** `REDESIGN-PHASE3-HANDS.md` was
+   deleted and restored: `web/learning-player/src/theme/directions.css` cites it as the
+   provenance of shipped theme numbers, and the first sweep's `--include` list had no `.css`.
+   A doc that live code cites for *why a value is what it is* is not stale, however finished
+   its arc looks.
+2. **Three permanent→WIP references had crept back**, so the 2026-08-02 claim of zero is no
+   longer true. `PRD-046:164`, and the two the promotion above fixed. The invariant needs a
+   guard, not another manual pass.
+3. **Index rows go stale in the direction that flatters the doc.** `WIP_README` described
+   `PLAN-storyline-theme-rename` as "Proposed, not started" when all six of its stages had
+   shipped and #1603 was closed. Trusting the index would have kept a finished plan forever.
+
+**NOT done in pass 2 (equal weight):**
+
+- **~23 backend-domain docs** (pipeline, corpus, enrichment, DGX, prod infra) were classified
+  but NOT acted on — they belong to a parallel thread working from another worktree, and
+  several of their open items live in `agentic-ai-homelab`, which this pass could not verify.
+- **4 docs are deletable only after an edit elsewhere**: `nightly-test-time-analysis.md`
+  (cited from `tests/e2e/conftest.py` + `tests/integration/conftest.py`), `MCP-E2E-GUIDE.md`
+  (cited from `docs/guides/MCP_SERVER_GUIDE.md`), `SYNTHETIC-CORPUS-FULL-FIDELITY-PLAN.md`
+  (cited from the fixture README), `PLAYER-CURATION-DELIVERY-MOAT-ARCH.md` (`PRD-046:164`).
+- **2 are promote-candidates, not deletes**: `manual-test-plan-gi-kg.md` and
+  `2026-08-13-e2e-on-intel-mac.md` are the only written copies of live procedures.
+- The other two NOT-covered items above (the ~376 permanent docs, the reverse reference map)
+  remain untouched.
