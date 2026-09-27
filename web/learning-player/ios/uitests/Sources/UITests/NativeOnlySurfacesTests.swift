@@ -98,6 +98,15 @@ final class NativeOnlySurfacesTests: UITestCase {
     // The prefix is "Queue (" and NOT "Queue": with `contains: true` a bare "Queue" also matches
     // the player's "Queue & recently played" BUTTON, and `find` checks buttons before links — so it
     // would tap the wrong control and open the wrong surface.
+    // TO THE TOP FIRST (2026-09-27). Queueing above scrolled Home down, and the masthead scrolls
+    // with the page — so the queue control is off screen, and a tap on it reports success while
+    // doing nothing. The test then asserted about the queue page from HOME, and its inventory said
+    // so: "CONTINUE LISTENING | … | Jump back in | … | Your Week | Trends", with `Queue (1)` proving
+    // the queueing itself had worked. The Android twin carries the same note; porting the queue
+    // step without it reproduced the bug the note exists to prevent.
+    for _ in 0..<8 { app.swipeDown() }
+    sleep(1)
+
     guard Journey.tap(app, labels: ["Queue ("], contains: true, timeout: 15) else {
       Journey.inventory(app, "queue-entry-missing")
       XCTFail("the masthead queue control was not reachable"); return
@@ -119,7 +128,29 @@ final class NativeOnlySurfacesTests: UITestCase {
 
     // The claim: the download control is in the ROW, reachable without opening the ⋯.
     let downloadNames = ["Downloaded — tap to remove", "Download for offline"]
-    let found = Journey.scrollTo(app, labels: downloadNames, contains: false)
+    // PROBE AND SWIPE, alternately — `scrollTo` is the wrong instrument here (2026-09-27).
+    //
+    // `Journey.scrollTo` gives up once two consecutive swipes leave the page signature unchanged,
+    // which on a short queue page is about four seconds — before the row this test just queued has
+    // had its episode detail fetched (`QueueView` renders each row `v-if="details[slug]"`). The
+    // identical stall detector cost the Android twin a day on `AppJourneyTests.test03`.
+    //
+    // It hid behind RESIDUE, twice: standalone and suite-only runs passed because an earlier run
+    // had left `p06-7217050bc6` in the queue, so the row was already there. Only the tier, where
+    // the queue starts empty and this test fills it, exercised the real path. Verified from a
+    // DELETED queue.json.
+    var found: XCUIElement?
+    for _ in 0..<12 {
+      found = Journey.find(app, labels: downloadNames, contains: false, timeout: 4)
+      if found != nil { break }
+      app.swipeUp()
+      sleep(1)
+    }
+    if found == nil {
+      // SAY WHAT IS ON SCREEN. Without it, "no download control" reads the same whether the row
+      // never rendered, the control is genuinely behind the ⋯, or the page never opened.
+      Journey.inventory(app, "queue-row-no-download")
+    }
     XCTAssertNotNil(
       found,
       "no download control on the queue row — it is still behind the ⋯, which is the bug this change fixed")
