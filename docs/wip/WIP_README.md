@@ -23,13 +23,23 @@ target.) When a permanent doc needs WIP content, **promote it** — copy the sub
 the durable source (shipped code, commit hash, issue/PR, or the ADR/RFC/PRD that superseded it).
 This is the rule the 2026-08-02 hygiene pass had to retrofit; the templates and AGENTS.md carry it.
 
-## Start here — the live handover
+## Start here — the live handovers
 
-**`BRANCH-HANDOVER-ui-followups-2026-09-27.md`** is the current entry point. It
-covers PR #2127 (110 commits, 2026-09-18 → 09-27) and links down to
-`DEVICE-TIERS-HANDOVER-2026-09-27.md` for the device-tier detail. Read the branch
-one first: it says which issues close on merge, which four are deliberately open,
-and what is NOT done.
+Two threads are in flight and each keeps its own handover. **Read the one for your
+thread; they do not cover each other.**
+
+- **App / UI** — `BRANCH-HANDOVER-ui-followups-2026-09-27.md` is the entry point for
+  PR #2127 (110 commits, 2026-09-18 → 09-27). It links down to
+  `DEVICE-TIERS-HANDOVER-2026-09-27.md` for the device-tier detail, and says which
+  issues close on merge, which four are deliberately open, and what is NOT done.
+- **Backend / processing** — that thread works from a separate worktree and lands
+  its own dated handover here. A second `HANDOVER-2026-09-*` file is **not a
+  duplicate of the above** — it is the other thread's, and equally live.
+
+Because this directory is shared by every branch, **do not retire a WIP doc that
+belongs to the other thread's domain** — pipeline, corpus, enrichment, DGX, prod
+infra — without that thread's say. A doc that looks stale from one side is often
+the other side's working plan.
 
 Every other `HANDOVER-*` / `*-handover.md` / `*-HANDOFF-*` file below belongs to an
 earlier, unrelated arc — 17 of them as of 2026-09-27. **They are not a reading
