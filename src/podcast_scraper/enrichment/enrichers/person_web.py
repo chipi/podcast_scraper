@@ -66,7 +66,10 @@ from podcast_scraper.enrichment.protocol import (
     RunContext,
     STATUS_OK,
 )
-from podcast_scraper.enrichment.resilience import DEFAULT_POLICIES
+from podcast_scraper.enrichment.resilience import (  # noqa: F401 - re-exported for org_web
+    DEFAULT_POLICIES,
+    UpstreamBlockedError,
+)
 from podcast_scraper.net.outbound_http import create_client
 from podcast_scraper.rss.http_retry import RetryTransport
 
@@ -196,6 +199,130 @@ def set_shared_web_limiter(limiter: ClusterRateLimiter | None) -> None:
     """
     global _SHARED_WEB_LIMITER
     _SHARED_WEB_LIMITER = limiter
+
+
+#: HTTP status Wikimedia's edge uses to block a client outright. NOT in the retry forcelist, so it
+#: surfaces straight to the caller instead of being retried.
+_BLOCK_STATUS = 403
+#: Phrases the edge serves in a block body. Presence is DEFINITIVE — no need to wait for a run of
+#: failures, because this is the upstream telling us in words that we are blocked.
+_BLOCK_BODY_SIGNATURES = ("robot policy", "please set a user-agent", "respect our robot")
+#: Consecutive 403s with an unrecognised body that still count as a block. A one-off 403 can be a
+#: single bad URL; three in a row is not.
+_BLOCK_TRIP_AFTER = 3
+
+
+class WebBlockBreaker:
+    """Trips when an upstream has BLOCKED us, so the run aborts instead of grinding (#2163).
+
+    This is the capability whose ABSENCE did the damage. Twice — 2026-09-16 and 2026-09-27 —
+    Wikimedia 403-blocked the egress IP and nothing noticed: 403 is not in the retry forcelist, so
+    each call surfaced as a ``TransientFetchError``, which the per-entity loop swallows and skips.
+    A 200-entity pass therefore walks its whole budget into a wall at ~1 req/s and reports
+    ``status: ok`` with zero rows fetched — a silent, expensive no-op.
+
+    Deliberately NOT a half-open circuit breaker: there is no useful "try one request to see if we
+    are back" cadence for an IP block that may last hours, and probing a block is what escalates
+    it. It latches for the RUN and that run ends. The next run starts fresh and re-trips within
+    three requests if the block persists, which is cheap.
+    """
+
+    def __init__(self, trip_after: int = _BLOCK_TRIP_AFTER) -> None:
+        self.trip_after = max(1, int(trip_after))
+        self._consecutive = 0
+        self._reason: str | None = None
+        self._run_id: str | None = None
+
+    def reset_for_run(self, run_id: str) -> None:
+        """Clear state when a NEW run starts. Idempotent within one run.
+
+        Scope matters here. Latching process-wide would be a worse bug than the one this fixes:
+        the API container is long-lived, so a single block would leave EVERY later enrichment run
+        failing instantly until someone restarted the container. Latching per run gives the
+        fail-fast benefit with automatic recovery.
+
+        Idempotent because both web enrichers run concurrently and share this instance — they each
+        call this with the same ``run_id``, so the first clears and the second is a no-op. Without
+        that guard the second enricher's reset could wipe a trip the first had just recorded.
+        """
+        if self._run_id == run_id:
+            return
+        self._run_id = run_id
+        self._consecutive = 0
+        self._reason = None
+
+    @property
+    def is_open(self) -> bool:
+        """True once a block has been detected — every further call should fail fast."""
+        return self._reason is not None
+
+    @property
+    def reason(self) -> str | None:
+        return self._reason
+
+    def note_success(self) -> None:
+        """A request got through, so reset the streak.
+
+        Only the STREAK resets. A latched-open breaker stays open: a stray success while blocked
+        (a cached edge response, say) must not reopen the floodgates mid-run.
+        """
+        if self._reason is None:
+            self._consecutive = 0
+
+    def note_response(self, status_code: int, body: str, url: str) -> None:
+        """Feed a non-success response; opens the breaker when it looks like a block."""
+        if status_code != _BLOCK_STATUS:
+            # 429/5xx is throttling or a wobble, handled by the limiter + RetryTransport. It must
+            # not count toward the block streak, or ordinary throttling would abort runs.
+            return
+        lowered = (body or "").lower()
+        definitive = any(sig in lowered for sig in _BLOCK_BODY_SIGNATURES)
+        self._consecutive += 1
+        if self._reason is not None:
+            return
+        if definitive or self._consecutive >= self.trip_after:
+            detail = " ".join((body or "").split())[:200]
+            how = "policy body matched" if definitive else f"{self._consecutive} consecutive 403s"
+            self._reason = (
+                f"upstream blocked this client: HTTP {status_code} from {url} ({how}) "
+                f"body={detail!r}"
+            )
+            _logger.error(
+                "web enrichment STOPPING: %s — aborting the run rather than issuing further "
+                "requests. Continuing would burn the whole budget against a wall and risks "
+                "escalating a temporary block into a permanent one (#2163).",
+                self._reason,
+            )
+
+    def raise_if_open(self) -> None:
+        """Fail fast when already blocked, without issuing a request."""
+        if self._reason is not None:
+            raise UpstreamBlockedError(self._reason)
+
+
+def _safe_body(response: httpx.Response) -> str:
+    """The response body as text, or ``""`` — reading it must never mask the real failure."""
+    try:
+        return response.text or ""
+    except Exception:  # pragma: no cover - defensive; a streamed/closed body is not worth raising
+        return ""
+
+
+_WEB_BLOCK_BREAKER: WebBlockBreaker | None = None
+
+
+def web_block_breaker() -> WebBlockBreaker:
+    """The ONE breaker both web enrichers share — a block is per-IP, so both must stop."""
+    global _WEB_BLOCK_BREAKER
+    if _WEB_BLOCK_BREAKER is None:
+        _WEB_BLOCK_BREAKER = WebBlockBreaker()
+    return _WEB_BLOCK_BREAKER
+
+
+def set_web_block_breaker(breaker: WebBlockBreaker | None) -> None:
+    """Test/run seam — inject a breaker, or ``None`` to reset for a fresh run."""
+    global _WEB_BLOCK_BREAKER
+    _WEB_BLOCK_BREAKER = breaker
 
 
 def _log_retry_after(response: httpx.Response, url: str) -> None:
@@ -507,16 +634,27 @@ class WikipediaProvider:
 
         Throttled per upstream CLUSTER by the shared limiter: see :class:`ClusterRateLimiter`
         and ``_WEB_MIN_INTERVAL_S``.
+
+        Raises :class:`UpstreamBlockedError` — deliberately NOT a ``TransientFetchError``, so the
+        per-entity loop does not swallow it — once :class:`WebBlockBreaker` has seen a block.
         """
+        breaker = web_block_breaker()
+        # Fail before spending the throttle slot: once blocked, every request is waste.
+        breaker.raise_if_open()
         self._limiter.wait(url)
         try:
             resp = self._client.get(url, headers={"User-Agent": _USER_AGENT})
             if resp.status_code == 404:
+                # An authoritative "nothing here" still proves the upstream is answering us.
+                breaker.note_success()
                 return None
             if resp.status_code != 200:
+                breaker.note_response(resp.status_code, _safe_body(resp), url)
+                breaker.raise_if_open()
                 raise TransientFetchError(f"HTTP {resp.status_code} from {url}")
+            breaker.note_success()
             doc = resp.json()
-        except TransientFetchError:
+        except (TransientFetchError, UpstreamBlockedError):
             raise
         except (httpx.HTTPError, ValueError) as exc:
             raise TransientFetchError(f"{type(exc).__name__} from {url}") from exc
@@ -604,7 +742,12 @@ class WikipediaProvider:
 
         Returns a :class:`FetchedImage` on success; :data:`IMAGE_SKIP` when the photo is PERMANENTLY
         un-hostable (no resolvable license, or unsupported/oversize/mismatched bytes) so the caller
-        caches a skip; and ``None`` on a transient network error so the caller retries next run."""
+        caches a skip; and ``None`` on a transient network error so the caller retries next run.
+
+        Raises :class:`UpstreamBlockedError` when the shared breaker is open — a block must stop
+        image work too, and it must NOT be mistaken for "this photo is un-hostable" and cached as a
+        permanent skip (#2163)."""
+        web_block_breaker().raise_if_open()
         attribution = self._image_attribution(image_url)
         if attribution is None:
             return None  # transient imageinfo failure → retry next run
@@ -1328,6 +1471,9 @@ class PersonWebEnricher:
         """Shared body for both passes: fetch only unknown people, merge onto ``known``."""
         max_persons = int(config.get("max_persons", _DEFAULT_MAX_PERSONS))
         refresh = bool(config.get("refresh", False))
+        # Per-RUN block detection (#2163): a fresh run gets a fresh breaker, so yesterday's block
+        # does not fail today's run. Idempotent, so org_web's identical call cannot reset a trip.
+        web_block_breaker().reset_for_run(ctx.run_id)
         # ENTITY scope: rows already derived are CARRIED FORWARD and the budget is spent only on
         # people never seen before. This used to be `_distinct_persons(...)[:max_persons]`, a
         # slice of an ID-SORTED corpus-wide list — not a rate limit but a permanent coverage

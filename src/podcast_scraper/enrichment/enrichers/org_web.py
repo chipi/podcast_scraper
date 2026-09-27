@@ -38,12 +38,15 @@ from podcast_scraper.enrichment.enrichers.person_web import (
     _IMAGE_MAX_BYTES,
     _image_sniff_ok,
     _ImageSkip,
+    _safe_body,
     _USER_AGENT,
     ClusterRateLimiter,
     FetchedImage,
     IMAGE_SKIP,
     shared_web_limiter,
     TransientFetchError,
+    UpstreamBlockedError,
+    web_block_breaker,
 )
 from podcast_scraper.enrichment.protocol import (
     EnricherManifest,
@@ -287,16 +290,26 @@ class WikidataProvider:
         """``None`` ONLY for an authoritative 404; every other failure raises
         :class:`TransientFetchError` so the caller does not record a false miss.
         Throttled per upstream CLUSTER via the shared limiter — see ``ClusterRateLimiter`` and
-        ``_WEB_MIN_INTERVAL_S`` in ``person_web``."""
+        ``_WEB_MIN_INTERVAL_S`` in ``person_web``.
+
+        Raises :class:`UpstreamBlockedError` (NOT a ``TransientFetchError``, so the per-entity loop
+        cannot swallow it) once the shared :class:`WebBlockBreaker` has seen a block — the block is
+        per-IP, so this enricher must stop when ``person_web`` is blocked and vice versa."""
+        breaker = web_block_breaker()
+        breaker.raise_if_open()
         self._limiter.wait(url)
         try:
             resp = self._client.get(url, headers={"User-Agent": _USER_AGENT})
             if resp.status_code == 404:
+                breaker.note_success()
                 return None
             if resp.status_code != 200:
+                breaker.note_response(resp.status_code, _safe_body(resp), url)
+                breaker.raise_if_open()
                 raise TransientFetchError(f"HTTP {resp.status_code} from {url}")
+            breaker.note_success()
             doc = resp.json()
-        except TransientFetchError:
+        except (TransientFetchError, UpstreamBlockedError):
             raise
         except (httpx.HTTPError, ValueError) as exc:
             raise TransientFetchError(f"{type(exc).__name__} from {url}") from exc
@@ -460,7 +473,11 @@ class WikidataProvider:
         return IMAGE_SKIP  # answered with no imageinfo → unlicensed → permanent
 
     def fetch_image(self, image_url: str) -> FetchedImage | _ImageSkip | None:
-        """Resolve the logo's license (Commons) then download+validate. Mirrors person_web."""
+        """Resolve the logo's license (Commons) then download+validate. Mirrors person_web.
+
+        Raises :class:`UpstreamBlockedError` when the shared breaker is open, so a block is never
+        mistaken for "this logo is un-hostable" and cached as a permanent skip (#2163)."""
+        web_block_breaker().raise_if_open()
         license_ = self._logo_license(image_url)
         if license_ is None:
             return None  # transient license lookup → retry next run
@@ -772,6 +789,9 @@ class OrgWebEnricher:
         """Shared body for both passes: fetch only unknown orgs, merge onto ``known``."""
         max_orgs = int(config.get("max_orgs", _DEFAULT_MAX_ORGS))
         refresh = bool(config.get("refresh", False))
+        # Per-RUN block detection (#2163). Same call person_web makes, with the same run_id, and
+        # reset_for_run is idempotent — so whichever enricher starts second cannot clear a trip.
+        web_block_breaker().reset_for_run(ctx.run_id)
         # ENTITY scope: the output is keyed by org_id, so rows already derived on a previous run
         # are CARRIED FORWARD and the budget is spent only on organisations never seen before.
         #

@@ -94,6 +94,27 @@ class RunTimeoutError(Exception):
     """
 
 
+class UpstreamBlockedError(Exception):
+    """An upstream has BLOCKED this client outright — stop, do not retry (#2163).
+
+    Distinct from :class:`DependencyAccessError` and from the web enrichers'
+    ``TransientFetchError``, both of which mean "this one call failed, try again".
+    A block means *every* subsequent call will fail the same way until a human or
+    the upstream clears it, so continuing is pure waste — and worse than waste,
+    since hammering a block is what escalates a temporary throttle into a
+    permanent ban.
+
+    Non-retryable on purpose: retrying is the wrong response to being blocked.
+    The executor turns it into ``status: "failed"`` and the run ends early.
+
+    History: on 2026-09-16 and again on 2026-09-27 Wikimedia 403-blocked the
+    egress IP. Nothing detected it. The pipeline would have spent hours issuing
+    requests into a wall, and the per-entity loop only swallows
+    ``TransientFetchError`` — so this being a *different* type is what makes the
+    run actually abort instead of quietly skipping every entity.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Classification of failures
 # ---------------------------------------------------------------------------
@@ -123,6 +144,10 @@ def classify_failure(exc: BaseException) -> RetryClass:
     if isinstance(exc, BadInputError):
         return RetryClass.NON_RETRYABLE
     if isinstance(exc, RunTimeoutError):
+        return RetryClass.NON_RETRYABLE
+    # Declared explicitly rather than left to the safety net below: being blocked is a
+    # deliberate "do not retry", not an unrecognised exception we happen to treat that way.
+    if isinstance(exc, UpstreamBlockedError):
         return RetryClass.NON_RETRYABLE
 
     # Retryable-once: heavy resource init paths.
