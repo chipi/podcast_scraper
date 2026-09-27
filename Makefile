@@ -2259,6 +2259,18 @@ test-ios:
 		exit 1; \
 	}
 	@echo ""; echo "=== test-ios START $$(date '+%Y-%m-%d %H:%M:%S') — sim '$(IOS_SIM)' ==="
+	@# A CLEAN APP, every run — the iOS half of Android's `pm clear` (2026-09-27).
+	@#
+	@# App state SURVIVES a reinstall on the simulator, and a download left in a FAILED state
+	@# survives with it: the Downloaded list then never fills, and phase 1 fails hunting episodes
+	@# that were never written. MEASURED — `DownloadThroughUITests` failed the post-rebase run at
+	@# 103.6s, then passed in 103.7s after nothing but `simctl uninstall`. Same commit, same code.
+	@#
+	@# The Android tier has done `pm clear` every run since the tier was written; iOS did nothing,
+	@# and the handovers carried "a persisted FAILED download poisoned two iOS runs" as a known
+	@# fragility rather than a fixed one. Uninstall is the simulator's equivalent: the next target
+	@# installs a fresh bundle anyway, so this costs nothing but removes the carry-over.
+	@xcrun simctl uninstall booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
 	@set -e; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/6 download (seeds the offline suites) ==="; \
 	$(MAKE) test-app-ios-sim-download; \

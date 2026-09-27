@@ -54,14 +54,33 @@ final class NativeOnlySurfacesTests: UITestCase {
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
     guard startClean(app) else { XCTFail("sign-in did not complete as \(accountIdentity)"); return }
 
-    // Queue the seeded episode, so Up next has a row whose download state we already know.
-    AppSession.openEpisode(app, slug: seeded.slug)
-    if !Journey.tap(app, labels: ["Add to queue"], timeout: 10) {
-      // Already queued from an earlier suite on the shared account — fine, that is the state we want.
-      XCTAssertTrue(
-        Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 10),
-        "neither queue control was reachable on the player")
+    // Queue from a HOME LIST ROW, not from the player (2026-09-27).
+    //
+    // There is no add-to-queue on the player and there never was (operator 2026-09-26):
+    // `PlayerView.vue` contains no `QueueButton` on this branch, on main, or before the rebase.
+    // The control lives on LIST rows — browse, library, Home's what's-new — where you are scanning
+    // episodes you have not committed to. `QueueButton` is rendered by `EpisodeActions`, which
+    // those rows use and the player does not.
+    //
+    // This step used to open the episode and tap "Add to queue" there. The Android twin already
+    // recorded why that was wrong, when its precise enumeration made the same step fail honestly:
+    // "It passes only because its lookup cannot tell the player's buttons apart and matches a
+    // different one ... Porting that step faithfully would mean copying a test that verifies
+    // nothing." Android was rewritten to queue from a Home row (`02391c3e0`); iOS never was.
+    //
+    // It survived because the queue is SERVER-side and the shared `simtest` account carried one
+    // from earlier sessions. A rebuilt fixture api reset that, and the step failed — measured
+    // 2026-09-27: zero `POST/PUT /api/app/queue` in the container's whole lifetime, so nothing in
+    // the tier had queued anything; the assertion had been riding on residue.
+    XCTAssertTrue(Journey.openTab(app, "Home"), "Home was not reachable")
+    var queued = Journey.scrollTo(app, labels: ["Add to queue"], contains: false) != nil
+      && Journey.tap(app, labels: ["Add to queue"], timeout: 10)
+    if !queued {
+      // Already queued on the shared account is a legitimate state — assert the OTHER control
+      // rather than assuming it.
+      queued = Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 5)
     }
+    XCTAssertTrue(queued, "no queue control on any Home list row, so nothing can reach Up next")
 
     // The masthead queue control (operator 2026-09-23). Asserted on the way in rather than taken
     // for granted: before it existed, `/queue` was reachable only from the player or Home's resume
@@ -83,6 +102,20 @@ final class NativeOnlySurfacesTests: UITestCase {
       Journey.inventory(app, "queue-entry-missing")
       XCTFail("the masthead queue control was not reachable"); return
     }
+
+    // WAIT FOR THE ROW BEFORE ASSERTING WHAT IS INSIDE IT (2026-09-27).
+    //
+    // `QueueView` renders each row `v-if="details[slug]"`, so a slug queued moments ago has no row
+    // until its episode detail has been fetched. Assert the row first, or a detail still in flight
+    // reads as "the download control is missing" — the bug this test exists to catch.
+    //
+    // MEASURED: queueing and navigating immediately found no download control; a re-run with the
+    // item ALREADY queued passed in 62s. Same build, same code — the difference was the fetch. That
+    // is also why this must not be left alone: it would then pass only on a queue populated by some
+    // earlier run, which is exactly the residue this test was just rescued from.
+    XCTAssertNotNil(
+      Journey.scrollTo(app, labels: [seeded.title], contains: true, maxSwipes: 10),
+      "the queued episode never appeared in Up next")
 
     // The claim: the download control is in the ROW, reachable without opening the ⋯.
     let downloadNames = ["Downloaded — tap to remove", "Download for offline"]
