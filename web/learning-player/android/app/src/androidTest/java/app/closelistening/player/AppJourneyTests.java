@@ -144,6 +144,18 @@ public class AppJourneyTests extends UITestCase {
                 Journey.openTab("Home"));
         Journey.sleep(4_000);
 
+        // BRING THE TRENDS RAIL INTO VIEW BEFORE ASKING FOR ITS TAB (2026-09-27).
+        //
+        // Home's LENGTH is a function of account state. With history the page grows a "Continue
+        // listening" hero, a "Jump back in" row and a filled "Your Week" — measured on this very
+        // failure: "CONTINUE LISTENING | … | 4 IN PROGRESS | Jump back in | … | 4 NEW | Your Week"
+        // — and that pushes the Trends rail off screen. Android's tree holds only ON-SCREEN nodes,
+        // so the tab is then ABSENT, not merely far down, and the tap fails naming the tab.
+        //
+        // The tier's `pm clear` resets the DEVICE, not the server-side ACCOUNT, so this test sees a
+        // short Home on a fresh account and a long one after anything has played — which is why it
+        // passed all day and then failed deterministically once the account had been used.
+        Journey.scrollTo("Trends", false);
         boolean storylinesTab = Journey.tap("Storylines", false, 15_000);
         if (!storylinesTab) {
             fail("Storylines tab not found on the Home rail. On screen: "
@@ -163,8 +175,43 @@ public class AppJourneyTests extends UITestCase {
         // nodes, so a rail below the fold is not merely hard to reach — it is absent, and
         // `tapTopmost` has nothing to enumerate. Measured 2026-09-26: the dump at this point ended
         // at "Trends", well above the storyline rows, on a Home that was rendering them.
-        if (Journey.scrollTo("momentum", true) == null) {
-            fail("no storyline row anywhere on Home after scrolling. On screen: "
+        // WAIT FOR THE ROWS; DO NOT SCROLL FOR THEM (2026-09-27).
+        //
+        // `scrollTo` is the wrong instrument for a list that arrives over the network. It gives up
+        // EARLY BY DESIGN: its stall detector breaks out once two consecutive swipes leave the page
+        // signature unchanged, which on a Home this short is about four seconds — well before
+        // `/api/app/trending` has answered. Its final probe is a further 1.5s, so the whole thing
+        // concedes in ~5s and the rows land just after.
+        //
+        // That is why the failure was deterministic (2/2 probes) AND why the dump attached to it
+        // contained the very row being looked for:
+        //     Managing risk across domains (4) — 0.4× momentum[Button,click]
+        // Present at dump time, absent while scrollTo was asking.
+        //
+        // `find` polls the whole tree until its deadline, so it covers both the fetch and the
+        // render. Scroll only as a fallback, for a Home long enough to push the rail off screen.
+        // Same lazy-render trap StackDepthProbeTests records for the insights accordion, where the
+        // fix was likewise "a LONG final wait" rather than more swiping.
+        // SCROLL *AND* WAIT, alternately. Neither alone works here.
+        //
+        // `scrollTo` probes 1.5s per swipe and gives up once two swipes leave the page signature
+        // unchanged — too brief for rows that arrive from `/api/app/trending`. A plain `find`, even
+        // a 40s one, fails differently: Android's tree holds only ON-SCREEN nodes, so waiting does
+        // nothing while the list is below the fold. And `scrollTo("Trends")` returns the moment the
+        // HEADING enters the tree, which can leave the rows beneath it still off screen — that is
+        // what defeated the previous attempt here.
+        //
+        // So: probe generously, swipe, repeat. Covers a slow fetch and a long Home at once.
+        UiObject2 storylineRow = null;
+        for (int i = 0; i < 12 && storylineRow == null; i++) {
+            storylineRow = Journey.find("momentum", true, 4_000);
+            if (storylineRow == null) {
+                Journey.swipeUp();
+                Journey.sleep(800);
+            }
+        }
+        if (storylineRow == null) {
+            fail("no storyline row on Home after 12 scroll-and-wait rounds. On screen: "
                     + Journey.labelledInventory(80));
         }
         boolean storylineTapped = tapTopmost(Arrays.asList("momentum"), true);
