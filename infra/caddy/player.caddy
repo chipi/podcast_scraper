@@ -153,6 +153,38 @@ closelistening.app {
 		reverse_proxy 127.0.0.1:8092
 	}
 
+	# CORPUS ENTITY IMAGERY — the same defect as @avatar above, in the two places it was never
+	# carried across (operator 2026-09-27: "I've never seen them work with any person").
+	#
+	# Both endpoints were deliberately unauthenticated at the app layer for exactly this reason —
+	# `routes/app_relational.py` person_photo says so in as many words, citing serve_avatar and
+	# #2109 — and, exactly as before, the EDGE was never told. Measured on prod 2026-09-27:
+	#
+	#   inside compose-api-1:  /api/app/persons/person:ben-horowitz/photo -> 200 image/jpeg 31392
+	#   through this edge:     the same path              -> 200 text/html 1278  (the page below)
+	#
+	# A 200 of coming-soon HTML is the worst possible answer to an `<img src>`: it is not an error,
+	# so nothing logs and nothing retries — the browser simply fails to decode HTML as an image and
+	# `ProfileAvatar` falls back to initials. That is every person avatar in the app, on web and
+	# native alike: the person card's 112px portrait, a topic's Top voices rail, key voices. 712 of
+	# the 880 rows in `enrichments/person_web.json` have a hosted photo (36 MB on disk) and not one
+	# has ever been seen.
+	#
+	# What is exposed is already public — Wikipedia/Wikimedia portraits stored with their CC credit,
+	# strictly less sensitive than the user's own avatar directly above, and than show artwork in
+	# @teaser. The app layer still owns the sanitising: the id is reduced to [a-z0-9._-] and matched
+	# against a directory enumeration, so no path here can traverse.
+	#
+	# GET only, and both wildcards need their trailing segment: the id-less siblings
+	# (`/api/app/persons/{id}`, `/api/app/organizations/{id}`) are the CARD data and must stay gated.
+	@entity_media {
+		method GET
+		path /api/app/persons/*/photo /api/app/organizations/*/logo
+	}
+	handle @entity_media {
+		reverse_proxy 127.0.0.1:8092
+	}
+
 	# Fallback: a valid Basic-auth Authorization header also reaches the app. Keeps
 	# `curl -u` verification working; browsers use the cookie above.
 	@authed header Authorization *
