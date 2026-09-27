@@ -204,7 +204,7 @@ The operator viewer (`operator.closelistening.app`, `gi-kg-viewer`) has the **sa
 standalone dispatch **and** `deploy-all-prod` (which calls `deploy-operator` reusably). It covers the
 public coming-soon gate, the Google sign-in redirect (HTTPS `redirect_uri` regression guard), health,
 and — when the account below is seeded — the **authed operator plane** as a creator (read routes 200;
-admin routes **403**, i.e. the role boundary). Full design: `docs/wip/OPERATOR-SMOKE-TEST-PLAN.md`.
+admin routes **403**, i.e. the role boundary). Full design: `docs/guides/OPERATOR_SMOKE_TEST.md`.
 
 **Creator-only by design** — we deliberately do NOT mint an *admin* session in CI (an admin token that
 can read the user-management plane is needless overhead + a security gap for a smoke; a creator token

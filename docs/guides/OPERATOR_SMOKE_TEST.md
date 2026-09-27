@@ -1,6 +1,10 @@
-# Operator surface — post-deploy live smoke test plan
+# Operator surface — post-deploy live smoke test
 
-**Status:** planning → implementing (2026-08-27)
+**Status:** shipped and wired; promoted out of `docs/wip/` on 2026-09-27 because
+`.github/workflows/deploy-operator.yml` cites it — a workflow must not depend on a doc
+that gets deleted when its arc ends. The smoke job drives
+`web/gi-kg-viewer/e2e/live/smoke.live.spec.ts` (unauthed) and `account.live.spec.ts`
+(authed creator + role boundary). §8 is the one-time operator setup and stays manual.
 **Surface:** `operator.closelistening.app` (the `gi-kg-viewer` SPA + `PODCAST_SERVE_OPERATOR_PUBLIC` backend)
 **Sibling:** mirrors the player post-deploy smoke (`docs/guides/PLAYER_PUBLIC_LAUNCH.md` → "Post-deploy live smoke"). This is the **third surface** (task #18) after the player public + per-user smoke.
 
