@@ -762,6 +762,40 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     ).not.toHaveBeenCalled()
   })
 
+  it("the viewer mounts INSIDE an open dialog, or the top layer hides it", async () => {
+    /*
+     * The regression this exists for (operator 2026-09-27): "on last deploy nothing happens when I
+     * click PDF on insights". Something did happen — the notes fetched and the overlay rendered.
+     * It was just invisible, because this panel is `showModal()`'d on mobile and therefore in the
+     * TOP LAYER, which paints above the entire normal layer no matter what z-index anything there
+     * carries. The viewer was teleported to `body` with `z-[60]` and sat behind the panel.
+     *
+     * Asserted as the TELEPORT TARGET rather than as visibility, deliberately: jsdom implements
+     * neither the top layer nor `showModal` stacking, so an element hidden behind a modal is
+     * indistinguishable here from one in front of it. Three tests passed over this bug for exactly
+     * that reason. The target is the thing a unit test CAN see, so the target is what gets pinned.
+     */
+    vi.spyOn(native, "isNative").mockReturnValue(true)
+    vi.spyOn(api, "fetchEpisodeNotes").mockResolvedValue("<html><body>NOTES BODY</body></html>")
+
+    const dialog = document.createElement("dialog")
+    dialog.setAttribute("open", "")
+    document.body.appendChild(dialog)
+
+    const w = mountPanel()
+    await flushPromises()
+    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await flushPromises()
+
+    const frame = document.querySelector('[data-testid="episode-notes-frame"]')
+    expect(frame, "the viewer did not render at all").toBeTruthy()
+    expect(
+      dialog.contains(frame),
+      "the viewer mounted outside the open <dialog>, so on device the top layer paints over it " +
+        "and the control looks dead — use sheetTeleportTarget()",
+    ).toBe(true)
+  })
+
   it("the viewer still reaches the share sheet — that is the route to Print → Save as PDF", async () => {
     vi.spyOn(native, "isNative").mockReturnValue(true)
     const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)

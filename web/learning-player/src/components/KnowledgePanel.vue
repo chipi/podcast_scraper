@@ -26,6 +26,7 @@ import { hitStartSeconds, insightStartSeconds } from "../player/insights"
 import { speakerLabel } from "../utils/format"
 import EpisodeRow from "./EpisodeRow.vue"
 import { useAuthStore } from "../stores/auth"
+import { sheetTeleportTarget } from "../composables/sheetStack"
 import { useSignInGate } from "../composables/useSignInGate"
 import { scrollBehavior } from "../utils/motion"
 import { useQueueStore } from "../stores/queue"
@@ -113,6 +114,15 @@ function notesUrl(ext: 'md' | 'html'): string {
 const printingNotes = ref(false)
 const notesHtml = ref<string | null>(null)
 const notesError = ref(false)
+/**
+ * Where the viewer mounts — the OPEN DIALOG when there is one, else `body`.
+ *
+ * This panel is `showModal()`'d on mobile, so it lives in the top layer, and the top layer paints
+ * above everything in the normal layer regardless of z-index. Teleporting the viewer to `body` put
+ * it behind the panel: rendered, correct, invisible. Resolved at open rather than at setup, because
+ * whether a dialog is up depends on the route the reader took to get here.
+ */
+const notesTeleportTarget = ref<HTMLElement | string>('body')
 
 async function openPrintableNotes(): Promise<void> {
   if (!isNative()) {
@@ -122,6 +132,7 @@ async function openPrintableNotes(): Promise<void> {
   if (printingNotes.value) return
   printingNotes.value = true
   notesError.value = false
+  notesTeleportTarget.value = sheetTeleportTarget()
   try {
     notesHtml.value = await fetchEpisodeNotes(props.episode.slug, 'html')
   } catch {
@@ -680,9 +691,22 @@ watch(() => auth.isAuthenticated, loadCaptures)
         <!--
           The notes, OPEN, on native (operator 2026-09-27).
 
-          Teleported to `body` and `fixed inset-0` rather than rendered in place: this panel is a
-          `<dialog>`, and on mobile a MODAL one, so anything inside it is clipped by the dialog's
-          own box and sits under its top layer. The viewer has to be able to cover it.
+          TELEPORTED INTO THE OPEN DIALOG, NOT INTO `body`. This panel is a `<dialog>` opened with
+          `showModal()` on mobile (`PlayerView.vue`), which puts it in the TOP LAYER — and the top
+          layer paints above the whole normal layer no matter what z-index anything there carries.
+          The first version of this teleported to `body` with `z-[60]`; the notes fetched, the
+          overlay rendered, and it sat invisible BEHIND the panel. The operator's report was "on
+          last deploy nothing happens when I click PDF on insights", and nothing is exactly what it
+          looked like. My own comment here named the hazard and then did the opposite of what it
+          said.
+
+          `sheetTeleportTarget()` is the existing answer to this — it returns `dialog[open]` when
+          there is one and `body` otherwise, and `EntityCard` already uses it for the same reason.
+          Resolved per open, because whether a dialog is up depends on how you got here.
+
+          None of my three tests caught it: jsdom implements neither the top layer nor `showModal`
+          stacking, so an element hidden behind a modal is indistinguishable there from one on top
+          of it. The device tier is the only place this is observable, and it does not run in CI.
 
           An `<iframe srcdoc>` is what makes this work without a second request. The export is a
           COMPLETE standalone document — its own `<html>`, its own print stylesheet — so injecting
@@ -695,7 +719,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
           `sandbox` with nothing granted: the document is ours, but it is assembled from episode
           content, and a viewer has no reason to run script or navigate anywhere.
         -->
-        <Teleport to="body">
+        <Teleport :to="notesTeleportTarget">
           <div
             v-if="notesHtml"
             class="fixed inset-0 z-[60] flex flex-col bg-canvas"
