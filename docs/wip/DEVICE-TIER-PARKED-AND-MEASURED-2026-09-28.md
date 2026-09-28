@@ -447,3 +447,41 @@ the next iOS fix: no iOS result means anything until each run starts from a know
 **NOT VERIFIED:** whether `signOut` works from a clean state; the four other iOS defects found by
 reading; iOS phases 5-6 end to end. The Account-tab guard landed on BOTH platforms and is unfired on
 each — it is real (KEEP_ALIVE_TABS is real) but it fixed nothing observed.
+
+### M11. iOS phase 4 passes on the WRONG ACCOUNT — #2091 isolation is not working there
+
+Found by an A/B on one device with nothing else changed:
+
+```
+openProfile labels ["Your profile", "simtest", "uitest"]  -> phase 4: 11/11 passed
+openProfile labels ["appjourneytests", "Your profile"]    -> TAP_MISS, test01ProfileTabs failed
+```
+
+The diagnostic from the PASSING run says which account is actually signed in:
+
+```
+=====PROFILE_CTL link 'simtest' frame=(349.0, 64.0, 48.0, 18.0) hittable=true=====
+```
+
+The masthead is labelled `simtest`, but `AppJourneyTests`' identity is `appjourneytests` — it does
+NOT override to `sharedSeededIdentity` (five other suites do, explicitly). Same for
+`PersonalisationTests` and `OfflineCacheTests`. **All three are meant to have their own account and
+all three are running as `simtest`.**
+
+The chain: phase 3 runs `ios-journey-signin`, which seeds `simtest`. Phase 4's `ensureSignedIn`
+cannot switch away from it, because `signOut` is broken (M10). So every phase-4 suite inherits
+`simtest` — and the hardcoded `["Your profile", "simtest", "uitest"]` in `openProfile` contains
+`simtest`, so the tap landed, Profile opened, and eleven tests passed against an account nothing had
+assigned them.
+
+**The hardcoded fallback was not just stale — it was MASKING the isolation failure #2091 exists to
+prevent.** Removing it is correct and makes the tier red, which is the honest state.
+
+ORDER MATTERS FOR THE FIX: repair the account switch (`signOut`) FIRST, then land the `openProfile`
+identity change. Landing it now only converts a silent wrong-account pass into a loud failure
+without fixing what is wrong.
+
+**Also disproved here, by the same A/B:** the theory that a multi-label predicate lets a dead
+off-screen copy shadow a live match. Trying the labels one at a time produced `TAP_MISS` for BOTH
+labels independently, so shadowing is not the mechanism — the identity simply is not on the masthead,
+because the app is signed in as someone else.
