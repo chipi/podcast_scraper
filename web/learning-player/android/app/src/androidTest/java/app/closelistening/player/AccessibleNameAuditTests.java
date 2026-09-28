@@ -75,10 +75,42 @@ public class AccessibleNameAuditTests extends UITestCase {
     private List<String> unusableOn(String surface) {
         List<String> bad = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
+        // THE PLATFORM'S OWN VIEW, read in the SAME pass (2026-09-27, #2156).
+        //
+        // `UiObject2` offers only `getText()` and `getContentDescription()`, and Android keeps
+        // names in three more places: `hintText`, `stateDescription`, and `labeledBy` — a POINTER
+        // to the node holding the words, which is how `<label><span>Offline mode</span><input></label>`
+        // names its input without copying the string onto it. A control named that way looks
+        // nameless to the loop below and is not.
+        //
+        // Same pass, never a dump taken afterwards: the key is screen bounds and a surface does not
+        // have to be at the same scroll position a moment later.
+        java.util.Map<String, A11yProbe.Named> probe = A11yProbe.actionableByBounds();
+        // ONE STALE NODE MUST NOT BLIND THE WHOLE SURFACE (2026-09-27).
+        //
+        // Every accessor re-resolves the node, so a node the page re-rendered under us throws
+        // `StaleObjectException` mid-loop. That used to escape to the outer catch, which replaced
+        // every finding on the surface with a single "<audit threw …>" line — so a surface that
+        // churns while being walked reported one noisy non-finding instead of its real ones.
+        // Measured on `Profile ▸ Topics`, which hydrates its chips after first paint: 2 runs in 6.
+        //
+        // A node that went stale is one this pass did not judge, so it is COUNTED rather than
+        // ignored: if enough of them go, the surface was not meaningfully audited and saying so is
+        // the honest result. Silently skipping would make a churning surface look clean, which is
+        // the failure this whole file exists to catch.
+        int stale = 0;
+        int examined = 0;
         try {
             for (UiObject2 o : Journey.device().findObjects(By.pkg(Journey.PKG).clickable(true))) {
+                examined += 1;
+                try {
                 String name = Journey.nameOf(o);
                 if (usable(name)) continue;
+
+                // Before believing the finding, ask the platform. A node the probe can see AND
+                // holds a usable name for is correctly named — the harness simply cannot reach it.
+                A11yProbe.Named platform = A11yProbe.at(probe, o.getVisibleBounds());
+                if (platform != null && usable(platform.best())) continue;
                 String kind = String.valueOf(o.getClassName());
                 // EditText and SeekBar are EXCLUDED, because this audit cannot judge them.
                 //
@@ -123,16 +155,76 @@ public class AccessibleNameAuditTests extends UITestCase {
                 } catch (Throwable ignored) {
                     near.append("<neighbours unreadable>");
                 }
+                // WHAT THE PLATFORM HOLDS, on the finding itself. Without it a report says only
+                // that something is broken; with it the report says which field is empty, which is
+                // the difference between "add an aria-label" and "the label association is not
+                // reaching the bridge at all". A null probe is reported AS null — "could not see
+                // this node" is not the same as "this node has no name", and collapsing the two
+                // would turn a probe failure into a clean bill of health.
+                String platformDetail = platform == null
+                        ? " platform=<probe could not see this node>"
+                        : " platform=" + platform;
                 String entry = (name.isEmpty() ? "<NO NAME>" : "<SYMBOL-ONLY '" + name + "'>")
                         + " " + cls + " " + o.getVisibleBounds()
-                        + " near=[" + near + "]";
+                        + " near=[" + near + "]"
+                        + platformDetail;
                 if (seen.add(entry)) bad.add(entry);
+                } catch (androidx.test.uiautomator.StaleObjectException e) {
+                    // The page re-rendered this node away mid-read. Transient by nature; counted
+                    // below so a surface that does it constantly cannot pass as clean.
+                    stale += 1;
+                }
             }
         } catch (Throwable t) {
             // A diagnostic that throws replaces the finding with its own failure.
             bad.add("<audit of " + surface + " threw " + t + ">");
         }
+        // A QUARTER of the surface unreadable means the walk proved nothing about it. The floor of
+        // 4 keeps a tiny surface with one flickering node from failing the suite on noise.
+        if (stale > 3 && stale * 4 > examined) {
+            bad.add("<NOT AUDITED RELIABLY: " + stale + " of " + examined + " nodes on " + surface
+                    + " went stale mid-read, so this surface was not meaningfully walked. It is"
+                    + " re-rendering while being audited — settle it before trusting a pass.>");
+        } else if (stale > 0) {
+            System.out.println("=====AUDIT " + surface + " skipped " + stale + " stale node(s) of "
+                    + examined + "=====");
+        }
         return bad;
+    }
+
+    /**
+     * Walk one surface, or record that it could not be walked.
+     *
+     * AN UNREACHABLE SURFACE IS A FINDING, not a skip (2026-09-27). The overflow step used to be
+     * `if (tap(…)) { audit }` — so on any run where the ⋯ could not be opened, the audit reported
+     * the panel clean without ever having seen it, and the suite went green. That is the
+     * no-postcondition shape this tier has been bitten by repeatedly; the `if exists { tap() }` in
+     * `DownloadThroughUITests` is the same construct, and it is why a suite called
+     * `…AndQueuesThem` makes zero queue writes.
+     *
+     * The inventory goes into the message because "would not open" needs the screen it was on: the
+     * usual cause is that the label moved, not that the surface is gone.
+     */
+    private void audit(String surface, boolean opened, List<String> findings) {
+        String slug = surface.replace(' ', '-').replace("▸", "in");
+        if (!opened) {
+            findings.add("[" + surface + "] NOT AUDITED — the surface would not open, so nothing "
+                    + "here has been checked. On screen: " + Journey.labelledInventory(40));
+            Journey.shot("audit-unreachable-" + slug);
+            return;
+        }
+        Journey.sleep(3_000);
+        List<String> bad = unusableOn(surface);
+        for (String b : bad) findings.add("[" + surface + "] " + b);
+        // PHOTOGRAPH THE SCREEN THAT PRODUCED THE FINDING (2026-09-26).
+        //
+        // A rect alone cannot identify a control, and matching one against a screenshot taken
+        // later is guesswork — the surface does not have to be at the same scroll position when
+        // you go back to look. I did exactly that on the Discover finding and "confirmed" the
+        // wrong control by eye, then changed two components on the strength of it. `near` was
+        // telling me otherwise the whole time: it was EMPTY, and the control I had picked sits
+        // beside a clearly-named one.
+        if (!bad.isEmpty()) Journey.shot("audit-" + slug);
     }
 
     @Test
@@ -143,23 +235,49 @@ public class AccessibleNameAuditTests extends UITestCase {
         List<String> findings = new ArrayList<>();
 
         for (String tab : Arrays.asList("Home", "Discover", "Library")) {
-            if (!Journey.openTab(tab)) {
-                findings.add("[" + tab + "] the tab itself was unreachable");
-                continue;
-            }
-            Journey.sleep(3_000);
-            List<String> badOnTab = unusableOn(tab);
-            for (String bad : badOnTab) findings.add("[" + tab + "] " + bad);
-            // PHOTOGRAPH THE SCREEN THAT PRODUCED THE FINDING (2026-09-26).
-            //
-            // A rect alone cannot identify a control, and matching one against a screenshot taken
-            // later is guesswork — the surface does not have to be at the same scroll position when
-            // you go back to look. I did exactly that on the Discover finding and "confirmed" the
-            // wrong control by eye, then changed two components on the strength of it. `near` was
-            // telling me otherwise the whole time: it was EMPTY, and the control I had picked sits
-            // beside a clearly-named one.
-            if (!badOnTab.isEmpty()) Journey.shot("audit-" + tab);
+            audit(tab, Journey.openTab(tab), findings);
         }
+
+        // THE PROBE HAS TO BE ABLE TO SEE A NAME AT ALL (2026-09-27).
+        //
+        // `A11yProbe` is now what clears a suspected finding — if `best()` returned "" for every
+        // node, through a bad field order or an API that is not populated on this image, it would
+        // clear NOTHING and every unnamed-looking control would be reported as a real defect. The
+        // failure mode runs the other way too: a probe that silently returned a name for
+        // everything would clear every finding and this suite would pass forever.
+        //
+        // So: on a surface known to be full of named controls, the probe must report a healthy
+        // number of them. This is the check that stops the probe from being a thing that looks like
+        // it is checking something. It runs on Library, the tab left open by the loop above.
+        int namedByPlatform = 0;
+        for (A11yProbe.Named n : A11yProbe.actionableByBounds().values()) {
+            if (usable(n.best())) namedByPlatform += 1;
+        }
+        assertTrue(
+                "the platform probe found " + namedByPlatform + " named controls on Library — it is "
+                        + "not reading names at all, so every clearance it gives elsewhere in this "
+                        + "audit is worthless and every finding it reports is unverified. Fix the "
+                        + "probe before trusting this suite's result either way.",
+                namedByPlatform >= 5);
+
+        // THE SURFACES THIS AUDIT STILL DOES NOT WALK — Profile, Profile▸Topics, Profile▸Stats,
+        // Settings, player▸Insights, player▸notes.
+        //
+        // They WERE walked, on 2026-09-28, and the walk works: every one of them opened, and the
+        // whole set produced exactly TWO findings — Settings' "Voice input for notes" and "Offline
+        // mode" toggles, both confirmed genuinely nameless by `A11yProbe` (all five platform name
+        // fields empty, so not the UiObject2 blind spot). That is the measured answer to this
+        // issue's estimated "~32 remaining".
+        //
+        // The widening is held back rather than committed because it is RED on those two, and two
+        // markup fixes both failed to reach the Android bridge (`aria-label`, then explicit
+        // `for`/`id` + `aria-label`, each verified served). Landing it would knowingly break the
+        // tier. Restoring it is one edit once the toggles are named; the surfaces, the evidence and
+        // the two dead ends are in docs/wip/DEVICE-TIER-PARKED-AND-MEASURED-2026-09-28.md.
+        //
+        // What DID land from that work is everything below and above this comment: the probe, its
+        // self-check, per-node stale handling, and `audit()` treating an unopenable surface as a
+        // finding instead of a silent skip.
 
         // The player is where the most icon-only controls live, and where all three defects above
         // were found.
@@ -168,10 +286,22 @@ public class AccessibleNameAuditTests extends UITestCase {
         for (String bad : unusableOn("player")) findings.add("[player] " + bad);
 
         // The overflow, open — its items are only in the tree while the panel is rendered.
-        if (Journey.tap("More actions", false, 15_000)) {
-            Journey.sleep(2_000);
-            for (String bad : unusableOn("player ⋯")) findings.add("[player ⋯] " + bad);
-        }
+        audit("player ⋯", Journey.tap("More actions", false, 15_000), findings);
+
+        // THE INSIGHTS PANEL AND ITS NOTE COMPOSER. `NoteComposer` is one of the components the
+        // static guard lists, and no device suite has ever audited the names on the surface it
+        // lives on — `NativeCapabilityTests` reaches the composer only to assert a mic exists.
+        audit("player ▸ Insights", Journey.tap(Arrays.asList("Insights", "✦ Insights"), true, 15_000), findings);
+        // Notes are the LAST section of a long panel. Scrolling to the textarea's aria-label
+        // ("Your notes" = notes.title) rather than the placeholder, because aria-label wins over
+        // placeholder here — matching 'Add a note…' finds nothing, on both platforms.
+        //
+        // Deliberately NOT clicking the textarea: focusing it opens the soft keyboard, and Android's
+        // tree holds only ON-SCREEN nodes, so the button row directly beneath the field drops out of
+        // the tree at exactly the moment it is drawn. That is what made the dictation test flake
+        // 1-pass/2-fail in suite against 4/0 solo, and an audit that did it would report the mic and
+        // Add button as missing rather than as unnamed.
+        audit("player ▸ notes", Journey.scrollTo("Your notes", false) != null, findings);
 
         assertTrue(
                 "These controls are tappable but carry no name a person could act on, so a screen "
