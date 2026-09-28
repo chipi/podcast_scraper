@@ -136,10 +136,19 @@ async function openHelp(): Promise<void> {
           <span class="block text-sm font-semibold text-canvas-foreground">{{ t('settings.voiceInput') }}</span>
           <span class="mt-0.5 block text-xs text-muted">{{ t('settings.voiceInputHint') }}</span>
         </span>
+        <!-- NAMED ON THE INPUT, not only by the wrapping <label> (2026-09-28, measured).
+             The implicit label association names this for the DOM. Android's accessibility bridge
+             reported the node with EVERY name field empty — text, contentDescription, labeledBy,
+             hintText, stateDescription — so TalkBack announced a bare checkbox with no idea what it
+             toggles, and `Journey.setOfflineMode` cannot address it by name at all: it finds the row
+             text and walks to `nearestCheckable`, the heuristic that drove this VOICE switch instead
+             of Offline three times while reporting success (Journey.java:600-604).
+             The string matches the row label exactly, so the two cannot drift. (#2156) -->
         <input
           type="checkbox"
           class="lp-check"
           data-testid="settings-voice-input"
+          :aria-label="t('settings.voiceInput')"
           :checked="voiceEnabled"
           @change="setVoiceEnabled(($event.target as HTMLInputElement).checked)"
         />
@@ -175,10 +184,14 @@ async function openHelp(): Promise<void> {
           <span class="block text-sm font-semibold text-canvas-foreground">{{ t('settings.offlineMode') }}</span>
           <span class="mt-0.5 block text-xs text-muted">{{ t('settings.offlineModeHint') }}</span>
         </span>
+        <!-- Named on the input for the reason on the Voice switch above. This is the control that
+             heuristic actually drives, so it is the one whose namelessness cost three silent
+             wrong-control flips. -->
         <input
           type="checkbox"
           class="lp-check"
           data-testid="settings-offline-mode"
+          :aria-label="t('settings.offlineMode')"
           :checked="forcedOffline"
           @change="setForcedOffline(($event.target as HTMLInputElement).checked)"
         />

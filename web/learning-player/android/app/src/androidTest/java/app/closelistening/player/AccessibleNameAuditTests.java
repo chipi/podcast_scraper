@@ -260,24 +260,25 @@ public class AccessibleNameAuditTests extends UITestCase {
                         + "probe before trusting this suite's result either way.",
                 namedByPlatform >= 5);
 
-        // THE SURFACES THIS AUDIT STILL DOES NOT WALK — Profile, Profile▸Topics, Profile▸Stats,
-        // Settings, player▸Insights, player▸notes.
+        // THE SURFACES THIS AUDIT NEVER WALKED (#2156).
         //
-        // They WERE walked, on 2026-09-28, and the walk works: every one of them opened, and the
-        // whole set produced exactly TWO findings — Settings' "Voice input for notes" and "Offline
-        // mode" toggles, both confirmed genuinely nameless by `A11yProbe` (all five platform name
-        // fields empty, so not the UiObject2 blind spot). That is the measured answer to this
-        // issue's estimated "~32 remaining".
+        // For months the walk was Home / Discover / Library / player / player ⋯ — five surfaces —
+        // and the issue's "37 unnamed controls, ~32 remaining" was a PROJECTION onto the ones
+        // below, which nothing had ever opened. A count nobody measured is not a worklist. Walking
+        // them produced TWO findings in the entire app, both on Settings.
         //
-        // The widening is held back rather than committed because it is RED on those two, and two
-        // markup fixes both failed to reach the Android bridge (`aria-label`, then explicit
-        // `for`/`id` + `aria-label`, each verified served). Landing it would knowingly break the
-        // tier. Restoring it is one edit once the toggles are named; the surfaces, the evidence and
-        // the two dead ends are in docs/wip/DEVICE-TIER-PARKED-AND-MEASURED-2026-09-28.md.
-        //
-        // What DID land from that work is everything below and above this comment: the probe, its
-        // self-check, per-node stale handling, and `audit()` treating an unopenable surface as a
-        // finding instead of a silent skip.
+        // Profile and Settings are reached through the masthead avatar, which is why they need this
+        // suite's own labels: the link is named `auth.user?.name || t('profile.title')`, so for a
+        // per-class identity the generic string is NOT what is on screen.
+        audit("Profile", Journey.openProfile(profileLabels()), findings);
+        // The two tabs behind Profile. Each renders a different control set, and neither had ever
+        // been in an accessibility tree this suite looked at.
+        audit("Profile ▸ Topics", Journey.tap("Topics", false, 8_000), findings);
+        audit("Profile ▸ Stats", Journey.tap("Stats", false, 8_000), findings);
+
+        // Settings verifies by ARRIVING (Journey.openSettings), not by the tap returning true.
+        // This is where both findings were, and where the fix for them has to be proven.
+        audit("Settings", Journey.openSettings(profileLabels()), findings);
 
         // The player is where the most icon-only controls live, and where all three defects above
         // were found.
