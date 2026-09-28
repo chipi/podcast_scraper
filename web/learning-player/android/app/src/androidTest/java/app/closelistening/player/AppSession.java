@@ -316,6 +316,21 @@ final class AppSession {
         // precisely so a sign-out with no network still works.
         for (int attempt = 1; attempt <= 3; attempt++) {
             Journey.openProfile();
+            // SELECT THE ACCOUNT TAB. Profile is tabbed (Account / Topics / Stats) and "Sign out"
+            // lives in the Account panel (`ProfileView.vue:803`), so on any other tab it is not
+            // below the fold — it is NOT RENDERED, and scrolling cannot produce it.
+            //
+            // The tab STICKS: ProfileView is kept alive (`ProfileView.vue:89`, KEEP_ALIVE_TABS), so
+            // the last tab anything looked at is the tab the next `openProfile` lands on.
+            //
+            // FOUND ON iOS (2026-09-28), where it failed three identical attempts. Added here
+            // UNFIRED, deliberately: Android's `relaunch` uses FLAG_ACTIVITY_CLEAR_TASK, which
+            // rebuilds the WebView and discards the keep-alive state, so a sign-out that follows a
+            // relaunch has always landed on Account by luck. Within a single test — walk
+            // Profile ▸ Topics, then sign out — Android has the same defect iOS just demonstrated.
+            // Recording it on the platform that has not paid for it yet is the point of the drift
+            // ledger; the alternative is finding it here in six weeks and calling it new.
+            Journey.tap(Arrays.asList("Account"), false, 5_000);
             UiObject2 out = Journey.scrollTo("Sign out", false);
             if (out == null) {
                 Journey.mark("=====SIGNOUT attempt " + attempt

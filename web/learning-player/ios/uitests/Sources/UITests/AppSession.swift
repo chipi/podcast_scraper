@@ -271,6 +271,25 @@ enum AppSession {
     guard isSignedIn(app) else { return true } // already out; the caller's precondition holds
     for attempt in 1...3 {
       _ = Journey.openProfile(app)
+      // SELECT THE ACCOUNT TAB. Profile is tabbed (Account / Topics / Stats) and "Sign out" is in
+      // the Account panel (`ProfileView.vue:803`) — so on any other tab it is not below the fold,
+      // it is NOT RENDERED, and no amount of scrolling will produce it.
+      //
+      // The tab STICKS between visits: ProfileView is kept alive (`ProfileView.vue:89`,
+      // KEEP_ALIVE_TABS), so setup runs once and the last tab a test looked at is the tab the next
+      // `openProfile` lands on. Any suite that visits Profile ▸ Topics or ▸ Stats therefore breaks
+      // sign-out for whatever runs after it — across suites, because the app is not reinstalled
+      // between them.
+      //
+      // MEASURED 2026-09-28: three identical attempts, each reporting "no 'Sign out' on Profile"
+      // over an inventory that plainly shows the page — `Change photo | … | Account | Topics |
+      // Stats | … | Your profile` — and no Sign out anywhere in it.
+      //
+      // This was invisible until today because it was masked by a SECOND bug: `isSignedIn` could
+      // not detect a session either, so `signOut`'s own guard concluded "already signed out" and
+      // returned success without signing anything out. Fixing the detection is what made this one
+      // reachable; two wrongs had been cancelling since the tabs landed.
+      _ = Journey.tap(app, labels: ["Account"], contains: false, timeout: 5)
       guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else {
         print(
           "=====SIGNOUT attempt \(attempt): no 'Sign out' on Profile :: "
