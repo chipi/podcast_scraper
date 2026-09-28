@@ -3637,7 +3637,8 @@ def _existing_metadata_path_for_reprocess(
     layout is not in use — in each of those the fresh run directory is the right place.
     """
     stage = str(getattr(cfg, "pipeline_stage", "") or "")
-    if stage not in config.STAGES_THAT_NEVER_TRANSCRIBE and stage != "rederive_only":
+    # The reuse predicate, named. Was "not in STAGES_THAT_NEVER_TRANSCRIBE and != 'rederive_only'".
+    if stage not in config.STAGES_REUSING_ON_DISK_ARTIFACTS:
         return None
     from . import run_index
 

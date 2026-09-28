@@ -4609,11 +4609,11 @@ def process_episode_download(
     # never reached `_maybe_dispatch_reprocess_stage` — the repair was a silent re-ingest that
     # exited 0. Found running `retranscript_only` on one Odd Lots episode: a second copy of the
     # episode appeared as `0001` in a new run, and the stored transcript was untouched.
-    # `rederive_only` works from the on-disk transcript by definition, so it is skipped too.
-    reprocess_from_disk = (
-        cfg.pipeline_stage in config.STAGES_THAT_NEVER_TRANSCRIBE
-        or cfg.pipeline_stage == "rederive_only"
-    )
+    # `rederive_only` works from the on-disk transcript by definition, so it is skipped too — which
+    # is the predicate `STAGES_REUSING_ON_DISK_ARTIFACTS` names. This used to read
+    # "in STAGES_THAT_NEVER_TRANSCRIBE or == 'rederive_only'", the same phrase three call sites had
+    # to repeat; see that constant's comment for why the two predicates are not interchangeable.
+    reprocess_from_disk = cfg.pipeline_stage in config.STAGES_REUSING_ON_DISK_ARTIFACTS
     chosen = (
         None
         if reprocess_from_disk
