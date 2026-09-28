@@ -125,13 +125,40 @@ unanchored one is what dragged the masthead link's a11y frame off the display.
 `testN4AvatarUploadAndCrop` asserts *"'Change photo' was present but not tappable"* as its own
 failure branch — that is what spraying spans across named controls causes.
 
-### M2. The evidence about non-`haspopup` controls is not unanimous
+### M2. RESOLVED — the contradiction, settled on the device
 
-`SavedColorControl.vue:84-99` records its five colour swatches measured as
-`<UNLABELLED>[ToggleButton]` on 2026-09-26 with **no** `aria-haspopup`, contradicting
-`OverflowMenu` two days earlier. Variable unidentified; candidates are `aria-pressed`, the empty
-non-hidden child `span`, and the teleported `invisible fixed` panel. **Do not resolve this with
-a regex** — resolve it by pointing the widened audit at that popover.
+Two measurements disagreed about when Android leaves a control nameless:
+
+- `OverflowMenu.vue` (2026-09-24): the ⋯ trigger was unnamed, and the same page had `Play`,
+  `Skip back 15 seconds`, `Mark this moment` and `Playback speed` all icon-only and all NAMED. It
+  concluded the cause was `aria-haspopup` PLUS a hidden subtree, and that "neither alone does it".
+- `SavedColorControl.vue`: five colour swatches measured `<UNLABELLED>[ToggleButton]` on
+  2026-09-26 — with **no** `aria-haspopup`.
+
+Settled 2026-09-28 by A/B on device rather than by argument. Removing the swatches' `sr-only`
+spans (full build → cap sync → assembleDebug → install) made
+`AppJourneyTests#test07SavedColourPicker` fail with exactly five `<UNLABELLED>[ToggleButton]` in
+the inventory; restoring them made it pass. **Pass → fail → pass, one variable.**
+
+So "neither alone does it" is WRONG as a general rule. The shape that fits every measurement:
+
+```
+aria-haspopup + no text node  ->  UNNAMED   (the ⋯ trigger)
+aria-pressed  + no text node  ->  UNNAMED   (the colour swatches)
+plain button  + no text node  ->  named     (Play, Skip back 15 seconds)
+```
+
+Both attributes remap the node's ROLE — PopUpButton and ToggleButton — and the computed name is
+lost in that remapping. A plain Button keeps it.
+
+**Consequence:** the static guard was drawn at the intersection and was too narrow. It now covers
+`aria-haspopup` OR `aria-pressed`, which is **32 controls instead of 6**, and all 32 already carry
+a name, so the widening landed green. What previously needed a device run is now caught by
+`vitest`.
+
+Note what this says about the earlier reasoning: the morning's conclusion that the "no text node"
+theory was disproved was itself too strong. The theory was wrong for PLAIN buttons and right for
+role-changed ones, and the disproof only ever tested plain ones.
 
 ### M3. `Profile ▸ Topics` churns while being walked — cause NOT known, and my diagnosis was wrong
 

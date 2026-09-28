@@ -24,37 +24,49 @@ import { describe, expect, it } from 'vitest'
 const APP_VUE = readFileSync(join(__dirname, '../App.vue'), 'utf8')
 
 /**
- * A popup TRIGGER with nothing readable inside it is unnamed on Android. Repo-wide, no list.
+ * A control with a ROLE-CHANGING aria attribute and nothing readable inside is unnamed on Android.
  *
- * This replaces a hand-maintained array of six filenames (2026-09-27). The array guarded whatever
- * someone had remembered to add, which is why `views/` was invisible to it until five controls had
- * already shipped unnamed — the list was the bug, not its contents.
+ * Repo-wide, no list. This replaced a hand-maintained array of six filenames (2026-09-27), which
+ * guarded whatever someone had remembered to add — which is why `views/` was invisible to it until
+ * five controls had already shipped unnamed.
  *
- * WHAT IS ACTUALLY MEASURED, and the part that matters for how wide this rule is drawn:
+ * ## The rule, and how it was settled on a device
  *
- *   `OverflowMenu.vue` (2026-09-24, Android System WebView 150.0.7871.181): the ⋯ trigger arrived
- *   as a zero-child `Button` with an empty contentDescription — "More actions" appeared NOWHERE in
- *   the dumped hierarchy. The same page disproved the general version of the claim: `Play`,
- *   `Skip back 15 seconds`, `Mark this moment` and `Playback speed` are all icon-only with an
- *   `aria-label` and all NAMED. Exactly the four `aria-haspopup` triggers with nothing readable
- *   inside were the four unnamed nodes.
+ * Two measurements used to contradict each other and the guard was drawn at their INTERSECTION,
+ * with the contradiction written down as unresolved:
  *
- * So the guard is drawn at `aria-haspopup` + no readable text. That is a STRICT SUBSET of "every
- * icon-only button", chosen deliberately: the wider rule is not supported by the measurements, and
- * a rule that demands a hidden span on a control that is already named is not free — an
+ *   - `OverflowMenu.vue` (2026-09-24, Android System WebView 150.0.7871.181): the ⋯ trigger arrived
+ *     as a zero-child `Button` with an empty contentDescription. The same page showed `Play`,
+ *     `Skip back 15 seconds`, `Mark this moment` and `Playback speed` — all icon-only with an
+ *     `aria-label` — all NAMED. It concluded the cause was `aria-haspopup` PLUS a hidden subtree,
+ *     and that "neither alone does it".
+ *   - `SavedColorControl.vue`: its five colour swatches measured `<UNLABELLED>[ToggleButton]` on
+ *     2026-09-26 — with NO `aria-haspopup`.
+ *
+ * Settled 2026-09-28 by A/B on the device rather than by argument. With the swatches' `sr-only`
+ * spans removed (full build → cap sync → assembleDebug → install), `AppJourneyTests
+ * #test07SavedColourPicker` failed with exactly five `<UNLABELLED>[ToggleButton]` in the inventory;
+ * restoring the spans made it pass again. Pass → fail → pass, one variable.
+ *
+ * So `OverflowMenu`'s "neither alone does it" is WRONG as a general rule, and the resolved shape
+ * fits every measurement taken so far:
+ *
+ *      aria-haspopup + no text node  ->  UNNAMED   (the ⋯ trigger)
+ *      aria-pressed  + no text node  ->  UNNAMED   (the colour swatches)
+ *      plain button  + no text node  ->  named     (Play, Skip back 15 seconds)
+ *
+ * Both attributes change the node's ROLE — PopUpButton and ToggleButton respectively — and it is in
+ * that remapping that the computed name is lost. A plain Button keeps it.
+ *
+ * ## Why still not "every icon-only button"
+ *
+ * Because the measurements say plain buttons are fine, and the wider rule is not free: an
  * `sr-only` span is `position:absolute`, and an unanchored one is what dragged the masthead link's
- * accessibility frame off the display (see below). Guarding more than is measured would spread that
- * hazard across every icon button in the app to fix a defect they do not have.
+ * accessibility frame off the display (see below). Demanding one on already-named controls would
+ * spread that hazard to fix a defect they do not have. The rule covers exactly what is measured —
+ * which is now 32 controls rather than 6.
  *
- * THE EVIDENCE IS NOT UNANIMOUS, and the next person should know it before widening this:
- * `SavedColorControl.vue:84-99` records its five colour swatches measured as
- * `<UNLABELLED>[ToggleButton]` on 2026-09-26 — and those swatches carry NO `aria-haspopup`. That
- * contradicts the OverflowMenu finding two days earlier. The variable is unidentified; candidates
- * are `aria-pressed` (which is what maps them to ToggleButton), the empty non-hidden child `span`
- * they contain rather than an `aria-hidden` svg, and the teleported `invisible fixed` panel they
- * live in. Do NOT resolve this by widening the regex. Resolve it by widening
- * `AccessibleNameAuditTests` to the surfaces it does not walk (Profile, Settings, the note
- * composer, any popover) and reading what the device reports. (#2156)
+ * (#2156)
  */
 function vueFilesUnder(dir: string): string[] {
   const out: string[] = []
@@ -82,8 +94,8 @@ function buttonsIn(src: string): { attrs: string; body: string }[] {
   return out
 }
 
-describe('popup triggers carry a name Android can read', () => {
-  it('every aria-haspopup button has readable text or an sr-only name', () => {
+describe('role-changed controls carry a name Android can read', () => {
+  it('every aria-haspopup or aria-pressed button has readable text or an sr-only name', () => {
     const roots = [join(__dirname, '../components'), join(__dirname, '../views')]
     const offenders: string[] = []
     let checked = 0
@@ -91,7 +103,10 @@ describe('popup triggers carry a name Android can read', () => {
     for (const root of roots) {
       for (const file of vueFilesUnder(root)) {
         for (const { attrs, body } of buttonsIn(readFileSync(file, 'utf8'))) {
-          if (!attrs.includes('aria-haspopup')) continue
+          // BOTH attributes, since 2026-09-28. `aria-pressed` was added after a device A/B showed
+          // the colour swatches going `<UNLABELLED>[ToggleButton]` with the span removed and named
+          // with it restored — they carry no `aria-haspopup`, so the old rule did not cover them.
+          if (!attrs.includes('aria-haspopup') && !attrs.includes('aria-pressed')) continue
           checked += 1
           // VISIBLE TEXT COUNTS. The requirement is something readable in the subtree, not the
           // `sr-only` class specifically — ToolbarMenu's pill has a label beside its icon and is
@@ -103,15 +118,22 @@ describe('popup triggers carry a name Android can read', () => {
       }
     }
 
-    // If this hits zero the scan has broken, not the app — the six known triggers must be found.
-    expect(checked, 'no aria-haspopup buttons found at all — the scan or the markup moved').toBeGreaterThanOrEqual(6)
+    // If this collapses, the scan has broken rather than the app. 32 such controls existed when the
+    // rule was widened; the floor is deliberately well below that so ordinary additions and
+    // removals do not trip it, while a scan that suddenly matches almost nothing does.
+    expect(
+      checked,
+      'almost no aria-haspopup/aria-pressed buttons found — the scan or the markup moved',
+    ).toBeGreaterThanOrEqual(20)
     expect(
       offenders,
-      `these aria-haspopup triggers have nothing readable inside them. Measured on Android System ` +
-        `WebView 150: such a trigger arrives as a zero-child Button with an empty ` +
-        `contentDescription, its label appears nowhere in the hierarchy, and TalkBack announces ` +
-        `"Button". It is also unfindable by name, so any device test that reaches for it fails ` +
-        `with a message about the surface rather than about the name.`,
+      `these controls change ROLE via aria-haspopup or aria-pressed and have nothing readable ` +
+        `inside them. Measured on Android System WebView 150: such a node arrives as a ` +
+        `PopUpButton/ToggleButton with an empty name — the label appears nowhere in the ` +
+        `hierarchy, TalkBack announces only the role, and no device test can address it by ` +
+        `intent. A PLAIN button in the same shape keeps its name; it is the role remapping that ` +
+        `loses it. Verified by A/B on device: removing SavedColorControl's swatch spans produced ` +
+        `five <UNLABELLED>[ToggleButton] and restoring them fixed it.`,
     ).toEqual([])
   })
 })
