@@ -77,7 +77,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download
+.PHONY: ios-origin-up ios-origin-down ios-origin-check app-e2e-users-reset test-app-ios-sim-download
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
 .PHONY: test-app-ios-native test-app-ios-prod-tour
@@ -1909,6 +1909,70 @@ app-e2e-api-up:
 	@scripts/tools/wait_for_e2e_api.sh $(APP_E2E_PORT) $(APP_E2E_CT)
 	@echo "✓ $(APP_E2E_CT) healthy on :$(APP_E2E_PORT)"
 
+# Is the origin still there? Two seconds, between phases (2026-09-27).
+#
+# Only phase 3 runs `ios-origin-up`; phases 4 and 5 assumed it was still alive. It is a backgrounded
+# `vite preview`, and a shell job that started it takes it down when the job ends — a trap this repo
+# has already hit and written down. When it dies mid-run, every later suite tests against NOTHING
+# and fails as a wall of UI-regression-shaped "element not found", which is forty minutes of reading
+# the wrong story.
+#
+# BOTH endpoints, because they fail differently and the distinction is the whole value:
+# `/api/health` says the proxy and the api are reachable; `/api/app/me` says the api can still
+# AUTHENTICATE — 401 is healthy (no credential presented), 503 means the session secret is gone,
+# which is the degraded drill's leftover and reads as a mass sign-out rather than as a server fault.
+ios-origin-check:
+	@curl -fsS --max-time 2 "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/health" >/dev/null 2>&1 || { \
+		echo "FAIL: the origin on :$(IOS_ORIGIN_PORT) is GONE — every later suite would test against nothing."; \
+		echo "      A backgrounded 'vite preview' dies with the shell job that started it."; \
+		echo "      Restart it with: make ios-origin-up"; \
+		exit 1; \
+	}
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app/me" 2>/dev/null); \
+	if [ "$$code" = "503" ]; then \
+		echo "FAIL: /api/app/me returns 503 — the api cannot authenticate ANYONE."; \
+		echo "      That is the degraded-server drill's leftover (an empty APP_SESSION_SECRET),"; \
+		echo "      not a UI fault. Every auth-gated assertion after this would fail as a sign-out."; \
+		echo "      Restore with: make app-e2e-api-up"; \
+		exit 1; \
+	fi; \
+	echo "✓ origin alive on :$(IOS_ORIGIN_PORT) (/api/app/me -> $$code)"
+
+# Every device-tier run starts from VIRGIN SERVER-SIDE ACCOUNTS (#2091, 2026-09-27).
+#
+# `simctl uninstall` and `pm clear` reset the DEVICE. Neither touches the backend, and the account's
+# queue, favourites, listening history, playback positions, completed set, interests and library
+# subscriptions all live server-side under $(APP_E2E_CT):/app/state/users. So they survived not just
+# between suites but BETWEEN RUNS, indefinitely: `ios-origin-up` reuses a healthy container unless
+# the image inputs are newer, so `simtest` accumulated without bound.
+#
+# That regime is behind three of the five false greens catalogued in #2091 — `PersonalisationTests`
+# passing for days on an account that already had listening data and masking a real product bug;
+# `NativeOnlySurfacesTests` "queueing" for months against a queue an earlier session left; and
+# `AppJourneyTests.test03` breaking once Home grew long enough to push the Trends rail out of the
+# accessibility tree. Each one was green because of history rather than behaviour.
+#
+# Measured on 2026-09-27: a container up 19 hours still held two accounts from earlier runs.
+#
+# This is the sibling of `pm clear` / `simctl uninstall`, and it is deliberately NOT a reset route
+# on the api. A test-only HTTP endpoint would be new server surface whose only safe gate is
+# `provider == mock`, and per-test identities dissolve the need for it anyway. The container is
+# already ours; `docker exec` needs no new product code at all.
+app-e2e-users-reset:
+	@if ! docker ps --filter "name=$(APP_E2E_CT)" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
+		echo "--> no $(APP_E2E_CT) container running; no server-side accounts to reset"; \
+	else \
+		before=$$(docker exec $(APP_E2E_CT) sh -c 'ls -1 /app/state/users 2>/dev/null | wc -l' | tr -d ' \r'); \
+		docker exec $(APP_E2E_CT) sh -c 'find /app/state/users -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null' || true; \
+		after=$$(docker exec $(APP_E2E_CT) sh -c 'ls -1 /app/state/users 2>/dev/null | wc -l' | tr -d ' \r'); \
+		echo "--> server-side accounts reset: $$before -> $$after"; \
+		if [ "$$after" != "0" ]; then \
+			echo "FAIL: $$after account(s) survived the reset — the tier would start dirty."; \
+			echo "      A reset that half-worked is worse than none: the run looks clean and is not."; \
+			exit 1; \
+		fi; \
+	fi
+
 # The single origin the simulator talks to: vite preview proxying /api and /audio. Backgrounded,
 # with its pid parked so `ios-origin-down` can reap it — AGENTS.md: reap what you start.
 ios-origin-up:
@@ -2271,6 +2335,8 @@ test-ios:
 	@# fragility rather than a fixed one. Uninstall is the simulator's equivalent: the next target
 	@# installs a fresh bundle anyway, so this costs nothing but removes the carry-over.
 	@xcrun simctl uninstall booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
+	@# ...and a clean SERVER-SIDE account to go with the clean device. See `app-e2e-users-reset`.
+	@$(MAKE) app-e2e-users-reset
 	@set -e; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/6 download (seeds the offline suites) ==="; \
 	$(MAKE) test-app-ios-sim-download; \
@@ -2281,8 +2347,10 @@ test-ios:
 	$(MAKE) ios-journey-signin; \
 	$(MAKE) test-app-ios-playback; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 4/6 journey + personalisation + cache ==="; \
+	$(MAKE) ios-origin-check; \
 	$(MAKE) test-app-ios-journey-ui; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 5/6 native capabilities + native-only surfaces ==="; \
+	$(MAKE) ios-origin-check; \
 	$(MAKE) test-app-ios-native; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 6/6 degraded server (DESTRUCTIVE — runs last) ==="; \
 	$(MAKE) test-app-ios-server-degraded; \
@@ -2359,6 +2427,10 @@ test-android:
 	@# switch is in Settings, Settings is behind the masthead avatar, and the avatar needs a
 	@# session. That wedge is unrecoverable from inside a test, so it is handled here instead.
 	@$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null
+	@# ...and the SERVER-SIDE half of that clean slate, which `pm clear` cannot reach. Android
+	@# accumulates within a run too — unlike iOS it never tears the api down mid-run, so without
+	@# this its 14 suites inherit each other's accounts as well as the previous run's.
+	@$(MAKE) app-e2e-users-reset
 	@rc=0; \
 	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/7 harness (sign-in, nav, deep links, offline switch) ==="; \
 	$(MAKE) android-suite SUITE=HarnessSmokeTests || rc=$$?; \
@@ -2394,12 +2466,27 @@ android-suite:
 	@# Optional `TEST=<method>` runs ONE test, via `am instrument`'s `Class#method` form. The
 	@# degraded-server drill needs it: its two tests require different HOST conditions, created
 	@# between them, so they cannot share an invocation (2026-09-25).
+	@#
+	@# A SUITE THAT RAN NOTHING IS NOT A PASS (2026-09-27).
+	@#
+	@# `am instrument` prints `OK (0 tests)` when the class resolves to nothing runnable — a typo in
+	@# SUITE=, a class that was renamed, every method @Ignore'd. That string matches `^OK (`, so the
+	@# old check reported success for a suite that executed zero tests. The two Python wiring guards
+	@# (`test_{ios,android}_uitest_suites_are_wired.py`) catch a suite LEAVING the Makefile; nothing
+	@# caught one that is still wired and runs nothing. Same false-green shape as the state leaks in
+	@# #2091 — green by absence rather than by behaviour.
 	@target="$(ANDROID_PKG).$(SUITE)"; \
 	if [ -n "$(TEST)" ]; then target="$$target\#$(TEST)"; fi; \
 	out=$$($(ADB) shell am instrument -w -e class "$$target" \
 		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
 	echo "$$out"; \
-	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; exit 1; }
+	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; exit 1; }; \
+	if echo "$$out" | grep -q "^OK (0 tests)"; then \
+		echo "FAIL: $(SUITE)$${TEST:+#$(TEST)} reported OK but ran ZERO tests."; \
+		echo "      The class resolved to nothing runnable — check the name for a typo or a"; \
+		echo "      rename, and check for @Ignore on every method."; \
+		exit 1; \
+	fi
 
 # The degraded-server drill (#2139) — the sibling of `test-app-ios-server-degraded`, and corrected
 # the same way (2026-09-25).
