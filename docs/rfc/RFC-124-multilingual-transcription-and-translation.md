@@ -104,8 +104,7 @@ not after.
   bake-off evidence the language was enabled on — and, once QE lands in v2, its calibration too
   (RFC-125 §7). An unavailable model therefore means **defer**, not **fall back**.
 - Only models whose license permits this deployment (EU operator, commercial product) are eligible.
-- Runs on the DGX Spark alongside the existing vLLM Qwen3-30B service. English ingest keeps
-  priority.
+- Runs on the DGX Spark as its own served process. English ingest keeps priority in the work queue.
 - **One translation pass per episode.** The full-timeline text is translated exactly once. Every
   other English artifact is derived from it by existing deterministic machinery.
 
@@ -337,12 +336,9 @@ stripping it from the output is fragile, because boundaries drift. The bake-off 
 whether unit-only translation meets the gate. If a candidate model supports a native context field,
 `context_turns: N` is an allowed per-model setting.
 
-**5.3 Serving.** A dedicated vLLM instance (`dgx_vllm_translate`, its own port) runs next to the
-Qwen service. Requests are batched per episode (all units, ordered) with a bounded concurrency
-budget. The stage runs on the same DGX work queue as other GPU stages, and English episodes are
-scheduled ahead of translation batches. Note the GPU-contention constraint this repo already
-operates under: the DGX serves one vLLM at a time by convention (`gpu-mode`), so "next to the Qwen
-service" is a capacity question to settle before Phase B, not an assumption.
+**5.3 Serving.** A dedicated vLLM instance (`dgx_vllm_translate`, its own port). Requests are batched
+per episode (all units, ordered) with a bounded concurrency budget. The stage runs on the same DGX
+work queue as other GPU stages, and English episodes are scheduled ahead of translation batches.
 
 - **Failure semantics.** Per RFC-106 tiering, the translation tier is DGX-only in v1. If it is
   unavailable, the episode moves to `translation_pending` and is retried with backoff. There is no
@@ -391,8 +387,7 @@ source script.
 - **Quotes** from translated episodes expose `translated: true` and `source_language`, plus
   `source_excerpt` (the source text of the covering unit(s)) and the source time range. Audio
   playback uses the source times, which are identical to the English cue times by construction.
-- **Search** indexes the English layer only (MiniLM is English). Tier-1 chunks carry `language` so
-  results can be labeled.
+- **Search** indexes **both** layers — see §6.2.
 
 UI treatment (the translated marker, the original-text reveal, the language toggle) is deferred to
 a UXS.
@@ -417,6 +412,52 @@ component carry it:
   and on the operator `LibraryFilterBar`. It is a **separate** control from the played/downloaded
   filter, because language is orthogonal to listening state — collapsing them would make "Greek and
   unplayed" unexpressible — and it renders only once the corpus holds more than one language.
+
+**6.2 Multilingual retrieval** (PRD-047 FR4.5). A Greek episode must be findable by a Greek query and
+by an English one, and both must land on the same episode. That is not what indexing the English layer
+alone gives, so retrieval is part of v1 rather than a later addition (arc note D-14).
+
+**Two things have to change, and exactly two.**
+
+1. **Index both layers.** `build_segment_documents` produces Tier-1 chunks from the analysis
+   transcript today. For a translated episode it produces **two** chunk sets — one from the
+   source-language transcript, one from the English analysis transcript — each carrying its own
+   `language`, both keyed to the same `episode_slug`. A lexical (BM25) match on a Greek query then hits
+   the Greek chunks, an English query hits the English chunks, and the episode is reachable either way.
+   `SegmentDocument` and the LanceDB segment schema gain `language` alongside the `speaker_ids` /
+   `turn_ids` that RFC-123 adds, so it is one schema change, not two.
+2. **A multilingual embedding model for the search index.** `DEFAULT_EMBEDDING_MODEL` is
+   `sentence-transformers/all-MiniLM-L6-v2` (`config_constants.py:350`, revision-pinned at `:407`) and
+   it is English. Lexical matching alone would make a Greek query find Greek chunks but never the
+   English ones, so *cross*-lingual recall — the property that makes one corpus out of two languages —
+   needs a multilingual encoder on the dense side.
+
+**Why the blast radius is contained.** MiniLM is referenced in four places: the search vector index,
+GI `ABOUT` edges (`gi/about_edges.py:28`, hardcoded), GI chunked extraction
+(`gi/chunked_extraction.py:49`, hardcoded default), and the CIL bridge builder
+(`builders/bridge_builder.py:121`, `"minilm-l6"`). Swapping all four would put topic linking, insight
+extraction and cross-episode identity through an unmeasured model change on a 678-episode corpus.
+
+It is already avoidable: **`vector_embedding_model` is a distinct config key from `gi_embedding_model`
+and `embedding_model`** (`config.py:3615`, `:3124`, `:3083`). So this RFC changes
+`vector_embedding_model` only. GI, KG and the bridge keep the pinned MiniLM and are untouched. That
+containment is the reason this is affordable in v1 (arc note D-15).
+
+**What it costs.** A corpus-wide reindex, through the existing delta path (RFC-118). The dense vectors
+for every chunk change, so this is a full rebuild rather than an incremental one, and per the arc's
+own operational notes the index build runs in Docker.
+
+**The gate.** The swap changes English retrieval, not just Greek. So it is gated on the existing
+retrieval eval over the current query set: **English recall@k must not regress**, reported before and
+after alongside the speaker-precision metric RFC-123 adds. A multilingual encoder that helps Greek and
+costs English recall is not an acceptable trade, and the eval is what makes that visible rather than
+discovered in production. Candidate encoders are a Gate V question, decided by that measurement rather
+than by reputation.
+
+**Query side.** No query-language detection and no query translation. A query goes to both layers as
+it is, and hybrid RRF (RFC-090) fuses the hits. Results carry the matched chunk's `language`, so the UI
+can say whether a hit came from the Greek original or the English translation, and `search_corpus`
+gains an optional `language` filter.
 
 ### 7. Model selection: bake-off and per-language gate
 

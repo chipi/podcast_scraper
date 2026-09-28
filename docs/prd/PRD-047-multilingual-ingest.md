@@ -98,7 +98,6 @@ this, and it compounds the cross-show-synthesis moat.
 - Automatic language detection as the primary routing signal. Detection is a sanity check only
   (RFC-124 §1).
 - Supporting languages below the quality gate, even when Whisper accepts them.
-- Multilingual retrieval (querying in Greek). Search indexes the English layer in v1.
 - Code-switching within an episode (e.g. Serbian with English passages) beyond "transcribe as the
   declared language". Tracked as an open question.
 - A writable per-show override in the operator UI. The override is config (see FR1.1); a UI editor
@@ -208,6 +207,12 @@ this, and it compounds the cross-show-synthesis moat.
   name is kept, with the source-script name as an alias. A transliterated speaker label that would
   break existing attribution heuristics falls back to the source-script label rather than
   silently un-attributing the turn.
+- **FR4.5**: **A non-English episode is findable by a query in its own language and by an English
+  query, and both reach the same episode.** Search indexes both the source-language transcript and the
+  English analysis transcript, each chunk tagged with its language, so the corpus is searchable in the
+  language it was spoken in rather than only in translation. A result says which layer matched. This
+  requires a multilingual embedding model for the **search** index and a corpus reindex; it must not
+  regress English recall, measured on the existing retrieval eval before and after.
 
 ### FR5: Trust and confidence
 
@@ -267,8 +272,12 @@ measured ad-detection survival rate. The ASR tiers in Appendix A are a **prior**
 test first. They are not a support claim.
 
 External wording for beta conversations: "Western European languages plus Russian, Polish,
-Japanese and Korean are the first candidates; Balkan and Nordic languages are in trial; South Asian
-languages are not supported yet."
+Japanese and Korean are the first candidates; Greek is our pilot; other Balkan and Nordic languages
+are in trial; South Asian languages are not supported yet."
+
+**Do not promise Serbian in a beta conversation.** The measured evidence (Appendix A, Appendix B) is
+that it is the hardest case on both axes and may have no eligible translation model at all. It is
+under investigation, and saying "in trial" about it would overstate what we know.
 
 ## Phasing
 
@@ -288,10 +297,14 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
   search chunking and player cues for English episodes today. Can run in parallel with Phase 0.
 - **Gate V: Validate (no build).** Ask the beta cohort what share of their listening is non-English
   and which shows. Confirm candidate translation-model availability and licence terms (unverified
-  today). Run the RFC-124 bake-off on 2–3 episodes each of Greek and Serbian (hardest likely-demanded
-  pair) and one of Spanish or Italian (easy control). Requires Phase 0, because the bake-off has to
-  transcribe non-English audio correctly to measure anything. **Decision gate:** proceed only if the
-  demand signal and the quality gate both pass.
+  today — largely **done**, see Appendix B). Run the RFC-124 bake-off on 2–3 **Greek** episodes plus
+  one Spanish or Italian control, and settle Serbian separately (arc slice V.5). Requires Phase 0,
+  because the bake-off has to transcribe non-English audio correctly to measure anything.
+  **Decision gate:** proceed only if the demand signal and the quality gate both pass.
+
+  Greek is the pilot rather than a Greek+Serbian pair because the pair is not symmetric: Greek is
+  12.5% WER and covered by every eligible MT model, while Serbian is 33.9% and covered by none of them
+  (Appendix A, Appendix B). Serbian is an open question, not a launch target.
 - **Phase 2: Translation (RFC-124)** behind a feature flag, on one or two operator-chosen feeds.
 - **Phase 3: Trust (RFC-125).** Source verification and the read-time Positions gate. Required before
   any translated position enters a timeline — though note FR5.3 is fail-closed, so the absence of this
@@ -325,9 +338,7 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 ## Dependencies
 
 - RFC-123 turns artifact (unit boundaries for translation, and the citation unit for confidence).
-- DGX capacity for one additional served model (translation), plus a QE model. Note the existing
-  one-vLLM-at-a-time convention on the DGX: this is a capacity question to settle in Phase 0, not an
-  assumption.
+- One additional served model on the DGX for translation.
 - A native-speaker reviewer per candidate language **for the bake-off** (Gate V) and for the monthly
   verification spot-check. Cutting QE from v1 removes the reviewer from the *pipeline's* critical path;
   it does not remove them from the decision to enable a language.
@@ -348,42 +359,85 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 - **Sponsor reads enter the analysis text.** The cause is English-only ad patterns; mitigated by
   translating before ad removal (FR4.1) and measured by the bake-off's ad-survival metric. If
   survival is low, per-language ad cues come back on the table.
-- **Episode metadata asserts the wrong language** until FR1.2/FR2.1 land together. Mitigated by
-  shipping them in the same phase (1b) and by a regression test.
+- **Episode metadata asserts the wrong language** until FR1.2/FR1.6 land together. Mitigated by
+  shipping them in the same phase (0) and by a regression test.
 - **Identity fragmentation across scripts.** Mitigated by FR4.4 and CIL alias rules (RFC-124 §5.4).
-- **Demand does not materialize.** Phase 0 gate; RFC-123 still pays for itself.
-- **Model licensing.** Some leading MT models exclude EU use or forbid commercial use. The bake-off
-  shortlist only includes models whose license permits this deployment, and that check is a Phase 0
-  task rather than a settled fact.
-- **GPU contention on the DGX.** Translation adds a served model. It is scheduled in batches, and
-  English ingest keeps priority.
+- **Demand does not materialize.** Gate V; Phase 0 and RFC-123 still pay for themselves.
+- **Serbian may not be supportable under an eligible licence.** Measured, not suspected: Whisper is at
+  33.9% FLEURS WER on Serbian against Greek's 12.5%, and Serbian is absent from both MiLMMT-46 and
+  LMT-60 while the one shortlisted model that covers it (NLLB) is non-commercial. Mitigated by making
+  **Greek the pilot** and Serbian an explicit investigation (arc §6.3, slice V.5) rather than a
+  promise. The likely cause is script, which is testable.
+- **Model licensing.** Verified rather than assumed: Hunyuan/HY-MT excludes the EU, NLLB is
+  non-commercial; both are out. TranslateGemma, MiLMMT-46 and LMT-60 are eligible (arc §6.1).
+- **The multilingual embedding swap regresses English search.** Retrieval goes multilingual for FR4.5,
+  which changes the dense side for every existing episode. Mitigated by gating the swap on the existing
+  retrieval eval (English recall@k must not regress) and by confining it to `vector_embedding_model`,
+  leaving GI, KG and the CIL bridge on the pinned MiniLM.
+- **A corpus-wide reindex.** FR4.5 needs one, on 678 episodes. Known cost, existing machinery.
 
 ## Open Questions
 
 1. How is code-switching handled (English passages inside a Serbian episode)? Transcribe as
    declared and accept the damage, or segment-level language ID?
-2. Serbian script: normalize output to Latin, keep Cyrillic, or follow the feed? This affects the
-   display, not the English layer.
+2. Serbian script: normalize output to Latin, keep Cyrillic, or follow the feed? **This was filed as a
+   display question and the evidence reclassified it as a capability question.** Whisper is at 33.9% WER
+   on (Cyrillic) Serbian and 13.4% on (Latin) Croatian — two mutually intelligible languages — so the
+   script plausibly drives most of the gap, and it also decides whether any eligible MT model covers the
+   language. Arc slice V.5 tests it.
 3. Should verified translated positions be visually distinguishable from native English ones in
    Position timelines, or is verification enough to treat them as equals?
 4. Do we ever show amber-band quotes in shareable quote cards?
 5. Do we keep a source-language ad-free transcript at all, derived by mapping the English ad ranges
    back to source offsets? It has a reader/player use, not an analysis one.
 
-## Appendix A: ASR prior by tier (Whisper large-v3, FLEURS; turbo tracks closely)
+## Appendix A: ASR evidence by language (Whisper FLEURS WER)
 
-Real podcast error rates are higher than these benchmark tiers because of crosstalk, music and
-informal speech.
+**Source**: Whisper paper (Radford et al.), Appendix D.2.4, **Table 13 "WER (%) on Fleurs"**. Figures
+are the **`large-v2`** row — the strongest model in that table. Verified against the paper on
+2026-09-28; the fuller discussion, including the Serbian finding, is in
+[MULTILINGUAL_ARC §6.2–§6.3](../architecture/MULTILINGUAL_ARC.md#62-asr-evidence-whisper-fleurs-wer).
 
-- **Excellent (<~6% WER):** Spanish, Italian, Korean, Portuguese, English, Polish, Catalan,
-  Japanese, German, Russian, Dutch, French.
-- **Good (6–10%):** Indonesian, Ukrainian, Turkish, Malay, Swedish, Mandarin, Finnish*, Norwegian,
-  Romanian, Vietnamese*, Slovak, Arabic (MSA; dialects are worse), Thai (turbo weaker).
-- **Usable with review (10–15%):** Czech, Croatian, Greek, Serbian, Danish, Bulgarian, Hungarian,
-  Filipino, Bosnian, Galician, Macedonian.
-- **Not ready (>15%):** Hindi, Estonian, Slovenian, Tamil, Latvian, Azerbaijani, Urdu, Lithuanian,
-  Hebrew, Welsh, Persian, Icelandic, Kazakh, Afrikaans, Kannada, Marathi, Swahili, Telugu, Maori,
-  Nepali, Armenian, Belarusian, Gujarati, Punjabi, Bengali.
+**Read these caveats before using a number:**
 
-\* Finnish and Vietnamese score much worse on Common Voice (noisier audio). Treat them as
-borderline.
+1. **Not large-v3 or turbo.** `large-v3` postdates the paper and appears nowhere in it. Our DGX model
+   is `faster-whisper-large-v3-turbo-ct2`, which is generally better per language, so treat this as a
+   **conservative prior**. The per-language large-v3 figures exist in the `openai/whisper` repo's
+   `language-breakdown.svg`, which is a figure and has not been transcribed here.
+2. **FLEURS is read speech.** Real podcast rates are higher — crosstalk, music, informal register.
+3. **Bigger is not monotonically better per language.** Serbian regressed from `large` (29.2) to
+   `large-v2` (33.9).
+
+**Cluster A — under 5% WER**
+Spanish 3.0 · Italian 4.0 · English 4.2 · Portuguese 4.3 · German 4.5
+
+**Cluster B — 5% to 10% WER**
+Japanese 5.3 · Polish 5.4 · Russian 5.6 · Dutch 6.7 · Indonesian 7.1 · Catalan 7.3 · Turkish 8.4 ·
+Swedish 8.5 · Ukrainian 8.6 · Malay 8.7 · Norwegian 9.5 · Finnish 9.7
+
+**Cluster C — over 10% WER**
+Vietnamese 10.3 · Thai 11.5 · Slovak 11.7 · **Greek 12.5** · Czech 13.3 · **Croatian 13.4** ·
+Danish 13.8 · Tagalog 13.8 · Korean 14.3 · Romanian 14.4 · Bulgarian 14.6 · Chinese 14.7 ·
+Galician 15.4 · Bosnian 15.7 · Macedonian 16.5 · Hungarian 17.0 · Tamil 17.5 · Hindi 21.5 ·
+Estonian 21.9 · Urdu 22.6 · Latvian 23.1 · Slovenian 23.1 · Hebrew 27.1 · Lithuanian 28.1 ·
+Persian 32.9 · Welsh 33.0 · **Serbian 33.9** · Afrikaans 36.7 · Kazakh 37.7 · Icelandic 38.2 ·
+Marathi 38.3 · Swahili 39.3 · Armenian 44.6 — and the remaining low-resource languages above 40%.
+
+**What changed from the earlier draft of this appendix.** It listed Serbian under "usable with review
+(10–15%)". The source says **33.9%**. It also placed Macedonian (16.5) and Hungarian (17.0) in that
+band, and both are above it. The tiers here are the operator's three clusters (<5 / 5–10 / >10) with
+each language placed by its measured number rather than by recollection.
+
+## Appendix B: translation model shortlist
+
+Verified 2026-09-28. Full detail, including what was **not** verified, in
+[MULTILINGUAL_ARC §6.1](../architecture/MULTILINGUAL_ARC.md#61-translation-model-shortlist).
+
+| Model | Licence | `el` | `sr` | Eligible? |
+| --- | --- | --- | --- | --- |
+| TranslateGemma 27B / 12B / 4B | `gemma` (commercial OK, no territory carve-out) | ? | ? | Yes — but its 55 languages are not enumerated anywhere checked |
+| MiLMMT-46-12B v1.0 | `gemma` | ✅ | ❌ | Yes, without Serbian |
+| LMT-60-8B | `apache-2.0` | ✅ | ❌ | Yes, without Serbian |
+| Qwen3-30B-A3B (already served) | `apache-2.0` | — | — | Baseline / verification model |
+| Hunyuan-MT / HY-MT | Territory **excludes the EU** | — | — | **No** |
+| NLLB-200 | `cc-by-nc-4.0` | ✅ | ✅ | **No** — non-commercial, and the only one covering Serbian |

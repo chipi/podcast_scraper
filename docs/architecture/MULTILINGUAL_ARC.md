@@ -143,10 +143,11 @@ because the bake-off has to transcribe non-English audio properly to measure any
 
 | # | Issue title | Goal | Depends on | Size | Ship alone? |
 | --- | --- | --- | --- | --- | --- |
-| **V.1** | Verify translation and QE model availability and licence terms | For every candidate: does the checkpoint exist, does its licence permit EU commercial deployment, does it cover `el`/`sr`. Written up as findings, not assumptions. Kills or confirms the shortlist. | — | S | n/a |
+| **V.1** | ~~Verify translation model availability and licence terms~~ | **DONE 2026-09-28 — see §6.1.** Shortlist is TranslateGemma (4B/12B/27B, `gemma`), MiLMMT-46-12B (`gemma`), LMT-60-8B (`apache-2.0`), Qwen3-30B baseline. Hunyuan/HY-MT excluded (EU carve-out, confirmed); NLLB excluded (`cc-by-nc-4.0`, confirmed). QE candidates unverified — v2, off the critical path. | — | S | closed |
 | **V.2** | Demand check with the beta cohort | What share of their listening is non-English, and which shows they would add. Target: ≥30% naming at least one. | — | S | n/a |
-| **V.3** | Per-language bake-off harness and gate report | Bake-off profiles per candidate, the scoring script, native-reviewer CSV export, and the run on 2–3 episodes each of Greek and Serbian plus one Spanish/Italian control. Reports all six §7 measurements including ad-detection survival. | S0.7, V.1 | L | n/a |
-| **V.4** | Gate V decision record | An ADR or arc note recording which languages passed, with the numbers, and the chosen model + pinned revision per language. | V.2, V.3 | S | n/a |
+| **V.3** | Per-language bake-off harness and gate report | Bake-off profiles per candidate, the scoring script, native-reviewer CSV export, and the run on 2–3 **Greek** episodes plus one Spanish or Italian control. Reports all six RFC-124 §7 measurements including ad-detection survival. Greek, not Greek+Serbian — see §6.3 and V.5. | S0.7 | L | n/a |
+| **V.5** | Settle whether Serbian is supportable at all | Closes §6.3. Three questions, in order: (a) is `sr` in TranslateGemma's 55 — read the full technical report or probe the model; (b) does Whisper's 33.9% FLEURS WER collapse toward Croatian's 13.4% on **Latin-script** Serbian, measured on 2 real episodes; (c) if Serbian has no eligible MT model, is treating it as Croatian defensible, and what does a native reviewer say about the output. Outcome is a yes/no on offering Serbian, not a model choice. | §6.1, §6.2 | M | n/a |
+| **V.4** | Gate V decision record | An ADR or arc note recording which languages passed, with the numbers, and the chosen model + pinned revision per language. | V.2, V.3, V.5 | S | n/a |
 
 ---
 
@@ -163,7 +164,9 @@ stub translator before any GPU is involved.
 | **S2.4** | Speaker identity across scripts | Labels bypass the translator; CIL alias lookup, then deterministic transliteration with a `_looks_like_person` guard and source-script fallback; the vLLM speaker detector runs on the English transcript with source-language metadata as context. | S2.2 | M | Yes |
 | **S2.5** | Segments API `?lang=` and translation status on episode detail | Additive `language` / `machine_translated` / `translation_model` on `SegmentsResponse`; `translation_status` on episode detail; contract tests across English and translated episodes. | S2.2 | S | Yes |
 | **S2.6** | Translation observability | Manifest `language`, `translation` and `adfree.built_on` / `ad_chars_removed` blocks; Grafana panels for wall time, units/sec, pending backlog, failures by language, and ad-chars-removed by language. | S2.2, S2.3 | S | Yes |
-| **S2.7** | Phase 2 gate: one non-English feed end-to-end | A gated feed processed from audio to insights, with every GI quote resolving to source text and source audio, and the English corpus still byte-identical. | S2.1–S2.6 | M | This is the ship |
+| **S2.8** | Multilingual retrieval: index both layers, search in either language | Tier-1 chunks are built from **both** the source-language transcript and the English analysis transcript, each tagged with its `language`, both pointing at the same episode — so a Greek query and an English query reach the same episode. Requires swapping the **search** embedding model to a multilingual one and a full corpus reindex. Gated on the existing retrieval eval: English recall@k must not regress. See RFC-124 §6.2 for why the blast radius is contained to search. | S2.3 | L | Yes — but the reindex is corpus-wide |
+| **S2.9** | Language-aware search surfacing | Search results carry the `language` of the chunk that matched, so a hit can say "matched the Greek original" vs "matched the English translation"; the query workspace and MCP `search_corpus` pass a `language` filter through. | S2.8 | M | Yes |
+| **S2.7** | Phase 2 gate: one non-English feed end-to-end | A gated feed processed from audio to insights **and findable by a query in either language**, with every GI quote resolving to source text and source audio, and the English corpus still byte-identical. | S2.1–S2.6, S2.8 | M | This is the ship |
 
 ---
 
@@ -201,7 +204,6 @@ exists.
 | --- | --- | --- |
 | **V2.1** | Per-unit quality estimation and per-language band calibration | D-6. Calibration needs a native reviewer per language to fit thresholds — a human bottleneck on the critical path — and it needs a translated corpus to calibrate against, which does not exist until Phase 2 has run. Verification alone catches the failure mode that matters. |
 | **V2.2** | Word-level anchors via forced alignment | Per-language aligner checkpoints; `turns.json` is already forward-compatible (`timing: word_aligned`). |
-| **V2.3** | Multilingual retrieval (querying in Greek) | Search indexes the English layer in v1; this needs a multilingual embedding model and its own eval. |
 
 ---
 
@@ -212,9 +214,9 @@ S0.1 → S0.5 → S0.6 → S0.7 ══════ PHASE 0 SHIPS ═════
   ├→ S0.2  (audit)                                    ║
   └→ S0.3 → S0.4  (badge)                             ║
                                                       ▼
-S1.1 → S1.2 → {S1.3, S1.4, S1.5} ═ PHASE 1 SHIPS ═   V.1 → V.3 → V.4 ═ GATE V ═╗
-       (parallel with Phase 0)                                                  ▼
-                                    S2.2 → S2.3 → {S2.4, S2.5, S2.6} → S2.7 ═ PHASE 2 ═╗
+S1.1 → S1.2 → {S1.3, S1.4, S1.5} ═ PHASE 1 SHIPS ═   {V.3, V.5} → V.4 ═ GATE V ═╗
+       (parallel with Phase 0)                        (V.1 closed)               ▼
+                            S2.2 → S2.3 → {S2.4, S2.5, S2.6, S2.8 → S2.9} → S2.7 ═ PHASE 2 ═╗
                                                                                         ▼
                                                     S3.3 (early) · S3.1 → S3.2 → S3.4 ═ PHASE 3
                                                                                         ▼
@@ -274,7 +276,103 @@ Hazard 4 is why translation precedes ad detection. See D-3.
 
 No generic badge primitive exists in the player, so `LanguageBadge.vue` is new (small) component work.
 
-## 6. Decisions taken
+## 6. Model and ASR evidence (verified 2026-09-28)
+
+This section closes slice **V.1**. Everything here was checked against a primary source in this pass;
+where something was **not** verified it says so. Read the caveats before quoting a number.
+
+### 6.1 Translation model shortlist
+
+| Model | HF id | Params | Licence | `el` | `sr` | `hr` | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TranslateGemma 27B / 12B / 4B | `google/translategemma-{27b,12b,4b}-it` | 27B / 12B / 4B | `gemma` — commercial use permitted, no territorial carve-out | ? | ? | ? | **Eligible.** 55 languages claimed, but the list is not enumerated on the model card, the launch blog, or the abstract, so `sr` coverage is **unconfirmed** |
+| MiLMMT-46-12B v1.0 | `xiaomi-research/MiLMMT-46-12B-v1.0` | 12.19B | `gemma` | ✅ | ❌ | ✅ | **Eligible, but no Serbian.** Serbian is absent from its 46 |
+| LMT-60-8B | `NiuTrans/LMT-60-8B` | 8.19B | **apache-2.0** | ✅ | ❌ | ✅ | **Eligible, but no Serbian.** Absent from its 60 (language tags are on the model card) |
+| Qwen3-30B-A3B | already served | 30B MoE | apache-2.0 | — | — | — | Generalist baseline; also the RFC-125 verification model |
+| ~~Hunyuan-MT / HY-MT~~ | Tencent | — | Community Licence: "Territory" **excludes the EU**, UK and South Korea | — | — | — | **Excluded.** Confirmed, not assumed |
+| ~~NLLB-200~~ | `facebook/nllb-200-3.3B` | 3.3B | **cc-by-nc-4.0** | ✅ | ✅ | ✅ | **Excluded — non-commercial.** The only shortlisted model that covers Serbian |
+
+Details worth carrying forward:
+
+- **TranslateGemma** released 2026-01-15 in 4B / 12B / 27B (27B targets a single H100), gemma3
+  architecture, technical report arXiv:2601.09012. That report confirms RFC-125's provenance claim in
+  its own words: "we optimize translation quality using an ensemble of reward models, including
+  MetricX-QE and AutoMQM". So the QE family we would adopt in v2 is the same one this model was
+  trained against — which is an argument for QE later, and a caution that QE would be partly
+  marking its own homework.
+- **MiLMMT-46** is Gemma3-based, trained through continual pretraining on 143B tokens across 46
+  languages, and claims to outperform TranslateGemma and HY-MT-1.5 while being competitive with
+  Google Translate and Gemini 3 Pro (arXiv:2608.10812). Sizes are 1B / 4B / 12B — **there is no 27B**,
+  so the earlier "MiLMMT-46-12B" naming was right and any 27B comparison is not available.
+- **LMT-60** is Qwen3-based and self-describes as **Chinese-English-centric** across 234 directions.
+  `el→en` is in scope, but its centre of gravity is not European.
+- **Not verified in this pass**: the QE candidates (MetricX-24, COMETKiwi, xCOMET) — availability and
+  licence. They are v2 (RFC-125 §7), so they are not on the v1 critical path.
+
+### 6.2 ASR evidence — Whisper FLEURS WER
+
+**Source**: Whisper paper (Radford et al.), Appendix D.2.4, **Table 13 "WER (%) on Fleurs"**. Numbers
+below are the **`large-v2`** row, which is the strongest model in that table.
+
+**Three caveats, all load-bearing:**
+
+1. **These are not large-v3 or turbo numbers.** The string `large-v3` appears nowhere in the paper —
+   it postdates it. large-v3 is generally better per language, and the per-language figures exist in
+   the `openai/whisper` repo's `language-breakdown.svg`, but that is a figure and was **not** extracted
+   here. Our DGX model is `faster-whisper-large-v3-turbo-ct2`, so treat these as a **conservative
+   prior**, not as our expected error rate.
+2. **FLEURS is read speech.** Podcast audio — crosstalk, music, informal register, two hours of it —
+   is worse. Appendix A of PRD-047 says this and it remains true.
+3. A bigger model is not monotonically better per language. Serbian got **worse** from `large`
+   (29.2) to `large-v2` (33.9).
+
+**Cluster A — under 5%**
+Spanish 3.0 · Italian 4.0 · English 4.2 · Portuguese 4.3 · German 4.5
+
+**Cluster B — 5% to 10%**
+Japanese 5.3 · Polish 5.4 · Russian 5.6 · Dutch 6.7 · Indonesian 7.1 · Catalan 7.3 · Turkish 8.4 ·
+Swedish 8.5 · Ukrainian 8.6 · Malay 8.7 · Norwegian 9.5 · Finnish 9.7
+
+**Cluster C — over 10%**
+Vietnamese 10.3 · Thai 11.5 · Slovak 11.7 · **Greek 12.5** · Czech 13.3 · **Croatian 13.4** ·
+Danish 13.8 · Tagalog 13.8 · Korean 14.3 · Romanian 14.4 · Bulgarian 14.6 · Chinese 14.7 ·
+Galician 15.4 · Bosnian 15.7 · Macedonian 16.5 · Hungarian 17.0 · Tamil 17.5 · Hindi 21.5 ·
+Estonian 21.9 · Urdu 22.6 · Latvian 23.1 · Slovenian 23.1 · Hebrew 27.1 · Lithuanian 28.1 ·
+Persian 32.9 · Welsh 33.0 · **Serbian 33.9** · Afrikaans 36.7 · Kazakh 37.7 · Icelandic 38.2 ·
+Marathi 38.3 · Swahili 39.3 · Armenian 44.6 · Amharic 140.3 · Assamese 106.2 · Gujarati 102.7 ·
+Kannada 37.0 · Malayalam 100.7 · and the remaining low-resource languages above 40%
+
+### 6.3 The Serbian problem
+
+The two axes agree, and they disagree with the plan as written:
+
+| | Greek | Serbian |
+| --- | --- | --- |
+| Whisper FLEURS WER (large-v2) | **12.5** | **33.9** |
+| In MiLMMT-46's languages | ✅ | ❌ |
+| In LMT-60's languages | ✅ | ❌ |
+| In an eligible MT model at all | yes | **only via TranslateGemma's unconfirmed 55** |
+| Covered by NLLB | yes | yes — but NLLB is non-commercial |
+
+Serbian is the weakest link on **both** axes simultaneously. PRD-047's Appendix A placed it in
+"usable with review (10–15%)"; the source says 33.9%, which is more than double that, and in the tier
+the same appendix calls "not ready".
+
+**The likely cause is script, and that makes it testable.** Croatian sits at 13.4% while Serbian sits
+at 33.9%, and the two are mutually intelligible. FLEURS Serbian is **Cyrillic**; FLEURS Croatian is
+**Latin**. So the hypothesis is that Whisper's Serbian penalty is largely an orthography penalty, not
+a language-comprehension one — and that Latin-script Serbian would behave much more like Croatian.
+
+This reframes an open question. "Serbian script: normalize to Latin or keep Cyrillic?" was filed as a
+**display** decision. On this evidence it is a **capability** decision that affects transcription
+accuracy and whether any eligible MT model covers the language at all.
+
+**Consequence for the plan**: **Greek is the pilot language.** Serbian gets its own investigation
+slice (V.5) before it is promised to anyone, and it is removed from the Gate V "hardest likely-demanded
+pair" framing, because the pair is not symmetric — one member is fine and the other may not be
+supportable at all under an eligible licence.
+
+## 7. Decisions taken
 
 | # | Decision | Rationale | Date |
 | --- | --- | --- | --- |
@@ -290,24 +388,31 @@ No generic badge primitive exists in the player, so `LanguageBadge.vue` is new (
 | D-10 | **Phase 0 ships before Gate V**, on its own | It is a correctness fix on the existing corpus, not a feature bet, and the bake-off depends on it | 2026-09-28 |
 | D-11 | The language **badge** ships in Phase 0; the language **filter** ships once a second language exists | A filter over a monolingual corpus is a dead control; a badge over one is a verified fact | 2026-09-28 |
 | D-12 | The language filter is its own control, not an option inside the played/downloaded filter | The two dimensions are orthogonal; merging them makes "Greek and unplayed" unexpressible | 2026-09-28 |
+| D-13 | **Greek is the pilot language. Serbian is an open investigation (V.5), not a launch target.** | §6.3: Serbian is 33.9% FLEURS WER against Greek's 12.5%, and it is absent from both MiLMMT-46 and LMT-60. It is the weakest link on ASR *and* MT at once, and the one model that covers it (NLLB) is non-commercial | 2026-09-28 |
+| D-14 | **Multilingual retrieval is in v1, not deferred.** Both the source-language and the English layer are indexed, and a query in either language reaches the episode | If the content is in the corpus in that language, it has to be findable in that language from day one. Deferring it would ship a corpus you can only search in translation | 2026-09-28 |
+| D-15 | The search embedding model is swapped; `gi_embedding_model` is **not** | `vector_embedding_model` is already a separate config key from `gi_embedding_model`, so search can go multilingual while GI ABOUT edges, chunked extraction and the CIL bridge stay on the pinned MiniLM. Containing the blast radius is the whole reason this is affordable | 2026-09-28 |
 
-## 7. Open decisions
+## 8. Open decisions
 
-1. **DGX capacity.** These RFCs assume a translation vLLM alongside Qwen, but the convention here is
-   one vLLM at a time (`gpu-mode`). Settle before Phase 2.
-2. **Model shortlist is unverified** — V.1 exists to close this. Nothing in the docs should be read
-   as a checked fact until it does.
+1. **Does TranslateGemma cover Serbian?** Its 55 languages are not enumerated in any source checked
+   (§6.1). This is the difference between "Serbian is hard" and "Serbian has no eligible MT model".
+   Closed by reading the full technical report or probing the model. Slice **V.5**.
+2. **Serbian script is a capability decision, not a display one** (§6.3). Transcribe Cyrillic as-is,
+   force Latin-script output, or romanize post-hoc? This affects WER, MT coverage and CIL identity at
+   once.
 3. **Source-language ad-free variant** — keep one, derived by mapping English ad ranges back through
    `translation.json`? It has a reader/player use, no analysis use.
 4. **Code-switching** (English passages inside a Serbian episode): pass the unit through
    untranslated, or accept the damage?
-5. **Serbian script**: normalize to Latin at render time, store normalized, or follow the feed?
-6. **Ad-survival threshold.** There is no prior for "what fraction of sponsor reads survive
+5. **Ad-survival threshold.** There is no prior for "what fraction of sponsor reads survive
    translation into pattern-matchable English". The first language measured sets it.
-7. **Badge scope.** Does the `EN` badge render on every surface that shows a show or episode, or only
+6. **Badge scope.** Does the `EN` badge render on every surface that shows a show or episode, or only
    where other metadata chips already appear? S0.4 assumes the latter to avoid visual noise.
+7. **Which multilingual embedding model** for the search index (RFC-124 §6.2 / slice S2.8), and
+   whether the English retrieval eval holds after the swap. The eval gate decides; the model choice
+   does not.
 
-## 8. Running notes
+## 9. Running notes
 
 **2026-09-28 — arc opened.** PRD-047 and RFC-123/124/125 landed on `feat/multilingual-ingest`,
 reworked against the code rather than accepted as drafted: the stance-stage dependency does not exist
@@ -317,6 +422,19 @@ reframed from a silent refactor into "English as a declared language" with a bad
 as its visible outcome (D-10, D-11), and the demand/bake-off step renamed **Gate V** so phase numbers
 mean one thing. Slice plan added (§4): 7 slices for Phase 0, 5 for Phase 1, 4 for Gate V, 7 for
 Phase 2, 4 for Phase 3, 3 for Phase 4, 3 deferred to v2. No issues opened; no code written.
+
+**2026-09-28 — evidence pass; Serbian demoted, retrieval promoted.** Slice V.1 closed with primary
+sources (§6): the MT shortlist is verified, Hunyuan's EU carve-out and NLLB's non-commercial licence
+both confirmed rather than assumed, and the Whisper FLEURS table (paper Table 13) pulled for every
+language. Two plan changes fell out. **Serbian is not a launch target** (D-13): 33.9% WER vs Greek's
+12.5%, absent from both MiLMMT-46 and LMT-60, and covered only by the one model we cannot use
+commercially — so Greek is the pilot and Serbian becomes investigation slice V.5, with the script
+question reclassified from display to capability (§6.3). **Multilingual retrieval moved into v1**
+(D-14, slices S2.8/S2.9) on the operator's call that content in the corpus must be searchable in its
+own language from day one; the blast radius stays in search because `vector_embedding_model` is
+already separate from `gi_embedding_model` (D-15). PRD-047 Appendix A replaced with the sourced
+three-cluster table. DGX capacity removed from the documents — it is a deployment-time question the
+operator owns, not a design constraint.
 
 <!-- Append new entries above this line, newest last. Keep each to a few lines: what changed, what it
      cost, what it invalidated. Decisions go in §6 with a D-number; facts about the code go in §5. -->

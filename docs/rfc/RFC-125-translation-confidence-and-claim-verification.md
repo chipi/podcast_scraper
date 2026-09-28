@@ -185,9 +185,9 @@ loop. Method 2 catches failures where method 1 cannot decide, and it tests robus
 variance: a claim that survives two independent translations is unlikely to be a translation
 artifact.
 
-**GPU ordering note.** Method 1 needs the Qwen service and method 2 needs the translation service.
-The DGX convention is one vLLM at a time (`gpu-mode`), so verification is a batched pass per episode
-with method-2 work queued for the translation slot, not an interleaved per-claim call.
+**Batching.** Method 1 needs the Qwen service and method 2 needs the translation service, so
+verification runs as a batched pass per episode — all method-1 claims together, then any method-2
+fallbacks together — rather than an interleaved per-claim call.
 
 **2.3 Outcomes:**
 
