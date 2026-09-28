@@ -320,6 +320,53 @@ reasoned from the code rather than from a run.
 fails, and there has not been one since the net came off. Nor is the relaunch fix verified; it only
 proves itself the next time a WebView comes up blank.
 
+### M9. The degraded drill certified an empty api and called it the incident
+
+Tier run 3 reached phase 6 — further than any run before it — and died on `the app's WebView never
+painted after two launches`. It had not. The api underneath it had no corpus, no accounts, and an
+`/app/state` the non-root app user could not write.
+
+Earlier the same day `APP_E2E_VOL`/`STATE`/`CT` became worktree-scoped. A container from before
+that rename was still serving `:8011` against the OLD volumes, and `ios-origin-up` reuses a running
+api on health alone — which says nothing about WHICH volumes it has open. So phases 1-5 passed
+against volumes the Makefile no longer names. Then `_app-e2e-api-restart` ran
+`docker run -v <new-name>:…`, Docker created both volumes empty because that is what it does, and
+the drill asserted incident behaviour against an api with nothing in it.
+
+Measured after the fact:
+
+```
+lp-e2e-corpus                            07:49:44Z   4.5M   feeds/ enrichments/ search/
+lp-e2e-corpus-podcast_scraper-FUTURE     16:36:11Z   8.0K   (empty)
+/app/state  root:root  — `touch` as `podcast` -> Permission denied
+```
+
+The 503 the drill printed as `✓ api is UP and cannot authenticate anyone — the incident, reproduced`
+was `{"detail":"Storage temporarily unavailable (permission denied)."}`, not
+`{"detail":"Auth is not configured."}`. **It verified the status code and not the fault** — the same
+shape as the bug its own comment describes in the version before it ("really tested 'the user record
+was deleted'"). A drill can pass its own proof while reproducing a different incident.
+
+Three guards landed, each where the truth was still available: the restart refuses a missing or
+unseeded volume instead of letting Docker invent one; the 503 proof asserts the body; the restore no
+longer hides its exit code. Reuse now also requires the container to mount the volumes currently
+named.
+
+The transferable bit: **an auto-creating default turns a rename into a failure an hour downstream
+and three layers away.** `docker run -v` inventing an empty volume is the same class as
+`Journey.originPort()` refusing to default — that argument was already made in this repo, and simply
+not applied here until it cost a tier run.
+
+**Caution for the next reader:** the first version of the "is it seeded" guard counted entries and
+passed a corpus volume holding one stray `.viewer` directory. It now looks for `feeds/`. A presence
+check is not a content check.
+
+**STILL OPEN:** whether `relaunch()`'s blank-WebView check is *also* wrong. It decides from
+`labelledInventory`, whose own docstring says it "is allowed to return less than the whole truth"
+(it swallows stale-node throws and renders the result as `<nothing labelled…>`), and during the
+failure it read non-empty twice and empty once inside ~7 seconds. Run 3 cannot answer it, because
+the environment was broken underneath it.
+
 ## LANDED this session
 
 | Change | Evidence it works |
@@ -331,6 +378,10 @@ proves itself the next time a WebView comes up blank.
 | Audit: stale node no longer blinds a surface | one opaque throw became `15 of 29 nodes went stale` |
 | `A11yProbe` + its self-check | self-check asserts ≥5 named controls on Library, so its clearances are not vacuous |
 | `AppSession.signInViaCallback` — mint over HTTP, deliver via `appUrlOpen` | see the reliability loop; emits `=====CALLBACK signed in … no Custom Tab=====` |
+| `_app-e2e-api-restart` refuses a missing or unseeded volume | missing name and unseeded volume both fail with the reason; a seeded one proceeds — all three run against the live container |
+| The degraded drill's 503 proof asserts the body, not the code | the fault it actually got (`Storage temporarily unavailable`) is now rejected by name |
+| The drill's restore reports failure instead of `\|\| true` | it had already failed silently once, leaving the api unable to authenticate |
+| Reuse requires the running api to mount the volumes we currently name | live container accepted; a foreign name flagged; the `lp-e2e-corpus` prefix correctly rejected |
 
 ---
 
