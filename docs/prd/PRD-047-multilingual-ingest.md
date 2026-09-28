@@ -10,7 +10,8 @@
   - [RFC-005](../rfc/RFC-005-whisper-integration.md), [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md), [RFC-106](../rfc/RFC-106-tiered-dgx-service-fallback.md), [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md)
 - **Related ADRs**: [ADR-155](../adr/ADR-155-pin-every-model-checkpoint.md) (pin every model checkpoint), [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (stance-over-time is a read-time query)
 - **Related PRDs**: [PRD-028](PRD-028-position-tracker.md) (Position Tracker — the surface trust gates), [PRD-036](PRD-036-foundation-identity.md) (player `segments.json` contract), [PRD-039](PRD-039-player.md) (player), [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
-- **Scope**: pipeline (ingest → transcript → translation → ad-free base → existing intelligence layers), player transcript/quote surfaces, operator feed config. No non-English UI.
+- **Arc notes**: [MULTILINGUAL_ARC](../architecture/MULTILINGUAL_ARC.md) — arc shape, the slice plan (§4), decisions and running notes
+- **Scope**: pipeline (ingest → transcript → translation → ad-free base → existing intelligence layers), player transcript/quote surfaces, language visibility and filtering, operator feed config. No non-English UI.
 
 ---
 
@@ -22,8 +23,14 @@ derived transcript**, aligned turn by turn with the original. The existing ad-re
 on that English text, and its output is what every existing layer (summary, KG, GIL, CIL, search,
 Positions) reads — without modification. The listener hears the original audio, can read the
 original transcript, and can switch to English subtitles. Every claim that rests on translated text
-is marked as such, carries a confidence level, and is verified against the source before it can
-enter a Position timeline.
+is marked as such, records the source sentences it rests on, and — where it could enter a Position
+timeline — is verified against the source first.
+
+**The first deliverable is not translation.** It is making language an explicit, resolved, validated
+and *visible* property of the corpus we already have: every show and episode carries a language
+badge, an audit proves the existing corpus is English, and no code path can silently substitute
+English for a language it was not given. That work is a correctness fix on today's corpus, it ships
+on its own, and it is exactly the plumbing translation needs.
 
 The product bet is two-sided. For listeners, the hypothesis is that internationally-minded people
 who consume English podcasts also keep a native-language minority in their diet. For the corpus,
@@ -73,10 +80,15 @@ this, and it compounds the cross-show-synthesis moat.
 - **G3.** Run every existing intelligence layer on non-English episodes with no per-language forks
   in those layers.
 - **G4.** Never present translated text as verbatim speech. Every translated quote, insight and
-  position is labeled, carries confidence, and traces back to the original audio and text.
+  position is labeled, records the source units it rests on, and traces back to the original audio
+  and text.
 - **G5.** Claim language support only where a measured quality gate passes, per language.
 - **G6.** Remove ads from non-English episodes as effectively as from English ones, rather than
   appearing to.
+- **G7.** Make the language of every show and episode **visible and filterable** in the product, so a
+  listener can see what language something is in and find things by it.
+- **G8.** Make English an explicitly declared, checked language before any second language exists, so
+  the multilingual path is proven end to end on a corpus we can already verify.
 
 ## Non-Goals
 
@@ -91,6 +103,9 @@ this, and it compounds the cross-show-synthesis moat.
   declared language". Tracked as an open question.
 - A writable per-show override in the operator UI. The override is config (see FR1.1); a UI editor
   needs a feed-record store this feature does not justify building.
+- Per-unit quality-estimation bands in v1. Calibrating them needs a native reviewer per language and
+  a translated corpus that does not exist until the pipeline has run, so QE is a v2 addition
+  (RFC-125 §7). v1's trust mechanism is source verification.
 
 ## Personas
 
@@ -121,6 +136,9 @@ this, and it compounds the cross-show-synthesis moat.
 - _As an operator, I can see which languages pass the quality gate and why, and enable only those._
 - _As an operator, I can review claims that failed source verification before they reach a
   Position._
+- _As a listener, I can see at a glance what language a show or an episode is in, without opening it._
+- _As a listener, I can filter shows and episodes by language, the same way I filter by whether I have
+  played or downloaded them._
 
 ## Functional Requirements
 
@@ -142,6 +160,14 @@ this, and it compounds the cross-show-synthesis moat.
   `skipped_unsupported_language`. They are **never** transcribed as English.
 - **FR1.4**: A language-ID sanity check samples audio away from the intro. On a mismatch with the
   declared language, the episode is flagged for the operator. The check never silently reroutes.
+- **FR1.5**: The existing corpus is **audited** before any second language is enabled: every feed and
+  every episode resolves to a language, and anything that does not resolve to `en` is reported
+  explicitly. The expected result is that the whole current corpus is English; the audit is what turns
+  that expectation into evidence. It is read-only and re-runnable.
+- **FR1.6**: The resolved language is **carried as an explicit parameter** through transcription,
+  diarization, metadata writing and the observability manifest. No stage may substitute a default
+  language for one it was not given, and the transcription model is selected *from* the resolved
+  language (see FR2.1).
 
 ### FR2: Source-language capture (canonical)
 
@@ -185,18 +211,22 @@ this, and it compounds the cross-show-synthesis moat.
 
 ### FR5: Trust and confidence
 
-- **FR5.1**: Every translation unit carries a quality-estimation score and a calibrated band
-  (green / amber / red).
-- **FR5.2**: Every claim derived from translated text inherits the **lowest** band among the units
-  it cites.
+- **FR5.1**: Every claim derived from translated text records its **translation provenance**: that it
+  is translated, the source language, and the specific source units it rests on — so any translated
+  quote can show the original sentence and play the original audio.
+- **FR5.2**: A translated claim that has not been verified is **labelled but not silently trusted**:
+  it renders with a translation marker, its source is one tap away, and it never enters a Position
+  timeline. (Per-unit quality bands that would let us rank *how* unsure we are on the unverified
+  remainder are a v2 addition — RFC-125 §7.)
 - **FR5.3**: A translated, position-bearing insight appears in a Position timeline only when it has
   a `verified` verification outcome. This is enforced as a filter in the read-time `position_arc` /
   `topic_conversation_arc` query, which means it is retroactive and **fail-closed**: a translated
   claim with no verification record is absent from timelines by default, with no feature flag to
   remember. A contradicted claim is excluded and queued for review. An unverifiable claim stays
   visible on the episode, marked unverified.
-- **FR5.4**: The player shows a "Translated from <Language>" marker on translated content, and
-  shows a confidence marker only for amber and red. Green content carries no extra noise.
+- **FR5.4**: The player shows a "Translated from <Language>" marker on translated content. v1 adds no
+  further per-claim confidence decoration, because without calibrated bands there is nothing honest to
+  grade; the amber/red marker arrives with v2.
 
 ### FR6: Operator surfaces
 
@@ -207,6 +237,26 @@ this, and it compounds the cross-show-synthesis moat.
   ad-free base was built on.
 - **FR6.3**: A review worklist lists contradicted and unverified claims, each with source and
   translation side by side.
+
+### FR7: Language visibility and filtering
+
+- **FR7.1**: Every **show** and every **episode** displays a compact language badge — a small squared
+  chip carrying the uppercase ISO code (`EN`, `EL`, `SR`) — wherever that item's metadata renders:
+  the consumer episode rows, tiles and cards, the show rows, tiles and show detail page, and the
+  operator shows library. The badge is omitted, not guessed, when the language is unknown.
+- **FR7.2**: Episode language is exposed by the app API. Show language already is
+  (`AppPodcastItem.language`), and it is served **normalized** (`en-US` → `en`) so the badge shows one
+  token per language rather than one per feed's spelling of it.
+- **FR7.3**: Shows and episodes can be **filtered by language** on the surfaces that already offer
+  filters — the consumer episode toolbar (which today filters all / unplayed / played / insights /
+  downloaded and selects a show), show browse, and the operator library filter bar.
+- **FR7.4**: The language filter is its **own** control, not another option inside the
+  played/downloaded filter, because the two dimensions are orthogonal: "Greek **and** unplayed" must
+  be expressible.
+- **FR7.5**: The language filter is shown only when the corpus holds more than one language. A filter
+  with a single value is a dead control, so it appears with the second language rather than shipping
+  inert. The badge (FR7.1) has no such condition — it is informative even when everything is English,
+  and that is how a listener sees the audit's result.
 
 ## Supported-language policy
 
@@ -222,32 +272,49 @@ languages are not supported yet."
 
 ## Phasing
 
-- **Phase 0: Validate (no build).** Ask the beta cohort what share of their listening is
-  non-English and which shows. Confirm candidate translation-model availability and licence terms
-  (unverified today). Run the RFC-124 bake-off on 2–3 episodes each of Greek and Serbian (hardest
-  likely-demanded pair) and one of Spanish or Italian (easy control). **Decision gate:** proceed only
-  if the demand signal and the quality gate both pass.
-- **Phase 1: Turns (RFC-123).** Ships regardless of Phase 0, because it improves quote attribution,
-  search chunking and player cues for English episodes today.
-- **Phase 1b: Language correctness (RFC-124 Phase A).** Tag normalization, the registry, per-episode
-  language threading, removal of the `or "en"` provider defaults, and the non-English quality floor.
-  No user-visible change, and it can ship before the Phase 0 gate because it only makes a
-  misconfigured language fail loudly instead of silently transcribing as English.
-- **Phase 2: Pipeline (RFC-124 Phase B)** behind a feature flag, on one or two operator-chosen feeds.
-- **Phase 3: Trust (RFC-125).** Required before any translated position enters a timeline — though
-  note FR5.3 is fail-closed, so the absence of this phase already withholds them.
-- **Phase 4: Player surfaces.** Language toggle, translated-quote treatment and confidence markers
-  (UXS to follow).
+Phase numbering means one thing across this PRD and RFC-123/124/125. The demand and bake-off
+validation step is **Gate V**, not a phase, because it produces evidence rather than software. The
+per-slice breakdown — each slice sized as one issue, with dependencies and acceptance criteria — lives
+in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
+
+- **Phase 0: English as a declared language.** **Ships on its own, before Gate V.** Tag
+  normalization and per-episode resolution; the corpus audit (FR1.5); episode language on the API and
+  the `EN` badge on every show and episode (FR7.1–FR7.2); the resolved language threaded as an
+  explicit parameter with every silent `"en"` substitution removed (FR1.6); transcription-model
+  selection driven by the resolved language, with a non-English quality floor (FR2.1). This is a
+  correctness fix on the corpus that exists — no new models, no GPU — and it is what makes the
+  multilingual path provable end to end before any translation happens.
+- **Phase 1: Turns (RFC-123).** Independent of everything multilingual; improves quote attribution,
+  search chunking and player cues for English episodes today. Can run in parallel with Phase 0.
+- **Gate V: Validate (no build).** Ask the beta cohort what share of their listening is non-English
+  and which shows. Confirm candidate translation-model availability and licence terms (unverified
+  today). Run the RFC-124 bake-off on 2–3 episodes each of Greek and Serbian (hardest likely-demanded
+  pair) and one of Spanish or Italian (easy control). Requires Phase 0, because the bake-off has to
+  transcribe non-English audio correctly to measure anything. **Decision gate:** proceed only if the
+  demand signal and the quality gate both pass.
+- **Phase 2: Translation (RFC-124)** behind a feature flag, on one or two operator-chosen feeds.
+- **Phase 3: Trust (RFC-125).** Source verification and the read-time Positions gate. Required before
+  any translated position enters a timeline — though note FR5.3 is fail-closed, so the absence of this
+  phase already withholds them.
+- **Phase 4: Surfaces.** Language toggle, translated-quote treatment, and the language filters
+  (FR7.3–FR7.5). UXS to follow for the transcript toggle and quote treatment.
+- **v2:** per-unit quality estimation and calibrated bands (RFC-125 §7).
 
 ## Success Metrics
 
-- **Demand (Phase 0):** at least 30% of the beta cohort names one or more non-English shows they
+- **Phase 0:** the audit reports 100% of existing shows and episodes as `en` with a named resolution
+  source; every show and episode renders a language badge; no provider can receive a null language and
+  substitute English; and the English corpus is byte-identical to before the phase.
+- **Demand (Gate V):** at least 30% of the beta cohort names one or more non-English shows they
   would add to the product.
 - **Quality gate (per language):** at least 90% of position-bearing units judged meaning-preserving
   by a native reviewer, and at least 90% agreement between positions extracted from the translation
   and the reviewer's reading of the original.
 - **Trust:** zero translated quotes rendered without a translation label, and zero translated
-  positions in timelines without a verified outcome.
+  positions in timelines without a verified outcome. At least 90% of reviewer-labeled position
+  inversions caught on the bake-off eval set.
+- **Findability (Phase 4):** a listener can reach every non-English show in the corpus using the
+  language filter alone.
 - **Coverage:** at least 95% of episodes in enabled languages reach English analysis without manual
   retry.
 - **Ad removal:** `ad_chars_removed` on translated episodes is non-zero at a rate comparable to
@@ -261,13 +328,18 @@ languages are not supported yet."
 - DGX capacity for one additional served model (translation), plus a QE model. Note the existing
   one-vLLM-at-a-time convention on the DGX: this is a capacity question to settle in Phase 0, not an
   assumption.
-- A native-speaker reviewer per candidate language for the bake-off.
-- Candidate translation and QE models confirmed available under a licence that permits this
-  deployment.
+- A native-speaker reviewer per candidate language **for the bake-off** (Gate V) and for the monthly
+  verification spot-check. Cutting QE from v1 removes the reviewer from the *pipeline's* critical path;
+  it does not remove them from the decision to enable a language.
+- Candidate translation models confirmed available under a licence that permits this deployment.
+- Phase 0 shipped, before Gate V can measure anything.
 
-**Not a dependency (corrected):** a stance-extraction stage. Positions are a read-time CIL query
-over GI insights (ADR-108, 2026-07-08), so there is no extraction stage to ship first and Phase 3 is
-not blocked on one.
+**Not dependencies (corrected):**
+
+- **A stance-extraction stage.** Positions are a read-time CIL query over GI insights (ADR-108,
+  2026-07-08), so there is no extraction stage to ship first and Phase 3 is not blocked on one.
+- **A QE model or its calibration.** Deferred to v2 (RFC-125 §7). v1's trust mechanism is source
+  verification, which needs no per-language threshold fitting.
 
 ## Risks
 

@@ -13,6 +13,7 @@
   - `docs/rfc/RFC-124-multilingual-transcription-and-translation.md` — consumer: translation units
   - `docs/rfc/RFC-125-translation-confidence-and-claim-verification.md` — consumer: confidence citation unit
 - **Related ADRs**: `docs/adr/ADR-131-speech-normalized-coverage-gate.md`
+- **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` (§4 slice plan — this RFC is Phase 1, slices S1.1–S1.5, and ships independently)
 
 ## Abstract
 

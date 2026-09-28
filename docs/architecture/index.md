@@ -20,6 +20,15 @@ vision for where the system is heading.
 
 **Corpus search:** **Hybrid retrieval** (BM25 + dense vector via RRF over a two-tier LanceDB index, with compound results — RFC-090) is the **default**; FAISS vector search (RFC-061) is retained as a switchable fallback. KG-proximity was evaluated and rejected as a signal (RFC-091); relational structure comes from typed edges (#874). See [Architecture — Phase 5a](ARCHITECTURE.md#phase-5a-corpus-search) and the [Server Guide](../guides/SERVER_GUIDE.md).
 
+## Arcs in flight
+
+Working notes for a multi-phase body of work — the arc's shape, its slice plan, the code facts it
+rests on, the decisions taken, and a running log. One per arc; retired when the arc closes.
+
+| Document | Purpose |
+| --- | --- |
+| [Multilingual ingest](MULTILINGUAL_ARC.md) | Source-language capture with English-normalized intelligence — phase ladder, slice plan (each slice one issue), verified code facts, decisions D-1…D-12. Pulls together [PRD-047](../prd/PRD-047-multilingual-ingest.md) and [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md)/[124](../rfc/RFC-124-multilingual-transcription-and-translation.md)/[125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) |
+
 ## Target state
 
 | Document | Purpose |

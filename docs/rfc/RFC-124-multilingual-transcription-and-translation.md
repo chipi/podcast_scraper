@@ -8,13 +8,14 @@
   - `docs/prd/PRD-044-operator-shows-library.md` — per-show language override surface
 - **Related RFCs**:
   - `docs/rfc/RFC-123-speaker-turns-artifact.md` — prerequisite: turns/sentences define translation units
-  - `docs/rfc/RFC-125-translation-confidence-and-claim-verification.md` — QE and verification over this RFC's outputs
+  - `docs/rfc/RFC-125-translation-confidence-and-claim-verification.md` — provenance and source verification over this RFC's outputs (QE deferred to v2)
   - `docs/rfc/RFC-005-whisper-integration.md`, `docs/rfc/RFC-058-audio-speaker-diarization.md`
   - `docs/rfc/RFC-106-tiered-dgx-service-fallback.md` — tiered fallback semantics
   - `docs/rfc/RFC-109-per-episode-observability-manifest.md` — manifest fields
   - `docs/rfc/RFC-115-transcript-prefix-caching-llm-stages.md` — LLM stages cache the analysis transcript as a prompt prefix
 - **Related ADRs**:
-  - `docs/adr/ADR-155-pin-every-model-checkpoint.md` — translation and QE checkpoints are pinned
+  - `docs/adr/ADR-155-pin-every-model-checkpoint.md` — the translation checkpoint is pinned
+- **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` (§4 slice plan, decisions D-1 … D-4)
 
 ## Abstract
 
@@ -99,8 +100,9 @@ not after.
 **Constraints:**
 
 - English episodes: byte-identical artifacts and no added latency when the feature flag is on.
-- No silent model substitution for translation. A different translation model changes QE
-  calibration (RFC-125), so an unavailable model means **defer**, not **fall back**.
+- No silent model substitution for translation. A different translation model invalidates the
+  bake-off evidence the language was enabled on — and, once QE lands in v2, its calibration too
+  (RFC-125 §7). An unavailable model therefore means **defer**, not **fall back**.
 - Only models whose license permits this deployment (EU operator, commercial product) are eligible.
 - Runs on the DGX Spark alongside the existing vLLM Qwen3-30B service. English ingest keeps
   priority.
@@ -344,8 +346,8 @@ service" is a capacity question to settle before Phase B, not an assumption.
 
 - **Failure semantics.** Per RFC-106 tiering, the translation tier is DGX-only in v1. If it is
   unavailable, the episode moves to `translation_pending` and is retried with backoff. There is no
-  cloud translation fallback, because substituting a model would invalidate QE calibration and
-  make quality untraceable.
+  cloud translation fallback, because substituting a model would make quality untraceable — the
+  episode's text would no longer be the text the language's gate evidence was measured on.
 - **Partial output.** A unit that errors or returns empty text is retried up to 2 times, then
   marked `status: "failed"`. Any failed unit blocks analysis for the episode (PRD-047 FR3.4) —
   concretely, the English ad-free base is not built, so the resolver finds no analysis transcript
@@ -395,6 +397,27 @@ source script.
 UI treatment (the translated marker, the original-text reveal, the language toggle) is deferred to
 a UXS.
 
+**6.1 Language visibility and filtering** (PRD-047 FR7). Two additive API changes and one new
+component carry it:
+
+- **Show language already exists**: `AppPodcastItem.language` (`server/schemas.py:1719`), described as
+  "Feed language tag (e.g. 'en') if known". It currently serves the **raw** RSS tag, because
+  `_feed_language` does not normalize — so `en-US` and `en` are two values for one language. Routing
+  it through `normalize_language_tag` (§1) is what makes it usable as a badge and as a filter key.
+- **Episode language is not exposed** and gains an additive `language` field on the episode list and
+  detail responses, read from the episode metadata that `metadata_generation.py:2843` already writes.
+- **`LanguageBadge.vue`** is new: a compact squared chip with the uppercase code. No generic badge
+  primitive exists in `web/learning-player`, so this is the primitive. It renders on `EpisodeRow`,
+  `EpisodeTile`, `EpisodeCard`, `ShowRow`, `ShowTile` and `PodcastView`, and alongside the operator
+  viewer's existing `library/chips/` components. Absent language renders nothing rather than a guess.
+- **The filter reuses `TypeFilterBar.vue`**, whose own docstring states the intent — "Type filtering
+  is one concept, so it is one component: a new surface passes its options and a testid prefix". The
+  language filter is a new instance of it on the `CatalogView` toolbar (which today carries
+  all / unplayed / played / insights / downloaded plus a `show` selector and a sort), on show browse,
+  and on the operator `LibraryFilterBar`. It is a **separate** control from the played/downloaded
+  filter, because language is orthogonal to listening state — collapsing them would make "Greek and
+  unplayed" unexpressible — and it renders only once the corpus holds more than one language.
+
 ### 7. Model selection: bake-off and per-language gate
 
 This reuses the existing bake-off pattern (`config/profiles/bakeoff_*.yaml`, 14 profiles today), with
@@ -421,7 +444,10 @@ including every unit that the current GI pipeline cites in those episodes.
 
 1. **ASR check** (pre-translation): a native reviewer rates 20 random source units as
    usable / minor errors / broken.
-2. **Automatic**: QE score distribution per model (RFC-125's QE model), plus latency and GPU memory.
+2. **Automatic**: latency and GPU memory per model. Optionally a reference-free QE model as a cheap
+   comparative signal **if** a permissively licensed checkpoint is available — it would inform the
+   model choice, but no thresholds are calibrated and nothing ships from it, because QE is a v2
+   addition (RFC-125 §7). The gate below does not depend on it.
 3. **Native reviewer, blind to model**: for each position-bearing unit, whether the translation is
    meaning-preserving (yes / minor / no), with error type (negation, hedge, name, omission, other).
 4. **Position agreement**: run GI extraction on each model's English output and compare the
@@ -499,8 +525,8 @@ ad-chars-removed by language.
    - **Rationale**: timing lookup, player cues, turns and the ad-free builder all work on it with
      zero consumer changes.
 6. **Defer, don't substitute.**
-   - **Rationale**: a translation model swap silently invalidates QE calibration and the bake-off
-     evidence.
+   - **Rationale**: a translation model swap silently invalidates the bake-off evidence the language
+     was enabled on, and later its QE calibration too.
 7. **Speaker labels bypass the translator, and must still look like people.**
    - **Rationale**: identity is CIL's job. MT transliteration is inconsistent, and a label that
      fails `_looks_like_person` un-attributes a whole turn.
@@ -574,15 +600,24 @@ ad-chars-removed by language.
 
 ## Rollout & Monitoring
 
-- **Phase A (after PRD-047 Phase 0)**: language resolution, tag normalization, the registry (every
-  non-`en` language `enabled: false`), the quality floor, removal of the `or "en"` defaults, and the
-  per-episode language threading. No user-visible change; the only behavioral change is that a
-  misconfigured language now fails loudly instead of transcribing as English.
-- **Phase B**: translation stage, English render, ad-free-on-English and the artifact set, behind
-  `multilingual_ingest: true`, on 1–2 operator-chosen feeds in one gated language.
-- **Phase C**: RFC-125 QE and verification land.
-- **Phase D**: player `lang=` toggle and translated-quote treatment (UXS). Then enable further
-  languages as each passes the gate.
+Phase names match PRD-047 and `docs/architecture/MULTILINGUAL_ARC.md`; slice ids (S0.x, S2.x) refer to
+that document's §4 slice plan.
+
+- **Phase 0 — English as a declared language (S0.1–S0.7), ships first and alone.** Language
+  resolution and tag normalization, the registry (every non-`en` language `enabled: false`), the
+  per-episode language threading, removal of the `or "en"` defaults, model selection from the resolved
+  language with the non-English quality floor, the corpus audit, and the language badge. It precedes
+  **Gate V**, because the bake-off cannot measure non-English transcription until this exists. The
+  only behavioral change for English is that a misconfigured language now fails loudly instead of
+  transcribing as English.
+- **Gate V — Validate.** Model/licence verification, demand interviews, the §7 bake-off and its gate
+  report. Evidence, not code.
+- **Phase 2 (S2.1–S2.7)**: translation stage, English render, ad-free-on-English and the artifact set,
+  behind `multilingual_ingest: true`, on 1–2 operator-chosen feeds in one gated language.
+- **Phase 3**: RFC-125 provenance, source verification and the read-time Positions gate. (QE is a v2
+  addition — RFC-125 §7.)
+- **Phase 4**: player `lang=` toggle, translated-quote treatment (UXS) and the language filters. Then
+  enable further languages as each passes the gate.
 
 **Success criteria:**
 
@@ -596,8 +631,9 @@ ad-chars-removed by language.
 ## Relationship to Other RFCs
 
 - **RFC-123** supplies the units, and it ships first on its own merits.
-- **RFC-125** consumes `translation.json` and adds QE scores, propagated confidence and
-  verification. It calls this RFC's `resolve_units_for_span`.
+- **RFC-125** consumes `translation.json` and adds per-claim translation provenance and source
+  verification, calling this RFC's `resolve_units_for_span`. QE scores and calibrated bands are its
+  v2 addition, not a v1 dependency.
 - **Positions** are a read-time CIL query (`position_arc`), not a stage. Nothing in the position
   path changes here; RFC-125 gates what that query returns.
 
