@@ -1838,9 +1838,29 @@ E2E_API_IMAGE_STAMP ?= .e2e-api-image.stamp
 #: dependency and config inputs, and a change to any of them reproduces exactly the "suite
 #: certifies old server code" failure the stamp exists to prevent (advisor-2 #7).
 E2E_API_IMAGE_INPUTS ?= src/podcast_scraper pyproject.toml config docker/api
-APP_E2E_CT ?= lp-e2e-api
-APP_E2E_VOL ?= lp-e2e-corpus
-APP_E2E_STATE ?= lp-e2e-state
+# PER-WORKTREE NAMES (2026-09-28). This machine runs three worktrees of this repo —
+# `podcast_scraper-FUTURE`, `-ai-ml-improvements`, `-infra` — and these three names used to be
+# shared by all of them.
+#
+# Sharing was survivable while the only operations were create and destroy: a collision showed up
+# immediately as a container that would not start. `app-e2e-users-reset` changed that. It deletes
+# `/app/state/users` inside whatever answers to this name, so a device tier running in a SIBLING
+# worktree has its accounts removed mid-run, silently, and the failures surface over there as
+# missing content. That is the "a shared machine may host another agent's live work" class from
+# AGENTS.md rule 4, which this repo has a logged incident for.
+#
+# The port is NOT scoped, deliberately — `APP_E2E_PORT` is baked into built clients and into
+# `playwright.config.ts`, so changing it is a much wider change. Two worktrees running device tiers
+# at once therefore still collide, but now they collide on the PORT, where `app-e2e-api-up` already
+# has a loud "something is already serving :8011 and it is not our container" guard. Loud beats
+# silent; this converts a silent data loss into an error message.
+#
+# ONE-TIME TRANSITION: a container from before this change is called `lp-e2e-api` and will now read
+# as foreign. Remove it once — `docker rm -f lp-e2e-api` — or the port guard will stop the next run.
+E2E_WORKTREE ?= $(notdir $(CURDIR))
+APP_E2E_CT ?= lp-e2e-api-$(E2E_WORKTREE)
+APP_E2E_VOL ?= lp-e2e-corpus-$(E2E_WORKTREE)
+APP_E2E_STATE ?= lp-e2e-state-$(E2E_WORKTREE)
 # 8011 is ALSO what web/learning-player/playwright.config.ts starts its own api on, with
 # `reuseExistingServer: !CI`. So whenever this container is up, the browser suite silently REUSES it
 # instead of starting its own — and Playwright's globalSetup then wipes `e2e/.app-state`, a
@@ -2269,8 +2289,8 @@ test-app-ios-native:
 #   1. download  — signs in as the SHARED `simtest` account and downloads two episodes through the
 #                  UI. It SEEDS what the offline suites consume, so it cannot move.
 #   2. offline   — auto-advance from what step 1 downloaded, with the api DOWN. Needs 1. It calls
-#                  `app-e2e-api-down`, which removes the container AND the `lp-e2e-corpus` /
-#                  `lp-e2e-state` volumes — so it does not merely pause the backend, it destroys
+#                  `app-e2e-api-down`, which removes the container AND the `$(APP_E2E_VOL)` /
+#                  `$(APP_E2E_STATE)` volumes — so it does not merely pause the backend, it destroys
 #                  the corpus and every account on it. That is the point of the step, and it is
 #                  also why step 3 cannot simply follow it.
 #   2b. RECOVER  — `ios-origin-up` rebuilds the api and restarts the media host + single origin;
