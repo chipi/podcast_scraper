@@ -53,9 +53,10 @@ deliberately is none:
 
 - Stances are **GI insights**. `gi/pipeline.py` attributes each insight to the speaker of the turn
   its first grounded quote sits in (`_speaker_for_insight`), and an unattributed one is explicitly
-  not a stance — `_apply_route_and_tag` sets `surfaceable: False` and routes it to `connect` rather
-  than `surface`, because "an unattributed stance is not a stance, it is a floating opinion that
-  nobody holds".
+  not a stance — the codebase's own words are "an unattributed STANCE is not a stance, it is a
+  floating opinion that nobody holds". Mechanically, `surfaceable` is set by `_apply_voice_flags`
+  (`gi/pipeline.py:1100-1124`); `_apply_route_and_tag` (`:2119-2143`) only *reads* it to derive
+  `routing_tag` and `salience`.
 - **Positions are a read-time query.** `position_arc` (`server/cil_queries.py:636`) and
   `topic_conversation_arc` (`:842`) build the per-(person, topic) arc at request time from GI
   insights, their supporting quotes and KG episode metadata. `enrichment/profile_sets.py:144-146`
@@ -108,8 +109,11 @@ re-verification changes what the arc returns without rewriting a single artifact
 **Assumptions:**
 
 - Claims on translated episodes cite English char spans in the analysis transcript
-  (`…en.adfree.txt`), and those spans resolve to units via RFC-124's `resolve_units_for_span` — the
-  adfree→full-English→unit→source chain. This RFC does not reimplement that lookup.
+  (`…en.adfree.txt`), and those spans resolve to units via RFC-124's `resolve_units_for_span` — which
+  binary-searches `.en.adfree.segments.json` (offsets there are exact by construction), reads the
+  `unit_id` carried on the matched segment, and looks that unit up in `translation.json`. It does
+  **not** go through the ad-map: that cannot invert an ad-free transform which re-renders survivors
+  (RFC-124 §4.1, measured). This RFC does not reimplement the lookup.
 - A generalist multilingual LLM is good enough at a yes/no entailment judgment over source-language
   text even where it is not the best translator of that language. §5 monitors whether that holds;
   Open Question 3 is the escape hatch if it does not.
@@ -118,9 +122,13 @@ re-verification changes what the arc returns without rewriting a single artifact
 
 ### 1. Translation provenance on every claim
 
-**Computed at write time, in one place.** The GI artifact builder is the only writer of quote and
-insight nodes, so it calls `resolve_units_for_span(spans, admap, translation_map)` once per node and
-stores the result in the node's `properties`:
+**Computed at write time, wherever `gi.json` is written.** The GI artifact builder is the main writer
+of quote and insight nodes, but it is **not the only one**: `add_spoken_by_edges(replace=True)` and
+`gi/repair.py` both rewrite `gi.json` in place, so each must preserve or recompute the block rather
+than drop it. Every writer calls `resolve_units_for_span(spans, segments, translation_map)` — which
+resolves through `.en.adfree.segments.json` and the `unit_id` carried on each segment, **not** through
+the ad-map (RFC-124 §4.1; the ad-map cannot invert the ad-free transform) — and stores the result in
+the node's `properties`:
 
 ```json
 "translation": {
@@ -131,8 +139,10 @@ stores the result in the node's `properties`:
 }
 ```
 
-The KG evidence writer does the same for edges that carry evidence spans. There is no third call
-site, because there is no stance stage.
+There is no stance-stage call site, because there is no stance stage. There is also **no KG evidence
+writer** to hook: a search of `kg/schema.py`, `kg/pipeline.py` and `kg/llm_extract.py` found no KG
+edges carrying evidence spans at all. An earlier version of this RFC asserted one; it referred to
+nothing. If KG evidence spans are added later, they join this list.
 
 - **Insights** union the unit ids of their supporting quotes.
 - **Spans that cross a unit boundary** intersect both units and record both.
@@ -155,13 +165,14 @@ site, because there is no stance stage.
 
 | Claim type | v1 trigger |
 | --- | --- |
-| Insight that is position-bearing — attributed (`speaker_id` non-null), `surfaceable: true`, and linked to a topic via `ABOUT` | **always** |
+| Insight that is **position-bearing**: it has a `SPOKEN_BY`-supported quote, an `ABOUT` edge to a topic, and `insight_type == "claim"` | **always** |
 | Other GI quote / insight | not verified in v1 — carries provenance and a translated marker |
-| KG edge with evidence | not verified in v1 — carries provenance |
 
-The trigger is computable from properties the pipeline already writes, and they are exactly the
-conditions `position_arc` itself uses to select rows — so "what gets verified" and "what could reach
-a timeline" cannot drift apart.
+**The trigger is the read path's own predicate, copied deliberately.** `position_arc`
+(`server/cil_queries.py:650-682`) selects rows on exactly those three conditions — it does **not**
+read `surfaceable` or `speaker_id`, which an earlier version of this RFC claimed. Since the trigger
+and the gate must not diverge, both are expressed with **one shared predicate helper** rather than two
+hand-kept lists; that is what keeps them aligned, not a coincidence of properties.
 
 Without QE there is no band to trigger on for the other rows, which is the honest consequence of
 D-6: in v1 a non-position translated quote is **labelled but unchecked**. It is shown with a
@@ -219,6 +230,20 @@ then `position_hint`. It gains one filter:
 
 > An insight whose `properties.translation.translated` is true is included only when
 > `properties.translation.verification.outcome == "verified"`.
+
+**The filter applies to every position-bearing read path, not just `position_arc`.** An earlier version
+of this RFC named two and would have left three open doors:
+
+| Read path | Location | Why it counts |
+| --- | --- | --- |
+| `position_arc` | `cil_queries.py:636` | the per-(person, topic) arc |
+| `topic_conversation_arc` | `:842` | reuses `topic_timeline` (`:854`), so the filter belongs in `topic_timeline` or is duplicated |
+| `topic_timeline_merged` | `:876` | same insights, merged across corpora |
+| `person_profile` insights-by-topic | `:711` / `:759` | a position surface in all but name — an unverified claim would render here under the topic |
+| `topic_perspective_leaders` | `:1005` | ranks people by their claims on a topic |
+
+One predicate helper is applied at insight selection in all five — the same helper §2.1's verification
+trigger uses — and the arc notes carry a written list of which surfaces count as Positions.
 
 Consequences worth stating plainly:
 
@@ -348,13 +373,21 @@ Consequences worth stating plainly:
 
 ## Rollout & Monitoring
 
-Slice ids refer to `docs/architecture/MULTILINGUAL_ARC.md` §4.
+Slice ids refer to `docs/architecture/MULTILINGUAL_ARC.md` §4. **Two of this RFC's slices ship in
+Phase 2, not Phase 3** — see the ordering note below.
 
-- **Phase 3a (S3.1)**: provenance blocks written on all claims of translated episodes.
-- **Phase 3b (S3.3)**: the `position_arc` / `topic_conversation_arc` filter. Ships **before** the
-  verification pass, because fail-closed is the behaviour we want in the interim.
-- **Phase 3c (S3.2)**: the verification pass itself, so claims can start passing the gate.
-- **Phase 3d (S3.4)**: the operator worklist.
+- **Phase 2 (S2.11)**: the provenance block written on all claims of translated episodes.
+- **Phase 2 (S3.1)**: the read-time filter across all five position-bearing paths.
+- **Phase 3 (S3.2)**: the verification pass itself, so claims can start passing the gate.
+- **Phase 3 (S3.3)**: the operator worklist.
+
+**Why the marker and the filter cannot wait for Phase 3.** The filter keys on
+`properties.translation.translated`. A translated insight written *without* that block is invisible to
+the filter, so it passes straight through — "fail-closed" is fail-closed only when the marker exists.
+If Phase 2 served translated episodes while the marker landed in Phase 3, every claim extracted in
+that window would enter Position timelines unverified and unlabelled, which is the failure PRD-047
+names as the worst this feature can produce. So the marker (S2.11) and the filter (S3.1) are
+dependencies of the Phase 2 gate, and `multilingual_ingest` gates **serving** as well as the pipeline.
 
 **Success criteria:**
 

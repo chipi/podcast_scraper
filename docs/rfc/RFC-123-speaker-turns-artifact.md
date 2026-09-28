@@ -13,7 +13,7 @@
   - `docs/rfc/RFC-124-multilingual-transcription-and-translation.md` — consumer: translation units
   - `docs/rfc/RFC-125-translation-confidence-and-claim-verification.md` — consumer: confidence citation unit
 - **Related ADRs**: `docs/adr/ADR-131-speech-normalized-coverage-gate.md`
-- **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` (§4 slice plan — this RFC is Phase 1, slices S1.1–S1.5, and ships independently)
+- **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` (§4 slice plan — this RFC is Phase 1, slices S1.1–S1.6, and ships independently)
 
 ## Abstract
 
@@ -144,7 +144,7 @@ translation. Today:
   formatter already carries exactly these three keys through to the offset segments
   (`formatting.py`, the `for key in ("speaker", "speaker_role", "voice_type")` passthrough), so
   role truth is not re-derived and the guest-as-host bug cannot resurface here.
-- The turn's `char_start` points at the first speech character, **after** the `Label: ` prefix, so
+- The turn's `char_start` points at the first speech character, **after** the `Label:` prefix and its trailing space, so
   the span is pure speech.
 
 ### 2. Construction
@@ -212,9 +212,13 @@ Each consumer migrates behind its own flag, in this order:
   contract stability.
 - **Positions (read-time CIL arc)**: no migration is required. Positions are not an extraction
   stage — `position_arc` (`server/cil_queries.py:636`) is a read-time query over GI insights and
-  their supporting quotes, and those quotes already cite char spans. A `turn_id` is resolvable from
-  a span whenever turns exist, and turns are backfillable, so the arc gains turn-level citation for
-  free and nothing waits on this RFC.
+  their supporting quotes, and those quotes already cite char spans. Nothing in that path waits on
+  this RFC. One caveat on "turn-level citation for free": `turn_id`s are **ordinal within a variant**,
+  so a span cited in the ad-free text resolves to an ad-free `turn_id` that is not the same number as
+  the raw variant's — turns are renumbered from `t0000` after ad segments are dropped. Turn ids are
+  therefore variant-scoped and must never be joined across variants by id alone; a consumer that needs
+  the correspondence carries the source `turn_id` explicitly (which is what RFC-124 §4.1 does with
+  `unit_id`).
 
 ### 5. Word-level anchors (forward compatibility)
 
@@ -240,10 +244,13 @@ non-English episodes need per-language aligner checkpoints (pinned per ADR-155) 
    - **Decision**: sentences are nested in their turn.
    - **Rationale**: every sentence belongs to exactly one turn, and nesting makes that invariant
      structural.
-5. **One `turns.json` per transcript variant, not one per episode.**
-   - **Decision**: build for the raw and the ad-free text separately.
+5. **One `turns.json` per transcript variant, not one per episode; ids are variant-scoped.**
+   - **Decision**: build for the raw and the ad-free text separately, and treat `turn_id` as meaningful
+     only within its own variant.
    - **Rationale**: char offsets are only meaningful in one text. A single artifact would have to
-     pick a coordinate space and would silently mis-anchor the other.
+     pick a coordinate space and would silently mis-anchor the other. And because the ad-free variant
+     drops whole turns and renumbers from `t0000`, the two variants do not share a turn list at all —
+     so a cross-variant join by id would silently point at the wrong turn.
 
 ## Alternatives Considered
 

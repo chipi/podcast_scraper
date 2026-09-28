@@ -6,7 +6,7 @@
 - **Related RFCs**:
   - [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md) — speaker turns as a first-class artifact (prerequisite; ships independently)
   - [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) — language routing, source-language transcription, translation stage
-  - [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) — quality estimation, confidence propagation, claim verification
+  - [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) — translation provenance, source verification, the read-time Positions gate (quality estimation deferred to v2)
   - [RFC-005](../rfc/RFC-005-whisper-integration.md), [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md), [RFC-106](../rfc/RFC-106-tiered-dgx-service-fallback.md), [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md)
 - **Related ADRs**: [ADR-155](../adr/ADR-155-pin-every-model-checkpoint.md) (pin every model checkpoint), [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (stance-over-time is a read-time query)
 - **Related PRDs**: [PRD-028](PRD-028-position-tracker.md) (Position Tracker — the surface trust gates), [PRD-036](PRD-036-foundation-identity.md) (player `segments.json` contract), [PRD-039](PRD-039-player.md) (player), [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
@@ -42,13 +42,17 @@ this, and it compounds the cross-show-synthesis moat.
 
 - **Listener behavior (hypothesis, anecdotal).** Two informal data points: a Greek listener at
   roughly 70–80% English / 20–30% Greek, and Serbian listeners at roughly 80–90% English /
-  10–20% Serbian. This is not evidence of demand yet. Phase 0 exists to test it with the beta cohort.
+  10–20% Serbian. This is not evidence of demand yet. **Gate V** exists to test it with the beta cohort.
 - **The pipeline is English-pinned by configuration, not by architecture.** `language: en` is a
-  single global setting (`config/profiles/prod_dgx_full.yaml:70`). The DGX Whisper provider defaults
-  to `"en"` per request. `speaker_detectors/ner.py:133` gates NER on `cfg.language == "en"`. The DGX
-  transcriber (`deepdml/faster-whisper-large-v3-turbo-ct2`) and pyannote community-1 are
-  multilingual already. The feed `<language>` tag is already read
-  (`server/corpus_catalog.py:159`), though not normalized.
+  single global setting (`config/profiles/prod_dgx_full.yaml:70`). The DGX transcriber
+  (`deepdml/faster-whisper-large-v3-turbo-ct2`) and pyannote community-1 are multilingual already, so
+  transcribing another language is close to a parameter change.
+- **But the feed's declared language is never read.** There is no `<language>` extraction anywhere in
+  `rss/`, and `RssFeed` has no such field. What looks like a feed language is the run config written
+  back out: `metadata_generation.py:957` sets `FeedMetadata(language=cfg.language)`, so
+  `server/corpus_catalog.py:159` reads the profile's `en` and `AppPodcastItem.language` serves it.
+  There is no episode-level language field at all. Parsing and persisting the real tag — with a
+  metadata migration and a backfill — is therefore the **first** piece of work, not a lift (FR1.1).
 - **Everything downstream of the transcript is English-shaped and should stay that way.** GIL
   grounding requires verbatim substrings with char offsets (`gi/grounding.py`, `EvidenceSpan`).
   Prompts, QA/NLI checks, embeddings (MiniLM) and spaCy NER are all English. Translating once to
@@ -143,37 +147,47 @@ this, and it compounds the cross-show-synthesis moat.
 
 ### FR1: Language declaration and routing
 
-- **FR1.1**: Each show resolves a language in this order: operator override > normalized RSS
-  `<language>` (`el-GR` → `el`) > profile default (`en`). The override lives on the **feed entry in
-  config** (`config/corpus-expansion.feeds.yaml`, extended to accept an optional mapping per feed).
-  The shows library *displays* the resolved language and its source; it does not edit it. Rationale:
-  RFC-104 states the shows library has no backend, and no feed record store exists to hold an
-  override.
-- **FR1.2**: The resolved language is recorded on every episode's metadata and observability
-  manifest. Note that episode metadata already writes `"language": cfg.language`
-  (`workflow/metadata_generation.py:2843`) from the run-global config — so until FR1.1 and FR2.1 land
-  together, that field actively asserts `en` for a non-English episode. Correcting it is part of this
-  requirement, not a follow-up.
-- **FR1.3**: A supported-language registry (`config/languages.yaml`) lists each language's tier and
-  an `enabled` flag. Episodes in a language that is not enabled are skipped with explicit status
-  `skipped_unsupported_language`. They are **never** transcribed as English.
-- **FR1.4**: A language-ID sanity check samples audio away from the intro. On a mismatch with the
+- **FR1.1**: The feed's declared `<language>` is **parsed from the RSS channel and persisted** — it is
+  not read today at all. Each feed records `language_raw`, the normalized `language`, and
+  `language_source`; each episode records a `language` and `language_source` of its own. Because this
+  changes the episode metadata shape, it carries a corpus migration, a format-version and
+  reader-support bump, and a backfill over the existing corpus.
+- **FR1.2**: Each show resolves a language in this order: **operator override > the feed's normalized
+  declared language (`el-GR` → `el`) > profile default (`en`)**. The profile default is the only place
+  the run-global setting may be read. The override is a key on the feed entry in the feeds spec, which
+  already accepts a per-entry mapping — so this is an allowlist addition, not a new config surface.
+  The shows library *displays* the resolved language and its source; editing stays in config, because
+  RFC-104's shows library has no backend.
+- **FR1.3**: The resolved language is recorded on every episode's metadata and observability manifest,
+  and is **carried as an explicit parameter** through transcription, diarization, metadata writing and
+  the manifest. No stage may substitute a default language for one it was not given. This is enforced
+  as an invariant — the run-global setting has exactly one reader — rather than as a checklist of
+  known call sites, because that list was already incomplete.
+- **FR1.4**: A supported-language registry (`config/languages.yaml`) lists each language's tier and an
+  `enabled` flag. Episodes in a language that is not enabled are skipped with explicit status
+  `skipped_unsupported_language`, and are **never** transcribed as English. **The skip must not ship
+  before the override in FR1.2**: declared feed tags are routinely wrong, and an English show tagged
+  `de` would otherwise stop ingesting with no remedy available.
+- **FR1.5**: A language-ID sanity check samples audio away from the intro. On a mismatch with the
   declared language, the episode is flagged for the operator. The check never silently reroutes.
-- **FR1.5**: The existing corpus is **audited** before any second language is enabled: every feed and
-  every episode resolves to a language, and anything that does not resolve to `en` is reported
-  explicitly. The expected result is that the whole current corpus is English; the audit is what turns
-  that expectation into evidence. It is read-only and re-runnable.
-- **FR1.6**: The resolved language is **carried as an explicit parameter** through transcription,
-  diarization, metadata writing and the observability manifest. No stage may substitute a default
-  language for one it was not given, and the transcription model is selected *from* the resolved
-  language (see FR2.1).
+- **FR1.6**: The existing corpus is **audited over real data** before any second language is enabled:
+  every feed and episode resolves to a language, with its resolution source named, and anything not
+  resolving to `en` is reported explicitly. The audit runs *after* FR1.1 has persisted real feed tags —
+  run against today's metadata it would only re-read the run config and report a guaranteed 100% `en`,
+  which proves nothing. Read-only and re-runnable.
+- **FR1.7**: Every new failure mode this section introduces — `skipped_unsupported_language`,
+  `deferred_quality_floor`, `language_mismatch` — is **visible** to the operator in logs, metrics and a
+  runbook entry. A phase whose purpose is removing silent failures must not add three.
 
 ### FR2: Source-language capture (canonical)
 
 - **FR2.1**: Transcription and diarization run in the **episode's resolved** language, threaded to
   the provider call rather than read from run-global config. A tier that cannot honor the language —
   an English-only `.en` Whisper model, or any model below the non-English quality floor — fails the
-  attempt rather than producing output. No provider may substitute `"en"` for a missing language.
+  attempt rather than producing output. No provider may substitute a language it was not given, and
+  none may **report** a language it did not actually transcribe in: the DGX provider today omits the
+  language from its request when it is absent and then reports `"en"` for whatever the server
+  auto-detected, which is a provenance error rather than a transcription one.
 - **FR2.2**: The source-language transcript and segments are persisted at the existing artifact
   paths, carry a `language` field, and are the canonical record for the episode. They keep the
   **full** timeline (ads included), as English episodes' raw transcripts do today.
@@ -207,12 +221,14 @@ this, and it compounds the cross-show-synthesis moat.
   name is kept, with the source-script name as an alias. A transliterated speaker label that would
   break existing attribution heuristics falls back to the source-script label rather than
   silently un-attributing the turn.
-- **FR4.5**: **A non-English episode is findable by a query in its own language and by an English
+- **FR4.5**: **A non-English episode is findable by a query in its own language, and by an English
   query, and both reach the same episode.** Search indexes both the source-language transcript and the
   English analysis transcript, each chunk tagged with its language, so the corpus is searchable in the
-  language it was spoken in rather than only in translation. A result says which layer matched. This
-  requires a multilingual embedding model for the **search** index and a corpus reindex; it must not
-  regress English recall, measured on the existing retrieval eval before and after.
+  language it was spoken in rather than only in translation. A result says which layer matched.
+  **No embedding model changes**: non-English chunks are keyword-matched only. Matching *by meaning*
+  across languages — an English query finding Greek content it shares no words with — is explicitly out
+  of scope; it needs a multilingual encoder, a corpus-wide re-embed and a migration, and it belongs with
+  internationalizing the application, when a listener can search in whatever language they choose.
 
 ### FR5: Trust and confidence
 
@@ -238,8 +254,7 @@ this, and it compounds the cross-show-synthesis moat.
 - **FR6.1**: The shows library displays each show's resolved language and the source of that
   resolution (override / RSS / default). Editing is via config (FR1.1).
 - **FR6.2**: The per-episode manifest (RFC-109) records language, translation model, unit count, the
-  QE distribution, flagged-unit count, verification outcomes, and which transcript variant the
-  ad-free base was built on.
+  verification outcomes, and which transcript variant the ad-free base was built on.
 - **FR6.3**: A review worklist lists contradicted and unverified claims, each with source and
   translation side by side.
 
@@ -272,12 +287,13 @@ measured ad-detection survival rate. The ASR tiers in Appendix A are a **prior**
 test first. They are not a support claim.
 
 External wording for beta conversations: "Western European languages plus Russian, Polish,
-Japanese and Korean are the first candidates; Greek is our pilot; other Balkan and Nordic languages
-are in trial; South Asian languages are not supported yet."
+Japanese and Korean are the first candidates; Balkan and Nordic languages are in trial; South Asian
+languages are not supported yet."
 
-**Do not promise Serbian in a beta conversation.** The measured evidence (Appendix A, Appendix B) is
-that it is the hardest case on both axes and may have no eligible translation model at all. It is
-under investigation, and saying "in trial" about it would overstate what we know.
+**Promise no specific language yet, Serbian least of all.** On the measured evidence (Appendix A,
+Appendix B) Serbian is the hardest case on both axes and may have no eligible translation model at all,
+while the pilot language itself is still being decided by measurement (arc slice V.5). "In trial" is the
+strongest claim available for anything outside English.
 
 ## Phasing
 
@@ -286,13 +302,15 @@ validation step is **Gate V**, not a phase, because it produces evidence rather 
 per-slice breakdown — each slice sized as one issue, with dependencies and acceptance criteria — lives
 in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 
-- **Phase 0: English as a declared language.** **Ships on its own, before Gate V.** Tag
-  normalization and per-episode resolution; the corpus audit (FR1.5); episode language on the API and
-  the `EN` badge on every show and episode (FR7.1–FR7.2); the resolved language threaded as an
-  explicit parameter with every silent `"en"` substitution removed (FR1.6); transcription-model
-  selection driven by the resolved language, with a non-English quality floor (FR2.1). This is a
-  correctness fix on the corpus that exists — no new models, no GPU — and it is what makes the
-  multilingual path provable end to end before any translation happens.
+- **Phase 0: English as a declared language.** **Ships on its own, before Gate V.** Parsing and
+  persisting the feed's declared language with its migration and backfill (FR1.1); normalization and
+  per-episode resolution plus the feed override (FR1.2); the language threaded as an explicit parameter
+  with the one-reader invariant (FR1.3); the registry and skip path, ordered after the override
+  (FR1.4); the language-ID check (FR1.5); the corpus audit over real data (FR1.6); the new failure
+  modes made visible (FR1.7); transcription-model selection from the resolved language with a
+  non-English floor (FR2.1); episode language on the API and the badge (FR7.1–FR7.2). A correctness fix
+  on the corpus that exists — no new models, no GPU — and what makes the multilingual path provable end
+  to end before any translation happens.
 - **Phase 1: Turns (RFC-123).** Independent of everything multilingual; improves quote attribution,
   search chunking and player cues for English episodes today. Can run in parallel with Phase 0.
 - **Gate V: Validate (no build).** Ask the beta cohort what share of their listening is non-English
@@ -302,13 +320,20 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
   because the bake-off has to transcribe non-English audio correctly to measure anything.
   **Decision gate:** proceed only if the demand signal and the quality gate both pass.
 
-  Greek is the pilot rather than a Greek+Serbian pair because the pair is not symmetric: Greek is
-  12.5% WER and covered by every eligible MT model, while Serbian is 33.9% and covered by none of them
-  (Appendix A, Appendix B). Serbian is an open question, not a launch target.
-- **Phase 2: Translation (RFC-124)** behind a feature flag, on one or two operator-chosen feeds.
-- **Phase 3: Trust (RFC-125).** Source verification and the read-time Positions gate. Required before
-  any translated position enters a timeline — though note FR5.3 is fail-closed, so the absence of this
-  phase already withholds them.
+  Greek currently looks like the stronger pilot — 12.5% WER on read speech, present in both MT models
+  whose language lists we could read, while Serbian is 33.9% and absent from both (Appendix A,
+  Appendix B). But neither claim is stronger than that: TranslateGemma's coverage is unconfirmed for both
+  languages because its card is gated, and Qwen3's was never checked. **The pilot is decided by
+  measurement, not by these lists** — the arc's V.5 runs now and settles it, including whether Serbian's
+  gap is largely a Cyrillic-versus-Latin artifact.
+- **Phase 2: Translation (RFC-124)** behind a feature flag that gates **serving as well as the
+  pipeline**, on one operator-chosen feed. Includes the trust marker on every translated claim and the
+  read-time Positions gate, both of which would otherwise arrive too late — see Phase 3.
+- **Phase 3: Trust (RFC-125).** The source-verification pass and the operator worklist. Note the
+  **marker and the gate ship in Phase 2, not here**: the gate keys on the marker, so a translated claim
+  written without one passes straight through and "fail-closed" stops being true. Serving translated
+  episodes before both exist would put unverified, unlabelled claims into Position timelines — the
+  failure this PRD calls the worst it can produce.
 - **Phase 4: Surfaces.** Language toggle, translated-quote treatment, and the language filters
   (FR7.3–FR7.5). UXS to follow for the transcript toggle and quote treatment.
 - **v2:** per-unit quality estimation and calibrated bands (RFC-125 §7).
@@ -355,26 +380,34 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 ## Risks
 
 - **Translation inverts meaning** (negation, hedging, sarcasm). Mitigated by RFC-125 verification;
-  residual risk is accepted only for non-position content with an amber or red marker.
+  residual risk is accepted only for non-position content, which is labelled as translated but not
+  individually verified in v1.
 - **Sponsor reads enter the analysis text.** The cause is English-only ad patterns; mitigated by
   translating before ad removal (FR4.1) and measured by the bake-off's ad-survival metric. If
   survival is low, per-language ad cues come back on the table.
-- **Episode metadata asserts the wrong language** until FR1.2/FR1.6 land together. Mitigated by
-  shipping them in the same phase (0) and by a regression test.
+- **There is no episode language to be right or wrong yet.** Nothing parses the feed's declared tag and
+  no episode carries a language of its own, so the badge, the audit and the normalization step all have
+  no input until FR1.1 lands. Mitigated by making FR1.1 the first slice, with its migration and backfill,
+  rather than assuming the data was already there.
 - **Identity fragmentation across scripts.** Mitigated by FR4.4 and CIL alias rules (RFC-124 §5.4).
 - **Demand does not materialize.** Gate V; Phase 0 and RFC-123 still pay for themselves.
-- **Serbian may not be supportable under an eligible licence.** Measured, not suspected: Whisper is at
-  33.9% FLEURS WER on Serbian against Greek's 12.5%, and Serbian is absent from both MiLMMT-46 and
-  LMT-60 while the one shortlisted model that covers it (NLLB) is non-commercial. Mitigated by making
-  **Greek the pilot** and Serbian an explicit investigation (arc §6.3, slice V.5) rather than a
-  promise. The likely cause is script, which is testable.
+- **Serbian may not be supportable under an eligible licence.** Whisper is at 33.9% FLEURS WER on
+  Serbian against Greek's 12.5%, and Serbian is absent from both MiLMMT-46 and LMT-60 while the one
+  shortlisted model that covers it (NLLB) is non-commercial. Mitigated by deciding the pilot language by
+  **measurement** (arc slice V.5, running now) rather than by these lists, and by promising no language
+  until it does. The likely cause of the WER gap is script — Croatian, mutually intelligible, sits at
+  13.4% and FLEURS scores it in Latin while Serbian is Cyrillic — and that is an hour's work to test.
 - **Model licensing.** Verified rather than assumed: Hunyuan/HY-MT excludes the EU, NLLB is
   non-commercial; both are out. TranslateGemma, MiLMMT-46 and LMT-60 are eligible (arc §6.1).
-- **The multilingual embedding swap regresses English search.** Retrieval goes multilingual for FR4.5,
-  which changes the dense side for every existing episode. Mitigated by gating the swap on the existing
-  retrieval eval (English recall@k must not regress) and by confining it to `vector_embedding_model`,
-  leaving GI, KG and the CIL bridge on the pinned MiniLM.
-- **A corpus-wide reindex.** FR4.5 needs one, on 678 episodes. Known cost, existing machinery.
+- **Greek keyword search is weaker than English-on-English.** FR4.5 keeps the existing embedding model,
+  so non-English chunks are keyword-matched only, and the index's full-text tokenizer is English
+  (stemming, stop-words, accent folding) with one tokenizer per index. Mitigated by measuring Greek
+  recall before calling the slice done; if it is poor the options are a per-language full-text table or
+  accepting it explicitly. **This risk replaces an earlier, much larger one** — an embedding-model swap
+  that would have re-embedded all 678 existing English episodes against an eval of 25 fixture anchors
+  with no CI gate. That is now out of scope entirely.
+- **A migration on episode metadata.** FR1.1 changes the `*.metadata.json` shape and needs a backfill
+  across the existing corpus. Known cost, existing machinery, but it is the long pole in Phase 0.
 
 ## Open Questions
 
@@ -412,21 +445,26 @@ are the **`large-v2`** row — the strongest model in that table. Verified again
 Spanish 3.0 · Italian 4.0 · English 4.2 · Portuguese 4.3 · German 4.5
 
 **Cluster B — 5% to 10% WER**
-Japanese 5.3 · Polish 5.4 · Russian 5.6 · Dutch 6.7 · Indonesian 7.1 · Catalan 7.3 · Turkish 8.4 ·
-Swedish 8.5 · Ukrainian 8.6 · Malay 8.7 · Norwegian 9.5 · Finnish 9.7
+Japanese 5.3 · Polish 5.4 · Russian 5.6 · Dutch 6.7 · Indonesian 7.1 · Catalan 7.3 · **French 8.3** ·
+Turkish 8.4 · Swedish 8.5 · Ukrainian 8.6 · Malay 8.7 · Norwegian 9.5 · Finnish 9.7
 
 **Cluster C — over 10% WER**
 Vietnamese 10.3 · Thai 11.5 · Slovak 11.7 · **Greek 12.5** · Czech 13.3 · **Croatian 13.4** ·
 Danish 13.8 · Tagalog 13.8 · Korean 14.3 · Romanian 14.4 · Bulgarian 14.6 · Chinese 14.7 ·
-Galician 15.4 · Bosnian 15.7 · Macedonian 16.5 · Hungarian 17.0 · Tamil 17.5 · Hindi 21.5 ·
-Estonian 21.9 · Urdu 22.6 · Latvian 23.1 · Slovenian 23.1 · Hebrew 27.1 · Lithuanian 28.1 ·
-Persian 32.9 · Welsh 33.0 · **Serbian 33.9** · Afrikaans 36.7 · Kazakh 37.7 · Icelandic 38.2 ·
-Marathi 38.3 · Swahili 39.3 · Armenian 44.6 — and the remaining low-resource languages above 40%.
+Galician 15.4 · Bosnian 15.7 · Arabic 16.0 · Macedonian 16.5 · Hungarian 17.0 · Tamil 17.5 ·
+Hindi 21.5 · Estonian 21.9 · Urdu 22.6 · Latvian 23.1 · Slovenian 23.1 · Azerbaijani 23.4 ·
+Hebrew 27.1 · Lithuanian 28.1 · Persian 32.9 · Welsh 33.0 · **Serbian 33.9** · Afrikaans 36.7 ·
+Kannada 37.0 · Kazakh 37.7 · Icelandic 38.2 · Marathi 38.3 · Maori 38.5 · Swahili 39.3 — then
+Armenian 44.6 and the remaining low-resource languages. Javanese is `nan` in the source.
 
-**What changed from the earlier draft of this appendix.** It listed Serbian under "usable with review
-(10–15%)". The source says **33.9%**. It also placed Macedonian (16.5) and Hungarian (17.0) in that
-band, and both are above it. The tiers here are the operator's three clusters (<5 / 5–10 / >10) with
-each language placed by its measured number rather than by recollection.
+Clusters A and B are complete. Cluster C is complete up to 40%; above that only a sample is shown.
+
+**What changed from earlier drafts of this appendix.** The first version was recollection and placed
+Serbian at "10–15%" (actual **33.9**), Macedonian in the same band (16.5) and Hungarian too (17.0).
+The second version was sourced but **incomplete**: it silently dropped French at 8.3 — the one Western
+European language named in the candidate wording above — along with Arabic, Azerbaijani and Maori, and
+then asserted everything unlisted was above 40%, which was false. Each language here is placed by its
+measured number.
 
 ## Appendix B: translation model shortlist
 
@@ -435,9 +473,12 @@ Verified 2026-09-28. Full detail, including what was **not** verified, in
 
 | Model | Licence | `el` | `sr` | Eligible? |
 | --- | --- | --- | --- | --- |
-| TranslateGemma 27B / 12B / 4B | `gemma` (commercial OK, no territory carve-out) | ? | ? | Yes — but its 55 languages are not enumerated anywhere checked |
-| MiLMMT-46-12B v1.0 | `gemma` | ✅ | ❌ | Yes, without Serbian |
-| LMT-60-8B | `apache-2.0` | ✅ | ❌ | Yes, without Serbian |
-| Qwen3-30B-A3B (already served) | `apache-2.0` | — | — | Baseline / verification model |
+| TranslateGemma 27B / 12B / 4B | `gemma` (commercial OK, no territory carve-out) | ? | ? | Yes — its 55 languages are not enumerated on the card, the blog or the abstract, and **the card is gated**, so a login settles it |
+| MiLMMT-46-12B v1.0 | `gemma` | ✅ | ❌ | Yes, Serbian absent from its 46 |
+| LMT-60-8B | `apache-2.0` | ✅ | ❌ | Yes, Serbian absent from its 60 |
+| Qwen3-30B-A3B (already served) | `apache-2.0` | ? | **?** | Baseline / verification model — its coverage was **never checked**, and it is already served |
 | Hunyuan-MT / HY-MT | Territory **excludes the EU** | — | — | **No** |
 | NLLB-200 | `cc-by-nc-4.0` | ✅ | ✅ | **No** — non-commercial, and the only one covering Serbian |
+
+Two `?` cells are load-bearing and neither should be read as a "no": TranslateGemma's coverage of either
+language, and Qwen3's. Closing them is the first work in the arc's slice V.5.

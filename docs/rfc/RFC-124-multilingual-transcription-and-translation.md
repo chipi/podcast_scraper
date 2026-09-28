@@ -2,77 +2,79 @@
 
 - **Status**: Draft
 - **Authors**: Marko
-- **Stakeholders**: Pipeline (transcription, diarization, ad-free base, GI/KG/summary), DGX serving, player (segments contract), operator feed curation
+- **Stakeholders**: Pipeline (transcription, diarization, translation, ad-free base, summary/GI/KG), DGX serving, player (segments contract), search, operator feed curation
 - **Related PRDs**:
-  - `docs/prd/PRD-047-multilingual-ingest.md` — product requirements this RFC implements (FR1–FR4, FR6)
-  - `docs/prd/PRD-044-operator-shows-library.md` — per-show language override surface
+  - `docs/prd/PRD-047-multilingual-ingest.md` — product requirements this RFC implements (FR1–FR4, FR6, FR7)
 - **Related RFCs**:
   - `docs/rfc/RFC-123-speaker-turns-artifact.md` — prerequisite: turns/sentences define translation units
   - `docs/rfc/RFC-125-translation-confidence-and-claim-verification.md` — provenance and source verification over this RFC's outputs (QE deferred to v2)
   - `docs/rfc/RFC-005-whisper-integration.md`, `docs/rfc/RFC-058-audio-speaker-diarization.md`
+  - `docs/rfc/RFC-090-hybrid-retrieval.md` — the two-tier index and RRF this RFC's retrieval section extends
   - `docs/rfc/RFC-106-tiered-dgx-service-fallback.md` — tiered fallback semantics
   - `docs/rfc/RFC-109-per-episode-observability-manifest.md` — manifest fields
   - `docs/rfc/RFC-115-transcript-prefix-caching-llm-stages.md` — LLM stages cache the analysis transcript as a prompt prefix
 - **Related ADRs**:
   - `docs/adr/ADR-155-pin-every-model-checkpoint.md` — the translation checkpoint is pinned
-- **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` (§4 slice plan, decisions D-1 … D-4)
+- **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` — slice plan (§4), verified code facts and the
+  claims an adversarial review found false (§5.4), decisions D-1 … D-19
 
 ## Abstract
 
-This RFC makes language a per-show property instead of a global setting. Episodes are transcribed
-and diarized in their source language, and that transcript stays canonical. A new **translation
-stage** then produces an English derived transcript (`<stem>.en.txt`, `<stem>.en.segments.json`)
-plus a unit map (`<stem>.translation.json`) linking every English span back to source text, audio
-time and speaker. The existing ad-free machinery then runs on the **English** text — not the source
-— producing `<stem>.en.adfree.txt`, which becomes the transcript every analysis stage reads. No
-consumer changes, because the resolver those consumers already share
-(`adfree_transcript.load_processing_transcript`) simply gains one more branch. The translation model
-is chosen per language by a bake-off with an explicit quality gate.
+This RFC makes language a per-show property instead of a global setting. Episodes are transcribed and
+diarized in their source language, and that transcript stays canonical. A **translation stage** — which
+runs **directly after transcription and diarization, before summary** (D-19) — produces an English
+derived transcript (`<stem>.en.txt`, `<stem>.en.segments.json`) plus a unit map
+(`<stem>.translation.json`) linking every English span back to source text, audio time and speaker.
+The existing ad-removal machinery then runs on the **English** text, and the result becomes the
+transcript every analysis stage reads. Reaching that state requires routing the transcript readers
+through one resolver, which the codebase does not do today (§2.1). Search indexes both layers so an
+episode is findable in its own language. The translation model is chosen per language by a bake-off
+with an explicit quality gate.
 
 ## Problem Statement
 
 The pipeline is English by configuration. `language: en` is global
-(`config/profiles/prod_dgx_full.yaml:70`). The DGX Whisper provider sends `language or "en"`
-(`providers/tailnet_dgx/whisper_provider.py:197`). `speaker_detectors/ner.py:133` gates NER on
-`cfg.language == "en"`. The DGX Whisper (`faster-whisper-large-v3-turbo-ct2`) and pyannote
-community-1 are multilingual already, so transcribing Greek is close to a parameter change.
+(`config/profiles/prod_dgx_full.yaml:70`). The DGX Whisper (`faster-whisper-large-v3-turbo-ct2`) and
+pyannote community-1 are multilingual already, so transcribing Greek is close to a parameter change.
 
-Analysis is English-shaped by design, and it should stay that way. GIL grounding requires quotes
-that are verbatim substrings with char offsets (`gi/grounding.py`, `EvidenceSpan`). Extraction
-prompts, QA/NLI entailment, MiniLM embeddings and spaCy NER are all English. Making each layer
-multilingual would fork every prompt, eval and threshold per language. Translating once, to
-English, keeps every downstream layer single-path.
+Analysis is English-shaped by design, and it should stay that way. GIL grounding requires quotes that
+are verbatim substrings with char offsets (`gi/grounding.py`, `EvidenceSpan`). Extraction prompts,
+QA/NLI entailment, MiniLM embeddings and spaCy NER are all English. Making each layer multilingual
+would fork every prompt, eval and threshold per language. Translating once, to English, keeps every
+downstream layer single-path.
 
-Three things are missing: a place in the pipeline to translate, an artifact model that keeps
-translated text **traceable** to what was actually said, and a way for a per-episode language to
-reach the transcriber at all. Without the second, a translated quote is indistinguishable from
-verbatim speech, which is incompatible with grounded objectivization.
+Four things are missing: a **place in the stage order** to translate, an artifact model that keeps
+translated text **traceable** to what was actually said, a way for a per-episode language to reach the
+transcriber at all, and — discovered in review — a **single resolver** that decides which transcript
+analysis reads.
 
-**Four hazards the current code creates for non-English audio.** Each is verified against the
-source, and each is a silent failure rather than an error:
+**The five silent hazards.** Each is verified against the source, and each fails quietly rather than
+erroring. The arc notes (§5.2) carry the same list with slice ids.
 
-1. **Silent degradation to an unusable model.** `whisper_utils.normalize_whisper_model_name`
-   correctly drops `.en` for non-English, but it then builds a chain from
-   `FALLBACK_WHISPER_MODELS_MULTILINGUAL` down to `base` and `tiny`. For a Greek episode, a DGX
-   outage would silently produce text that is unusable rather than failing.
-2. **No per-episode language path.** Every provider reads the run-global config when the argument is
-   absent — `ml_provider.py:885` (`self.cfg.language or "en"`), `gemini_provider.py:472`,
-   `mistral_provider.py:356`, `deepgram_provider.py:281` — and the single call site passes exactly
-   that global (`workflow/episode_processor.py:2296`, `language=cfg.language`). A run that
-   processes feeds in two languages cannot express that today.
-3. **The episode metadata already asserts a language, and it will be wrong.**
-   `workflow/metadata_generation.py:2843` writes `"language": cfg.language` onto every episode. Until
-   hazard 2 is fixed, a Greek episode ships stamped `en`. This is not a missing field; it is a field
-   that will lie.
-4. **Ad excision silently no-ops on non-English text.** `gi/ad_regions.py` matches `gi/filters.py`'s
-   `_AD_PATTERNS`, which are English regexes (`brought to you by`, `sponsored by`,
-   `\w+ dot com slash`). On a Greek transcript none of them match, so `excise_ad_regions` returns no
-   ranges and `build_adfree_artifacts` produces an **identity** ad-free base. The artifact exists,
-   `is_adfree` is `True`, and the sponsor reads sit in the analysis text feeding GI, KG and search.
-   Nobody would notice.
+1. **Silent degradation to an unusable model.** `whisper_utils.normalize_whisper_model_name` drops
+   `.en` for non-English, then builds a chain from `FALLBACK_WHISPER_MODELS_MULTILINGUAL` down to
+   `tiny`. Prod's local fallback default is `base.en` (`config_constants.py:332`), so for Greek the
+   chain is `["base", "tiny"]`. The DGX path never passes through the normalizer — `dgx_whisper_model`
+   is an HF id — so this hazard lives entirely in the fallback tier.
+2. **No per-episode language path exists.** Providers read run-global config when the argument is
+   absent (`ml_provider.py:827`, `:885`), the transcription call site passes exactly that global
+   (`workflow/episode_processor.py:2296`), and `workflow/sniff_gate.py:116,130,144,177` threads it four
+   more times.
+3. **The DGX provider misreports the language.** `whisper_provider.py:197` sets `language or "en"` in
+   the **returned result dict**; the request (`:429-430`) *omits* `language` when it is `None`. So the
+   server auto-detects and the provider then reports `"en"`. The failure is a provenance lie, not a
+   forced English transcription.
+4. **Ad excision silently no-ops on non-English text.** `gi/filters.py:35-77` `_AD_PATTERNS` all
+   require an English token (`brought to you by`, `sponsored by`, `\w+ dot com slash`), so a Greek
+   transcript yields no ranges (`gi/ad_regions.py:409-418`) and `build_adfree_artifacts` produces an
+   **identity** ad-free base with `is_adfree: True` and the sponsor reads intact in the analysis text.
+   Not absolute: a Greek host reading an English URL would match. Caveat: with no segments,
+   `build_adfree_artifacts` returns `None` and no artifact is written at all.
+5. **The sniff gate keeps the cheap transcript on non-English audio.** `sniff_gate.py:63-70` judges
+   the small-model transcript by counting entities with spaCy `en_core_web_sm`; on Greek that count is
+   ~0, so the sniff transcript is kept. Off in every profile today, one config line from live.
 
-Hazard 4 is the one that reorders this design. It is why translation runs **before** ad detection,
-not after.
+Hazard 4 is why translation precedes ad detection (§3).
 
 **Use cases:**
 
@@ -81,82 +83,93 @@ not after.
 2. **Subtitles.** The player plays the Greek audio with English cues aligned to it.
 3. **Traceable quote.** Tapping a translated quote plays the original audio span and shows the
    original sentence.
+4. **Findable in its own language.** A Greek query reaches the Greek episode.
 
 ## Goals
 
 1. **Per-show language routing** with an operator override and explicit skip for unsupported
    languages.
-2. **The source language stays canonical.** It is never overwritten, and it is always servable.
+2. **The source language stays canonical.** Never overwritten, always servable.
 3. **Complete, turn-aligned English translation**, with a lossless map from English spans back to
    source spans.
-4. **Zero change to analysis layers.** They keep calling the resolver they already call.
+4. **One analysis transcript, resolved in one place.** Analysis layers keep no per-language code, and
+   no stage decides for itself what "the transcript" means.
 5. **Ad handling that actually works on non-English episodes**, rather than an identity pass that
    looks like success.
-6. **Pinned, measured models.** The translation model is chosen per language by bake-off, and
-   every checkpoint is pinned.
+6. **An episode findable in the language it was spoken in.**
+7. **Pinned, measured models**, chosen per language by bake-off.
 
 ## Constraints & Assumptions
 
 **Constraints:**
 
-- English episodes: byte-identical artifacts and no added latency when the feature flag is on.
-- No silent model substitution for translation. A different translation model invalidates the
-  bake-off evidence the language was enabled on — and, once QE lands in v2, its calibration too
-  (RFC-125 §7). An unavailable model therefore means **defer**, not **fall back**.
+- English episodes: artifacts unchanged outside a declared allow-list of added metadata keys, and no
+  added latency when the feature flag is on. (Unqualified byte-identity is not achievable — this
+  feature deliberately adds language fields to metadata and the manifest.)
+- No silent model substitution for translation. A different model invalidates the bake-off evidence
+  the language was enabled on, so an unavailable model means **defer**, not **fall back**.
 - Only models whose license permits this deployment (EU operator, commercial product) are eligible.
 - Runs on the DGX Spark as its own served process. English ingest keeps priority in the work queue.
-- **One translation pass per episode.** The full-timeline text is translated exactly once. Every
-  other English artifact is derived from it by existing deterministic machinery.
+- **One translation pass per episode.** The full-timeline text is translated exactly once; every other
+  English artifact is derived from it by existing deterministic machinery.
+- **No embedding-model change anywhere in this RFC** (D-14).
 
 **Assumptions:**
 
 - RFC-123 turns exist for the episode. Translation does not run without them.
 - Whisper punctuation in enabled languages is good enough for sentence splitting. The per-language
   gate (§7) checks this.
-- Conversational podcasts translate acceptably at the turn or sentence-group level, without
-  cross-turn context. §7 tests this.
-- Sponsor reads in a non-English episode survive translation as recognizable English sponsor
-  language. §7 measures this; it is the assumption the §3 ordering rests on.
+- Conversational podcasts translate acceptably at the turn or sentence-group level, without cross-turn
+  context. §7 tests this.
+- Sponsor reads in a non-English episode survive translation as recognizable English sponsor language.
+  §7 measures this; it is the assumption §3's ordering rests on.
 
 ## Design & Implementation
 
 ### 1. Language resolution
 
-This produces `episode.language` (ISO 639-1) in `resolve_episode_language(feed_entry, feed_doc, cfg)`:
+`resolve_episode_language(feed_entry, feed_doc, cfg)` produces `episode.language` (ISO 639-1):
 
-1. **Operator override** on the feed entry (§1.1).
-2. **RSS `<language>`**, normalized: `el-GR` → `el`, `sr-Latn-RS` → `sr`, `pt_BR` → `pt`.
-3. **Profile default** `language` (currently `en`).
+1. **Operator override** on the feed entry (§1.2).
+2. **The feed's declared `<language>`**, normalized: `el-GR` → `el`, `sr-Latn-RS` → `sr`, `pt_BR` → `pt`.
+3. **Profile default** `language` (currently `en`) — the lowest precedence, and the only place
+   `cfg.language` may be read.
 
-**The RSS tag is read but not normalized today.** `server/corpus_catalog.py:159` `_feed_language`
-returns the raw tag (`feed.get("language")`, stripped) and nothing more. Normalization is new code,
-not a lift: a shared `normalize_language_tag(raw) -> str | None` that lowercases, splits on `-`/`_`,
-takes the primary subtag, validates it against the registry, and returns `None` for anything
-unparsable. `_feed_language` then calls it, so the catalog and the pipeline cannot disagree.
+**1.1 The feed's language is not read today. This is new plumbing, not a lift.** A sweep of `rss/`
+finds nothing language-related, and `models/entities.py:16-44` `RssFeed` has no language field. What
+exists is a *write* of the run config: `metadata_generation.py:957` sets
+`FeedMetadata(language=cfg.language)`, so `server/corpus_catalog.py:159` `_feed_language` reads back
+the profile's `en`, and `AppPodcastItem.language` (`server/schemas.py:1719`, served at
+`app_episodes.py:156`) serves that. There is no episode-level language field at all;
+`metadata_generation.py:2843` writes one into `processing.config_snapshot`, which is an accurate
+snapshot of configuration and not a claim about the episode.
 
-**1.1 Where the override lives.** PRD-047 FR1.1 says "operator override (shows library)", but there
-is no store for it. RFC-104's own header states **"Backend: none (reuses existing endpoints)"** — the
-shows library is a browse mode over `GET /api/corpus/feeds` — and the feed list
-(`config/corpus-expansion.feeds.yaml`) is a flat list of bare `- url:` entries with no per-feed keys
-anywhere in `config/*.yaml`. So this RFC must choose a home rather than assume one:
+So the first slice of this design is:
 
-- **Proposed**: extend the feed entry to an optional mapping, keeping the bare string form valid.
+- extract the channel `<language>` in `rss/parser.py` and carry it on `RssFeed` and `FeedMetadata`;
+- persist `feed.language_raw`, `feed.language` (normalized) and `feed.language_source`;
+- add an **episode-level** `language` and `language_source`;
+- `_feed_language` calls the normalizer, so the catalog and the pipeline cannot disagree;
+- and because this changes `*.metadata.json`, it carries a migration under `upgrade/migrations/`, a
+  `corpus_format_version` bump, a reader-support bump, a `CORPUS_UPGRADE.md` row and a backfill.
 
-  ```yaml
-  feeds:
-    - url: https://example.com/feed.xml          # unchanged, resolves to profile default
-    - url: https://example.gr/feed.xml
-      language: el                                # operator override
-  ```
+Without it the language badge would display the run config, the corpus audit would be a tautology, and
+the `en-US → en` normalization would have no input.
 
-  The loader accepts either form. This is config-as-source-of-truth, matches how every other
-  per-feed decision in this repo is made, and needs no new persistence layer or API.
-- **Deferred**: a writable override in the operator UI. That needs a feed-record store, which is a
-  larger change than this feature justifies. FR6.1's "override control" therefore reduces to
-  *display* the resolved language and its source in the shows library, with editing done in config.
+**1.2 The operator override is an allowlist addition.** `rss/feeds_spec.py:26-56` already accepts a
+mapping per feed entry, validated with `extra="forbid"` (`:77`) against
+`RSS_FEED_ENTRY_OVERRIDE_KEYS` — whose keys must exist on `Config`, and `language` does. So:
 
-This is the one place where the PRD asks for a surface that does not exist. It is called out rather
-than absorbed.
+```yaml
+feeds:
+  - url: https://example.com/feed.xml          # unchanged bare form stays valid
+  - url: https://example.gr/feed.xml
+    language: el                                # operator override
+```
+
+is a one-key change plus threading it into resolution, not a new config surface. The shows library
+*displays* the resolved language and its source (RFC-104's shows library has no backend, so editing
+stays in config).
 
 **Supported-language registry.** `config/languages.yaml`:
 
@@ -165,87 +178,121 @@ languages:
   en: { tier: excellent, enabled: true,  translation: none }
   es: { tier: excellent, enabled: false, translation: { model_ref: tx-default } }
   el: { tier: review,    enabled: false, translation: { model_ref: tx-default } }
-  sr: { tier: review,    enabled: false, translation: { model_ref: tx-default },
-        script: latin }   # display normalization of source text (PRD-047 OQ2)
 models:
-  tx-default: { id: <winner>, revision: <sha>, serve: dgx_vllm_translate }
+  tx-default: { id: <bake-off winner>, revision: <sha>, serve: dgx_vllm_translate }
 ```
 
 An episode whose language is not `enabled` gets status `skipped_unsupported_language` and is never
-transcribed. The registry is the single switch per language, and enabling one is a reviewed config
-change backed by bake-off evidence (§7).
+transcribed. **The skip must not ship before the override** (§1.2): feed tags are routinely wrong, and
+an English show tagged `de` would otherwise stop ingesting with no remedy.
 
-**Sanity check, not routing.** After transcription, Whisper language ID runs on a 30 s window taken
-from the middle third of the episode, which avoids intros, music and ads. If the result is not the
-declared language with probability ≥ 0.8, the manifest records `language_mismatch: {declared,
-detected, p}` and the episode is flagged for the operator. It is **never** rerouted automatically,
-because intros and ad reads regularly fool language ID.
+**Sanity check, not routing.** After transcription, Whisper language ID runs on a 30 s window from the
+middle third of the episode. If the result is not the declared language with probability ≥ 0.8, the
+manifest records `language_mismatch: {declared, detected, p}` and the episode is flagged. It is
+**never** rerouted automatically, because intros, music and ad reads regularly fool language ID.
 
 ### 2. Source-language transcription and diarization
 
-- **Thread the resolved language to the call site.** `episode_processor._transcribe_one` passes
-  `language=cfg.language` today. It passes the episode's resolved language instead. The providers
-  need no signature change — `language` is already on the `TranscriptionProvider` protocol
-  (`transcription/base.py:48`) and every implementation accepts it.
-- **Remove the English default on the DGX path.** `whisper_provider.py:197` sends
-  `"language": language or "en"`. With per-episode language threaded, a missing language must be an
-  error or an explicit auto-detect, never a silent `"en"`. Same for
-  `ml_provider.py:827/885`'s `self.cfg.language or "en"`.
-- **Quality floor for non-English.** `normalize_whisper_model_name` gains a
-  `min_model_for_non_english` (default `large-v3`, or turbo on DGX). For non-`en` languages the
-  fallback chain is truncated at that floor. If no tier can meet it, the attempt fails with
-  `deferred_quality_floor` rather than transcribing with `base` or `tiny`.
-- Diarization (pyannote community-1) is language-agnostic, so nothing changes.
-- **Speaker naming.** `ner.py` skips detection for non-`en` today, and that stays off. For
-  non-English episodes, speaker naming runs on the **English** transcript after translation (§5.5),
-  using the existing vLLM speaker detector.
-- Source artifacts stay at their existing paths (`<stem>.txt`, `<stem>.segments.json`) and gain a
-  top-level `language` field. RFC-123 `turns.json` is built from them as usual.
-- **No source-language ad-free variant is written.** See §3.
+- **Thread the resolved language to the call site.** `episode_processor._transcribe_one` passes the
+  episode's resolved language instead of `cfg.language`. Providers need no signature change —
+  `language` is already on the protocol (`transcription/base.py:48`).
+- **Delete the substitutions.** `ml_provider.py:827/:885`'s `self.cfg.language or "en"` goes, and the
+  DGX provider stops reporting `"en"` for an auto-detected transcript (hazard 3). The cloud providers
+  fall through to `None`/auto and never substitute `"en"`, so there is nothing to remove there. The
+  acceptance criterion is a **lint rule** — `cfg.language` readable in exactly one place — rather than
+  a hand-maintained list, because the list was already four sites short (`sniff_gate.py`).
+- **Model selection is per call, not per provider.** `ml_provider.py:566-568` resolves the Whisper
+  model **once at init** from run-global language, so per-episode selection needs per-call resolution
+  in `MLProvider`. `normalize_whisper_model_name` gains a `min_model_for_non_english` (default
+  `large-v3`); for non-`en` the chain truncates at that floor, and if no tier meets it the attempt
+  fails `deferred_quality_floor` rather than transcribing with `base`. Simplest defensible policy:
+  the local tier does not serve non-English at all.
+- **NER.** `speaker_detectors/ner.py:131-136` selects the *default* NER model only when
+  `cfg.ner_model` is unset — it is not a gate on NER itself, so a configured model would run on any
+  language. Non-English episodes must skip transcript NER explicitly rather than relying on that.
+- Diarization (pyannote community-1) is language-agnostic; nothing changes.
+- **Speaker naming stays before translation.** See §5.4.
+- Source artifacts keep their existing paths (`<stem>.txt`, `<stem>.segments.json`) and gain a
+  top-level `language`. RFC-123 `turns.json` is built from them as usual.
+- **No source-language ad-free variant is written** (§3).
 
-### 3. Pipeline order, and why translation precedes ad detection
+**2.1 One resolver, and routing every reader to it.** `workflow/adfree_transcript.load_processing_transcript`
+describes itself as "the single resolver all NLP consumers use". It is not. Two callers use it — GI
+(`metadata_generation.py:4835`) and KG (`:5082`) — while these resolve independently:
 
-For an English episode, today's order is: transcribe → segments → ad-free base → analysis. The
-ad-free base is what analysis reads.
+| Reader | Location | Today's behaviour |
+| --- | --- | --- |
+| Summary | `metadata_generation.py:2926-2928` | opens `transcript_file_path` raw |
+| Faithfulness / QA flags | `:2401-2405` | raw |
+| Transcript NER | `:1986-2008` | raw |
+| Search indexer | `search/indexer.py:96-111` | its own `.adfree` preference |
+| GI repair | `gi/repair.py:161-171` | its own resolution |
+| GI evidence loading | `gi/load.py:19-37` | **raw `.txt`, no ad-free preference at all** |
 
-For a non-English episode the naive extension — ad-free base, then translate it — fails on hazard 4:
-`_AD_PATTERNS` are English, so the source-language ad-free base is an identity copy and the ads
-travel into analysis. It also costs more, because subtitles need the **full** timeline while
-analysis needs the **ad-free** text, which would mean translating two overlapping texts.
+The last row is a coordinate-space inconsistency that exists **today**, independent of this feature:
+GI computes offsets in ad-free space and this loader reads the raw text. Routing every reader through
+one resolver is therefore a standalone bug fix that this design also needs, and it is where the
+`.en.txt` branch belongs — precedence `.en.adfree.txt` → `.en.txt` → `.adfree.txt` → `.txt`.
 
-The order is therefore inverted for non-English episodes:
+The resolver also gains a **provenance check**: `.en.adfree.*` carries the `en_sha256` of the
+`.en.txt` it was built from, and a mismatch refuses rather than silently anchoring spans into stale
+text.
+
+### 3. Stage order: translation directly after transcription, before summary
+
+For an English episode today: transcribe → segments → ad-free base → summary → GI → KG.
+`CANONICAL_STAGE_ORDER` is `("asr", "diarization", "naming", "summary", "gi", "kg")`
+(`workflow/processing_manifest.py:54`) with no translation or ad-free slot, and summary runs in the
+same episode job immediately after transcription (`workflow/stages/transcription.py:266`).
+
+**Translation is inserted directly after transcription and diarization, before summary** (D-19).
+Two reasons, and the second is the load-bearing one:
+
+1. **Ad detection needs English** (hazard 4). Running ad excision on Greek produces an identity
+   artifact that quietly feeds sponsor reads to every analysis layer.
+2. **Summary output feeds topic identity.** The summary's prefilled topics become GI's topic labels
+   (`metadata_generation.py:4890ff`) and KG's topics come from summary bullets (`:5100-5110`).
+   Translating after summary would give English insights hanging off **Greek** topic labels — and
+   topics are how episodes connect to one another across the corpus, so cross-episode topic identity
+   would fragment by language. That is the opposite of "English-normalized intelligence".
+
+The resulting order for a non-English episode:
 
 ```text
 audio
  └─ transcribe + diarize (source language)      → ep1.txt, ep1.segments.json
-     └─ turns (RFC-123)                          → ep1.turns.json
-         └─ TRANSLATE every unit, full timeline  → ep1.translation.json
-             └─ render English screenplay        → ep1.en.txt, ep1.en.segments.json
+     └─ speaker naming (source, §5.4)
+         └─ turns (RFC-123)                      → ep1.turns.json
+             └─ TRANSLATE every unit, full timeline
+                 │                               → ep1.translation.json
+                 │                               → ep1.en.txt, ep1.en.segments.json
                  ├─ turns over English           → ep1.en.turns.json
                  └─ ad-free base ON ENGLISH      → ep1.en.adfree.{txt,segments.json,admap.json}
-                     └─ ANALYSIS reads this      (GI, KG, summary, search)
+                     └─ summary → GI → KG, all reading ep1.en.adfree.txt
 ```
 
-Three things fall out of this, all of them using machinery that already exists:
+`CANONICAL_STAGE_ORDER` gains a `translation` slot, and retries use a `translate_only` reprocess mode
+rather than a new per-episode pending queue — the pipeline has no asynchronous per-episode state
+machine, and inventing one for this is a larger change than the feature needs.
 
-1. **Ad detection works**, because it runs on English text with the English patterns it was written
-   for. No per-language ad lexicon is needed, now or later.
-2. **One translation pass.** The full-timeline units are translated once. They are simultaneously the
-   subtitle source and the input to the ad-free derivation. `build_adfree_artifacts` already drops
-   the segments inside detected ad ranges and **re-renders the survivors** through the same
-   formatter, so the English ad-free text and its offsets come out exact, with no new code.
-3. **The existing path-naming helper composes unchanged.** `adfree_transcript_relpath` is
-   `splitext(path)` + `.adfree`, so `ep1.en.txt` yields `ep1.en.adfree.txt` with no modification.
-   `load_processing_transcript("…", "ep1.en.txt")` then finds that ad-free sibling by the rule it
-   already implements.
+Three things fall out, all using machinery that already exists:
 
-**Bonus, not a goal:** ad ranges discovered in English map back through `translation.json` to source
-char ranges and source times, so the source-language reader and the source audio player can hide or
-skip ads too — something the English-only pattern set could not otherwise give a Greek episode.
+1. **Ad detection works**, on English text with the English patterns it was written for. No
+   per-language ad lexicon, now or later.
+2. **One translation pass.** The full-timeline units are both the subtitle source and the input to the
+   ad-free derivation. `build_adfree_artifacts` already drops segments inside detected ad ranges and
+   **re-renders the survivors** through the same formatter, so offsets come out exact with no new code.
+3. **The path helper composes unchanged.** `adfree_transcript_relpath` is `splitext` + `.adfree`, so
+   `ep1.en.txt` yields `ep1.en.adfree.txt` (`adfree_transcript.py:52-55`).
+
+**Reprocess paths must become language-aware.** `_maybe_produce_adfree` is called on the **source**
+text by `relabel_only` (`episode_processor.py:2869-2882`), `rediarize_only` (`:3191-3204`), the ASR
+path (`:3784-3805`) and direct download (`:4460-4483`). On a non-English episode each would write the
+identity `ep1.adfree.txt` this design says never exists, and leave `.en.*` stale with pre-relabel
+labels. Every path that changes the source must invalidate `.en.*`, `translation.json`, RFC-125
+verification records and the episode's cached prompt prefix.
 
 ### 4. Artifact model
-
-For a non-English episode with stem `ep1`:
 
 ```text
 transcripts/
@@ -257,8 +304,8 @@ transcripts/
   ep1.en.segments.json           # English cues: one per translation unit, derived
   ep1.en.turns.json              # RFC-123, English variant
   ep1.en.adfree.txt              # English ad-free — THE ANALYSIS TRANSCRIPT
-  ep1.en.adfree.segments.json
-  ep1.en.adfree.admap.json       # excised ranges, in ep1.en.txt coordinate space
+  ep1.en.adfree.segments.json    # carries unit_id per segment (§4.1)
+  ep1.en.adfree.admap.json
   ep1.en.adfree.turns.json
 ```
 
@@ -279,7 +326,7 @@ English episodes are untouched: `ep1.txt`, `ep1.segments.json`, `ep1.adfree.*`, 
     {
       "unit_id": "t0007.u01",
       "turn_id": "t0007",
-      "sent_ids": ["t0007.s01", "t0007.s02", "t0007.s03"],
+      "sent_ids": ["t0007.s01", "t0007.s02"],
       "speaker_label": "Κυριάκος Μητσοτάκης",
       "start_ms": 2471200, "end_ms": 2489100,
       "src_char_start": 18356, "src_char_end": 18702,
@@ -292,238 +339,214 @@ English episodes are untouched: `ep1.txt`, `ep1.segments.json`, `ep1.adfree.*`, 
 }
 ```
 
-`en_char_*` are offsets into `ep1.en.txt` — the full-timeline English text — captured from
-`format_diarized_screenplay_with_offsets`.
+`en_char_*` index into `ep1.en.txt`, the full-timeline English text.
 
-**Resolving a claim back to a unit.** A GI citation's char span lives in the analysis transcript,
-which is `ep1.en.adfree.txt`. The chain is:
+**4.1 Resolving a claim back to its source — through segments, not the ad-map.** A GI citation's span
+lives in `ep1.en.adfree.txt`. An earlier version of this RFC proposed shifting that span into
+full-English space with `ep1.en.adfree.admap.json` and then range-looking it up over `en_char_*`.
+**That is wrong, and it was measured.** On the diarized branch `build_adfree_artifacts` does not cut
+the complement of the excised ranges; it **drops** overlapping segments and **re-renders** the
+survivors, re-emitting the `Label:` prefix and its trailing space. So `_shift_for` (`gi/ad_regions.py:439`) does not invert the
+transform — it is off by a label per excised range, and by a whole segment when one straddles a
+boundary. Nothing in the codebase used the ad-map for reconciliation, so the error had never surfaced.
+
+The correct chain uses the artifact that is exact by construction:
 
 ```text
 span in ep1.en.adfree.txt
-  → shift by ep1.en.adfree.admap.json            (ad-free → full English space)
-  → range-lookup over en_char_start/en_char_end  (→ unit_id, turn_id, speaker)
-  → src_char_*, start_ms/end_ms                  (→ source text + source audio)
+  → binary-search ep1.en.adfree.segments.json for the segment containing char_start
+    (char_start/char_end there are exact — the formatter emits them, and gi/pipeline.py:810-830
+     already resolves spans this way)
+  → read unit_id off that segment
+  → look the unit up in translation.json → src_char_*, start_ms/end_ms, speaker
 ```
 
-The first hop is the same reconciliation the ad-map was built for; the docstring in
-`adfree_transcript` states that purpose explicitly. A single helper,
-`resolve_units_for_span(span, admap, translation_map)`, owns the whole chain so no consumer
-reimplements it. RFC-125 calls exactly this helper.
+This requires the English pseudo-segments to **carry `unit_id`**, which means adding it to the
+formatter's passthrough tuple (`providers/ml/diarization/formatting.py:81`, currently
+`("speaker", "speaker_role", "voice_type")`). The field is additive and absent on English-episode
+segments, so nothing changes for the existing corpus. `resolve_units_for_span(span, segments,
+translation_map)` owns the chain; RFC-125 calls it and no consumer reimplements it.
 
 **English transcript construction.** `ep1.en.txt` is rendered with the **same screenplay formatter**,
-feeding it one pseudo-segment per unit (`text = en_text`, times from the unit, speaker label resolved
-per §5.4). That makes `ep1.en.segments.json` a valid segments sidecar, so everything that reads
-segments — timing lookup for quotes, player cues, RFC-123 turns, the ad-free builder — works on the
-English layer unchanged.
+one pseudo-segment per unit (`text = en_text`, times from the unit, `unit_id` carried, speaker label
+resolved per §5.4). That makes `ep1.en.segments.json` a valid segments sidecar, so timing lookup,
+player cues, RFC-123 turns and the ad-free builder all work on the English layer unchanged.
 
-**Derived marking.** `.en.*` artifacts and `translation.json` carry `derived: true` and
-`translated_from`. The source artifacts do not.
+**Atomicity.** `ep1.en.txt`, `ep1.en.segments.json`, `translation.json` and the `.en.adfree.*` set are
+written as one atomic group (temp + rename). `save_adfree_artifacts` currently writes three files
+non-atomically and only warns on failure (`adfree_transcript.py:176-188`), which would leave an
+episode with English text and no analysis base — a state §5.3 has to refuse rather than half-serve.
+
+**Derived marking.** `.en.*` and `translation.json` carry `derived: true` and `translated_from`. The
+source artifacts do not.
 
 ### 5. Translation stage
 
-**5.1 Units.** Sentence groups inside a single RFC-123 turn of the **source** variant:
+**5.1 Units.** Sentence groups inside a single RFC-123 turn of the **source** variant: greedily pack
+consecutive sentences up to about 120 source words (configurable), never crossing a turn boundary; a
+sentence longer than the cap is its own unit and is never split; backchannel turns are one unit each.
+Units are a deterministic function of `ep1.turns.json`.
 
-- Greedily pack consecutive sentences up to about 120 source words (configurable). Never cross a
-  turn boundary.
-- A sentence longer than the cap is its own unit. It is never split mid-sentence.
-- Backchannel turns (`backchannel: true`) are translated as one unit each, without context.
+**5.2 Context.** v1 translates each unit on its own text. Prepending the previous turn and stripping
+it from the output is fragile because boundaries drift. §7 measures whether unit-only translation
+meets the gate; a model with a native context field may use `context_turns: N`.
 
-Units are a deterministic function of `ep1.turns.json`. They are not stored separately beyond
-`translation.json`.
+**5.3 Serving and failure semantics.** A dedicated vLLM instance (`dgx_vllm_translate`, its own port).
+Requests are batched per episode (all units, ordered) with bounded concurrency, on the same DGX work
+queue as other GPU stages, with English episodes scheduled ahead of translation batches.
 
-**5.2 Context.** v1 translates each unit **on its own text**. Prepending the previous turn and
-stripping it from the output is fragile, because boundaries drift. The bake-off (§7) measures
-whether unit-only translation meets the gate. If a candidate model supports a native context field,
-`context_turns: N` is an allowed per-model setting.
+- **Tier.** Per RFC-106, DGX-only in v1. Unavailable → the episode moves to `translation_pending` and
+  is retried via `translate_only`. No cloud fallback: substituting a model would make quality
+  untraceable, because the text would no longer be what the language's gate evidence was measured on.
+- **Partial output.** A unit that errors or returns empty is retried twice, then marked
+  `status: "failed"`.
+- **Blocking analysis is an explicit gate, not an absence.** The resolver always returns *something*,
+  so "analysis does not run" cannot be expressed by withholding a file. `generate_episode_metadata`
+  checks the episode's resolved language and translation status: a non-`en` episode without a complete,
+  provenance-matching `.en.adfree` set skips summary, GI and KG with an explicit status. Without that
+  check, a pending translation would silently fall through the resolver's precedence to `.adfree.txt`
+  or `.txt` and run English prompts over Greek text.
+- **`transcript_ref` must follow the resolver.** GI updates its ref only `if loaded.is_adfree`
+  (`metadata_generation.py:4831, 4839-4840`), so a present `.en.txt` with a missing `.en.adfree.*`
+  would stamp `EvidenceSpan.transcript_ref` with the *source* path while the offsets are English. Fix
+  the ref to follow whatever the resolver returned.
 
-**5.3 Serving.** A dedicated vLLM instance (`dgx_vllm_translate`, its own port). Requests are batched
-per episode (all units, ordered) with a bounded concurrency budget. The stage runs on the same DGX
-work queue as other GPU stages, and English episodes are scheduled ahead of translation batches.
+**5.4 Names, identity, and why naming stays before translation.** Speaker naming runs **inside**
+`transcribe_with_segments` (`providers/ml/ml_provider.py:1061`), and its labels are baked into the
+source `.txt` at write time — from which source turns and `translation.json` (`speaker_label`,
+`turn_id`, `turns_sha256`) derive. Naming *after* translation would therefore mean relabelling the
+source, and a relabel that resolves two `SPEAKER_xx` to one name **merges turns**, shifting every turn
+id and invalidating the unit map. So naming stays where it is, on the source, with the English feed
+metadata passed as extra context (show notes often name the guest in source script).
 
-- **Failure semantics.** Per RFC-106 tiering, the translation tier is DGX-only in v1. If it is
-  unavailable, the episode moves to `translation_pending` and is retried with backoff. There is no
-  cloud translation fallback, because substituting a model would make quality untraceable — the
-  episode's text would no longer be the text the language's gate evidence was measured on.
-- **Partial output.** A unit that errors or returns empty text is retried up to 2 times, then
-  marked `status: "failed"`. Any failed unit blocks analysis for the episode (PRD-047 FR3.4) —
-  concretely, the English ad-free base is not built, so the resolver finds no analysis transcript
-  and the analysis stages do not run. The source transcript and the partial subtitles remain
-  servable.
+Two identity rules:
 
-**5.4 Names and identity.** Speaker labels are in source script (e.g. `Κυριάκος Μητσοτάκης`), and the
-translation model may transliterate names inconsistently. Two rules:
+1. **Speaker labels never go through the translator.** The source-script label is looked up in CIL
+   aliases; a canonical person yields the canonical Latin name, otherwise a deterministic
+   transliteration (ICU `Any-Latin; Latin-ASCII` plus per-language rules) becomes the display label and
+   the source-script form is written as a CIL alias when the person node is minted.
+2. **In-text names** are left to the model; CIL resolution matches English mentions against aliases
+   including transliteration variants. §7 measures name consistency.
 
-1. **Speaker labels are never sent through the translator.** They are resolved separately. The
-   source-script label is looked up in CIL aliases. If a canonical person exists, the English
-   screenplay uses the canonical Latin name. Otherwise a deterministic transliteration (ICU
-   `Any-Latin; Latin-ASCII` plus per-language rules) becomes the display label, and the
-   source-script form is written as a CIL alias when the person node is minted.
-2. **In-text names** are left to the model. Downstream CIL resolution then matches English-text
-   mentions against aliases that include transliteration variants. The bake-off measures name
-   consistency explicitly (§7).
+A transliterated label must still satisfy `gi/speakers.py:_looks_like_person` (≥2 tokens, no publisher
+token) — a label collapsing to one token would silently un-attribute every quote in that turn — so the
+transliteration asserts that and falls back to the source-script label when it fails.
 
-A label must round-trip: the English screenplay's `Label: ` prefix is what
-`build_unverified_named_turns` and the turn builder read, and `gi/speakers.py:_looks_like_person`
-requires ≥2 tokens and no publisher token. A transliteration that collapses to one token
-(or to a publisher-like string) silently un-attributes every quote in that turn. The transliteration
-step therefore asserts the label still satisfies `_looks_like_person`, and falls back to the
-source-script label when it does not.
+### 6. API, player and search
 
-**5.5 Speaker naming for non-English episodes.** The existing vLLM speaker detector runs on the
-English transcript and the English feed metadata, with the source-language feed and episode
-description passed as extra context. That context matters: show notes often name the guest in
-source script.
-
-### 6. API and player
-
-- **Segments contract** (`GET /api/app/episodes/{slug}/segments`,
-  `server/routes/app_episodes.py:463`) gains `?lang=`:
-  - default: source-language segments (unchanged for English);
-  - `lang=en` on a translated episode: English unit-level cues from `.en.segments.json`.
-  - `SegmentsResponse` gains additive fields: `language`, `machine_translated: bool`, and
-    `translation_model` when translated. It is a plain `BaseModel` with no `extra="forbid"`, so the
-    addition is safe.
+- **Segments contract** (`GET /api/app/episodes/{slug}/segments`, `server/routes/app_episodes.py:463`)
+  gains `?lang=`: default source-language segments (unchanged for English); `lang=en` on a translated
+  episode serves English unit-level cues. `SegmentsResponse` gains additive `language`,
+  `machine_translated` and `translation_model` (it is a plain `BaseModel`, so this is safe).
 - **Episode detail** exposes `language` and `translation_status` (`none | ok | pending | failed`).
-- **Quotes** from translated episodes expose `translated: true` and `source_language`, plus
-  `source_excerpt` (the source text of the covering unit(s)) and the source time range. Audio
-  playback uses the source times, which are identical to the English cue times by construction.
-- **Search** indexes **both** layers — see §6.2.
+- **Quotes** from translated episodes expose `translated: true`, `source_language`, `source_excerpt`
+  (the covering unit's source text) and the source time range. Audio playback uses source times, which
+  equal the English cue times by construction.
+- **The "Translated from <Language>" chip ships with the pipeline, not later.** No translated content
+  is served unlabelled at any point.
 
-UI treatment (the translated marker, the original-text reveal, the language toggle) is deferred to
-a UXS.
+**6.1 Language visibility and filtering** (PRD-047 FR7).
 
-**6.1 Language visibility and filtering** (PRD-047 FR7). Two additive API changes and one new
-component carry it:
-
-- **Show language already exists**: `AppPodcastItem.language` (`server/schemas.py:1719`), described as
-  "Feed language tag (e.g. 'en') if known". It currently serves the **raw** RSS tag, because
-  `_feed_language` does not normalize — so `en-US` and `en` are two values for one language. Routing
-  it through `normalize_language_tag` (§1) is what makes it usable as a badge and as a filter key.
-- **Episode language is not exposed** and gains an additive `language` field on the episode list and
-  detail responses, read from the episode metadata that `metadata_generation.py:2843` already writes.
+- **Show language** uses the existing `AppPodcastItem.language` field — which starts carrying the
+  normalized feed tag once §1.1 lands, instead of the run config it carries today.
+- **Episode language** is a new additive field on the episode list and detail responses.
 - **`LanguageBadge.vue`** is new: a compact squared chip with the uppercase code. No generic badge
   primitive exists in `web/learning-player`, so this is the primitive. It renders on `EpisodeRow`,
-  `EpisodeTile`, `EpisodeCard`, `ShowRow`, `ShowTile` and `PodcastView`, and alongside the operator
-  viewer's existing `library/chips/` components. Absent language renders nothing rather than a guess.
-- **The filter reuses `TypeFilterBar.vue`**, whose own docstring states the intent — "Type filtering
-  is one concept, so it is one component: a new surface passes its options and a testid prefix". The
-  language filter is a new instance of it on the `CatalogView` toolbar (which today carries
-  all / unplayed / played / insights / downloaded plus a `show` selector and a sort), on show browse,
-  and on the operator `LibraryFilterBar`. It is a **separate** control from the played/downloaded
-  filter, because language is orthogonal to listening state — collapsing them would make "Greek and
-  unplayed" unexpressible — and it renders only once the corpus holds more than one language.
+  `EpisodeTile`, `EpisodeCard`, `ShowRow`, `ShowTile`, `PodcastView` and alongside the operator viewer's
+  `library/chips/` components, with `t()` strings (the player forbids hard-coded user-facing text) and a
+  language display-name source so the aria-label reads "Greek" rather than "EL". Unknown language
+  renders nothing rather than a guess.
+- **The filter** reuses `TypeFilterBar.vue`, whose docstring asks to be reused. `CatalogView`'s filter
+  is single-select via `ListToolbar` today (`:43-58`, with `downloaded` present only on native), so the
+  language filter is a **separate** control — language is orthogonal to listening state, and collapsing
+  them would make "Greek and unplayed" unexpressible. It renders only once the corpus holds more than
+  one language.
 
-**6.2 Multilingual retrieval** (PRD-047 FR4.5). A Greek episode must be findable by a Greek query and
-by an English one, and both must land on the same episode. That is not what indexing the English layer
-alone gives, so retrieval is part of v1 rather than a later addition (arc note D-14).
+**6.2 Same-language retrieval** (PRD-047 FR4.5, D-14). A Greek episode must be findable by a Greek
+query, and by an English query through its translation. Both resolve to the same episode.
 
-**Two things have to change, and exactly two.**
+**What changes:** Tier-1 chunks are built from **both** transcripts — the source-language one and the
+English analysis one — each tagged with its `language`, both keyed to the same `episode_slug`. A Greek
+query matches the Greek chunks lexically; an English query matches the English chunks. `SegmentDocument`
+and the LanceDB segment schema gain `language` alongside the `speaker_ids` / `turn_ids` RFC-123 adds, so
+it is one schema change if the two land together.
 
-1. **Index both layers.** `build_segment_documents` produces Tier-1 chunks from the analysis
-   transcript today. For a translated episode it produces **two** chunk sets — one from the
-   source-language transcript, one from the English analysis transcript — each carrying its own
-   `language`, both keyed to the same `episode_slug`. A lexical (BM25) match on a Greek query then hits
-   the Greek chunks, an English query hits the English chunks, and the episode is reachable either way.
-   `SegmentDocument` and the LanceDB segment schema gain `language` alongside the `speaker_ids` /
-   `turn_ids` that RFC-123 adds, so it is one schema change, not two.
-2. **A multilingual embedding model for the search index.** `DEFAULT_EMBEDDING_MODEL` is
-   `sentence-transformers/all-MiniLM-L6-v2` (`config_constants.py:350`, revision-pinned at `:407`) and
-   it is English. Lexical matching alone would make a Greek query find Greek chunks but never the
-   English ones, so *cross*-lingual recall — the property that makes one corpus out of two languages —
-   needs a multilingual encoder on the dense side.
+**What does not change: the embedding model.** Cross-lingual *semantic* matching — an English query
+finding Greek content by meaning — is explicitly out of scope for this arc. It would require a
+multilingual encoder, which re-embeds every existing English episode, changes vector dimensionality
+(migration plus reader-support bump), forces a corpus-wide reindex with cutover and rollback, and drags
+along `search/insight_clusters.json`, `kg/topic_clustering`, `search/query_router` and
+`search/quality_metrics.py`'s hardcoded `_ZERO_VECTOR_DIM = 384` — all gated on a prod-derived eval set
+that does not exist. It belongs with internationalizing the application, when a listener can search in
+whatever language they choose. See the arc notes, "Explicitly not in this arc".
 
-**Why the blast radius is contained.** MiniLM is referenced in four places: the search vector index,
-GI `ABOUT` edges (`gi/about_edges.py:28`, hardcoded), GI chunked extraction
-(`gi/chunked_extraction.py:49`, hardcoded default), and the CIL bridge builder
-(`builders/bridge_builder.py:121`, `"minilm-l6"`). Swapping all four would put topic linking, insight
-extraction and cross-episode identity through an unmeasured model change on a 678-episode corpus.
+**Consequences of keeping MiniLM**, stated plainly:
 
-It is already avoidable: **`vector_embedding_model` is a distinct config key from `gi_embedding_model`
-and `embedding_model`** (`config.py:3615`, `:3124`, `:3083`). So this RFC changes
-`vector_embedding_model` only. GI, KG and the bridge keep the pinned MiniLM and are untouched. That
-containment is the reason this is affordable in v1 (arc note D-15).
+- **Non-English chunks are keyword-only.** They are excluded from the dense stage, because MiniLM
+  vectors for Greek text are noise that would otherwise surface in English semantic results.
+- **Greek keyword recall is weaker than English-on-English.** `create_fts_index("text", replace=True)`
+  (`search/backends/lancedb_backend.py:266`) builds one English tokenizer per index — stemming,
+  stop-words, accent folding — and Greek is heavily inflected. Quantify the cost before calling this
+  done; if it is bad, the options are a per-language FTS table or accepting it explicitly.
+- **Chunk ids must carry language.** `f"{episode_id}_chunk_{i}"` (`search/segments.py:47`) and
+  `chunk:{scope_tag}:{i}` (`indexer.py:449`) carry none, and LanceDB merges on id — so the second
+  chunk set would overwrite the first.
+- **Insight→segment linking must filter on language.** `link_insights_to_segments`
+  (`search/segments.py:59-80`) links by time, and both layers share timestamps, so an English insight
+  would otherwise link a Greek chunk.
 
-**What it costs.** A corpus-wide reindex, through the existing delta path (RFC-118). The dense vectors
-for every chunk change, so this is a full rebuild rather than an incremental one, and per the arc's
-own operational notes the index build runs in Docker.
-
-**The gate.** The swap changes English retrieval, not just Greek. So it is gated on the existing
-retrieval eval over the current query set: **English recall@k must not regress**, reported before and
-after alongside the speaker-precision metric RFC-123 adds. A multilingual encoder that helps Greek and
-costs English recall is not an acceptable trade, and the eval is what makes that visible rather than
-discovered in production. Candidate encoders are a Gate V question, decided by that measurement rather
-than by reputation.
-
-**Query side.** No query-language detection and no query translation. A query goes to both layers as
-it is, and hybrid RRF (RFC-090) fuses the hits. Results carry the matched chunk's `language`, so the UI
-can say whether a hit came from the Greek original or the English translation, and `search_corpus`
-gains an optional `language` filter.
+**Query side.** No query-language detection and no query translation. A query goes to the index as it
+is, and hybrid RRF (RFC-090) fuses the hits. Results carry the matched chunk's `language` so a hit can
+say whether it came from the original or the translation, and `search_corpus` gains an optional
+`language` filter.
 
 ### 7. Model selection: bake-off and per-language gate
 
-This reuses the existing bake-off pattern (`config/profiles/bakeoff_*.yaml`, 14 profiles today), with
-one profile per candidate.
+Reuses the existing bake-off pattern (`config/profiles/bakeoff_*.yaml`, 15 profiles today), one profile
+per candidate. The shortlist and its licences are **verified** — see the arc notes §6.1; they are not
+open questions any more. Availability of the QE candidates remains unverified and is not on the v1 path
+(RFC-125 §7).
 
-**Candidates** (operator's shortlist; **availability and license terms are unverified in this pass**
-and are a Phase 0 task, not an established fact):
-
-| Candidate | Why | License note (to verify) |
-|---|---|---|
-| TranslateGemma 27B | translation-specialized Gemma 3; strongest prior | Gemma terms |
-| TranslateGemma 12B | same family, cheaper; check the quality gap | Gemma terms |
-| MiLMMT-46-12B (Xiaomi) | reports gains over TranslateGemma; newer | confirm `el`/`sr` coverage |
-| LMT-60 8B | permissive fallback option | Apache-2.0 |
-| Qwen3-30B-A3B (current vLLM) | generalist baseline, already served | Apache-2.0 |
-
-Excluded on licence grounds, subject to the same verification: Tencent Hy-MT (EU exclusion), NLLB
-(non-commercial).
-
-**Eval set per language:** 3 real episodes from shows likely to be requested, about 60 units each,
-including every unit that the current GI pipeline cites in those episodes.
+**Eval set per language:** 2–3 real episodes of the pilot language plus one Spanish or Italian control,
+about 60 units each, including every unit the current GI pipeline cites in those episodes. Requires a
+test fixture in the pilot language, which does not exist yet.
 
 **Measurements:**
 
 1. **ASR check** (pre-translation): a native reviewer rates 20 random source units as
    usable / minor errors / broken.
-2. **Automatic**: latency and GPU memory per model. Optionally a reference-free QE model as a cheap
-   comparative signal **if** a permissively licensed checkpoint is available — it would inform the
-   model choice, but no thresholds are calibrated and nothing ships from it, because QE is a v2
-   addition (RFC-125 §7). The gate below does not depend on it.
+2. **Automatic**: latency and GPU memory per model, and translation wall time per episode (which sets
+   the cap in OQ 3). A reference-free QE model may be used as a cheap comparative signal **if** a
+   permissively licensed checkpoint exists; no thresholds are calibrated and nothing ships from it.
 3. **Native reviewer, blind to model**: for each position-bearing unit, whether the translation is
    meaning-preserving (yes / minor / no), with error type (negation, hedge, name, omission, other).
-4. **Position agreement**: run GI extraction on each model's English output and compare the
-   attributed stance against the reviewer's reading of the original.
-5. **Name consistency**: the fraction of person mentions whose English form resolves to the correct
-   CIL identity.
-6. **Ad-detection survival** (new, gates the §3 ordering): on episodes that contain sponsor reads,
-   the fraction of those reads that `_AD_PATTERNS` catches in the translated English. A low number
-   means §3 buys less than claimed and a per-language cue list is back on the table.
+4. **Position agreement**: run GI extraction on each model's English output and compare the attributed
+   stance against the reviewer's reading of the original.
+5. **Name consistency**: the fraction of person mentions whose English form resolves to the correct CIL
+   identity.
+6. **Ad-detection survival**: on episodes containing sponsor reads, the fraction that `_AD_PATTERNS`
+   catches in the translated English. This gates §3's ordering — a low number means a per-language cue
+   list is back on the table.
 
-**Gate** (per language; all must pass to set `enabled: true`):
+**Gate** (per language; all must pass to set `enabled: true`): ASR ≥ 90% usable-or-minor;
+≥ 90% of position-bearing units meaning-preserving; ≥ 90% position agreement; ≥ 95% name consistency;
+ad-detection survival reported with a threshold set from the first language measured.
 
-- ASR: ≥ 90% of sampled units usable or minor.
-- ≥ 90% of position-bearing units meaning-preserving.
-- ≥ 90% position agreement.
-- ≥ 95% name consistency.
-- Ad-detection survival reported, with a threshold set from the first language measured (there is no
-  prior to set it from).
-
-The winning model per language is recorded in `config/languages.yaml` with its pinned revision. The
-default expectation is one model for all enabled languages. Per-language models are allowed but
-cost a served instance each.
+The winning model per language is recorded in `config/languages.yaml` with its pinned revision. One
+model for all enabled languages is the default expectation. Note for model choice: a 27B translator and
+the served 30B Qwen do not co-reside in the DGX's memory while a 12B does.
 
 ### 8. Interaction with transcript prefix caching (RFC-115)
 
 `cache_transcript_prefix` embeds the analysis transcript as the leading, stage-invariant block of the
-system prompt so providers prefix-cache it across stages
-(`config.py:3071`, `prompting/megabundle.py:60`). Switching that transcript from source to English is
-transparent to the mechanism. Two consequences are not:
+system prompt (`config.py:3071`, `prompting/megabundle.py:59-72`). Switching that transcript from source
+to English is transparent to the mechanism. Two consequences are not:
 
-- A re-translation (a model revision bump, or RFC-125's cross-model re-translation of selected
-  units) changes the English text and therefore invalidates the whole episode's cached prefix, not
-  just the changed span. Re-translation is an episode-level cost, not a per-unit one.
-- Translated episodes reach the LLM stages with a different token distribution (English rendered
-  from Greek), so cache-hit-rate dashboards should be read per language rather than in aggregate.
+- A re-translation (model revision bump, or RFC-125's cross-model re-translation) changes the English
+  text and invalidates the whole episode's cached prefix, not just the changed span. Re-translation is
+  an episode-level cost.
+- Translated episodes reach the LLM stages with a different token distribution, so cache-hit dashboards
+  should be read per language rather than in aggregate.
 
 ### 9. Observability
 
@@ -538,178 +561,170 @@ The per-episode manifest (RFC-109) gains:
 "adfree": { "built_on": "en", "ad_chars_removed": 4120 }
 ```
 
-`adfree.built_on` is the field that would have made hazard 4 visible: an English episode reads
-`source`, a translated one reads `en`, and an `ad_chars_removed: 0` on a language where the gate
-measured survival is now a question rather than a silence.
+`adfree.built_on` is the field that would have made hazard 4 visible. Phase 0's own failure modes —
+`skipped_unsupported_language`, `deferred_quality_floor`, `language_mismatch` — need log and metric
+surfacing plus a runbook entry, or the phase that exists to remove silent failures introduces three.
 
-Grafana: translation wall time per episode, units/sec, pending backlog, failures by language, and
-ad-chars-removed by language.
+Grafana: translation wall time, units/sec, pending backlog, failures by language, and ad-chars-removed
+by language.
 
 ## Key Decisions
 
-1. **Translate once, to English, and analyze English.**
-   - **Rationale**: every downstream layer stays single-path, and the evals, prompts and
-     thresholds already exist for English.
-2. **The source is canonical; English is derived.**
-   - **Rationale**: grounding and provenance mean the record is what was said, and a translation is
-     an interpretation of it.
-3. **Translation precedes ad detection; the ad-free base is built on English.**
-   - **Rationale**: `_AD_PATTERNS` is English, so the alternative is an identity ad-free base that
-     silently feeds sponsor reads to GI. It also collapses two translation passes into one, and
-     makes ad-skipping available to the source-language reader as a by-product.
-4. **`analysis_transcript_ref` is a branch in an existing resolver, not a new metadata field.**
-   - **Rationale**: `load_processing_transcript` is already "the single resolver all NLP consumers
-     use", and `ProcessingTranscript.transcript_ref` is already the ref that quote and viewer
-     references point at. Adding `.en.txt` to its precedence changes one function; inventing a
-     parallel field would mean touching every consumer and having two answers to the same question.
-5. **The English transcript is a real screenplay-format transcript with a segments sidecar.**
-   - **Rationale**: timing lookup, player cues, turns and the ad-free builder all work on it with
-     zero consumer changes.
-6. **Defer, don't substitute.**
-   - **Rationale**: a translation model swap silently invalidates the bake-off evidence the language
-     was enabled on, and later its QE calibration too.
-7. **Speaker labels bypass the translator, and must still look like people.**
-   - **Rationale**: identity is CIL's job. MT transliteration is inconsistent, and a label that
-     fails `_looks_like_person` un-attributes a whole turn.
-8. **Declared language routes; detection only warns.**
-   - **Rationale**: intros, music and ads regularly fool language ID. The operator override exists
-     for wrong RSS tags.
-9. **The language override lives in feed config, not in a new store.**
-   - **Rationale**: the shows library has no backend to hold it, and every other per-feed decision
-     in this repo is config.
+1. **Translate once, to English, and analyze English.** Every downstream layer stays single-path, and
+   the evals, prompts and thresholds already exist for English.
+2. **The source is canonical; English is derived.** Grounding and provenance mean the record is what
+   was said.
+3. **Translation runs directly after transcription and diarization, before summary.** Ad detection
+   needs English, and summary output feeds GI/KG topic identity — translating later would give English
+   insights on Greek topics and fragment cross-episode identity by language.
+4. **One resolver decides the analysis transcript, and routing every reader to it is part of the
+   work.** An earlier version of this decision claimed `load_processing_transcript` was already that
+   resolver and consumers would not change; that was its docstring, not the code (§2.1).
+5. **Span→unit resolution goes through `.en.adfree.segments.json` and `unit_id`, not the ad-map.** The
+   ad-map cannot invert an ad-free transform that re-renders survivors; measured (§4.1).
+6. **Speaker naming stays before translation.** Naming is baked into the source `.txt`; moving it later
+   means a relabel that merges turns and invalidates the unit map.
+7. **Defer, don't substitute**, on translation-model availability.
+8. **Speaker labels bypass the translator and must still look like people.**
+9. **Declared language routes; detection only warns.**
+10. **The language override is a feeds-spec allowlist key**, not a new config surface.
+11. **Same-language retrieval only; no embedding-model change.** Indexing both layers satisfies the
+    requirement; cross-lingual semantics belongs with application internationalization.
+12. **Blocking analysis is an explicit gate on language + translation status**, because the resolver
+    always returns something and absence cannot express refusal.
 
 ## Alternatives Considered
 
-1. **Whisper's built-in `translate` task.**
-   - **Pros**: one pass; no new model.
-   - **Cons**: large-v3-turbo was not trained on translation data. It loses the source transcript
-     (no canonical record, no diarized source text) and cannot be QE-scored against a source.
-   - **Why rejected**: quality, and it destroys provenance.
-2. **Multilingual analysis: extract directly from source-language text.**
-   - **Pros**: no translation error inside extraction.
-   - **Cons**: forks every prompt and eval per language, breaks English-only QA/NLI/embedding
-     assumptions, and GIL verbatim grounding would produce non-English quotes the product cannot
-     display coherently.
-   - **Why rejected as the primary path**: cost and fragmentation. It is **kept as a verification
-     method** in RFC-125, where it is used surgically.
-3. **Translate the whole transcript as one document.**
-   - **Pros**: maximum context.
-   - **Cons**: output cannot be aligned back to turns or times, and one hallucination can corrupt
-     long spans.
-   - **Why rejected**: breaks subtitles and traceability.
-4. **Ad-free first, then translate the ad-free text** (the naive ordering).
-   - **Pros**: matches the English pipeline's shape exactly.
-   - **Why rejected**: `_AD_PATTERNS` is English, so the source ad-free base is an identity copy and
-     ads enter analysis silently. It also needs a second translation pass for full-timeline
-     subtitles.
-5. **Per-language ad-cue lexicons, keeping ad-free before translation.**
-   - **Pros**: no reordering.
-   - **Cons**: a new hand-maintained lexicon per language, unmeasurable until each language has a
-     corpus, and duplicated maintenance forever.
-   - **Why rejected for v1**: §7's ad-survival measurement decides whether this is ever needed.
-6. **Cloud MT API** (DeepL / Google Translate).
-   - **Pros**: strong quality, no GPU.
-   - **Cons**: content leaves the infrastructure, per-character cost at corpus scale, and the model
-     can change underneath (unpinnable, against ADR-155).
-   - **Why rejected**: pinning and provenance. It may be used as a **reference** in the bake-off
-     only.
-7. **Auto-detect language per episode.**
-   - **Why rejected**: false detections on intros and ads. Used as a warning only.
+1. **Whisper's built-in `translate` task.** One pass, no new model — but large-v3-turbo was not trained
+   on translation data, it loses the source transcript entirely, and it cannot be scored against a
+   source. Rejected: quality and provenance.
+2. **Multilingual analysis: extract from source-language text.** No translation error inside
+   extraction — but it forks every prompt and eval per language, breaks English-only QA/NLI/embedding
+   assumptions, and GIL verbatim grounding would produce non-English quotes the product cannot display
+   coherently. Rejected as the primary path; **kept as a verification method** in RFC-125.
+3. **Translate the whole transcript as one document.** Maximum context, but the output cannot be
+   aligned back to turns or times and one hallucination can corrupt long spans. Rejected.
+4. **Ad-free first, then translate the ad-free text.** Matches the English pipeline's shape — but
+   `_AD_PATTERNS` is English, so the source ad-free base is an identity copy and ads enter analysis
+   silently; it also needs a second translation pass for full-timeline subtitles. Rejected.
+5. **Translate after summary, leaving the stage order alone.** Smaller diff — but topics would be
+   Greek while insights are English, fragmenting cross-episode identity. Rejected (KD 3).
+6. **Per-language ad-cue lexicons, keeping ad-free before translation.** No reordering, but a new
+   hand-maintained lexicon per language, unmeasurable until each language has a corpus. Rejected for
+   v1; §7's survival metric decides whether it is ever needed.
+7. **A per-episode `translation_pending` queue.** Correct long-term shape, but the pipeline has no
+   asynchronous per-episode state machine and building one is larger than this feature.
+   `translate_only` reprocess covers retries.
+8. **A multilingual embedding model for cross-lingual search.** Rejected for this arc (KD 11).
+9. **Cloud MT API** (DeepL / Google Translate). Strong quality, no GPU — but content leaves the
+   infrastructure, per-character cost at corpus scale, and the model can change underneath
+   (unpinnable, against ADR-155). May be a **reference** in the bake-off only.
+10. **Auto-detect language per episode.** Rejected: false detections on intros and ads. Warning only.
 
 ## Testing Strategy
 
-- **Unit**: language-tag normalization (`el-GR`, `sr-Latn-RS`, `pt_BR`, junk) and resolution
-  precedence; the registry skip path; the quality-floor truncation in
-  `normalize_whisper_model_name`; the removal of the `or "en"` defaults; unit packing (never crosses
-  turns, never splits sentences); `translation.json` ↔ `.en.segments.json` offset consistency (every
-  English char maps to exactly one unit); `resolve_units_for_span` across the
-  adfree→full→unit→source chain, including spans that cross a unit boundary and spans adjacent to an
-  excised ad range; the transliteration `_looks_like_person` guard.
-- **Integration**: a fixture Greek episode (short, CC-licensed or synthetic TTS) through transcribe →
-  diarize → turns → translate (stub translator returning deterministic text) → English render →
-  ad-free-on-English → GI, asserting that `EvidenceSpan.transcript_ref` names
-  `…en.adfree.txt`, that its offsets resolve into that text, and that the span maps back to source
-  times. Include one episode with an injected English sponsor read in the translated output, to
-  assert the ad-free base actually excises it.
+- **Unit**: language-tag normalization (`el-GR`, `sr-Latn-RS`, `pt_BR`, junk) and resolution precedence
+  including the feeds-spec override; the registry skip path; the quality floor and per-call model
+  resolution; the lint rule that `cfg.language` has one reader; unit packing (never crosses turns, never
+  splits sentences); `translation.json` ↔ `.en.segments.json` offset consistency; `resolve_units_for_span`
+  across the segment→unit→source chain, including spans crossing a unit boundary and spans adjacent to
+  an excised ad range; the `en_sha256` provenance refusal; the transliteration `_looks_like_person`
+  guard.
+- **Integration**: a fixture episode in the pilot language through transcribe → diarize → naming →
+  turns → translate (stub translator) → English render → ad-free-on-English → summary → GI, asserting
+  that `EvidenceSpan.transcript_ref` names `…en.adfree.txt`, that offsets resolve into that text, that
+  spans map back to source times, and that topic labels are English. Include an injected English
+  sponsor read in the translated output to assert the ad-free base excises it.
+- **Refusal**: a non-`en` episode with `translation_pending`, and one with `.en.txt` present but
+  `.en.adfree.*` missing, both assert that summary/GI/KG do not run and that no `transcript_ref` names
+  a source-language file with English offsets.
+- **Reprocess**: `relabel_only` on a translated episode invalidates `.en.*` and `translation.json`
+  rather than stranding them, and writes no source-language identity ad-free artifact.
 - **Contract**: `SegmentsResponse` with and without `lang`, on English and translated episodes.
-- **Isolation**: the English fixture corpus produces byte-identical artifacts with the feature flag
-  on and off. This is the gate that protects the 678-episode production corpus.
-- **Regression for hazard 3**: an episode whose resolved language is `el` must not have `"language":
-  "en"` in its metadata.
-- **Bake-off**: the §7 harness is committed as profiles plus a scoring script. Reviewer sheets are
-  exported as CSV, and results are committed as an eval report.
+- **Search**: both chunk sets present with distinct ids, no insight linked across languages,
+  non-English chunks absent from dense results, and a measured Greek keyword-recall number.
+- **Isolation**: the English fixture corpus produces artifacts identical outside the declared
+  allow-list of added metadata keys, with the flag on and off.
+- **Regression**: an episode resolving to `el` can never ship `"language": "en"`.
+- **Bake-off**: the §7 harness committed as profiles plus a scoring script; reviewer sheets exported as
+  CSV; results committed as an eval report.
 
 ## Rollout & Monitoring
 
-Phase names match PRD-047 and `docs/architecture/MULTILINGUAL_ARC.md`; slice ids (S0.x, S2.x) refer to
-that document's §4 slice plan.
+Phase names match PRD-047 and the arc notes; slice ids (S0.x, S2.x) refer to the arc's §4.
 
-- **Phase 0 — English as a declared language (S0.1–S0.7), ships first and alone.** Language
-  resolution and tag normalization, the registry (every non-`en` language `enabled: false`), the
-  per-episode language threading, removal of the `or "en"` defaults, model selection from the resolved
-  language with the non-English quality floor, the corpus audit, and the language badge. It precedes
-  **Gate V**, because the bake-off cannot measure non-English transcription until this exists. The
-  only behavioral change for English is that a misconfigured language now fails loudly instead of
-  transcribing as English.
-- **Gate V — Validate.** Model/licence verification, demand interviews, the §7 bake-off and its gate
-  report. Evidence, not code.
-- **Phase 2 (S2.1–S2.7)**: translation stage, English render, ad-free-on-English and the artifact set,
-  behind `multilingual_ingest: true`, on 1–2 operator-chosen feeds in one gated language.
-- **Phase 3**: RFC-125 provenance, source verification and the read-time Positions gate. (QE is a v2
-  addition — RFC-125 §7.)
-- **Phase 4**: player `lang=` toggle, translated-quote treatment (UXS) and the language filters. Then
-  enable further languages as each passes the gate.
+- **Phase 0 — English as a declared language (S0.1–S0.11), ships first and alone.** Feed-language
+  parsing and persistence with its migration, normalization and resolution, the feeds-spec override, the
+  corpus audit, episode language on the API, the badge, the one-reader lint, model selection from the
+  resolved language, the skip path and language-ID check, and observability. Precedes **Gate V**,
+  because the bake-off cannot measure non-English transcription until it exists.
+- **Gate V — Validate.** The Serbian investigation (V.5, running now), demand interviews, the §7
+  bake-off and its gate report, and the pilot-language fixture.
+- **Phase 2 (S2.1–S2.12)**: reader routing, the stage-order change, the translation stage, the English
+  render, ad-free-on-English, naming, reprocess invalidation, the segments API and the translated chip,
+  same-language retrieval, cost measurement, and the trust markers — behind `multilingual_ingest`,
+  which gates **serving** as well as the pipeline, on one operator-chosen feed.
+- **Phase 3**: source verification and the operator worklist. (The read-time Positions gate ships in
+  Phase 2 with the markers.)
+- **Phase 4**: language toggle, original-text reveal, language filters, flag lifecycle and rollback.
 
 **Success criteria:**
 
 1. At least 95% of episodes in enabled languages reach `translation_status: ok` without manual
    intervention.
-2. Zero English-episode regressions (isolation test, plus production manifest comparison).
+2. Zero English-episode regressions outside the declared allow-list.
 3. Every GI quote on a translated episode resolves to source text and source audio.
 4. `adfree.ad_chars_removed` on translated episodes is non-zero at a rate comparable to English
-   episodes of similar shows, or the §7 survival number explains why not.
+   episodes of similar shows, or §7's survival number explains why not.
+5. An episode is reachable by a query in its own language and by an English query.
+6. No translated content is served without a translation label at any point.
 
 ## Relationship to Other RFCs
 
-- **RFC-123** supplies the units, and it ships first on its own merits.
-- **RFC-125** consumes `translation.json` and adds per-claim translation provenance and source
-  verification, calling this RFC's `resolve_units_for_span`. QE scores and calibrated bands are its
-  v2 addition, not a v1 dependency.
-- **Positions** are a read-time CIL query (`position_arc`), not a stage. Nothing in the position
-  path changes here; RFC-125 gates what that query returns.
+- **RFC-123** supplies the units and ships first on its own merits. Its schema change to the LanceDB
+  segment table should land together with §6.2's `language` column.
+- **RFC-125** consumes `translation.json` and adds per-claim provenance and source verification,
+  calling this RFC's `resolve_units_for_span`. QE is its v2 addition, not a v1 dependency.
+- **Positions** are a read-time CIL query; nothing in that path changes here. RFC-125 gates what it
+  returns.
 
 ## Open Questions
 
-1. Code-switching: when a unit's language ID disagrees strongly with the declared language (an
-   English passage in a Serbian show), should that unit be passed through untranslated? This is
-   cheap to detect per unit after the fact.
-2. Serbian source display: normalize to Latin at render time, or store normalized? Proposed:
-   render-time only, because stored text stays exactly as transcribed.
-3. The GPU budget per translated episode is unknown until the bake-off. Given that `relabel_only`
-   already costs ~17 min/episode on the DGX and runs near-serial, a translation wall-time cap
-   (for example ≤ 50% of transcription wall time) as a gate criterion?
-4. Should English episodes eventually route through the same resolver branch to pick a cleaned
-   variant, unifying this with `save_cleaned_transcript`? The resolver now generalizes, so this is a
-   config question rather than an architectural one.
-5. Do we keep a source-language ad-free variant at all, derived by mapping the English ad ranges
-   back through `translation.json`? It has no analysis consumer, only a reader/player one.
+1. Code-switching: when a unit's language ID disagrees strongly with the declared language, pass it
+   through untranslated? Cheap to detect per unit after the fact.
+2. Serbian script — **a capability question, not a display one** (arc §6.3): transcribe Cyrillic
+   as-is, force Latin output, or romanize post-hoc? It affects WER, MT coverage and CIL identity at
+   once. V.5 settles it.
+3. The GPU budget per translated episode is unknown until the bake-off. A translation wall-time cap
+   (for example ≤ 50% of transcription wall time) as a gate criterion, given `relabel_only` already
+   costs ~17 min/episode and runs near-serial?
+4. Do we keep a source-language ad-free variant at all, derived by mapping the English ad ranges back
+   through `translation.json`? It has a reader/player use, no analysis one.
+5. Should English episodes eventually route through the same resolver branch to pick a cleaned variant,
+   unifying this with `save_cleaned_transcript`? The resolver generalizes, so this is a config question.
+6. How much Greek keyword recall does the English FTS tokenizer cost (§6.2)?
 
 ## References
 
-- `src/podcast_scraper/providers/tailnet_dgx/whisper_provider.py:197` — `language or "en"` default
-- `src/podcast_scraper/providers/ml/whisper_utils.py` — `normalize_whisper_model_name`
-- `src/podcast_scraper/providers/ml/ml_provider.py:885` — `self.cfg.language or "en"`
-- `src/podcast_scraper/workflow/episode_processor.py:2296` — the single `language=` call site
-- `src/podcast_scraper/workflow/metadata_generation.py:2843` — `"language": cfg.language`
-- `src/podcast_scraper/workflow/adfree_transcript.py` — `load_processing_transcript`, `adfree_transcript_relpath`, `build_adfree_artifacts`
-- `src/podcast_scraper/gi/filters.py` — `_AD_PATTERNS` (English)
-- `src/podcast_scraper/gi/ad_regions.py` — `excise_ad_regions`, `excise_ad_regions_with_offsets`
-- `src/podcast_scraper/speaker_detectors/ner.py:133` — en-only NER gate
-- `src/podcast_scraper/server/corpus_catalog.py:159` — `_feed_language` (no normalization)
-- `src/podcast_scraper/providers/ml/diarization/formatting.py` — screenplay + offsets
-- `src/podcast_scraper/gi/contracts.py` — `EvidenceSpan`, `SupportingQuote`
-- `src/podcast_scraper/server/schemas.py:24` — `SegmentsResponse`
-- `src/podcast_scraper/server/routes/app_episodes.py:463` — the segments route
-- `src/podcast_scraper/prompting/megabundle.py` — transcript prefix caching
-- `config/profiles/prod_dgx_full.yaml:70,111` — `language`, `transcription_fallback_providers`
-- `config/corpus-expansion.feeds.yaml` — bare `- url:` feed entries
+- `src/podcast_scraper/rss/parser.py`, `models/entities.py:16-44` — where `<language>` is **not** parsed
+- `src/podcast_scraper/rss/feeds_spec.py:26-56,77` — per-entry mapping + `RSS_FEED_ENTRY_OVERRIDE_KEYS`
+- `src/podcast_scraper/workflow/metadata_generation.py:957,2843,3832` — the `cfg.language` writes
+- `src/podcast_scraper/server/corpus_catalog.py:159` — `_feed_language` (reads the config back)
+- `src/podcast_scraper/server/schemas.py:1719` — `AppPodcastItem.language`
+- `src/podcast_scraper/providers/tailnet_dgx/whisper_provider.py:197,429-430` — result dict vs request
+- `src/podcast_scraper/providers/ml/ml_provider.py:566-568,827,885,1061` — init-time model choice, naming
+- `src/podcast_scraper/providers/ml/whisper_utils.py`, `config_constants.py:332,610` — fallback chain
+- `src/podcast_scraper/workflow/episode_processor.py:2296,2869,3191,3784,4460` — call site + reprocess paths
+- `src/podcast_scraper/workflow/sniff_gate.py:63-70,116,130,144,177` — hazard 5 + four language sites
+- `src/podcast_scraper/workflow/processing_manifest.py:54` — `CANONICAL_STAGE_ORDER`
+- `src/podcast_scraper/workflow/stages/transcription.py:266` — summary in the same job
+- `src/podcast_scraper/workflow/adfree_transcript.py:52-55,104-137,176-188,230-261` — paths, identity base, writes, resolver
+- `src/podcast_scraper/gi/ad_regions.py:409-418,439` — no-match return, `_shift_for`
+- `src/podcast_scraper/gi/filters.py:35-77` — `_AD_PATTERNS`
+- `src/podcast_scraper/gi/load.py:19-37`, `gi/repair.py:161-171`, `search/indexer.py:96-111` — the independent resolvers
+- `src/podcast_scraper/gi/pipeline.py:810-830` — span→segment resolution this design reuses
+- `src/podcast_scraper/gi/speakers.py:74-77` — `_looks_like_person`
+- `src/podcast_scraper/providers/ml/diarization/formatting.py:81` — the passthrough tuple `unit_id` joins
+- `src/podcast_scraper/search/segments.py:47,59-80`, `search/indexer.py:449`, `search/backends/lancedb_backend.py:266` — chunk ids, linking, FTS
+- `src/podcast_scraper/speaker_detectors/ner.py:131-136` — default-model selection, not a NER gate
+- `config/profiles/prod_dgx_full.yaml:70,111,112` — language, fallback providers
