@@ -26,23 +26,6 @@ final class AppSession {
     private AppSession() {}
 
     /**
-     * Signed in AT ALL.
-     *
-     * "Sign out" lives on the PROFILE page and nowhere else, while the app cold-boots to Home. The
-     * iOS twin asked a Home screen whether it had a Profile-only control and got "no" every time,
-     * whatever the session was — reported as "the app fell back to signed-out" on a device whose
-     * token was perfectly valid. Go to Profile first, then read the answer.
-     */
-    /**
-     * Is there ANY session, without needing to know whose?
-     *
-     * Read from the masthead "Sign in" link's ABSENCE rather than by hunting the avatar. App.vue
-     * states this as the design: "Signed-in state is still legible from the masthead: the Sign in
-     * link is absent." That signal does not depend on the account's name, where every avatar-based
-     * check does — and with per-suite identities the name is exactly what a generic caller cannot
-     * know.
-     */
-    /**
      * A session exists, read POSITIVELY from the masthead. No navigation, no sleeps.
      *
      * This used to be "the 'Sign in' link is absent", and that is the conflation that cost most of
@@ -79,11 +62,11 @@ final class AppSession {
      * `pm clear` at tier start is every case, since no prior-run token survives to be refused —
      * returns in about a second.
      */
-    private static boolean settles(String identity, long timeoutMs) {
+    private static boolean settles(String label, long timeoutMs) {
         long deadline = System.currentTimeMillis() + timeoutMs;
         int agreed = 0;
         while (System.currentTimeMillis() < deadline) {
-            boolean present = Journey.find(Arrays.asList(identity), true, 1_000) != null;
+            boolean present = Journey.find(Arrays.asList(label), true, 1_000) != null;
             agreed = present ? agreed + 1 : 0;
             if (agreed >= 2) return true;
             Journey.sleep(500);
@@ -91,15 +74,21 @@ final class AppSession {
         return false;
     }
 
+    /**
+     * A session exists, SETTLED — the same question as {@link #hasAnySession()}, waited out.
+     *
+     * The Profile trip and the `sleep(6_000)` are gone for the reason given on
+     * {@link #isSignedIn(String)}: "Sign out exists on Profile" and "the masthead shows a session"
+     * are the same fact, and the masthead one needs no navigation and no guess about how to reach
+     * Profile. The bell (`App.vue:622`) renders only under `auth.hasSession`.
+     *
+     * Kept separate from `hasAnySession` because the callers differ in what they can tolerate:
+     * `hasAnySession` is a glance used to decide whether a sign-out is even needed, while this is a
+     * VERDICT — `signIn` returns it — and a verdict has to outlast the revalidation window rather
+     * than catch the identity the boot painted a moment before the api refuses it.
+     */
     static boolean isSignedIn() {
-        Journey.openProfile();
-        // SCROLL to it: "Sign out" is deliberately the last control on Profile (#1962 — "quiet,
-        // last, least weight"), so on any account with content it is below the fold. Asking whether
-        // it is on SCREEN is not the question being asked.
-        if (Journey.scrollTo("Sign out", false) == null) return false;
-        // The painted session is not the answer — the revalidation that follows it is.
-        Journey.sleep(6_000);
-        return Journey.scrollTo("Sign out", false) != null;
+        return settles("Notifications", 20_000);
     }
 
     /**

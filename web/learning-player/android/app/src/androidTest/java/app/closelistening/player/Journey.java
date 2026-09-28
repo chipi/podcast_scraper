@@ -586,6 +586,21 @@ final class Journey {
      * at. The same latent flaw is in the iOS file, masked by its account choices.
      */
     static boolean openProfile(List<String> labels) {
+        // TRY FIRST, SWIPE ONLY IF THAT FAILS.
+        //
+        // This opened with twelve unconditional `swipeDown()`s — about eight seconds — on the
+        // premise, ported from the iOS twin, that the masthead "scrolls away with the page". Two
+        // comments in this file disagree about that, and the other one is the MEASURED one:
+        // `signature()` exists precisely because the masthead and bottom nav are FIXED, so taking
+        // the first twelve nodes in tree order took the masthead every time and every page read as
+        // stalled after two swipes. On Android the accessibility tree holds only ON-SCREEN nodes,
+        // so a fixed masthead is always in it.
+        //
+        // The swipes are kept as a FALLBACK rather than deleted, because the contradiction is
+        // resolved by argument here and not by measurement, and the cost of being wrong is a suite
+        // that cannot reach Profile at all. Trying first makes them free when the measured claim
+        // holds, which is the common case; if it ever does not, the old behaviour is still there.
+        if (tap(labels, false, 3_000)) return true;
         for (int i = 0; i < 12; i++) swipeDown();
         if (tap(labels, false, 15_000)) return true;
         // POSITIONAL fallback: when signed in as an account this caller cannot name — the
