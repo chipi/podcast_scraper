@@ -21,7 +21,9 @@ Ingest podcasts in languages other than English. Each episode is transcribed and
 source language**, which stays the canonical record. A translation stage then produces an **English
 derived transcript**, aligned turn by turn with the original. The existing ad-removal step then runs
 on that English text, and its output is what every existing layer (summary, KG, GIL, CIL, search,
-Positions) reads — without modification. The listener hears the original audio, can read the
+Positions) reads. Those layers need no per-language logic — but getting them to read one agreed
+transcript is real work, because six of them resolve the transcript independently today. The listener
+hears the original audio, can read the
 original transcript, and can switch to English subtitles. Every claim that rests on translated text
 is marked as such, records the source sentences it rests on, and — where it could enter a Position
 timeline — is verified against the source first.
@@ -104,7 +106,7 @@ this, and it compounds the cross-show-synthesis moat.
 - Supporting languages below the quality gate, even when Whisper accepts them.
 - Code-switching within an episode (e.g. Serbian with English passages) beyond "transcribe as the
   declared language". Tracked as an open question.
-- A writable per-show override in the operator UI. The override is config (see FR1.1); a UI editor
+- A writable per-show override in the operator UI. The override is config (see FR1.2); a UI editor
   needs a feed-record store this feature does not justify building.
 - Per-unit quality-estimation bands in v1. Calibrating them needs a native reviewer per language and
   a translated corpus that does not exist until the pipeline has run, so QE is a v2 addition
@@ -213,8 +215,10 @@ this, and it compounds the cross-show-synthesis moat.
   English base that analysis reads. A non-English episode must not receive an identity ad-free base
   that misrepresents itself as ad-free. `ad_chars_removed` and the variant the base was built on are
   recorded per episode.
-- **FR4.2**: Summary, KG, GIL, CIL and search run on that base with no per-language code paths, via
-  the resolver they already share.
+- **FR4.2**: Summary, KG, GIL, CIL and search run on that base with no per-language code paths. They
+  must all resolve the transcript through **one** shared resolver — which they do not today: two call
+  the shared one and six resolve independently, one of them reading the raw transcript. Routing them is
+  part of this requirement.
 - **FR4.3**: Every quote from a translated episode is labeled as a translation, shows the original
   sentence on demand, and plays the **original** audio span.
 - **FR4.4**: People resolve to a single CIL identity across languages and scripts. A canonical Latin
@@ -239,12 +243,18 @@ this, and it compounds the cross-show-synthesis moat.
   it renders with a translation marker, its source is one tap away, and it never enters a Position
   timeline. (Per-unit quality bands that would let us rank *how* unsure we are on the unverified
   remainder are a v2 addition — RFC-125 §7.)
-- **FR5.3**: A translated, position-bearing insight appears in a Position timeline only when it has
-  a `verified` verification outcome. This is enforced as a filter in the read-time `position_arc` /
-  `topic_conversation_arc` query, which means it is retroactive and **fail-closed**: a translated
-  claim with no verification record is absent from timelines by default, with no feature flag to
-  remember. A contradicted claim is excluded and queued for review. An unverifiable claim stays
-  visible on the episode, marked unverified.
+- **FR5.3**: A translated, position-bearing insight appears in a Position surface only when it has a
+  `verified` verification outcome. This is enforced as a read-time filter, which makes it retroactive
+  and **fail-closed**: a translated claim with no verification record is absent by default, with no
+  feature flag to remember. It must be applied to **every** surface that attributes a claim to a
+  person on a topic — not only the per-(person, topic) arc but the topic timelines, the person profile,
+  the topic-perspective surfaces that feed the consumer app and share images, and the relational
+  `positions_of` query. RFC-125 §3 holds the enumerated list. One surface cannot be covered this way:
+  a write-time enricher that corroborates insights across people, which needs the provenance at
+  extraction time instead.
+  **In v1 no translated claim is verified at all** (verification is a v2 capability), so this
+  requirement's practical effect in v1 is that translated claims are absent from every Position
+  surface. FR5.2's labelled-but-visible treatment is what the listener sees on the episode itself.
 - **FR5.4**: The player shows a "Translated from <Language>" marker on translated content. v1 adds no
   further per-claim confidence decoration, because without calibrated bands there is nothing honest to
   grade; the amber/red marker arrives with v2.
@@ -252,7 +262,7 @@ this, and it compounds the cross-show-synthesis moat.
 ### FR6: Operator surfaces
 
 - **FR6.1**: The shows library displays each show's resolved language and the source of that
-  resolution (override / RSS / default). Editing is via config (FR1.1).
+  resolution (override / RSS / default). Editing is via config (FR1.2).
 - **FR6.2**: The per-episode manifest (RFC-109) records language, translation model, unit count, the
   verification outcomes, and which transcript variant the ad-free base was built on.
 - **FR6.3**: A review worklist lists contradicted and unverified claims, each with source and
@@ -260,23 +270,32 @@ this, and it compounds the cross-show-synthesis moat.
 
 ### FR7: Language visibility and filtering
 
-- **FR7.1**: Every **show** and every **episode** displays a compact language badge — a small squared
-  chip carrying the uppercase ISO code (`EN`, `EL`, `SR`) — wherever that item's metadata renders:
-  the consumer episode rows, tiles and cards, the show rows, tiles and show detail page, and the
-  operator shows library. The badge is omitted, not guessed, when the language is unknown.
-- **FR7.2**: Episode language is exposed by the app API. Show language already is
-  (`AppPodcastItem.language`), and it is served **normalized** (`en-US` → `en`) so the badge shows one
-  token per language rather than one per feed's spelling of it.
+**The badge and the filter ship together, in v2**, once the corpus actually holds more than one
+language. A language chip on every show existed in the player and was **deliberately removed**
+(#2115, 2026-09-17) with the reason recorded in its own test: *"every show in the corpus is English,
+so it was a constant that cost a wrap in a 144px column."* That reasoning is correct while the corpus
+is monolingual and stops applying the moment it is not — so reinstating the badge belongs with the
+second language, not before it. Shipping it in Phase 0 would re-add exactly what was deleted.
+
+What v1 does deliver is the **data**: language parsed, resolved, persisted and exposed on the API
+(FR1.1, FR1.3), plus the audit report (FR1.6). That is what makes the corpus's language knowable; the
+chrome follows when it has something to distinguish.
+
+- **FR7.1**: Episode language is exposed by the app API, and show language — which exists today as
+  `AppPodcastItem.language` but currently serves the run config — starts serving the **normalized**
+  feed tag (`en-US` → `en`), so a language is one token rather than one per feed's spelling. The
+  operator viewer's feed response gains the same field. **v1.**
+- **FR7.2**: Every show and episode displays a compact language badge — a small squared chip with the
+  uppercase code — wherever that item's metadata already renders: consumer episode rows, tiles and
+  cards, show rows, tiles and detail page, and the operator shows library. Omitted, not guessed, when
+  the language is unknown. **v2.**
 - **FR7.3**: Shows and episodes can be **filtered by language** on the surfaces that already offer
-  filters — the consumer episode toolbar (which today filters all / unplayed / played / insights /
-  downloaded and selects a show), show browse, and the operator library filter bar.
+  filters — the consumer episode toolbar (today: all / unplayed / played / insights / downloaded, plus
+  a show selector), show browse, and the operator library filter bar. **v2.**
 - **FR7.4**: The language filter is its **own** control, not another option inside the
-  played/downloaded filter, because the two dimensions are orthogonal: "Greek **and** unplayed" must
-  be expressible.
-- **FR7.5**: The language filter is shown only when the corpus holds more than one language. A filter
-  with a single value is a dead control, so it appears with the second language rather than shipping
-  inert. The badge (FR7.1) has no such condition — it is informative even when everything is English,
-  and that is how a listener sees the audit's result.
+  played/downloaded filter, because the dimensions are orthogonal: "Greek **and** unplayed" must be
+  expressible.
+- **FR7.5**: Both the badge and the filter render only when the corpus holds more than one language.
 
 ## Supported-language policy
 
@@ -342,7 +361,10 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 
 - **Phase 0:** the audit reports 100% of existing shows and episodes as `en` with a named resolution
   source; every show and episode renders a language badge; no provider can receive a null language and
-  substitute English; and the English corpus is byte-identical to before the phase.
+  substitute English; and English artifacts are unchanged outside a **declared allow-list** of added
+  metadata and manifest keys. Unqualified byte-identity is not the criterion and never was achievable:
+  this phase deliberately adds language fields, and the new stage slot adds a `translation: skipped`
+  entry to every English episode's stage ledger.
 - **Demand (Gate V):** at least 30% of the beta cohort names one or more non-English shows they
   would add to the product.
 - **Quality gate (per language):** at least 90% of position-bearing units judged meaning-preserving
@@ -357,8 +379,10 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
   retry.
 - **Ad removal:** `ad_chars_removed` on translated episodes is non-zero at a rate comparable to
   English episodes from similar shows.
-- **Isolation:** no measurable change in English-episode pipeline time or outputs when the feature
-  is enabled, including byte-identical `position_arc` responses on the English corpus.
+- **Isolation:** no measurable change in English-episode pipeline time, and no change to English
+  artifacts outside the declared allow-list, when the feature is enabled — including byte-identical
+  `position_arc` responses on the English corpus (English nodes carry no `translation` block, so the
+  gate is a no-op there).
 
 ## Dependencies
 

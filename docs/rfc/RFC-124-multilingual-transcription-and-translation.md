@@ -16,7 +16,7 @@
 - **Related ADRs**:
   - `docs/adr/ADR-155-pin-every-model-checkpoint.md` — the translation checkpoint is pinned
 - **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` — slice plan (§4), verified code facts and the
-  claims an adversarial review found false (§5.4), decisions D-1 … D-19
+  claims the adversarial reviews found false (§5.4), decisions D-1 … D-20
 
 ## Abstract
 
@@ -140,7 +140,7 @@ finds nothing language-related, and `models/entities.py:16-44` `RssFeed` has no 
 exists is a *write* of the run config: `metadata_generation.py:957` sets
 `FeedMetadata(language=cfg.language)`, so `server/corpus_catalog.py:159` `_feed_language` reads back
 the profile's `en`, and `AppPodcastItem.language` (`server/schemas.py:1719`, served at
-`app_episodes.py:156`) serves that. There is no episode-level language field at all;
+`app_episodes.py:156`) serves that. The only episode-level language today is `TranscriptInfo.language` (`:3832`), also written from config;
 `metadata_generation.py:2843` writes one into `processing.config_snapshot`, which is an accurate
 snapshot of configuration and not a claim about the episode.
 
@@ -167,7 +167,7 @@ feeds:
     language: el                                # operator override
 ```
 
-is a one-key change plus threading it into resolution, not a new config surface. The shows library
+needs a `language` field on `RssFeedEntry` (it has explicit typed fields **and** `extra="forbid"`) plus the allowlist entry — small, but not zero. One consequence worth knowing: `merge_feed_entry_into_config` makes the per-feed `Config` the run's `cfg`, so the override reaches every existing `cfg.language` reader with no threading at all. The hazard is the other side of that: in a multi-feed batch the ML singleton is deliberately held across feeds, so feed 1's Whisper model persists and feed 2's language is silently ignored (§2, per-call resolution). The shows library
 *displays* the resolved language and its source (RFC-104's shows library has no backend, so editing
 stays in config).
 
@@ -223,16 +223,27 @@ describes itself as "the single resolver all NLP consumers use". It is not. Two 
 | Reader | Location | Today's behaviour |
 | --- | --- | --- |
 | Summary | `metadata_generation.py:2926-2928` | opens `transcript_file_path` raw |
-| Faithfulness / QA flags | `:2401-2405` | raw |
-| Transcript NER | `:1986-2008` | raw |
+| Faithfulness / QA flags | `:2401-2405` **and** `:4265-4270` | two separate raw reads; the second is easily missed |
+| Recurrent-host scan | `workflow/stages/processing.py:1089` | its own `.adfree` → `.cleaned` → raw precedence |
+| Viewer transcript serving | `server/routes/corpus_text_file.py:65-104` | its own `.adfree` → raw fallback |
+| Segments view | `server/segments_view.py:21-35` | its own precedence |
+| Segments sidecar pick | `metadata_generation.py:1199` | `.adfree.segments.json` then `.segments.json` |
 | Search indexer | `search/indexer.py:96-111` | its own `.adfree` preference |
 | GI repair | `gi/repair.py:161-171` | its own resolution |
 | GI evidence loading | `gi/load.py:19-37` | **raw `.txt`, no ad-free preference at all** |
 
-The last row is a coordinate-space inconsistency that exists **today**, independent of this feature:
-GI computes offsets in ad-free space and this loader reads the raw text. Routing every reader through
-one resolver is therefore a standalone bug fix that this design also needs, and it is where the
-`.en.txt` branch belongs — precedence `.en.adfree.txt` → `.en.txt` → `.adfree.txt` → `.txt`.
+That last row is a genuine coordinate-space bug that exists **today**, independent of this feature — GI
+computes offsets in ad-free space while this loader reads the raw text. Its severity is bounded, though:
+`load_artifact_and_transcript` is reached only from `gi inspect` and `gi show-insight` (`cli.py:2917`,
+`:2991`), so it is a CLI inspection bug rather than a pipeline or server path. Worth fixing in the same
+pass; not worth describing as a production defect.
+
+The list above is what a search turned up, and this inventory has already been wrong twice. **Producing
+the complete list is part of S2.1's work**, not a claim this document makes — the slice starts by
+enumerating every reader of `transcript_file_path` and every independent `.adfree` precedence.
+
+Routing them all through one resolver is a standalone bug fix that this design also needs, and it is
+where the `.en.txt` branch belongs — precedence `.en.adfree.txt` → `.en.txt` → `.adfree.txt` → `.txt`.
 
 The resolver also gains a **provenance check**: `.en.adfree.*` carries the `en_sha256` of the
 `.en.txt` it was built from, and a mismatch refuses rather than silently anchoring spans into stale
@@ -271,9 +282,28 @@ audio
                      └─ summary → GI → KG, all reading ep1.en.adfree.txt
 ```
 
-`CANONICAL_STAGE_ORDER` gains a `translation` slot, and retries use a `translate_only` reprocess mode
-rather than a new per-episode pending queue — the pipeline has no asynchronous per-episode state
-machine, and inventing one for this is a larger change than the feature needs.
+**One seam, not "after transcription".** `call_generate_metadata` is invoked from **two** places
+(`stages/transcription.py:266` in the sequential loop and `stages/processing.py:3138` on the processing
+thread), and an episode whose publisher supplies its own transcript never enters
+`transcribe_media_to_text` at all (`episode_processor.py:4440-4490`) — which is why `retranscript_only`
+exists. So "directly after transcription" names a seam that does not exist for those episodes.
+
+The insertion point is therefore **inside `generate_episode_metadata`, immediately before the summary
+call** — the one site every path converges on: ASR, transcript-cache hits, direct downloads,
+publisher-supplied transcripts, and every `relabel_only` / `rediarize_only` / `retranscript_only` /
+`rederive_only` cascade. Two consequences to build in:
+
+- **Exclude translation wall time from the metadata deadline** (`processing.py:3120-3130`), or a
+  several-minute translation eats a budget the LLM stages already strain.
+- **`CANONICAL_STAGE_ORDER` gains a `translation` slot**, and ADR-151 requires every stage to record an
+  outcome — so **every English episode's stage ledger gains `translation: skipped`**. That changes every
+  English `metadata.json`, which is exactly why S0.10's allow-list test exists.
+
+Retries use a `translate_only` reprocess mode rather than a new per-episode pending queue: the pipeline
+has no asynchronous per-episode state machine, and inventing one is larger than this feature needs. The
+honest cost of that choice is that a translation-service outage needs an operator-run reprocess, so the
+"95% reach English analysis without manual retry" metric holds only when the service is up — state it
+that way rather than claiming otherwise.
 
 Three things fall out, all using machinery that already exists:
 
@@ -285,12 +315,19 @@ Three things fall out, all using machinery that already exists:
 3. **The path helper composes unchanged.** `adfree_transcript_relpath` is `splitext` + `.adfree`, so
    `ep1.en.txt` yields `ep1.en.adfree.txt` (`adfree_transcript.py:52-55`).
 
-**Reprocess paths must become language-aware.** `_maybe_produce_adfree` is called on the **source**
-text by `relabel_only` (`episode_processor.py:2869-2882`), `rediarize_only` (`:3191-3204`), the ASR
-path (`:3784-3805`) and direct download (`:4460-4483`). On a non-English episode each would write the
-identity `ep1.adfree.txt` this design says never exists, and leave `.en.*` stale with pre-relabel
-labels. Every path that changes the source must invalidate `.en.*`, `translation.json`, RFC-125
-verification records and the episode's cached prompt prefix.
+**Reprocess paths must become language-aware.** `_maybe_produce_adfree` is called on the **source** text
+from **five** sites: `relabel_only` (`episode_processor.py:2869-2882`), `rediarize_only` (`:3191-3204`),
+the ASR path (`:3784-3805`), direct download (`:4460-4483`), and the **transcript-cache hit** (`:1310`),
+which is the one most easily missed. On a non-English episode each would write the identity
+`ep1.adfree.txt` this design says never exists, and leave `.en.*` stale with pre-relabel labels.
+
+Every path that changes the source must invalidate `.en.*`, `translation.json`, any provenance records
+and the episode's cached prompt prefix. Two consequences worth stating rather than discovering:
+
+- A relabel that merges two voices into one name **shifts every turn id**, so the unit map is invalid and
+  the episode needs a full re-translation — on top of the GI cost the relabel already carries.
+- `rederive_only` must **not** re-translate; it reads the existing `.en.adfree` base. That is the cheap
+  repair path and losing it would make every repair expensive.
 
 ### 4. Artifact model
 
@@ -346,20 +383,29 @@ lives in `ep1.en.adfree.txt`. An earlier version of this RFC proposed shifting t
 full-English space with `ep1.en.adfree.admap.json` and then range-looking it up over `en_char_*`.
 **That is wrong, and it was measured.** On the diarized branch `build_adfree_artifacts` does not cut
 the complement of the excised ranges; it **drops** overlapping segments and **re-renders** the
-survivors, re-emitting the `Label:` prefix and its trailing space. So `_shift_for` (`gi/ad_regions.py:439`) does not invert the
-transform — it is off by a label per excised range, and by a whole segment when one straddles a
-boundary. Nothing in the codebase used the ad-map for reconciliation, so the error had never surfaced.
+survivors, re-emitting the `Label:` prefix and its trailing space. So `_shift_for`
+(`gi/ad_regions.py:439`) does not invert the transform. Measured twice, and the mechanism is **not**
+simply "one label per excised range": the error appears even when a range removes a whole screenplay line
+cleanly, because the two turns that become adjacent afterwards coalesce and their labels vanish too. The
+conclusion is what matters — the ad-map cannot reconstruct pre-excision offsets — and nothing in the
+codebase used it for reconciliation, so the error had never surfaced.
 
 The correct chain uses the artifact that is exact by construction:
 
 ```text
 span in ep1.en.adfree.txt
-  → binary-search ep1.en.adfree.segments.json for the segment containing char_start
-    (char_start/char_end there are exact — the formatter emits them, and gi/pipeline.py:810-830
-     already resolves spans this way)
-  → read unit_id off that segment
-  → look the unit up in translation.json → src_char_*, start_ms/end_ms, speaker
+  → binary-search ep1.en.adfree.segments.json for the segment(s) OVERLAPPING [char_start, char_end)
+    (char_start/char_end there are exact — the formatter guarantees
+     screenplay_text[char_start:char_end] == text)
+  → read unit_id off the matched segment(s)
+  → look each unit up in translation.json → src_char_*, start_ms/end_ms, speaker
 ```
+
+**Overlap, not containment.** A span can begin inside a `Label:` prefix, a joining space or the newline
+between turns — none of which belongs to any segment — so a containment test would resolve to nothing.
+The existing precedent does it the right way: `_char_range_to_ms` (`gi/pipeline.py:841-880`) takes the
+first and last *overlapping* segments. (`:810-830` is `_segment_char_spans`, which builds the spans; the
+lookup is the later function.)
 
 This requires the English pseudo-segments to **carry `unit_id`**, which means adding it to the
 formatter's passthrough tuple (`providers/ml/diarization/formatting.py:81`, currently
@@ -376,6 +422,14 @@ player cues, RFC-123 turns and the ad-free builder all work on the English layer
 written as one atomic group (temp + rename). `save_adfree_artifacts` currently writes three files
 non-atomically and only warns on failure (`adfree_transcript.py:176-188`), which would leave an
 episode with English text and no analysis base — a state §5.3 has to refuse rather than half-serve.
+
+**Provenance, checked at the edge that matters.** `.en.adfree.*` carries the `en_sha256` of the
+`.en.txt` it was built from, and the resolver refuses on a mismatch. That binds the two files — but it
+does **not** bind a `gi.json` span to either, so a *consistent* re-translation would pass the hash check
+while every stored span pointed into text that no longer exists. The cheap guard uses data that already
+exists: `EvidenceSpan` carries `excerpt`, so `resolve_units_for_span` refuses when
+`excerpt != en_adfree_text[char_start:char_end]`. Nodes also record `en_sha256` at write time (RFC-125
+§1), which makes stale claims detectable without re-reading the text.
 
 **Derived marking.** `.en.*` and `translation.json` carry `derived: true` and `translated_from`. The
 source artifacts do not.
@@ -412,7 +466,7 @@ queue as other GPU stages, with English episodes scheduled ahead of translation 
   the ref to follow whatever the resolver returned.
 
 **5.4 Names, identity, and why naming stays before translation.** Speaker naming runs **inside**
-`transcribe_with_segments` (`providers/ml/ml_provider.py:1061`), and its labels are baked into the
+`detect_speakers` (`providers/ml/ml_provider.py:1029-1071`) during the transcription stage, and its labels are baked into the
 source `.txt` at write time — from which source turns and `translation.json` (`speaker_label`,
 `turn_id`, `turns_sha256`) derive. Naming *after* translation would therefore mean relabelling the
 source, and a relabel that resolves two `SPEAKER_xx` to one name **merges turns**, shifting every turn
@@ -445,31 +499,55 @@ transliteration asserts that and falls back to the source-script label when it f
 - **The "Translated from <Language>" chip ships with the pipeline, not later.** No translated content
   is served unlabelled at any point.
 
-**6.1 Language visibility and filtering** (PRD-047 FR7).
+**6.1 Language on the API** (PRD-047 FR7.1). Episode language becomes a new additive field on the
+episode list and detail responses; `AppPodcastItem.language` starts carrying the normalized feed tag
+instead of the run config it carries today; and `CorpusFeedItem` gains the field, because that is what
+the operator viewer's shows library consumes.
 
-- **Show language** uses the existing `AppPodcastItem.language` field — which starts carrying the
-  normalized feed tag once §1.1 lands, instead of the run config it carries today.
-- **Episode language** is a new additive field on the episode list and detail responses.
-- **`LanguageBadge.vue`** is new: a compact squared chip with the uppercase code. No generic badge
-  primitive exists in `web/learning-player`, so this is the primitive. It renders on `EpisodeRow`,
-  `EpisodeTile`, `EpisodeCard`, `ShowRow`, `ShowTile`, `PodcastView` and alongside the operator viewer's
-  `library/chips/` components, with `t()` strings (the player forbids hard-coded user-facing text) and a
-  language display-name source so the aria-label reads "Greek" rather than "EL". Unknown language
-  renders nothing rather than a guess.
-- **The filter** reuses `TypeFilterBar.vue`, whose docstring asks to be reused. `CatalogView`'s filter
-  is single-select via `ListToolbar` today (`:43-58`, with `downloaded` present only on native), so the
-  language filter is a **separate** control — language is orthogonal to listening state, and collapsing
-  them would make "Greek and unplayed" unexpressible. It renders only once the corpus holds more than
-  one language.
+**The badge and the language filter are v2.** A language chip existed on the show page and was
+deliberately removed in #2115 because every show in the corpus was English. That reasoning expires when a
+second language arrives, so the chrome ships then — see
+`docs/architecture/MULTILINGUAL_ARC_V2.md` §5. v1 delivers the data.
 
-**6.2 Same-language retrieval** (PRD-047 FR4.5, D-14). A Greek episode must be findable by a Greek
-query, and by an English query through its translation. Both resolve to the same episode.
+**6.2 Same-language retrieval** (PRD-047 FR4.5, D-14). A non-English episode must be findable by a query
+in its own language, and by an English query through its translation. Both resolve to the same episode.
 
-**What changes:** Tier-1 chunks are built from **both** transcripts — the source-language one and the
-English analysis one — each tagged with its `language`, both keyed to the same `episode_slug`. A Greek
-query matches the Greek chunks lexically; an English query matches the English chunks. `SegmentDocument`
-and the LanceDB segment schema gain `language` alongside the `speaker_ids` / `turn_ids` RFC-123 adds, so
-it is one schema change if the two land together.
+**Both layers are indexed.** Tier-1 chunks are built from the source-language transcript *and* the
+English analysis transcript, both keyed to the same `episode_slug`. A Greek query matches the Greek
+chunks lexically; an English query matches the English chunks.
+
+**Non-English chunks go in their own table, with no vector column.** This is the mechanism, and the
+alternative was considered and rejected:
+
+- *Rejected:* add a `language` column to the existing `segments` table and filter the vector leg to
+  English. Both legs share one `where` clause today, so this needs per-signal filters in the query
+  contract — and it is a rule every future query path must remember. Worse, the natural implementation
+  stores a placeholder vector, and a **zero vector sits at L2 distance exactly 1.0 from any unit-norm
+  query while a genuinely related document sits further away** — so those rows would rank *above* most
+  real results on every query. The failure is not subtle.
+- *Chosen:* a separate table holding non-English chunks with no `embedding` column at all, consulted only
+  for the keyword leg. A row with no vector **cannot** appear in a semantic result — structural rather
+  than filtered. It also leaves the existing `segments` table untouched, which should mean no
+  `LANCE_SCHEMA_VERSION` bump and therefore no stale index, no `no_index` outage and no full rebuild of
+  the existing corpus. **Confirm both properties in the slice** — that the version constant stays put,
+  and that the read path tolerates the new table being absent on older indexes.
+
+**Four details that are easy to miss:**
+
+- **Chunk ids must carry language.** `f"{episode_id}_chunk_{i}"` (`search/segments.py:47`) and
+  `chunk:{scope_tag}:{i}` (`indexer.py:449`) carry none, and Lance merges on id — so suffix the
+  non-English ids and leave the English ones byte-identical, which avoids invalidating stored
+  `source_segment_id` references.
+- **Insight→segment linking must be language-aware.** The primary linker matches by *text*
+  (`two_tier_indexer.py:704-714`), which is language-safe by nature; the time-based fallback
+  (`search/segments.py:59-80`) is not, and both layers share timestamps, so an English insight could
+  link a Greek chunk.
+- **A non-English query must drop the dense leg.** Otherwise MiniLM embeds it into a meaningless vector,
+  the dense leg returns English neighbours, and RRF fuses that noise 1:1 with the real keyword hits.
+  Script detection on the query string is enough — one regex, no model.
+- **The transcript-lift path matches by char-range overlap** (`search/transcript_chunk_lift.py:268-320`)
+  with no coordinate-space check, so a source-language chunk could be "lifted" as evidence under an
+  English insight. Lift only where the chunk's language matches the analysis language.
 
 **What does not change: the embedding model.** Cross-lingual *semantic* matching — an English query
 finding Greek content by meaning — is explicitly out of scope for this arc. It would require a

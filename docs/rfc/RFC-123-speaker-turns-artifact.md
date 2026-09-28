@@ -57,8 +57,9 @@ translation. Today:
 2. **Speaker-true retrieval.** Every search chunk knows every speaker it contains.
 3. **Readable cues.** Sentence-level cues within turns for subtitles and quote playback.
 4. **Translation units.** RFC-124 translates sentence groups that never cross a turn.
-5. **Confidence citation.** RFC-125 propagates per-unit confidence to claims through turn and
-   sentence IDs.
+5. **Provenance citation.** RFC-125 records which translation units a claim rests on, through turn and
+   sentence IDs. (Per-unit *confidence* scoring is deferred to v2; v1 records provenance and verifies
+   claims against the source.)
 
 ## Goals
 
@@ -182,10 +183,12 @@ both are built from the exact list the matching text was rendered from. It is ch
 milliseconds per episode) and belongs on the core path, not in an enricher. Turns are a structural
 view of core artifacts, not derived intelligence, so they do not carry `derived: true`.
 
-**Which variant a consumer reads** is already decided by
-`workflow/adfree_transcript.load_processing_transcript`, the single resolver all NLP consumers use.
-Turn-based attribution reads the variant that resolver returned, keyed by its `transcript_ref`.
-Nothing in this RFC changes that precedence; RFC-124 extends it.
+**Which variant a consumer reads** is decided by `workflow/adfree_transcript.load_processing_transcript`
+for the two consumers that call it (GI and KG). Several others resolve the transcript independently —
+the summary stage, the faithfulness check, `search/indexer.py`, `gi/repair.py` and `gi/load.py` — so
+"the single resolver all NLP consumers use" is that function's docstring, not the codebase's behaviour.
+RFC-124 §2.1 owns routing them all through it. Turn-based attribution reads whichever variant its
+caller resolved, keyed by that variant's `transcript_ref`; this RFC does not change any precedence.
 
 **Backfill:** `podcast-scraper turns backfill --corpus <dir>` walks existing sidecars. This is
 unlike derived intelligence, which cannot be backfilled. Nothing needs to be sequenced ahead of
@@ -279,10 +282,25 @@ non-English episodes need per-language aligner checkpoints (pinned per ADR-155) 
 
 ## Rollout & Monitoring
 
-- **Phase 1**: write `turns.json` in the pipeline and run the backfill. Nothing reads it yet.
-- **Phase 2**: switch GI attribution after the replay passes.
-- **Phase 3**: switch search chunking, with a reindex and eval.
-- **Phase 4**: add the player `granularity=sentence` option.
+These are steps within this RFC, not the arc's phases — phase numbers mean one thing across PRD-047
+and RFC-123/124/125, and all of this work sits inside the arc's **Phase 1**. Slice ids are from
+`docs/architecture/MULTILINGUAL_ARC.md` §4.
+
+**v1** — the artifact exists, because translation units are defined as sentence groups inside a turn:
+
+- **Step 1 (S1.1–S1.2)**: build `turns.json` and write it in the pipeline for both variants. Nothing
+  reads it yet.
+- **Step 2 (S1.3)**: run the backfill over the existing corpus.
+
+**v2** — the consumers. Each is an independent English-corpus improvement with standalone value, and
+none of them is needed for multilingual ingest to work (operator decision, 2026-09-28):
+
+- **Step 3 (S1.4)**: switch GI attribution to turn lookup, after the #2062 replay passes.
+- **Step 4 (S1.5)**: switch search chunking to turn boundaries, with a reindex and eval.
+- **Step 5 (S1.6)**: add the player `granularity=sentence` option.
+
+Because steps 3–5 stand on their own, any of them can be pulled forward independently of the
+multilingual arc if English-corpus quality becomes the priority.
 
 **Monitoring:** the per-episode manifest (RFC-109) gains `turns: {count, backchannels,
 median_turn_s, invariant_failures}`. Any invariant failure fails the build for that episode.

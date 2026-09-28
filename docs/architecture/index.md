@@ -27,7 +27,8 @@ rests on, the decisions taken, and a running log. One per arc; retired when the 
 
 | Document | Purpose |
 | --- | --- |
-| [Multilingual ingest](MULTILINGUAL_ARC.md) | Source-language capture with English-normalized intelligence — phase ladder, slice plan (each slice one issue), verified code facts, decisions D-1…D-12. Pulls together [PRD-047](../prd/PRD-047-multilingual-ingest.md) and [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md)/[124](../rfc/RFC-124-multilingual-transcription-and-translation.md)/[125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) |
+| [Multilingual ingest (v1)](MULTILINGUAL_ARC.md) | Source-language capture with English-normalized intelligence — phase ladder, slice plan (each slice one issue), verified code facts, the claims six reviews found false, decisions D-1…D-20. Pulls together [PRD-047](../prd/PRD-047-multilingual-ingest.md) and [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md)/[124](../rfc/RFC-124-multilingual-transcription-and-translation.md)/[125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) |
+| [Multilingual ingest (v2)](MULTILINGUAL_ARC_V2.md) | The continuation — everything deferred out of v1 with its slices and the reason: claim verification, quality estimation, the language badge and filter, the turns consumers, cross-lingual retrieval, word-level anchors. Parked; no PRD or RFC yet |
 
 ## Target state
 

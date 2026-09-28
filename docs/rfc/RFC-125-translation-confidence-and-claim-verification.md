@@ -20,7 +20,8 @@
 A translated episode is analyzed on English text that no one has checked. This RFC makes the
 pipeline **know what it is standing on**. In v1 there are two mechanisms:
 
-1. Every claim derived from translated text (GI quote, insight, and KG edge with evidence) carries
+1. Every claim derived from translated text (GI quote and insight — there are no KG evidence spans in
+   this codebase, see §1) carries
    **translation provenance**: which units it cites, in which source language, resolved through
    RFC-124's unit map.
 2. Every **position-bearing** claim is **verified against the source language** before it can enter a
@@ -231,19 +232,41 @@ then `position_hint`. It gains one filter:
 > An insight whose `properties.translation.translated` is true is included only when
 > `properties.translation.verification.outcome == "verified"`.
 
-**The filter applies to every position-bearing read path, not just `position_arc`.** An earlier version
-of this RFC named two and would have left three open doors:
+**The filter applies to every position-bearing surface.** This list has been wrong twice — first at two
+entries, then at five — so it is enumerated with its evidence, and the enumeration is itself a
+deliverable of the slice rather than a claim in this document:
 
-| Read path | Location | Why it counts |
+| Surface | Location | Why it counts |
 | --- | --- | --- |
 | `position_arc` | `cil_queries.py:636` | the per-(person, topic) arc |
-| `topic_conversation_arc` | `:842` | reuses `topic_timeline` (`:854`), so the filter belongs in `topic_timeline` or is duplicated |
-| `topic_timeline_merged` | `:876` | same insights, merged across corpora |
-| `person_profile` insights-by-topic | `:711` / `:759` | a position surface in all but name — an unverified claim would render here under the topic |
-| `topic_perspective_leaders` | `:1005` | ranks people by their claims on a topic |
+| `topic_conversation_arc` | `:842` | reuses `topic_timeline` (def `:772`), so the filter belongs in `topic_timeline` or is duplicated |
+| `topic_timeline_merged` | def `:891` | the same insights across multiple topics |
+| `person_profile` insights-by-topic | defs `:709`, `:752` | a position surface in all but name |
+| `topic_perspective_leaders` | def `:984` | ranks people by their claims on a topic; counts over **edge ids** and never materialises insight nodes, so a node-property predicate needs an id→node map first |
+| `topic_perspectives` | `:1041-1147` | "who holds which take", served to the **consumer app** (`app_relational_view.build_topic_perspectives` ← `routes/app_relational.py:178`) **and to OG share images** (`server/og/build.py:217`, where a claim becomes the headline quote with a person's byline) |
+| `app_gi_view` episode stance display | `server/app_gi_view.py:116` | §2.3 says contradicted claims are excluded from episode stance display; this is that surface |
+| `search/relational_queries.positions_of` and neighbours | `:170`, plus `who_said`, `cross_show_synthesis`, `related_insights` | served at `routes/relational.py` and via MCP; these read `CorpusGraph`, not `gi.json` nodes, so whether the `translation` block even reaches them depends on the graph builder — verify before assuming the filter can be applied |
+| `enrichment/enrichers/topic_consensus.py` | — | **write time.** No read-time filter reaches it. Needs provenance at extraction, or it corroborates unverified translated claims |
 
-One predicate helper is applied at insight selection in all five — the same helper §2.1's verification
-trigger uses — and the arc notes carry a written list of which surfaces count as Positions.
+**Two predicates, deliberately, not one helper.** The verification *trigger* (§2.1) and the display
+*gate* are different shapes and conflating them fails in a specific way:
+
+- `is_position_bearing(gi, insight_id)` — an **edge** predicate: SPOKEN_BY-supported quote ∩ `ABOUT` ∩
+  `insight_type == "claim"`. This selects what gets verified.
+- `translated_claim_admissible(node)` — a **property** predicate on the node's `translation` block. This
+  selects what renders.
+
+If the gate excluded *every* unverified translated insight while only claim-type insights were ever
+verified, then translated observations and recommendations on `topic_timeline` and `person_profile`
+(neither of which applies a claim filter by default) would be excluded **permanently**, not until
+verification ships. A test must assert the trigger population is a superset of the gated population on
+every surface. Note also that `position_arc`'s claim filter is a *default*: `routes/cil.py:86-95` lets a
+caller pass `insight_types=all`, so the two predicates can diverge for that caller unless the gate is
+applied at selection regardless of type.
+
+One further inconsistency to resolve in the slice: `person_profile` returns `quotes` alongside insights
+(`:753-757`). Gating the insights while serving the quotes they were built from shows the reader the
+translated evidence and hides the conclusion.
 
 Consequences worth stating plainly:
 
@@ -253,7 +276,7 @@ Consequences worth stating plainly:
   episode until the verification pass runs — is *not* in an arc. So PRD-047's "translated positions
   are withheld until trust ships" is enforced by the absence of a record rather than by a flag
   someone must remember to set. This is why the filter can and should ship **before** the
-  verification machinery (arc slice S3.3 before S3.2).
+  verification machinery (arc slice S3.1 before S3.2).
 - **English episodes are untouched.** `translated` is absent on every existing node, so the filter is
   a no-op for the current corpus. This is testable as a byte-identical arc response on the English
   fixture corpus.
@@ -299,9 +322,14 @@ Consequences worth stating plainly:
      which is a human bottleneck on the critical path, and they need a translated corpus that does
      not exist until RFC-124 runs. Source entailment needs neither and catches the inversions that
      actually cause harm. Arc note D-6.
-2. **The Positions gate is a read-time filter in `position_arc`, not a write-time suppression.**
-   - **Rationale**: Positions are already a read-time query, so this is where the decision belongs.
-     It also makes the gate retroactive and fail-closed for free.
+2. **The Positions gate is a read-time filter across every position-bearing surface, not a write-time
+   suppression.**
+   - **Rationale**: Positions are already read-time queries, so this is where the decision belongs, and
+     it makes the gate retroactive and fail-closed for free.
+   - **Caveat, not a footnote**: one surface cannot be reached this way. `enrichment/enrichers/topic_consensus.py`
+     corroborates insights across people at **write** time, so no read-time filter touches it — it needs
+     the translation provenance at extraction time or it will corroborate unverified translated claims.
+     §3 lists it separately for that reason.
 3. **Verify all position-bearing translated claims in v1, not a sample.**
    - **Rationale**: the time axis makes false flips the costliest error, and the volume per episode is
      small enough that sampling buys little and costs trust.
@@ -354,7 +382,10 @@ Consequences worth stating plainly:
 
 - **Unit**: span → unit resolution via `resolve_units_for_span` (boundary-crossing spans; spans
   entirely inside one unit; spans next to an excised ad range); insight unit-id union over supporting
-  quotes; the position-bearing trigger's truth table over (`speaker_id`, `surfaceable`, `ABOUT`);
+  quotes; the position-bearing trigger's truth table over (SPOKEN_BY-supported quote, `ABOUT` edge,
+  `insight_type`) — the three conditions `position_arc` actually selects on, not `surfaceable`, which it
+  never reads; a test that the trigger population is a superset of the gated population on every
+  surface;
   outcome state transitions including operator-override precedence; the `position_arc` filter over
   {absent, null, verified, unverified, contradicted}; re-translation invalidating verification
   records.
@@ -421,8 +452,7 @@ link governs, because averaging lets one inverted sentence hide inside a well-tr
 
 **What it unlocks.**
 
-- A verification trigger for the rows v1 leaves unchecked: band = red on a non-position quote or a KG
-  evidence edge.
+- A verification trigger for the rows v1 leaves unchecked: band = red on a non-position quote.
 - A per-claim confidence marker in the UI for amber and red, with green carrying no extra noise.
 - Calibration-drift monitoring as an early warning that translation quality has regressed.
 
