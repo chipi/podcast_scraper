@@ -355,10 +355,26 @@ enum Journey {
     return app
   }
 
-  /// Masthead avatar → Profile. Its accessible name is the user's display name, falling back to
-  /// "Your profile" when the account has no name, so both are accepted.
+  /// Masthead avatar → Profile, for a caller that knows WHICH account is signed in.
+  ///
+  /// The masthead link is named `auth.user?.name || t('profile.title')`, so its label is the
+  /// ACCOUNT NAME once `/me` resolves and the generic "Your profile" only until then. The caller is
+  /// the only one who knows the first of those, which is why the labels are a parameter.
+  ///
+  /// The label-less overload below keeps a hardcoded list, and that list is why this parameter
+  /// exists: it holds `simtest` and `uitest` from when every suite shared one account. Per-suite
+  /// identities landed (#2091) and the list was never updated, so a suite signed in as
+  /// `appjourneytests` matched only the generic fallback — and once the name resolved, nothing.
+  /// The Android twin already takes labels for exactly this reason and its own comment records the
+  /// flaw as latent here (`Journey.java:499-507`).
+  ///
+  /// The consequence is worse than a slow timeout. `UITestCase.startClean` drives
+  /// `setOfflineMode` through this, and that is the one guarantee `startClean` exists to give — so
+  /// a miss here does not fail loudly, it leaves forced-offline in whatever state the previous
+  /// suite left it, which is the 2026-09-16 cross-suite poisoning this base class was written to
+  /// end.
   @discardableResult
-  static func openProfile(_ app: XCUIApplication) -> Bool {
+  static func openProfile(_ app: XCUIApplication, labels: [String]) -> Bool {
     // TOP first. The control is the masthead avatar, so it scrolls away with the page — and an
     // element above the viewport is in the accessibility tree with a NEGATIVE y, where `tap()`
     // lands on nothing. Whatever the previous step left on screen, the header is reachable from the
@@ -369,14 +385,24 @@ enum Journey {
     // hazard the swipes above exist to prevent) or a node being replaced under the tap — and
     // `TAP_MISS`/success alone cannot tell them apart. `.exists` first: reading `.frame` on a query
     // that matches nothing is an XCTest FAILURE, not a nil, and would replace the real result.
-    for label in ["Your profile", "simtest", "uitest"] {
+    for label in labels {
       for (kind, q) in [("link", app.links[label]), ("button", app.buttons[label])] {
         let e = q.firstMatch
         guard e.exists else { continue }
         print("=====PROFILE_CTL \(kind) '\(label)' frame=\(e.frame) hittable=\(e.isHittable)=====")
       }
     }
-    return tap(app, labels: ["Your profile", "simtest", "uitest"], timeout: 25)
+    return tap(app, labels: labels, timeout: 25)
+  }
+
+  /// Masthead avatar → Profile, for a caller with no idea which account is signed in.
+  ///
+  /// `signOut` is the honest case: it runs precisely when the session belongs to someone else, so
+  /// the account name is the one thing it cannot know. `simtest` stays because the shared seeded
+  /// account is still real; `uitest` is kept for the same reason it was there.
+  @discardableResult
+  static func openProfile(_ app: XCUIApplication) -> Bool {
+    openProfile(app, labels: ["Your profile", "simtest", "uitest"])
   }
 
   /// Bottom tab bar.
@@ -485,10 +511,10 @@ enum Journey {
     return clear
   }
 
-  /// Profile → gear → Settings.
+  /// Profile → gear → Settings, for a caller that knows which account is signed in.
   @discardableResult
-  static func openSettings(_ app: XCUIApplication) -> Bool {
-    guard openProfile(app) else { return false }
+  static func openSettings(_ app: XCUIApplication, labels: [String]) -> Bool {
+    guard openProfile(app, labels: labels) else { return false }
     sleep(3)
     guard tap(app, labels: ["Settings"], contains: true, timeout: 20) else {
       // SAY WHAT PAGE WE ARE ON. `tap` logs only `TAP_MISS ["Settings"]`, which is indistinguishable
@@ -502,12 +528,21 @@ enum Journey {
     return true
   }
 
+  /// Profile → gear → Settings, for a caller with no idea which account is signed in.
+  @discardableResult
+  static func openSettings(_ app: XCUIApplication) -> Bool {
+    openSettings(app, labels: ["Your profile", "simtest", "uitest"])
+  }
+
   /// Drive Settings → Config → "Offline mode" to an ABSOLUTE state (idempotent: a no-op when it
   /// already matches). The switch persists to `localStorage`, which the host cannot reach, so this
   /// is the only way to set it — see ConfigOfflineToggleTests for the standalone version.
   @discardableResult
-  static func setOfflineMode(_ app: XCUIApplication, on wanted: Bool) -> Bool {
-    guard openSettings(app) else { print("=====OFFLINE_SET no settings====="); return false }
+  static func setOfflineMode(_ app: XCUIApplication, on wanted: Bool, labels: [String]) -> Bool {
+    guard openSettings(app, labels: labels) else {
+      print("=====OFFLINE_SET no settings=====")
+      return false
+    }
     let predicate = NSPredicate(format: "label CONTAINS[c] 'Offline mode'")
     var control = app.checkBoxes.matching(predicate).firstMatch
     if !control.waitForExistence(timeout: 10) { control = app.switches.matching(predicate).firstMatch }
@@ -540,5 +575,12 @@ enum Journey {
     sleep(2)
     guard control.exists else { return false }
     return String(describing: control.value).contains("1") == wanted
+  }
+
+  /// `setOfflineMode` for a caller with no identity to offer — the standalone toggle suites, which
+  /// sign in themselves and then drive the switch.
+  @discardableResult
+  static func setOfflineMode(_ app: XCUIApplication, on wanted: Bool) -> Bool {
+    setOfflineMode(app, on: wanted, labels: ["Your profile", "simtest", "uitest"])
   }
 }

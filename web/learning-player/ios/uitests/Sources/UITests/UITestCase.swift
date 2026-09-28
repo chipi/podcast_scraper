@@ -69,6 +69,15 @@ class UITestCase: XCTestCase {
   }
 
   /**
+   * How to reach Profile for THIS suite's account.
+   *
+   * The masthead link is named `auth.user?.name || t('profile.title')`, so the label is the account
+   * name once `/me` resolves and the generic string only until then. Both have to be tried, and
+   * only the suite knows the first one. Mirrors `UITestCase.java`'s `profileLabels()`.
+   */
+  var profileLabels: [String] { [accountIdentity, "Your profile"] }
+
+  /**
    * Bring the app to a known state, then sign in as this suite's account.
    *
    * NOT in `setUp`: several suites deliberately start with the app or the API in an unusual state
@@ -77,9 +86,28 @@ class UITestCase: XCTestCase {
    */
   @discardableResult
   func startClean(_ app: XCUIApplication) -> Bool {
-    // Forced-offline OFF first: it is device-local, so signing in as a different account does not
-    // clear it, and with it ON every later network assertion fails for the wrong reason.
-    _ = Journey.setOfflineMode(app, on: false)
-    return AppSession.ensureSignedIn(app, as: accountIdentity)
+    // SIGN IN FIRST, then normalise the device switch. This was the other way round, and the
+    // Android twin already documents why that is wrong (`UITestCase.java`): the offline switch
+    // lives in Settings, Settings is reached through the masthead avatar, and the avatar only
+    // exists when there IS a session. A signed-out app cannot reach the switch at all, so putting
+    // it first spent a minute of swipes and timeouts discovering that on every single test.
+    //
+    // `Journey.setOfflineMode` carries the scar of the old order in its own comment: "On a fresh
+    // simulator the app is signed out, Settings is unreachable, and the control the existence check
+    // saw belonged to a page the app was already leaving (2026-09-24)." That is this bug, worked
+    // around from the inside rather than fixed here.
+    guard AppSession.ensureSignedIn(app, as: accountIdentity) else { return false }
+    // Forced-offline OFF: device-local, so it survives a relaunch AND an account change, and left
+    // ON every later network assertion fails for a reason that has nothing to do with the suite
+    // reporting it. That was every native failure on 2026-09-16.
+    //
+    // THIS SUITE'S labels, not the hardcoded list. With per-suite identities the masthead reads the
+    // account name, which `Journey.openProfile`'s default list does not contain — so for every
+    // suite that does not override `accountIdentity` this call could not reach Settings at all, and
+    // its return value is deliberately ignored, so it failed in silence. Ignoring the result is
+    // still right (a suite that starts online must not be blocked by a switch that is already off)
+    // but it is only safe once the call can actually succeed.
+    _ = Journey.setOfflineMode(app, on: false, labels: profileLabels)
+    return true
   }
 }
