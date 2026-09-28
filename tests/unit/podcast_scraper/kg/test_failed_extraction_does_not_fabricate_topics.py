@@ -1,28 +1,33 @@
-"""When KG extraction FAILS, the artifact must be empty — never filled with summary bullets.
+"""No extractor, no topics — and the artifact must say WHICH kind of nothing it is.
 
-THE BUG, observed on a real ingest and traced end to end. The DGX vLLM was unreachable, so
-``_try_provider_extraction`` returned ``None``. Control fell to an ``elif`` whose own comment says
-it serves "tests / legacy callers that pass a ``topic_label`` hint without a
-``kg_extraction_provider``" — and it emitted the episode's SUMMARY BULLETS as Topic nodes.
-
-The result was not a degraded knowledge graph. It was a fabricated one:
+THE ORIGINAL BUG, observed on a real ingest and traced end to end. The DGX vLLM was unreachable, so
+``_try_provider_extraction`` returned ``None``. Control fell to an ``elif`` whose comment said it
+served "tests / legacy callers that pass a ``topic_label`` hint without a
+``kg_extraction_provider``" — and it emitted the episode's SUMMARY BULLETS as Topic nodes:
 
     summary bullet:  "Product development in frontier AI requires building for model
                       capabilities two to three months ahead rather than current…"
     Topic node:      "Product development in frontier AI requires"
 
-Eight of those per episode, 48 across six episodes, zero Insight nodes, zero Person nodes, zero
-Organization nodes — for an episode about OpenAI and ChatGPT. Nothing anywhere said extraction had
-failed. Every downstream surface then consumed sentences as subjects: clustering could never match
-them (each is unique to its episode), co-occurrence scored them, trending ranked them, and they
-were offered to listeners as followable interests.
+Eight per episode, 48 across six episodes, zero Insight/Person/Organization nodes — for an episode
+about OpenAI and ChatGPT. Nothing said extraction had failed. Every downstream surface then consumed
+sentences as subjects: clustering could never match them (each unique to its episode),
+co-occurrence scored them, trending ranked them, and they were offered as followable interests.
 
-An empty topic set is the honest outcome. The artifact records ``provider:extraction_failed`` as
-its provenance, and every consumer correctly sees nothing rather than being poisoned.
+WHAT CHANGED (ADR-156 / #2164). The first fix made the failing-provider path refuse to substitute
+bullets. That left the same fabrication reachable by any caller passing ``topic_label`` /
+``topic_labels`` without a provider — and the production workflow did exactly that, which is how 830
+sentence-shaped Topic nodes and 96 all-sentence episodes reached prod. Those parameters are now GONE
+from ``build_artifact``. The guarantee is no longer "bullets are refused"; it is that bullets
+**cannot be offered**, which is why the first test asserts on the SIGNATURE.
+
+The remaining obligation is attribution: three different kinds of "no topics" must stay
+distinguishable, or an empty graph reads as an episode about nothing.
 """
 
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import Any
 
@@ -32,7 +37,8 @@ from podcast_scraper.kg.pipeline import build_artifact
 
 pytestmark = pytest.mark.unit
 
-#: Verbatim from the run that motivated this.
+#: Verbatim from the run that motivated this. Kept so the shape of what was fabricated stays on the
+#: record even though no API can now accept it.
 _REAL_BULLETS = [
     "Product development in frontier AI requires building for model capabilities two to three "
     "months ahead rather than current ones",
@@ -58,127 +64,130 @@ def _topic_labels(art: dict[str, Any]) -> list[str]:
     return [n["properties"]["label"] for n in art["nodes"] if n["type"] == "Topic"]
 
 
-def test_a_failed_extraction_emits_no_topics(monkeypatch: pytest.MonkeyPatch) -> None:
-    """THE regression. Bullets must not become topics when extraction was attempted and failed."""
-    from podcast_scraper.kg import pipeline
-
-    monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
-    art = build_artifact(
-        "ep:x",
-        "x",
-        podcast_id="podcast:p1",
-        episode_title="T",
-        topic_labels=list(_REAL_BULLETS),
-        kg_extraction_provider=_FailingProvider(),
-    )
-    labels = _topic_labels(art)
-    assert labels == [], (
-        f"summary bullets were fabricated into Topic nodes: {labels}. Every one is a sentence "
-        "unique to this episode; downstream they poison clustering, co-occurrence and trending."
-    )
-    assert "Topic" not in _types(art)
+def _provenance(art: dict[str, Any]) -> str:
+    return str((art.get("extraction") or {}).get("model_version") or "")
 
 
-def test_the_failure_is_recorded_in_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
-    """An empty KG must be attributable — "no topics" and "extraction broke" differ."""
-    from podcast_scraper.kg import pipeline
-
-    monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
-    art = build_artifact(
-        "ep:x",
-        "x",
-        podcast_id="podcast:p1",
-        episode_title="T",
-        topic_labels=list(_REAL_BULLETS),
-        kg_extraction_provider=_FailingProvider(),
-    )
-    provenance = str((art.get("extraction") or {}).get("model_version") or "")
-    assert (
-        "extraction_failed" in provenance
-    ), f"an empty KG that does not say why reads as an episode about nothing: {provenance!r}"
+def _art(**over: Any) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "podcast_id": "podcast:p1",
+        "episode_title": "T",
+    }
+    kwargs.update(over)
+    return build_artifact("ep:x", "x", **kwargs)
 
 
-def test_the_failure_is_loud(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Silence here is what let 48 fabricated topics ship unnoticed."""
-    from podcast_scraper.kg import pipeline
+class TestBulletsCannotEvenBeOffered:
+    """The strongest form of the guarantee: the parameters do not exist.
 
-    monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
-    with caplog.at_level(logging.WARNING, logger="podcast_scraper.kg.pipeline"):
-        build_artifact(
-            "ep:x",
-            "x",
-            podcast_id="podcast:p1",
-            episode_title="T",
-            topic_labels=list(_REAL_BULLETS),
-            kg_extraction_provider=_FailingProvider(),
-        )
-    assert any(
-        "NOT substituting" in str(r.msg) for r in caplog.records
-    ), "extraction failed and produced an empty KG without a word in the log"
-
-
-def test_the_legacy_hint_path_is_untouched() -> None:
-    """The mirror, and the reason the fix keys on the PROVIDER rather than on the source.
-
-    A caller that passes a ``topic_label`` hint and never wires an extraction provider has not
-    failed at anything — nothing was attempted. That path (tests, legacy callers) must keep
-    working, or the fix trades one silent breakage for another.
-    """
-    art = build_artifact(
-        "ep:x",
-        "x",
-        podcast_id="podcast:p1",
-        episode_title="T",
-        topic_label="Inflation outlook",
-        detected_hosts=["Alice"],
-    )
-    assert "Topic" in _types(art)
-    assert _topic_labels(art) == ["Inflation outlook"]
-
-
-class TestEmptyTopicsAreAttributable:
-    """A KG with no topics must say WHY — silence is indistinguishable from "nothing was said".
-
-    Refusing to fabricate (above) creates a second obligation. With no extraction provider the
-    only candidate labels are the summary bullets, and a summariser emits sentences, so every
-    label is correctly rejected and the KG ends with zero Topic nodes. That is the right
-    outcome, but ``model_version: "topic_labels"`` would then claim labels were *used*.
-
-    A reader — or the #598 e2e acceptance test — cannot tell that apart from an episode that was
-    never given labels at all. Both render as an empty topic list. The provenance string is the
-    only place the difference can survive to the artifact, so it carries it (#1208).
+    Asserting "bullets do not become topics" only holds for the code paths a test remembers to
+    cover. Asserting the API cannot accept them holds for every caller — including the one in
+    ``workflow/metadata_generation`` that did this in production for months.
     """
 
-    def test_labels_all_rejected_is_marked_all_propositions(self) -> None:
-        art = build_artifact(
-            "ep:x",
-            "x",
-            podcast_id="podcast:p1",
-            episode_title="T",
-            topic_labels=list(_REAL_BULLETS),
-            cfg=None,
+    @pytest.mark.parametrize("param", ["topic_label", "topic_labels"])
+    def test_build_artifact_has_no_topic_label_parameter(self, param: str) -> None:
+        params = inspect.signature(build_artifact).parameters
+        assert param not in params, (
+            f"build_artifact accepts {param!r} again. That parameter is how summary bullets became "
+            "Topic nodes: 830 sentence-shaped nodes and 96 all-sentence episodes on prod "
+            "(ADR-156 / #2164). Only the extraction provider may create a Topic."
         )
+
+    def test_passing_bullets_is_a_hard_error_not_a_silent_ignore(self) -> None:
+        """A parameter that looks live and is ignored is how this accumulated in the first place."""
+        with pytest.raises(TypeError):
+            _art(topic_labels=list(_REAL_BULLETS))
+
+
+class TestAFailedExtractionEmitsNothing:
+    def test_no_topics(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """THE regression: a configured provider returning nothing yields an EMPTY graph."""
+        from podcast_scraper.kg import pipeline
+
+        monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
+        art = _art(kg_extraction_provider=_FailingProvider())
+        labels = _topic_labels(art)
+        assert labels == [], f"topics were fabricated from somewhere: {labels}"
+        assert "Topic" not in _types(art)
+
+    def test_the_failure_is_recorded_in_provenance(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An empty KG must be attributable — "no topics" and "extraction broke" differ."""
+        from podcast_scraper.kg import pipeline
+
+        monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
+        art = _art(kg_extraction_provider=_FailingProvider())
+        assert "extraction_failed" in _provenance(art), (
+            "an empty KG that does not say why reads as an episode about nothing: "
+            f"{_provenance(art)!r}"
+        )
+
+    def test_the_failure_is_loud(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Silence here is what let 48 fabricated topics ship unnoticed."""
+        from podcast_scraper.kg import pipeline
+
+        monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
+        with caplog.at_level(logging.WARNING, logger="podcast_scraper.kg.pipeline"):
+            _art(kg_extraction_provider=_FailingProvider())
+        assert any(
+            "no topics/entities" in str(r.msg) for r in caplog.records
+        ), "extraction failed and produced an empty KG without a word in the log"
+
+
+class TestNoProviderIsItsOwnDistinctFault:
+    """THE INVERSION of the old ``test_the_legacy_hint_path_is_untouched``.
+
+    That test asserted a caller passing a ``topic_label`` hint with no provider still got a Topic —
+    "legacy callers must keep working". ADR-156 withdraws that guarantee deliberately: it was the
+    live route by which production fabricated topics, not a harmless compatibility shim.
+
+    A missing extractor is a MISCONFIGURATION and must read as one, rather than being collapsed into
+    ``metadata_only`` (a deliberate reduced mode) or ``provider:extraction_failed`` (a provider that
+    was tried and failed).
+    """
+
+    def test_no_provider_yields_no_topics(self) -> None:
+        art = _art()
         assert _topic_labels(art) == []
-        provenance = art["extraction"]["model_version"]
-        assert provenance.endswith(":all_propositions"), (
-            "every supplied label was a proposition and none became a Topic, but provenance "
-            f"does not record it: {provenance!r}"
+        assert "Topic" not in _types(art)
+
+    def test_no_provider_says_so_in_the_provenance(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from podcast_scraper.kg import pipeline
+
+        monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
+        art = _art()
+        assert _provenance(art) == "no_extractor", (
+            "a misconfigured run must not be indistinguishable from a deliberate reduced mode: "
+            f"{_provenance(art)!r}"
         )
 
-    def test_surviving_labels_keep_the_plain_provenance(self) -> None:
-        """The suffix must mean something — it may not appear when labels DID survive."""
-        art = build_artifact(
-            "ep:x",
-            "x",
-            podcast_id="podcast:p1",
-            episode_title="T",
-            topic_labels=["ai regulation", "open source ai models"],
-            cfg=None,
+    def test_it_is_loud_and_says_why_bullets_are_not_used(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The log is where an operator learns an empty graph was a config fault, not a quiet show."""  # noqa: E501
+        from podcast_scraper.kg import pipeline
+
+        monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
+        with caplog.at_level(logging.WARNING, logger="podcast_scraper.kg.pipeline"):
+            _art()
+        assert any("NOT substituted" in str(r.msg) for r in caplog.records)
+
+    def test_the_three_empty_reasons_are_distinguishable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """All three render as an empty topic list; only the provenance tells them apart."""
+        from podcast_scraper.kg import pipeline
+
+        monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "provider")
+        failed = _provenance(_art(kg_extraction_provider=_FailingProvider()))
+        missing = _provenance(_art())
+
+        monkeypatch.setattr(pipeline, "_resolve_source", lambda _cfg: "metadata_only")
+        reduced = _provenance(_art())
+
+        assert len({failed, missing, reduced}) == 3, (
+            "a provider that failed, no provider at all, and a deliberate metadata-only run are "
+            f"three different faults: {failed!r} / {missing!r} / {reduced!r}"
         )
-        assert sorted(_topic_labels(art)) == ["ai regulation", "open source ai models"]
-        provenance = art["extraction"]["model_version"]
-        assert not provenance.endswith(
-            ":all_propositions"
-        ), f"labels survived, so the all-rejected marker is a lie: {provenance!r}"

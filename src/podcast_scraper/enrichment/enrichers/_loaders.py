@@ -100,6 +100,14 @@ def topic_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
       for the episode chips, followable interests, discover ranking, show top-topics and the
       #1932 connectivity metric.
 
+    NOT EVERY CONSUMER FILTERS (measured 2026-09-28, #2164). ``kg.corpus.topic_cooccurrence``
+    reads ``art["nodes"]`` directly for ``type == "Topic"`` and applies no predicate, so filler and
+    sentence-shaped propositions DO become co-occurrence pairs — and co-occurrence feeds trending
+    and the theme clusters above it. "Filtered on the way out" is therefore true of the chokepoints
+    named above and false of the corpus analytics beside them. Do not read this docstring as a
+    guarantee that a node reaching disk is harmless; 830 sentence-shaped topic nodes on prod were
+    pairing there. The fix is upstream — ADR-156 stops them being written at all.
+
     Both must stay in step. Filtering one and not the other is worse than filtering neither: it
     renders a tappable topic chip whose entity card is guaranteed empty, because the card reads
     the filtered artifacts. There is a test asserting the two agree.

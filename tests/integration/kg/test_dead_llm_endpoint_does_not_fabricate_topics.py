@@ -84,7 +84,6 @@ def _artifact(provider: Any, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         "transcript text",
         podcast_id="podcast:p1",
         episode_title="AI's third era",
-        topic_labels=list(_BULLETS),
         kg_extraction_provider=provider,
     )
 

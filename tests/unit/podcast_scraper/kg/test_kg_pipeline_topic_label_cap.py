@@ -98,6 +98,10 @@ def test_pipeline_topic_nodes_respect_the_cap() -> None:
     assert (
         '"label": lab_s[:200]' not in src
     ), "a Topic label is being sliced at 200 chars again — use _enforce_noun_phrase_label"
-    assert (
-        src.count("_enforce_noun_phrase_label(") >= 2
-    ), "both Topic-construction sites must enforce the cap"
+    # ONE Topic-construction site now, not two. ADR-156 / #2164 removed the bullets fallback that
+    # was the second one, so `>= 2` became unsatisfiable — correctly: the cap can only be missed
+    # where a Topic is built, and there is exactly one such place left (the extractor's labels).
+    assert src.count("_enforce_noun_phrase_label(") >= 1, (
+        "the surviving Topic-construction site must enforce the cap; if this is 0, either a Topic "
+        "is being built without the #587 noun-phrase cap or the last site moved module"
+    )

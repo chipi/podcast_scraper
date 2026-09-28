@@ -23,9 +23,10 @@
       "required": ["model_version", "extracted_at", "transcript_ref"],
       "properties": {
         "model_version": {
-          "description": "Extraction tier: `metadata_only` (episode + pipeline hosts/guests, no LLM), verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/architecture/corpus/ontology.md § Provenance. `stub` is the pre-#1657 name for `metadata_only` and is accepted for artifacts written before the rename.",
+          "description": "Extraction tier: `metadata_only` (episode + pipeline hosts/guests, no LLM, a deliberate reduced mode), `no_extractor` (ADR-156 / #2164 — no extraction provider produced topics, which is a MISCONFIGURATION and is kept distinct from metadata_only so the accident stays readable), `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/architecture/corpus/ontology.md § Provenance. Accepted for already-written artifacts and NO LONGER PRODUCIBLE: `stub` (pre-#1657 name for `metadata_only`) and `summary_bullets` (the bullets-as-topics fallback ADR-156 removed — bullets are prose, not subjects).",
           "oneOf": [
             { "const": "metadata_only" },
+            { "const": "no_extractor" },
             { "const": "stub" },
             { "const": "summary_bullets" },
             { "type": "string", "pattern": "^provider:.+" }

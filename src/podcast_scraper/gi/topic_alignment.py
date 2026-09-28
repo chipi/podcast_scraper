@@ -36,16 +36,29 @@ def align_gi_topics_with_kg(
     gi_payload: Dict[str, Any],
     kg_payload: Dict[str, Any],
 ) -> int:
-    """Replace GI's bullet-derived Topic nodes with KG's, in place. Returns topics applied.
+    """Make the KG's topics GI's topics, in place. Returns topics applied.
 
-    No-op (returns 0) when the KG declares no topics — better to keep GI's own topics than to
-    strip an episode's topic vocabulary down to nothing.
+    THE KG IS THE ONLY TOPIC SOURCE (ADR-156 / #2164), so an empty KG topic set means the episode
+    has no topics — and GI must end with none either.
+
+    This used to return 0 early when the KG declared no topics, reasoning that it was "better to
+    keep GI's own topics than to strip an episode's topic vocabulary down to nothing". That was true
+    only while GI had a topic source of its own: the summary-bullets fallback, which shortened each
+    bullet to a four-token phrase. Those were never subjects, could not recur across episodes and so
+    could never cluster — and this branch is what preserved them. Keeping them was the bug, not the
+    safeguard.
+
+    With the fallback gone, GI's topics can only have come from the extractor, so the two artifacts
+    agree by construction on a fresh run and the inversion is invisible there. It matters when an
+    OLD gi.json carrying bullet-derived topics is re-aligned against a freshly-built empty KG: the
+    old guard would have kept the fabrications alive, and now they are stripped.
+
+    Falling through with an empty label set does exactly that — Topic nodes and ABOUT edges are
+    dropped, none are added, and the return value is 0 because no topics were applied.
 
     Mutates ``gi_payload``; the caller persists it.
     """
     labels = kg_topic_labels(kg_payload)
-    if not labels:
-        return 0
 
     from .pipeline import _dedupe_topic_node_specs
 

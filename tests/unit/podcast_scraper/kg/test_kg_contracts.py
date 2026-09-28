@@ -27,7 +27,6 @@ class TestKgContracts(unittest.TestCase):
             "x",
             podcast_id="p:1",
             episode_title="Title",
-            topic_label="T1",
         )
         out = build_kg_inspect_output(art, artifact_path=Path("metadata") / "x.kg.json")
         self.assertIsInstance(out, KgInspectOutput)
@@ -79,7 +78,6 @@ class TestKgContracts(unittest.TestCase):
             "x",
             podcast_id="p:1",
             episode_title="Title",
-            topic_label="T1",
             detected_hosts=["Host A"],
         )
         loaded = [(Path("metadata/x.kg.json"), art)]
@@ -99,7 +97,6 @@ class TestKgContracts(unittest.TestCase):
             "x",
             podcast_id="p:1",
             episode_title="Title",
-            topic_label="T1",
             detected_hosts=["Host A"],
         )
         loaded = [(Path("metadata/x.kg.json"), art)]

@@ -31,7 +31,6 @@ class TestKGArtifactIntegration:
             podcast_id="podcast:test",
             episode_title="KG Integration Episode",
             publish_date="2025-02-01T00:00:00Z",
-            topic_label="Inflation",
             detected_hosts=["Host One"],
         )
         validate_artifact(payload, strict=False)
@@ -41,7 +40,13 @@ class TestKGArtifactIntegration:
         validate_artifact(read_back, strict=False)
         assert read_back["episode_id"] == episode_id
         assert any(n.get("type") == "Episode" for n in read_back["nodes"])
-        assert any(n.get("type") == "Topic" for n in read_back["nodes"])
+        # A Person from detected_hosts, NOT a Topic. This asserted a Topic when the test could
+        # conjure one with a ``topic_label`` kwarg; ADR-156 / #2164 removed that, so with no
+        # extraction provider there are correctly zero Topic nodes. The round-trip is what is under
+        # test here — that a node written is a node read — so assert it on a node type this artifact
+        # actually has.
+        assert any(n.get("type") == "Person" for n in read_back["nodes"])
+        assert not any(n.get("type") == "Topic" for n in read_back["nodes"])
 
     def test_validate_artifact_strict_mode(self):
         """build_artifact → validate_artifact(strict=True) passes without error."""
@@ -51,7 +56,6 @@ class TestKGArtifactIntegration:
             podcast_id="podcast:test",
             episode_title="Strict Validation Episode",
             publish_date="2025-04-01T00:00:00Z",
-            topic_label="Economics",
             detected_hosts=["Host A"],
         )
         validate_artifact(payload, strict=True)
@@ -64,7 +68,6 @@ class TestKGArtifactIntegration:
             podcast_id="podcast:test",
             episode_title="Quality Metrics Episode",
             publish_date="2025-05-01T00:00:00Z",
-            topic_label="Technology",
             detected_hosts=["Host Q"],
         )
         path = tmp_path / "qm.kg.json"
@@ -97,7 +100,6 @@ class TestKGArtifactIntegration:
                 podcast_id="podcast:test",
                 episode_title=f"Scan Episode {i}",
                 publish_date="2025-06-01T00:00:00Z",
-                topic_label="Finance",
                 detected_hosts=[],
             )
             path = tmp_path / "metadata" / f"ep{i}.kg.json"
@@ -128,7 +130,6 @@ class TestKGArtifactIntegration:
             podcast_id="podcast:test",
             episode_title="Empty Transcript Episode",
             publish_date="2025-07-01T00:00:00Z",
-            topic_label=None,
             detected_hosts=[],
             cfg=cfg,
         )

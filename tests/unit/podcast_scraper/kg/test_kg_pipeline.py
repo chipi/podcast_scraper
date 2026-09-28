@@ -61,22 +61,27 @@ class TestKgPipeline(unittest.TestCase):
         ep_nodes = [n for n in art["nodes"] if n["type"] == "Episode"]
         self.assertNotIn("feed_id", ep_nodes[0]["properties"])
 
-    def test_build_artifact_topic_and_hosts(self) -> None:
-        """v2.0: topic + host Person nodes produce MENTIONS edges to Episode."""
+    def test_build_artifact_hosts_and_guests_emit_person_mentions(self) -> None:
+        """v2.0: host/guest Person nodes produce MENTIONS edges to Episode.
+
+        Was ``test_build_artifact_topic_and_hosts`` and asserted a Topic node too, which it obtained
+        from a ``topic_label`` kwarg. ADR-156 / #2164 removed that parameter, so no Topic is
+        reachable without an extraction provider — and asserting its ABSENCE is now the point:
+        hosts and guests are people, and people are not topics.
+        """
         art = build_artifact(
             "ep:x",
             "x",
             podcast_id="podcast:p1",
             episode_title="T",
-            topic_label="Inflation outlook",
             detected_hosts=["Alice"],
             detected_guests=["Bob"],
         )
         validate_artifact(art, strict=True)
         types = {n["type"] for n in art["nodes"]}
         self.assertIn("Episode", types)
-        self.assertIn("Topic", types)
         self.assertIn("Person", types)  # RFC-097: hosts/guests emit as Person
+        self.assertNotIn("Topic", types)
         self.assertTrue(any(e["type"] == "MENTIONS" for e in art["edges"]))
 
     def test_build_artifact_emits_host_guest_show_edges(self) -> None:
@@ -124,7 +129,6 @@ class TestKgPipeline(unittest.TestCase):
             podcast_id="podcast:p1",
             episode_title="T",
             cfg=cfg,
-            topic_label="Should not appear",
             detected_hosts=["Pat"],
         )
         validate_artifact(art, strict=True)

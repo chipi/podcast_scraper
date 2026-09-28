@@ -62,7 +62,6 @@ from ..exceptions import (
     RecoverableSummarizationError,
     TRANSIENT_SUMMARY_FAILURES,
 )
-from ..kg.llm_extract import strip_known_ml_bullet_prefixes
 from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem, llm_call_fuse
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
@@ -289,60 +288,12 @@ def _reject_destroyed_cleaning(
     return original
 
 
-# #653 Part D — leading stopwords stripped when deriving a short topic phrase
-# from a summary bullet (staged-mode fallback when KG prefilled topics absent).
-_BULLET_LEADING_STOPWORDS: frozenset[str] = frozenset(
-    {
-        "the",
-        "a",
-        "an",
-        "how",
-        "why",
-        "what",
-        "this",
-        "that",
-        "these",
-        "those",
-        "we",
-        "you",
-        "i",
-        "it",
-        "in",
-        "on",
-        "of",
-        "for",
-        "to",
-        "and",
-        "but",
-        "or",
-    }
-)
-
-
-def _bullet_to_topic_phrase(bullet: str, max_tokens: int = 4) -> str:
-    """Extract a short noun-phrase-ish topic label from a summary bullet.
-
-    Strips a leading stopword prefix and keeps the first ``max_tokens``
-    content tokens. Not a full NLP parse — deliberately cheap/local for
-    the staged-mode fallback path (#653 Part D). Bundled modes bypass
-    this and use KG canonical topics directly.
-    """
-    if not bullet:
-        return ""
-    text = bullet.strip()
-    if not text:
-        return ""
-    tokens = text.split()
-    # Drop leading stopwords (at most 3; otherwise the phrase may genuinely
-    # start with one and we shouldn't eat the whole thing).
-    for _ in range(3):
-        if tokens and tokens[0].lower().strip(",.;:!?") in _BULLET_LEADING_STOPWORDS:
-            tokens = tokens[1:]
-        else:
-            break
-    # Strip trailing punctuation on the last kept token.
-    phrase = " ".join(tokens[:max_tokens])
-    return phrase.rstrip(",.;:!?").strip() or text
+# ``_bullet_to_topic_phrase`` lived here (#653 Part D) and is GONE with ADR-156 / #2164. It took a
+# summary bullet, dropped leading stopwords and kept the first four tokens, and the result was
+# written as a Topic. The first four words of a bullet are not the episode's subject, and a label
+# minted that way cannot recur across episodes, so it can never cluster — making it structurally
+# incapable of becoming a storyline, the only reason Topic nodes exist. Only the extraction provider
+# may create a Topic now.
 
 
 # Lazy import for summarization (optional dependency)
@@ -4908,24 +4859,14 @@ def generate_episode_metadata(  # noqa: C901
                                     gi_topic_labels.append(_ts)
                             if not gi_topic_labels:
                                 gi_topic_labels = None
-                if (
-                    gi_topic_labels is None
-                    and summary_metadata
-                    and getattr(summary_metadata, "bullets", None)
-                ):
-                    # #653 Part D: staged-mode fallback. Extract a short noun
-                    # phrase from the bullet — strip leading stopwords, keep first
-                    # 4 content tokens. Same visual outcome across all 4 pipeline
-                    # modes (staged, bundled, extraction_bundled, mega_bundled).
-                    _bullets_gi_topics = summary_metadata.bullets
-                    if _bullets_gi_topics:
-                        gi_topic_labels = []
-                        for _b in _bullets_gi_topics[:max_gi_topics]:
-                            _s = strip_known_ml_bullet_prefixes(str(_b))
-                            if _s:
-                                gi_topic_labels.append(_bullet_to_topic_phrase(_s))
-                        if not gi_topic_labels:
-                            gi_topic_labels = None
+                # ADR-156 / #2164: the staged-mode bullets fallback (#653 Part D) is GONE. It
+                # shortened each bullet to a 4-token phrase via ``_bullet_to_topic_phrase`` and
+                # called the result a topic. The first four words of a summary bullet are not the
+                # episode's subject, and such a label cannot recur across episodes, so it can never
+                # cluster — structurally incapable of becoming a storyline, which is the only reason
+                # Topics exist. ``gi_topic_labels`` now comes solely from the extractor's own topics
+                # above, and otherwise stays None; GI receives the canonical set by alignment with
+                # the KG (``gi.topic_alignment``).
                 gi_episode_duration_ms: Optional[int] = None
                 if episode_duration_seconds is not None and int(episode_duration_seconds) > 0:
                     gi_episode_duration_ms = int(episode_duration_seconds) * 1000
@@ -5092,26 +5033,15 @@ def generate_episode_metadata(  # noqa: C901
 
                 transcript_text_kg, _, _ = excise_ad_regions(transcript_text_kg)
         publish_date_str_kg = episode_published_date.isoformat() if episode_published_date else None
-        max_kg_topics = int(
-            getattr(cfg, "kg_max_topics", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
-            or config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
-        )
-        topic_labels_kg: Optional[List[str]] = None
-        if summary_metadata and getattr(summary_metadata, "bullets", None):
-            bullets_kg = summary_metadata.bullets
-            if bullets_kg:
-                topic_labels_kg = []
-                for _b in bullets_kg[:max_kg_topics]:
-                    _s = strip_known_ml_bullet_prefixes(str(_b))
-                    if _s:
-                        topic_labels_kg.append(_s)
-                if not topic_labels_kg:
-                    topic_labels_kg = None
-        topic_hint_kg: Optional[str] = None
-        if topic_labels_kg:
-            topic_hint_kg = str(topic_labels_kg[0])[:200]
-        elif summary_text:
-            topic_hint_kg = str(summary_text)[:200]
+        # ADR-156 / #2164: summary bullets are NOT a topic source. This block used to hand the
+        # episode's bullets to the KG as ``topic_labels`` — verbatim, with no shortening, unlike the
+        # GI path twenty lines up which ran them through ``_bullet_to_topic_phrase`` first. The same
+        # bullets therefore became 4-token phrases in gi.json and 30-word sentences in kg.json.
+        #
+        # Measured on prod 2026-09-27: 830 sentence-shaped Topic nodes corpus-wide, and 96 episodes
+        # where EVERY topic was a 27-35 word sentence, rendering an empty chip row because
+        # ``is_filler_topic`` correctly rejects prose. The app layer was right; the input was wrong.
+        # Only the extraction provider may create a Topic now.
         # #2062: the graph must be told who the DIARIZATION ROSTER heard, not who the feed's
         # show notes guessed before a single second of audio was read. Passing the raw parameters
         # here is what left 93.2% of roster-named guests out of kg.json on production.
@@ -5171,8 +5101,6 @@ def generate_episode_metadata(  # noqa: C901
                     episode_title=episode.title,
                     publish_date=publish_date_str_kg,
                     transcript_ref=transcript_ref_for_kg,
-                    topic_label=topic_hint_kg if not topic_labels_kg else None,
-                    topic_labels=topic_labels_kg,
                     detected_hosts=graph_hosts,
                     detected_guests=graph_guests,
                     cfg=cfg,
