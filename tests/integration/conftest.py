@@ -12,6 +12,7 @@ collection — see the fixture present.
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import os
 import time as _real_time
@@ -214,6 +215,27 @@ APP_VALIDATION_CORPUS = (
 )
 
 
+def _app_validation_inputs_digest() -> str:
+    """Fingerprint of the corpus the search index is derived FROM: (relpath, size) per input.
+
+    Deliberately NOT mtime. A fresh clone stamps every file with checkout time in no guaranteed
+    order, so an mtime comparison would rebuild at random on clean checkouts, and `git checkout` of
+    an unchanged file touches it anyway. (path, size) is stable across clones and changes whenever
+    an episode is added, removed or edited — which is the only question being asked.
+    """
+    parts = []
+    for sub in ("feeds", "enrichments"):
+        root = APP_VALIDATION_CORPUS / sub
+        if not root.is_dir():
+            continue
+        for p in sorted(root.rglob("*.json")):
+            try:
+                parts.append(f"{p.relative_to(APP_VALIDATION_CORPUS)}:{p.stat().st_size}")
+            except OSError:
+                continue
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()
+
+
 @pytest.fixture(scope="session")
 def app_validation_search_index() -> Path:
     """The app-validation corpus, guaranteed to carry a two-tier search index.
@@ -248,6 +270,10 @@ def app_validation_search_index() -> Path:
 
     lance = APP_VALIDATION_CORPUS / "search" / "lance_index"
     sidecar = APP_VALIDATION_CORPUS / "search" / "metadata.json"
+    # Inside lance_index/ because that whole directory is gitignored — a stamp beside it in
+    # search/ would show up as an untracked file, since only named files there are ignored.
+    stamp = lance / ".fixture_inputs.sha256"
+    _inputs_digest = _app_validation_inputs_digest
 
     def _present() -> bool:
         """Present AND built by a real embedder — a poisoned cache must not be served.
@@ -273,6 +299,20 @@ def app_validation_search_index() -> Path:
             # FileLock, so doing it inline let an xdist sibling observe a half-deleted index
             # (directory still present, index_meta.json already gone) and take the
             # "older index shape" branch — serving exactly the artifact we were removing.
+            return False
+        # STALE AGAINST THE CORPUS — the second way this cache can lie, and the one that cost an
+        # afternoon on 2026-09-28. The poisoning check above asks "was this built by a real
+        # embedder?"; it never asked "was it built from the corpus that is on disk NOW?". A working
+        # copy whose index predated a fixture change served it happily:
+        # `TestPoolIsInterestAware` asserted 5 episodes under topic:personal-finance and got 4,
+        # which reads exactly like a code regression. It cannot reproduce on CI, because a clean
+        # clone has no index and therefore always builds a correct one — so the failure is
+        # invisible where it would be diagnosed and permanent where it would not.
+        #
+        # A missing stamp means an index built before this check existed: treat as stale and
+        # rebuild once. A spurious rebuild costs ~16s and is always SAFE; a false "fresh" is the
+        # bug, so the asymmetry is deliberate.
+        if not stamp.is_file() or stamp.read_text(encoding="utf-8").strip() != _inputs_digest():
             return False
         return True
 
@@ -322,6 +362,11 @@ def app_validation_search_index() -> Path:
                     missing_ok=True
                 )
                 rc = cli_main(["index-two-tier", "--output-dir", str(APP_VALIDATION_CORPUS)])
+                # Stamp the inputs this index was built FROM, before the _present() check below —
+                # which now requires the stamp, so writing it afterwards would make every fresh
+                # build look stale and skip the tests it just enabled.
+                if rc in (0, None) and lance.is_dir():
+                    stamp.write_text(_inputs_digest(), encoding="utf-8")
             except Exception as exc:  # noqa: BLE001 — any build failure => skip, not fail
                 pytest.skip(f"could not build search index (embedding model offline?): {exc}")
             if rc not in (0, None) or not _present():
