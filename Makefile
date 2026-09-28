@@ -2096,6 +2096,40 @@ ios-origin-up:
 # Deliberately not `.PHONY`-exported as a user-facing target — it is a step, and running it by hand
 # with no SECRET leaves an api that cannot log anyone in.
 _app-e2e-api-restart:
+	@# THE VOLUMES MUST ALREADY EXIST AND HOLD THE CORPUS.
+	@#
+	@# `docker run -v name:/path` CREATES a missing named volume, empty, and says nothing. This
+	@# target only ever re-runs an api over state that `app-e2e-api-up` seeded, so a missing volume
+	@# means the name drifted — and the silent creation converts that into an api with no episodes,
+	@# no accounts, and a root-owned `/app/state` the non-root app user cannot write.
+	@#
+	@# MEASURED 2026-09-28, and it cost a 70-minute tier run. `APP_E2E_VOL`/`STATE` became
+	@# worktree-scoped earlier that day, while a container from before the rename was still serving
+	@# :8011 against the OLD volumes. `ios-origin-up`'s "already healthy" short-circuit skipped
+	@# `app-e2e-api-up`, so the new names were never created. Phases 1-5 passed against the old
+	@# volumes; then this target ran with the NEW names, Docker made them empty, and the degraded
+	@# drill asserted incident behaviour against an api with nothing in it. It failed four steps
+	@# later as "the app's WebView never painted", naming a surface rather than the cause.
+	@#
+	@# So: FAIL here, where the name is, instead of somewhere downstream where it is not.
+	@for v in $(APP_E2E_VOL) $(APP_E2E_STATE); do \
+		docker volume inspect "$$v" >/dev/null 2>&1 || { \
+			echo "FAIL: volume '$$v' does not exist, and this target must not create it."; \
+			echo "      It restarts an api over ALREADY-SEEDED state; an empty volume would give"; \
+			echo "      an api with no corpus and no accounts, which fails much later and"; \
+			echo "      elsewhere. Run 'make app-e2e-api-up' to seed it, or reconcile the name."; \
+			exit 1; }; \
+	done
+	@# SEEDED, not merely non-empty. A "does it have any entries" count is not enough: the first
+	@# version of this guard counted a stray `.viewer` directory the origin had written and passed
+	@# a corpus volume with no corpus in it. Look for the thing the seeder actually puts there.
+	@docker run --rm -v $(APP_E2E_VOL):/c $(APP_E2E_IMAGE) \
+		sh -c 'test -d /c/feeds' >/dev/null 2>&1 || { \
+		echo "FAIL: corpus volume '$(APP_E2E_VOL)' has no 'feeds/' — it is not seeded."; \
+		echo "      The api would come up healthy and serve nothing, so every content assertion"; \
+		echo "      after this point would fail for a reason that has nothing to do with the app."; \
+		echo "      Run 'make app-e2e-api-up' to re-seed it."; \
+		exit 1; }
 	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
 	@docker run -d --name $(APP_E2E_CT) -p $(APP_E2E_PORT):8000 \
 		-v $(APP_E2E_VOL):/app/output -v $(APP_E2E_STATE):/app/state \
@@ -2605,19 +2639,41 @@ test-android-server-degraded:
 	@echo "--> 2/3 restarting the api with NO signing secret, same data (the reboot)"
 	@$(MAKE) _app-e2e-api-restart SECRET=
 	@# PROVE the scenario before asserting on it. A silently-wrong drill is what this cost.
-	@code=$$(curl -s -o /dev/null -w '%{http_code}' \
+	@#
+	@# THE STATUS CODE IS NOT THE PROOF — the BODY is. `503` is returned by at least two unrelated
+	@# faults, and this drill is only about one of them:
+	@#     {"detail":"Auth is not configured."}                       <- no signing secret. THIS one.
+	@#     {"detail":"Storage temporarily unavailable (permission..."} <- /app/state unwritable.
+	@# On 2026-09-28 the second one satisfied a code-only check, and the drill printed "the incident,
+	@# reproduced" over an api that had no corpus, no accounts and an unwritable state dir. Every
+	@# assertion after it was meaningless, and the suite failed on a blank WebView instead.
+	@body=$$(curl -s -w '\n%{http_code}' \
 		-H "Authorization: Bearer probe.probe.probe" \
 		"http://127.0.0.1:$(APP_E2E_PORT)/api/app/me"); \
+	code=$$(echo "$$body" | tail -1); detail=$$(echo "$$body" | sed '$$d'); \
 	[ "$$code" = "503" ] || { \
 		echo "FAIL: the api answers $$code on /api/app/me, not 503 — it can still authenticate,"; \
 		echo "      so this is NOT the lost-secret incident and the assertions below are vacuous."; \
-		exit 1; }
-	@echo "✓ api is UP and cannot authenticate anyone (503) — the incident, reproduced"
+		exit 1; }; \
+	case "$$detail" in \
+		*"Auth is not configured"*) ;; \
+		*) echo "FAIL: the api answers 503, but NOT for the missing signing secret:"; \
+		   echo "      $$detail"; \
+		   echo "      A 503 from another fault (commonly an unwritable /app/state) would make this"; \
+		   echo "      drill assert incident behaviour against a differently-broken server."; \
+		   exit 1;; \
+	esac
+	@echo "✓ api is UP and cannot authenticate anyone (503 'Auth is not configured') — reproduced"
 	@echo "--> 3/3 asserting the app notices, stays honest, and keeps its cache"
 	@$(MAKE) android-suite SUITE=ServerDegradedTests TEST=test11bDegradedServerIsDetectedAndCacheSurvives; \
 		rc=$$?; \
 		echo "--> restoring the api (this drill leaves it UNABLE TO AUTHENTICATE)"; \
-		$(MAKE) _app-e2e-api-restart SECRET=e2e-secret >/dev/null 2>&1 || true; \
+		if ! $(MAKE) _app-e2e-api-restart SECRET=e2e-secret >/tmp/lp-degraded-restore.log 2>&1; then \
+			echo "FAIL: the api was NOT restored — it is still unable to authenticate anyone."; \
+			echo "      Every later suite would fail against it for a reason of this drill's making."; \
+			sed 's/^/      /' /tmp/lp-degraded-restore.log; \
+			rc=1; \
+		fi; \
 		exit $$rc
 
 android-emulator-up:
