@@ -1563,10 +1563,21 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
     @patch("podcast_scraper.gi.build_artifact")
     @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
     @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
-    def test_generate_episode_metadata_passes_topic_labels_from_summary_bullets(
+    def test_summary_bullets_are_NOT_passed_as_gi_topic_labels(
         self, mock_determine, mock_serialize, mock_build_artifact, mock_write_artifact, mock_gen_sum
     ):
-        """Summary bullets become topic_labels on build_artifact when GIL runs."""
+        """THE INVERSION (ADR-156 / #2164). Was ``..._passes_topic_labels_from_summary_bullets``.
+
+        This test asserted the opposite: that the episode's summary bullets became GI
+        ``topic_labels``. That was the staged-mode fallback (#653 Part D), which shortened each
+        bullet to a 4-token phrase and called it a topic — while the KG path handed the SAME bullets
+        over unshortened. One summariser, two different fabrications, and 830 sentence-shaped Topic
+        nodes on prod.
+
+        GI still ACCEPTS ``topic_labels`` — that is how it receives the extractor's own topics via
+        ``prefilled_extraction``. What must never happen again is bullets arriving there. With only
+        bullets present and no extractor topics, the argument must be absent.
+        """
         from datetime import datetime
 
         self.cfg = create_test_config(
@@ -1604,7 +1615,11 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.assertEqual(result, metadata_path)
         mock_build_artifact.assert_called_once()
         call_kw = mock_build_artifact.call_args[1]
-        self.assertEqual(call_kw.get("topic_labels"), ["Alpha Topic", "Beta Topic"])
+        self.assertIsNone(
+            call_kw.get("topic_labels"),
+            "summary bullets reached GI as topic_labels again — that is the #653 Part D fallback "
+            "ADR-156 removed; a 4-token slice of a bullet is not a subject and can never cluster",
+        )
 
     @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
     @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")

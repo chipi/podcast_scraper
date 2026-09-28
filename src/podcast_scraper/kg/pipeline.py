@@ -8,7 +8,6 @@ from typing import Any, cast, Dict, List, Optional, Set
 
 from .. import config_constants
 from ..graph_id_utils import (
-    canonical_topic_slug,
     entity_node_id,
     episode_node_id,
     is_person_or_org_node,
@@ -139,20 +138,6 @@ def _apply_kg_filters(
             pipeline_metrics.record_entities_consolidated(ents_merged)
 
     return llm_partial
-
-
-def _topic_labels_from_args(
-    topic_labels: Optional[List[str]],
-    topic_label: Optional[str],
-    cfg: Optional[Any],
-) -> List[str]:
-    labels: List[str] = []
-    if topic_labels:
-        labels.extend(str(x).strip() for x in topic_labels if str(x).strip())
-    elif topic_label and topic_label.strip():
-        labels.append(topic_label.strip())
-    max_t = _max_topics(cfg)
-    return labels[:max_t]
 
 
 def _resolve_ner_prepass(
@@ -335,8 +320,6 @@ def build_artifact(
     publish_date: Optional[str] = None,
     transcript_ref: str = "transcript.txt",
     model_version: Optional[str] = None,
-    topic_label: Optional[str] = None,
-    topic_labels: Optional[List[str]] = None,
     detected_hosts: Optional[List[str]] = None,
     detected_guests: Optional[List[str]] = None,
     cfg: Optional[Any] = None,
@@ -362,8 +345,6 @@ def build_artifact(
         publish_date: ISO publish date string or None.
         transcript_ref: Relative transcript path for provenance.
         model_version: Optional override for extraction.model_version.
-        topic_label: Optional single summary bullet / topic hint (legacy).
-        topic_labels: Optional list of topic hints (e.g. summary bullets); capped by cfg.
         detected_hosts: Optional host names from speaker pipeline.
         detected_guests: Optional guest names from speaker pipeline.
         cfg: Optional Config (KG extraction source, limits, merge flag).
@@ -397,7 +378,6 @@ def build_artifact(
     # RFC-097 v2.0: emit Podcast node + HAS_EPISODE edge alongside Episode.
     _append_podcast_and_has_episode(ep_props["podcast_id"], ep_node_id, nodes, edges)
 
-    bullet_labels = _topic_labels_from_args(topic_labels, topic_label, cfg)
     llm_partial: Optional[Dict[str, Any]] = None
     resolved_model = model_version
 
@@ -471,47 +451,55 @@ def build_artifact(
             mid_s = mid or "unknown"
             resolved_model = f"provider:{mid_s}"
     elif source == "provider" and kg_extraction_provider is not None:
-        # Provider extraction was ATTEMPTED and produced nothing. Do NOT fall through to the
-        # bullet path below.
+        # Provider extraction was ATTEMPTED and produced nothing.
         #
-        # The ``kg_extraction_provider is not None`` half is load-bearing: "a provider was
-        # configured and failed" is a different state from "no provider was ever wired up", and
-        # only the first one makes bullet substitution a lie. Callers that pass a ``topic_label``
-        # hint with no provider — tests, legacy callers — are untouched and still get their hint.
+        # #1208 added this branch to stop a failed extraction silently becoming a FABRICATED KG:
+        # summary bullets are sentences ("Product development in frontier AI requires building for
+        # model capabilities two to three months ahead"), so every Topic node became a truncated
+        # proposition unique to its episode, while Insight, Person and Quote nodes were absent
+        # entirely because GI never ran. Observed on a real ingest — 8 topics, 0 insights,
+        # 0 entities, and nothing anywhere saying extraction had failed.
         #
-        # That fallback exists for callers who pass a ``topic_label`` hint and no extraction
-        # provider — tests and legacy callers, per its own docstring. It was also silently
-        # catching production extraction FAILURES, and the result is not a degraded KG, it is a
-        # fabricated one: summary bullets are sentences ("Product development in frontier AI
-        # requires building for model capabilities two to three months ahead"), so every Topic
-        # node became a truncated proposition unique to its episode, while Insight, Person and
-        # Quote nodes were absent entirely because GI never ran. Observed on a real ingest —
-        # 8 topics, 0 insights, 0 entities, and nothing anywhere saying extraction had failed.
+        # ADR-156 finished the job: the bullet path this used to guard against no longer exists at
+        # all, for ANY caller. This branch now only distinguishes "a provider was configured and
+        # returned nothing" from "no provider was configured", because those are different
+        # operational faults and the provenance should not blur them.
         #
-        # An empty topic set is the honest outcome: the artifact then reports its provenance as
-        # a failed extraction, and every downstream consumer (clustering, co-occurrence,
-        # trending) correctly sees nothing rather than being poisoned with sentences.
+        # An empty topic set is the honest outcome: every downstream consumer (clustering,
+        # co-occurrence, trending) correctly sees nothing rather than being poisoned with sentences.
         logger.warning(
-            "kg: provider extraction produced no topics/entities for episode_id=%s; NOT "
-            "substituting %d summary bullet(s) as topics (they are sentences, not subjects). "
-            "The KG will have no Topic nodes — check the extraction provider.",
+            "kg: provider extraction produced no topics/entities for episode_id=%s; the KG will "
+            "have no Topic nodes — check the extraction provider.",
             episode_id or "?",
-            len(bullet_labels or []),
         )
         if resolved_model is None:
             resolved_model = "provider:extraction_failed"
-    elif source != "metadata_only" and bullet_labels:
-        # No extraction provider configured — the caller supplied topic labels as a hint. This is
-        # the tests / legacy path the comment above refers to, and it is legitimate here because
-        # nothing was attempted and failed.
-        kept = _append_topics_from_labels(ep_node_id, bullet_labels, nodes, edges)
+    elif source != "metadata_only":
+        # NO FALLBACK: only the extractor may create a Topic (ADR-156, #2164).
+        #
+        # This branch used to build Topic nodes from the episode's summary bullets, turning the
+        # episode's ``summary.bullets`` into Topic nodes whenever no provider was wired up. It was
+        # never coherent: the workflow layer shortens bullets through ``_bullet_to_topic_phrase``
+        # (max 4 tokens) before handing them to the GI path and did NOT before handing them here,
+        # so the same bullets became 4-token phrases in one artifact and 30-word sentences in
+        # another. Measured on prod 2026-09-27: 96 episodes whose EVERY Topic node was a 27-35
+        # word sentence — all rejected by ``is_filler_topic``, so the chips rendered empty anyway,
+        # while ``topic_cooccurrence`` (which applies no filter) happily paired them into trending
+        # and the theme clusters above it.
+        #
+        # A topic is a subject; prose is not. No extractor means no topics, said plainly in the
+        # provenance so the misconfiguration is visible instead of disguised as success.
+        logger.warning(
+            "kg: kg_extraction_source=%r for episode_id=%s but no extraction provider produced "
+            "topics; the KG will have NO Topic nodes. Summary bullets are NOT substituted — they "
+            "are prose, not subjects (ADR-156 / #2164).",
+            source,
+            episode_id or "?",
+        )
         if resolved_model is None:
-            base = "topic_labels" if cfg is not None else "metadata_only"
-            # Labels were supplied and NONE survived noun-phrase enforcement: the KG has no
-            # Topic nodes, and a bare "topic_labels" would claim they were used. A reader
-            # cannot then tell that apart from an episode never given labels at all — the
-            # silent-empty shape this branch exists to remove (#1208).
-            resolved_model = base if kept else f"{base}:all_propositions"
+            # Distinct from ``metadata_only``: that is a deliberate reduced mode, this is a
+            # misconfiguration. Collapsing them would make the accident unreadable.
+            resolved_model = "no_extractor"
 
     # "metadata_only" is a real provenance value: this KG came from episode metadata and the
     # pipeline's own hosts/guests, with no LLM involved. It was labelled "stub" until #1657,
@@ -817,70 +805,6 @@ def _append_podcast_and_has_episode(
             "properties": {},
         }
     )
-
-
-def _append_topics_from_labels(
-    ep_node_id: str,
-    labels: List[str],
-    nodes: List[Dict[str, Any]],
-    edges: List[Dict[str, Any]],
-) -> int:
-    """Append Topic nodes for *labels*; return how many survived noun-phrase enforcement.
-
-    The count is the caller's only way to tell "no labels supplied" apart from "labels
-    supplied and every one was a proposition". Those are different facts about a run and
-    must not collapse into one provenance string.
-    """
-    seen_slugs: Set[str] = set()
-    dropped_propositions: List[str] = []
-    for raw in labels:
-        if not raw.strip():
-            continue
-        lab = raw.strip()[:500]
-        # #1933: canonical topic slug so variants collapse to one id at write time.
-        slug = canonical_topic_slug(lab)
-        if slug in seen_slugs:
-            continue
-        seen_slugs.add(slug)
-        topic_id = topic_node_id_from_slug(slug)
-        # #587: enforce the noun-phrase cap here too. This site used to slice at [:200], which
-        # bypassed the enforcement in ``llm_extract`` and let sentence-shaped labels through.
-        # Measured on the 1,066-episode corpus: 679 labels (7.3%) exceeded 50 chars, and NOT ONE
-        # of them ever recurred in a second episode (vs 6.9% of short labels) — a truncated
-        # sentence cannot be emitted identically twice, so those topics were structurally
-        # incapable of clustering or forming a theme. Overflow goes to ``description`` so nothing
-        # is lost; the embedder reads label + description either way.
-        # Returns None for a PROPOSITION — a sentence, not a topic. Dropped rather than
-        # truncated: cutting it produces a unique mid-sentence fragment that reads like a real
-        # topic and can never cluster. This is the site the live provider path uses.
-        t_enforced = _enforce_noun_phrase_label(lab.strip())
-        if t_enforced is None:
-            dropped_propositions.append(lab.strip())
-            continue
-        t_label, t_overflow = t_enforced
-        t_props: Dict[str, Any] = {"label": t_label[:200], "slug": slug}
-        if t_overflow:
-            t_props["description"] = t_overflow[:2000]
-        nodes.append(
-            {
-                "id": topic_id,
-                "type": "Topic",
-                "properties": t_props,
-            }
-        )
-        edges.append({"from": topic_id, "to": ep_node_id, "type": "MENTIONS", "properties": {}})
-
-    if dropped_propositions:
-        # Loud: a provider emitting propositions instead of noun phrases is a signal about the
-        # RUN (it is what a degraded fallback tier does), and an episode whose topics all vanish
-        # must be attributable to that rather than reading as an episode about nothing.
-        logger.warning(
-            "kg: dropped %d topic label(s) that were propositions, not noun phrases; sample=%r",
-            len(dropped_propositions),
-            dropped_propositions[:3],
-        )
-
-    return len(seen_slugs) - len(dropped_propositions)
 
 
 def _append_topics_and_entities_from_partial(

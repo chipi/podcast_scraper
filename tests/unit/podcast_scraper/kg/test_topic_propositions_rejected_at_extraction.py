@@ -129,7 +129,11 @@ def test_every_call_site_handles_the_none_return() -> None:
             if "_enforce_noun_phrase_label(" in line and not line.lstrip().startswith("def "):
                 sites.append((module, line.strip()))
 
-    assert len(sites) == 4, (
+    # THREE, not four, since ADR-156 / #2164: the fourth was in the bullets→Topic fallback in
+    # kg/pipeline.py, and that path is gone entirely. The count is still asserted exactly, because
+    # the point of this test is that a NEW site cannot appear without a deliberate decision here —
+    # loosening it to ">=" would give back the hole it was written to close.
+    assert len(sites) == 3, (
         f"the call-site count changed ({len(sites)}); each one must handle the None return "
         f"(= this label is a proposition, drop it):\n"
         + "\n".join(f"  {m}: {ln}" for m, ln in sites)
