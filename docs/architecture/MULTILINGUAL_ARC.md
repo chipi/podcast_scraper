@@ -91,11 +91,6 @@ and shippable without leaving the tree half-built. Nothing is opened yet.
 files, real test surface; **L** = multi-day, new subsystem or a migration. *Ship alone?* asks whether
 merging only this leaves `main` correct and coherent.
 
-**A constraint that shapes several slices.** The operator plans to move **from a corpus to a database
-over the coming weeks**. So: prefer additive, low-ceremony changes; do not build corpus-level
-infrastructure the database move will obsolete; and where a change would force an index rebuild, ask
-whether it can wait for the rebuild that migration brings anyway.
-
 ---
 
 ### Phase 0 — English as a declared language
@@ -107,7 +102,7 @@ and the same machinery carries any other language.
 | # | Issue title | Goal | Depends on | Size | Ship alone? |
 | --- | --- | --- | --- | --- | --- |
 | **S0.1a** | Parse and persist the feed's declared language | Extract the channel `<language>` (a `channel.find("language")` in the pattern `rss/parser.py` already uses for title, author and description) and carry it on `RssFeed` and `FeedMetadata`; persist `feed.language_raw`, `feed.language`, `feed.language_source`, plus an **episode-level** `language` and `language_source`. Add the field to `RssFeed` as a defaulted field, never positional — it is constructed at ~53 test sites. Note there are two `FeedMetadata` types (a persisted pydantic one and a positional NamedTuple); the slice must name which. | — | M | Yes |
-| **S0.1b** | Backfill language onto the existing corpus | **The real long pole, and its mechanism is an open decision** (§8.1): existing metadata holds no RSS language text to recover, the migration fixture has a `feed` block with no URL, and `skip_existing` is GUID-keyed so a normal run never rewrites processed episodes. Decide between a backfill CLI that refetches live, reading cached feed XML if prod keeps any, or accepting `language_source: unknown` for legacy episodes. Whether a formal corpus migration is needed at all is also open. | S0.1a | L | Yes |
+| **S0.1b** | Backfill language onto the existing corpus | A one-off script, **per show, not per episode**: walk the shows in the corpus, fetch each feed, read its `<language>`, normalize it, and write it onto the show plus every episode under that show. The language is a property of the feed, so one fetch backfills all of its episodes. Runs as a migration so it is versioned, re-runnable and recorded like any other corpus fix, rather than a script somebody remembers running. Needs: a feed whose URL is missing from the metadata block is reported and skipped, not guessed; the CI migration fixture has a `feed` block with no `url`, so the migration must tolerate that rather than fail; and a `--dry-run` that prints the distribution before writing. Reported per show so the output doubles as S0.4's first data. | S0.1a | M | Yes |
 | **S0.2** | Language-tag normalization and per-episode resolution | `normalize_language_tag` and `resolve_episode_language(feed_entry, feed_doc, cfg)`; `config/languages.yaml` registry with `en` the only enabled language. Must route the profile default through the same normalizer — `Config._normalize_language` only lowercases today, so `language: en-US` yields `en-us`, which fails `whisper_utils.py:50`'s `is_english` check: **a live bug this slice fixes**. The edge-case table and whether script is retained are open (§8.2). | S0.1a | M | Yes |
 | **S0.3** | Per-feed language override | `rss/feeds_spec.py` already accepts a mapping per feed entry, but `RssFeedEntry` has explicit typed fields **and** `extra="forbid"` — so this needs both a model field and an `RSS_FEED_ENTRY_OVERRIDE_KEYS` entry. Consequence worth knowing: `merge_feed_entry_into_config` makes the per-feed `Config` the run's `cfg`, so the override reaches every existing `cfg.language` reader with no threading — but in a multi-feed batch the ML singleton is held across feeds, so feed 1's Whisper model persists and feed 2's language is silently ignored (see S0.7). | S0.2 | S | Yes |
 | **S0.4** | Corpus language audit over real data | Read-only CLI in the existing `check_corpus` pattern: walk every feed and episode, resolve a language, report the distribution and every item not resolving to `en`, each with its resolution source. Commit the report — **S0.6 depends on it being clean.** Runs after S0.1b, or it can only re-read the run config and reports a guaranteed 100% `en`, which proves nothing. | S0.1b, S0.2 | S | Yes |
@@ -201,7 +196,7 @@ S2.1 (standalone, any time) ══════╬═════ V.2 ───�
                                                                              {S3.1, S3.2}
 ```
 
-Phase 0 is close to serial through `S0.1a → S0.2 → S0.6`, and S0.1b is its long pole. For one operator
+Phase 0 is close to serial through `S0.1a → S0.2 → S0.6`. For one operator
 the human-shaped item — V.2's demand instrument — has the longest lead time and should start early even
 though nothing blocks on it.
 
@@ -369,9 +364,9 @@ result.** This also reclassifies the script question from display to **capabilit
 | D-11 | **Revised.** The badge and the filter are **v2**, shipping together | A language chip was deliberately deleted in #2115 because the corpus is monolingual; that reasoning expires exactly when a second language arrives. v1 delivers the data, not the chrome. Operator confirmed the reversal is intended | revised 2026-09-28 |
 | D-12 | The language filter is its own control, not an option inside the played/downloaded filter | The dimensions are orthogonal | 2026-09-28 |
 | D-13 | **Withdrawn.** Serbian is not demoted; the pilot is chosen by measurement (V.5) | Demoting on a Cyrillic-referenced large-v2 number plus two language lists skipped three checks costing about a day (§6.3) | withdrawn 2026-09-28 |
-| D-14 | **Same-language retrieval only, via a separate keyword-only table.** Non-English chunks live in their own table with no vector column; no embedding model changes | A vector-less row **cannot** surface in a semantic result, which a row tag plus a filter cannot guarantee — and a zero vector would actively outrank most real results. It also leaves the existing table untouched, so it should avoid the stale-index outage a column addition forces. Cross-lingual semantics is v2, sequenced at the database migration when the rebuild is already being paid for | revised 2026-09-28 |
+| D-14 | **Same-language retrieval only, via a separate keyword-only table.** Non-English chunks live in their own table with no vector column; no embedding model changes | A vector-less row **cannot** surface in a semantic result, which a row tag plus a filter cannot guarantee — and a zero vector would actively outrank most real results. It also leaves the existing table untouched, so it should avoid the stale-index outage a column addition forces. Cross-lingual semantics is v2 | revised 2026-09-28 |
 | D-15 | **Withdrawn.** No embedding-model change in v1, so its blast radius is moot | Superseded by D-14; findings preserved in v2 doc §7 | withdrawn 2026-09-28 |
-| D-16 | **Withdrawn.** The flag gates the pipeline; visibility is controlled by **when the feed is added to the production feed list** | There is no per-episode serving gate: ~32 modules walk the corpus independently and the indexer walks metadata directly, so a catalog filter would not stop search, CIL, MCP or digest. A separate corpus root was considered and rejected — the corpus is becoming a database shortly and should not be complicated. Config, not code, and it survives that move | withdrawn 2026-09-28 |
+| D-16 | **Withdrawn.** The flag gates the pipeline; visibility is controlled by **when the feed is added to the production feed list** | There is no per-episode serving gate: ~32 modules walk the corpus independently and the indexer walks metadata directly, so a catalog filter would not stop search, CIL, MCP or digest. A separate corpus root was considered and rejected — one corpus, no split. Which feed is in the production feed list is config, not code | withdrawn 2026-09-28 |
 | D-17 | **Labelling and the Positions gate ship in Phase 2**, before any translated episode is served | The gate keys on the marker, so a claim written without one slips through a gate that is only fail-closed when the marker exists | 2026-09-28 |
 | D-18 | Decisions here graduate to **ADRs** as they are implemented | The engineering process puts decisions in ADRs; this many living only in an arc note is process drift. V.4 is the first | 2026-09-28 |
 | D-19 | **Translation runs after transcription and diarization, before summary** — in **one** seam, inside `generate_episode_metadata` | Summary output feeds GI topic labels and KG topics, so translating later gives English insights on Greek topics and fragments cross-episode identity. One seam covers ASR, cache hits, direct downloads, publisher transcripts and every reprocess cascade; "after transcription" names a seam that does not exist for publisher-transcript episodes | refined 2026-09-28 |
@@ -379,29 +374,24 @@ result.** This also reclassifies the script question from display to **capabilit
 
 ## 8. Open decisions
 
-1. **S0.1b's backfill mechanism.** No RSS language text exists in current metadata to recover; the
-   migration fixture has no feed URL; `skip_existing` means a normal run never rewrites processed
-   episodes. Refetch live in a CLI, read cached feed XML if prod keeps any, or accept
-   `language_source: unknown` for legacy episodes? And does this need a formal corpus migration at all,
-   given the database move is weeks away and the repo's own rule exempts additive optional fields?
-2. **The normalizer's contract.** Behaviour for empty, `und`, `zxx`, `mul`, three-letter codes, macro
+1. **The normalizer's contract.** Behaviour for empty, `und`, `zxx`, `mul`, three-letter codes, macro
    languages and case; and **whether script is retained** — `sr-Latn-RS` → `sr` throws away the one
    datum V.5 needs (§6.3).
-3. **Does the local Whisper tier serve non-English at all?** "No" makes S0.7 an S; "yes" makes it an L
+2. **Does the local Whisper tier serve non-English at all?** "No" makes S0.7 an S; "yes" makes it an L
    with a per-call model cache.
-4. **Status vocabulary.** `EpisodeStatus.status` is `Literal["ok","failed","skipped"]` and does not
+3. **Status vocabulary.** `EpisodeStatus.status` is `Literal["ok","failed","skipped"]` and does not
    admit `skipped_unsupported_language`, `deferred_quality_floor` or `translation_pending`.
-5. **Non-diarized episodes** — how many exist, and do they get turns? The offset derivation skips
+4. **Non-diarized episodes** — how many exist, and do they get turns? The offset derivation skips
    segments it cannot locate, which breaks the every-segment-in-one-turn invariant. Blocks S1.1.
-6. **Does V.3 stay a five-candidate bake-off**, or trim to a single-model sanity check with the
+5. **Does V.3 stay a five-candidate bake-off**, or trim to a single-model sanity check with the
    comparison moved to v2? (v2 doc §10.)
-7. **How much speaker aliasing is v1?** (v2 doc §10.)
-8. **Is the transcript toggle and source reveal v1 or v2?** (S3.1; v2 doc §10.)
-9. **Legal.** Translations are derived works; the Gemma terms carry downstream obligations for served
+6. **How much speaker aliasing is v1?** (v2 doc §10.)
+7. **Is the transcript toggle and source reveal v1 or v2?** (S3.1; v2 doc §10.)
+8. **Legal.** Translations are derived works; the Gemma terms carry downstream obligations for served
    outputs; GDPR erasure must enumerate `.en.*`, `translation.json` and provenance records.
-10. **Keyword recall in the pilot language** through the index's English tokenizer (stemming,
-    stop-words, accent folding). S2.9 measures it; if poor, the options are a per-language FTS table or
-    accepting it explicitly.
+9. **Keyword recall in the pilot language** through the index's English tokenizer (stemming,
+   stop-words, accent folding). S2.9 measures it; if poor, the options are a per-language FTS table or
+   accepting it explicitly.
 
 ## 9. Running notes
 
@@ -434,11 +424,16 @@ product end to end; v2 is translation quality and fine edges"* — moved these t
 [MULTILINGUAL_ARC_V2](MULTILINGUAL_ARC_V2.md): QE, source verification and the operator worklist, the
 badge and the language filter, all three turns consumers, and cross-lingual semantic retrieval. The
 native-speaker reviewer was replaced by an **LLM judge validated by fault injection** (D-20), removing
-the arc's only human dependency. **D-16 withdrawn** — no serving gate and no separate corpus root; the
-corpus is becoming a database shortly and should not be complicated, so visibility is controlled by when
-a feed is added to the production feed list. **D-14 settled on option B** — a separate keyword-only
-table, which makes a non-English chunk structurally incapable of appearing in a semantic result and
-should avoid the schema bump. Nothing implemented; no issues opened.
+the arc's only human dependency. **D-16 withdrawn** — no serving gate and no separate corpus root, one
+corpus; visibility is controlled by when a feed is added to the production feed list. **D-14 settled on
+option B** — a separate keyword-only table, which makes a non-English chunk structurally incapable of
+appearing in a semantic result and should avoid the schema bump. Nothing implemented; no issues opened.
+
+**2026-09-28 — the backfill is specified, and §8 is down to nine items.** S0.1b is a one-off migration
+that walks **shows**, fetches each feed's `<language>` once, and writes it onto the show and every
+episode under it — the language belongs to the feed, so one fetch covers all of its episodes. Versioned
+and re-runnable as a migration rather than a script someone remembers, with a `--dry-run` that prints the
+distribution first and per-show reporting that feeds S0.4. Re-sized M from L.
 
 <!-- Append new entries above this line. Decisions go in §7 with a D-number; facts about the code go in
      §5; claims found false go in §5.4; anything deferred goes in MULTILINGUAL_ARC_V2.md, never deleted. -->

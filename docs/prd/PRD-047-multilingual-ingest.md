@@ -28,11 +28,12 @@ original transcript, and can switch to English subtitles. Every claim that rests
 is marked as such, records the source sentences it rests on, and — where it could enter a Position
 timeline — is verified against the source first.
 
-**The first deliverable is not translation.** It is making language an explicit, resolved, validated
-and *visible* property of the corpus we already have: every show and episode carries a language
-badge, an audit proves the existing corpus is English, and no code path can silently substitute
-English for a language it was not given. That work is a correctness fix on today's corpus, it ships
-on its own, and it is exactly the plumbing translation needs.
+**The first deliverable is not translation.** It is making language an explicit, resolved and validated
+property of the corpus we already have: the feed's declared language is actually parsed and persisted, an
+audit reports what the corpus is really in, and no code path can silently substitute English for a
+language it was not given. That work is a correctness fix on today's corpus, it ships on its own, and it
+is exactly the plumbing translation needs. The visible chrome — a badge and a language filter — follows
+in v2, when there is a second language to distinguish.
 
 The product bet is two-sided. For listeners, the hypothesis is that internationally-minded people
 who consume English podcasts also keep a native-language minority in their diet. For the corpus,
@@ -54,7 +55,7 @@ this, and it compounds the cross-show-synthesis moat.
   back out: `metadata_generation.py:957` sets `FeedMetadata(language=cfg.language)`, so
   `server/corpus_catalog.py:159` reads the profile's `en` and `AppPodcastItem.language` serves it.
   There is no episode-level language field at all. Parsing and persisting the real tag — with a
-  metadata migration and a backfill — is therefore the **first** piece of work, not a lift (FR1.1).
+  per-show backfill migration — is therefore the **first** piece of work, not a lift (FR1.1).
 - **Everything downstream of the transcript is English-shaped and should stay that way.** GIL
   grounding requires verbatim substrings with char offsets (`gi/grounding.py`, `EvidenceSpan`).
   Prompts, QA/NLI checks, embeddings (MiniLM) and spaCy NER are all English. Translating once to
@@ -91,8 +92,8 @@ this, and it compounds the cross-show-synthesis moat.
 - **G5.** Claim language support only where a measured quality gate passes, per language.
 - **G6.** Remove ads from non-English episodes as effectively as from English ones, rather than
   appearing to.
-- **G7.** Make the language of every show and episode **visible and filterable** in the product, so a
-  listener can see what language something is in and find things by it.
+- **G7.** Make the language of every show and episode **knowable** — parsed, persisted and exposed on
+  the API — so that seeing and filtering by it (v2) is a rendering question rather than a data one.
 - **G8.** Make English an explicitly declared, checked language before any second language exists, so
   the multilingual path is proven end to end on a corpus we can already verify.
 
@@ -151,9 +152,12 @@ this, and it compounds the cross-show-synthesis moat.
 
 - **FR1.1**: The feed's declared `<language>` is **parsed from the RSS channel and persisted** — it is
   not read today at all. Each feed records `language_raw`, the normalized `language`, and
-  `language_source`; each episode records a `language` and `language_source` of its own. Because this
-  changes the episode metadata shape, it carries a corpus migration, a format-version and
-  reader-support bump, and a backfill over the existing corpus.
+  `language_source`; each episode records a `language` and `language_source` of its own. The existing
+  corpus is backfilled by a one-off migration that works **per show**: fetch each feed once, read its
+  `<language>`, and write it onto that show and every episode under it. The language is a property of the
+  feed, so one fetch covers all of its episodes. It runs as a versioned, re-runnable migration with a
+  dry-run that prints the distribution first, and it reports per show so the output doubles as FR1.6's
+  first data. A feed whose URL is missing from the metadata is reported and skipped, never guessed.
 - **FR1.2**: Each show resolves a language in this order: **operator override > the feed's normalized
   declared language (`el-GR` → `el`) > profile default (`en`)**. The profile default is the only place
   the run-global setting may be read. The override is a key on the feed entry in the feeds spec, which
@@ -322,7 +326,7 @@ per-slice breakdown — each slice sized as one issue, with dependencies and acc
 in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 
 - **Phase 0: English as a declared language.** **Ships on its own, before Gate V.** Parsing and
-  persisting the feed's declared language with its migration and backfill (FR1.1); normalization and
+  persisting the feed's declared language with its per-show backfill (FR1.1); normalization and
   per-episode resolution plus the feed override (FR1.2); the language threaded as an explicit parameter
   with the one-reader invariant (FR1.3); the registry and skip path, ordered after the override
   (FR1.4); the language-ID check (FR1.5); the corpus audit over real data (FR1.6); the new failure
@@ -411,7 +415,7 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
   survival is low, per-language ad cues come back on the table.
 - **There is no episode language to be right or wrong yet.** Nothing parses the feed's declared tag and
   no episode carries a language of its own, so the badge, the audit and the normalization step all have
-  no input until FR1.1 lands. Mitigated by making FR1.1 the first slice, with its migration and backfill,
+  no input until FR1.1 lands. Mitigated by making FR1.1 the first slice, with its per-show backfill,
   rather than assuming the data was already there.
 - **Identity fragmentation across scripts.** Mitigated by FR4.4 and CIL alias rules (RFC-124 §5.4).
 - **Demand does not materialize.** Gate V; Phase 0 and RFC-123 still pay for themselves.
@@ -430,8 +434,10 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
   accepting it explicitly. **This risk replaces an earlier, much larger one** — an embedding-model swap
   that would have re-embedded all 678 existing English episodes against an eval of 25 fixture anchors
   with no CI gate. That is now out of scope entirely.
-- **A migration on episode metadata.** FR1.1 changes the `*.metadata.json` shape and needs a backfill
-  across the existing corpus. Known cost, existing machinery, but it is the long pole in Phase 0.
+- **The backfill depends on feeds still being reachable.** FR1.1's migration fetches each show's feed to
+  read its declared language. A feed that has gone away, moved, or dropped the tag leaves its episodes
+  with `language_source: unknown` — reported, not guessed. Known cost, existing machinery, bounded by the
+  number of shows rather than episodes.
 
 ## Open Questions
 

@@ -149,15 +149,10 @@ fixture with no CI gate, which this repo's own rules say is not evidence. The sw
 | --- | --- | --- | --- |
 | **V2-E.1** | Multilingual embeddings and cross-lingual search | Swap `vector_embedding_model` for a multilingual encoder; re-enable non-English chunks on the dense stage; bring along the artifacts and constants built on the hardcoded MiniLM default; dimensionality migration with a reader-support bump; full reindex with build-then-flip cutover and a rollback snapshot. **Gated on a prod-derived eval set built from `search/query_log.py`**, so an English regression is detectable. | L |
 
-**Sequencing note, and it matters.** The operator's plan is to move **from a corpus to a database over
-the coming weeks**. That migration rebuilds the index anyway, so the outage this slice would otherwise
-have to schedule is already being paid. **Do this at the database migration**, not before and not
-separately — it is the one moment where the expensive part is free. Revisit the eval-set prerequisite
-at that point too.
-
-The operator's own framing for when this becomes valuable: *"that would be super useful later once we
+**When this becomes valuable**, in the operator's framing: *"that would be super useful later once we
 internationalize the application and then people can search in any language they want, but we're still
-not there."*
+not there."* So the trigger is the application being internationalized, not a date. If a full reindex is
+being run for some other reason at that point, fold this into it rather than scheduling a second outage.
 
 ## 8. Word-level anchors
 
