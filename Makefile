@@ -2026,12 +2026,27 @@ ios-origin-up:
 	@# code" hole the image stamp closes for the browser path (advisor-2 #7). A container older than
 	@# the image inputs is torn down and replaced; a hand-started venv api (no container) is left
 	@# alone, since it always runs the working tree.
+	@# STALE ALSO MEANS "MOUNTING VOLUMES WE NO LONGER USE" (2026-09-28).
+	@#
+	@# A running container is reused on health, and health says nothing about WHICH volumes it has
+	@# open. When `APP_E2E_VOL`/`STATE` became worktree-scoped, a container from before the rename
+	@# kept serving :8011 against the old ones and was reused all the way through phase 5 — so the
+	@# suites passed against volumes the Makefile no longer names, and the first target to use the
+	@# NEW names got two empty ones from Docker and an api with no corpus at all.
 	@stale=""; \
 	if docker ps --filter "name=$(APP_E2E_CT)" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
 		if [ ! -f $(E2E_API_IMAGE_STAMP) ] || \
 		   [ -n "$$(find $(E2E_API_IMAGE_INPUTS) -newer $(E2E_API_IMAGE_STAMP) -print -quit 2>/dev/null)" ]; then \
 			stale=1; \
 		fi; \
+		mounted=$$(docker inspect $(APP_E2E_CT) \
+			--format '{{range .Mounts}}{{.Name}} {{end}}' 2>/dev/null); \
+		for want in $(APP_E2E_VOL) $(APP_E2E_STATE); do \
+			case " $$mounted " in \
+				*" $$want "*) ;; \
+				*) echo "--> containerised api does not mount '$$want' — rebuilding"; stale=1;; \
+			esac; \
+		done; \
 	fi; \
 	if [ -n "$$stale" ]; then \
 		echo "--> containerised api predates its inputs — rebuilding before the device run"; \
