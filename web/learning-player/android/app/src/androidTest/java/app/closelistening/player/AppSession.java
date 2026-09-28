@@ -42,8 +42,53 @@ final class AppSession {
      * check does — and with per-suite identities the name is exactly what a generic caller cannot
      * know.
      */
+    /**
+     * A session exists, read POSITIVELY from the masthead. No navigation, no sleeps.
+     *
+     * This used to be "the 'Sign in' link is absent", and that is the conflation that cost most of
+     * 2026-09-28: `/login` carries its OWN "Sign in" SUBMIT button in the page body, so on that one
+     * route a signed-IN app still shows a control by that name. The absence test therefore reports
+     * SIGNED OUT for an app that is signed in, on exactly the page you are on right after signing
+     * out — which is where every account switch passes through.
+     *
+     * The masthead itself was never ambiguous. `App.vue` gates Queue (:595), the notifications bell
+     * (:622) and the profile link (:627) on `auth.hasSession`, and the "Sign in" link (:664) on its
+     * negation. Reading a control that only exists WHEN SIGNED IN cannot be confused by a route
+     * that happens to render a similarly-named button.
+     *
+     * The bell is the signal rather than the profile link because the profile link is labelled with
+     * the ACCOUNT NAME (`auth.user?.name || t('profile.title')`), which a generic caller does not
+     * know — that is the whole reason this method exists separately from {@link #isSignedIn(String)}.
+     * `contains` so "Notifications (3 unread)" matches too.
+     */
     static boolean hasAnySession() {
-        return Journey.find(Arrays.asList("Sign in"), false, 8_000) == null;
+        return Journey.find(Arrays.asList("Notifications"), true, 8_000) != null;
+    }
+
+    /**
+     * Wait for the masthead to AGREE WITH ITSELF about the session, then report it.
+     *
+     * Boot paints the last known identity from the device before revalidating against the api, so a
+     * single read can be confidently wrong — a session can sit on screen for seconds and then
+     * vanish when a token minted by a previous fixture-api container is refused. That is what the
+     * two `sleep(6_000)`s in this file were buying.
+     *
+     * A fixed sleep is a guess about the slowest machine anyone will ever run this on, and it pays
+     * the full price on every call even when the answer was stable immediately. This polls for the
+     * answer to hold across two consecutive reads instead, so the common case — which after
+     * `pm clear` at tier start is every case, since no prior-run token survives to be refused —
+     * returns in about a second.
+     */
+    private static boolean settles(String identity, long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        int agreed = 0;
+        while (System.currentTimeMillis() < deadline) {
+            boolean present = Journey.find(Arrays.asList(identity), true, 1_000) != null;
+            agreed = present ? agreed + 1 : 0;
+            if (agreed >= 2) return true;
+            Journey.sleep(500);
+        }
+        return false;
     }
 
     static boolean isSignedIn() {
@@ -66,17 +111,24 @@ final class AppSession {
      * come straight back — now harder to see, because everything looks signed in.
      */
     static boolean isSignedIn(String identity) {
-        // By the identity label WHEN IT IS THERE, else the generic one. The masthead avatar is
-        // labelled `auth.user?.name || 'Your profile'`, so an account whose name has not resolved
-        // is labelled generically — and reaching for the identity alone reported SIGNED OUT about
-        // an app that was demonstrably signed in (the iOS twin, 2026-09-24).
-        if (!Journey.openProfile(Arrays.asList(identity, "Your profile"))) return false;
-        // The RIGHT account, checked FIRST — before the scroll below moves it off screen. Profile
-        // prints the name and the email, and a dev identity appears in at least one of them.
-        if (Journey.find(Arrays.asList(identity), true, 10_000) == null) return false;
-        if (Journey.scrollTo("Sign out", false) == null) return false;
-        Journey.sleep(6_000);
-        return Journey.scrollTo("Sign out", false) != null;
+        // READ THE MASTHEAD. No Profile trip, no scroll-to-Sign-out, no fixed sleeps.
+        //
+        // This used to navigate to Profile (`openProfile`, which opens with TWELVE hand-rolled
+        // swipeDowns), scroll to "Sign out", `sleep(6_000)`, and scroll again — around 40 seconds,
+        // paid by every suite, to answer a question the masthead answers directly. The profile link
+        // is labelled `auth.user?.name || t('profile.title')` (App.vue:630) with a real text node at
+        // :658, which is why Android can read it at all; a failure inventory from this very tier
+        // shows `appjourneytests[TextView] | appjourneytests[View,click]` sitting in the masthead.
+        //
+        // The Profile trip was never verifying anything extra. "Sign out exists on Profile" and
+        // "the masthead shows this account" are the same fact reached two ways, and the expensive
+        // way also had to guess how to GET to Profile — which is how the hard-coded
+        // ["Your profile","simtest","uitest"] list came to exist and then rot.
+        //
+        // What the sleeps were for is kept, in `settles`: boot paints the last known identity before
+        // revalidating, so the answer has to hold across two reads rather than be believed on the
+        // first one.
+        return settles(identity, 20_000);
     }
 
     /**
