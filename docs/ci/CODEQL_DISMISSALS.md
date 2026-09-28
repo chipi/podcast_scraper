@@ -423,3 +423,38 @@ code changed by this pull request", even though no logic changed and the inline
 do not suppress. Re-dismiss the new ids against this table and name which old ids
 they succeed. ``gh api`` caps ``dismissed_comment`` at **280 characters**, so keep
 the API comment short and put the reasoning here.
+
+---
+
+## 2026-09-28 — PR #2181 (branch `fix/quality-arc-2026-09-28`)
+
+### Alert 608 — `py/path-injection` — `src/podcast_scraper/server/jobs.py` (`_write_job_worklist`)
+
+Type 1. The sink writes a reprocess work-list file. Two independent taints reached it and both are
+closed:
+
+- `run_id` arrives from the request layer. It is no longer interpolated: the filename stem is
+  rebuilt from a **parsed** `uuid.UUID`, and a value that does not parse is replaced with a fresh
+  `uuid4` rather than trusted. A separator, `..` or an absolute path cannot survive that.
+- `corpus_root` arrives from the `path` query parameter and is anchor-guarded by
+  `_resolve_corpus_root`. The guard is repeated **inline** in the same function as the sink, per this
+  document's Type-1 note that CodeQL does not propagate sanitiser state out of helpers:
+  `safe_resolve_directory` → join only constant segments (`.viewer`, `jobs`) plus the UUID stem →
+  `os.path.normpath` → `startswith(root + os.sep)` → write.
+
+`main` already carries three alerts of this same class in this same file. Dismissed after the inline
+guard cleared one of the two original sinks and could not clear the second.
+
+Containment is tested, not asserted: `test_a_run_id_that_is_not_a_uuid_cannot_shape_the_path`
+parametrises `../../../../etc/passwd`, `/etc/passwd`, `..`, `a/b` and a non-UUID string, and requires
+each to land inside the jobs dir with a UUID stem.
+
+### Alert 607 — `py/weak-sensitive-data-hashing` — `src/podcast_scraper/utils/filesystem.py:243`
+
+Not a secret and not this PR's code. The hashed value is an **RSS feed URL**, hashed to build a
+deterministic output directory name (`output/rss_<host>_<digest>`). The call already declares
+`hashlib.sha1(..., usedforsecurity=False)` and the line is commented "Deterministic hash for
+directory naming (not security sensitive)".
+
+`utils/filesystem.py` is absent from this PR's diff (`git diff --name-only origin/main..HEAD`); the
+alert surfaced against the merge ref rather than being introduced here.
