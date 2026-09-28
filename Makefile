@@ -1988,18 +1988,23 @@ ios-origin-check:
 # on the api. A test-only HTTP endpoint would be new server surface whose only safe gate is
 # `provider == mock`, and per-test identities dissolve the need for it anyway. The container is
 # already ours; `docker exec` needs no new product code at all.
-# HAZARD, not yet fixed: `APP_E2E_CT` is not worktree-scoped.
+# WAS a hazard, FIXED: `APP_E2E_CT`/`VOL`/`STATE` are worktree-scoped (see their definitions).
 #
-# This machine runs several worktrees of this repo (AGENTS.md names them), and they all default to
-# the same container name. So a device run in a SIBLING worktree has its accounts deleted out from
-# under it the moment this fires here — the "another agent's live work" class the 2026-08-25
-# incident log exists for. The Makefile already distrusts the shared PORT (see the "foreign"
-# check in `app-e2e-api-up`) and then shares the NAME by default, which is the same assumption
-# twice with only one of them guarded.
+# This machine runs several worktrees of this repo (AGENTS.md names them), and they used to default
+# to the same container and volume names. A device run in a SIBLING worktree would have its accounts
+# deleted out from under it the moment this fired here — the "another agent's live work" class the
+# 2026-08-25 incident log exists for. The Makefile already distrusted the shared PORT (the "foreign"
+# check in `app-e2e-api-up`) while sharing the NAME, which was the same assumption twice with only
+# one of them guarded.
 #
-# Not fixed here because `APP_E2E_CT` is referenced by a dozen targets and a rename is its own
-# change with its own blast radius. Recorded loudly instead: do not run two worktrees' device
-# tiers at once, and suffix the container per worktree when someone takes this on.
+# The old note here declined the rename because it "is its own change with its own blast radius".
+# That was correct, and the radius landed the same day: a container started BEFORE the rename kept
+# serving :8011 against the OLD volumes, `ios-origin-up` reused it on health alone, and the first
+# target to use the new names got two EMPTY volumes from `docker run -v`. Five phases certified an
+# api nobody had seeded. Both holes are now guarded — reuse checks the mounted volume names, and
+# `_app-e2e-api-restart` refuses a volume that is missing or has no `feeds/` — so the lesson to keep
+# is the shape: renaming a shared resource is not done when the variable changes, it is done when
+# everything still holding the OLD one is either torn down or detected.
 app-e2e-users-reset:
 	@if ! docker ps --filter "name=$(APP_E2E_CT)" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
 		echo "--> no $(APP_E2E_CT) container running; no server-side accounts to reset"; \
