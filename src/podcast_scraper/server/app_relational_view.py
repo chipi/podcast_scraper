@@ -373,6 +373,7 @@ def build_person_card(
     roles: list[str | None] = []
     appears_in: list[CatalogEpisodeRow] = []
     people_by_id: dict[str, AppEntity] = {}
+    related_roles: dict[str, list[str]] = {}
     topics_by_id: dict[str, AppTopic] = {}
     person_counts: Counter[str] = Counter()
     topic_counts: Counter[str] = Counter()
@@ -390,6 +391,13 @@ def build_person_card(
                 continue
             people_by_id[p.id] = p
             person_counts[p.id] += 1
+            # Keep EVERY shared episode's role, not just the last one. The line above is
+            # last-write-wins, so `p.role` by itself is whichever episode happened to be processed
+            # last — a co-host would read "mentioned" whenever their final shared episode merely
+            # mentioned them. Aggregated below to host > guest > mentioned, the same precedence the
+            # subject's own role and the show page already use.
+            if p.role:
+                related_roles.setdefault(p.id, []).append(p.role)
         for t in topics:
             topics_by_id[t.id] = t
             topic_counts[t.id] += 1
@@ -397,8 +405,16 @@ def build_person_card(
     if not appears_in:
         return None
 
+    # Role aggregated across the SHARED episodes before any chip can claim it — see the note at the
+    # collection site. `model_copy` rather than mutation: these entities come from the cached KG
+    # index and are shared with every other card built in this process, so writing through them
+    # would leak one card's aggregate into the next.
     related_people = _with_photos(
-        [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
+        [
+            people_by_id[i].model_copy(update={"role": _aggregate_role(related_roles.get(i, []))})
+            for i, _ in person_counts.most_common(top_k)
+        ],
+        hosted_photo_urls(root),
     )
     related_topics = [
         _enrich_topic(topics_by_id[i], cluster_map, storyline_map)

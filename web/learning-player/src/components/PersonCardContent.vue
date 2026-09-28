@@ -71,6 +71,23 @@ const shownEpisodes = computed<EpisodeSummary[]>(() =>
     : episodes.value
 )
 const relatedPeople = computed<Entity[]>(() => props.person.related_people ?? [])
+
+/**
+ * Localise a speaker role for the co-appearance chips — the SAME map and keys `KnowledgePanel` and
+ * `PodcastSignalsBand` use, so the three surfaces that list people cannot drift on what a role is
+ * called. An unrecognised role falls through to its raw string rather than vanishing; an ABSENT one
+ * returns "" and the caller renders no badge.
+ */
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  host: "ec.roleHost",
+  guest: "ec.roleGuest",
+  mentioned: "ec.roleMentioned",
+}
+function roleLabel(role: string | null | undefined): string {
+  if (!role) return ""
+  const key = ROLE_LABEL_KEYS[role.toLowerCase()]
+  return key ? t(key) : role
+}
 const relatedTopics = computed<Topic[]>(() => props.person.related_topics ?? [])
 
 function searchLibrary(): void {
@@ -193,14 +210,34 @@ function searchLibrary(): void {
   <section v-if="relatedPeople.length" class="mb-4">
     <h3 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h3>
     <div class="flex flex-wrap gap-1.5">
+      <!--
+        Role badge, matching the show page and the episode Insights panel (operator 2026-09-27) —
+        same markup, same `ec.role*` keys. Three surfaces that list people, one appearance.
+
+        The role is aggregated SERVER-side over the episodes this person shares with the card's
+        subject. It could not be read straight off the entity: the builder collects co-appearing
+        people last-write-wins, so an unaggregated `role` is whichever shared episode happened to be
+        processed last — a co-host would read "mentioned" whenever their final shared episode merely
+        mentioned them.
+
+        Roleless renders unbadged rather than guessing "mentioned".
+      -->
       <button
         v-for="p in relatedPeople"
         :key="p.id"
         type="button"
+        data-testid="ec-related-person"
+        :data-role="p.role?.toLowerCase()"
         class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
         @click="emit('open', { kind: 'person', id: p.id })"
       >
-        {{ p.name }}
+        {{ p.name
+        }}<span
+          v-if="roleLabel(p.role)"
+          data-testid="ec-related-person-role"
+          class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
+          >{{ roleLabel(p.role) }}</span
+        >
       </button>
     </div>
   </section>
