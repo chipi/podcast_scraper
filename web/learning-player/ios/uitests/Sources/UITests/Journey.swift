@@ -90,9 +90,29 @@ enum Journey {
         let el = q.matching(predicate).firstMatch
         if el.exists && el.isHittable { return el }
       }
+      // SAY SO when only a non-hittable match exists.
+      //
+      // The pass above requires `isHittable`; this one accepts mere existence, which for web content
+      // is usually the inert copy — WebKit exposes each masthead control twice and only one of them
+      // is interactive. `tapWithinScreen` then taps it, and its own docstring names the outcome: "a
+      // silent no-op is the worst failure shape there is, because the symptom surfaces somewhere
+      // else entirely as 'the control is not there'". That is what cost 2026-09-25.
+      //
+      // Not turned into a failure: the fallback earns its place, because an element can be genuinely
+      // tappable by coordinate while reporting `isHittable == false`, and `tapWithinScreen` exists
+      // precisely to handle that. The behaviour stands; the silence goes. The Android twin prints the
+      // same marker from `tap`, so a "page never changed" failure has its cause in the same log on
+      // either tier rather than several steps upstream.
       for q in queries {
         let el = q.matching(predicate).firstMatch
-        if el.exists { return el }
+        if el.exists {
+          print(
+            "=====TAP_NONHITTABLE \(labels) — only a NON-hittable match exists "
+              + "(frame=\(el.frame)). The tap may land on nothing; if a later step reports the "
+              + "control is absent or the page did not change, this is why.====="
+          )
+          return el
+        }
       }
       usleep(400_000)
     } while Date() < deadline

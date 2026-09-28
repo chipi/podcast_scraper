@@ -327,6 +327,27 @@ final class Journey {
             }
             el = again;
         }
+        // SAY SO when the thing about to be clicked is not clickable.
+        //
+        // `find` prefers a clickable node, then a clickable ancestor, and only then falls back to
+        // ANY matching node — which for web content is usually the inert `TextView` carrying the
+        // words, since every control is exposed twice. `find`'s own header warns that tapping that
+        // "does nothing at all, silently, and the failure surfaces several steps later as 'the page
+        // never changed'", and then `tap` clicks it anyway.
+        //
+        // Not converted into a failure, deliberately. The fallback exists because a control that IS
+        // reachable by coordinate but reports `clickable=false` is common enough in this bridge that
+        // refusing would break working call sites — and the comment above records the ruling that
+        // "never clicking a control that is plainly present" is the worse outcome. So the behaviour
+        // stands and the silence goes: when this marker appears, a later "the page never changed"
+        // has its cause in the same log rather than several steps away.
+        if (!Boolean.TRUE.equals(attr(el, UiObject2::isClickable))) {
+            System.out.println("=====TAP_NONCLICKABLE " + names + " resolved to a node with "
+                    + "clickable=false and no clickable ancestor (cls="
+                    + attr(el, UiObject2::getClassName) + ", bounds=" + lastGood + "). The click may "
+                    + "land on nothing; if a later step reports the page did not change, this is why."
+                    + "=====");
+        }
         try {
             el.click();
             return true;
