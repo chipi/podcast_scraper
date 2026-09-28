@@ -201,6 +201,49 @@ by the callback sign-in path (below) rather than by retrying.
 
 ---
 
+### M6. RESOLVED — the UI sign-in fallback does work, and is no longer unexercised
+
+`ensureSignedIn` tries the callback path and falls back to the real UI flow. Across every run the
+callback path succeeded, so the fallback had executed ZERO times — insurance nobody had tested.
+
+Exercised deliberately on 2026-09-28 by pointing the mint at a dead port while leaving the app's own
+port intact (`make android-suite ... IOS_ORIGIN_PORT=9999`), which breaks the mint and nothing else:
+
+```
+OK (1 test)
+Custom Tab / customtabs logcat lines: 51      (normal callback runs: 0)
+```
+
+The test still passed and the Custom Tab really opened, so the fallback lands and signs in. Note the
+evidence is the logcat count rather than the harness markers — instrumentation `System.out` does not
+reliably reach `am instrument` stdout, which is the same reason an earlier hierarchy dump vanished.
+
+### M7. ASSESSED — aggregate state is real, and the per-run wipe changed its starting point
+
+`APP_MOMENTUM_MIN_TOTAL=1` (Makefile) means a single listen event moves trending/momentum surfaces
+for EVERY account, so per-suite and per-test identities do nothing for assertions on those rails.
+
+Which suites actually depend on them — the question that was never asked:
+
+| Tier | Site |
+| --- | --- |
+| Android | `AppJourneyTests:207,217` (finds and taps a storyline row by "momentum") |
+| Android | `StackDepthProbeTests:101` (storyline row tappable) |
+| Android | `NativeCapabilityTests:673,679` (person row found by "momentum") |
+| iOS | `AppJourneyTests:122,142,437` |
+| iOS | `NativeCapabilityTests:83` |
+
+Five suites across both tiers. The direction of risk is a FALSE GREEN — content exists because some
+other account listened — and it is order-dependent.
+
+**And `app-e2e-users-reset` interacts with it.** Wiping accounts at tier start changes these rails'
+starting point from "everything ever accumulated" to "only what this run has produced by the time
+the suite runs". That could make them MORE fragile, not less. The suites sit in phase 5, after
+phases 1-4 have downloaded and played, so there should be listening data by then — but "should" is
+doing work in that sentence and the full tier had not been run since the reset landed.
+
+NOT FIXED. Nothing here changes the setting or the suites; this is the assessment that was missing.
+
 ## LANDED this session
 
 | Change | Evidence it works |
