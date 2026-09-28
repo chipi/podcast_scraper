@@ -55,16 +55,51 @@ class TestTheWorkListReachesTheRun:
         assert wl.is_file()
         assert wl.read_text(encoding="utf-8").split() == ["ep-a", "ep-b"]
 
-    def test_the_worklist_lives_beside_the_job_log_so_the_run_is_reproducible(
+    def test_the_worklist_lives_beside_the_job_log_and_is_named_from_the_job_id(
         self, tmp_path: Path
     ) -> None:
+        """The job id names the file, so a run is reconstructable from the corpus alone."""
         corpus, op = _corpus(tmp_path)
+        job_id = "a3f1c2d4-5e6b-4a7c-8d9e-0f1a2b3c4d5e"
         argv = build_pipeline_argv(
-            corpus, op, run_id="job-7", pipeline_stage="relabel_only", reprocess_episode_ids=["x"]
+            corpus, op, run_id=job_id, pipeline_stage="relabel_only", reprocess_episode_ids=["x"]
         )
         wl = _worklist_path(argv)
         assert wl.parent == corpus / ".viewer" / "jobs"
-        assert "job-7" in wl.name
+        assert wl.name == f"{job_id}.worklist.txt"
+
+    @pytest.mark.parametrize(
+        "hostile",
+        [
+            "../../../../etc/passwd",
+            "/etc/passwd",
+            "..",
+            "a/b",
+            "job-7",  # merely non-UUID: not a job id, so not trusted either
+        ],
+    )
+    def test_a_run_id_that_is_not_a_uuid_cannot_shape_the_path(
+        self, tmp_path: Path, hostile: str
+    ) -> None:
+        """CodeQL py/path-injection, two sinks: ``run_id`` reached a filename from the request layer.
+
+        The fix rebuilds the stem from a PARSED ``uuid.UUID`` rather than inspecting the string, so
+        the taint cannot survive. Asserted as containment — the file must land inside the jobs dir
+        with a UUID stem whatever it is handed.
+        """
+        import uuid as _uuid
+
+        corpus, op = _corpus(tmp_path)
+        argv = build_pipeline_argv(
+            corpus, op, run_id=hostile, pipeline_stage="relabel_only", reprocess_episode_ids=["x"]
+        )
+        wl = _worklist_path(argv)
+        assert (
+            wl.parent.resolve() == (corpus / ".viewer" / "jobs").resolve()
+        ), "escaped the jobs dir"
+        stem = wl.name.removesuffix(".worklist.txt")
+        _uuid.UUID(stem)  # raises unless the stem is a real UUID
+        assert hostile not in wl.name
 
     def test_it_pairs_with_reprocess_existing_only(self, tmp_path: Path) -> None:
         """Both flags are needed: one restricts to on-disk, the other to the named ids."""
