@@ -675,8 +675,23 @@ def normalize_reprocess_episode_ids(raw: Sequence[str] | str | None) -> list[str
 
 
 def _write_job_worklist(corpus_root: Path, run_id: str | None, ids: Sequence[str]) -> Path:
-    """Persist the work-list beside the job log so the run is reproducible from the corpus."""
-    name = f"{run_id or uuid.uuid4()}.worklist.txt"
+    """Persist the work-list beside the job log so the run is reproducible from the corpus.
+
+    THE FILENAME IS REBUILT FROM A PARSED UUID, NEVER FROM THE CALLER'S STRING. ``run_id`` reaches
+    here from the request layer, and interpolating it into a path is a genuine path-injection —
+    CodeQL flagged exactly this (``py/path-injection``, two sinks). A sanitiser that *inspects* the
+    string would not fix it: the taint survives any check that returns the input.
+
+    Parsing to ``uuid.UUID`` and formatting the OBJECT breaks the flow instead. The job id is always
+    a server-minted ``uuid4`` (see ``enqueue_pipeline_job``), so a value that does not parse is not
+    a job id at all — mint a fresh one rather than trust it. A path separator, ``..``, or an
+    absolute path cannot survive this, by construction rather than by review.
+    """
+    try:
+        stem = str(uuid.UUID(str(run_id)))
+    except (ValueError, AttributeError, TypeError):
+        stem = str(uuid.uuid4())
+    name = f"{stem}.worklist.txt"
     target = corpus_root / ".viewer" / "jobs" / name
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("".join(f"{i}\n" for i in ids), encoding="utf-8")
