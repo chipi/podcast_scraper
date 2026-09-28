@@ -2196,7 +2196,21 @@ app-e2e-api-down:
 IOS_SIM ?= iPhone 17
 IOS_BUNDLE_ID ?= app.closelistening.player
 IOS_UITESTS_DIR = $(APP_DIR)/ios/uitests
-IOS_DD ?= /tmp/lp-ios-dd
+# WORKTREE-SCOPED, for the same reason the e2e container and volumes are: this machine runs several
+# worktrees of this repo, and `/tmp/lp-ios-dd` was shared by all of them. Two worktrees building iOS
+# into one derived-data tree corrupt each other's modules, and a wipe to recover takes out a sibling
+# agent's cache as collateral — the 2026-08-25 class.
+#
+# It also lives under /tmp, which macOS prunes on age. That is how this surfaced (2026-09-28): the
+# 42 `.scan` dependency-scan results survived while every `.pcm` they name was pruned, so the build
+# trusted a scan whose module was gone and failed 14 times with
+#     fatal error: module file 'UIKit-2L880IKKYX6Z0JYSOA9SKNWBJ.pcm' not found
+# naming a CapacitorCordova prefix header — a dependency nobody had touched. It reads as a broken
+# Pod, and it is a pruned cache.
+#
+# Scoping alone does not stop the pruning; `ios-dd-check` below detects the inconsistent state and
+# says which it is, so the next person does not debug Capacitor.
+IOS_DD ?= /tmp/lp-ios-dd-$(E2E_WORKTREE)
 # The DEVICE journey needs ONE origin that serves both the api and the episode audio (#1925
 # decision 4). The fixture corpus stores `content.media_url` as a RELATIVE `/audio/<id>.mp3` so no
 # host is baked into 36 committed files, and `resolveMediaUrl` absolutises it against the API base
@@ -2866,7 +2880,29 @@ test-app-ios-server-degraded:
 #     source" with NO transport, and a test looking for Play reports the control missing rather than
 #     the audio. Hence the single origin, which is what `ios-origin-up` exists to provide.
 # All three are invisible until something downstream fails oddly, so the recipe is the artefact.
-ios-app-install: ios-origin-up
+# A derived-data tree that has been PARTIALLY pruned is worse than one that is missing: xcodebuild
+# trusts the scan results it still has and fails deep inside a dependency it has no quarrel with.
+#
+# The signature is exact — `ExplicitPrecompiledModules` holding `.scan` files and NO `.pcm`. Both
+# are regenerated build outputs, so removing the tree costs a cold build and nothing else. This
+# deletes only $(IOS_DD), which is worktree-scoped precisely so that is not somebody else's cache.
+#
+# Not a retry wrapper around a flaky build: it removes the CAUSE (a cache that cannot be valid) and
+# says so out loud, rather than papering over a failure whose real reason would stay hidden.
+ios-dd-check:
+	@mods="$(IOS_DD)/Build/Intermediates.noindex/ExplicitPrecompiledModules"; \
+	if [ -d "$$mods" ]; then \
+		scans=$$(find "$$mods" -name '*.scan' 2>/dev/null | wc -l | tr -d ' '); \
+		pcms=$$(find "$$mods" -name '*.pcm' 2>/dev/null | wc -l | tr -d ' '); \
+		if [ "$$scans" -gt 0 ] && [ "$$pcms" -eq 0 ]; then \
+			echo "--> derived data at $(IOS_DD) is INCONSISTENT: $$scans scan results, 0 compiled"; \
+			echo "    modules. /tmp was pruned under it. Clearing for a cold build — the"; \
+			echo "    alternative is 14 'module file not found' errors naming a Pod that is fine."; \
+			rm -rf "$(IOS_DD)"; \
+		fi; \
+	fi
+
+ios-app-install: ios-origin-up ios-dd-check
 	@echo "--> building the player against the single origin on :$(IOS_ORIGIN_PORT) (api + audio)"
 	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
 		npm run build >/dev/null && npx cap sync ios >/dev/null
