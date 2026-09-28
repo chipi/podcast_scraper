@@ -27,6 +27,7 @@ class RssFeed:
         authors: List of author names extracted from the feed metadata.
         description: The channel-level <description> — the show's own blurb, which
             usually names the host(s) ("hosted by …"). Feeds host detection (#1169).
+        language: The channel-level <language> as declared, e.g. "en-US" (#2172).
 
     Example:
         >>> feed = RssFeed(
@@ -42,6 +43,12 @@ class RssFeed:
     base_url: str
     authors: List[str] = field(default_factory=list)
     description: Optional[str] = None
+    #: The channel-level ``<language>`` exactly as the feed declared it (``"en-US"``,
+    #: ``"es-ES"``), or ``None`` when the feed omits the tag. RAW on purpose — normalization
+    #: belongs to ``languages.normalize_language_tag`` so the operator can still see what the
+    #: publisher actually said. DEFAULTED, never positional: this dataclass is constructed at
+    #: 53 test sites (#2172).
+    language: Optional[str] = None
 
 
 @dataclass

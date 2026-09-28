@@ -331,6 +331,51 @@ def _plain_title_from_element(elem: Optional[ET.Element]) -> str:
     return _strip_html(raw).strip()
 
 
+def _channel_language(xml_bytes: bytes) -> Optional[str]:
+    """The channel-level ``<language>`` from feed XML, RAW — ``"en-US"``, ``"es-ES"``, ``"pt_BR"``.
+
+    Nothing read this tag before (#2172): ``feed.language`` on disk was the RUN CONFIG written
+    back out, so every episode in the corpus claimed the profile's language regardless of what
+    its publisher declared.
+
+    Returns the text as the feed gave it. Normalization is the caller's job via
+    :func:`podcast_scraper.languages.normalize_language_tag`, so the raw value stays available
+    for the operator who has to judge an odd tag.
+
+    Parsed here rather than widening :func:`parse_rss_items`, whose 3-tuple return is unpacked
+    at 18 call sites — the same reason :func:`_channel_description` exists.
+    """
+    if not xml_bytes:
+        return None
+    try:
+        root = safe_fromstring(xml_bytes)
+    except (DefusedXMLParseError, ValueError, TypeError):
+        return None
+    if root is None:
+        return None
+    channel = root.find("channel")
+    if channel is None:
+        channel = next(
+            (e for e in root.iter() if isinstance(e.tag, str) and e.tag.endswith("channel")),
+            None,
+        )
+    if channel is None:
+        return None
+    lang_elem = channel.find("language")
+    if lang_elem is None:
+        lang_elem = next(
+            (e for e in channel.iter() if isinstance(e.tag, str) and e.tag.endswith("language")),
+            None,
+        )
+    if lang_elem is not None and lang_elem.text:
+        # str() is explicit because ElementTree's `.text` is loosely typed; the sibling
+        # _channel_description gets the same guarantee by routing through _strip_html.
+        text = str(lang_elem.text).strip()
+        if text:
+            return text
+    return None
+
+
 def _channel_description(xml_bytes: bytes) -> Optional[str]:
     """The channel-level ``<description>`` from feed XML — the show's blurb, which usually
     names the host(s) ("hosted by …").
@@ -896,4 +941,5 @@ def fetch_and_parse_rss(cfg: config.Config) -> RssFeed:  # type: ignore[valid-ty
         items=items,
         base_url=feed_base_url,
         description=_channel_description(rss_bytes),
+        language=_channel_language(rss_bytes),
     )

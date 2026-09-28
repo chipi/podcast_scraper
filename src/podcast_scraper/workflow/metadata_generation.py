@@ -50,6 +50,7 @@ from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
 from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
+from ..languages import resolve_language
 from ..speaker_detectors.hosts import looks_like_publisher
 
 if TYPE_CHECKING:
@@ -434,7 +435,18 @@ class FeedMetadata(BaseModel):
     url: str
     feed_id: str  # Stable unique identifier for database primary keys
     description: Optional[str] = None
+    #: NORMALIZED primary subtag — ``"en"``, never ``"en-US"``. Until #2172 this carried the
+    #: RUN CONFIG written back out, so every episode claimed the profile's language whatever
+    #: its publisher declared. It is the feed's own tag now, normalized.
     language: Optional[str] = None
+    #: The tag exactly as the feed declared it (``"en-US"``, ``"pt_BR"``). Kept beside the
+    #: normalized form because an operator judging an odd tag needs to see the original.
+    language_raw: Optional[str] = None
+    #: Where ``language`` came from: ``"rss"`` (the feed declared it), ``"profile_default"``
+    #: (it did not, so the run config supplied it), or ``"override"`` (S0.2's per-feed key).
+    #: An audit that cannot say WHERE a language came from cannot tell a measured corpus from
+    #: a uniformly-defaulted one — the failure this field exists to prevent.
+    language_source: Optional[str] = None
     authors: List[str] = Field(default_factory=list)
     category: Optional[str] = None  # podcast category/genre (BS.1), from <itunes:category>
     image_url: Optional[str] = None
@@ -466,6 +478,12 @@ class EpisodeMetadata(BaseModel):
         description="Corpus-relative path to downloaded episode artwork (POSIX).",
     )
     episode_id: str  # Stable unique identifier for database primary keys
+    #: The language THIS episode was processed as, normalized. No episode-level language
+    #: existed anywhere before #2172 — verified across all 80 metadata files in both fixture
+    #: corpora — so every stage read the run-global config instead.
+    language: Optional[str] = None
+    #: Where this episode's language came from; same vocabulary as ``FeedMetadata``.
+    language_source: Optional[str] = None
 
     @field_serializer("published_date")
     def serialize_published_date(self, value: Optional[datetime]) -> Optional[str]:
@@ -905,13 +923,21 @@ def _build_feed_metadata(
 
     Returns:
         FeedMetadata object
+
+    The language is the FEED's declared tag, normalized, with the profile default only as a
+    fallback — and ``language_source`` records which of the two it was (#2172).
     """
+    language_raw, language, language_source = resolve_language(
+        getattr(feed, "language", None), cfg.language
+    )
     return FeedMetadata(
         title=feed.title,
         url=feed_url,
         feed_id=feed_id,
         description=feed_description,
-        language=cfg.language,
+        language=language,
+        language_raw=language_raw,
+        language_source=language_source,
         authors=feed.authors if feed.authors else [],
         category=feed_category,
         image_url=feed_image_url,
@@ -929,6 +955,8 @@ def _build_episode_metadata(
     episode_duration_seconds: Optional[int],
     episode_number: Optional[int],
     episode_image_url: Optional[str],
+    language: Optional[str] = None,
+    language_source: Optional[str] = None,
 ) -> EpisodeMetadata:
     """Build EpisodeMetadata object.
 
@@ -956,6 +984,8 @@ def _build_episode_metadata(
         episode_number=episode_number,
         image_url=episode_image_url,
         episode_id=episode_id,
+        language=language,
+        language_source=language_source,
     )
 
 
@@ -3923,6 +3953,11 @@ def _prepare_base_metadata_objects(
         episode_duration_seconds,
         episode_number,
         episode_image_url,
+        # S0.1a has no per-episode override, so an episode inherits its feed's resolved
+        # language and the same provenance. S0.2 (#2174) adds the override and the registry,
+        # at which point these two diverge from the feed's for the feeds that need it.
+        language=feed_metadata.language,
+        language_source=feed_metadata.language_source,
     )
     # #2075: ONE speaker record. Placed voices from the diarized segments, then every person a
     # source named but no voice was matched to, each marked. See `_build_speaker_record`.
