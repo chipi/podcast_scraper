@@ -39,7 +39,7 @@ audio (any enabled language)
   │
   ├─ summary → GI → KG, all reading that file ─────► single-path, English
   │
-  └─ every claim labelled; none on Position surfaces until v2 verifies them
+  └─ full standing on every surface, same as English; provenance recorded, invisible to the user
 ```
 
 Three properties make it work:
@@ -49,8 +49,10 @@ Three properties make it work:
 2. **Analysis reads one transcript.** Every transcript reader resolves through one function, so no
    stage decides for itself what "the transcript" means. That is **not** true today (§5.4 C-1) and
    making it true is part of the work, not a property the design can assume.
-3. **The product never presents a translation as verbatim speech.** Labelled on every surface that
-   renders it, traceable to the source, and kept off Position surfaces entirely until v2 can verify it.
+3. **v1 believes the translation.** A translated episode has the same standing as an English one on
+   every surface — no gating, and no user-visible marker (D-36, D-37). Provenance is recorded on every
+   claim so v2 can verify, label and, if it turns out to be needed, gate. The bet is explicit: pick a
+   good model, and treat quality as v2's subject rather than something v1 hedges around.
 
 ## 2. Document map
 
@@ -59,7 +61,7 @@ Three properties make it work:
 | [PRD-047](../prd/PRD-047-multilingual-ingest.md) | Why, for whom, what "done" means, phase gates, language policy, operator + listener surfaces | Any implementation shape |
 | [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md) | `turns.json` — turns and sentences as addressable units. v1 needs the artifact; its consumers are v2 | Anything language-specific |
 | [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) | Language resolution, source capture, the translation stage, the artifact set, the stage order, retrieval, model selection | Trust, gating |
-| [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) | Translation provenance and the read-time Positions gate (v1); verification and QE (v2) | Producing the translation |
+| [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) | Translation provenance, recorded and invisible to the user (v1); verification, labelling, gating and QE (v2) | Producing the translation |
 | This document | v1 arc shape, slice plan, verified code facts, decisions, running notes | Requirements or design detail |
 | [MULTILINGUAL_ARC_V2](MULTILINGUAL_ARC_V2.md) | Everything deferred out of v1, with slices and reasoning | Anything v1 ships |
 
@@ -74,7 +76,7 @@ Phase numbering means one thing across all four documents. The demand/model vali
 | **0 — English as a declared language** | Language becomes a real, parsed, resolved, validated property of the corpus we already have | none; it is a correctness fix | An audit over real data showing the corpus's actual language distribution; language on the API; no code path that substitutes a language it was not given |
 | **1 — Turns artifact (RFC-123)** | `turns.json` built and written for the source variant. Nothing reads it yet; the backfill and all three consumers are v2 | none | The unit translation needs |
 | **Gate V — Validate** | Demand check; model selection and its sanity check | Phase 0, because the check cannot measure non-English transcription until it exists | A go/no-go with evidence, and one pinned translation model |
-| **2 — Translation (RFC-124)** | Reader routing, the stage-order change, translation, the English render, ad-free-on-English, labelling, same-language retrieval, the Positions gate | Gate V passed | One non-English feed processed end to end, findable in its own language, everything labelled |
+| **2 — Translation (RFC-124)** | Reader routing, the stage-order change, translation, the English render, ad-free-on-English, same-language retrieval | Gate V passed | One non-English feed processed end to end, findable in its own language, behaving like any English episode |
 | **3 — Surfaces** | The transcript/subtitle reading path and flag lifecycle. The badge and the language filter are v2 | Phase 2 | A listener can read the original or the English against the original audio |
 
 **Why Phase 0 is a real phase.** Today a feed's declared language is never read, every episode is
@@ -171,12 +173,11 @@ labelling and gating slices must be in before that feed is added.
 | **S2.5** | Ad-free base on English, and span→unit resolution | Build `.en.adfree.*` with the existing machinery. `resolve_units_for_span` resolves through `.en.adfree.segments.json` and `unit_id` — **not** the ad-map, which cannot invert the ad-free transform (§5.4 C-5, measured). Uses **overlap**, not containment, so a span touching a label prefix or inter-turn whitespace still resolves. Writes the English artifact set atomically and refuses on a provenance mismatch — including `excerpt != text[char_start:char_end]`, which catches a re-translation that a file hash alone would not. | S2.4 | L | Yes |
 | **S2.6** | Speaker labels bypass the translator | Naming stays **before** translation, on the source (§5.4 C-6), and the label is carried onto the English line **verbatim** — never sent through the translation model, which would rename the same person inconsistently across units. **No transliteration, no alias minting** (D-24): every tier-1 language is Latin script and names are usually the identical string across them, so there is nothing to convert. Folded into S2.4's render rather than being its own slice. | S2.4 | S | Yes |
 | **S2.7** | Language-aware reprocess and invalidation | `_maybe_produce_adfree` has **five** call sites including the transcript-cache hit; on a non-English episode each would write the identity ad-free artifact this design says never exists, and strand `.en.*`. Make it language-aware; give every path that changes the source an explicit invalidation of `.en.*`, `translation.json` and the cached prompt prefix; add the per-episode reprocess command. Note `rederive_only` must **not** re-translate — that is the cheap repair path. | S2.5 | M | Yes |
-| **S2.8** | Label translated content everywhere it renders | Not one chip. The marker must survive every serialization boundary that drops node properties: `AppInsight` / `AppQuote`, the MCP `InsightSummary` / `SupportingQuote` contracts, `hybrid_search._to_search_result` (Lance rows carry no `translated` column, so a translated quote would be served as verbatim speech in search, digest and trending), OG share images, and **snapshots** — favourites and captures are copies, so a translated insight saved to a library stays there unlabelled and no read-time gate can reach it. Plus `?lang=` on the segments contract and `translation_status` on episode detail. | S2.4 | L | Yes |
+| **S2.8** | Segments API `?lang=` and translation status | Additive `language`, `machine_translated` and `translation_model` on `SegmentsResponse`, and `translation_status` on episode detail. These are what the transcript control (S3.1) reads. **The user-visible "Translated from X" label is v2** (D-36) — so this slice is API surface only, not chrome. | S2.4 | S | Yes |
 | **S2.9** | Same-language retrieval: a keyword-only table for non-English | Index both layers so a query in either language reaches the same episode. **Non-English chunks go in their own table with no vector column** (D-14, option B), consulted only for the keyword leg — a chunk with no vector cannot appear in a semantic result, which a row tag plus a filter could not guarantee. Leaves the existing `segments` table untouched, which should avoid the schema bump, the stale index and the full rebuild — **confirm that in the slice**, along with the read path tolerating the table's absence on older indexes. Also: chunk ids carry language, insight→segment linking filters on language, and a non-English query drops the dense leg via script detection or it returns English noise. Measure keyword recall through the English tokenizer before calling this done. **Script detection does not discriminate for tier 1** — *inflacion* and *inflation* are the same script — so the dense-leg switch needs a stop-word heuristic or an accepted dilution, measured either way. | S2.5 | L | Yes |
 | **S2.10** | Cost and capacity measurement | Translation GPU time and storage delta per episode, and the bake-off's own cost. RFC-124 OQ3's wall-time cap cannot be set without it. Note for model choice: a 27B translator and the served 30B model do not co-reside in the DGX's memory while a 12B does. | S2.3 | S | Yes |
 | **S2.11** | Translation provenance on every claim | The `translation` block (`translated`, `source_language`, `unit_ids`, `en_sha256`) written into node `properties` via `resolve_units_for_span`, by **every** writer of `gi.json` — the artifact builder, `add_spoken_by_edges(replace=True)` and `gi/repair.py`. | S2.5 | M | Yes |
-| **S2.12** | Keep translated claims off Position surfaces — **ships with S2.11** | The read-time filter, applied to **every** position-bearing surface — RFC-125 §3 enumerates nine, including `topic_perspectives`, which feeds the consumer app and OG share images. `topic_consensus` is a **write-time** enricher, but it loads `gi.json` nodes itself, so the same property predicate applies at its run time — a different call site, not a different mechanism. Two predicates, not one helper: an edge predicate for what would be verified, a property predicate for what renders, with a test that the first is a superset of the second. Fail-closed: with no verification records in existence — v1's steady state — every translated claim is absent. | S2.11 | M | Yes |
-| **S2.13** | Phase 2 gate | One non-English feed from audio to insights, findable in its own language, every translated claim labelled on every surface, none on a Position surface, and no English regression outside the allow-list. | S2.1–S2.12 | M | This is the ship |
+| **S2.13** | Phase 2 gate | One non-English feed from audio to insights, findable in its own language, no English regression outside the allow-list, and the translated episode behaving on every surface exactly as a native-English one does. | S2.1b–S2.11 | M | This is the ship |
 
 ---
 
@@ -184,7 +185,7 @@ labelling and gating slices must be in before that feed is added.
 
 | # | Issue title | Goal | Depends on | Size | Ship alone? |
 | --- | --- | --- | --- | --- | --- |
-| **S3.1** | Transcript language control | **The transcript defaults to English** — the rest of the app (summary, insights, everything) is English, so a source-language transcript by default would be the inconsistent choice. A small control in the transcripts panel switches to the original (D-25). Two things to get right: it must serve the **full-timeline** `ep1.en.txt`, not the ad-free analysis base, or it desyncs from the audio wherever an ad was cut; and it needs the `LanguageBadge` primitive, so that component is built here even though badges-as-decoration stay v2 (D-26). Backend is already in place — `?lang=` lands with S2.8. | S2.8 | M | Yes |
+| **S3.1** | Transcript language control | **The transcript defaults to English** — the rest of the app (summary, insights, everything) is English, so a source-language transcript by default would be the inconsistent choice. A small control in the transcripts panel switches to the original (D-25). Two things to get right: it must serve the **full-timeline** `ep1.en.txt`, not the ad-free analysis base, or it desyncs from the audio wherever an ad was cut; and it needs a small language affordance in the panel — the badge *component*, whose use as metadata decoration stays v2 (D-26). Backend is already in place — `?lang=` lands with S2.8. | S2.8 | M | Yes |
 | **S3.2** | Feature-flag lifecycle and rollback | What `multilingual_ingest` gates at each phase, its removal criterion, the per-phase rollback procedure, and what happens to a language that is **disabled** after episodes exist in it. | S2.13 | S | Yes |
 
 ---
@@ -202,7 +203,7 @@ S1.1 → S1.2 ═══ PHASE 1 ═══╗       V.6 → V.3 ──┬── V
                            ║  V.2 ─────────────┘                     ║
                            ▼                                         ▼
   S2.1b → S2.2 → S2.3 → S2.4 → S2.5 → {S2.6, S2.7, S2.8, S2.9, S2.10,
-                                       S2.11+S2.12} → S2.13 ═══ PHASE 2 ═══╗
+                                       S2.11} → S2.13 ═══ PHASE 2 ═══╗
                                                                            ▼
                                                                   {S3.1, S3.2}
 ```
@@ -218,7 +219,7 @@ human-shaped item and has the longest lead time; nothing blocks on it, so start 
 
 | Finding | Evidence | Consequence |
 | --- | --- | --- |
-| **There is no stance-extraction stage, and deliberately none.** Stances are GI insights; Positions are read-time queries. | `server/cil_queries.py:636` `position_arc`; `enrichment/profile_sets.py:144-146`; ADR-108's 2026-07-08 update retiring `stance_timeline`. A repo-wide word search for `stance` finds only comments. | The gate is a **read-path filter** — retroactive and fail-closed. No stance-extraction dependency exists. |
+| **There is no stance-extraction stage, and deliberately none.** Stances are GI insights; Positions are read-time queries. | `server/cil_queries.py:636` `position_arc`; `enrichment/profile_sets.py:144-146`; ADR-108's 2026-07-08 update retiring `stance_timeline`. A repo-wide word search for `stance` finds only comments. | A future gate would be a **read-path filter**, which is why v2 can add one retroactively over the existing corpus without re-extraction. No stance-extraction dependency exists. |
 | **`vector_embedding_model` is genuinely wired to the search index.** | `search/indexer.py:577` → `build_two_tier_index`; the query side reads the model recorded in the index (`hybrid_search.py:238-244`). | A future encoder swap is coherent. v1 changes no embedding model (D-14). |
 | **`GiArtifact` forbids extra top-level keys**; `EvidenceSpan` / `SupportingQuote` / `SegmentsResponse` are plain models. | `gi/contracts.py:130`, `:14`, `:25`; `server/schemas.py:24`. | Additive data lives in node `properties`; API fields are safe to add. |
 | **The ad-free identity hazard is real.** | `gi/ad_regions.py:409-418`; `adfree_transcript.py:104-106`, `:129-137`; `load_processing_transcript:237-250` sets `is_adfree=True` on file existence alone. | Translation precedes ad detection (D-3). Caveat: with no segments `build_adfree_artifacts` returns `None`, so the identity artifact only appears for episodes with a segments sidecar. |
@@ -255,8 +256,8 @@ Five. Each fails quietly rather than erroring.
 | Consumer episode list + toolbar | `views/CatalogView.vue:43-58` — single-select filter via `ListToolbar`, plus a show selector and sort | v2 filter |
 | Episode + show items | `EpisodeRow/Tile/Card.vue`, `ShowRow/ShowTile.vue`, `PodcastView.vue` | v2 badge |
 | Operator shows library | `library/{ShowsBrowse,ShowsView,ShowDetailView}.vue`, `LibraryFilterBar.vue` | S0.5 field, v2 badge/filter |
-| Claim serialization | `AppInsight`/`AppQuote`, `gi/contracts.py` `InsightSummary`/`SupportingQuote`, `hybrid_search._to_search_result`, `server/og/build.py`, snapshot exports | **S2.8** — every one drops node properties today |
-| Position surfaces | `cil_queries.py` (nine entry points, RFC-125 §3), `search/relational_queries.py:170 positions_of`, `enrichment/enrichers/topic_consensus.py` (write-time) | **S2.12** |
+| Claim serialization | `AppInsight`/`AppQuote`, `gi/contracts.py` `InsightSummary`/`SupportingQuote`, `hybrid_search._to_search_result`, `server/og/build.py`, snapshot exports | v2 labelling — every one drops node properties today, and snapshots are copies a read-time change cannot reach |
+| Position surfaces | `cil_queries.py` (nine entry points), `search/relational_queries.py:170 positions_of`, `enrichment/enrichers/topic_consensus.py` | v2 only — nothing in v1 filters these |
 
 ### 5.4 Claims that were WRONG, and the pattern behind them
 
@@ -293,8 +294,7 @@ complete.** Recorded so the next pass recognises it rather than repeating it.
   quote ∩ `ABOUT` ∩ `insight_type == "claim"` and never reads `surfaceable` or `speaker_id` — and that
   type filter is a *default* a caller can drop; there are **no KG evidence spans** at all.
 - **C-9 — the Positions surface list was wrong twice**, at two entries and then at five. It is nine, one
-  of which is write-time and cannot be gated at read time. Enumerating it is a deliverable of S2.12, not
-  a claim in a document.
+  of which is write-time. The enumeration belongs to v2's gate rather than to v1.
 - **C-10 — Appendix A was incomplete.** Every number matched the source, but French (8.3), Arabic,
   Azerbaijani and Maori were dropped and then "everything unlisted is above 40%" was asserted.
 - **C-11 — two overstatements in opposite directions from one `?`.** "Greek is covered by every eligible
@@ -398,7 +398,7 @@ the choice (D-27).
 | D-2 | Source is canonical, English is derived | The record is what was said | 2026-09-28 |
 | D-3 | **Translation precedes ad detection**; the ad-free base is built on English | `_AD_PATTERNS` is English, so the alternative is an identity ad-free base feeding sponsor reads to GI. Also collapses two translation passes into one | 2026-09-28 |
 | D-4 | **Revised.** Analysis reads English through **one** resolver, and routing every reader to it is *part of the work* | The original claimed the resolver already existed as such; that was its docstring (C-1). Slices S2.1, S2.2 | revised 2026-09-28 |
-| D-5 | **Revised.** The Positions gate is a read-time filter across **every** position-bearing surface | Nine surfaces, not two or five — and one is write-time and cannot be filtered at read time (C-9). Two predicates, not one | revised 2026-09-28 |
+| D-5 | **Withdrawn.** There is no Positions gate in v1 | Superseded by D-37. A gate whose only possible v1 behaviour is "hide every translated claim forever" is not caution, it is spending GPU to produce data nobody can see. The gate belongs with the verifier that can release it, so both are v2. The nine-surface enumeration and the two-predicate design are preserved in the v2 notes because they will be needed there | withdrawn 2026-09-28 |
 | D-6 | **QE is out of v1** | Calibration needs a translated corpus that does not exist until v1 runs. (The human-bottleneck half of the original rationale dissolved with D-20.) v2 doc §4 | 2026-09-28 |
 | D-7 | Defer, don't substitute, on translation-model availability | A model swap invalidates the evidence the language was enabled on | 2026-09-28 |
 | D-8 | Speaker labels bypass the translator, and **naming stays before translation** | Naming is baked into the `.txt`; moving it later means a relabel that merges turns and invalidates the unit map (C-6) | revised 2026-09-28 |
@@ -410,7 +410,7 @@ the choice (D-27).
 | D-14 | **Same-language retrieval only, via a separate keyword-only table.** Non-English chunks live in their own table with no vector column; no embedding model changes | A vector-less row **cannot** surface in a semantic result, which a row tag plus a filter cannot guarantee — and a zero vector would actively outrank most real results. It also leaves the existing table untouched, so it should avoid the stale-index outage a column addition forces. Cross-lingual semantics is v2 | revised 2026-09-28 |
 | D-15 | **Withdrawn.** No embedding-model change in v1, so its blast radius is moot | Superseded by D-14; findings preserved in v2 doc §7 | withdrawn 2026-09-28 |
 | D-16 | **Withdrawn.** The flag gates the pipeline; visibility is controlled by **when the feed is added to the production feed list** | There is no per-episode serving gate: ~32 modules walk the corpus independently and the indexer walks metadata directly, so a catalog filter would not stop search, CIL, MCP or digest. A separate corpus root was considered and rejected — one corpus, no split. Which feed is in the production feed list is config, not code | withdrawn 2026-09-28 |
-| D-17 | **Labelling and the Positions gate ship in Phase 2**, before any translated episode is served | The gate keys on the marker, so a claim written without one slips through a gate that is only fail-closed when the marker exists | 2026-09-28 |
+| D-17 | **Withdrawn.** Nothing about labelling or gating ships in Phase 2 | Superseded by D-36 and D-37 | withdrawn 2026-09-28 |
 | D-18 | Decisions here graduate to **ADRs** as they are implemented | The engineering process puts decisions in ADRs; this many living only in an arc note is process drift. V.4 is the first | 2026-09-28 |
 | D-19 | **Translation runs after transcription and diarization, before summary** — in **one** seam, inside `generate_episode_metadata` | Summary output feeds GI topic labels and KG topics, so translating later gives English insights on Greek topics and fragments cross-episode identity. One seam covers ASR, cache hits, direct downloads, publisher transcripts and every reprocess cascade; "after transcription" names a seam that does not exist for publisher-transcript episodes | refined 2026-09-28 |
 | D-20 | **A native-speaker reviewer is replaced by an LLM judge**, validated by fault injection | The reviewer was never identified, had no protocol, and gated Phases 2–4. Operator decision. The protocol and its three trust rules are in v2 doc §9; they apply to V.3 | 2026-09-28 |
@@ -429,23 +429,14 @@ the choice (D-27).
 | D-33 | **Units carry a content key, and translations are remembered** | A translation memory keyed by `(source_language, model@revision, src_text)` plus a content-hash key beside the ordinal `unit_id`. Turns out a rename does **not** merge turns — coalescing is by equal *adjacent* labels, so only prefix lengths and offsets change, never unit text. So with the memory, a relabel or re-render costs **zero GPU**. Without it every naming repair on a translated show pays for a full re-translation, and naming repair is the most common repair in this corpus | 2026-09-28 |
 | D-34 | **Speaker naming uses the ad-detection trick: translate first, then run the existing English cue matchers on the English text** | The naming cue matchers and NER are English (`roster.py:1472-1494`, `hosts.py:1506-1520`, `detection.py:60-68`) and the one language-agnostic layer is **closed-list** (`resolution.py:202-204`), so a non-English feed's voices stay `SPEAKER_01` — which means no SPOKEN_BY edge, which means `position_arc` matches nothing and **a translated episode yields zero position-bearing insights**. Rather than maintaining per-language cue lists, diarize to anonymous labels, translate, run the English matchers on the English transcript, map names back through the turn, and re-render both transcripts. Cheap only because of D-33. Also translate the title and description so NER candidate discovery works. What stays before translation is **diarization**, not naming — this revises D-8 | 2026-09-28 |
 | D-35 | **The transcript resolver carries a `purpose`, not one precedence** | `analysis` wants `.en.adfree.txt`; `timeline` (the player, the viewer transcript route, the segments view) wants the **full-timeline** text. Collapsing both into a single precedence would desync the player from the audio — the exact drift `segments_view.py` exists to prevent. One resolver, two intents, and a written table of which reader has which | 2026-09-28 |
+| D-36 | **No user-visible "translated from X" marker in v1** | Operator decision: the listener should see one simple thing with no doubt attached. The chip is genuinely useful and it is v2 work, alongside verification and quality. The honest consequence, stated rather than buried: **in v1 a listener cannot tell a translated quote from a native-English one.** It matters most for quotes, since those can be passed on as somebody's words — which is why v2 prioritises it. Provenance is still written on every claim (S2.11), so v2 adds the label without reprocessing | 2026-09-28 |
+| D-37 | **A translated episode has full standing on every surface, exactly as an English one** | We believe the translation. No gating anywhere, no per-surface split, no fail-closed behaviour. Quality is what v2 is *about* — scores, verification, and the label — and hiding output is not a substitute for it. The bet is explicit and mitigated by choosing a good model and by the Gate V check, not by withholding | 2026-09-28 |
 
 ## 8. Open decisions
 
-**One**, and it is a product judgement rather than a technical one: should the Positions gate be
-fail-closed on *every* surface, or fail-closed only on the ones that **assert** a position
-(`position_arc`, `topic_perspectives`, OG share cards, `positions_of`) and labelled-but-visible on the
-profile-shaped ones (`person_profile`, `topic_timeline`)? Fail-closed everywhere means a translated
-speaker gets a person page that returns nothing, which reads as broken rather than as unverified.
-RFC-125's two-predicate design supports either; S2.12 currently specifies fail-closed everywhere.
+**None.** The last one — whether the Positions gate should be fail-closed everywhere or split by surface — dissolved when the gate left v1 entirely (D-5 withdrawn, D-37). Everything else was closed on 2026-09-28; see D-21 … D-37 and the withdrawn items D-13, D-15, D-16, D-17.
 
-The other ten were closed on 2026-09-28 — see D-21 … D-35, and the withdrawn items D-13, D-15,
-D-16. Two dissolved rather than being decided: the non-diarized-episode question (diarization is a
-mandatory core stage and the validator already enforces it, so there is no such category) and the
-local-transcription-tier question (that tier is removed from the DGX profiles' chains).
-
-Three trim candidates were also resolved: the bake-off moves to v2 (D-27), aliasing is not built at all
-(D-24), and the transcript control ships in v1 (D-25).
+Two questions dissolved rather than being answered: the non-diarized-episode category does not exist (diarization is a mandatory core stage with a strict validator), and there is no local-transcription-tier question once that tier leaves the DGX profiles' chains.
 
 Record new open questions here as they appear; do not let a settled decision drift back into this list.
 
@@ -485,6 +476,23 @@ corpus; visibility is controlled by when a feed is added to the production feed 
 option B** — a separate keyword-only table, which makes a non-English chunk structurally incapable of
 appearing in a semantic result and should avoid the schema bump. Nothing implemented; no issues opened.
 
+**2026-09-28 — the trust apparatus left v1 entirely, and v1 got much smaller.** Operator decision
+(D-36, D-37): **we believe the translation.** A translated episode has the same standing as an English one
+on every surface — no gate, no filter — and **no user-visible marker either**. Provenance is still written
+on every claim, invisible to the user, so v2 adds verification, labelling and gating without reprocessing.
+
+This corrected a genuine incoherence rather than a preference: v1 had a read-time gate whose only possible
+behaviour was "hide every translated claim, permanently", because nothing in v1 could verify and therefore
+nothing could release. That meant paying for translation and extraction to produce data nobody could see.
+A gate belongs with its verifier. **D-5 and D-17 withdrawn**; S2.12 deleted; S2.8 shrinks from an L
+labelling slice to an S API slice; §8 is empty again because the last open question — fail-closed
+everywhere versus split by surface — dissolved with the gate. The nine-surface enumeration and the
+two-predicate design are preserved in the v2 notes, where they will be needed.
+
+The honest cost is recorded rather than buried: **in v1 a listener cannot tell a translated quote from a
+native-English one.** That matters most for quotes, which get passed on as somebody's words, and it is why
+the label is the first thing v2 adds after verification.
+
 **2026-09-28 — final architectural review; the plan changed shape.** A single architect-framed review
 (rather than another fault hunt) returned **ready with conditions**, endorsed the spine, and found three
 things cheap now and a corpus re-translation later. **(1) Speaker naming on non-English was unassessed and
@@ -501,7 +509,7 @@ free and stops every future naming repair paying for a re-translation.
 Plan re-shaped: a new **Phase −1** puts the resolver refactor and the allow-list test *before* everything,
 since both are pure-English instruments the rest is measured by. S0.3 folded into S0.2, S0.9 into S0.8,
 S1.3's backfill moved to v2, the two `.en.*` turns variants dropped (no v1 reader), S2.9 re-sized to L,
-S2.11 and S2.12 ship together. Corrected: `topic_consensus` *is* reachable by the property predicate (it
+Corrected: `topic_consensus` *is* reachable by the property predicate (it
 loads `gi.json` itself); script detection does not discriminate for tier 1, since *inflación* and
 *inflation* share a script. Also closed: **TranslateGemma-12B** is the first pick (D-31), and the
 27B-won't-fit claim was **wrong** — measured 74.6 GiB available on the DGX with everything loaded, and the

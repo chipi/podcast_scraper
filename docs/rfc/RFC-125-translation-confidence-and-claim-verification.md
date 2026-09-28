@@ -17,24 +17,31 @@
 
 ## Abstract
 
-A translated episode is analyzed on English text that no one has checked. This RFC makes the
-pipeline **know what it is standing on**. In v1 there are two mechanisms:
+A translated episode is analyzed on English text that no one has checked. This RFC is about closing
+that gap — and about being precise that **v1 does not close it.**
 
-1. Every claim derived from translated text (GI quote and insight — there are no KG evidence spans in
-   this codebase, see §1) carries
-   **translation provenance**: which units it cites, in which source language, resolved through
-   RFC-124's unit map.
-2. Every **position-bearing** claim is **verified against the source language** before it can enter a
-   Position timeline, and the read-time Positions query refuses to build an arc from a claim that
-   has not passed.
+**v1 records provenance and nothing else.** Every claim derived from translated text carries which
+translation units it rests on, in which source language, resolved through RFC-124's unit map. That block
+is written on every quote and insight, and it is **invisible to the user**. A translated episode has the
+same standing as a native-English one on every surface: no gate, no filter, no marker.
 
-**Quality estimation is deliberately deferred to v2** (§7). Per-unit QE with calibrated
-green/amber/red bands is the right long-term signal, but its thresholds must be fitted per language
-against native-reviewer labels — a human bottleneck that would gate the whole arc — and there is no
-translated corpus to calibrate against until RFC-124 has actually run. Source-grounded entailment
-needs no calibration and catches the failure mode that matters. v1 ships that.
+That is a deliberate product decision (arc D-36, D-37), and the reasoning is worth stating because the
+opposite was specified first. A gate is only meaningful if something can release what it holds. With no
+verifier in v1, a gate's only possible behaviour is "hide every translated claim, permanently" — which
+means paying for translation and extraction to produce data nobody can see. The gate belongs with the
+verifier, so both are v2, along with the user-visible label.
 
-Translation stays complete (RFC-124). What is surgical is the verification.
+**Everything else in this document is v2**, and it is written now because the v1 provenance block is
+shaped to accept it without reprocessing:
+
+1. **Source verification** — give a model the source-language text of the cited units and the English
+   claim, and ask whether the source supports it (§2).
+2. **A read-time gate** over the nine position-bearing surfaces, keyed on that outcome (§3).
+3. **A user-visible label** wherever translated content renders (§4).
+4. **Quality estimation** with calibrated bands (§7).
+
+The v1 bet is explicit: we believe the translation, we choose a model on measured evidence at Gate V, and
+quality is what v2 is *about* rather than something v1 hedges around by withholding output.
 
 ## Problem Statement
 
@@ -65,34 +72,41 @@ deliberately is none:
   read-time CIL query (conversation-arc / position-arc), not a gated enricher." ADR-108's 2026-07-08
   update removed the `stance_timeline` enricher for exactly this reason.
 
-So there is one writer (the GI artifact builder) and the gate belongs in the **read path**. This is
-better than the alternative, not a compromise: a gate in the read path applies to the 678 episodes
-already in production the moment a verification record exists, with no re-extraction, and a
-re-verification changes what the arc returns without rewriting a single artifact.
+So there is one writer (the GI artifact builder) and any gate belongs in the **read path**. That is what
+makes deferring it safe: a read-path gate applies to every episode already in the corpus the moment
+verification records exist, with no re-extraction, and re-verifying changes what a surface returns without
+rewriting a single artifact. Nothing about shipping the gate later costs more than shipping it now.
 
 **Use cases:**
 
-1. **Position gate.** A translated insight enters a position arc only after its cited source text is
-   shown to support it.
-2. **Honest provenance.** Any translated claim on any surface can say which source sentences it rests
-   on, and show them.
-3. **Operator triage.** Contradicted claims appear in a review worklist with the source and the
-   translation side by side.
+1. **Honest provenance (v1).** Any translated claim can say which source sentences it rests on, which
+   makes every later mechanism possible.
+2. **Position gate (v2).** A translated insight enters a position surface only once its cited source text
+   is shown to support it.
+3. **Labelled content (v2).** A reader can tell translated content from native, which matters most for
+   quotes since those get passed on as somebody's words.
+4. **Operator triage (v2).** Contradicted claims appear in a review worklist with source and translation
+   side by side.
 
 ## Goals
 
-1. **Deterministic provenance**: every claim on a translated episode records the units it cites and
-   the source language, computed from RFC-124's map rather than guessed.
-2. **Position verification**: in v1, 100% of position-bearing translated insights get a verification
-   outcome before they can appear in an arc.
-3. **Fail-closed by default**: a translated claim with no verification record never reaches a
-   timeline, without anyone having to remember a feature flag.
-4. **Cheap by default**: verification cost scales with the number of position-bearing claims, not
-   with episode length.
-5. **No new suppression path.** Provenance and verification compose with the existing `surfaceable` /
-   `routing_tag` / `salience` machinery instead of adding a second, parallel notion of "do not show
+**v1 — one goal:**
+
+1. **Deterministic provenance**: every claim on a translated episode records the units it cites and the
+   source language, computed from RFC-124's map rather than guessed — and shaped so that verification,
+   gating, labelling and QE can all be added later **without reprocessing the corpus**.
+
+**v2 — the rest:**
+
+2. **Position verification**: every position-bearing translated claim gets a verification outcome.
+3. **A gate keyed on that outcome**, across every position-bearing surface (§3).
+4. **A user-visible label** wherever translated content renders (§4).
+5. **Cheap by default**: verification cost scales with the number of position-bearing claims, not with
+   episode length.
+6. **No new suppression path.** Provenance and verification compose with the existing `surfaceable` /
+   `routing_tag` / `salience` machinery rather than adding a second, parallel notion of "do not show
    this".
-6. **A clean seam for QE later.** v2 adds bands without reshaping anything v1 writes.
+7. **Quality estimation** (§7) attaches without reshaping anything v1 wrote.
 
 ## Constraints & Assumptions
 
@@ -121,7 +135,7 @@ re-verification changes what the arc returns without rewriting a single artifact
 
 ## Design & Implementation
 
-### 1. Translation provenance on every claim
+### 1. Translation provenance on every claim — **the whole of v1**
 
 **Computed at write time, wherever `gi.json` is written.** The GI artifact builder is the main writer
 of quote and insight nodes, but it is **not the only one**: `add_spoken_by_edges(replace=True)` and
@@ -224,10 +238,13 @@ automatic outcome, with provenance recorded as `verification.by: operator`.
 }
 ```
 
-### 3. The Positions gate lives in the read path
+### 3. The Positions gate lives in the read path — **v2**
+
+**Not in v1.** v1 applies no filter anywhere; this section specifies the v2 gate, and it lives here
+because the v1 provenance block is what it keys on.
 
 `position_arc` selects insights for a (person, topic) pair and orders them by `Episode.publish_date`
-then `position_hint`. It gains one filter:
+then `position_hint`. It would gain one filter:
 
 > An insight whose `properties.translation.translated` is true is included only when
 > `properties.translation.verification.outcome == "verified"`.
@@ -404,30 +421,28 @@ Consequences worth stating plainly:
 
 ## Rollout & Monitoring
 
-Slice ids refer to `docs/architecture/MULTILINGUAL_ARC.md` §4. **Two of this RFC's slices ship in
-Phase 2, not Phase 3** — see the ordering note below.
+Slice ids refer to `docs/architecture/MULTILINGUAL_ARC.md` §4 for v1 and
+`docs/architecture/MULTILINGUAL_ARC_V2.md` §3 for v2.
 
-- **Phase 2 (S2.11)**: the provenance block written on all claims of translated episodes.
-- **Phase 2 (S3.1)**: the read-time filter across all five position-bearing paths.
-- **Phase 3 (S3.2)**: the verification pass itself, so claims can start passing the gate.
-- **Phase 3 (S3.3)**: the operator worklist.
-
-**Why the marker and the filter cannot wait for Phase 3.** The filter keys on
-`properties.translation.translated`. A translated insight written *without* that block is invisible to
-the filter, so it passes straight through — "fail-closed" is fail-closed only when the marker exists.
-If Phase 2 served translated episodes while the marker landed in Phase 3, every claim extracted in
-that window would enter Position timelines unverified and unlabelled, which is the failure PRD-047
-names as the worst this feature can produce. So the marker (S2.11) and the filter (S3.1) are
-dependencies of the Phase 2 gate, and `multilingual_ingest` gates **serving** as well as the pipeline.
+- **v1 (S2.11)**: the provenance block on every claim of every translated episode. Nothing reads it yet,
+  nothing is filtered, nothing is labelled. It exists so that none of the v2 work below needs the corpus
+  reprocessed.
+- **v2 (V2-A.1)**: the verification pass, so claims acquire an outcome.
+- **v2 (V2-A.3)**: the read-time gate across the nine surfaces in §3, keyed on that outcome. Whether it
+  is fail-closed everywhere or split between surfaces that *assert* a position and those that merely
+  *describe* is a product judgement to make then.
+- **v2 (V2-A.4)**: the user-visible label, across every serialization boundary in §4.
+- **v2 (V2-B.1)**: quality estimation and calibrated bands (§7).
 
 **Success criteria:**
 
-1. 100% of position-bearing translated insights have a verification outcome before appearing in any
-   arc, and 0 appear without one.
-2. At least 90% of reviewer-labeled position inversions are caught (contradicted or unverified) on
-   the eval set.
-3. Zero change to English-corpus arc responses (isolation test).
-4. Every translated claim rendered anywhere carries a translation label.
+For **v1**, exactly one: every claim derived from translated text carries a complete, resolvable
+provenance block — so that verification, gating and labelling can all be added later without
+reprocessing the corpus.
+
+For **v2**: every position-bearing translated claim has a verification outcome before it appears on a
+gated surface; at least 90% of reviewer-labeled position inversions are caught on the eval set; no
+translated content renders without a label; and English-corpus responses are unchanged by any of it.
 
 ## Open Questions
 

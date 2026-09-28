@@ -45,19 +45,27 @@ source of truth per design.
 ## 3. Claim verification
 
 **Design already written**: `docs/rfc/RFC-125-translation-confidence-and-claim-verification.md` §2
-(methods and outcomes), §3 (the read-time gate — note the *gate itself* stays in v1), §4 (surfaces),
-§5 (monitoring). Read it there; this section holds only the slices and the deferral reasoning.
+(methods and outcomes), §3 (the read-time gate and its nine surfaces), §4 (surfaces), §5 (monitoring).
+Read it there; this section holds the slices and the deferral reasoning.
 
-**What v1 does instead.** v1 writes the translation provenance block on every claim and applies the
-read-time gate, which is fail-closed on a missing verification record. Since v1 verifies nothing, the
-practical effect is that **no translated claim appears on any Position surface in v1**. That is a
-coherent, honest product state: a Greek episode gives you transcripts, subtitles, insights and search,
-and its claims do not yet count towards anybody's position over time.
+**What v1 does instead.** v1 writes the translation provenance block on every claim — `translated`,
+`source_language`, `unit_ids`, `en_sha256` — and then **believes the translation**. A translated episode
+has the same standing as an English one on every surface, with no gate and no user-visible marker
+(v1 D-36, D-37). The provenance is recorded precisely so everything in this section can be added later
+without reprocessing: verification writes an outcome onto claims that already carry their unit
+references, the gate reads that outcome, and the label reads the same block.
+
+**Why the gate came here rather than shipping in v1.** A gate is only meaningful if something can
+release what it holds. In v1 nothing verifies, so a gate's only possible behaviour would be "hide every
+translated claim, permanently" — paying for translation and GI to produce data nobody can see. That is
+not caution, it is waste. The gate belongs with the verifier.
 
 | # | Slice | Goal | Size |
 | --- | --- | --- | --- |
 | **V2-A.1** | Source-grounded entailment verification | Take an English claim, pull the source-language sentences it was extracted from plus one turn of context each side, and ask a model whether that source actually supports the claim: `supports` / `contradicts` / `insufficient`, constrained to JSON, with the record written to the node. Includes the cross-model re-translation fallback on `insufficient`, and that fallback triggering the invalidation path v1 builds. Batched per episode. | L |
 | **V2-A.2** | Operator review worklist | A JSONL export plus a minimal operator view of contradicted and unverified claims — source and translation side by side, audio timestamps, and verify / reject / re-translate actions with operator provenance recorded. Empty until V2-A.1 produces flags, which is why it moved with it. | M |
+| **V2-A.3** | The read-time Positions gate | Withhold a translated claim from position-bearing surfaces until it is `verified`. **This moved out of v1 with the verifier** (v1 D-5 withdrawn, D-37): a gate with nothing able to release it just hides output permanently, so it belongs here. Two predicates, not one — an **edge** predicate for what gets verified (SPOKEN_BY-supported ∩ `ABOUT` ∩ `insight_type == "claim"`, and note that type filter is a caller-overridable default) and a **property** predicate for what renders — plus a test that the first is a superset of the second, or translated non-claim insights would be excluded permanently rather than pending. Applies to **nine** surfaces: `position_arc`, `topic_conversation_arc` (via `topic_timeline`), `topic_timeline_merged`, `person_profile`'s insights-by-topic, `topic_perspective_leaders`, `topic_perspectives` (which feeds the consumer app *and* OG share images), `app_gi_view`'s episode stance display, `search/relational_queries.positions_of` and neighbours (which read `CorpusGraph`, not `gi.json`), and `enrichment/enrichers/topic_consensus.py` — write-time, but it loads `gi.json` itself, so the same property predicate applies at its run time. Whether the gate is fail-closed everywhere or split between surfaces that *assert* a position and those that merely *describe* is a product judgement to make then, not now. | L |
+| **V2-A.4** | Label translated content wherever it renders | The "Translated from <Language>" marker, deferred from v1 (D-36) so the listener sees one simple thing. Not one chip: the marker has to survive every boundary that drops node properties — `AppInsight` / `AppQuote`, the MCP `InsightSummary` / `SupportingQuote` contracts, `hybrid_search._to_search_result` (Lance rows carry no `translated` column, so a translated quote is served as verbatim speech in search, digest and trending), `server/og/build.py` share cards, and **snapshots**, since favourites and captures are copies that a read-time change can never reach. Matters most for **quotes**, which can be passed on as somebody's words — that is why it is the first thing in this section after verification. | L |
 
 **Sequencing note.** V2-A.1 is the single highest-value item in v2, because it is what turns a Greek
 episode from "readable" into "counts towards the corpus's primary signal". If v2 is scheduled in

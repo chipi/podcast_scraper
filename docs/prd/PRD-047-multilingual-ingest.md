@@ -6,7 +6,7 @@
 - **Related RFCs**:
   - [RFC-123](../rfc/RFC-123-speaker-turns-artifact.md) — speaker turns as a first-class artifact (prerequisite; ships independently)
   - [RFC-124](../rfc/RFC-124-multilingual-transcription-and-translation.md) — language routing, source-language transcription, translation stage
-  - [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) — translation provenance, source verification, the read-time Positions gate (quality estimation deferred to v2)
+  - [RFC-125](../rfc/RFC-125-translation-confidence-and-claim-verification.md) — translation provenance (v1); source verification, labelling, the read-time gate and quality estimation (all v2)
   - [RFC-005](../rfc/RFC-005-whisper-integration.md), [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md), [RFC-106](../rfc/RFC-106-tiered-dgx-service-fallback.md), [RFC-109](../rfc/RFC-109-per-episode-observability-manifest.md)
 - **Related ADRs**: [ADR-155](../adr/ADR-155-pin-every-model-checkpoint.md) (pin every model checkpoint), [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) (stance-over-time is a read-time query)
 - **Related PRDs**: [PRD-028](PRD-028-position-tracker.md) (Position Tracker — the surface trust gates), [PRD-036](PRD-036-foundation-identity.md) (player `segments.json` contract), [PRD-039](PRD-039-player.md) (player), [PRD-044](PRD-044-operator-shows-library.md) (operator shows library)
@@ -23,10 +23,10 @@ derived transcript**, aligned turn by turn with the original. The existing ad-re
 on that English text, and its output is what every existing layer (summary, KG, GIL, CIL, search,
 Positions) reads. Those layers need no per-language logic — but getting them to read one agreed
 transcript is real work, because six of them resolve the transcript independently today. The listener
-hears the original audio, can read the
-original transcript, and can switch to English subtitles. Every claim that rests on translated text
-is marked as such, records the source sentences it rests on, and — where it could enter a Position
-timeline — is verified against the source first.
+hears the original audio and reads the transcript in English by default, with a control to switch to
+the original. Every claim that rests on translated text **records which source sentences it rests
+on** — invisible to the user in v1, and the foundation v2's labelling, verification and gating are
+built on. v1 otherwise treats a translated episode exactly like an English one.
 
 **The first deliverable is not translation.** It is making language an explicit, resolved and validated
 property of the corpus we already have: the feed's declared language is actually parsed and persisted, an
@@ -37,15 +37,15 @@ in v2, when there is a second language to distinguish.
 
 The product bet is two-sided. For listeners, the hypothesis is that internationally-minded people
 who consume English podcasts also keep a native-language minority in their diet. For the corpus,
-native-language shows add **source divergence across language communities**, meaning how a Greek or
-Serbian show frames the same question as an English one. English-only tools structurally cannot see
-this, and it compounds the cross-show-synthesis moat.
+native-language shows add **source divergence across language communities** — how a Spanish or German
+show frames the same question as an English one. English-only tools structurally cannot see this, and
+it compounds the cross-show-synthesis moat.
 
 ## Background & Context
 
-- **Listener behavior (hypothesis, anecdotal).** Two informal data points: a Greek listener at
-  roughly 70–80% English / 20–30% Greek, and Serbian listeners at roughly 80–90% English /
-  10–20% Serbian. This is not evidence of demand yet. **Gate V** exists to test it with the beta cohort.
+- **Listener behavior (hypothesis, anecdotal).** Informal data points suggest internationally-minded
+  listeners run roughly 70–90% English with a native-language remainder. This is not evidence of
+  demand yet. **Gate V** exists to test it with the beta cohort.
 - **The pipeline is English-pinned by configuration, not by architecture.** `language: en` is a
   single global setting (`config/profiles/prod_dgx_full.yaml:70`). The DGX transcriber
   (`deepdml/faster-whisper-large-v3-turbo-ct2`) and pyannote community-1 are multilingual already, so
@@ -65,16 +65,18 @@ this, and it compounds the cross-show-synthesis moat.
   non-English transcript it matches nothing, and the ad-free base — the text all analysis reads — is
   silently produced as an identity copy with the sponsor reads still in it. RFC-124 therefore
   translates **before** removing ads, which fixes this and costs one translation pass instead of two.
-- **Grounded objectivization raises the bar.** A mistranslated negation or hedge can invert a
-  position, and the time axis (position change over 12–18 months) is the primary signal in this
-  corpus. A false position flip caused by translation is the worst failure this feature can produce.
-  Trust machinery (RFC-125) is therefore part of the feature, not a later polish item.
+- **Grounded objectivization raises the bar, and v1 accepts a known risk.** A mistranslated negation
+  or hedge can invert a position, and the time axis is the primary signal in this corpus, so a false
+  position flip is the worst failure this feature can produce. v1's mitigation is **model choice**,
+  measured at Gate V — not withholding output. The trust machinery that verifies, labels and gates
+  individual claims is v2, and v1 records the provenance it will need.
 - **Positions are already a read-time query, not a pipeline stage.** `position_arc`
   (`server/cil_queries.py:636`) builds the per-(person, topic) arc at request time from GI insights;
   ADR-108's 2026-07-08 update retired the `stance_timeline` enricher in favour of exactly this. That
-  is load-bearing for this PRD in two ways: the trust gate is a read-path filter (so it is
-  retroactive and fail-closed), and **this feature has no dependency on shipping a stance-extraction
-  stage**, because there is none to ship.
+  is load-bearing for this PRD in two ways: a future gate is a read-path filter, so **v2 can add it
+  retroactively over the whole corpus** with no re-extraction — which is why deferring it costs
+  nothing — and **this feature has no dependency on shipping a stance-extraction stage**, because
+  there is none to ship.
 - **Why not now.** Beta onboarding and the corpus rebuild come first. This PRD is written now so the
   beta interviews can test the hypothesis and so RFC-123, which has standalone value, can be
   scheduled on its own merits.
@@ -86,9 +88,10 @@ this, and it compounds the cross-show-synthesis moat.
 - **G2.** Produce a complete, turn-aligned English transcript per episode that doubles as subtitles.
 - **G3.** Run every existing intelligence layer on non-English episodes with no per-language forks
   in those layers.
-- **G4.** Never present translated text as verbatim speech. Every translated quote, insight and
-  position is labeled, records the source units it rests on, and traces back to the original audio
-  and text.
+- **G4.** Record, for every claim derived from translated text, exactly which source units it rests
+  on — so a translated quote can be traced to the original sentence and the original audio, and so
+  labelling, verification and gating can all be added in v2 without reprocessing. **v1 records this
+  and shows the user nothing**; distinguishing translated from native content in the UI is a v2 goal.
 - **G5.** Claim language support only where a measured quality gate passes, per language.
 - **G6.** Remove ads from non-English episodes as effectively as from English ones, rather than
   appearing to.
@@ -223,8 +226,10 @@ this, and it compounds the cross-show-synthesis moat.
   must all resolve the transcript through **one** shared resolver — which they do not today: two call
   the shared one and six resolve independently, one of them reading the raw transcript. Routing them is
   part of this requirement.
-- **FR4.3**: Every quote from a translated episode is labeled as a translation, shows the original
-  sentence on demand, and plays the **original** audio span.
+- **FR4.3**: A quote from a translated episode **plays the original audio span** — the source times
+  and the English cue times are identical by construction, so this falls out of the artifact model
+  rather than needing UI work. Showing the original sentence beside the translation, and marking the
+  quote as translated at all, are v2 (FR5.2).
 - **FR4.4**: Speaker labels are **never sent through the translation model**, which would rename the
   same person inconsistently between units. The label is carried onto the English transcript verbatim.
   **No transliteration and no alias minting in v1**: every tier-1 language is Latin script and a person's
@@ -245,37 +250,40 @@ this, and it compounds the cross-show-synthesis moat.
 
 ### FR5: Trust and confidence
 
-- **FR5.1**: Every claim derived from translated text records its **translation provenance**: that it
-  is translated, the source language, and the specific source units it rests on — so any translated
-  quote can show the original sentence and play the original audio.
-- **FR5.2**: A translated claim that has not been verified is **labelled but not silently trusted**:
-  it renders with a translation marker, its source is one tap away, and it never enters a Position
-  timeline. (Per-unit quality bands that would let us rank *how* unsure we are on the unverified
-  remainder are a v2 addition — RFC-125 §7.)
-- **FR5.3**: A translated, position-bearing insight appears in a Position surface only when it has a
-  `verified` verification outcome. This is enforced as a read-time filter, which makes it retroactive
-  and **fail-closed**: a translated claim with no verification record is absent by default, with no
-  feature flag to remember. It must be applied to **every** surface that attributes a claim to a
-  person on a topic — not only the per-(person, topic) arc but the topic timelines, the person profile,
-  the topic-perspective surfaces that feed the consumer app and share images, and the relational
-  `positions_of` query. RFC-125 §3 holds the enumerated list. One surface cannot be covered this way:
-  a write-time enricher that corroborates insights across people, which needs the provenance at
-  extraction time instead.
-  **In v1 no translated claim is verified at all** (verification is a v2 capability), so this
-  requirement's practical effect in v1 is that translated claims are absent from every Position
-  surface. FR5.2's labelled-but-visible treatment is what the listener sees on the episode itself.
-- **FR5.4**: The player shows a "Translated from <Language>" marker on translated content. v1 adds no
-  further per-claim confidence decoration, because without calibrated bands there is nothing honest to
-  grade; the amber/red marker arrives with v2.
+**v1 believes the translation.** A translated episode has the same standing as a native-English one on
+every surface: nothing is gated, nothing is filtered, and nothing in the UI marks it as translated. That
+is deliberate — the listener sees one simple thing with no doubt attached, and translation *quality* is
+what v2 is about rather than something v1 hedges around by withholding output. The bet is mitigated by
+choosing the model on measured evidence at Gate V, not by hiding its results.
+
+The honest consequence, stated rather than buried: **in v1 a listener cannot tell a translated quote from
+a native-English one.** That matters most for quotes, because a quote can be passed on as somebody's
+words — which is exactly why the label is the first thing v2 adds after verification.
+
+- **FR5.1**: Every claim derived from translated text records its **translation provenance** — that it is
+  translated, the source language, and the specific source units it rests on. This is written on every
+  quote and insight and is **invisible to the user**. It exists so that verification, labelling and
+  gating can all be added in v2 **without reprocessing the corpus**.
+- **FR5.2** *(v2)*: A user-visible "Translated from <Language>" marker wherever translated content
+  renders, with the original sentence reachable on demand.
+- **FR5.3** *(v2)*: Source verification — give a model the source-language text a claim rests on and the
+  English claim, and record whether the source supports it.
+- **FR5.4** *(v2)*: A read-time gate keyed on that outcome, across every surface that attributes a claim
+  to a person on a topic. RFC-125 §3 enumerates them. Whether it is fail-closed everywhere or split
+  between surfaces that *assert* a position and those that merely *describe* is a judgement to make when
+  the verifier exists — a gate with nothing able to release what it holds would simply hide translated
+  output permanently, which is why it is not in v1.
+- **FR5.5** *(v2)*: Per-unit quality estimation with calibrated bands, so the confidence of an individual
+  claim can be ranked rather than treated as binary.
 
 ### FR6: Operator surfaces
 
 - **FR6.1**: The shows library displays each show's resolved language and the source of that
   resolution (override / RSS / default). Editing is via config (FR1.2).
-- **FR6.2**: The per-episode manifest (RFC-109) records language, translation model, unit count, the
-  verification outcomes, and which transcript variant the ad-free base was built on.
-- **FR6.3**: A review worklist lists contradicted and unverified claims, each with source and
-  translation side by side.
+- **FR6.2**: The per-episode manifest (RFC-109) records language, translation model, unit count, and
+  which transcript variant the ad-free base was built on. Verification outcomes join it in v2.
+- **FR6.3** *(v2)*: A review worklist lists contradicted and unverified claims, each with source and
+  translation side by side. It has no rows until verification exists.
 
 ### FR7: Language visibility and filtering
 
@@ -400,9 +408,13 @@ in [MULTILINGUAL_ARC §4](../architecture/MULTILINGUAL_ARC.md#4-slice-plan).
 - **Quality gate (per language):** at least 90% of position-bearing units judged meaning-preserving
   by a native reviewer, and at least 90% agreement between positions extracted from the translation
   and the reviewer's reading of the original.
-- **Trust:** zero translated quotes rendered without a translation label, and zero translated
-  positions in timelines without a verified outcome. At least 90% of reviewer-labeled position
-  inversions caught on the bake-off eval set.
+- **Provenance:** every claim derived from translated text carries a complete, resolvable set of
+  source-unit references — the one v1 trust requirement, and what makes v2's labelling, verification
+  and gating addable without reprocessing.
+- **Translation quality (Gate V, not a shipped metric):** at least 90% of position-bearing units
+  judged meaning-preserving, and at least 90% agreement between positions extracted from the
+  translation and the judge's reading of the source. This is how the model is *chosen*; v1 does not
+  re-check it per episode.
 - **Findability (Phase 4):** a listener can reach every non-English show in the corpus using the
   language filter alone.
 - **Coverage:** at least 95% of episodes in enabled languages reach English analysis without manual
