@@ -115,6 +115,36 @@ def test_every_android_suite_is_reachable_from_a_make_target() -> None:
 
 
 @pytest.mark.unit
+def test_no_android_test_is_quietly_ignored() -> None:
+    """A wired suite whose tests are `@Ignore`d runs less than it appears to.
+
+    `android-suite` rejects `OK (0 tests)`, which catches a class resolving to nothing at all. It
+    cannot catch the softer version: fourteen tests with thirteen `@Ignore`d still prints
+    `OK (1 test)` and passes, while the coverage everyone believes in is switched off.
+
+    Same family as the guard above — that one catches a suite no target runs, this one catches a
+    test no suite runs. Both are "reads as coverage, is not", which is this file's whole subject.
+
+    There are none today, so this is a floor rather than a cleanup.
+    """
+    ignored: list[str] = []
+    for path in sorted(ANDROID_TESTS_DIR.glob("*.java")):
+        # Comments stripped first: these files quote annotations while explaining them, and a guard
+        # that fires on prose is the fake check this suite exists to catch.
+        code = re.sub(r"//[^\n]*|/\*[\s\S]*?\*/", " ", path.read_text(encoding="utf-8"))
+        if re.search(r"^\s*@Ignore\b", code, re.M):
+            ignored.append(path.name)
+
+    assert not ignored, (
+        f"These Android suites contain `@Ignore`d tests: {sorted(ignored)}.\n\n"
+        "An ignored test still lets its suite report OK, so the tier keeps claiming coverage it no "
+        "longer has — the same shape as a suite no target runs, one level down.\n\n"
+        "Fix it or delete it. If it genuinely must be skipped, say why in a comment beside the "
+        "annotation and list the file here deliberately, so the subtraction is visible."
+    )
+
+
+@pytest.mark.unit
 def test_android_device_tier_is_in_ci_ui_full() -> None:
     """The tier must be attached to a gate someone actually runs.
 
