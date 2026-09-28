@@ -63,6 +63,7 @@ TERMINAL = frozenset(
 # Sourced from config so the API and the CLI cannot drift on which old names are accepted.
 # Imported lazily-safe at module scope: config has no server imports, so no cycle.
 from podcast_scraper.config import DEPRECATED_PIPELINE_STAGE_ALIASES as _CONFIG_STAGE_ALIASES
+from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 PIPELINE_STAGES_REPROCESS = frozenset(
     {"rederive_only", "relabel_only", "rediarize_only", "retranscript_only"}
@@ -686,16 +687,34 @@ def _write_job_worklist(corpus_root: Path, run_id: str | None, ids: Sequence[str
     a server-minted ``uuid4`` (see ``enqueue_pipeline_job``), so a value that does not parse is not
     a job id at all — mint a fresh one rather than trust it. A path separator, ``..``, or an
     absolute path cannot survive this, by construction rather than by review.
+
+    ``corpus_root`` IS THE OTHER TAINT, and the one CodeQL actually meant: it arrives from the
+    request's ``path`` parameter. Laundering only ``run_id`` left both sinks flagged. This is the
+    Type-1 class in ``docs/ci/CODEQL_DISMISSALS.md`` — CodeQL cannot propagate sanitiser state out
+    of a helper, so the guard is INLINE here: resolve the root with ``safe_resolve_directory``,
+    join only CONSTANT segments plus the UUID stem, then ``normpath`` + ``startswith`` before the
+    sinks.
     """
     try:
         stem = str(uuid.UUID(str(run_id)))
     except (ValueError, AttributeError, TypeError):
         stem = str(uuid.uuid4())
     name = f"{stem}.worklist.txt"
-    target = corpus_root / ".viewer" / "jobs" / name
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("".join(f"{i}\n" for i in ids), encoding="utf-8")
-    return target
+
+    root_res = safe_resolve_directory(corpus_root)
+    if root_res is None:
+        raise ValueError(f"work-list: corpus root is not a usable directory: {corpus_root}")
+    root_s = os.path.normpath(str(root_res))
+    jobs_dir_s = os.path.normpath(os.path.join(root_s, ".viewer", "jobs"))
+    target_s = os.path.normpath(os.path.join(jobs_dir_s, name))
+    if not target_s.startswith(root_s + os.sep):
+        # Unreachable given the UUID stem and constant segments; kept as the inline invariant the
+        # query needs to see, and as a hard stop if either ever changes.
+        raise ValueError("work-list: refusing to write outside the corpus root")
+    os.makedirs(jobs_dir_s, exist_ok=True)
+    with open(target_s, "w", encoding="utf-8") as fh:
+        fh.write("".join(f"{i}\n" for i in ids))
+    return Path(target_s)
 
 
 def argv_summary(argv: Sequence[str]) -> str:
