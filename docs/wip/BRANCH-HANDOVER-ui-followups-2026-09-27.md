@@ -118,3 +118,82 @@ N1–N4.
 2. Server-side account reset — highest value for tier trustworthiness.
 3. iOS phase 1's queueing step.
 4. #1595 parts 4 and 5 — it is close enough to finish deliberately.
+
+---
+
+# Session 2 — `october-fixed`, 2026-09-27 evening
+
+**PR #2127 merged** at 14:20Z. This branch is `origin/main` + 9 docs-hygiene commits + 21 from this
+session. **Nothing is pushed.** Everything below was driven by the operator testing real builds on an
+iPhone 15 Pro; each fix was installed and re-checked on the device the same evening.
+
+## Done
+
+| Commit | What |
+| --- | --- |
+| `859cf98e6` | Queue control out of the transport row, beside the heart, with in-queue state. `QueuePanel` **deleted** — both its openers were gone, so nothing could reach it; its 6 behaviours ported onto `RecentlyPlayedList` rather than lost. |
+| `ec7c5e696` | Saved colour strip fits. Measured off the screenshot: 284pt of swatches in 263.6pt, so violet was clipped exactly in half behind a suppressed scrollbar. |
+| `f7679eb7b` | **Person photos.** The edge answered every `/api/app/persons/*/photo` with coming-soon HTML and a **200**. 712 hosted portraits, never once fetchable. Third time this defect shipped. Deployed that night; verified live at 31,392 bytes. |
+| `c6a87e3b3`, `e82b1c591` | PDF chip opens the notes in-app, then **on top of** the panel. The second fixes my own regression: I teleported the viewer to `<body>` while the panel is `showModal()`'d into the top layer. |
+| `1c1e04cae` | Nav tooltips no longer latch. iOS applies `:hover` on tap and never ends it, so the label survived the navigation. |
+| `91ecba387`, `0c14e6173`, `7db7b88fa` | **One glyph per concept** (UXS-014): heart = favourite, bookmark = highlight, 2×2 board = collection. The third fixes a collision *I* created in the second. |
+| `09b03359d` | Conversation arc announces loading instead of appearing from nowhere; bars fill the box when a topic has few weeks. |
+| `5f30fb16d` | **Collection names** — not a colour bug; the row was clipped to nothing. See below. |
+| `979061738` | Ask → **Search**. It renders `hit.text`; there is no synthesis endpoint. Duplicates collapsed, keyboard drops on submit. |
+| `aa86ee277`, `4df86aab6` | Person roles (host/guest/mentioned) on the show page and the person card, ordered by role. Reuses `_role_of` / `_aggregate_role` / `_ROLE_RANK` rather than a second implementation. |
+| `c99948f33`, `31686d1a3` | **Person photos, instances 4 and 5.** `getKeyVoices` and `getTopicPerspectives` never absolutised, so relative URLs resolved against `capacitor://localhost`. Guard added. |
+| `2b11f1d2a` | Mini-player progress uses `transform: scaleX`, not `width` — it was re-laying-out a fixed bar ~4×/sec for the length of every episode. |
+| `9373fc1ca`, `3d12c1d81` | **#2164** — 96 episodes render zero topics because GI wrote insight sentences into the `Topic` nodes. Measured, time-clustered, handed off. |
+
+## NOT done — equal weight, read this half
+
+- **Nothing is pushed.** 21 commits exist only on this machine.
+- **The scroll artifact is undiagnosed.** Fixed chrome paints mid-list during momentum scroll; the
+  operator could not reproduce it on demand. The advisor killed the containing-block theory with
+  evidence and proposed a main-thread-commit race. `2b11f1d2a` removes the most obvious commit
+  generator but **is not claimed as the fix**. The remaining lever — `will-change: transform` on the
+  two bars — is **deliberately unshipped**: speculation against an unreproducible symptom, with no
+  way to tell whether it worked. The zero-code A/B (nothing playing / paused / playing) is still the
+  cheapest next step.
+- **Ask's missing timestamps and duplicate hits are index-side and unfixed.** `hitStartSeconds` finds
+  nothing in `lifted.quote`, `supporting_quotes` or `metadata`, so jump-to-moment is dead on those
+  hits. A 44,924-char chunk cannot carry a meaningful timestamp either, so this is plausibly one root
+  cause with #2159's chunking bug. The client dedupe is **presentation, not a fix**.
+- **#2164 is recorded, not repaired.** The fix is a corpus re-derive — other thread, deploy-gated.
+  **Re-run ONE episode before any batch**; that is also the cheapest test of whether it still ships.
+- **Person roles are unverified against real data.** If chips render unbadged, the KGs do not
+  populate `role` — that is data, not the wiring.
+- **The absolutiser guard polices the CLIENT only.** A new server builder attaching a photo to a
+  payload no existing fetcher handles would still slip through.
+- **No unit test for the co-appearance role collection loop** (`4df86aab6`). The aggregation reuses
+  tested code; "every shared episode's role reaches the list" is only exercised via integration.
+- The original four remain: **#2156, #2157, #1595 parts 4–5, #1978**.
+
+## The pattern — the most useful thing here
+
+**Nine defects this session were invisible to 1,714 passing tests.** Every one was found by the
+operator on the device. jsdom models neither the top layer, nor iOS hover latching, nor real layout —
+and the browser tier **structurally cannot** see the relative-URL bug, because on the web the origins
+match and it does not exist.
+
+Four of the nine were mine:
+
+- **Three wrong fixes for the collection names**, each reasoning from a Chromium repro I trusted over
+  the phone. A diagnostic build — tint the element, screenshot it — settled it in two minutes and
+  should have been the FIRST move. The elimination table is in
+  `DEVICE-ONLY-DEFECTS-2026-09-27.md`; do not re-run those ten dead ends.
+- **A glyph collision created while fixing one**, hours after writing the rule against it.
+- **A regression three of my own tests passed over** (the top layer).
+- **Three near-vacuous tests**, one nearly recorded as mutation-checked when the mutation had
+  silently failed to apply. Every guard added this session is mutation-checked because of that.
+
+The recurring shape is *a check that looks like it is checking something*: a test splitting on a tag
+the file no longer contains; a sort-key test rebuilding the expression instead of calling it; a grep
+against the wrong chunk. Assume it of your own work.
+
+## Where to start (session 2)
+
+1. **Push, or decide not to.** Nothing has left the machine.
+2. The scroll A/B — zero code, discriminates the one live theory.
+3. #2164 step 2: re-run GI on one affected episode.
+4. Then the original four.
