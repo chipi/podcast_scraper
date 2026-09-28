@@ -97,7 +97,7 @@ final class ScreenshotTourTests: UITestCase {
     }
 
     // --- profile, every tab, then settings ----------------------------------------------------
-    if Journey.openProfile(app) {
+    if Journey.openProfile(app, labels: profileLabels) {
       sleep(4)
       frame("t08-profile-account")
       if Journey.tap(app, labels: ["Topics"], timeout: 10) { sleep(3); frame("t09-profile-topics") }
