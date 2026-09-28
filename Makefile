@@ -1928,14 +1928,24 @@ ios-origin-check:
 		echo "      Restart it with: make ios-origin-up"; \
 		exit 1; \
 	}
+	@# ALLOW-LIST the healthy codes, do not deny-list the one bad one. The first version rejected
+	@# 503 and passed everything else, so `/api/app/me -> 500` printed "✓ origin alive" — a check
+	@# that reports health for an api throwing on every request. Naming the good states is the only
+	@# form that cannot be widened by accident.
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app/me" 2>/dev/null); \
-	if [ "$$code" = "503" ]; then \
-		echo "FAIL: /api/app/me returns 503 — the api cannot authenticate ANYONE."; \
-		echo "      That is the degraded-server drill's leftover (an empty APP_SESSION_SECRET),"; \
-		echo "      not a UI fault. Every auth-gated assertion after this would fail as a sign-out."; \
-		echo "      Restore with: make app-e2e-api-up"; \
-		exit 1; \
-	fi; \
+	case "$$code" in \
+		401|200) ;; \
+		503) \
+			echo "FAIL: /api/app/me returns 503 — the api cannot authenticate ANYONE."; \
+			echo "      That is the degraded-server drill's leftover (an empty APP_SESSION_SECRET),"; \
+			echo "      not a UI fault. Every auth-gated assertion after this would fail as a sign-out."; \
+			echo "      Restore with: make app-e2e-api-up"; \
+			exit 1;; \
+		*) \
+			echo "FAIL: /api/app/me returns $$code — expected 401 (healthy, no credential sent)"; \
+			echo "      or 200. The api is answering but not in a state any suite can rely on."; \
+			exit 1;; \
+	esac; \
 	echo "✓ origin alive on :$(IOS_ORIGIN_PORT) (/api/app/me -> $$code)"
 
 # Every device-tier run starts from VIRGIN SERVER-SIDE ACCOUNTS (#2091, 2026-09-27).
@@ -1958,6 +1968,18 @@ ios-origin-check:
 # on the api. A test-only HTTP endpoint would be new server surface whose only safe gate is
 # `provider == mock`, and per-test identities dissolve the need for it anyway. The container is
 # already ours; `docker exec` needs no new product code at all.
+# HAZARD, not yet fixed: `APP_E2E_CT` is not worktree-scoped.
+#
+# This machine runs several worktrees of this repo (AGENTS.md names them), and they all default to
+# the same container name. So a device run in a SIBLING worktree has its accounts deleted out from
+# under it the moment this fires here — the "another agent's live work" class the 2026-08-25
+# incident log exists for. The Makefile already distrusts the shared PORT (see the "foreign"
+# check in `app-e2e-api-up`) and then shares the NAME by default, which is the same assumption
+# twice with only one of them guarded.
+#
+# Not fixed here because `APP_E2E_CT` is referenced by a dozen targets and a rename is its own
+# change with its own blast radius. Recorded loudly instead: do not run two worktrees' device
+# tiers at once, and suffix the container per worktree when someone takes this on.
 app-e2e-users-reset:
 	@if ! docker ps --filter "name=$(APP_E2E_CT)" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
 		echo "--> no $(APP_E2E_CT) container running; no server-side accounts to reset"; \
@@ -2427,9 +2449,14 @@ test-android:
 	@# switch is in Settings, Settings is behind the masthead avatar, and the avatar needs a
 	@# session. That wedge is unrecoverable from inside a test, so it is handled here instead.
 	@$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null
-	@# ...and the SERVER-SIDE half of that clean slate, which `pm clear` cannot reach. Android
-	@# accumulates within a run too — unlike iOS it never tears the api down mid-run, so without
-	@# this its 14 suites inherit each other's accounts as well as the previous run's.
+	@# ...and the SERVER-SIDE half of that clean slate, which `pm clear` cannot reach.
+	@#
+	@# BETWEEN RUNS ONLY, and the earlier version of this comment claimed more than that: it said
+	@# the 14 suites would otherwise "inherit each other's accounts as well as the previous run's".
+	@# They still do. This fires once, here, before phase 1. Within-run isolation comes from
+	@# per-suite identities (`UITestCase.accountIdentity`), not from this target — and the suites
+	@# that opt into `simtest` share deliberately. Claiming coverage a target does not provide is
+	@# how the next person stops looking.
 	@$(MAKE) app-e2e-users-reset
 	@rc=0; \
 	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/7 harness (sign-in, nav, deep links, offline switch) ==="; \
@@ -2443,7 +2470,8 @@ test-android:
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=OfflineCacheTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=ConfigOfflineToggleTests || rc=$$?; }; fi; \
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 5/7 journey + personalisation + native capabilities + stack depth ==="; \
-		$(MAKE) android-suite SUITE=AppJourneyTests || rc=$$?; \
+		$(MAKE) ios-origin-check || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=AppJourneyTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=PersonalisationTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=NativeCapabilityTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=StackDepthProbeTests || rc=$$?; }; \
@@ -2451,7 +2479,8 @@ test-android:
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/7 degraded server (needs a session — BEFORE the sign-out suite) ==="; \
 		$(MAKE) test-android-server-degraded || rc=$$?; fi; \
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 7/7 native-only surfaces (leaves the device offline+signed-out) ==="; \
-		$(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; fi; \
+		$(MAKE) ios-origin-check || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; }; fi; \
 	echo ""; echo "--> resetting the device (the last suite leaves it offline AND signed out by design)"; \
 	$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null 2>&1 || true; \
 	$(MAKE) ios-origin-down >/dev/null 2>&1 || true; \

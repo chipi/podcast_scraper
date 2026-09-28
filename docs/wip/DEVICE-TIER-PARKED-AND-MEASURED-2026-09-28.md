@@ -133,48 +133,31 @@ failure branch — that is what spraying spans across named controls causes.
 non-hidden child `span`, and the teleported `invisible fixed` panel. **Do not resolve this with
 a regex** — resolve it by pointing the widened audit at that popover.
 
-### M3. `Profile ▸ Topics` destroys and recreates its interest chips after load — DIAGNOSED
+### M3. `Profile ▸ Topics` churns while being walked — cause NOT known, and my diagnosis was wrong
 
-`15 of 29 nodes went stale mid-read` on runs 1 and 2 of a five-run loop, and **0 on run 3**.
+Walking it reports `15 of 29 nodes went stale mid-read` on roughly half of runs, and always exactly
+15 of 29 when it fires — so a fixed subset of controls is destroyed and recreated during the read.
+That is worth fixing on its own terms: a control recreated after load drops focus, moves a screen
+reader's position, and can swallow a tap already in flight.
 
-Read that carefully, because the first version of this note got it wrong: it is NOT deterministic.
-WHETHER it fires is timing-dependent. But when it fires the count is always exactly the same —
-15 of 29 — which is the useful part: a fixed subset of chips remounts, not a random scattering.
-That is what points at one shared cause rather than at general churn.
+**RETRACTED — the mechanism this section originally claimed.** It blamed the dynamic tag at
+`ProfileView.vue:641` (`:is="i.openId ? 'button' : 'span'"`) flipping when `getStorylines()`
+resolved, which would force Vue to destroy and recreate each chip. The code contradicts it:
+`load()` assigns `interests`, `clusters` and `storylines` together out of a single `Promise.all`
+(`ProfileView.vue:226-247`), so there is no window in which `openId` resolves late. **Do not
+re-derive that theory.**
 
-**Mechanism, at source.** `ProfileView.vue:641-645` renders each interest chip as a DYNAMIC TAG:
+That was the second mechanism I published today without checking it against the code — the first
+being the "two failed fixes" above. Both had the same shape: a plausible story, written down with
+the confidence of a finding, on evidence that only looked like it fit.
 
-```vue
-<component :is="i.openId ? 'button' : 'span'" v-for="i in interestLabels" :key="i.id">
-```
+Untested candidates: `onActivated` firing a second `load()` while the walk is in progress
+(`ProfileView.vue:359-360`), and the Topics tab's own content re-rendering.
 
-and `:199-200` computes `openId` for a storyline as `anchors.get(id) ?? null`, where `anchors` is
-built from `storylines.value`. Before `getStorylines()` resolves, `anchors` is empty, so `openId`
-is null and the chip renders as a `<span>`. After it resolves, `openId` is the anchor topic id and
-the chip becomes a `<button>`. Vue cannot patch a span into a button, so it **destroys and
-recreates the element** — every affected chip's DOM node is replaced after first paint.
-
-**Why it matters past the test.** A control recreated after load drops focus, moves a screen
-reader's position, and can swallow a tap already in flight — the "tap that succeeds and navigates
-nowhere" class `Journey.swift:367-371` carries a dedicated diagnostic for.
-
-**The obvious fix is WRONG and would have gone green while breaking a design decision.** Making
-the chip always a `<button>` with `:disabled` is pinned against by
-`ProfileView.test.ts:349-364`:
-
-```
-it("an interest with nowhere to go is inert ON SIGHT, not a button that does nothing")
-  expect(pill.element.tagName, `${kind} looks tappable`).toBe("SPAN")
-```
-
-with `:340` and `:372` asserting `BUTTON` for the openable kinds. The span/button split is
-deliberate (`ProfileView.vue:636-640` explains it: a tappable-looking inert element is an
-affordance lie) and it should stay.
-
-**The correct fix, not yet made:** do not render the chips until the data that DECIDES the tag has
-resolved, so each renders once in its final form. That needs a loading gate covering
-`storylines`/`clusters` and a test that the chips do not change tag after mount. Acceptance is
-measurable: `Profile ▸ Topics` reports 0 stale instead of 15 of 29.
+**The surface is EXCLUDED from the audit walk** until this is settled, stated in the test with its
+reason rather than silently dropped — a silent exclusion is how the audit came to walk five
+surfaces while an issue claimed it covered the app. Note the consequence: Profile ▸ Topics has
+still never been audited, so whatever accessible names it holds remain unknown.
 
 ### M4. Server-side accounts were immortal across runs
 

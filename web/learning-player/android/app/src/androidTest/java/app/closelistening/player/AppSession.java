@@ -322,9 +322,23 @@ final class AppSession {
      * below refuses to fire until web content is on screen.
      */
     static boolean signInViaCallback(String identity) {
-        if (Journey.find(Arrays.asList("Sign in", "Your profile", identity), true, 20_000) == null) {
-            System.out.println("=====CALLBACK no web content yet, so appUrlOpen would never see the "
-                    + "token; not firing it :: " + Journey.labelledInventory(12) + "=====");
+        // "Sign in" PRESENT, not merely "some web content is up".
+        //
+        // The first version accepted "Sign in" OR "Your profile" OR the identity as proof the
+        // WebView had painted. That makes the success postcondition below — "'Sign in' is gone" —
+        // satisfiable by the precondition itself: called on an app that is ALREADY signed in, it
+        // would return true at once, having fired nothing and proved nothing. Only one caller
+        // exists today and it signs out first, so the hole is latent; the method is package-visible
+        // and the trap is one new caller away.
+        //
+        // Requiring the signed-out masthead keeps both jobs honest: it still proves web content is
+        // painted (which is what `appUrlOpen` needs, since `initNativeAuth` does not read
+        // `getLaunchUrl`), and it makes the postcondition a real state CHANGE rather than a tautology.
+        if (Journey.find(Arrays.asList("Sign in"), false, 20_000) == null) {
+            System.out.println("=====CALLBACK no signed-out 'Sign in' on screen: either no web "
+                    + "content yet (appUrlOpen would never see the token) or a session already "
+                    + "exists, and neither is a state this path can act on :: "
+                    + Journey.labelledInventory(12) + "=====");
             return false;
         }
         String token = mintNativeToken(identity);
