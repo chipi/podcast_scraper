@@ -327,11 +327,21 @@ describe("the queue is reachable at every width", () => {
     const paths = [...glyph.matchAll(/<path d="([^"]+)"/g)].map((m) => m[1])
     expect(paths.length, "expected the masthead queue glyph's paths").toBeGreaterThan(0)
     for (const d of paths) {
+      /*
+       * HORIZONTAL COMMANDS ONLY — `M` and `h`, nothing else.
+       *
+       * The invariant is "no modifier", not "no decimals". The first version of this required
+       * `^M\d+ \d+h\d+$`, which encoded the glyph that happened to be there rather than the rule,
+       * and it rejected the list BULLETS added on 2026-09-27 (`M4 6h.01`) — a correct change failing
+       * a guard that had over-specified. Stated properly, every modifier this is meant to exclude
+       * needs a command it now forbids: a plus needs `v` for its upright, a tick needs `l`, a wedge
+       * needs `l`/`z`. A bullet is a zero-length `h`, which is still just a horizontal mark.
+       */
       expect(
         d,
-        `"${d}" is not a plain horizontal rule — a queue DESTINATION must not draw a plus, a ` +
-          "tick or a wedge, or it reads as add-to-queue",
-      ).toMatch(/^M\d+ \d+h\d+$/)
+        `"${d}" uses a non-horizontal path command — a queue DESTINATION must not draw a plus ` +
+          "(needs v), a tick or a wedge (need l/z), or it reads as an action on this episode",
+      ).toMatch(/^M[\d.]+ [\d.]+(h-?[\d.]+)+$/)
     }
   })
 

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
+import appSrc from "../App.vue?raw"
 import addToCollectionSrc from "../components/AddToCollectionButton.vue?raw"
 import bookmarkIconSrc from "../components/BookmarkIcon.vue?raw"
 import captureMomentSrc from "../components/CaptureMoment.vue?raw"
 import favoriteSrc from "../components/FavoriteButton.vue?raw"
 import highlightToggleSrc from "../components/HighlightToggle.vue?raw"
+import queueButtonSrc from "../components/QueueButton.vue?raw"
 import knowledgePanelSrc from "../components/KnowledgePanel.vue?raw"
 import transcriptSrc from "../components/TranscriptList.vue?raw"
 
@@ -105,6 +107,81 @@ describe("one glyph per concept", () => {
     expect(code(favoriteSrc), "the heart must read its own state from the favorites store").toContain(
       "favorites.has(",
     )
+  })
+
+  it("no two control glyphs draw the same geometry", () => {
+    /*
+     * The collision this exists for, and it is MINE (operator 2026-09-27, second pass).
+     *
+     * Told to stop the queue destination looking like an add-action, I removed its trailing wedge
+     * and landed on a bare three-line list — byte-identical to the Summary opener over the player
+     * artwork (`M4 6h16M4 12h16M4 18h10`). Two controls, one drawing, on screens the reader sees
+     * together. I replaced one collision with another inside the same session, and the checks above
+     * did not notice because they police heart / bookmark / board by name and nothing else.
+     *
+     * A by-name check can only catch collisions someone already thought of. This compares the
+     * DRAWINGS: normalise every `d` attribute in the app's control glyphs and assert no two
+     * distinct controls share a set. It catches the next one without anyone predicting it.
+     *
+     * Scoped to the glyphs that sit in shared chrome and action rows, because that is where
+     * "which button is this?" is a real question. Decorative and one-off illustration paths are out.
+     */
+    /*
+     * Keyed by CONCEPT, not by file. Sharing a drawing within one concept is the POINT — the whole
+     * rule is that a highlight looks like a highlight wherever it is made, so `BookmarkIcon` and
+     * `CaptureMoment` drawing the same bookmark is correct and this check must not flag it. What is
+     * forbidden is two DIFFERENT concepts converging on one drawing, which is what the operator
+     * kept running into: a capture control that looked like add-to-collection, then a queue
+     * destination that looked like Summary.
+     */
+    const SURFACES: Array<[string, string]> = [
+      ["go-to-queue", appSrc],
+      ["queue-this-episode", queueButtonSrc],
+      ["add-to-collection", addToCollectionSrc],
+      ["highlight", captureMomentSrc],
+      ["highlight", bookmarkIconSrc],
+    ]
+
+    /** Every `d="…"` in one file's icon SVGs, normalised and sorted into a comparable signature. */
+    const glyphsOf = (src: string): string[] =>
+      [...code(src).matchAll(/<svg[\s\S]*?<\/svg>/g)]
+        .map((m) =>
+          [...m[0].matchAll(/\sd="([^"]+)"/g)]
+            .map((d) => d[1].replace(/\s+/g, " ").trim())
+            .sort()
+            .join(" | "),
+        )
+        .filter((sig) => sig.length > 0)
+
+    const seen = new Map<string, string>()
+    for (const [name, src] of SURFACES) {
+      for (const sig of glyphsOf(src)) {
+        const prev = seen.get(sig)
+        expect(
+          prev === undefined || prev === name,
+          `${name} draws the same glyph as ${prev} — two controls, one drawing. Give one of them ` +
+            `its own mark; see the "one glyph per concept" rule in UXS-014.\n  geometry: ${sig}`,
+        ).toBe(true)
+        seen.set(sig, name)
+      }
+    }
+    expect(seen.size, "the glyph scan found nothing — the SVG regex has drifted").toBeGreaterThan(4)
+  })
+
+  it("the masthead queue does not draw the Summary glyph", () => {
+    // The specific collision, pinned by value as well as by the general rule above — a regression
+    // here is worth a message that names both controls rather than a generic duplicate report.
+    const SUMMARY = "M4 6h16M4 12h16M4 18h10"
+    const queue = code(appSrc).slice(
+      code(appSrc).indexOf('data-testid="masthead-queue"'),
+      code(appSrc).indexOf("</svg>", code(appSrc).indexOf('data-testid="masthead-queue"')),
+    )
+    const paths = [...queue.matchAll(/\sd="([^"]+)"/g)].map((m) => m[1]).join("")
+    expect(
+      paths.replace(/\s/g, ""),
+      "the masthead queue is drawing the player's Summary glyph again",
+    ).not.toBe(SUMMARY.replace(/\s/g, ""))
+    expect(paths, "the queue glyph lost its list bullets").toContain("h.01")
   })
 
   it("no heart renders on a fragment", () => {
