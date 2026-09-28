@@ -49,6 +49,24 @@ class UITestCase: XCTestCase {
    * leave.
    */
   var accountIdentity: String {
+    // A RUN-LEVEL OVERRIDE, for the one job that needs several suites to share an account.
+    //
+    // `ios-contact-sheet` runs AppJourneyTests + PersonalisationTests first, specifically so the
+    // tour photographs a populated app rather than a wall of empty states. That worked while every
+    // suite shared one account. Per-suite identities (#2091) broke it silently: the seeders moved to
+    // `appjourneytests` / `personalisationtests` while `ScreenshotTourTests` overrides to `simtest`,
+    // so the tour began photographing an account nobody had seeded — back to the empty states the
+    // seeding step was added to eliminate, and nothing asserts on a contact sheet, so nobody saw it.
+    //
+    // The target now passes `TEST_RUNNER_LP_FORCE_IDENTITY=simtest` to the seeding invocation, which
+    // puts the seeders on the same account as the tour. Deliberately an explicit env var rather than
+    // a default: it makes the sharing a declaration at the call site, which is the same reasoning
+    // that made `sharedSeededIdentity` an explicit override rather than the norm.
+    if let forced = ProcessInfo.processInfo.environment["LP_FORCE_IDENTITY"],
+      !forced.trimmingCharacters(in: .whitespaces).isEmpty
+    {
+      return forced.trimmingCharacters(in: .whitespaces)
+    }
     // `OfflineSpikeUITests.AppJourneyTests` -> `appjourneytests`. Lowercased and stripped to the
     // charset the mock provider accepts, matching how the browser tier derives its own ids.
     let raw = String(describing: type(of: self))

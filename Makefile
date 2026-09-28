@@ -2156,6 +2156,18 @@ IOS_DD ?= /tmp/lp-ios-dd
 IOS_ORIGIN_PORT ?= 4174
 IOS_MEDIA_PORT ?= 18765
 
+# The account the make-level seeding targets mint, and the one suites opt into when they genuinely
+# depend on seeded state.
+#
+# This string exists in FOUR places — here, `ios-journey-signin`'s `as=` query, and the
+# `sharedSeededIdentity` / `SHARED_SEEDED_IDENTITY` constants in the two `UITestCase` files. Neither
+# harness can read this Makefile, so the copies are unavoidable; what is avoidable is them drifting
+# apart silently. `tests/unit/podcast_scraper/test_device_tiers_do_not_drift.py` pins all four
+# together, because a mismatch here does not fail loudly: the seeding would populate one account and
+# the suite would read an empty one, which is exactly how `ios-contact-sheet` came to photograph a
+# tour of empty states for weeks with nothing asserting on it.
+IOS_SEED_IDENTITY ?= simtest
+
 # `OfflinePlaybackTests` — plays an episode from disk and seeks in it.
 #
 # REPLACED `test-app-ios-sim` (deleted 2026-09-25), which built the app, installed it, ran
@@ -2632,7 +2644,7 @@ test-app-ios-prod-tour:
 # store, so the journey suite starts signed in. Write through the preferences DAEMON (the app reads
 # that); the container plist lags behind and must not be written directly — see the note below.
 ios-journey-signin:
-	@tok=""; url="http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app/auth/login?as=simtest&platform=native"; \
+	@tok=""; url="http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app/auth/login?as=$(IOS_SEED_IDENTITY)&platform=native"; \
 	for i in 1 2 3 4 5; do \
 		loc=$$(curl -s -c /tmp/lp-ios-jar.txt -b /tmp/lp-ios-jar.txt -o /dev/null -D - "$$url" \
 			| awk 'tolower($$1)=="location:"{print $$2}' | tr -d '\r'); \
@@ -2802,13 +2814,23 @@ ios-contact-sheet: ios-app-install
 	@# The journey + personalisation suites already CREATE that data as a side effect of asserting
 	@# on it (boards, favourites, played episodes, chosen interests), so running them first is both
 	@# the seed and a check that the seeding path still works.
-	@echo "--> seeding data so the tour photographs a populated app"
+	@#
+	@# SAME ACCOUNT, stated explicitly. This step stopped seeding anything the tour could see when
+	@# per-suite identities landed (#2091): the seeders moved to `appjourneytests` /
+	@# `personalisationtests` while `ScreenshotTourTests` overrides to `simtest`, so the tour
+	@# photographed an account nobody had populated — straight back to the empty states this step was
+	@# added to remove. Nothing asserts on a contact sheet, so it regressed in silence for weeks.
+	@# `TEST_RUNNER_LP_FORCE_IDENTITY` puts the seeders on the tour's account; `UITestCase`
+	@# reads it. Deliberately explicit here rather than a default, so the sharing is visible at the
+	@# call site that depends on it.
+	@echo "--> seeding data so the tour photographs a populated app (as $(IOS_SEED_IDENTITY))"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/AppJourneyTests \
 			-only-testing:OfflineSpikeUITests/PersonalisationTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
+			TEST_RUNNER_LP_FORCE_IDENTITY=$(IOS_SEED_IDENTITY) \
 			2>&1 | grep -E '=====|Test Case.*(passed|failed)|error:|XCTAssert|TEST (SUCCEEDED|FAILED)' || true
 	@echo "--> touring every surface"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \

@@ -267,3 +267,57 @@ def test_every_declared_gap_has_a_real_reason() -> None:
         f"These declared gaps have reasons too thin to act on: {thin}. Say what the capability "
         "buys, and why the other tier does not have it — design difference or outstanding debt."
     )
+
+
+@pytest.mark.unit
+def test_the_seeded_identity_is_the_same_string_everywhere() -> None:
+    """The shared account's name exists in four files and they must agree.
+
+    Neither harness can read the Makefile, so the copies are unavoidable. What is avoidable is them
+    drifting apart, and the reason to guard it is that a mismatch is SILENT: the make-level seeding
+    would populate one account while the suite reads an empty one, and the suite would
+    report missing content rather than a wrong name.
+
+    That is not hypothetical. `ios-contact-sheet` runs the journey and personalisation
+    suites first so the tour photographs a populated app; when per-suite identities
+    landed (#2091) the seeders moved to their own accounts while
+    `ScreenshotTourTests` stayed on the shared one, and the tour went
+    back to photographing empty states. Nothing asserts on a contact sheet, so it stayed broken for
+    weeks. This is the check that would have caught the same shape of mistake in a second.
+    """
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+    found: dict[str, str | None] = {}
+
+    m = re.search(r"^IOS_SEED_IDENTITY \?= *(\S+)", makefile, re.M)
+    found["Makefile IOS_SEED_IDENTITY"] = m.group(1) if m else None
+
+    # The mint URL must use the variable, not a second literal — that copy is how this drifts.
+    m = re.search(r"/api/app/auth/login\?as=([^&\"]+)&platform=native", makefile)
+    found["Makefile ios-journey-signin as="] = m.group(1) if m else None
+
+    m = re.search(r'sharedSeededIdentity\s*=\s*"([^"]+)"', _code(IOS_DIR, "UITestCase.swift"))
+    found["iOS sharedSeededIdentity"] = m.group(1) if m else None
+
+    m = re.search(r'SHARED_SEEDED_IDENTITY\s*=\s*"([^"]+)"', _code(ANDROID_DIR, "UITestCase.java"))
+    found["Android SHARED_SEEDED_IDENTITY"] = m.group(1) if m else None
+
+    missing = [k for k, v in found.items() if v is None]
+    assert not missing, (
+        f"could not find the seeded identity in: {missing}. A marker that matches nothing passes "
+        f"silently, so this fails instead. Found: {found}"
+    )
+
+    # The Makefile's `as=` should be the VARIABLE reference, which is the whole point of having one.
+    as_value = found["Makefile ios-journey-signin as="]
+    assert as_value == "$(IOS_SEED_IDENTITY)", (
+        f"`ios-journey-signin` mints for '{as_value}' as a literal instead of "
+        "$(IOS_SEED_IDENTITY). That is a fifth copy of the account name, and the one that decides "
+        "which account actually gets a token."
+    )
+
+    resolved = {k: v for k, v in found.items() if k != "Makefile ios-journey-signin as="}
+    assert len(set(resolved.values())) == 1, (
+        "the shared seeded identity is spelled differently in different places, so make-level "
+        f"seeding and the suites would use different accounts: {resolved}"
+    )
