@@ -511,28 +511,37 @@ final class AppSession {
         // no "Sign in" link on a signed-in app), so without this the suite would silently keep the
         // previous suite's account — the exact collision per-suite identities exist to prevent.
         //
-        // `hasAnySession`, not `isSignedIn()`: the latter hunts the avatar by name, and the name is
-        // the other account's, which is precisely what this branch does not know.
+        // `hasAnySession`, not `isSignedIn(identity)`: this branch runs when the session belongs to
+        // SOMEONE ELSE, so the one thing it cannot supply is the name to look for.
         if (hasAnySession() && !signOut()) return false;
-        // THE CALLBACK PATH FIRST, the UI path as fallback.
+        // THE CALLBACK PATH, AND ONLY IT. No silent fallback to the UI.
         //
-        // This is not a retry wrapper around something flaky — it is a different, deterministic
-        // route to the same server state, tried first because it has no cross-process step to lose.
-        // The UI path stays as the fallback so a broken callback cannot take the tier down, and
-        // `HarnessSmokeTests` still drives it FIRST, because the real flow is a product surface and
-        // something has to keep exercising it or this quietly deletes that coverage.
-        if (signInViaCallback(identity) && isSignedIn(identity)) return true;
-        Journey.mark("=====SIGNIN callback path did not land; falling back to the UI=====");
-        // VERIFY THE IDENTITY on the fallback too, not merely that a session exists.
+        // There used to be one, defended as "so a broken callback cannot take the tier down", with
+        // the UI flow's coverage supposedly preserved because HarnessSmokeTests "still drives it
+        // FIRST". Both halves were wrong. The smoke test signed in through `startClean` like
+        // everything else, so the real flow was exercised by NOTHING until a test was added for it
+        // (1653a8a34) — and the fallback's own defence is the argument against it, written in this
+        // repo by me, three files away: `Journey.originPort()` refuses to default precisely because
+        // a silent fallback makes the tier "pass — slower, flakier, and with the reason invisible".
         //
-        // `signIn` returns `isSignedIn()` — ANY session — and does so deliberately: it has a branch
-        // for "the picker never appeared because we were already signed in", where being strict
-        // about the name would reject a healthy session whose `/me` had not resolved yet. That
-        // tolerance is correct inside `signIn` and wrong as this function's contract, because
-        // `ensureSignedIn(identity)` promises an ACCOUNT. Without this the fallback could certify
-        // the previous suite's session as this suite's, which is the isolation #2091 exists for.
-        // The iOS twin now does the same.
-        return signIn(identity) && isSignedIn(identity);
+        // That is exactly what it did. When the callback path broke this afternoon the tier did not
+        // report a broken callback; it fell through to the UI, ran `signIn` against an
+        // already-signed-in app, typed the identity into Home's search box, and failed four steps
+        // later as "sign-in did not complete". The fallback converted a precise failure into a
+        // confusing one.
+        //
+        // So it fails loudly here instead. The UI flow keeps its coverage where it belongs — one
+        // dedicated test in HarnessSmokeTests that drives `signIn` directly, once per tier, and
+        // whose failure means the thing it names.
+        if (!signInViaCallback(identity)) {
+            Journey.mark("=====SIGNIN callback path did not land, and there is no fallback :: "
+                    + Journey.labelledInventory(16) + "=====");
+            return false;
+        }
+        // VERIFY THE IDENTITY, not merely that a session exists — `ensureSignedIn(identity)`
+        // promises an ACCOUNT, and certifying the previous suite's session as this one's is the
+        // isolation #2091 exists to provide.
+        return isSignedIn(identity);
     }
 
     /**
@@ -600,20 +609,24 @@ final class AppSession {
         for (int attempt = 1;
                 attempt <= 2 && Journey.labelledInventory(1).startsWith("<nothing labelled");
                 attempt++) {
-            // FORCE-STOP FIRST. Re-issuing the launch intent into the same process does not help —
-            // measured 2026-09-27, where exactly that retry fired and the tree stayed empty. The
-            // process is up and its WebView is wedged, so the only clean recovery is to end it and
-            // start again.
+            // NO FORCE-STOP. It used to run `am force-stop app.closelistening.player` here, and
+            // that cannot work: Android instrumentation runs INSIDE THE TARGET APP'S PROCESS, so
+            // the command kills the app and the test issuing it in the same breath.
             //
-            // The api log shows the shape precisely: app traffic right up to the moment of the
-            // relaunch, then NOTHING but the docker healthcheck. The bundle never loaded, so the
-            // app made no requests at all — an empty tree, not a slow one.
-            Journey.mark("=====RELAUNCH webview blank; force-stop + retry " + attempt + "/2");
-            try {
-                Journey.device().executeShellCommand("am force-stop " + Journey.PKG);
-            } catch (Throwable ignored) {
-                // Best effort: if the shell is unavailable the plain relaunch below still runs.
-            }
+            // That is why this recovery was recorded as never having fired in ~40 sign-ins and
+            // therefore untested. The first time it did fire — 2026-09-28, this suite — the run
+            // ended with `INSTRUMENTATION_RESULT: shortMsg=Process crashed.` and a single marker,
+            // which says nothing about the WebView and everything about the harness shooting
+            // itself. A recovery whose success case is indistinguishable from a crash is worse
+            // than no recovery, because it also destroys the evidence.
+            //
+            // The original comment reasoned that re-issuing the launch intent "does not help", and
+            // that observation stands — but the conclusion drawn from it does not, because the
+            // alternative it chose is unavailable from in-process. So: try the relaunch, which is
+            // free and occasionally works, and if the tree is still empty FAIL SAYING SO. A precise
+            // failure is worth more than an impossible recovery.
+            Journey.mark("=====RELAUNCH webview blank; re-issuing the launch intent, attempt "
+                    + attempt + "/2 (no force-stop: it would kill this test's own process)=====");
             Journey.sleep(2_000);
             ctx.startActivity(launch);
             Journey.device().wait(Until.hasObject(By.pkg(Journey.PKG).depth(0)), 30_000);
@@ -622,6 +635,23 @@ final class AppSession {
                 if (!Journey.labelledInventory(1).startsWith("<nothing labelled")) break;
                 Journey.sleep(500);
             }
+        }
+
+        // STILL BLANK AFTER TWO TRIES: say so, here, in the words of the thing that is wrong.
+        //
+        // Without this the caller carries on and fails somewhere downstream as "sign-in did not
+        // complete" or "no Download control", naming a surface rather than the cause — which is
+        // how this defect cost two full tier runs on 2026-09-27 and got recorded as a sign-in
+        // problem. The WebView never painted; nothing after this point can succeed, and the first
+        // assertion to notice will be about something else entirely.
+        if (Journey.labelledInventory(1).startsWith("<nothing labelled")) {
+            throw new AssertionError(
+                    "the app's WebView never painted after two launches — the accessibility tree is "
+                            + "empty while `" + Journey.PKG + "` is foregrounded. This is a "
+                            + "client-side paint failure, not a backend outage: when it was measured "
+                            + "on 2026-09-27 the api was serving 200s throughout. Nothing this suite "
+                            + "does next can work, so it stops here rather than failing later about "
+                            + "a control that was never going to be on screen.");
         }
 
         // Boot paints the device snapshot and then revalidates; assert after that lands.

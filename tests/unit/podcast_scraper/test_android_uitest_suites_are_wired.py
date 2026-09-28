@@ -145,6 +145,48 @@ def test_no_android_test_is_quietly_ignored() -> None:
 
 
 @pytest.mark.unit
+def test_the_ui_sign_in_flow_has_exactly_one_caller() -> None:
+    """`AppSession.signIn` drives the real OAuth flow, and only the smoke test may use it.
+
+    Suites sign in through `ensureSignedIn`, which delivers the OAuth callback as an intent — no
+    Custom Tab, no dev picker, ~2 seconds, deterministic. `signIn` is the other thing: it drives the
+    genuine flow a person takes, six sequential races ending in a consent screen owned by
+    `com.android.chrome`, measured at 2 failures in 9 runs.
+
+    Both need to exist. What must not happen is the second leaking back into the first. It already
+    did once: `ensureSignedIn` used to fall back to `signIn` when the callback path
+    failed, defended
+    as insurance — and when the callback broke, the tier did not report a broken callback. It ran
+    `signIn` against an already-signed-in app, typed the identity into Home's search
+    box, and failed
+    four steps later as "sign-in did not complete". The fallback converted a precise failure into a
+    confusing one, which is the same argument `Journey.originPort()` makes against defaulting.
+
+    So the UI flow is exercised exactly once per tier, by one test that names it, and
+    this pins that. A second caller is not necessarily wrong — but it is a decision,
+    and it should be made here.
+    """
+    callers: list[str] = []
+    for path in sorted(ANDROID_TESTS_DIR.glob("*.java")):
+        if path.name == "AppSession.java":
+            continue  # its own internals may call it
+        code = re.sub(r"//[^\n]*|/\*[\s\S]*?\*/", " ", path.read_text(encoding="utf-8"))
+        for match in re.finditer(r"AppSession\.signIn\s*\(", code):
+            line = code.count("\n", 0, match.start()) + 1
+            callers.append(f"{path.name}:{line}")
+
+    assert callers == ["HarnessSmokeTests.java:91"] or len(callers) == 1, (
+        f"`AppSession.signIn` is called from {callers}. It should have exactly ONE caller — the "
+        "HarnessSmokeTests test that exists to drive the real UI sign-in flow.\n\n"
+        "Every other suite signs in through `ensureSignedIn`, which uses the deterministic "
+        "callback path. Routing more suites through the UI flow re-imports a race measured at "
+        "2 failures in "
+        "9 runs, once per suite instead of once per tier.\n\n"
+        "If a second caller is genuinely right, update this guard and say why."
+    )
+
+
+@pytest.mark.unit
 def test_android_device_tier_is_in_ci_ui_full() -> None:
     """The tier must be attached to a gate someone actually runs.
 

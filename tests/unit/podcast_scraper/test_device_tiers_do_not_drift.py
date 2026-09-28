@@ -172,6 +172,42 @@ CAPABILITIES: list[Capability] = [
             "PREVIOUS suite's account as this one's — defeating the isolation #2091 exists for."
         ),
     ),
+    Capability(
+        name="session state is read from the masthead, not a trip to Profile",
+        android=("AppSession.java", r"private static boolean settles\(String label"),
+        ios=("AppSession.swift", r"func settles\("),
+        status=ANDROID_ONLY,
+        why=(
+            "Android answers 'is this app signed in, and as whom' by reading the masthead — the "
+            "profile link is labelled `auth.user?.name || t('profile.title')` and the "
+            "notifications bell renders only under `auth.hasSession`. It used to navigate "
+            "to Profile (twelve "
+            "swipes), scroll to 'Sign out', sleep 6s and scroll again: ~40s per call, on every "
+            "startClean, to learn something already on screen. Measured after the change: "
+            "HarnessSmokeTests 314.6s -> 177.9s. iOS still does the Profile trip with both sleeps. "
+            "DELIBERATE AND TEMPORARY: the advisor's migration order says not to edit iOS while it "
+            "cannot be executed, and the iOS tier has not run since `ios-origin-up` began hanging "
+            "(undiagnosed). This entry exists so the divergence is recorded rather than discovered "
+            "later — it is the exact shape of the two bugs fixed in 7c779e8af, where Android had "
+            "the fix and iOS silently kept the defect."
+        ),
+    ),
+    Capability(
+        name="suites sign in through the callback path ONLY, with no silent UI fallback",
+        android=("AppSession.java", r"there is no fallback"),
+        ios=("AppSession.swift", r"there is no fallback"),
+        status=ANDROID_ONLY,
+        why=(
+            "Android's `ensureSignedIn` uses the OAuth-callback intent and FAILS if it does not "
+            "land. It used to fall back to the UI flow, defended as insurance; when the callback "
+            "actually broke on 2026-09-28 the fallback ran `signIn` against an already-signed-in "
+            "app, typed the identity into Home's search box, and failed four steps later as "
+            "'sign-in did not complete' — converting a precise failure into a confusing one. The "
+            "real UI flow keeps its coverage in one dedicated HarnessSmokeTests test, pinned to a "
+            "single caller by a guard. iOS has no callback path at all yet (it cannot fire an "
+            "intent), so it necessarily still drives the UI flow everywhere."
+        ),
+    ),
 ]
 
 
