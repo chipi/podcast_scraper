@@ -379,6 +379,28 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
 # None can consume an ASR credential, so requiring one is a barrier, not a safeguard.
 STAGES_THAT_NEVER_TRANSCRIBE = frozenset({"relabel_only", "rediarize_only", "retranscript_only"})
 
+# TWO PREDICATES, AND CONFLATING THEM COST 48 EPISODES.
+#
+# The set ABOVE is named for "never calls an ASR provider" but DEFINED by a mechanism: stages that
+# set transcribe_missing=TRUE so the episode reaches the transcription stage and is intercepted.
+# ``rederive_only`` satisfies the name and not the definition — it reaches its reuse branch with
+# transcribe_missing=FALSE — so it is correctly absent from it.
+#
+# The predicate below is the OTHER one, and it is what most callers actually want: "this stage
+# works from an artifact already on disk, so do not fetch anything for it, and its existing
+# metadata/transcript is the INPUT rather than a reason to skip." All four reprocess stages satisfy
+# it, ``rederive_only`` included.
+#
+# Before this existed, three call sites wrote ``... in STAGES_THAT_NEVER_TRANSCRIBE or stage ==
+# "rederive_only"`` — the same workaround three times, which is the shape of a missing concept
+# rather than three coincidences. One of the places that did NOT carry the workaround was the
+# direct-download branch of ``process_transcript_download``, and on 2026-09-28 a feed-scoped
+# ``rederive_only`` over 50 prod episodes therefore re-derived 2 and skipped 48, exiting 0.
+#
+# Keep in step with ``server.jobs.PIPELINE_STAGES_REPROCESS`` — there is a test asserting they are
+# equal, because a stage added to one and not the other silently loses its reuse behaviour.
+STAGES_REUSING_ON_DISK_ARTIFACTS = STAGES_THAT_NEVER_TRANSCRIBE | frozenset({"rederive_only"})
+
 # Old stage names still accepted on profiles and command lines, mapped to the canonical
 # one in ``_coerce_pipeline_stage_before``. ``enrich_only`` was renamed 2026-09-01: it
 # collided with the unrelated corpus-level ``enrich`` command (topic clusters,
