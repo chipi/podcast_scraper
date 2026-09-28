@@ -46,9 +46,15 @@ final class AppJourneyTests: UITestCase {
 
   func test01ProfileTabs() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
     Journey.shot(self, "01-home")
 
-    XCTAssertTrue(Journey.openProfile(app), "could not open Profile from the masthead avatar")
+    XCTAssertTrue(
+      Journey.openProfile(app, labels: profileLabels),
+      "could not open Profile from the masthead avatar as \(accountIdentity)")
     sleep(3)
     Journey.inventory(app, "profile")
     Journey.shot(self, "01-profile-account")
@@ -68,6 +74,10 @@ final class AppJourneyTests: UITestCase {
 
   func test02EpisodeAndInsights() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
     Journey.shot(self, "02-episode")
@@ -91,6 +101,10 @@ final class AppJourneyTests: UITestCase {
 
   func test03TopicAndStoryline() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
 
     // Topic ids carry a `topic:` prefix, which the deep-link id validator rejects by design, so
     // topics are reached the way a user reaches them: the Home entity rail's Topics tab.
@@ -150,6 +164,10 @@ final class AppJourneyTests: UITestCase {
 
   func test04PersonFromEpisode() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
 
@@ -209,6 +227,10 @@ final class AppJourneyTests: UITestCase {
 
   func test05CollectionsCreateAndAdd() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
     Journey.openTab(app, "Library")
     sleep(4)
     Journey.inventory(app, "library")
@@ -264,6 +286,10 @@ final class AppJourneyTests: UITestCase {
 
   func test06SharePopover() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
     if Journey.tap(app, labels: ["Share"], contains: true, timeout: 15) {
@@ -286,6 +312,10 @@ final class AppJourneyTests: UITestCase {
 
   func test07SavedColourPicker() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
 
     // Seed every colour, not just one. Saved is newest-first, so the episode favourited on this
     // pass is row one — which is why each colour can be applied to the FIRST colour control
@@ -395,6 +425,10 @@ final class AppJourneyTests: UITestCase {
   /// the next one stacks below it.
   func test11StorylineFromInsightsStacksOverTheTopic() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
 

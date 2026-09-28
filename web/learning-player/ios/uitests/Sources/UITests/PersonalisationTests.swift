@@ -21,6 +21,10 @@ final class PersonalisationTests: UITestCase {
 
   func test09PlayFillsStats() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
 
     for (i, slug) in episodes.enumerated() {
       AppSession.openEpisode(app, slug: slug)
@@ -48,7 +52,7 @@ final class PersonalisationTests: UITestCase {
       sleep(3)
     }
 
-    Journey.openProfile(app)
+    Journey.openProfile(app, labels: profileLabels)
     sleep(3)
     _ = Journey.tap(app, labels: ["Stats"], timeout: 12)
     sleep(4)
@@ -65,7 +69,11 @@ final class PersonalisationTests: UITestCase {
 
   func test10InterestsRenderAndFeedHome() {
     let app = Journey.launch()
-    Journey.openProfile(app)
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
+    Journey.openProfile(app, labels: profileLabels)
     sleep(3)
     guard Journey.tap(app, labels: ["Topics"], timeout: 12) else {
       XCTFail("no Topics tab on Profile"); return
@@ -156,7 +164,7 @@ final class PersonalisationTests: UITestCase {
     //
     // Where they DO render verbatim is the Profile Topics tab, which is what "see if they render"
     // means — so that is checked at the source.
-    Journey.openProfile(app)
+    Journey.openProfile(app, labels: profileLabels)
     sleep(3)
     _ = Journey.tap(app, labels: ["Topics"], timeout: 10)
     sleep(3)

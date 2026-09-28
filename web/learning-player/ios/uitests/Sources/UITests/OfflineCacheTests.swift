@@ -23,6 +23,10 @@ final class OfflineCacheTests: UITestCase {
 
   func test08BrowseThenOfflineShowsCachedContent() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
 
     // --- 1. WARM THE CACHE: browse the surfaces we will later assert on, online.
     Journey.shot(self, "08-a-home-online")

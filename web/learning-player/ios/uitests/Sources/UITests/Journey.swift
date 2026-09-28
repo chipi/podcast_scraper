@@ -333,7 +333,19 @@ enum Journey {
     var lastSignature = ""
     var stalled = 0
     for _ in 0...maxSwipes {
-      if let el = find(app, labels: labels, contains: contains, timeout: 2) { return el }
+      // HITTABLE, or keep scrolling. `find` returns a NON-hittable match through its fallback
+      // branch, so accepting whatever it hands back made this return on the FIRST iteration
+      // without ever swiping — which is the opposite of what a scroll-to-element helper is for.
+      //
+      // MEASURED 2026-09-28: `signOut` asked for "Sign out", got
+      //     =====TAP_NONHITTABLE ["Sign out"] … frame=(19.0, 878.0, 364.0, 45.0)=====
+      // on a ~874pt screen. The control is the LAST item on Profile by design (#1962), so it sits
+      // just below the fold; this returned it unscrolled, the tap landed on nothing, and the
+      // caller reported "signed in as another account and could not sign out after 3 attempts".
+      // Two of four phase-4 failures were that one line.
+      if let el = find(app, labels: labels, contains: contains, timeout: 2), el.isHittable {
+        return el
+      }
       app.swipeUp()
       usleep(800_000)
       // Label AND vertical position. Labels alone assume the first twelve change as you scroll —

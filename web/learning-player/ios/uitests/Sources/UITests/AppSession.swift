@@ -48,8 +48,11 @@ enum AppSession {
     let deadline = Date().addingTimeInterval(timeout)
     var since: Date?
     while Date() < deadline {
-      if Journey.find(app, labels: [label], contains: true, timeout: 1) != nil {
-        if since == nil { since = Date() }
+      if let hit = Journey.find(app, labels: [label], contains: true, timeout: 1) {
+        if since == nil {
+          since = Date()
+          print("=====SETTLE_HIT '\(label)' matched label='\(hit.label)' type=\(hit.elementType.rawValue) frame=\(hit.frame)=====")
+        }
         if Date().timeIntervalSince(since!) >= stableForSeconds { return true }
       } else {
         if since != nil {
@@ -290,13 +293,17 @@ enum AppSession {
       // returned success without signing anything out. Fixing the detection is what made this one
       // reachable; two wrongs had been cancelling since the tabs landed.
       _ = Journey.tap(app, labels: ["Account"], contains: false, timeout: 5)
-      guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else {
-        print(
-          "=====SIGNOUT attempt \(attempt): no 'Sign out' on Profile :: "
-            + "\(Journey.labelledInventory(app, limit: 10))====="
-        )
-        continue
-      }
+      // BEST-EFFORT SCROLL, NOT A GATE. `scrollTo` used to guard this tap, and its failure aborted
+      // the whole attempt — but `tap` does its own scroll-into-view off the element's FRAME
+      // (`while el.frame.maxY > height - 90 { swipeUp }`), which is the mechanism that actually
+      // works on this page. Gating the good mechanism behind the fragile one is why sign-out had
+      // three attempts and no chance.
+      //
+      // `scrollTo` is fragile HERE specifically: it stops after two unchanged text signatures, and
+      // its own comment names the hazard — "a sticky header would silently make every page look
+      // stalled after two swipes". Profile has a sticky Account/Topics/Stats tab bar, so it reports
+      // "no 'Sign out' on Profile" about a page that has one, just below the fold.
+      _ = Journey.scrollTo(app, labels: ["Sign out"], contains: false)
       let tapped = Journey.tap(app, labels: ["Sign out"], contains: false, timeout: 10)
       sleep(3)
       if !isSignedIn(app) { return true }
