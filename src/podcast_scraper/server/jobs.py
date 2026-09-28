@@ -101,6 +101,11 @@ def normalize_pipeline_stage(stage: str | None) -> str | None:
 #: Selection modes the API may put on a subprocess argv. Mirrors ``Config.episode_selection``.
 EPISODE_SELECTION_ALLOWED = frozenset({"position", "unprocessed"})
 
+#: Bounds on an API-supplied repair work-list. Generous enough for a whole-feed repair (the
+#: largest real one so far was 50) and small enough that a request cannot write an unbounded file.
+_MAX_EPISODE_IDS = 500
+_MAX_EPISODE_ID_LEN = 256
+
 
 def normalize_episode_selection(selection: str | None) -> str | None:
     """Validated selection mode for argv, or ``None`` to omit the flag entirely.
@@ -490,6 +495,7 @@ def build_pipeline_argv(
     episode_selection: str | None = None,
     profile_override: str | None = None,
     pipeline_stage: str | None = None,
+    reprocess_episode_ids: Sequence[str] | str | None = None,
 ) -> list[str]:
     """Build CLI argv for a full pipeline run (README parity: ``--profile`` then ``--config``).
 
@@ -608,7 +614,73 @@ def build_pipeline_argv(
             # See the docstring: without this the work list comes from the live feed and every
             # already-ingested episode is skipped, so the reprocess silently does nothing.
             argv.append("--reprocess-existing-only")
+    wanted = normalize_reprocess_episode_ids(reprocess_episode_ids)
+    if wanted:
+        # A WORK-LIST IS THE ONLY WAY TO SCOPE A REPROCESS BELOW ONE WHOLE FEED. Every other
+        # narrowing knob is inert here: ``prepare_episodes_from_feed`` returns via
+        # ``_reprocess_existing_episodes`` BEFORE the offset/limit block, so max_episodes /
+        # episode_offset / episode_selection / --since / --until are silently ignored and the
+        # episode set is the whole on-disk corpus for the feed.
+        #
+        # Without this parameter the API could therefore only ever repair a feed wholesale. On
+        # 2026-09-28 that gap cost a 50-episode in-place rewrite where one episode was intended:
+        # the work-list had to be smuggled in through the operator YAML, and a separate CLI bug
+        # discarded it there, leaving no scoping at all.
+        #
+        # The ids go through a FILE rather than a flag because the CLI reads them that way, and a
+        # file keeps a 50-id repair out of the process table and the registry's argv_summary.
+        worklist = _write_job_worklist(corpus_root, run_id, wanted)
+        argv.extend(["--reprocess-episode-ids", str(worklist)])
     return argv
+
+
+def normalize_reprocess_episode_ids(raw: Sequence[str] | str | None) -> list[str]:
+    """Validated, de-duplicated episode ids for a scoped reprocess — order preserved.
+
+    Accepts a sequence or one comma-separated string. Anything that could change the MEANING of
+    the work-list file is rejected rather than cleaned: an id containing a newline would become
+    two ids, which would silently widen a repair — the failure mode this whole parameter exists to
+    remove. Length and count are bounded so a request cannot write an unbounded file.
+    """
+    if raw is None:
+        return []
+    parts: list[str] = []
+    items = [raw] if isinstance(raw, str) else list(raw)
+    for item in items:
+        for piece in str(item).split(","):
+            token = piece.strip()
+            if not token:
+                continue
+            if any(ch in token for ch in "\r\n#"):
+                raise ValueError(
+                    f"reprocess_episode_ids: illegal character in {token!r} — an id may not "
+                    "contain a newline or '#', which would split or comment out the work-list"
+                )
+            if len(token) > _MAX_EPISODE_ID_LEN:
+                raise ValueError(
+                    f"reprocess_episode_ids: id longer than {_MAX_EPISODE_ID_LEN} chars"
+                )
+            parts.append(token)
+    seen: set[str] = set()
+    out: list[str] = []
+    for token in parts:
+        if token not in seen:
+            seen.add(token)
+            out.append(token)
+    if len(out) > _MAX_EPISODE_IDS:
+        raise ValueError(
+            f"reprocess_episode_ids: {len(out)} ids exceeds the {_MAX_EPISODE_IDS} cap for one run"
+        )
+    return out
+
+
+def _write_job_worklist(corpus_root: Path, run_id: str | None, ids: Sequence[str]) -> Path:
+    """Persist the work-list beside the job log so the run is reproducible from the corpus."""
+    name = f"{run_id or uuid.uuid4()}.worklist.txt"
+    target = corpus_root / ".viewer" / "jobs" / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("".join(f"{i}\n" for i in ids), encoding="utf-8")
+    return target
 
 
 def argv_summary(argv: Sequence[str]) -> str:
@@ -1013,6 +1085,7 @@ def enqueue_pipeline_job(
     episode_selection: str | None = None,
     profile_override: str | None = None,
     pipeline_stage: str | None = None,
+    reprocess_episode_ids: Sequence[str] | str | None = None,
 ) -> dict[str, Any]:
     """Append a new job; promote to *running* immediately when under the concurrency cap.
 
@@ -1044,6 +1117,7 @@ def enqueue_pipeline_job(
             episode_selection=episode_selection,
             profile_override=profile_override,
             pipeline_stage=pipeline_stage,
+            reprocess_episode_ids=reprocess_episode_ids,
         )
         cap = max_concurrent_jobs(operator_yaml)
         if not paused and _running_count(jobs) < cap:
@@ -1216,7 +1290,7 @@ def cancel_job(corpus_root: Path, job_id: str) -> tuple[str, dict[str, Any] | No
         # rule (see ``current_boot_id``), but the consequence here is worse than a wrong
         # status: after a restart that pid number is very likely owned by something else in
         # the new PID namespace, and SIGTERM would kill an innocent process.
-        stopped = _stop_prior_boot_job(job_id)
+        stopped = _stop_job_container(job_id)
         if not stopped:
             logger.warning(
                 "cancel job=%s: row is from a previous boot, so its recorded pid (%s) is not "
@@ -1231,14 +1305,39 @@ def cancel_job(corpus_root: Path, job_id: str) -> tuple[str, dict[str, Any] | No
             os.kill(int(pid), signal.SIGTERM)
         except OSError as exc:
             logger.warning("cancel sigterm failed job=%s pid=%s: %s", job_id, pid, exc)
+    # SIGTERM ABOVE DOES NOT STOP THE WORK IN DOCKER EXEC MODE. The recorded pid is the
+    # ``docker compose run`` CLIENT living in the api container; the pipeline itself runs in a
+    # separate container the client merely attaches to. Killing the client detaches — the
+    # container keeps running, keeps holding the GPU, and keeps WRITING TO THE CORPUS, while the
+    # job row says "cancelled" and /api/jobs/running lists nothing.
+    #
+    # Measured on prod 2026-09-28: cancel returned exit 130 and ended_at at 12:12:07; the
+    # container was still "Up (healthy)" five minutes later and had finished rewriting all 50
+    # episodes by the time it was stopped by hand. A cancel that reports success while the run
+    # continues is worse than no cancel at all — the operator stops watching.
+    #
+    # The label handle used for prior-boot rows works just as well here, so use it unconditionally
+    # in docker mode. Stopping an already-exited container is a no-op, so the ordinary
+    # cancel-just-as-it-finishes race costs nothing.
+    if docker_exec_mode() and not _stop_job_container(job_id):
+        logger.warning(
+            "cancel job=%s: SIGTERM was sent to the compose client (pid=%s) but no pipeline "
+            "container matched the job label, so work may still be running; verify with "
+            "`docker ps --filter label=podcast.job_id=%s`",
+            job_id,
+            pid,
+            job_id,
+        )
     return "cancelled", rec
 
 
-def _stop_prior_boot_job(job_id: str) -> bool:
-    """Stop a job left over from an earlier boot by its container label. True if stopped.
+def _stop_job_container(job_id: str) -> bool:
+    """Stop a job's pipeline container by its job label. True if something was stopped.
 
-    Only Docker exec mode has a durable handle on such a job — the label survives the API
-    container that spawned it, which is exactly what the pid does not do.
+    Docker exec mode is the only mode with a handle that outlives the spawning process — the label
+    survives both the api container that spawned it and the compose client that attached to it,
+    which is exactly what the pid does not do. Used for BOTH a prior-boot row (whose pid is unsafe
+    to signal) and a this-boot cancel (whose pid is only the client).
     """
     if not docker_exec_mode():
         return False

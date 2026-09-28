@@ -107,6 +107,78 @@ class TestCancelSignalling:
         assert killed == []
 
 
+class TestCancelActuallyStopsTheWork:
+    """A this-boot cancel must stop the CONTAINER too, not just signal the compose client.
+
+    THE INCIDENT (prod, 2026-09-28). In docker exec mode the recorded pid is the ``docker compose
+    run`` client inside the api container; the pipeline runs in a separate container the client
+    merely attaches to. SIGTERM detached the client, so the job row went ``cancelled`` with
+    ``exit_code=130`` and ``/api/jobs/running`` emptied — while the container stayed "Up (healthy)"
+    for another five minutes and finished rewriting all 50 episodes of a corpus.
+
+    A cancel that reports success while the work continues is worse than having no cancel: the
+    operator stops watching. The label handle already existed for prior-boot rows; it simply was
+    not used on the path that cancels a live job.
+    """
+
+    @staticmethod
+    def _spy(monkeypatch: pytest.MonkeyPatch, *, docker: bool, stop_result: bool = True):
+        killed: list[int] = []
+        stopped: list[str] = []
+        monkeypatch.setattr(jobs_mod.os, "kill", lambda pid, _sig: killed.append(pid))
+        monkeypatch.setattr(jobs_mod, "docker_exec_mode", lambda: docker)
+
+        def _spy_docker_stop(job_id: str) -> bool:
+            stopped.append(job_id)
+            return stop_result
+
+        monkeypatch.setattr(
+            "podcast_scraper.server.pipeline_docker_factory.docker_stop_job",
+            _spy_docker_stop,
+        )
+        return killed, stopped
+
+    def test_THE_INCIDENT_a_live_docker_job_has_its_container_stopped(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The regression: signalling the client alone left the pipeline writing."""
+        killed, stopped = self._spy(monkeypatch, docker=True)
+        _seed(tmp_path)
+        outcome, _rec = cancel_job(tmp_path, "cancel-me")
+        assert outcome == "cancelled"
+        assert stopped == ["cancel-me"], "the container must be stopped, not just the client"
+
+    def test_the_client_is_still_signalled_as_well(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Stopping the container must not replace the SIGTERM — both halves are wanted."""
+        killed, stopped = self._spy(monkeypatch, docker=True)
+        _seed(tmp_path)
+        cancel_job(tmp_path, "cancel-me")
+        assert killed == [4242]
+        assert stopped == ["cancel-me"]
+
+    def test_a_failed_container_stop_still_cancels_and_does_not_raise(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No container matched: already exited, or a cancel-as-it-finishes race. Warn only."""
+        _killed, stopped = self._spy(monkeypatch, docker=True, stop_result=False)
+        _seed(tmp_path)
+        outcome, _rec = cancel_job(tmp_path, "cancel-me")
+        assert outcome == "cancelled"
+        assert stopped == ["cancel-me"]
+
+    def test_local_exec_mode_never_reaches_for_docker(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Outside docker mode the pid IS the pipeline, so SIGTERM is the whole story."""
+        killed, stopped = self._spy(monkeypatch, docker=False)
+        _seed(tmp_path)
+        cancel_job(tmp_path, "cancel-me")
+        assert killed == [4242]
+        assert stopped == []
+
+
 class TestUnaffectedPaths:
     def test_a_queued_job_still_cancels_without_any_signal(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
