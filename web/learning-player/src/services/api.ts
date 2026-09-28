@@ -384,14 +384,31 @@ export async function getOrgCard(id: string): Promise<OrgCard> {
   )
 }
 
-/** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
-export function getTopicPerspectives(
+/**
+ * Topic perspectives — each speaker's grounded insights on the topic (#1146).
+ *
+ * Person photos ABSOLUTISED, same as every other people-carrying endpoint. `build_topic_perspectives`
+ * hydrates `image_url` server-side and `TopicPerspectives.vue` renders it into a `ProfileAvatar`,
+ * but the server returns it relative — which resolves against `capacitor://localhost` in the native
+ * shell, 404s, and falls back to initials without an error anyone can see.
+ *
+ * Found by sweeping every endpoint that can carry a person photo after the same bug turned up on
+ * the key-voices rail (operator 2026-09-27). This was the last one still raw.
+ */
+export async function getTopicPerspectives(
   id: string,
   scope?: "all" | "mine"
 ): Promise<TopicPerspectivesResponse> {
-  return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`, {
-    scope,
-  })
+  const resp = await getJSON<TopicPerspectivesResponse>(
+    `/topics/${encodeURIComponent(id)}/perspectives`,
+    { scope }
+  )
+  return {
+    ...resp,
+    perspectives: (resp.perspectives ?? []).map((p) =>
+      p.image_url ? { ...p, image_url: resolveMediaUrl(p.image_url) ?? p.image_url } : p
+    ),
+  }
 }
 
 /** Topic conversation arc — weekly volume × sentiment, the aggregate-first overview (ADR-108). */
