@@ -43,8 +43,68 @@ def test_events_builds_logsql_with_surface_and_correlation(monkeypatch) -> None:
     assert '_msg:"pipeline_stage"' in q
     assert "event_type:" not in q
     assert 'surface:"pipeline"' in q and 'component:"pipeline"' in q  # surface OR component
-    assert 'run_id:"run-1"' in q and 'episode_id:"ep-1"' in q
+    # Correlation ids must match BOTH shipping paths, for the same reason the event type does.
+    # Asserting only the field form is what let the prod defect stand — see
+    # ``test_correlation_ids_match_the_alloy_shape_not_only_a_field``.
+    assert 'run_id:"run-1"' in q and '_msg:"run-1"' in q
+    assert 'episode_id:"ep-1"' in q and '_msg:"ep-1"' in q
     assert seen["url"].endswith("/select/logsql/query")
+
+
+def test_correlation_ids_match_the_alloy_shape_not_only_a_field(monkeypatch) -> None:
+    """THE PROD DEFECT (2026-09-28): events(run_id=…) returned 0 for a run full of events.
+
+    Under Alloy (prod) ``_msg`` is the raw JSON line and there is NO ``run_id`` field, so a
+    field-only ``run_id:"…"`` filter matches nothing. The events were plainly in VictoriaLogs with
+    the id inside ``_msg`` — a 50-episode repair run whose ``pipeline_stage`` and ``llm_cost``
+    events were unreachable through the join key ``server/jobs.py`` advertises as "a single join key
+    across the Jobs API and observability". An empty ok=True result is worse than an error: it reads
+    as "this run emitted nothing".
+    """
+    seen = {}
+
+    def _fake(url, **kw):  # noqa: ARG001
+        seen["query"] = kw["params"]["query"]
+        return []
+
+    monkeypatch.setattr(victoria, "get_ndjson", _fake)
+    rid = "e7ff4cf2-dcf4-483d-996a-052caf0a2082"
+    victoria.events(_t(victorialogs_url="http://homelab:9428"), "pipeline_stage", run_id=rid)
+    q = seen["query"]
+    # The phrase branch is the one that reaches an Alloy-shipped row…
+    assert f'_msg:"{rid}"' in q
+    # …the field branch is kept so dev pushes (real fields) still match…
+    assert f'run_id:"{rid}"' in q
+    # …and both must be ONE disjunction, or the paths would be ANDed and match neither.
+    assert f'(run_id:"{rid}" OR _msg:"{rid}")' in q
+
+
+def test_an_episode_id_alone_is_also_matched_both_ways(monkeypatch) -> None:
+    """``episode_id`` carried the identical defect and takes the identical fix."""
+    seen = {}
+
+    def _fake(url, **kw):  # noqa: ARG001
+        seen["query"] = kw["params"]["query"]
+        return []
+
+    monkeypatch.setattr(victoria, "get_ndjson", _fake)
+    victoria.events(_t(victorialogs_url="http://h:9428"), "llm_cost", episode_id="ep-xyz")
+    assert '(episode_id:"ep-xyz" OR _msg:"ep-xyz")' in seen["query"]
+
+
+def test_no_correlation_id_adds_no_id_filter(monkeypatch) -> None:
+    """The fix must not widen an unscoped query — no id given, no id filter."""
+    seen = {}
+
+    def _fake(url, **kw):  # noqa: ARG001
+        seen["query"] = kw["params"]["query"]
+        return []
+
+    monkeypatch.setattr(victoria, "get_ndjson", _fake)
+    victoria.events(_t(victorialogs_url="http://h:9428"), "pipeline_stage")
+    q = seen["query"]
+    assert "run_id:" not in q and "episode_id:" not in q
+    assert q.count("_msg:") == 1  # only the event-type phrase
 
 
 # --- VictoriaMetrics ---------------------------------------------------------------
