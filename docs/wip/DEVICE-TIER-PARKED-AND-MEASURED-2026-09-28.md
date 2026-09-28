@@ -28,16 +28,48 @@ The `platform=` half comes from `A11yProbe`, which reads `AccessibilityNodeInfo`
 made ten of the original thirty-eight findings false positives. TalkBack has nothing to
 announce for either switch.
 
-**Two fixes were tried and BOTH failed. Do not re-apply either:**
+### RETRACTED — the "two failed fixes" were NEVER ON THE DEVICE
 
-| Attempt | Result |
-| --- | --- |
-| `:aria-label` on the `<input type=checkbox>` | no change — all five fields still empty |
-| explicit `for`/`id` on the `<label>`+input, **plus** `aria-label` | no change — all five fields still empty |
+The original version of this section said two fixes had been tried and both failed, and told the
+next reader not to re-apply either. **That was wrong, and the way it was wrong is the useful part.**
 
-Both were verified to have actually reached the device: the rebuilt chunk
-(`SettingsView-B7jV4oGW.js`, containing the id and both labels) was confirmed being served by
-the origin before each run. Both were reverted; `SettingsView.vue` is untouched on this branch.
+I tried `:aria-label` on the input, then explicit `for`/`id` + `aria-label`, re-ran the audit after
+each, saw no change, and concluded neither reached the Android bridge. I "verified" each by
+confirming the rebuilt chunk was being served by the origin on :4174.
+
+That verified a channel the WebView never reads for markup. `capacitor.config.ts` sets
+`webDir: 'dist'` and sets `server.url` **only** when `CAP_DEV_SERVER` is set, which the tier does
+not. `CAP_ANDROID_TEST_ORIGIN=1` only enables `allowMixedContent`, and the config's own comment
+says why: `<audio src>` is blocked as mixed content. The origin proxies **`/api` and `/audio`**.
+The app's HTML and JS are served from the **APK assets**.
+
+Markup reaches the device only through
+`npm run build && cap sync android && gradlew assembleDebug && adb install`. My iteration loop was
+`android-suite`, which rebuilds the **instrumentation** APK and never the app APK. I ran
+`npm run build` twice and none of the other three steps.
+
+Proven by pulling the installed APK:
+
+```
+assets/public/assets/SettingsView-CijsYOFq.js
+  aria-label occurrences: 0
+```
+
+The chunks I built were `SettingsView-CjywRybp.js` and `SettingsView-B7jV4oGW.js`. Neither is in
+the APK. The device ran a build predating both fixes for the whole investigation.
+
+**The fix list is REOPENED, including the two I banned.** The likeliest answer is the first thing I
+tried. What survives is only the MEASUREMENT of the defect — the probe's five empty fields — and it
+was taken against a build containing no fix.
+
+**The lesson is worth more than the fix:** I verified the wrong channel, got a negative, and
+promoted it to a documented dead end in a commit message and this file. A negative result is a claim
+about the experiment before it is a claim about the world, and "I verified it reached the device"
+was the sentence that deserved the scrutiny.
+
+**Before re-testing anything here:** do the full build/sync/assemble/install, then confirm delivery
+with `unzip -p <pulled apk> 'assets/public/assets/SettingsView-*.js' | grep -c aria-label`
+BEFORE reading the audit's verdict.
 
 **What is known:**
 
