@@ -461,10 +461,51 @@ source artifacts do not.
 
 ### 5. Translation stage
 
-**5.1 Units.** Sentence groups inside a single RFC-123 turn of the **source** variant: greedily pack
-consecutive sentences up to about 120 source words (configurable), never crossing a turn boundary; a
-sentence longer than the cap is its own unit and is never split; backchannel turns are one unit each.
-Units are a deterministic function of `ep1.turns.json`.
+**5.1 Units are the translation context; sentences are the alignment atom.** These are two different
+jobs and collapsing them into one ~120-word block breaks both of the others it was given.
+
+- A **unit** is a sentence group inside a single RFC-123 turn of the source variant — greedily packed,
+  never crossing a turn boundary, backchannel turns one unit each. It exists so the model sees enough
+  context to translate well. Units are a deterministic function of `ep1.turns.json`.
+- A **sentence** is what gets aligned, stored and rendered. The request sends the unit's sentences
+  **numbered**, and requires numbered output of the same length; a length mismatch retries once, then
+  falls back to translating the unit as one block and marking the unit `alignment: "unit"`.
+
+Why this matters, concretely. The ad-free builder **drops any segment that overlaps an excised range**
+(`adfree_transcript.py:129-137`). Today a segment is a 5–15 s Whisper fragment, so an ad boundary costs
+at most one fragment. With one pseudo-segment per ~120-word unit, every ad boundary would drop up to
+~45 seconds of real speech. And `.en.segments.json` is served as subtitle cues — a 120-word cue is a
+paragraph, not a subtitle.
+
+So `translation.json` units carry a `sentences` array:
+
+```json
+"sentences": [
+  { "sent_id": "t0007.s01", "en_text": "…", "en_char_start": 20114, "en_char_end": 20188 }
+]
+```
+
+and the English render emits **one pseudo-segment per sentence**, carrying both `unit_id` and `sent_id`.
+
+**This is the one decision v1 cannot cheaply reverse.** Changing alignment granularity later re-translates
+every episode and invalidates every provenance block. Word-count packing is also wrong for Japanese,
+Korean and Chinese, which do not delimit words with spaces — a tier-3 prerequisite recorded in the v2
+notes.
+
+**5.1b Unit identity is content-keyed, and translations are remembered.** A unit's `unit_id`
+(`t0007.u01`) is turn-ordinal, so anything that renumbers turns changes it. Two cheap additions make that
+harmless:
+
+- each unit also carries a **content key** — a hash of `(source_language, the unit's source sentence
+  texts)` — which is stable across renumbering; and
+- a **translation memory** keyed by `(source_language, model@revision, src_text)`.
+
+With both, a relabel, a re-render or a merge becomes re-render plus re-key at **zero GPU cost**, and
+provenance blocks whose units still resolve by content key survive untouched. Without them, every naming
+repair on a translated show costs a full re-translation — and naming repair is the most common repair in
+this corpus. Note also that a rename does **not** merge turns: coalescing is by equal *adjacent* labels
+(`formatting.py:60-66`), so renaming one voice changes `Label:` prefix lengths and therefore offsets, but
+never the unit text itself. That is why the memory hits on every unit.
 
 **5.2 Context.** v1 translates each unit on its own text. Prepending the previous turn and stripping
 it from the output is fragile because boundaries drift. §7 measures whether unit-only translation
@@ -490,13 +531,51 @@ queue as other GPU stages, with English episodes scheduled ahead of translation 
   would stamp `EvidenceSpan.transcript_ref` with the *source* path while the offsets are English. Fix
   the ref to follow whatever the resolver returned.
 
-**5.4 Names, identity, and why naming stays before translation.** Speaker naming runs **inside**
-`detect_speakers` (`providers/ml/ml_provider.py:1029-1071`) during the transcription stage, and its labels are baked into the
-source `.txt` at write time — from which source turns and `translation.json` (`speaker_label`,
-`turn_id`, `turns_sha256`) derive. Naming *after* translation would therefore mean relabelling the
-source, and a relabel that resolves two `SPEAKER_xx` to one name **merges turns**, shifting every turn
-id and invalidating the unit map. So naming stays where it is, on the source, with the English feed
-metadata passed as extra context (show notes often name the guest in source script).
+**5.4 Speaker naming — the same trick as ad detection, for the same reason.**
+
+**The problem.** Naming is three layers and **two of them are English vocabulary**. The deterministic cue
+matchers look for `i'm`, `i am`, `my name is`, `Hosted by` (`providers/ml/diarization/roster.py:1472-1494`,
+`speaker_detectors/hosts.py:1506-1520`) — none of which fire on *soy*, *me llamo*, *bienvenidos a*,
+*presentado por*. Guest candidates come from `en_core_web_trf` NER over the title and description
+(`speaker_detectors/detection.py:60-68`). The only language-agnostic layer is LLM voice resolution
+(`diarization/pipeline.py:389-455`) — and it is **closed-list**: *"The candidate list is closed. The model
+picks a name from it or says null"* (`speaker_detectors/resolution.py:202-204`). So on a Spanish feed the
+candidates are starved and voices stay `SPEAKER_01`.
+
+**Why that is not a cosmetic problem.** `_looks_like_person` rejects `SPEAKER_01` (`gi/speakers.py:74-77`),
+so no SPOKEN_BY edge is written, so `position_arc`'s predicate — SPOKEN_BY-supported ∩ `ABOUT` ∩ claim
+(`server/cil_queries.py:650-665`) — matches nothing. **A translated episode with unnamed voices produces
+zero position-bearing insights**, which means the read-time gate has nothing to gate and v2's verification
+has nothing to verify. The product's primary signal would simply not exist for non-English shows.
+
+**The fix is the ad-detection trick applied to naming.** We did not write Spanish ad patterns; we
+translate first and run the existing English patterns on the English text. Do exactly the same here:
+
+```text
+transcribe + diarize            → anonymous labels (SPEAKER_01, SPEAKER_02)
+  └─ turns on anonymous labels
+      └─ TRANSLATE units        (unit text contains no labels — a turn's char_start is
+      │                          AFTER the "Label: " prefix, so labels are never in the payload)
+      └─ run the existing ENGLISH cue matchers on ep1.en.txt
+      │   → "I'm Ana García", "our guest today is Pablo Ruiz", sign-offs
+      └─ map each discovered name to its speaker id via the turn the cue appeared in
+          └─ re-render BOTH transcripts with the real names
+```
+
+The final step is a relabel, and it is cheap **because of §5.1b**: renaming a voice changes `Label:`
+prefix lengths and therefore offsets, never the unit text — so the translation memory hits every unit and
+the re-render costs no GPU. The two changes are one design; neither works cleanly alone.
+
+**Also translate the title and description.** They are a few hundred tokens, and once they are English the
+existing NER candidate discovery works unmodified — which closes the candidate-starvation problem rather
+than routing around it.
+
+**What this changes about the earlier decision.** What must stay before translation is **diarization**, not
+naming. Naming *resolution* moves after it. The one thing that does not move is rule 1 below.
+
+**What it does not fix.** A speaker nobody names aloud and who is absent from the feed metadata stays
+unnamed. That is equally true in English, so non-English stops being the weaker case — and §7 measures it
+directly rather than assuming.
 
 Two rules, and v1 only needs the first:
 
@@ -618,28 +697,45 @@ test fixture in the pilot language, which does not exist yet.
 
 **Measurements:**
 
-1. **ASR check** (pre-translation): a native reviewer rates 20 random source units as
-   usable / minor errors / broken.
-2. **Automatic**: latency and GPU memory per model, and translation wall time per episode (which sets
-   the cap in OQ 3). A reference-free QE model may be used as a cheap comparative signal **if** a
-   permissively licensed checkpoint exists; no thresholds are calibrated and nothing ships from it.
-3. **Native reviewer, blind to model**: for each position-bearing unit, whether the translation is
-   meaning-preserving (yes / minor / no), with error type (negation, hedge, name, omission, other).
-4. **Position agreement**: run GI extraction on each model's English output and compare the attributed
-   stance against the reviewer's reading of the original.
-5. **Name consistency**: the fraction of person mentions whose English form resolves to the correct CIL
-   identity.
-6. **Ad-detection survival**: on episodes containing sponsor reads, the fraction that `_AD_PATTERNS`
-   catches in the translated English. This gates §3's ordering — a low number means a per-language cue
-   list is back on the table.
+All judgements are made by the **LLM judge** under the protocol in
+`docs/architecture/MULTILINGUAL_ARC_V2.md` §9 — a model from a different family than the translator,
+blind to which candidate produced which output, and itself gated on a measured fault-injection detection
+rate before its verdicts count.
 
-**Gate** (per language; all must pass to set `enabled: true`): ASR ≥ 90% usable-or-minor;
-≥ 90% of position-bearing units meaning-preserving; ≥ 90% position agreement; ≥ 95% name consistency;
-ad-detection survival reported with a threshold set from the first language measured.
+1. **ASR sanity**: the judge rates 20 random source units usable / minor / broken. A text judge cannot
+   hear the audio, so this is weaker than a native ear; cross-ASR agreement (two models, divergence as a
+   proxy) is the automatable supplement, and the FLEURS prior in §6.2 of the arc notes is the floor.
+2. **Cost and capacity**: latency, GPU memory, and translation wall time per episode — which is what sets
+   the cap in OQ 3.
+3. **Meaning preservation**: per position-bearing unit, meaning-preserving (yes / minor / no) with error
+   type (negation, hedge, name, omission, other).
+4. **Position agreement**: run GI extraction on the English output and compare the attributed stance
+   against the judge's reading of the source.
+5. **Attribution — the measurement that decides whether the product works at all.** Named-voice share of
+   talk time on the pilot episodes, **against the English corpus baseline**. §5.4 explains why: with
+   unnamed voices a translated episode yields zero position-bearing insights, so this number gates the
+   whole value proposition, not a quality dimension. Report the naming path each name arrived by (feed
+   metadata, `known_hosts`, English cue on the translated text, NER on the translated description) so it
+   is clear which layer is carrying the load.
+6. **Naming-cue survival**: the fraction of source self-introductions and guest hand-offs that emerge as
+   English text the existing cue matchers recognise. The exact analogue of measurement 7, and the thing
+   §5.4's design rests on.
+7. **Ad-detection survival, measured relative to the English baseline.** Not "what fraction of ad
+   characters get excised" in absolute terms — English detection has its own gaps (**issue #2168**: the
+   scan windows cover only ~5 minutes at each end, and mid-roll cuts are bounded by the pattern hits with
+   no expansion), so an absolute number would look acceptable while both paths were weak. Measure the same
+   content English-vs-translated and report the delta, so the number means *translation did not make it
+   worse*.
 
-The winning model per language is recorded in `config/languages.yaml` with its pinned revision. One
-model for all enabled languages is the default expectation. Note for model choice: a 27B translator and
-the served 30B Qwen do not co-reside in the DGX's memory while a 12B does.
+**Gate** (per language; all must pass to set `enabled: true`): ASR ≥ 90% usable-or-minor; ≥ 90% of
+position-bearing units meaning-preserving; ≥ 90% position agreement; named-voice share within a stated
+margin of the English baseline; naming-cue and ad-detection survival reported with thresholds set from the
+first language measured.
+
+The chosen model is recorded in `config/languages.yaml` with its pinned revision, and one model serves
+every enabled language. **It runs as its own service** — a dedicated vLLM alongside the existing Whisper
+and diarization services, intended to be reusable for translation beyond this project. That fixes the size
+class: it must co-reside with the LLM already served, so the **12B tier** rather than a 27B.
 
 ### 8. Interaction with transcript prefix caching (RFC-115)
 

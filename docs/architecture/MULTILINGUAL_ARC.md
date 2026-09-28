@@ -70,8 +70,9 @@ Phase numbering means one thing across all four documents. The demand/model vali
 
 | Phase | What | Gate to start | Visible outcome |
 | --- | --- | --- | --- |
+| **−1 — Instruments** | One transcript resolver with two intents (no behaviour change), and the artifact allow-list test | none; both are pure-English fixes with standalone value | A golden of which transcript each reader resolves, and a test that says what changed. Everything after is measured by these |
 | **0 — English as a declared language** | Language becomes a real, parsed, resolved, validated property of the corpus we already have | none; it is a correctness fix | An audit over real data showing the corpus's actual language distribution; language on the API; no code path that substitutes a language it was not given |
-| **1 — Turns artifact (RFC-123)** | `turns.json` built, written for both variants, backfilled. Nothing reads it yet | none | The unit translation needs, available on today's corpus |
+| **1 — Turns artifact (RFC-123)** | `turns.json` built and written for the source variant. Nothing reads it yet; the backfill and all three consumers are v2 | none | The unit translation needs |
 | **Gate V — Validate** | Demand check; model selection and its sanity check | Phase 0, because the check cannot measure non-English transcription until it exists | A go/no-go with evidence, and one pinned translation model |
 | **2 — Translation (RFC-124)** | Reader routing, the stage-order change, translation, the English render, ad-free-on-English, labelling, same-language retrieval, the Positions gate | Gate V passed | One non-English feed processed end to end, findable in its own language, everything labelled |
 | **3 — Surfaces** | The transcript/subtitle reading path and flag lifecycle. The badge and the language filter are v2 | Phase 2 | A listener can read the original or the English against the original audio |
@@ -93,6 +94,18 @@ merging only this leaves `main` correct and coherent.
 
 ---
 
+### Phase −1 — the two slices that go before everything
+
+Both are pure-English work with standalone value, and both are instruments the rest of the plan is
+measured by. Neither depends on anything in this arc.
+
+| # | Issue title | Goal | Depends on | Size | Ship alone? |
+| --- | --- | --- | --- | --- | --- |
+| **S2.1a** | One transcript resolver with two intents, no behaviour change | `load_processing_transcript` has two callers while nine other readers resolve independently (§5.4 C-1). Route them all through one function that takes a **`purpose`** — `analysis` (the ad-free text GI's offsets live in) or `timeline` (the full text the player syncs to audio). Collapsing both into one precedence would desync the player, which is exactly the drift `segments_view.py` exists to prevent (D-35). Ships with **zero behaviour change** and a committed golden recording which file each reader resolves on the fixture corpus — that golden is what makes every later slice's blast radius visible. Also fixes `gi/load.py`'s raw-transcript read, a real (CLI-only) coordinate-space bug today. | — | L | Yes |
+| **S0.10** | The English-artifact allow-list test | The instrument Phase 0's acceptance is judged by, and it does not exist: serialize the metadata and manifest shapes before and after, assert `added_keys ⊆ ALLOWLIST`. Goes early because everything else should be measured against it. Must also assert that **`pipeline_composition_version` does not move** — it hashes the stages *present* (`processing_manifest.py:198`), so if a skipped `translation` stage enters `stage_names`, every English episode's composition hash changes, and that hash is what "reprocess below X" and the prod-state pin key on. Decide that a skipped stage is not present. | — | M | Yes |
+
+---
+
 ### Phase 0 — English as a declared language
 
 **Ships as one release.** No new models, no GPU, no user-visible chrome — the badge moved to v2 (D-11).
@@ -103,15 +116,12 @@ and the same machinery carries any other language.
 | --- | --- | --- | --- | --- | --- |
 | **S0.1a** | Parse and persist the feed's declared language | Extract the channel `<language>` (a `channel.find("language")` in the pattern `rss/parser.py` already uses for title, author and description) and carry it on `RssFeed` and `FeedMetadata`; persist `feed.language_raw`, `feed.language`, `feed.language_source`, plus an **episode-level** `language` and `language_source`. Add the field to `RssFeed` as a defaulted field, never positional — it is constructed at ~53 test sites. Note there are two `FeedMetadata` types (a persisted pydantic one and a positional NamedTuple); the slice must name which. | — | M | Yes |
 | **S0.1b** | Backfill language onto the existing corpus | A one-off script, **per show, not per episode**: walk the shows in the corpus, fetch each feed, read its `<language>`, normalize it, and write it onto the show plus every episode under that show. The language is a property of the feed, so one fetch backfills all of its episodes. Runs as a migration so it is versioned, re-runnable and recorded like any other corpus fix, rather than a script somebody remembers running. Needs: a feed whose URL is missing from the metadata block is reported and skipped, not guessed; the CI migration fixture has a `feed` block with no `url`, so the migration must tolerate that rather than fail; and a `--dry-run` that prints the distribution before writing. Reported per show so the output doubles as S0.4's first data. | S0.1a | M | Yes |
-| **S0.2** | Language-tag normalization and per-episode resolution | `normalize_language_tag` — **deliberately trivial**: lowercase, take the primary subtag, keep `language_raw` as given. No `und`/`zxx`/`mul` policy, no three-letter mapping table, no script parsing (D-21). Plus `resolve_episode_language(feed_entry, feed_doc, cfg)` and the `config/languages.yaml` registry (D-29) with `en` the only enabled language. Must route the profile default through the same normalizer — `Config._normalize_language` only lowercases today, so `language: en-US` yields `en-us`, which fails `whisper_utils.py:50`'s `is_english` check: **a live bug this slice fixes**. | S0.1a | M | Yes |
-| **S0.3** | Per-feed language override | `rss/feeds_spec.py` already accepts a mapping per feed entry, but `RssFeedEntry` has explicit typed fields **and** `extra="forbid"` — so this needs both a model field and an `RSS_FEED_ENTRY_OVERRIDE_KEYS` entry. Consequence worth knowing: `merge_feed_entry_into_config` makes the per-feed `Config` the run's `cfg`, so the override reaches every existing `cfg.language` reader with no threading. This is also where an odd or wrong feed tag gets corrected — feeds are onboarded manually, a couple of episodes at a time, so oddities are an onboarding task rather than a code branch (D-21). | S0.2 | S | Yes |
+| **S0.2** | Language normalization, resolution, and the per-feed override | `normalize_language_tag` — **deliberately trivial**: lowercase, take the primary subtag, keep `language_raw` as given. No `und`/`zxx`/`mul` policy, no three-letter mapping, no script parsing (D-21). Plus `resolve_episode_language(feed_entry, feed_doc, cfg)` and the `config/languages.yaml` registry (D-29) seeded with all three tiers, `en` the only enabled one. Must route the profile default through the same normalizer — `Config._normalize_language` only lowercases today, so `language: en-US` yields `en-us`, which fails `whisper_utils.py:50`'s `is_english` check: **a live bug this slice fixes**. Includes the **per-feed override** (a `language` field on `RssFeedEntry`, which is `extra="forbid"`, plus an `RSS_FEED_ENTRY_OVERRIDE_KEYS` entry) — an allowlist key and a model field are not their own slice, and the override is what corrects an odd tag at onboarding. Note `merge_feed_entry_into_config` makes the per-feed `Config` the run's `cfg`, so the override reaches every existing reader with no threading. | S0.1a | M | Yes |
 | **S0.4** | Corpus language audit over real data | Read-only CLI in the existing `check_corpus` pattern: walk every feed and episode, resolve a language, report the distribution and every item not resolving to `en`, each with its resolution source. Commit the report — **S0.6 depends on it being clean.** Runs after S0.1b, or it can only re-read the run config and reports a guaranteed 100% `en`, which proves nothing. | S0.1b, S0.2 | S | Yes |
 | **S0.5** | Expose language on the app API | Episode-level `language` (additive) on the episode list and detail responses; `AppPodcastItem.language` starts serving the normalized feed tag instead of the run config; **`CorpusFeedItem` gains the field too** — the operator viewer's shows library consumes that one and has no language data without it. Contract tests for present / absent / legacy values. | S0.1a, S0.2 | S | Yes |
 | **S0.6** | One language reader: thread it, delete the substitutions | The transcription call site passes the episode's resolved language; the DGX provider stops **reporting** `"en"` for an auto-detected transcript; `ml_provider`'s `self.cfg.language or "en"` goes; `sniff_gate.py`'s four sites and `metadata_generation.py:957/:3832` are covered. **Hard dependency on S0.4's committed clean report**: after this slice a feed whose RSS says `de` is actually transcribed as German, so it must not land while the audit is unknown. Acceptance is a lint rule with an explicit whitelist — "exactly one reader" is false as stated, because the cloud providers and `ner.py` legitimately read `cfg.language` — and the lint must be wired into CI, which its cited precedent is not. | S0.2, S0.4 | M | Yes |
 | **S0.7** | Drop the local Whisper tier from the DGX profiles' chains | The DGX Whisper is one multilingual model; you pass the language code. Remove `whisper` from `prod_dgx_full.yaml:111` → `[tailnet_dgx_whisper]`, and from `dev_dgx_full.yaml:126` (or the dev-twin-tracks-prod test fails) and `eval_default.yaml:172`. The provider **stays** — it is the primary transcriber in eight local/dev/airgapped profiles — and gains a one-line guard refusing non-`en`. **This replaces the per-episode model-selection work entirely**: prod then has no language-driven model selection at all (D-22). | S0.6 | S | Yes |
-| **S0.8** | Unsupported-language skip | `skipped_unsupported_language` for a language that is not `enabled`, expressed with the **existing** status vocabulary — `status="skipped"` with a reason, no `Literal` change (D-23). Must land **after S0.3 and S0.4** or a mis-tagged English feed silently stops ingesting with no remedy. | S0.3, S0.4 | S | Yes |
-| **S0.9** | Phase 0 observability | Manifest `language` block, plus log and metric surfacing for the unsupported-language skip, and a runbook entry. Without this, the phase whose purpose is removing silent failures introduces new ones. | S0.7, S0.8 | S | Yes |
-| **S0.10** | The English-artifact allow-list test | The instrument Phase 0's acceptance needs and which does not exist: serialize the metadata and manifest shapes before and after, assert `added_keys ⊆ ALLOWLIST`. Its own issue because "byte-identical" was a criterion with no command behind it, and because a new stage slot adds a `translation: skipped` ledger entry to **every** English episode (D-19) that has to be on that list. | S0.1a | M | Yes |
+| **S0.8** | Unsupported-language skip, and its visibility | `skipped_unsupported_language` for a language that is not `enabled`, expressed with the **existing** status vocabulary — `status="skipped"` plus a reason, no `Literal` change (D-23) — together with the manifest `language` block, log and metric surfacing, and a runbook entry. The skip and the ability to see it are one change: shipping the skip blind would add a silent failure to the phase whose whole purpose is removing them. Must land **after** the override (folded into S0.2) and the audit, or a mis-tagged English feed stops ingesting with no remedy. | S0.2, S0.4 | M | Yes |
 
 **Phase 0 acceptance** (a release checklist, not an issue): the audit reports the corpus's real language
 distribution with every item's resolution source named; language is on the API; no stage can receive a
@@ -128,9 +138,8 @@ consumers are **v2** ([V2-D](MULTILINGUAL_ARC_V2.md#6-turns-consumers)).
 
 | # | Issue title | Goal | Depends on | Size | Ship alone? |
 | --- | --- | --- | --- | --- | --- |
-| **S1.1** | `build_turns`: turns and sentences from a segments sidecar | The pure builder plus the invariants, property tests and committed goldens. Nothing reads it. | §8.5 decided | M | Yes |
-| **S1.2** | Write `turns.json` in the pipeline for both variants | Emit per variant where the ad-free segments are produced, the manifest `turns` block, and the `turns: unavailable` legacy flag. | S1.1 | M | Yes |
-| **S1.3** | Backfill `turns.json` across the existing corpus | No GPU, idempotent, coverage report. | S1.2 | S | Yes |
+| **S1.1** | `build_turns`: turns and sentences from a segments sidecar | The pure builder plus the invariants, property tests and committed goldens. Nothing reads it. | — | M | Yes |
+| **S1.2** | Write `turns.json` in the pipeline | Emit for the **source** variant where the segments sidecar is written, plus the manifest `turns` block. The `turns: unavailable` flag narrows to legacy on-disk corpora that predate offset segments — diarization is a mandatory core stage with a strict validator, so no new episode can reach that state. Backfilling the existing corpus moved to v2 with the consumers: a 678-episode write with no reader is blast radius for nothing. | S1.1 | M | Yes |
 
 ---
 
@@ -143,7 +152,7 @@ consumers are **v2** ([V2-D](MULTILINGUAL_ARC_V2.md#6-turns-consumers)).
 | **V.2** | Demand check with the beta cohort | Needs the instrument written first: question wording, cohort size, how "≥30%" is computed. | — | S |
 | **V.3** | Model selection and the quality gate | The bake-off harness, the judge protocol (v2 doc §9 holds the rules; they apply here), and a run on 2–3 episodes of the pilot language plus a Spanish or Italian control. Reports RFC-124 §7's measurements including ad-detection survival. Per D-27 this is **one model**, not a five-way comparison: confirm it covers tier 1 (Catalan is the only question), that it runs, and that it produces sane output — the comparison is v2. | S0.10, V.6 | M |
 | **V.4** | Gate V decision record | An **ADR** recording which language passed, with numbers, and the chosen model plus pinned revision. | V.2, V.3 | S |
-| **V.6** | Source a test fixture in the pilot language | A short CC-licensed or TTS episode with an injected sponsor read. None exists, and the integration test is untestable without it. Do not hand-build audio. | — | S |
+| **V.6** | Build non-English fixtures and run the whole pipeline on them — **do this first** | Use the existing generator (`tests/fixtures/scripts/transcripts_to_mp3.py`, macOS `say`, Spanish voices) from a scripted transcript containing a **self-introduction, a guest hand-off, and an injected sponsor read** — so naming, ad detection and translation are all exercised. Then run that episode end to end locally. In an afternoon this confirms or kills half of §5.2: what Whisper returns, what naming does with a non-English transcript, whether the identity ad-free base appears, and what GI does with it. It also produces the first attribution number. No real feed is touched until this is green. | — | S |
 
 ---
 
@@ -155,7 +164,7 @@ labelling and gating slices must be in before that feed is added.
 
 | # | Issue title | Goal | Depends on | Size | Ship alone? |
 | --- | --- | --- | --- | --- | --- |
-| **S2.1** | Route every transcript reader through one resolver | The work D-4 assumed away (§5.4 C-1). `load_processing_transcript` has two callers; the summary stage, **two** faithfulness reads, `search/indexer.py`, `gi/repair.py`, `gi/load.py`, `stages/processing.py`, `routes/corpus_text_file.py`, `segments_view.py` and `metadata_generation.py:1199` each resolve independently. Route them; add the `.en.adfree.txt` → `.en.txt` → `.adfree.txt` → `.txt` precedence. **Standalone bug fix — can ship any time, before Gate V.** | — | L | Yes |
+| **S2.1b** | Add the English branch to the resolver | Extend the `analysis` precedence to `.en.adfree.txt` → `.adfree.txt` → `.txt`, and `timeline` to `.en.txt` → `.txt`. Pure addition on top of S2.1a's refactor. | S2.1a | S | Yes |
 | **S2.2** | Give translation a stage slot, in one seam | `CANONICAL_STAGE_ORDER` gains `translation`. **One insertion point, not two**: inside `generate_episode_metadata` immediately before summary, which covers ASR, transcript-cache hits, direct downloads, publisher-supplied transcripts, and every relabel/rediarize/retranscript cascade — all of which end there. Excludes translation wall time from the metadata deadline. ADR-151 means every English episode's ledger gains `translation: skipped` (S0.10's allow-list). | S2.1 | M | Yes |
 | **S2.3** | Translation units and the vLLM client | Turn-bounded unit packing from the source variant; the `dgx_vllm_translate` client with per-episode batching, bounded concurrency and per-unit retry. | S1.2, V.4 | M | Yes — flag-off is a no-op |
 | **S2.4** | `translation.json` and the English render | The unit map; the English screenplay and `.en.segments.json` rendered through the existing formatter, one pseudo-segment per unit **carrying `unit_id`**; `translation_pending` and failed-unit semantics; a stub-translator integration test. | S2.3 | M | Yes |
@@ -163,10 +172,10 @@ labelling and gating slices must be in before that feed is added.
 | **S2.6** | Speaker labels bypass the translator | Naming stays **before** translation, on the source (§5.4 C-6), and the label is carried onto the English line **verbatim** — never sent through the translation model, which would rename the same person inconsistently across units. **No transliteration, no alias minting** (D-24): every tier-1 language is Latin script and names are usually the identical string across them, so there is nothing to convert. Folded into S2.4's render rather than being its own slice. | S2.4 | S | Yes |
 | **S2.7** | Language-aware reprocess and invalidation | `_maybe_produce_adfree` has **five** call sites including the transcript-cache hit; on a non-English episode each would write the identity ad-free artifact this design says never exists, and strand `.en.*`. Make it language-aware; give every path that changes the source an explicit invalidation of `.en.*`, `translation.json` and the cached prompt prefix; add the per-episode reprocess command. Note `rederive_only` must **not** re-translate — that is the cheap repair path. | S2.5 | M | Yes |
 | **S2.8** | Label translated content everywhere it renders | Not one chip. The marker must survive every serialization boundary that drops node properties: `AppInsight` / `AppQuote`, the MCP `InsightSummary` / `SupportingQuote` contracts, `hybrid_search._to_search_result` (Lance rows carry no `translated` column, so a translated quote would be served as verbatim speech in search, digest and trending), OG share images, and **snapshots** — favourites and captures are copies, so a translated insight saved to a library stays there unlabelled and no read-time gate can reach it. Plus `?lang=` on the segments contract and `translation_status` on episode detail. | S2.4 | L | Yes |
-| **S2.9** | Same-language retrieval: a keyword-only table for non-English | Index both layers so a query in either language reaches the same episode. **Non-English chunks go in their own table with no vector column** (D-14, option B), consulted only for the keyword leg — a chunk with no vector cannot appear in a semantic result, which a row tag plus a filter could not guarantee. Leaves the existing `segments` table untouched, which should avoid the schema bump, the stale index and the full rebuild — **confirm that in the slice**, along with the read path tolerating the table's absence on older indexes. Also: chunk ids carry language, insight→segment linking filters on language, and a non-English query drops the dense leg via script detection or it returns English noise. Measure keyword recall through the English tokenizer before calling this done. | S2.5 | M | Yes |
+| **S2.9** | Same-language retrieval: a keyword-only table for non-English | Index both layers so a query in either language reaches the same episode. **Non-English chunks go in their own table with no vector column** (D-14, option B), consulted only for the keyword leg — a chunk with no vector cannot appear in a semantic result, which a row tag plus a filter could not guarantee. Leaves the existing `segments` table untouched, which should avoid the schema bump, the stale index and the full rebuild — **confirm that in the slice**, along with the read path tolerating the table's absence on older indexes. Also: chunk ids carry language, insight→segment linking filters on language, and a non-English query drops the dense leg via script detection or it returns English noise. Measure keyword recall through the English tokenizer before calling this done. **Script detection does not discriminate for tier 1** — *inflacion* and *inflation* are the same script — so the dense-leg switch needs a stop-word heuristic or an accepted dilution, measured either way. | S2.5 | L | Yes |
 | **S2.10** | Cost and capacity measurement | Translation GPU time and storage delta per episode, and the bake-off's own cost. RFC-124 OQ3's wall-time cap cannot be set without it. Note for model choice: a 27B translator and the served 30B model do not co-reside in the DGX's memory while a 12B does. | S2.3 | S | Yes |
 | **S2.11** | Translation provenance on every claim | The `translation` block (`translated`, `source_language`, `unit_ids`, `en_sha256`) written into node `properties` via `resolve_units_for_span`, by **every** writer of `gi.json` — the artifact builder, `add_spoken_by_edges(replace=True)` and `gi/repair.py`. | S2.5 | M | Yes |
-| **S2.12** | Keep translated claims off Position surfaces | The read-time filter, applied to **every** position-bearing surface — RFC-125 §3 enumerates nine, including `topic_perspectives`, which feeds the consumer app and OG share images, and one (`topic_consensus`) that is write-time and cannot be filtered at read time at all. Two predicates, not one helper: an edge predicate for what would be verified, a property predicate for what renders, with a test that the first is a superset of the second. Fail-closed: with no verification records in existence — v1's steady state — every translated claim is absent. | S2.11 | M | Yes |
+| **S2.12** | Keep translated claims off Position surfaces — **ships with S2.11** | The read-time filter, applied to **every** position-bearing surface — RFC-125 §3 enumerates nine, including `topic_perspectives`, which feeds the consumer app and OG share images. `topic_consensus` is a **write-time** enricher, but it loads `gi.json` nodes itself, so the same property predicate applies at its run time — a different call site, not a different mechanism. Two predicates, not one helper: an edge predicate for what would be verified, a property predicate for what renders, with a test that the first is a superset of the second. Fail-closed: with no verification records in existence — v1's steady state — every translated claim is absent. | S2.11 | M | Yes |
 | **S2.13** | Phase 2 gate | One non-English feed from audio to insights, findable in its own language, every translated claim labelled on every surface, none on a Position surface, and no English regression outside the allow-list. | S2.1–S2.12 | M | This is the ship |
 
 ---
@@ -183,22 +192,25 @@ labelling and gating slices must be in before that feed is added.
 ### Critical path
 
 ```text
-S0.1a → S0.1b → S0.4 ─┐
-S0.1a → S0.2 → S0.3 ──┼→ S0.6 → S0.7 → S0.8 → S0.9 ═══ PHASE 0 SHIPS ═══╗
-S0.1a → S0.5          │                                                  ║
-S0.1a → S0.10 ────────┘                                                  ║
-                                                                         ▼
-S1.1 → S1.2 → S1.3 ═══ PHASE 1 ═══╗          V.6 → V.3 ──┬── V.4 ═══ GATE V ═══╗
-S2.1 (standalone, any time) ══════╬═════ V.2 ────────┘               │                    ║
-                                  ▼                                  ▼                    ▼
-      S2.2 → S2.3 → S2.4 → S2.5 → {S2.6, S2.7, S2.8, S2.9, S2.10, S2.11 → S2.12} → S2.13 ══ PHASE 2
-                                                                                        ▼
-                                                                             {S3.1, S3.2}
+{S2.1a, S0.10} ═══ PHASE −1: the instruments ═══╗
+                                                ▼
+S0.1a → S0.1b → S0.4 ──┐
+S0.1a → S0.2 ──────────┼→ S0.6 → S0.7 → S0.8 ═══ PHASE 0 SHIPS ═══╗
+S0.1a → S0.5 ──────────┘                                          ║
+                                                                  ▼
+S1.1 → S1.2 ═══ PHASE 1 ═══╗       V.6 → V.3 ──┬── V.4 ═══ GATE V ═══╗
+                           ║  V.2 ─────────────┘                     ║
+                           ▼                                         ▼
+  S2.1b → S2.2 → S2.3 → S2.4 → S2.5 → {S2.6, S2.7, S2.8, S2.9, S2.10,
+                                       S2.11+S2.12} → S2.13 ═══ PHASE 2 ═══╗
+                                                                           ▼
+                                                                  {S3.1, S3.2}
 ```
 
-Phase 0 is close to serial through `S0.1a → S0.2 → S0.6`. For one operator
-the human-shaped item — V.2's demand instrument — has the longest lead time and should start early even
-though nothing blocks on it.
+Phase 0 is close to serial through `S0.1a → S0.2 → S0.6`, and V.6 — the non-English fixture, run end to
+end locally — is the cheapest thing in the whole plan that can invalidate a design assumption, so it
+should happen on day one rather than when Gate V formally starts. V.2's demand instrument is the only
+human-shaped item and has the longest lead time; nothing blocks on it, so start it early.
 
 ## 5. Code facts this arc rests on
 
@@ -357,8 +369,22 @@ work (v2 doc §5) — and tier 3 additionally breaks two v1 assumptions: word-co
 meaningless for Japanese, Korean and Chinese, and the ≥2-token person-name guard fails on a single-token
 CJK name. Both must be addressed before a tier-3 language is enabled.
 
-**Pilot: Spanish or Italian.** Lowest WER, Latin script, covered by every candidate model, and a large
-pool of feeds to choose from.
+**Two different language choices, and only one of them is technical.**
+
+- **The exercise language is Spanish**, for building and debugging the pipeline **locally on fixtures**
+  before any real feed is touched. Chosen for convenience, not merit: the existing fixture generator
+  (`tests/fixtures/scripts/transcripts_to_mp3.py`) drives macOS `say`, which ships Spanish voices; the WER
+  is the lowest in tier 1; and every candidate model covers it. This is a test harness, not a product
+  decision.
+- **The first production language is the operator's call, on content value.** A low error rate makes a
+  language *easy to process*, not *worth having in the corpus* — the question is whether there are shows
+  that genuinely add source divergence, and that is judged by listening, not by a benchmark. Tier 1 sets
+  the technical floor; which member of it goes first does not follow from the numbers.
+
+**Fixtures come first, and that is a sequencing commitment, not a nicety.** The whole pipeline is worked
+out locally against generated non-English fixtures — transcription, naming, turns, translation, ad removal
+on English, summary, GI — and only then pointed at a real feed. It means every silent hazard in §5.2 is
+observed on content we control before a single production episode is at stake.
 
 **Model coverage across tier 1 is uniform except Catalan** — MiLMMT-46-12B lists it, LMT-60-8B does not,
 TranslateGemma's list is behind a gated card. If Catalan is genuinely in the initial set, that narrows
@@ -398,10 +424,22 @@ the choice (D-27).
 | D-28 | **Gemma's terms impose nothing on outputs** — verified, and an earlier claim here was wrong | §3.3 of the terms: *"Google claims no rights in Outputs you generate."* No attribution, no notice, no pass-on for generated text; pass-on applies only to redistributing the model or a derivative, which we do not do. So licence is **not** a differentiator between the candidates — pick on quality and whether it runs. GDPR is not a multilingual question either: the corpus already holds attributed statements by named people, translation adds no new category, and it needs its own legal review rather than a line in a design doc | 2026-09-28 |
 | D-29 | **Language roadmap in three tiers**, seeded into the registry with only `en` enabled | **Tier 1** (the focus): Dutch, German, Italian, Spanish, Catalan, French, Portuguese, Swedish, Norwegian — every one under 10% FLEURS WER, five under 5%, and **all Latin script**, which is why D-24 holds. **Tier 2**: Russian, Serbian, Bulgarian, Romanian. **Tier 3**: Korean, Japanese, Chinese, Arabic. The tiers are market-ordered, not difficulty-ordered — Russian (5.6) and Japanese (5.3) are technically easier than Norwegian (9.5), and Serbian (33.9) is the hardest language in all three tiers by more than double | 2026-09-28 |
 | D-30 | **Keyword recall through the English tokenizer is accepted, measured on the pilot** | The search index applies English stemming, stop-words and accent folding to every language. For tier 1 that costs some recall — verb forms will not collapse the way English ones do — while accent folding helps. No pre-set threshold: look at how search behaves on the pilot feed. A per-language index table is only worth building if a heavily inflected tier-2 language is enabled | 2026-09-28 |
+| D-31 | **Translation runs as its own service, and the first pick is TranslateGemma-12B** | A dedicated vLLM beside the existing Whisper and diarization services, intended as **reusable translation infrastructure beyond this project** — which is why the "extra service" is an asset rather than a dependency. The size choice is not a memory constraint (measured: 74.6 GiB available on the DGX with everything loaded, and the served LLM is FP4 at ~15–18 GB, not bf16 — an earlier claim that a 27B would not co-reside was **wrong**). It is a quality-per-throughput choice: on WMT24++ the 12B scores MetricX 3.60 / Comet22 83.5 against the 27B's 3.09 / 84.4, so the step up is 0.51 / 0.9 while the 4B→12B step is 1.72 / 3.4 — steep diminishing returns. TranslateGemma-**12B also beats base Gemma-3-27B** (4.04), so the fine-tune is worth more than the size. 12B leaves ~50 GB headroom for the shared-service ambition and is faster on a per-unit workload of ~400 units per episode. Upgrade paths kept open: a 27B, or an FP8 27B at roughly a bf16 12B's footprint | 2026-09-28 |
+| D-32 | **Units are the translation context; sentences are the alignment atom** | A ~120-word block cannot also be a subtitle cue or an ad-excision atom. The ad-free builder drops any segment overlapping an excised range, so unit-sized segments would discard up to ~45 s of real speech per ad boundary, and a 120-word cue is a paragraph. Numbered sentences in, numbered output of equal length, retry then fall back. **This is the one thing v1 cannot cheaply reverse** — changing granularity later re-translates the corpus | 2026-09-28 |
+| D-33 | **Units carry a content key, and translations are remembered** | A translation memory keyed by `(source_language, model@revision, src_text)` plus a content-hash key beside the ordinal `unit_id`. Turns out a rename does **not** merge turns — coalescing is by equal *adjacent* labels, so only prefix lengths and offsets change, never unit text. So with the memory, a relabel or re-render costs **zero GPU**. Without it every naming repair on a translated show pays for a full re-translation, and naming repair is the most common repair in this corpus | 2026-09-28 |
+| D-34 | **Speaker naming uses the ad-detection trick: translate first, then run the existing English cue matchers on the English text** | The naming cue matchers and NER are English (`roster.py:1472-1494`, `hosts.py:1506-1520`, `detection.py:60-68`) and the one language-agnostic layer is **closed-list** (`resolution.py:202-204`), so a non-English feed's voices stay `SPEAKER_01` — which means no SPOKEN_BY edge, which means `position_arc` matches nothing and **a translated episode yields zero position-bearing insights**. Rather than maintaining per-language cue lists, diarize to anonymous labels, translate, run the English matchers on the English transcript, map names back through the turn, and re-render both transcripts. Cheap only because of D-33. Also translate the title and description so NER candidate discovery works. What stays before translation is **diarization**, not naming — this revises D-8 | 2026-09-28 |
+| D-35 | **The transcript resolver carries a `purpose`, not one precedence** | `analysis` wants `.en.adfree.txt`; `timeline` (the player, the viewer transcript route, the segments view) wants the **full-timeline** text. Collapsing both into a single precedence would desync the player from the audio — the exact drift `segments_view.py` exists to prevent. One resolver, two intents, and a written table of which reader has which | 2026-09-28 |
 
 ## 8. Open decisions
 
-**None.** All ten were closed on 2026-09-28 — see D-21 … D-30, and the withdrawn items D-13, D-15,
+**One**, and it is a product judgement rather than a technical one: should the Positions gate be
+fail-closed on *every* surface, or fail-closed only on the ones that **assert** a position
+(`position_arc`, `topic_perspectives`, OG share cards, `positions_of`) and labelled-but-visible on the
+profile-shaped ones (`person_profile`, `topic_timeline`)? Fail-closed everywhere means a translated
+speaker gets a person page that returns nothing, which reads as broken rather than as unverified.
+RFC-125's two-predicate design supports either; S2.12 currently specifies fail-closed everywhere.
+
+The other ten were closed on 2026-09-28 — see D-21 … D-35, and the withdrawn items D-13, D-15,
 D-16. Two dissolved rather than being decided: the non-diarized-episode question (diarization is a
 mandatory core stage and the validator already enforces it, so there is no such category) and the
 local-transcription-tier question (that tier is removed from the DGX profiles' chains).
@@ -447,7 +485,30 @@ corpus; visibility is controlled by when a feed is added to the production feed 
 option B** — a separate keyword-only table, which makes a non-English chunk structurally incapable of
 appearing in a semantic result and should avoid the schema bump. Nothing implemented; no issues opened.
 
-**2026-09-28 — every open decision closed; §8 is empty.** D-21 … D-30. Highlights: the normalizer is
+**2026-09-28 — final architectural review; the plan changed shape.** A single architect-framed review
+(rather than another fault hunt) returned **ready with conditions**, endorsed the spine, and found three
+things cheap now and a corpus re-translation later. **(1) Speaker naming on non-English was unassessed and
+decides whether the product works at all**: the cue matchers and NER are English and the one
+language-agnostic layer is closed-list, so a non-English feed's voices stay `SPEAKER_01` → no SPOKEN_BY →
+`position_arc` matches nothing → **zero position-bearing insights**. Fixed by applying the ad-detection
+trick to naming (D-34, the operator's own suggestion): diarize anonymously, translate, run the existing
+English cue matchers on the English text, map names back, re-render. **(2) The ~120-word unit was the
+wrong atom** for subtitle cues and ad excision — sentences are now the alignment atom (D-32), and this is
+the one thing v1 cannot cheaply reverse. **(3) "One resolver" as written would desync the player** — it
+now carries a `purpose` (D-35). Plus the translation memory (D-33), which is what makes D-34's relabel
+free and stops every future naming repair paying for a re-translation.
+
+Plan re-shaped: a new **Phase −1** puts the resolver refactor and the allow-list test *before* everything,
+since both are pure-English instruments the rest is measured by. S0.3 folded into S0.2, S0.9 into S0.8,
+S1.3's backfill moved to v2, the two `.en.*` turns variants dropped (no v1 reader), S2.9 re-sized to L,
+S2.11 and S2.12 ship together. Corrected: `topic_consensus` *is* reachable by the property predicate (it
+loads `gi.json` itself); script detection does not discriminate for tier 1, since *inflación* and
+*inflation* share a script. Also closed: **TranslateGemma-12B** is the first pick (D-31), and the
+27B-won't-fit claim was **wrong** — measured 74.6 GiB available on the DGX with everything loaded, and the
+served LLM is FP4 not bf16. The ad-excision gap became its own defect, **issue #2168**, rather than arc
+scope. One open decision remains, and it is a product judgement (§8).
+
+**2026-09-28 — every open decision closed; §8 was empty at this point.** D-21 … D-30. Highlights: the normalizer is
 deliberately trivial because feeds are onboarded manually, so odd input is an onboarding task and not a
 code branch (D-21); the local Whisper tier leaves the DGX profiles' chains, which deletes the
 per-episode model-selection work outright (D-22); **no transliteration and no alias minting** — every
