@@ -244,6 +244,61 @@ doing work in that sentence and the full tier had not been run since the reset l
 
 NOT FIXED. Nothing here changes the setting or the suites; this is the assessment that was missing.
 
+### M8. The session path: three bugs that hid behind each other
+
+The Android harness answered "is this app signed in, and as whom" six overlapping ways, each
+built in a separate slice. Untangling it (advisor-designed, 4 steps) found three defects that were
+each concealed by one of the others.
+
+**1. "Signed in" was inferred from the ABSENCE of a control that exists on two pages.**
+`hasAnySession()` was "the 'Sign in' link is absent" — but `/login` carries its own "Sign in"
+SUBMIT button in the page body. So on the one route you are always on right after signing out, a
+signed-IN app reads as signed OUT. Four call sites, and the worst is `signOut()`, which could
+report success having signed out nothing.
+
+The same conflation, in a postcondition I wrote that morning, is what broke the tier: the callback
+sign-in worked, the masthead showed `simtest`, and the check called it a failure because a "Sign in"
+control was still on screen. Fixed by reading a POSITIVE signal — the notifications bell renders
+only under `auth.hasSession` (`App.vue:622`), the profile link carries the account name (`:630`).
+
+**2. The UI fallback made failures worse, not safer.** `ensureSignedIn` fell back to the UI flow
+when the callback failed, defended as insurance. When the callback actually failed, the fallback ran
+`signIn` against an already-signed-in app, `waitForField` grabbed the first `EditText` on screen —
+Home's search box — and the suite failed four steps later as "sign-in did not complete" with the
+identity typed into search. It converted a precise failure into a confusing one. Deleted; the real
+UI flow now has one dedicated test, pinned to a single caller by a guard.
+
+**3. The blank-WebView recovery could never have worked.** Removing the fallback made that failure
+loud, and it took ninety seconds to surface:
+
+```
+INSTRUMENTATION_RESULT: shortMsg=Process crashed.
+=====RELAUNCH webview blank; force-stop + retry 1/2
+```
+
+`am force-stop <pkg>` from inside instrumentation kills the app AND the test issuing it —
+instrumentation runs in the target's process. The handover recorded this path as "never fired in
+~40 clean sign-ins, untested recovery". It was not untested so much as impossible, and its own
+comment argued for it ("the only clean recovery is to end it and start again") without noticing the
+option does not exist in-process. The same defect had previously cost two full tier runs and was
+filed as a SIGN-IN problem, because the first assertion to notice a blank app is always about some
+control that was never going to be there.
+
+**Measured**, valid comparisons only (switch confirmed from server state — two accounts under
+`/app/state/users` — not from a marker):
+
+| suite | before | after |
+| --- | --- | --- |
+| `HarnessSmokeTests#signsIn…` | 314.6s | 178.3s |
+| `DownloadThroughUITests` (account switch) | 267.6s | 186.7s |
+
+A third of the tier's per-suite cost was navigating to Profile and sleeping, to learn something the
+masthead already displayed.
+
+**NOT PROVEN:** that removing the fallback is safe — it needs a run where the callback genuinely
+fails, and there has not been one since the net came off. Nor is the relaunch fix verified; it only
+proves itself the next time a WebView comes up blank.
+
 ## LANDED this session
 
 | Change | Evidence it works |
