@@ -55,12 +55,27 @@ const progress = computed(() =>
     data-testid="mini-player"
     class="fixed inset-x-0 bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-40 border-t border-border bg-elevated sm:bottom-0 sm:pb-[env(safe-area-inset-bottom)]"
   >
-    <!-- Progress as a hairline along the top edge: present without competing with the tab bar. -->
+    <!-- Progress as a hairline along the top edge: present without competing with the tab bar.
+
+         DRIVEN BY `transform: scaleX`, NOT `width` (2026-09-27). `width` is a LAYOUT property and
+         this is bound to `currentTime`, so it re-laid out this bar roughly four times a second for
+         as long as anything is playing, each tick animated over 500ms. `scaleX` is compositor-only:
+         same picture, no layout, no style recalc.
+
+         Worth doing on its own merits, and it is also half of the advisor's proposed fix for the
+         scroll artifact the operator hit the same day — fixed chrome painting mid-list during
+         momentum scroll. The theory there is a main-thread layer-tree commit racing the UI
+         process's scrolling thread, and a fixed layer forcing a commit four times a second is the
+         most obvious commit generator in the app. That is UNCONFIRMED — the operator could not
+         reproduce the artifact on demand — so this is NOT claimed as the fix for it. It is claimed
+         as removing a real per-tick layout from a bar that is on screen whenever audio plays.
+
+         `origin-left` is what makes a scale read as a fill rather than a zoom from the centre.
+         `motion-reduce` still drops the animation for users who asked software to stop moving. -->
     <div class="h-0.5 w-full bg-overlay">
-      <!-- motion-reduce drops the animation for users who asked software to stop moving. -->
       <div
-        class="h-full bg-accent transition-[width] duration-500 motion-reduce:transition-none"
-        :style="{ width: `${progress}%` }"
+        class="h-full w-full origin-left bg-accent transition-transform duration-500 motion-reduce:transition-none"
+        :style="{ transform: `scaleX(${Math.max(0, Math.min(100, progress)) / 100})` }"
       />
     </div>
 
