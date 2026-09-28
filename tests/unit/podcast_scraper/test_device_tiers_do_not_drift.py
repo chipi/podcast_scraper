@@ -176,20 +176,26 @@ CAPABILITIES: list[Capability] = [
         name="session state is read from the masthead, not a trip to Profile",
         android=("AppSession.java", r"private static boolean settles\(String label"),
         ios=("AppSession.swift", r"func settles\("),
-        status=ANDROID_ONLY,
+        status=BOTH,
         why=(
-            "Android answers 'is this app signed in, and as whom' by reading the masthead — the "
-            "profile link is labelled `auth.user?.name || t('profile.title')` and the "
-            "notifications bell renders only under `auth.hasSession`. It used to navigate "
-            "to Profile (twelve "
-            "swipes), scroll to 'Sign out', sleep 6s and scroll again: ~40s per call, on every "
-            "startClean, to learn something already on screen. Measured after the change: "
-            "HarnessSmokeTests 314.6s -> 177.9s. iOS still does the Profile trip with both sleeps. "
-            "DELIBERATE AND TEMPORARY: the advisor's migration order says not to edit iOS while it "
-            "cannot be executed, and the iOS tier has not run since `ios-origin-up` began hanging "
-            "(undiagnosed). This entry exists so the divergence is recorded rather than discovered "
-            "later — it is the exact shape of the two bugs fixed in 7c779e8af, where Android had "
-            "the fix and iOS silently kept the defect."
+            "Both platforms answer 'is this app signed in, and as whom' by reading the masthead — "
+            "the profile link is labelled `auth.user?.name || t('profile.title')` and the "
+            "notifications bell renders only under `auth.hasSession`. Both used to navigate to "
+            "Profile (twelve swipes), scroll to 'Sign out', sleep 6s and scroll again: ~40s per "
+            "call, on every startClean, to learn something already on screen. Android: "
+            "HarnessSmokeTests 314.6s -> 177.9s. "
+            "CLOSED 2026-09-28, and iOS turned out to be paying far more than the ~40s Android "
+            "was. `NativeOnlySurfacesTests` spent 500+ seconds in a poll loop without reaching an "
+            "assertion: it signed in, could not SEE that it had, and retried — five complete "
+            "`auth/login` -> `auth/callback` pairs in the api log for ONE test. "
+            "`openProfile`'s own diagnostic cleared the control twelve times over "
+            "(`PROFILE_CTL link 'simtest' frame=(349.0, 62.0, 48.0, 18.0) hittable=true`), which "
+            "is what made it a detection bug rather than a navigation one. After the port: in "
+            "142.4s, sign-in resolved at t=16s on the first attempt, zero SETTLE markers. "
+            "The temporary reason this entry carried — 'the iOS tier has not run since "
+            "`ios-origin-up` began hanging (undiagnosed)' — was wrong on both counts: the target "
+            "does not hang and the failure was in `ios-app-install`, a build failure from a "
+            "half-pruned /tmp derived-data tree. Diagnosed and fixed the same day."
         ),
     ),
     Capability(
