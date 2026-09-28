@@ -173,13 +173,38 @@ stays in config).
 
 **Supported-language registry.** `config/languages.yaml`:
 
+Seeded with the full roadmap (arc §6.3) and only `en` enabled. `tier` is the rollout tier, not a quality
+claim; `wer` records the measured prior so nobody has to look it up again.
+
 ```yaml
 languages:
-  en: { tier: excellent, enabled: true,  translation: none }
-  es: { tier: excellent, enabled: false, translation: { model_ref: tx-default } }
-  el: { tier: review,    enabled: false, translation: { model_ref: tx-default } }
+  en: { tier: 0, wer: 4.2, enabled: true,  translation: none }
+
+  # Tier 1 — the initial set. All Latin script, all under 10% WER.
+  es: { tier: 1, wer: 3.0, enabled: false, translation: { model_ref: tx-default } }
+  it: { tier: 1, wer: 4.0, enabled: false, translation: { model_ref: tx-default } }
+  pt: { tier: 1, wer: 4.3, enabled: false, translation: { model_ref: tx-default } }
+  de: { tier: 1, wer: 4.5, enabled: false, translation: { model_ref: tx-default } }
+  nl: { tier: 1, wer: 6.7, enabled: false, translation: { model_ref: tx-default } }
+  ca: { tier: 1, wer: 7.3, enabled: false, translation: { model_ref: tx-default } }
+  fr: { tier: 1, wer: 8.3, enabled: false, translation: { model_ref: tx-default } }
+  sv: { tier: 1, wer: 8.5, enabled: false, translation: { model_ref: tx-default } }
+  no: { tier: 1, wer: 9.5, enabled: false, translation: { model_ref: tx-default } }
+
+  # Tier 2 — Eastern Europe. Introduces Cyrillic.
+  ru: { tier: 2, wer: 5.6,  enabled: false, translation: { model_ref: tx-default } }
+  ro: { tier: 2, wer: 14.4, enabled: false, translation: { model_ref: tx-default } }
+  bg: { tier: 2, wer: 14.6, enabled: false, translation: { model_ref: tx-default } }
+  sr: { tier: 2, wer: 33.9, enabled: false, translation: { model_ref: tx-default } }
+
+  # Tier 3 — Asia and the Middle East. Needs the CJK prerequisites first (v2 doc §10).
+  ja: { tier: 3, wer: 5.3,  enabled: false, translation: { model_ref: tx-default } }
+  ko: { tier: 3, wer: 14.3, enabled: false, translation: { model_ref: tx-default } }
+  zh: { tier: 3, wer: 14.7, enabled: false, translation: { model_ref: tx-default } }
+  ar: { tier: 3, wer: 16.0, enabled: false, translation: { model_ref: tx-default } }
+
 models:
-  tx-default: { id: <bake-off winner>, revision: <sha>, serve: dgx_vllm_translate }
+  tx-default: { id: <chosen model>, revision: <sha>, serve: dgx_vllm_translate }
 ```
 
 An episode whose language is not `enabled` gets status `skipped_unsupported_language` and is never
@@ -473,18 +498,20 @@ source, and a relabel that resolves two `SPEAKER_xx` to one name **merges turns*
 id and invalidating the unit map. So naming stays where it is, on the source, with the English feed
 metadata passed as extra context (show notes often name the guest in source script).
 
-Two identity rules:
+Two rules, and v1 only needs the first:
 
-1. **Speaker labels never go through the translator.** The source-script label is looked up in CIL
-   aliases; a canonical person yields the canonical Latin name, otherwise a deterministic
-   transliteration (ICU `Any-Latin; Latin-ASCII` plus per-language rules) becomes the display label and
-   the source-script form is written as a CIL alias when the person node is minted.
-2. **In-text names** are left to the model; CIL resolution matches English mentions against aliases
-   including transliteration variants. §7 measures name consistency.
+1. **Speaker labels never go through the translator**, and are carried onto the English line
+   **verbatim**. An MT model renames the same person inconsistently between units — "Putin", "Vladimir
+   Putin", something odd — which is exactly the fragmentation the identity layer cannot absorb.
+2. **In-text names** are left to the model. §7 measures name consistency.
 
-A transliterated label must still satisfy `gi/speakers.py:_looks_like_person` (≥2 tokens, no publisher
-token) — a label collapsing to one token would silently un-attribute every quote in that turn — so the
-transliteration asserts that and falls back to the source-script label when it fails.
+**No transliteration and no alias minting in v1.** Every tier-1 language is Latin script, and a person's
+name is usually the identical string across Dutch, German, Italian, Spanish, Catalan, French, Portuguese,
+Swedish and Norwegian — so there is nothing to convert and nothing to reconcile. The work that *does*
+become necessary when a non-Latin-script language is enabled (canonical-name lookup, deterministic
+transliteration, source-script forms written as aliases, and the guard that a transliterated label must
+still satisfy `gi/speakers.py:_looks_like_person` or it silently un-attributes a whole turn) is specified
+in `docs/architecture/MULTILINGUAL_ARC_V2.md` §10 and triggered by tier 2.
 
 ### 6. API, player and search
 

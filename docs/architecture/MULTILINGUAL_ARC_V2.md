@@ -40,6 +40,7 @@ source of truth per design.
 | [Turns consumers](#6-turns-consumers) | V2-D.1, V2-D.2, V2-D.3 | Independent English-corpus improvements. v1 needs `turns.json` to *exist*, not to be consumed |
 | [Cross-lingual retrieval](#7-cross-lingual-semantic-retrieval) | V2-E.1 | Needs a multilingual embedding model, which re-embeds the whole corpus and risks English search quality |
 | [Word-level anchors](#8-word-level-anchors) | V2-F.1 | Per-language aligner checkpoints; the artifact is already forward-compatible |
+| [Also deferred](#10-also-deferred-decided-2026-09-28) | V2-C.3, V2-H.1 … H.3 | The model comparison; transliteration and identity aliasing; the language-ID check; the tier-3 prerequisites |
 
 ## 3. Claim verification
 
@@ -99,6 +100,10 @@ Reinstating the badge in v1 would re-add precisely what was deleted, to display 
 v1's parsing work lands — is the run configuration rather than the feed's own tag. So badge and filter
 ship together, when there is a second language to distinguish. The operator confirmed the reversal is
 intended: *"yes, we reverse what we did some time ago because we were only in one language."*
+
+**The component itself is built in v1**, because the transcript language control needs it (v1 D-25,
+D-26). What is deferred is *placement as metadata decoration* — on episode rows, tiles, cards, show rows
+and the shows library. So V2-C.1 is a rendering slice, not a component slice.
 
 | # | Slice | Goal | Size |
 | --- | --- | --- | --- |
@@ -207,16 +212,14 @@ auditable, content exposure limited to a handful of episodes. Keep any **runtime
 verification on the DGX, where it is private and pinnable, rather than sending every claim from every
 translated episode to a public API.
 
-## 10. Candidates — proposed, not yet decided
+## 10. Also deferred, decided 2026-09-28
 
-These were proposed as further v1 trims and the operator has not ruled on them. They stay in **v1's**
-plan until he does; they are listed here so the pile is complete and the question does not get lost.
-
-| Candidate | The proposal | What v1 would do instead |
+| Item | Slice | Why it is not v1 |
 | --- | --- | --- |
-| The full model bake-off | Move the 5-candidate × 6-measurement comparison with per-language calibrated thresholds to v2 | Pick one defensible model — eligible licence, covers the language, fits alongside the served LLM — and run a single-model sanity check: sane English on ~20 units, ad patterns survive at all |
-| Speaker transliteration and CIL aliasing | Move canonical-Latin lookup and alias minting to v2 | Keep the `_looks_like_person` guard (without it a transliterated label silently un-attributes a whole turn), use the source-script label, and **do not mint person nodes from translated episodes into the global identity layer** — which avoids identity fragmentation that would be hard to undo |
-| Language-ID sanity check | Move to v2 | A wrong feed tag is caught by the corpus audit and correctable with the per-feed override |
+| **The model comparison** | **V2-H.1** | v1 picks one model for breadth across tier 1 and checks that it runs and produces sane output. The five-candidate × six-measurement comparison with calibrated thresholds is exactly "make translations better" — and D-7 means a model swap invalidates the earlier evidence anyway, so v2 re-measures from scratch regardless (v1 D-27) |
+| **Transliteration and identity aliasing** | **V2-C.3** | Not built at all in v1, because every tier-1 language is Latin script and a person's name is usually the identical string across them. The trigger is enabling a **non-Latin-script** language — tier 2 (Cyrillic) or tier 3 (CJK, Arabic). Then: canonical-name lookup, deterministic transliteration, and source-script forms written as aliases so one person does not become two (v1 D-24, D-29) |
+| **Language-ID sanity check** | **V2-H.2** | A wrong feed tag is caught by the corpus audit and corrected with the per-feed override, which v1 builds |
+| **Tier-3 prerequisites** | **V2-H.3** | Two v1 assumptions break for Japanese, Korean and Chinese and must be fixed before any of them is enabled: translation units are packed by **word count**, which is meaningless without spaces; and the speaker-name guard requires ≥2 tokens, so a single-token CJK name would silently un-attribute every quote in its turn |
 
 ## 11. Running notes
 
@@ -227,6 +230,11 @@ items folded in: word-level anchors. The LLM-as-judge substitution
 (§9) is recorded here because it removed the arc's only human dependency and several v2 items rest on
 it. Three further trim candidates are parked in §10 awaiting a decision. Nothing here is scheduled and
 no PRD or RFC has been written for it.
+
+**2026-09-28 — the v1 trim finished.** §10 added: the model comparison, transliteration and identity
+aliasing (triggered by the first non-Latin-script language), the language-ID check, and the two tier-3
+prerequisites — word-based unit packing and the ≥2-token name guard, both of which break for CJK. v1's
+tier 1 is entirely Latin script, which is why the aliasing work has no v1 consumer at all.
 
 <!-- Append new entries above this line. When v2 is scheduled, each §3-§8 theme gets its own PRD/RFC;
      until then this document is the plan of record for everything deferred out of v1. -->

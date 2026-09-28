@@ -225,8 +225,13 @@ this, and it compounds the cross-show-synthesis moat.
   part of this requirement.
 - **FR4.3**: Every quote from a translated episode is labeled as a translation, shows the original
   sentence on demand, and plays the **original** audio span.
-- **FR4.4**: People resolve to a single CIL identity across languages and scripts. A canonical Latin
-  name is kept, with the source-script name as an alias. A transliterated speaker label that would
+- **FR4.4**: Speaker labels are **never sent through the translation model**, which would rename the
+  same person inconsistently between units. The label is carried onto the English transcript verbatim.
+  **No transliteration and no alias minting in v1**: every tier-1 language is Latin script and a person's
+  name is usually the identical string across those languages, so there is nothing to convert. Resolving
+  one identity across *scripts* — canonical name, transliteration, source-script aliases — is deferred
+  until the first non-Latin-script language is enabled.
+- **FR4.4b** *(deferred with the above)*: a transliterated speaker label that would
   break existing attribution heuristics falls back to the source-script label rather than
   silently un-attributing the turn.
 - **FR4.5**: **A non-English episode is findable by a query in its own language, and by an English
@@ -289,6 +294,12 @@ chrome follows when it has something to distinguish.
   `AppPodcastItem.language` but currently serves the run config — starts serving the **normalized**
   feed tag (`en-US` → `en`), so a language is one token rather than one per feed's spelling. The
   operator viewer's feed response gains the same field. **v1.**
+- **FR7.1b**: The **transcript panel defaults to English**, with a small control to switch to the
+  original language. English is the default because summaries, insights and search are all English, so a
+  source-language transcript would be the inconsistent choice. The control serves the **full-timeline**
+  English transcript, not the ad-free analysis text, so it stays in sync with the audio where ads were
+  cut. **v1** — and it is why the badge *component* exists in v1 even though badges as metadata
+  decoration do not.
 - **FR7.2**: Every show and episode displays a compact language badge — a small squared chip with the
   uppercase code — wherever that item's metadata already renders: consumer episode rows, tiles and
   cards, show rows, tiles and detail page, and the operator shows library. Omitted, not guessed, when
@@ -303,20 +314,35 @@ chrome follows when it has something to distinguish.
 
 ## Supported-language policy
 
-A language goes live only after it passes the RFC-124 §7 bake-off gate: acceptable transcription
-quality on real episodes of that language, acceptable translation quality measured by a native
-reviewer, position agreement between translation and source at or above the threshold, and a
-measured ad-detection survival rate. The ASR tiers in Appendix A are a **prior** for deciding what to
-test first. They are not a support claim.
+A language goes live only after it passes the RFC-124 §7 gate: acceptable transcription quality on real
+episodes, acceptable translation quality judged per the LLM-judge protocol, position agreement between
+translation and source at or above the threshold, and a measured ad-detection survival rate. The ASR
+figures in Appendix A are a **prior** for deciding what to enable first. They are not a support claim.
 
-External wording for beta conversations: "Western European languages plus Russian, Polish,
-Japanese and Korean are the first candidates; Balkan and Nordic languages are in trial; South Asian
-languages are not supported yet."
+**The roadmap is three tiers.** The registry lists all of them; only `en` is enabled.
 
-**Promise no specific language yet, Serbian least of all.** On the measured evidence (Appendix A,
-Appendix B) Serbian is the hardest case on both axes and may have no eligible translation model at all,
-while the pilot language itself is still being decided by measurement (arc slice V.5). "In trial" is the
-strongest claim available for anything outside English.
+**Tier 1 — the initial set and the focus of v1.** Dutch, German, Italian, Spanish, Catalan, French,
+Portuguese, Swedish, Norwegian. Every one is under 10% FLEURS WER and five are under 5% — Spanish (3.0),
+Italian (4.0), Portuguese (4.3) and German (4.5) transcribe *better* than English (4.2) on that
+benchmark. All of tier 1 is **Latin script**, which is why no transliteration or identity aliasing is
+built (FR4.4).
+
+**Tier 2 — Eastern Europe.** Russian, Serbian, Bulgarian, Romanian. Introduces Cyrillic, which is the
+trigger for the deferred identity work.
+
+**Tier 3 — Asia and the Middle East.** Korean, Japanese, Chinese, Arabic. Two v1 assumptions must be
+fixed first: translation units are packed by word count, which is meaningless without spaces, and the
+speaker-name heuristic requires two or more tokens, which a single-token CJK name fails.
+
+The tiers are ordered by intent rather than difficulty, and they diverge in two places worth knowing:
+**Russian (5.6) and Japanese (5.3) are technically easier than Norwegian (9.5)**, and **Serbian (33.9) is
+the hardest language in all three tiers** by more than double the next one.
+
+**Pilot: Spanish or Italian.** Lowest error rate, Latin script, covered by every candidate model.
+
+External wording for beta conversations: "Western European and Nordic languages are the first set;
+Eastern European languages follow; Asian and Middle Eastern languages are later." Do not promise a
+specific language before it has passed the gate.
 
 ## Phasing
 
