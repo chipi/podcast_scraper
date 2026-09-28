@@ -36,7 +36,7 @@ source of truth per design.
 | --- | --- | --- |
 | [Claim verification](#3-claim-verification) | V2-A.1, V2-A.2 | v1 ships with translated claims simply absent from Position surfaces. The machinery that lets them *in* is what makes the product better, not what makes it work |
 | [Quality estimation](#4-quality-estimation-and-calibrated-bands) | V2-B.1 | Needs a translated corpus to calibrate against, which does not exist until v1 has run |
-| [Language visibility](#5-language-visibility--badge-and-filter) | V2-C.1, V2-C.2 | A badge and a filter over a single-language corpus are dead controls. A language chip was **deliberately deleted** for exactly that reason in #2115 |
+| [Language visibility](#5-language-visibility-badge-and-filter) | V2-C.1, V2-C.2 | A badge and a filter over a single-language corpus are dead controls. A language chip was **deliberately deleted** for exactly that reason in #2115 |
 | [Turns consumers](#6-turns-consumers) | V2-D.1, V2-D.2, V2-D.3 | Independent English-corpus improvements. v1 needs `turns.json` to *exist*, not to be consumed |
 | [Cross-lingual retrieval](#7-cross-lingual-semantic-retrieval) | V2-E.1 | Needs a multilingual embedding model, which re-embeds the whole corpus and risks English search quality |
 | [Word-level anchors](#8-word-level-anchors) | V2-F.1 | Per-language aligner checkpoints; the artifact is already forward-compatible |
