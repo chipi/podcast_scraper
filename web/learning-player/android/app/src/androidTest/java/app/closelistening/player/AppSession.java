@@ -96,8 +96,14 @@ final class AppSession {
             return isSignedIn();
         }
         try {
+            // RAW CLICK, not `Journey.tap`, and that is a known hazard rather than an oversight:
+            // `find` falls back to the inert TextView twin when no clickable match exists, and
+            // clicking that does nothing at all, silently. Left as-is for now because changing it is
+            // a behaviour change to the one path that still drives the real OAuth flow; the marker
+            // below at least makes a swallowed tap visible instead of surfacing three steps later.
             entry.click();
         } catch (Throwable t) {
+            Journey.mark("=====SIGNIN entry.click threw " + t + "=====");
             return false;
         }
 
@@ -111,6 +117,7 @@ final class AppSession {
         // downstream suites then report missing controls that are correctly absent.
         UiObject2 input = waitForField(20_000);
         if (input == null) {
+            Journey.mark("=====SIGNIN no dev picker after the first tap; re-tapping 'Sign in'=====");
             Journey.tap("Sign in", false, 10_000);
             input = waitForField(20_000);
         }
@@ -125,6 +132,7 @@ final class AppSession {
             input.click();
             input.setText(identity);
         } catch (Throwable t) {
+            Journey.mark("=====SIGNIN could not type into the dev picker: " + t + "=====");
             return false;
         }
 
@@ -139,7 +147,14 @@ final class AppSession {
         // The submit is the one BELOW the identity field; the masthead is above it. Position is the
         // only thing that separates them, because their accessible names are identical — which is
         // correct markup, not a bug to fix in the app.
-        if (!Journey.tapBelow("Sign in", input, 10_000)) return false;
+        if (!Journey.tapBelow("Sign in", input, 10_000)) {
+            // The submit is BELOW the field; the masthead link is above it. A miss here means one of
+            // them was not where this expects, and without a marker it surfaces only as
+            // "sign-in did not complete" long after the fact.
+            Journey.mark("=====SIGNIN the picker's submit was not below the field :: "
+                    + Journey.labelledInventory(16) + "=====");
+            return false;
+        }
 
         // The OAuth hand-off leaves the app: Capacitor opens a Custom Tab, which may show a consent
         // or account screen owned by ANOTHER package. While it is up every app-scoped query returns
@@ -180,13 +195,37 @@ final class AppSession {
     private static UiObject2 waitForField(long timeoutMs) {
         long deadline = System.currentTimeMillis() + timeoutMs;
         do {
-            try {
-                for (UiObject2 o : Journey.device().findObjects(By.pkg(Journey.PKG))) {
-                    String cls = String.valueOf(o.getClassName());
-                    if (cls.endsWith("EditText")) return o;
+            // PROVE WE ARE ON /login BEFORE TAKING ANY EditText.
+            //
+            // This returned the first EditText anywhere in the package, which answers "is there a
+            // text field on screen" when the question is "is the dev picker rendered". Those differ
+            // on every page that has a search box — which is Home and Discover, i.e. exactly where
+            // the app sits when the preceding tap to reach /login was swallowed.
+            //
+            // Measured 2026-09-28: a sign-in that never left Home typed the identity into HOME'S
+            // SEARCH BOX and the suite failed as "sign-in did not complete" with
+            // `simtest[EditText,click]` in the inventory beside "Ask across every episode".
+            //
+            // Worse, it DEFEATED the retry that exists for precisely that case. `signIn` re-taps
+            // "Sign in" and calls this again only when it returns null (see the retry above); a
+            // wrong field is non-null, so the healing path could never run. A wrong answer here is
+            // not a slower failure, it is a silent one that disables the recovery.
+            //
+            // Gate on text only `/login` renders — `LoginView.vue:68` ("Sign in as") and `:99`
+            // ("Dev sign-in (mock OAuth)"), both plain `<p>` copy that arrives as TextView text.
+            // Deliberately NOT the field's own placeholder ("or a custom name…", `:86`): the input
+            // carries no `aria-label`, so its accessible name depends on Chromium surfacing the
+            // placeholder on an empty field, which is unverified on this WebView. The page gate
+            // needs no such assumption.
+            if (Journey.find(Arrays.asList("Sign in as", "Dev sign-in"), true, 1_000) != null) {
+                try {
+                    for (UiObject2 o : Journey.device().findObjects(By.pkg(Journey.PKG))) {
+                        String cls = String.valueOf(o.getClassName());
+                        if (cls.endsWith("EditText")) return o;
+                    }
+                } catch (Throwable ignored) {
+                    // Tree mutated mid-walk; the loop covers it.
                 }
-            } catch (Throwable ignored) {
-                // Tree mutated mid-walk; the retry below covers it.
             }
             Journey.sleep(400);
         } while (System.currentTimeMillis() < deadline);
@@ -380,12 +419,36 @@ final class AppSession {
             Journey.mark("=====CALLBACK startActivity threw " + t + "=====");
             return false;
         }
-        // The masthead "Sign in" link going away is the first observable and needs no navigation.
-        // Polled, not slept: a fixed wait here is a guess about the slowest machine this will run on.
+        // WAIT FOR THE SESSION TO APPEAR, not for "Sign in" to disappear.
+        //
+        // The first version polled for the absence of "Sign in", and that conflated two different
+        // things: being SIGNED IN, and having NAVIGATED AWAY from the login page. `storeAuthToken`
+        // calls `onAuthed()`, which refreshes the auth store, so the masthead re-renders to the
+        // account name immediately — while the ROUTE is still `/login`, whose body carries its own
+        // "Sign in" SUBMIT button. Signed in, and still showing a control named "Sign in".
+        //
+        // Measured 2026-09-28. The marker at the moment of failure read:
+        //
+        //   =====CALLBACK token delivered but 'Sign in' is still on screen ::
+        //         … | Notifications[Button,click] | simtest[TextView] | simtest[View,click]=====
+        //
+        // `simtest` in the masthead — the callback had worked. This returned false anyway,
+        // `ensureSignedIn` fell through to the UI path, `signIn` ran on an already-signed-in app,
+        // and `waitForField` grabbed the first EditText on screen, which was Discover's SEARCH box.
+        // The suite then failed as "sign-in did not complete" with the identity typed into search.
+        //
+        // It only bit after an account SWITCH, which is why a standalone run never showed it: from
+        // a cleared device the app sits signed-out on Home, where the only "Sign in" is the masthead
+        // link and it really does vanish. After `signOut()` the app is on `/login`, where a second
+        // one exists in the page body.
+        //
+        // So: poll for the masthead's SIGNED-IN marker. The identity once `/me` resolves, or the
+        // generic label before it does — `App.vue` labels the link `auth.user?.name ||
+        // t('profile.title')`. A positive signal cannot be satisfied by a leftover route.
         long started = System.currentTimeMillis();
         long deadline = started + 20_000;
         while (System.currentTimeMillis() < deadline) {
-            if (Journey.find(Arrays.asList("Sign in"), false, 1_000) == null) {
+            if (Journey.find(Arrays.asList(identity, "Your profile"), true, 1_000) != null) {
                 // A POSITIVE marker, not merely the absence of a failure one. Which path signed the
                 // app in is the thing being measured here, and "no error was printed" is exactly the
                 // kind of evidence this tier has been fooled by before.
@@ -395,7 +458,7 @@ final class AppSession {
             }
             Journey.sleep(500);
         }
-        Journey.mark("=====CALLBACK token delivered but 'Sign in' is still on screen :: "
+        Journey.mark("=====CALLBACK token delivered but no signed-in masthead appeared :: "
                 + Journey.labelledInventory(12) + "=====");
         return false;
     }
