@@ -51,6 +51,51 @@ public class HarnessSmokeTests extends UITestCase {
     }
 
     /**
+     * The REAL sign-in flow — dev picker, submit, Custom Tab consent — which nothing else runs now.
+     *
+     * `ensureSignedIn` tries the callback path first (mint a token over HTTP, deliver it through
+     * `appUrlOpen`), because the UI flow's six sequential races cost the tier a failure roughly once
+     * in nine runs and one of those races lives in `com.android.chrome`. That was the right trade
+     * for the other thirteen suites. It is NOT a reason to stop testing the flow a real user takes,
+     * and without this test that is precisely what happened: "Custom Tab launches: 0 across five
+     * runs" was offered as evidence the fix worked, when it was equally evidence that the product's
+     * actual sign-in had stopped being exercised by anything at all.
+     *
+     * The commit that introduced the callback path said this suite "should keep driving the UI path
+     * FIRST" and then did not make it so. A "should" in a commit message is a TODO wearing a
+     * claim's clothes; this is the edit that was missing.
+     *
+     * Deliberately ONE test, in the plumbing suite that already runs first: the consent flow is
+     * paid once per tier run instead of once per suite, so the race is exercised where it can be
+     * diagnosed rather than fourteen times where it cannot.
+     *
+     * If this goes flaky, that IS the finding. It is the path real users take, and a flake here is a
+     * product or environment problem — not a second thing to route the harness around.
+     */
+    @Test
+    public void theRealUISignInFlowStillWorks() {
+        // A signed-OUT app is this test's precondition: the dev picker is unreachable while a
+        // session exists, because a signed-in app has no "Sign in" link to tap.
+        AppSession.relaunch();
+        if (AppSession.hasAnySession()) {
+            assertTrue(
+                    "could not sign out to reach the signed-out state this test needs. On screen: "
+                            + Journey.labelledInventory(80),
+                    AppSession.signOut());
+        }
+        // `signIn`, NOT `ensureSignedIn` — the latter takes the callback shortcut, and this test
+        // would then silently assert nothing whatsoever about the UI flow.
+        assertTrue(
+                "the real UI sign-in flow failed as '" + accountIdentity() + "'. On screen: "
+                        + Journey.labelledInventory(80),
+                AppSession.signIn(accountIdentity()));
+        assertTrue(
+                "the UI flow reported success but the app is not signed in as '"
+                        + accountIdentity() + "'",
+                AppSession.isSignedIn(accountIdentity()));
+    }
+
+    /**
      * Deep links reach a specific episode.
      *
      * This is the navigation every other suite depends on. Reaching an episode by tapping through
