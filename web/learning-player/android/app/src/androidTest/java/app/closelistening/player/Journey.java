@@ -83,6 +83,28 @@ final class Journey {
 
     private Journey() {}
 
+    /**
+     * A diagnostic line that SURVIVES a tier run.
+     *
+     * This harness prints `=====MARKER …=====` lines everywhere and several comments treat them as
+     * the record of what happened. They are not: instrumentation `System.out` does not reach
+     * `am instrument -w` stdout, so a full `test-android` log contains ZERO of them. Measured
+     * 2026-09-28 — `grep -c "=====" ` over a complete tier log returned 0, while a phase-2 failure
+     * needed exactly those lines to explain itself and could not.
+     *
+     * It is the same failure this repo keeps finding in other forms: a diagnostic that looks like it
+     * is recording something. The earlier attempt to dump an accessibility hierarchy through
+     * `System.out` vanished for this reason too, and was misread at the time as the dump failing.
+     *
+     * So markers go to LOGCAT as well, under one tag `android-suite` can pull back on failure.
+     * `System.out` is kept because it does show up when a single suite is run by hand, which is how
+     * these are read during development.
+     */
+    static void mark(String message) {
+        System.out.println(message);
+        android.util.Log.i("LPHARNESS", message);
+    }
+
     static UiDevice device() {
         return UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
     }
@@ -342,7 +364,7 @@ final class Journey {
         // stands and the silence goes: when this marker appears, a later "the page never changed"
         // has its cause in the same log rather than several steps away.
         if (!Boolean.TRUE.equals(attr(el, UiObject2::isClickable))) {
-            System.out.println("=====TAP_NONCLICKABLE " + names + " resolved to a node with "
+            mark("=====TAP_NONCLICKABLE " + names + " resolved to a node with "
                     + "clickable=false and no clickable ancestor (cls="
                     + attr(el, UiObject2::getClassName) + ", bounds=" + lastGood + "). The click may "
                     + "land on nothing; if a later step reports the page did not change, this is why."
@@ -622,7 +644,7 @@ final class Journey {
             boolean settingsTap = tap("Settings", true, 15_000);
             sleep(2_000);
             if (scrollTo(Arrays.asList(OFFLINE_ROW), false, 12) != null) return true;
-            System.out.println("=====SETTINGS_NAV attempt " + attempt
+            mark("=====SETTINGS_NAV attempt " + attempt
                     + " profileTap=" + profile + " reachedProfile=" + onProfile
                     + " settingsTap=" + settingsTap
                     + " :: " + labelledInventory(16) + "=====");
@@ -668,24 +690,24 @@ final class Journey {
     static boolean setOfflineMode(boolean wanted, List<String> profileLabels) {
         for (int round = 1; round <= 3; round++) {
             boolean observed = isForcedOffline();
-            System.out.println("=====OFFLINE_SET round " + round + " observed=" + observed
+            mark("=====OFFLINE_SET round " + round + " observed=" + observed
                     + " wanted=" + wanted + "=====");
             if (observed == wanted) return true;
 
             if (!openSettings(profileLabels)) {
-                System.out.println("=====OFFLINE_SET settings unreachable :: "
+                mark("=====OFFLINE_SET settings unreachable :: "
                         + labelledInventory(12) + "=====");
                 return false;
             }
             UiObject2 row = scrollTo(Arrays.asList(OFFLINE_ROW), false, 20);
             if (row == null) {
-                System.out.println("=====OFFLINE_SET no 'Offline mode' row :: "
+                mark("=====OFFLINE_SET no 'Offline mode' row :: "
                         + labelledInventory(16) + "=====");
                 return false;
             }
             UiObject2 box = nearestCheckable(row);
             if (box == null) {
-                System.out.println("=====OFFLINE_SET nothing checkable for the row :: "
+                mark("=====OFFLINE_SET nothing checkable for the row :: "
                         + labelledInventory(16) + "=====");
                 return false;
             }
@@ -704,22 +726,22 @@ final class Journey {
             // of y=133, then y=1960, then y=249 on three consecutive visits, because where a web
             // page sits when you arrive is not stable. A coordinate is a guess about scroll
             // position; an accessibility action addresses the element itself.
-            System.out.println("=====OFFLINE_SET clicking box bounds=" + attr(box, UiObject2::getVisibleBounds)
+            mark("=====OFFLINE_SET clicking box bounds=" + attr(box, UiObject2::getVisibleBounds)
                     + " rowBounds=" + attr(row, UiObject2::getVisibleBounds)
                     + " rowName='" + nameOf(row) + "'"
                     + " rowCls=" + attr(row, UiObject2::getClassName) + "=====");
             try {
                 box.click();
             } catch (Throwable t) {
-                System.out.println("=====OFFLINE_SET click threw " + t + "=====");
+                mark("=====OFFLINE_SET click threw " + t + "=====");
                 return false;
             }
             sleep(1_500);
-            System.out.println("=====OFFLINE_SET round " + round + " clicked the box=====");
+            mark("=====OFFLINE_SET round " + round + " clicked the box=====");
         }
         boolean now = isForcedOffline();
         if (now != wanted) {
-            System.out.println("=====OFFLINE_SET after 3 rounds the app reports offline=" + now
+            mark("=====OFFLINE_SET after 3 rounds the app reports offline=" + now
                     + ", wanted " + wanted + " :: " + labelledInventory(16) + "=====");
         }
         return now == wanted;
@@ -795,7 +817,7 @@ final class Journey {
             }
             cur = parent;
         }
-        System.out.println("=====CHECKBOX no checkable inside any of the 4 ancestors of '"
+        mark("=====CHECKBOX no checkable inside any of the 4 ancestors of '"
                 + nameOf(labelled) + "'=====");
         return null;
     }
@@ -853,15 +875,15 @@ final class Journey {
                     .getTargetContext().getExternalFilesDir(null);
             java.io.File dir = new java.io.File(base, "lp-shots");
             if (!dir.exists() && !dir.mkdirs()) {
-                System.out.println("=====SHOT could not create " + dir.getAbsolutePath() + "=====");
+                mark("=====SHOT could not create " + dir.getAbsolutePath() + "=====");
                 return;
             }
             java.io.File out = new java.io.File(dir, name + ".png");
             boolean ok = device().takeScreenshot(out);
-            System.out.println("=====SHOT " + (ok ? "saved " : "FAILED ") + out.getAbsolutePath()
+            mark("=====SHOT " + (ok ? "saved " : "FAILED ") + out.getAbsolutePath()
                     + "=====");
         } catch (Throwable t) {
-            System.out.println("=====SHOT threw " + t + "=====");
+            mark("=====SHOT threw " + t + "=====");
         }
     }
 }

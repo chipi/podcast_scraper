@@ -2551,12 +2551,27 @@ android-suite:
 	@# (`test_{ios,android}_uitest_suites_are_wired.py`) catch a suite LEAVING the Makefile; nothing
 	@# caught one that is still wired and runs nothing. Same false-green shape as the state leaks in
 	@# #2091 — green by absence rather than by behaviour.
+	@#
+	@# MARKERS ON FAILURE (2026-09-28). The harness prints `=====MARKER …=====` lines throughout and
+	@# several of its comments treat them as the record of what happened. They are not: instrumentation
+	@# `System.out` does not reach `am instrument -w` stdout, so a complete `test-android` log contains
+	@# ZERO of them — measured, `grep -c "====="` over a full tier log returned 0 while a phase-2
+	@# failure needed exactly those lines to explain itself. `Journey.mark` now also writes them to
+	@# logcat under `LPHARNESS`, the buffer is cleared before each suite, and the tail is printed when
+	@# a suite fails. Without this a tier failure says only which suite died, never why.
 	@target="$(ANDROID_PKG).$(SUITE)"; \
 	if [ -n "$(TEST)" ]; then target="$$target\#$(TEST)"; fi; \
+	$(ADB) logcat -c >/dev/null 2>&1 || true; \
 	out=$$($(ADB) shell am instrument -w -e class "$$target" -e originPort $(IOS_ORIGIN_PORT) \
 		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
 	echo "$$out"; \
-	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; exit 1; }; \
+	echo "$$out" | grep -q "^OK (" || { \
+		echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; \
+		echo "--- harness markers for this run (logcat LPHARNESS) ---"; \
+		$(ADB) logcat -d -s LPHARNESS:I 2>/dev/null | tail -40 || true; \
+		echo "--- end markers ---"; \
+		exit 1; \
+	}; \
 	if echo "$$out" | grep -q "^OK (0 tests)"; then \
 		echo "FAIL: $(SUITE)$${TEST:+#$(TEST)} reported OK but ran ZERO tests."; \
 		echo "      The class resolved to nothing runnable — check the name for a typo or a"; \

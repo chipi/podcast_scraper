@@ -213,7 +213,7 @@ final class AppSession {
             Journey.openProfile();
             UiObject2 out = Journey.scrollTo("Sign out", false);
             if (out == null) {
-                System.out.println("=====SIGNOUT attempt " + attempt
+                Journey.mark("=====SIGNOUT attempt " + attempt
                         + ": no 'Sign out' control on Profile :: " + Journey.labelledInventory(80)
                         + "=====");
                 continue;
@@ -229,7 +229,7 @@ final class AppSession {
             boolean tapped = Journey.tap("Sign out", false, 10_000);
             Journey.sleep(3_000);
             if (!hasAnySession()) return true;
-            System.out.println("=====SIGNOUT attempt " + attempt + " tapped=" + tapped
+            Journey.mark("=====SIGNOUT attempt " + attempt + " tapped=" + tapped
                     + " but a session is still present :: " + Journey.labelledInventory(80) + "=====");
         }
         return false;
@@ -311,7 +311,7 @@ final class AppSession {
                     return null;
                 }
             } catch (Throwable t) {
-                System.out.println("=====MINT failed at " + url + " :: " + t + "=====");
+                Journey.mark("=====MINT failed at " + url + " :: " + t + "=====");
                 return null;
             }
         }
@@ -360,7 +360,7 @@ final class AppSession {
         // painted (which is what `appUrlOpen` needs, since `initNativeAuth` does not read
         // `getLaunchUrl`), and it makes the postcondition a real state CHANGE rather than a tautology.
         if (Journey.find(Arrays.asList("Sign in"), false, 20_000) == null) {
-            System.out.println("=====CALLBACK no signed-out 'Sign in' on screen: either no web "
+            Journey.mark("=====CALLBACK no signed-out 'Sign in' on screen: either no web "
                     + "content yet (appUrlOpen would never see the token) or a session already "
                     + "exists, and neither is a state this path can act on :: "
                     + Journey.labelledInventory(12) + "=====");
@@ -377,7 +377,7 @@ final class AppSession {
         try {
             ctx.startActivity(cb);
         } catch (Throwable t) {
-            System.out.println("=====CALLBACK startActivity threw " + t + "=====");
+            Journey.mark("=====CALLBACK startActivity threw " + t + "=====");
             return false;
         }
         // The masthead "Sign in" link going away is the first observable and needs no navigation.
@@ -389,13 +389,13 @@ final class AppSession {
                 // A POSITIVE marker, not merely the absence of a failure one. Which path signed the
                 // app in is the thing being measured here, and "no error was printed" is exactly the
                 // kind of evidence this tier has been fooled by before.
-                System.out.println("=====CALLBACK signed in as " + identity + " in "
+                Journey.mark("=====CALLBACK signed in as " + identity + " in "
                         + (System.currentTimeMillis() - started) + "ms, no Custom Tab=====");
                 return true;
             }
             Journey.sleep(500);
         }
-        System.out.println("=====CALLBACK token delivered but 'Sign in' is still on screen :: "
+        Journey.mark("=====CALLBACK token delivered but 'Sign in' is still on screen :: "
                 + Journey.labelledInventory(12) + "=====");
         return false;
     }
@@ -418,7 +418,7 @@ final class AppSession {
         // `HarnessSmokeTests` still drives it FIRST, because the real flow is a product surface and
         // something has to keep exercising it or this quietly deletes that coverage.
         if (signInViaCallback(identity) && isSignedIn(identity)) return true;
-        System.out.println("=====SIGNIN callback path did not land; falling back to the UI=====");
+        Journey.mark("=====SIGNIN callback path did not land; falling back to the UI=====");
         // VERIFY THE IDENTITY on the fallback too, not merely that a session exists.
         //
         // `signIn` returns `isSignedIn()` — ANY session — and does so deliberately: it has a branch
@@ -504,7 +504,7 @@ final class AppSession {
             // The api log shows the shape precisely: app traffic right up to the moment of the
             // relaunch, then NOTHING but the docker healthcheck. The bundle never loaded, so the
             // app made no requests at all — an empty tree, not a slow one.
-            System.out.println("=====RELAUNCH webview blank; force-stop + retry " + attempt + "/2");
+            Journey.mark("=====RELAUNCH webview blank; force-stop + retry " + attempt + "/2");
             try {
                 Journey.device().executeShellCommand("am force-stop " + Journey.PKG);
             } catch (Throwable ignored) {
