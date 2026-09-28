@@ -45,6 +45,15 @@ final class Journey {
 
     static final String PKG = "app.closelistening.player";
 
+    /**
+     * The single origin the app talks to, reachable from the device on 127.0.0.1.
+     *
+     * Not the emulator's 10.0.2.2 alias: the tier sets `adb reverse tcp:4174` so the Android build's
+     * API base is BYTE-IDENTICAL to the iOS one and the two tiers cannot drift apart on
+     * configuration (Makefile, `test-android`). Mirrors `IOS_ORIGIN_PORT`; if that moves, this moves.
+     */
+    static final int ORIGIN_PORT = 4174;
+
     private Journey() {}
 
     static UiDevice device() {

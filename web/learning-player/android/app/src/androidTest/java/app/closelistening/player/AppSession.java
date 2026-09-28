@@ -235,6 +235,132 @@ final class AppSession {
         return false;
     }
 
+    /**
+     * Mint a native session token over HTTP, the way the Makefile's `ios-journey-signin` does.
+     *
+     * The mock provider answers `/api/app/auth/login?as=<id>&platform=native` with a redirect chain
+     * ending at `closelistening://auth#token=<signed>`. Reachable from the emulator on 127.0.0.1
+     * because the tier sets `adb reverse` for the origin port before any suite runs.
+     *
+     * Redirects are followed BY HAND (`setInstanceFollowRedirects(false)`) for two reasons: the last
+     * hop is a custom scheme `HttpURLConnection` cannot fetch, and the token lives in the `Location`
+     * header, not in any body. Cookies carry forward because the provider keeps flow state in one.
+     *
+     * Returns null rather than throwing, so a mint that cannot reach the origin surfaces as the
+     * origin's problem and the caller can still fall back to the UI.
+     */
+    private static String mintNativeToken(String identity) {
+        String url = "http://127.0.0.1:" + Journey.ORIGIN_PORT
+                + "/api/app/auth/login?as=" + identity + "&platform=native";
+        String cookies = "";
+        for (int hop = 0; hop < 6; hop++) {
+            try {
+                java.net.HttpURLConnection c =
+                        (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                c.setInstanceFollowRedirects(false);
+                c.setConnectTimeout(5_000);
+                c.setReadTimeout(5_000);
+                if (!cookies.isEmpty()) c.setRequestProperty("Cookie", cookies);
+                c.connect();
+                java.util.List<String> set = c.getHeaderFields().get("Set-Cookie");
+                if (set != null) {
+                    StringBuilder jar = new StringBuilder(cookies);
+                    for (String s : set) {
+                        if (jar.length() > 0) jar.append("; ");
+                        jar.append(s.split(";", 2)[0]);
+                    }
+                    cookies = jar.toString();
+                }
+                String loc = c.getHeaderField("Location");
+                c.disconnect();
+                if (loc == null) return null;
+                if (loc.startsWith("closelistening://")) {
+                    int at = loc.indexOf("#token=");
+                    return at < 0 ? null : loc.substring(at + "#token=".length());
+                }
+                if (loc.startsWith("/")) {
+                    url = "http://127.0.0.1:" + Journey.ORIGIN_PORT + loc;
+                } else if (loc.startsWith("http")) {
+                    url = loc;
+                } else {
+                    return null;
+                }
+            } catch (Throwable t) {
+                System.out.println("=====MINT failed at " + url + " :: " + t + "=====");
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Sign in by delivering the OAuth callback directly — no Custom Tab, no consent screen.
+     *
+     * ## Why: the UI path is six races and one of them is in another process
+     *
+     * {@link #signIn} finds "Sign in", waits for the dev picker, types, disambiguates TWO controls
+     * named "Sign in" by POSITION, then waits on a consent screen owned by `com.android.chrome`.
+     * Any of those failing surfaces as the same line — "sign-in did not complete as <id>" — and the
+     * tier pays it once per suite across 14 suites. Measured 2026-09-28 while iterating on the
+     * accessible-name audit: 2 failures in 9 runs.
+     *
+     * The Custom Tab is the worst of the six because it is not ours. `Makefile:2327-2344` already
+     * disables Android's cached-app freezer for precisely this, with the trace recorded: consent
+     * page opens, freezer suspends Chrome ten seconds later, sign-in gives up, Chrome unfreezes one
+     * second too late. Pinning the environment removed one cause; the race is structural.
+     *
+     * This removes the path instead of hardening it, and it is NOT a bypass. `native.ts:80` states
+     * the mechanism — "Android: @capacitor/browser + the manifest intent-filter delivers the
+     * callback via appUrlOpen" — so an `ACTION_VIEW` on the callback URL runs the same listener,
+     * the same `storeAuthToken`, the same `/me` refetch that production does. The deleted
+     * `defaults write` seeds were killed for bypassing the app; this deliberately does not.
+     *
+     * THE APP MUST ALREADY BE RUNNING. `initNativeAuth` listens on `appUrlOpen` ONLY, and
+     * `native.ts:213-215` records that `appUrlOpen` does NOT fire for a link that launched the app
+     * — that arrival is `getLaunchUrl`, which only the routing listener reads. A cold launch by this
+     * URL would therefore drop the token in silence, which is the worst available outcome. The guard
+     * below refuses to fire until web content is on screen.
+     */
+    static boolean signInViaCallback(String identity) {
+        if (Journey.find(Arrays.asList("Sign in", "Your profile", identity), true, 20_000) == null) {
+            System.out.println("=====CALLBACK no web content yet, so appUrlOpen would never see the "
+                    + "token; not firing it :: " + Journey.labelledInventory(12) + "=====");
+            return false;
+        }
+        String token = mintNativeToken(identity);
+        if (token == null || token.isEmpty()) return false;
+
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        Intent cb = new Intent(Intent.ACTION_VIEW,
+                Uri.parse("closelistening://auth#token=" + token));
+        cb.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        cb.setPackage(Journey.PKG);
+        try {
+            ctx.startActivity(cb);
+        } catch (Throwable t) {
+            System.out.println("=====CALLBACK startActivity threw " + t + "=====");
+            return false;
+        }
+        // The masthead "Sign in" link going away is the first observable and needs no navigation.
+        // Polled, not slept: a fixed wait here is a guess about the slowest machine this will run on.
+        long started = System.currentTimeMillis();
+        long deadline = started + 20_000;
+        while (System.currentTimeMillis() < deadline) {
+            if (Journey.find(Arrays.asList("Sign in"), false, 1_000) == null) {
+                // A POSITIVE marker, not merely the absence of a failure one. Which path signed the
+                // app in is the thing being measured here, and "no error was printed" is exactly the
+                // kind of evidence this tier has been fooled by before.
+                System.out.println("=====CALLBACK signed in as " + identity + " in "
+                        + (System.currentTimeMillis() - started) + "ms, no Custom Tab=====");
+                return true;
+            }
+            Journey.sleep(500);
+        }
+        System.out.println("=====CALLBACK token delivered but 'Sign in' is still on screen :: "
+                + Journey.labelledInventory(12) + "=====");
+        return false;
+    }
+
     /** Leave the app signed in as {@code identity}, whatever it was signed in as before. */
     static boolean ensureSignedIn(String identity) {
         if (isSignedIn(identity)) return true;
@@ -245,6 +371,15 @@ final class AppSession {
         // `hasAnySession`, not `isSignedIn()`: the latter hunts the avatar by name, and the name is
         // the other account's, which is precisely what this branch does not know.
         if (hasAnySession() && !signOut()) return false;
+        // THE CALLBACK PATH FIRST, the UI path as fallback.
+        //
+        // This is not a retry wrapper around something flaky — it is a different, deterministic
+        // route to the same server state, tried first because it has no cross-process step to lose.
+        // The UI path stays as the fallback so a broken callback cannot take the tier down, and
+        // `HarnessSmokeTests` still drives it FIRST, because the real flow is a product surface and
+        // something has to keep exercising it or this quietly deletes that coverage.
+        if (signInViaCallback(identity) && isSignedIn(identity)) return true;
+        System.out.println("=====SIGNIN callback path did not land; falling back to the UI=====");
         return signIn(identity);
     }
 
