@@ -406,3 +406,44 @@ the environment was broken underneath it.
 None of these were run, because both tiers share `ios-origin-up`'s ports and an iOS run reaps
 the Android origin. That port collision is itself worth fixing — it is what stops the two tiers
 running concurrently at all.
+
+### M10. iOS: sign-in detection FIXED; sign-out is broken and the runs were not comparable
+
+**Fixed and verified.** `isSignedIn` answered by driving `openProfile` and scrolling Profile for
+"Sign out", so a question about the SESSION depended on reaching a page and on a control that is
+deliberately the last item on it. `NativeOnlySurfacesTests` spent 500+ seconds in a poll loop
+without reaching an assertion: it signed in, could not see that it had, and retried — **five
+complete `auth/login` -> `auth/callback` pairs in the api log for one test**. `openProfile`'s own
+diagnostic cleared the control twelve times (`PROFILE_CTL link 'simtest' frame=(349.0, 62.0, 48.0,
+18.0) hittable=true`), which is what makes it a DETECTION bug, not a navigation one.
+
+Both overloads now read the masthead and navigate nowhere, matching Android. Sign-in resolves at
+**t=16s on the first attempt**, and **every run since has shown 0 SETTLE markers** — the session was
+always valid and the old check simply could not see it.
+
+**Still broken: `signOut`.** Three attempts, each "no 'Sign out' on Profile", over an inventory
+showing generic `Your profile` and no bell — the signed-out render (`v-if="auth.isAuthenticated"`,
+`ProfileView.vue:804`). Fails as "signed in as another account and could not sign out".
+
+Why it was invisible before: **two bugs were cancelling.** The broken detection made `signOut`'s own
+guard conclude "already signed out" and return success without signing anything out. Fixing
+detection is what made this reachable.
+
+**THE METHODOLOGICAL FAILURE, which cost more than the bug.** I recorded "test passed in 142.4s" as
+a baseline and spent four changes trying to restore it. It was ONE observation. That run followed a
+full tier plus `app-e2e-users-reset`, so the app was signed in as the right account and `signOut`
+never ran. Every later run inherited the previous run's account, so `signOut` DID run, and failed.
+
+The test never regressed — it started taking a path the lucky first run skipped. I reverted four
+changes on a false premise. (The revert was still correct: two of the four rested on causes I had
+inferred rather than read — an Account-tab theory disproved by `Change photo` being in the inventory
+all along, and a keyboard/caret theory built from a mid-flow screenshot.)
+
+**Every iOS run in this session measured a different starting device state, and I compared them as
+if they were comparable.** That is the test-independence problem raised at the START of the session,
+and it is not a side concern — it is why an hour went into chasing a moving target. Fix it BEFORE
+the next iOS fix: no iOS result means anything until each run starts from a known account state.
+
+**NOT VERIFIED:** whether `signOut` works from a clean state; the four other iOS defects found by
+reading; iOS phases 5-6 end to end. The Account-tab guard landed on BOTH platforms and is unfired on
+each — it is real (KEEP_ALIVE_TABS is real) but it fixed nothing observed.
