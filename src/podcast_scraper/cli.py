@@ -4121,9 +4121,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "multi_feed_strict": getattr(args, "multi_feed_strict", False),
         "skip_existing": args.skip_existing,
         "reprocess_source": getattr(args, "reprocess_source", None),
-        "reprocess_episode_ids": _load_reprocess_episode_ids(
-            getattr(args, "reprocess_episode_ids_file", None)
-        ),
+        "reprocess_episode_ids": _resolve_reprocess_episode_ids(args),
         "reprocess_existing_only": getattr(args, "reprocess_existing_only", False),
         "backfill_transcript_segments": getattr(args, "backfill_transcript_segments", False),
         "append": getattr(args, "append", False),
@@ -4808,6 +4806,29 @@ def _load_reprocess_episode_ids(path: Optional[str]) -> List[str]:
             "that would silently select nothing"
         )
     return ids
+
+
+def _resolve_reprocess_episode_ids(args: argparse.Namespace) -> List[str]:
+    """Work-list from ``--reprocess-episode-ids-file`` OR from config/YAML — the flag wins.
+
+    THE ABSENT FLAG MUST NOT ERASE A CONFIGURED WORK-LIST. ``reprocess_episode_ids`` is a real
+    ``Config`` field, so a corpus/operator YAML may legitimately carry one, and
+    ``_load_and_merge_config`` puts it on ``args`` via ``parser.set_defaults(**model_dump)``. But
+    the payload here used to call :func:`_load_reprocess_episode_ids` unconditionally, and that
+    returns ``[]`` when no FILE was passed — so the config value was parsed, validated, placed on
+    ``args``, and then overwritten with empty.
+
+    The consequence is the inverse of the one its sibling guards against, and worse: a run asked to
+    repair N named episodes instead selected the WHOLE on-disk corpus for the feed. Measured on prod
+    2026-09-28 — a work-list of 1 became 50 episodes rewritten in place, because
+    ``reprocess_episode_ids`` implies ``reprocess_existing_only``, whose episode set is everything
+    already on disk. Nothing failed; the repair simply had no scope.
+    """
+    from_file = _load_reprocess_episode_ids(getattr(args, "reprocess_episode_ids_file", None))
+    if from_file:
+        return from_file
+    configured = getattr(args, "reprocess_episode_ids", None) or []
+    return [str(x).strip() for x in configured if str(x).strip()]
 
 
 def _parse_gi_repair_argv(argv: List[str]) -> argparse.Namespace:

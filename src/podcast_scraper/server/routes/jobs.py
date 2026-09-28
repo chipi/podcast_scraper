@@ -21,7 +21,9 @@ from podcast_scraper.server.jobs import (
     list_jobs_snapshot,
     normalize_episode_selection,
     normalize_pipeline_stage,
+    normalize_reprocess_episode_ids,
     PIPELINE_STAGES_ALLOWED,
+    PIPELINE_STAGES_REPROCESS,
     schedule_post_submit,
     STATUS_RUNNING,
 )
@@ -308,6 +310,17 @@ async def submit_pipeline_job(
             "ingest. 'enrich_only' is accepted as a deprecated alias of 'rederive_only'."
         ),
     ),
+    reprocess_episode_ids: str | None = Query(
+        default=None,
+        description=(
+            "Scope a REPROCESS to exactly these episodes — comma-separated episode_ids or RSS "
+            "guids. Requires a reprocess pipeline_stage. This is the ONLY way to reprocess fewer "
+            "than a whole feed: max_episodes / episode_offset / episode_selection are all ignored "
+            "in reprocess mode, where the episode set is every episode already on disk for the "
+            "feed. Matched against both episode_id and guid, and each listed episode is forced "
+            "past skip_existing. Omit for a whole-feed reprocess."
+        ),
+    ),
 ) -> PipelineJobAccepted:
     """Queue a pipeline CLI job for the corpus (202 + optional queue position).
 
@@ -348,6 +361,29 @@ async def submit_pipeline_job(
                 detail=(
                     "pipeline_stage must be one of "
                     f"{sorted(PIPELINE_STAGES_ALLOWED)} (or 'full'/omitted for a normal run)."
+                ),
+            )
+    # A work-list without a reprocess stage is REFUSED, not ignored. Accepting it would start a
+    # full ingest for a caller who named specific episodes to repair — and the ids would be
+    # silently dropped, which is the same shape as the defect this parameter exists to close.
+    if reprocess_episode_ids is not None and str(reprocess_episode_ids).strip():
+        try:
+            wanted = normalize_reprocess_episode_ids(reprocess_episode_ids)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        if not wanted:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="reprocess_episode_ids was given but contained no usable episode ids.",
+            )
+        stage_now = normalize_pipeline_stage(str(pipeline_stage or "").strip())
+        if stage_now not in PIPELINE_STAGES_REPROCESS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "reprocess_episode_ids requires a reprocess pipeline_stage "
+                    f"({sorted(PIPELINE_STAGES_REPROCESS)}); it has no meaning for a normal "
+                    "ingest, which selects episodes from the live feed."
                 ),
             )
     # #666 review #8: read exec mode from ``app.state`` (pinned at startup by
@@ -423,6 +459,7 @@ async def submit_pipeline_job(
         episode_selection=episode_selection,
         profile_override=profile_override,
         pipeline_stage=pipeline_stage,
+        reprocess_episode_ids=reprocess_episode_ids,
     )
     background_tasks.add_task(_kickoff_job, request.app, corpus, rec)
     qp = None
