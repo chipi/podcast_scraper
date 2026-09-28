@@ -28,20 +28,68 @@ enum AppSession {
   /// reported signed-out for every session and `signIn` then failed looking for a "Sign in" link
   /// that was correctly absent on a signed-in app. `Journey` already carried the fallback list;
   /// only this copy was stale. Two helpers knowing the same UI differently is the actual defect.
+  /// How long the answer has to HOLD before it is believed. See `settles`.
+  private static let stableForSeconds: TimeInterval = 6
+
+  /// True only when `label` is continuously present for `stableForSeconds`.
+  ///
+  /// Two reads a second apart are not evidence of a session: boot paints the last-known identity
+  /// from the device snapshot and THEN revalidates, so both reads can land inside the same
+  /// revalidation window and agree with each other about a token the server is about to refuse.
+  /// The check has to outlast the window, not sample it twice.
+  ///
+  /// Ported from the Android twin, where the same fix turned a 1-failure run into `OK (8 tests)`
+  /// (`AppSession.java:settles`). Android earned it the hard way: a sign-in reported success, the
+  /// app signed itself out four steps later, and the failure named a Profile TAB rather than the
+  /// session.
+  private static func settles(_ app: XCUIApplication, _ label: String, timeout: TimeInterval)
+    -> Bool
+  {
+    let deadline = Date().addingTimeInterval(timeout)
+    var since: Date?
+    while Date() < deadline {
+      if Journey.find(app, labels: [label], contains: true, timeout: 1) != nil {
+        if since == nil { since = Date() }
+        if Date().timeIntervalSince(since!) >= stableForSeconds { return true }
+      } else {
+        if since != nil {
+          print("=====SETTLE '\(label)' appeared then vanished — inside the revalidation window=====")
+        }
+        since = nil
+      }
+      usleep(500_000)
+    }
+    return false
+  }
+
   /// Signed in AT ALL. Prefer `isSignedIn(_:as:)` — with per-suite accounts (#2091) "a session
   /// exists" is no longer the question worth asking.
+  ///
+  /// READ THE MASTHEAD; DO NOT NAVIGATE (2026-09-28). This used to drive `openProfile` and then
+  /// scroll Profile hunting "Sign out", which made a question about the SESSION depend on two
+  /// unrelated things working: reaching Profile, and a control that is deliberately the last item
+  /// on that page (#1962) being scrolled into view.
+  ///
+  /// MEASURED, full iOS tier, `NativeOnlySurfacesTests`: the app signed in FIVE times — the api log
+  /// holds five complete `auth/login` -> `auth/callback` pairs — and this returned false after every
+  /// one, so `signIn` retried. The diagnostic that `openProfile` prints says the control was never
+  /// the problem:
+  ///     =====PROFILE_CTL link 'simtest' frame=(349.0, 62.0, 48.0, 18.0) hittable=true=====   (x12)
+  /// Found, on screen, hittable, tapped — and the app stayed on Home, so a Profile-only control
+  /// could not be found and a valid session read as signed-out. The test burned 500+ seconds in a
+  /// poll loop and never reached its assertions.
+  ///
+  /// The notifications bell is in the masthead of every signed-in page, so no navigation is needed
+  /// to answer the question. `contains` because the label is STATE-DEPENDENT — `notifications.bell`
+  /// normally, `notifications.bellCounted` ("Notifications (3 unread)") when anything is unread, so
+  /// an exact match is a test that passes or fails on how much unread mail the account has. Same
+  /// control and same reasoning as the Android twin (`AppSession.java:48`).
+  static func hasAnySession(_ app: XCUIApplication) -> Bool {
+    Journey.find(app, labels: ["Notifications"], contains: true, timeout: 8) != nil
+  }
+
   static func isSignedIn(_ app: XCUIApplication) -> Bool {
-    _ = Journey.openProfile(app)
-    // SCROLL to it. "Sign out" is deliberately the last control on Profile (#1962 — "quiet, last,
-    // least weight"), so on any account with content it is below the fold. Waiting for it to exist
-    // without scrolling asks whether it is on SCREEN, which is not the question: on 2026-09-18 a
-    // capture-stats block was added above it and every suite that calls this reported "sign-in did
-    // not complete" for a session that was perfectly valid and an app sitting on a signed-in Home.
-    guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else { return false }
-    // The painted session is not the answer — the revalidation that follows it is. Six seconds is
-    // the observed worst case for `refresh()` against the local fixture api plus a re-render.
-    sleep(6)
-    return Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil
+    settles(app, "Notifications", timeout: 20)
   }
 
   /// Open an episode by slug through the app's deep-link scheme (#1925).
@@ -161,31 +209,31 @@ enum AppSession {
    * the identity, so Profile being reachable by that label answers both questions at once.
    */
   static func isSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
-    // Open Profile by the identity label WHEN IT IS THERE, else the generic one.
+    // READ THE MASTHEAD; DO NOT NAVIGATE (2026-09-28) — and the identity answers BOTH questions at
+    // once, so there is nothing left for Profile to add.
     //
-    // This used to reach the page by the identity alone, on the reasoning that "the masthead entry
-    // is labelled with the display NAME, which for a dev-picker account IS the identity". That does
-    // not hold: the avatar is `aria-label="auth.user?.name || 'Your profile'"`, so any account
-    // without a resolved name is labelled generically — and the check then reported SIGNED OUT
-    // about an app that was demonstrably signed in, with the avatar, the queue badge and the
-    // offline stale-notice all on screen (2026-09-24).
-    guard Journey.tap(app, labels: [identity], contains: true, timeout: 8)
-      || Journey.tap(app, labels: ["Your profile"], contains: false, timeout: 8)
-    else { return false }
-
-    // The RIGHT account, checked FIRST — before the scroll below moves it off screen. Profile
-    // prints the name and the email, and a dev identity appears in at least one of them
-    // (`simtest` / `simtest@e2e.local`). This is what keeps per-suite isolation (#2091) honest:
-    // "some session exists" is not the question, "whose" is.
-    guard Journey.find(app, labels: [identity], contains: true, timeout: 10) != nil else {
-      return false
-    }
-
-    // A session EXISTS — "Sign out" is deliberately the last control on Profile (#1962).
-    guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else { return false }
-    // The painted session is not the answer — the revalidation that follows it is.
-    sleep(6)
-    return Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil
+    // The masthead entry is `aria-label="auth.user?.name || 'Your profile'"`, so once `/me`
+    // resolves it carries the account NAME. That is the whole answer: a session exists, and it is
+    // THIS one. The previous version tapped through to Profile and then scrolled for "Sign out",
+    // which made a question about the session depend on reaching a page and on a control that is
+    // deliberately the last item on it (#1962).
+    //
+    // It also had a race the old comment names but does not fix: the generic "Your profile"
+    // fallback is what the masthead shows BEFORE the name resolves, so tapping it happily proceeds
+    // on an app whose session has not been confirmed yet. `settles` removes the need for the
+    // fallback entirely — waiting for the NAME to appear and HOLD is the same thing as waiting for
+    // the revalidation to land, so the unresolved window is something to wait through, not to
+    // tolerate.
+    //
+    // MEASURED cost of the old shape, full iOS tier, `NativeOnlySurfacesTests`: five complete
+    // `auth/login` -> `auth/callback` pairs in the api log, every one of them reported as
+    // not-signed-in, each triggering another retry. 500+ seconds in a poll loop, assertions never
+    // reached. `openProfile`'s own diagnostic shows the control was never at fault:
+    //     =====PROFILE_CTL link 'simtest' frame=(349.0, 62.0, 48.0, 18.0) hittable=true=====  (x12)
+    //
+    // Identical to the Android twin, which is the point — `AppSession.java` is
+    // `settles(identity, 20_000)` and nothing else (#2091 parity).
+    return settles(app, identity, timeout: 20)
   }
 
   /**
