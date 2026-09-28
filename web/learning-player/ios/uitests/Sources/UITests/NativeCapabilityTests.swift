@@ -226,7 +226,7 @@ final class NativeCapabilityTests: UITestCase {
 
   func testN3PushPermissionPromptOnEnable() {
     let app = Journey.launch()
-    Journey.openProfile(app, labels: profileLabels)
+    Journey.openProfile(app)
     sleep(4)
     // ProfileView is kept alive (`KEEP_ALIVE_TABS`), so whichever tab a PREVIOUS test left selected
     // is still selected here — the matrix is on Account, and running after a test that opened
@@ -287,7 +287,7 @@ final class NativeCapabilityTests: UITestCase {
    */
   func testN4AvatarUploadAndCrop() throws {
     let app = Journey.launch()
-    guard Journey.openProfile(app, labels: profileLabels) else { XCTFail("could not open Profile"); return }
+    guard Journey.openProfile(app) else { XCTFail("could not open Profile"); return }
     sleep(4)
     Journey.shot(self, "n4-a-avatar-before")
 

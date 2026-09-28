@@ -48,7 +48,7 @@ final class AppJourneyTests: UITestCase {
     let app = Journey.launch()
     Journey.shot(self, "01-home")
 
-    XCTAssertTrue(Journey.openProfile(app, labels: profileLabels), "could not open Profile from the masthead avatar")
+    XCTAssertTrue(Journey.openProfile(app), "could not open Profile from the masthead avatar")
     sleep(3)
     Journey.inventory(app, "profile")
     Journey.shot(self, "01-profile-account")
