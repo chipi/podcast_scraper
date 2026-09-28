@@ -49,26 +49,51 @@ final class AppSession {
     }
 
     /**
-     * Wait for the masthead to AGREE WITH ITSELF about the session, then report it.
+     * Wait for the masthead to hold one answer THROUGH the revalidation window, then report it.
      *
-     * Boot paints the last known identity from the device before revalidating against the api, so a
-     * single read can be confidently wrong — a session can sit on screen for seconds and then
-     * vanish when a token minted by a previous fixture-api container is refused. That is what the
-     * two `sleep(6_000)`s in this file were buying.
+     * Boot paints the last known identity from the device and only then revalidates against the
+     * api, so a single read can be confidently wrong: the session sits on screen and vanishes
+     * seconds later when the token is refused. That is what the `sleep(6_000)`s in this file were
+     * buying, and the first version of this method did not replace it properly.
      *
-     * A fixed sleep is a guess about the slowest machine anyone will ever run this on, and it pays
-     * the full price on every call even when the answer was stable immediately. This polls for the
-     * answer to hold across two consecutive reads instead, so the common case — which after
-     * `pm clear` at tier start is every case, since no prior-run token survives to be refused —
-     * returns in about a second.
+     * IT REQUIRED TWO CONSECUTIVE AGREEING READS, which proves STABILITY but not DURATION — two
+     * reads a second apart both land inside the revalidation window. The old path was slow enough
+     * (a Profile trip plus a 6s sleep, ~40s) to outlast it by accident, so removing the slack
+     * exposed a race the slack had been hiding.
+     *
+     * Measured 2026-09-28, `AppJourneyTests.test01ProfileTabs` in a full tier run:
+     *
+     *     =====CALLBACK signed in as appjourneytests in 1906ms, no Custom Tab=====
+     *     =====OFFLINE_SET round 1 observed=false wanted=false=====   (x3)
+     *     AssertionError: profile tab 'Topics' not tappable. On screen: … Create your free
+     *         account … Sign in …
+     *
+     * Sign-in succeeded, `startClean` believed it, and the app signed itself out a few steps later.
+     *
+     * So the answer must now hold CONTINUOUSLY for `STABLE_FOR_MS` — the same guarantee the sleep
+     * gave, without the Profile navigation that made up most of the old cost. Roughly 6s instead of
+     * ~40s: the speed came from deleting the navigation, not from shortening the wait, and only the
+     * navigation was ever waste.
      */
+    private static final long STABLE_FOR_MS = 6_000;
+
     private static boolean settles(String label, long timeoutMs) {
         long deadline = System.currentTimeMillis() + timeoutMs;
-        int agreed = 0;
+        long since = -1;
         while (System.currentTimeMillis() < deadline) {
-            boolean present = Journey.find(Arrays.asList(label), true, 1_000) != null;
-            agreed = present ? agreed + 1 : 0;
-            if (agreed >= 2) return true;
+            if (Journey.find(Arrays.asList(label), true, 1_000) != null) {
+                if (since < 0) since = System.currentTimeMillis();
+                if (System.currentTimeMillis() - since >= STABLE_FOR_MS) return true;
+            } else {
+                // Seen and then lost is the revalidation refusing the token. Start again rather
+                // than counting it: a session that flickered is not a session.
+                if (since >= 0) {
+                    Journey.mark("=====SETTLE '" + label + "' appeared then vanished after "
+                            + (System.currentTimeMillis() - since) + "ms — revalidation refused it"
+                            + "=====");
+                }
+                since = -1;
+            }
             Journey.sleep(500);
         }
         return false;
