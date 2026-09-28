@@ -2300,14 +2300,18 @@ test-app-ios-native:
 # ORDER IS LOAD-BEARING, and not obvious from the names:
 #   1. download  — signs in as the SHARED `simtest` account and downloads two episodes through the
 #                  UI. It SEEDS what the offline suites consume, so it cannot move.
-#   2. offline   — auto-advance from what step 1 downloaded, with the api DOWN. Needs 1. It calls
-#                  `app-e2e-api-down`, which removes the container AND the `$(APP_E2E_VOL)` /
-#                  `$(APP_E2E_STATE)` volumes — so it does not merely pause the backend, it destroys
-#                  the corpus and every account on it. That is the point of the step, and it is
-#                  also why step 3 cannot simply follow it.
-#   2b. RECOVER  — `ios-origin-up` rebuilds the api and restarts the media host + single origin;
-#                  `ios-journey-signin` then mints a fresh session through the mock provider's
-#                  native flow and writes it to the app's DURABLE store.
+#   2. offline   — auto-advance from what step 1 downloaded, with the app CUT OFF. Needs 1. It now
+#                  calls `ios-origin-down`, which stops the single origin the app talks to. The api
+#                  container, its volumes and its accounts SURVIVE (2026-09-28).
+#
+#                  It used to call `app-e2e-api-down`, which removes the container AND the
+#                  `$(APP_E2E_VOL)` / `$(APP_E2E_STATE)` volumes — destroying the corpus and every
+#                  account, which step 3 then had to rebuild and re-seed to reach a state it already
+#                  had. Being offline never required destroying the backend: the app sees one
+#                  address, so a stopped origin and a stopped api are the same refused connection.
+#   2b. RECOVER  — `ios-origin-up` restarts the media host + single origin, REUSING the healthy api
+#                  rather than rebuilding it; `ios-journey-signin` then mints a fresh session
+#                  through the mock provider's native flow and writes it to the app's DURABLE store.
 #
 #                  BOTH are required and both were missing until 2026-09-25. Steps 3 and 4 ran
 #                  against a dead :$(APP_E2E_PORT) behind an origin that answered 502, with the app
@@ -2896,8 +2900,30 @@ test-app-ios-sim-offline:
 	@#
 	@# What remains is the journey a person actually takes: sign in online, close the app, lose
 	@# connectivity, open it again.
-	@$(MAKE) app-e2e-api-down
-	@echo "--> api is DOWN; running the offline journey"
+	@#
+	@# KILL THE ORIGIN, NOT THE API (2026-09-28). This ran `app-e2e-api-down`, which removes the
+	@# container AND both volumes — so it did not merely take connectivity away, it destroyed the
+	@# corpus and every account on it. Phase 3 then had to rebuild the container and re-seed the
+	@# whole corpus to get back to a state it already had, minutes of work for nothing, and every
+	@# account minted up to that point was gone with it.
+	@#
+	@# That is also why the two tiers ran under different state regimes without anyone choosing it:
+	@# iOS wiped its accounts mid-run here while Android, which never tears the api down, carried
+	@# them through all seven phases.
+	@#
+	@# The app talks to ONE address — the origin on :$(IOS_ORIGIN_PORT), for both `/api` and
+	@# `/audio`. With the origin gone, connections are refused exactly as they are when the api is
+	@# gone; from inside the WebView the two are indistinguishable. The api container, its volumes
+	@# and its accounts survive, so `ios-origin-up` in phase 3 reuses the healthy api instead of
+	@# re-seeding.
+	@#
+	@# NOT VERIFIED ON DEVICE. The reasoning above is about what the app can observe, and the thing
+	@# it does not cover is whether any assertion in `OfflineAutoAdvanceTests` depends on the api
+	@# PROCESS being absent rather than unreachable. Nothing in the suite should — it drives a
+	@# WebView that only ever sees refused connections — but the iOS tier has not run since the
+	@# `ios-origin-up` hang, so this is argued rather than measured.
+	@$(MAKE) ios-origin-down
+	@echo "--> origin is DOWN (api + accounts intact); running the offline journey"
 	@# `| tail` makes the pipeline's status the TAIL's, so this target reported success while its
 	@# suite failed four assertions. PIPESTATUS carries the real one.
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
