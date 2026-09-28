@@ -261,8 +261,45 @@ final class DownloadThroughUITests: UITestCase {
 
     // Queue it, so the offline auto-advance run has somewhere to advance TO.
     // QueueButton carries `aria-pressed`, so it is not a Button to XCUITest either.
-    let queue = Journey.control(app, label: "Add to queue")
-    if queue.waitForExistence(timeout: 10) { queue.tap() }
-
+    //
+    // THIS STEP ASSERTED NOTHING, and that is why this test's name was a lie. It read
+    // `if queue.waitForExistence(timeout: 10) { queue.tap() }` — no postcondition — and the suite
+    // made ZERO `POST /api/app/queue/items` over a container's whole lifetime while passing. Two
+    // ways it silently did nothing, both live:
+    //
+    //   1. The label is STATE-DEPENDENT. `QueueButton.vue:60` renders `queue.remove` ("Remove from
+    //      queue") once the slug is already queued, and the shared `simtest` account accumulated
+    //      across runs — so an exact match on "Add to queue" found nothing and the `if` swallowed
+    //      it. That is the immortal-account regime `app-e2e-users-reset` now clears.
+    //   2. The settle loop above re-opens the overflow panel on its last iteration and never closes
+    //      it, so the tap can land on the panel instead of the control.
+    //
+    // Downstream made it worse: the offline auto-advance suite "passed" on a queue left by earlier
+    // sessions, so the dependency this step exists to serve was fictional at both ends.
+    //
+    // Already-queued counts as success, because it is. Otherwise tap and REQUIRE the flip —
+    // `queue.has(slug)` drives the label, so "Remove from queue" on screen means the store holds it.
+    if Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 3) {
+      print("=====QUEUE \(title) was already queued; nothing to add=====")
+      return
+    }
+    let add = Journey.control(app, label: "Add to queue")
+    guard add.waitForExistence(timeout: 10) else {
+      XCTFail(
+        "no queue control on \(title) — neither \"Add to queue\" nor \"Remove from queue\". The "
+          + "offline auto-advance suite depends on this episode being queued, and this step used to "
+          + "skip silently when the control was missing. Labelled elements: "
+          + "\(Journey.labelledInventory(app, limit: 20))"
+      )
+      return
+    }
+    add.tap()
+    XCTAssertTrue(
+      Journey.control(app, label: "Remove from queue").waitForExistence(timeout: 10),
+      "tapped \"Add to queue\" on \(title) and the control never flipped to \"Remove from queue\", "
+        + "so the queue was not written. This is the assertion whose absence let a test called "
+        + "…AndQueuesThem make zero queue writes for months. Labelled elements: "
+        + "\(Journey.labelledInventory(app, limit: 20))"
+    )
   }
 }

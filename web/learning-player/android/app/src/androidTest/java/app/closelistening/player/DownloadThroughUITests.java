@@ -1,5 +1,6 @@
 package app.closelistening.player;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -137,7 +138,38 @@ public class DownloadThroughUITests extends UITestCase {
         waitForDownloaded(title);
 
         // Queue it, so the offline auto-advance run has somewhere to advance TO.
-        Journey.tap("Add to queue", false, 10_000);
+        //
+        // THE RETURN VALUE USED TO BE DISCARDED, which made this step a no-op nobody could see —
+        // the same defect as the iOS twin, where it cost a test called `…AndQueuesThem` its meaning:
+        // ZERO `POST /api/app/queue/items` over a container's lifetime, while passing. Two live ways
+        // to silently do nothing:
+        //
+        //   1. The label is STATE-DEPENDENT. `QueueButton.vue:60` renders `queue.remove` ("Remove
+        //      from queue") once the slug is queued, and the shared `simtest` account accumulated
+        //      across runs, so an exact match on "Add to queue" found nothing.
+        //   2. `waitForDownloaded` re-opens the overflow panel and does not close it, so the tap can
+        //      land on the panel rather than the control.
+        //
+        // `NativeOnlySurfacesTests` already had the right pattern — tap, then confirm the label
+        // flipped — so this is the pattern the repo already knows, applied where it was missing.
+        if (Journey.find("Remove from queue", false, 3_000) != null) {
+            System.out.println("=====QUEUE " + title + " was already queued; nothing to add=====");
+            return;
+        }
+        boolean tapped = Journey.tap("Add to queue", false, 10_000);
+        assertTrue(
+                "could not tap \"Add to queue\" on " + title + " (tapped=" + tapped + "). The "
+                        + "offline auto-advance suite depends on this episode being queued, and this "
+                        + "step used to discard the result. On screen: "
+                        + Journey.labelledInventory(60),
+                tapped);
+        // `queue.has(slug)` drives the label, so the flip to "Remove from queue" is the store
+        // confirming the write — the postcondition whose absence made the old line meaningless.
+        assertNotNull(
+                "tapped \"Add to queue\" on " + title + " and the control never flipped to "
+                        + "\"Remove from queue\", so the queue was not written. On screen: "
+                        + Journey.labelledInventory(60),
+                Journey.find("Remove from queue", false, 10_000));
     }
 
     /**
