@@ -46,13 +46,40 @@ final class Journey {
     static final String PKG = "app.closelistening.player";
 
     /**
-     * The single origin the app talks to, reachable from the device on 127.0.0.1.
+     * The single origin the app talks to, PASSED IN rather than duplicated.
      *
-     * Not the emulator's 10.0.2.2 alias: the tier sets `adb reverse tcp:4174` so the Android build's
-     * API base is BYTE-IDENTICAL to the iOS one and the two tiers cannot drift apart on
-     * configuration (Makefile, `test-android`). Mirrors `IOS_ORIGIN_PORT`; if that moves, this moves.
+     * Not the emulator's 10.0.2.2 alias: the tier sets `adb reverse` for this port so the Android
+     * build's API base is BYTE-IDENTICAL to the iOS one and the two tiers cannot drift apart on
+     * configuration.
+     *
+     * This was `static final int ORIGIN_PORT = 4174` with a comment saying "mirrors
+     * `IOS_ORIGIN_PORT`; if that moves, this moves" — a hand-kept copy of a value that lives in the
+     * Makefile, committed on the same day as a commit whose whole thesis was that a hand-kept list
+     * was itself the bug. A constant that is correct only while someone remembers to update it is
+     * the same defect in a smaller box, and the failure would be quiet: the mint would connect to
+     * a port nothing serves, `signInViaCallback` would return false, and the tier would fall back
+     * to the UI path and pass — slower, flakier, and with the reason invisible.
+     *
+     * `android-suite` passes `-e originPort $(IOS_ORIGIN_PORT)`, so the Makefile stays the one
+     * place the number exists. Absent, this FAILS rather than defaulting: a default would restore
+     * the mirror, and restore it in the form that cannot be noticed.
      */
-    static final int ORIGIN_PORT = 4174;
+    static int originPort() {
+        String raw = InstrumentationRegistry.getArguments().getString("originPort");
+        if (raw != null && !raw.trim().isEmpty()) {
+            try {
+                return Integer.parseInt(raw.trim());
+            } catch (NumberFormatException e) {
+                throw new AssertionError("originPort was passed as '" + raw + "', which is not a port");
+            }
+        }
+        throw new AssertionError(
+                "originPort was not passed to the instrumentation. `android-suite` supplies it with "
+                        + "`-e originPort $(IOS_ORIGIN_PORT)`; run suites through that target rather "
+                        + "than calling `am instrument` directly. This deliberately does not default "
+                        + "to 4174 — a default would silently re-create the hand-kept copy of a "
+                        + "Makefile value that this replaced.");
+    }
 
     private Journey() {}
 

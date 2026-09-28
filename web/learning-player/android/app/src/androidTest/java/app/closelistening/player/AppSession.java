@@ -250,9 +250,19 @@ final class AppSession {
      * origin's problem and the caller can still fall back to the UI.
      */
     private static String mintNativeToken(String identity) {
-        String url = "http://127.0.0.1:" + Journey.ORIGIN_PORT
-                + "/api/app/auth/login?as=" + identity + "&platform=native";
-        String cookies = "";
+        // URL-ENCODED. Identities are derived from class names today, so they are already
+        // `[a-z0-9]` — but `accountIdentity()` is overridable and an identity with a `&` or a space
+        // would silently truncate the query and mint a token for the WRONG account, which is the
+        // one failure here that would not look like a failure.
+        String as;
+        try {
+            as = java.net.URLEncoder.encode(identity, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return null; // UTF-8 is guaranteed; unreachable in practice
+        }
+        String url = "http://127.0.0.1:" + Journey.originPort()
+                + "/api/app/auth/login?as=" + as + "&platform=native";
+        java.util.Map<String, String> jar = new java.util.LinkedHashMap<>();
         for (int hop = 0; hop < 6; hop++) {
             try {
                 java.net.HttpURLConnection c =
@@ -260,16 +270,26 @@ final class AppSession {
                 c.setInstanceFollowRedirects(false);
                 c.setConnectTimeout(5_000);
                 c.setReadTimeout(5_000);
-                if (!cookies.isEmpty()) c.setRequestProperty("Cookie", cookies);
+                if (!jar.isEmpty()) {
+                    StringBuilder header = new StringBuilder();
+                    for (java.util.Map.Entry<String, String> e : jar.entrySet()) {
+                        if (header.length() > 0) header.append("; ");
+                        header.append(e.getKey()).append('=').append(e.getValue());
+                    }
+                    c.setRequestProperty("Cookie", header.toString());
+                }
                 c.connect();
+                // Cookies replaced BY NAME, not appended. Appending sent `sid=a; sid=b` once the
+                // provider re-issued a cookie across hops — the server then picks whichever it likes
+                // and the flow state is a coin toss. Keyed so the newest value for a name wins.
                 java.util.List<String> set = c.getHeaderFields().get("Set-Cookie");
                 if (set != null) {
-                    StringBuilder jar = new StringBuilder(cookies);
                     for (String s : set) {
-                        if (jar.length() > 0) jar.append("; ");
-                        jar.append(s.split(";", 2)[0]);
+                        String pair = s.split(";", 2)[0].trim();
+                        int eq = pair.indexOf('=');
+                        if (eq <= 0) continue;
+                        jar.put(pair.substring(0, eq), pair.substring(eq + 1));
                     }
-                    cookies = jar.toString();
                 }
                 String loc = c.getHeaderField("Location");
                 c.disconnect();
@@ -278,8 +298,13 @@ final class AppSession {
                     int at = loc.indexOf("#token=");
                     return at < 0 ? null : loc.substring(at + "#token=".length());
                 }
-                if (loc.startsWith("/")) {
-                    url = "http://127.0.0.1:" + Journey.ORIGIN_PORT + loc;
+                // PROTOCOL-RELATIVE FIRST. `//host/path` starts with "/" too, so the path branch
+                // below would have turned it into `http://127.0.0.1:4174//host/path` — a URL that
+                // resolves to nothing, reported as a mint failure pointing at the wrong thing.
+                if (loc.startsWith("//")) {
+                    url = "http:" + loc;
+                } else if (loc.startsWith("/")) {
+                    url = "http://127.0.0.1:" + Journey.originPort() + loc;
                 } else if (loc.startsWith("http")) {
                     url = loc;
                 } else {

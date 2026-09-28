@@ -2516,6 +2516,17 @@ android-suite:
 	@# degraded-server drill needs it: its two tests require different HOST conditions, created
 	@# between them, so they cannot share an invocation (2026-09-25).
 	@#
+	@# `-e originPort` keeps the port in ONE place. `Journey.originPort()` reads it and FAILS when it
+	@# is absent rather than defaulting: a default would re-create the hand-kept copy of this
+	@# Makefile value that used to sit in Journey.java, and re-create it invisibly — the mint would
+	@# hit a dead port, the callback sign-in would return false, and the tier would fall back to the
+	@# slow UI path and still pass.
+	@#
+	@# NOTE FOR ANYONE EDITING BELOW: everything from `@target=` down is ONE shell command joined by
+	@# backslashes. A `@#` line inserted into the middle of it is not a comment — it becomes shell
+	@# input, and the recipe dies with "/bin/sh: -e: command not found". That is exactly how this
+	@# target got broken while adding the line above. Comments go here, above the command.
+	@#
 	@# A SUITE THAT RAN NOTHING IS NOT A PASS (2026-09-27).
 	@#
 	@# `am instrument` prints `OK (0 tests)` when the class resolves to nothing runnable — a typo in
@@ -2526,7 +2537,7 @@ android-suite:
 	@# #2091 — green by absence rather than by behaviour.
 	@target="$(ANDROID_PKG).$(SUITE)"; \
 	if [ -n "$(TEST)" ]; then target="$$target\#$(TEST)"; fi; \
-	out=$$($(ADB) shell am instrument -w -e class "$$target" \
+	out=$$($(ADB) shell am instrument -w -e class "$$target" -e originPort $(IOS_ORIGIN_PORT) \
 		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
 	echo "$$out"; \
 	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; exit 1; }; \
