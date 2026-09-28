@@ -85,6 +85,103 @@ fall back to `base`. Phase 0 makes language an *asserted, checked* fact — whic
 translation needs. It is testable on the corpus that already exists, with no new models and no GPU, and
 it is the recommended standalone ship.
 
+## 3.1 Outcomes for Phase −1 and Phase 0, and how they are proven
+
+Neither phase ships a feature. Both convert a question that today takes an **argument** into one
+that takes a **command**. That is the outcome, and it is what the gate should be judged on — not
+"the slices merged".
+
+The per-slice acceptance criteria in §4 are *outputs*. This section is the *outcome* layer above
+them, and the proof procedure for each. Outcome and proof are written together on purpose: an
+outcome nobody can demonstrate is a hope.
+
+---
+
+### Phase −1 — "we can see what we broke"
+
+**Outcome.** Any change to transcript resolution, or to an English artifact, is **named** — reader,
+episode, field — by a command, before it reaches a review conversation.
+
+**How we would know it failed.** The instruments never fire. An instrument that has only ever been
+green is indistinguishable from no instrument, and both slices' stated criteria are satisfiable by
+one that can never fail. So the phase's real gate is **fault injection**, and it must be committed
+as a test rather than performed once by hand:
+
+| Injected regression | The instrument must name |
+| --- | --- |
+| a reader switched from `ANALYSIS` to `TIMELINE` | that reader's row, on the episodes that have both variants |
+| the ad-free fallback deleted | every row on the pre-#974 corpus |
+| `load_transcript` resolving its sidecar independently of its body | the both-sidecars test, by name |
+| the `gi/load.py` fix reverted | `A10`, on exactly the ad-excised episodes |
+| an unexpected key added to episode metadata | that key, in the allow-list violation |
+| `pipeline_composition_version` moved | the hash, and which stage set moved it |
+
+**Evidence this is achievable, not aspirational — and that it pays.** Two instances so far.
+
+1. The `gi/load.py` fix moved the golden on one field, on exactly the 40 ad-excised episodes and
+   nothing else, established by a field-by-field diff before regenerating. The instrument working.
+2. Writing the injection tests **found a blind spot in the golden itself**. The GI/KG row recorded
+   only `(ref, is_adfree)`, and when nothing resolves, the loader reports the *canonical* relpath
+   with `is_adfree=False` — byte-identical to a successful raw load. So deleting the ad-free
+   fallback moved five other readers' rows and left that one green. The row now also records
+   whether text and segments were actually loaded.
+
+The second is the argument for the criterion: the positive golden was green, reviewed, and blind.
+Only injection said so. That is the standard S0.10 has to meet too.
+
+**Proof procedure.** For each row above: apply the regression, run the instrument, confirm the
+named output, revert. Committed as negative tests (`monkeypatch` the regression in, assert the
+probe output diverges from the committed golden) so the proof survives the session it was made in.
+
+---
+
+### Phase 0 — "English is a fact, not an assumption"
+
+**Outcome.** Language is something the system **parsed, resolved and checked**, per episode, and an
+episode in a language we cannot handle is **refused loudly** rather than mistranscribed quietly.
+
+**The counterintuitive part: Phase 0 is measured on ENGLISH content.** It ships zero non-English
+capability. Success is two things at once, and the first is the stricter:
+
+1. **The English corpus is unchanged**, outside a declared and reviewed allow-list. If everything
+   else lands and English artifacts moved, the phase failed.
+2. **The five silent hazards (§5.2) are closed** — each converted from "fails quietly" to either
+   "refuses loudly" or "cannot happen".
+
+| Before | After | Proven by |
+| --- | --- | --- |
+| "the corpus is English", asserted | a committed audit naming every item's language **and its resolution source** | S0.4's report, in the tree |
+| ~10 sites can substitute `"en"` | one — the resolver's lowest-precedence default | S0.6's lint, running in CI, with a reviewed whitelist |
+| a `de`-tagged feed is transcribed as English | skipped, with a reason in logs, metrics and the manifest | S0.8, observed on a real episode |
+| a tier that cannot do the language sits in the chain | out of the DGX chains; the local provider refuses non-`en` | S0.7, plus the dev-twin test |
+| English artifacts drift unnoticed | an allow-list diff over a restored **prod** corpus snapshot | S0.10, run before and after the phase |
+
+**How we would know it failed.** The audit comes back 100% `en` with every row resolving to
+`profile_default`. That is the signature of a check that measured the **configuration** instead of
+the corpus — the same failure shape as `capability_audit`'s "0/36 openings, defect rate 0.0%"
+recorded in §5.4. Two consequences, both already in the plan and both load-bearing for this reason:
+S0.4 must run **after** S0.1b, and the audit should **assert** that at least one row resolved from
+`rss`, failing if none did.
+
+**Fixtures are not evidence here.** The allow-list comparison and the audit have to run against a
+restored prod corpus snapshot, not only the fixture corpora — a fixture measurement has already
+caused a correct constant to be reverted once. The end-to-end skip observation (S0.8) is sized to
+**one or two episodes** on the DGX; anything larger needs explicit approval first.
+
+---
+
+### What neither phase claims
+
+Stated because silence on gaps reads as a claim:
+
+- **No non-English audio is transcribed.** Phase 0 makes an unsupported language *skip*; it does
+  not make a supported one work.
+- **No translation quality is established.** That is Gate V, and it is evidence rather than software.
+- **Nothing changes for a user.** No badge, no filter, no language control — all v2 or Phase 3.
+- **The real value is unmeasurable directly.** These phases reduce the cost of being wrong in
+  Phase 2. The honest proxy is how many unknowns became measured facts: five hazards, one corpus
+  language distribution, and one inventory of fifteen transcript readers.
+
 ## 4. Slice plan
 
 Each slice is sized to be **one GitHub issue**: one goal, its own tests, its own acceptance criteria,

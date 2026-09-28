@@ -12,6 +12,10 @@ from typing import Any
 from podcast_scraper.graph_id_utils import is_bare_speaker_label
 from podcast_scraper.providers.ml.diarization.roster import friendly_speaker_label
 from podcast_scraper.server.schemas import TranscriptSegment
+from podcast_scraper.workflow.transcript_resolution import (
+    segments_relpath_candidates,
+    TranscriptPurpose,
+)
 
 
 def segments_relpaths_for_transcript(transcript_relpath: str) -> list[str]:
@@ -25,14 +29,12 @@ def segments_relpaths_for_transcript(transcript_relpath: str) -> list[str]:
     transcript-sync must use the **raw canonical** segments, whose timestamps run on the
     original timeline. The ad-free segments (ads removed) are minutes shorter and would drift
     the highlight/seek against the played audio; they are only a last-resort fallback here.
+
+    That is the ``TIMELINE`` purpose, and it is the exact reverse of what every analysis
+    reader wants — see :mod:`podcast_scraper.workflow.transcript_resolution` (#2170), which
+    now owns both orders so neither can be "simplified" into the other.
     """
-    rel = (transcript_relpath or "").strip().replace("\\", "/")
-    if not rel:
-        return []
-    base = rel[:-4] if rel.lower().endswith(".txt") else rel
-    if base.lower().endswith(".adfree"):
-        base = base[: -len(".adfree")]
-    return [f"{base}.segments.json", f"{base}.adfree.segments.json"]
+    return segments_relpath_candidates(transcript_relpath, purpose=TranscriptPurpose.TIMELINE)
 
 
 def _segment_speaker(raw: dict[str, Any]) -> str | None:

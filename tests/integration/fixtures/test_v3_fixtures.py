@@ -233,20 +233,50 @@ def test_ground_truth_surface_forms_appear_in_transcript(episode_id):
         )
 
 
+#: The two episodes that carry NO sponsor blocks, by design. Both are hand-written robustness
+#: fixtures rather than generator output (FIXTURES_SPEC.md: "40 - p06_e05 - p06_e06, which are
+#: hand-written") — 141 and 212 characters against ~4,000 for a real episode. `p06_e05` is the
+#: corpus's only single-speaker episode and its only carrier of stage directions; `p06_e06` is
+#: its only code-switching episode. Neither is shaped like a podcast, so neither has ads.
+_GROUND_TRUTH_WITHOUT_SPONSOR_BLOCKS = frozenset({"p06_e05", "p06_e06"})
+
+
 def test_sponsor_block_kinds_recorded_per_episode():
-    """Every persisted ground-truth file lists at least one sponsor block.
+    """Every GENERATED ground-truth file lists at least one sponsor block.
 
     The shape we expect: opening + closing template ads on every episode,
     plus optional native_ad / enthusiastic_recommendation / template_midroll.
+
+    The two hand-written edge-case fixtures are exempt — but the exemption is asserted to be
+    EXACTLY those two, so a newly empty episode still fails, and an edge case that gains
+    sponsor blocks flags the exemption as stale. Muting the invariant is not the same as
+    scoping it.
+
+    Previously this asserted inside an UNSORTED `glob`, so it reported the first violation it
+    happened to reach and stayed silent about the other — two episodes were empty and one was
+    named. Violations are collected and sorted now.
     """
     truth_dir = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "ground_truth"
     if not truth_dir.exists():
         pytest.skip("ground truth not on disk; run the generator first")
-    for json_path in truth_dir.glob("*.json"):
+
+    empty: list[str] = []
+    missing_opening: list[str] = []
+    for json_path in sorted(truth_dir.glob("*.json")):
+        episode = json_path.stem
         truth = json.loads(json_path.read_text(encoding="utf-8"))
-        assert truth["sponsor_blocks"], f"{json_path.name}: no sponsor blocks recorded"
-        kinds = {b["kind"] for b in truth["sponsor_blocks"]}
-        assert "template_opening" in kinds, f"{json_path.name}: missing template_opening"
+        blocks = truth["sponsor_blocks"]
+        if not blocks:
+            empty.append(episode)
+            continue
+        if "template_opening" not in {b["kind"] for b in blocks}:
+            missing_opening.append(episode)
+
+    assert set(empty) == set(_GROUND_TRUTH_WITHOUT_SPONSOR_BLOCKS), (
+        f"episodes with no sponsor blocks: {sorted(empty)}; "
+        f"expected exactly {sorted(_GROUND_TRUTH_WITHOUT_SPONSOR_BLOCKS)}"
+    )
+    assert not missing_opening, f"missing template_opening: {missing_opening}"
 
 
 def test_enthusiastic_recommendation_marked_as_real_content():

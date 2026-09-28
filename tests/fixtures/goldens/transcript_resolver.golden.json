@@ -73,8 +73,18 @@
     "app-validation-corpus/v3::feeds/p01/run_20260101-000000/metadata/p01_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p01_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p01_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Liam Verbeek",
+          "Maya"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p01_e01.txt",
       "A5_gi_repair_text": "p01_e01.txt",
@@ -95,8 +105,18 @@
     "app-validation-corpus/v3::feeds/p01/run_20260101-000000/metadata/p01_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p01_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p01_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Maya",
+          "Sophie Lorenz"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p01_e02.txt",
       "A5_gi_repair_text": "p01_e02.txt",
@@ -117,8 +137,18 @@
     "app-validation-corpus/v3::feeds/p01/run_20260101-000000/metadata/p01_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p01_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p01_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Maya",
+          "Noah Bryer"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p01_e03.txt",
       "A5_gi_repair_text": "p01_e03.txt",
@@ -139,8 +169,17 @@
     "app-validation-corpus/v3::feeds/p01/run_20260101-000000/metadata/p01_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p01_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p01_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Maya",
+          "Sophie Laurent"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p01_e04.txt",
       "A5_gi_repair_text": "p01_e04.txt",
@@ -161,8 +200,18 @@
     "app-validation-corpus/v3::feeds/p02/run_20260101-000000/metadata/p02_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p02_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p02_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ethan",
+          "Priya Nair"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p02_e01.txt",
       "A5_gi_repair_text": "p02_e01.txt",
@@ -183,8 +232,18 @@
     "app-validation-corpus/v3::feeds/p02/run_20260101-000000/metadata/p02_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p02_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p02_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ethan",
+          "Joll Wisenthal"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p02_e02.txt",
       "A5_gi_repair_text": "p02_e02.txt",
@@ -205,8 +264,18 @@
     "app-validation-corpus/v3::feeds/p02/run_20260101-000000/metadata/p02_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p02_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p02_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ethan",
+          "Priya Nair"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p02_e03.txt",
       "A5_gi_repair_text": "p02_e03.txt",
@@ -227,8 +296,17 @@
     "app-validation-corpus/v3::feeds/p02/run_20260101-000000/metadata/p02_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p02_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p02_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ethan",
+          "Priya Nair"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p02_e04.txt",
       "A5_gi_repair_text": "p02_e04.txt",
@@ -249,8 +327,18 @@
     "app-validation-corpus/v3::feeds/p02/run_20260101-000000/metadata/p02_e05.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p02_e05.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p02_e05.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Caller",
+          "Ethan",
+          "Priya Nair"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p02_e05.txt",
       "A5_gi_repair_text": "p02_e05.txt",
@@ -271,8 +359,18 @@
     "app-validation-corpus/v3::feeds/p03/run_20260101-000000/metadata/p03_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p03_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p03_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Marco Sylva",
+          "Rina"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p03_e01.txt",
       "A5_gi_repair_text": "p03_e01.txt",
@@ -293,8 +391,18 @@
     "app-validation-corpus/v3::feeds/p03/run_20260101-000000/metadata/p03_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p03_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p03_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Hanna Crebo Rediker",
+          "Rina"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p03_e02.txt",
       "A5_gi_repair_text": "p03_e02.txt",
@@ -315,8 +423,18 @@
     "app-validation-corpus/v3::feeds/p03/run_20260101-000000/metadata/p03_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p03_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p03_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Hanna Krebohticker",
+          "Rina"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p03_e03.txt",
       "A5_gi_repair_text": "p03_e03.txt",
@@ -337,8 +455,17 @@
     "app-validation-corpus/v3::feeds/p03/run_20260101-000000/metadata/p03_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p03_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p03_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Marco Silva",
+          "Rina"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p03_e04.txt",
       "A5_gi_repair_text": "p03_e04.txt",
@@ -359,8 +486,18 @@
     "app-validation-corpus/v3::feeds/p04/run_20260101-000000/metadata/p04_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p04_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p04_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ava Lemoine",
+          "Leo"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p04_e01.txt",
       "A5_gi_repair_text": "p04_e01.txt",
@@ -381,8 +518,18 @@
     "app-validation-corpus/v3::feeds/p04/run_20260101-000000/metadata/p04_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p04_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p04_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Leo",
+          "Tarek Hassan"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p04_e02.txt",
       "A5_gi_repair_text": "p04_e02.txt",
@@ -403,8 +550,18 @@
     "app-validation-corpus/v3::feeds/p04/run_20260101-000000/metadata/p04_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p04_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p04_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Daniel Olufemi",
+          "Leo"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p04_e03.txt",
       "A5_gi_repair_text": "p04_e03.txt",
@@ -425,8 +582,18 @@
     "app-validation-corpus/v3::feeds/p04/run_20260101-000000/metadata/p04_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p04_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p04_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ava Lemoine",
+          "Leo"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p04_e04.txt",
       "A5_gi_repair_text": "p04_e04.txt",
@@ -447,8 +614,18 @@
     "app-validation-corpus/v3::feeds/p05/run_20260101-000000/metadata/p05_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p05_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p05_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Daniel Cho",
+          "Nora"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e01.txt",
       "A5_gi_repair_text": "p05_e01.txt",
@@ -469,8 +646,18 @@
     "app-validation-corpus/v3::feeds/p05/run_20260101-000000/metadata/p05_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p05_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p05_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Nora",
+          "Rich Clarida"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e02.txt",
       "A5_gi_repair_text": "p05_e02.txt",
@@ -491,8 +678,18 @@
     "app-validation-corpus/v3::feeds/p05/run_20260101-000000/metadata/p05_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p05_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p05_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Nora",
+          "Scott Bessett"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e03.txt",
       "A5_gi_repair_text": "p05_e03.txt",
@@ -513,8 +710,18 @@
     "app-validation-corpus/v3::feeds/p05/run_20260101-000000/metadata/p05_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p05_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p05_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Daniel Cho",
+          "Nora",
+          "Scott Bessent"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e04.txt",
       "A5_gi_repair_text": "p05_e04.txt",
@@ -535,8 +742,18 @@
     "app-validation-corpus/v3::feeds/p05/run_20260101-000000/metadata/p05_e05.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p05_e05.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p05_e05.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Daniel Cho",
+          "Nadia Sereni",
+          "Nora"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e05.txt",
       "A5_gi_repair_text": "p05_e05.txt",
@@ -557,8 +774,18 @@
     "app-validation-corpus/v3::feeds/p06/run_20260101-000000/metadata/p06_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p06_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p06_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Cam",
+          "Jordan Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p06_e01.txt",
       "A5_gi_repair_text": "p06_e01.txt",
@@ -579,8 +806,18 @@
     "app-validation-corpus/v3::feeds/p06/run_20260101-000000/metadata/p06_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p06_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p06_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Cam",
+          "Jordan Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p06_e02.txt",
       "A5_gi_repair_text": "p06_e02.txt",
@@ -601,8 +838,18 @@
     "app-validation-corpus/v3::feeds/p06/run_20260101-000000/metadata/p06_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p06_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p06_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Cam",
+          "Jordan Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p06_e03.txt",
       "A5_gi_repair_text": "p06_e03.txt",
@@ -623,8 +870,18 @@
     "app-validation-corpus/v3::feeds/p06/run_20260101-000000/metadata/p06_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p06_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p06_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Cam",
+          "Jordan Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p06_e04.txt",
       "A5_gi_repair_text": "p06_e04.txt",
@@ -645,8 +902,16 @@
     "app-validation-corpus/v3::feeds/p06/run_20260101-000000/metadata/p06_e05.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p06_e05.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p06_e05.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Maya"
+        ],
+        "num_speakers": 1
       },
       "A4_search_indexer": "transcripts/p06_e05.txt",
       "A5_gi_repair_text": "p06_e05.txt",
@@ -667,8 +932,17 @@
     "app-validation-corpus/v3::feeds/p06/run_20260101-000000/metadata/p06_e06.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p06_e06.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p06_e06.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Liam",
+          "Maya"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p06_e06.txt",
       "A5_gi_repair_text": "p06_e06.txt",
@@ -689,8 +963,18 @@
     "app-validation-corpus/v3::feeds/p07/run_20260101-000000/metadata/p07_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p07_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p07_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Alex Morgan",
+          "Dr. Elena Fischer"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p07_e01.txt",
       "A5_gi_repair_text": "p07_e01.txt",
@@ -711,8 +995,18 @@
     "app-validation-corpus/v3::feeds/p07/run_20260101-000000/metadata/p07_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p07_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p07_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Alex Morgan",
+          "Skanda Eminas"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p07_e02.txt",
       "A5_gi_repair_text": "p07_e02.txt",
@@ -733,8 +1027,17 @@
     "app-validation-corpus/v3::feeds/p07/run_20260101-000000/metadata/p07_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p07_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p07_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Alex Morgan",
+          "Dr. Elena Fischer"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p07_e03.txt",
       "A5_gi_repair_text": "p07_e03.txt",
@@ -755,8 +1058,17 @@
     "app-validation-corpus/v3::feeds/p07/run_20260101-000000/metadata/p07_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p07_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p07_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Alex Morgan",
+          "Skanda Amarnath"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p07_e04.txt",
       "A5_gi_repair_text": "p07_e04.txt",
@@ -777,8 +1089,18 @@
     "app-validation-corpus/v3::feeds/p08/run_20260101-000000/metadata/p08_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p08_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p08_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "A. correspondent",
+          "Ad",
+          "Renee Montagne-Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p08_e01.txt",
       "A5_gi_repair_text": "p08_e01.txt",
@@ -799,8 +1121,18 @@
     "app-validation-corpus/v3::feeds/p08/run_20260101-000000/metadata/p08_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p08_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p08_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "A. correspondent",
+          "Ad",
+          "Renee Montague-Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p08_e02.txt",
       "A5_gi_repair_text": "p08_e02.txt",
@@ -821,8 +1153,18 @@
     "app-validation-corpus/v3::feeds/p08/run_20260101-000000/metadata/p08_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p08_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p08_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "A. correspondent",
+          "Ad",
+          "Renee Montagne-Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p08_e03.txt",
       "A5_gi_repair_text": "p08_e03.txt",
@@ -843,8 +1185,18 @@
     "app-validation-corpus/v3::feeds/p08/run_20260101-000000/metadata/p08_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p08_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p08_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "A. correspondent",
+          "Ad",
+          "Renee Montagne-Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p08_e04.txt",
       "A5_gi_repair_text": "p08_e04.txt",
@@ -865,8 +1217,18 @@
     "app-validation-corpus/v3::feeds/p09/run_20260101-000000/metadata/p09_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p09_e01.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p09_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Dr. Elena Fischer",
+          "Sam"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p09_e01.txt",
       "A5_gi_repair_text": "p09_e01.txt",
@@ -887,8 +1249,18 @@
     "app-validation-corpus/v3::feeds/p09/run_20260101-000000/metadata/p09_e02.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p09_e02.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p09_e02.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Sam",
+          "Skanda Amarnauth"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p09_e02.txt",
       "A5_gi_repair_text": "p09_e02.txt",
@@ -909,8 +1281,18 @@
     "app-validation-corpus/v3::feeds/p09/run_20260101-000000/metadata/p09_e03.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p09_e03.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p09_e03.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Sam",
+          "Skanda Amarnath"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p09_e03.txt",
       "A5_gi_repair_text": "p09_e03.txt",
@@ -931,8 +1313,18 @@
     "app-validation-corpus/v3::feeds/p09/run_20260101-000000/metadata/p09_e04.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p09_e04.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": false,
         "ref": "transcripts/p09_e04.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Dr. Elena Fischer",
+          "Sam"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p09_e04.txt",
       "A5_gi_repair_text": "p09_e04.txt",
@@ -951,10 +1343,20 @@
       "C_summary_faithfulness": "transcripts/p09_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p01/metadata/p01_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p01_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p01_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p01_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Liam Verbeek",
+          "Maya"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p01_e01.adfree.txt",
       "A5_gi_repair_text": "p01_e01.adfree.txt",
@@ -973,10 +1375,20 @@
       "C_summary_faithfulness": "transcripts/p01_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p01/metadata/p01_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p01_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p01_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p01_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Maya",
+          "Sophie Lorenz"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p01_e02.adfree.txt",
       "A5_gi_repair_text": "p01_e02.adfree.txt",
@@ -995,10 +1407,20 @@
       "C_summary_faithfulness": "transcripts/p01_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p01/metadata/p01_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p01_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p01_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p01_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Maya",
+          "Noah Bryer"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p01_e03.adfree.txt",
       "A5_gi_repair_text": "p01_e03.adfree.txt",
@@ -1017,10 +1439,19 @@
       "C_summary_faithfulness": "transcripts/p01_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p01/metadata/p01_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p01_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p01_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p01_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Maya",
+          "Sophie Laurent"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p01_e04.adfree.txt",
       "A5_gi_repair_text": "p01_e04.adfree.txt",
@@ -1039,10 +1470,20 @@
       "C_summary_faithfulness": "transcripts/p01_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p02/metadata/p02_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p02_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p02_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p02_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ethan",
+          "Priya Nair"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p02_e01.adfree.txt",
       "A5_gi_repair_text": "p02_e01.adfree.txt",
@@ -1061,10 +1502,20 @@
       "C_summary_faithfulness": "transcripts/p02_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p02/metadata/p02_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p02_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p02_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p02_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ethan",
+          "Joll Wisenthal"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p02_e02.adfree.txt",
       "A5_gi_repair_text": "p02_e02.adfree.txt",
@@ -1083,10 +1534,20 @@
       "C_summary_faithfulness": "transcripts/p02_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p02/metadata/p02_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p02_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p02_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p02_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ethan",
+          "Priya Nair"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p02_e03.adfree.txt",
       "A5_gi_repair_text": "p02_e03.adfree.txt",
@@ -1105,10 +1566,19 @@
       "C_summary_faithfulness": "transcripts/p02_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p02/metadata/p02_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p02_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p02_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p02_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ethan",
+          "Priya Nair"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p02_e04.adfree.txt",
       "A5_gi_repair_text": "p02_e04.adfree.txt",
@@ -1127,10 +1597,20 @@
       "C_summary_faithfulness": "transcripts/p02_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p02/metadata/p02_e05.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p02_e05.txt",
+      "A10_gi_load_evidence": "transcripts/p02_e05.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p02_e05.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Caller",
+          "Ethan",
+          "Priya Nair"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p02_e05.adfree.txt",
       "A5_gi_repair_text": "p02_e05.adfree.txt",
@@ -1149,10 +1629,20 @@
       "C_summary_faithfulness": "transcripts/p02_e05.txt"
     },
     "viewer-validation-corpus/v3::feeds/p03/metadata/p03_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p03_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p03_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p03_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Marco Sylva",
+          "Rina"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p03_e01.adfree.txt",
       "A5_gi_repair_text": "p03_e01.adfree.txt",
@@ -1171,10 +1661,20 @@
       "C_summary_faithfulness": "transcripts/p03_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p03/metadata/p03_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p03_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p03_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p03_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Hanna Crebo Rediker",
+          "Rina"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p03_e02.adfree.txt",
       "A5_gi_repair_text": "p03_e02.adfree.txt",
@@ -1193,10 +1693,20 @@
       "C_summary_faithfulness": "transcripts/p03_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p03/metadata/p03_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p03_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p03_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p03_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Hanna Krebohticker",
+          "Rina"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p03_e03.adfree.txt",
       "A5_gi_repair_text": "p03_e03.adfree.txt",
@@ -1215,10 +1725,19 @@
       "C_summary_faithfulness": "transcripts/p03_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p03/metadata/p03_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p03_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p03_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p03_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Marco Silva",
+          "Rina"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p03_e04.adfree.txt",
       "A5_gi_repair_text": "p03_e04.adfree.txt",
@@ -1237,10 +1756,20 @@
       "C_summary_faithfulness": "transcripts/p03_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p04/metadata/p04_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p04_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p04_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p04_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ava Lemoine",
+          "Leo"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p04_e01.adfree.txt",
       "A5_gi_repair_text": "p04_e01.adfree.txt",
@@ -1259,10 +1788,20 @@
       "C_summary_faithfulness": "transcripts/p04_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p04/metadata/p04_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p04_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p04_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p04_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Leo",
+          "Tarek Hassan"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p04_e02.adfree.txt",
       "A5_gi_repair_text": "p04_e02.adfree.txt",
@@ -1281,10 +1820,20 @@
       "C_summary_faithfulness": "transcripts/p04_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p04/metadata/p04_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p04_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p04_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p04_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Daniel Olufemi",
+          "Leo"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p04_e03.adfree.txt",
       "A5_gi_repair_text": "p04_e03.adfree.txt",
@@ -1303,10 +1852,20 @@
       "C_summary_faithfulness": "transcripts/p04_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p04/metadata/p04_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p04_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p04_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p04_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Ava Lemoine",
+          "Leo"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p04_e04.adfree.txt",
       "A5_gi_repair_text": "p04_e04.adfree.txt",
@@ -1325,10 +1884,20 @@
       "C_summary_faithfulness": "transcripts/p04_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p05/metadata/p05_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p05_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p05_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p05_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Daniel Cho",
+          "Nora"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e01.adfree.txt",
       "A5_gi_repair_text": "p05_e01.adfree.txt",
@@ -1347,10 +1916,20 @@
       "C_summary_faithfulness": "transcripts/p05_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p05/metadata/p05_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p05_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p05_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p05_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Nora",
+          "Rich Clarida"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e02.adfree.txt",
       "A5_gi_repair_text": "p05_e02.adfree.txt",
@@ -1369,10 +1948,20 @@
       "C_summary_faithfulness": "transcripts/p05_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p05/metadata/p05_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p05_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p05_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p05_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Nora",
+          "Scott Bessett"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e03.adfree.txt",
       "A5_gi_repair_text": "p05_e03.adfree.txt",
@@ -1391,10 +1980,20 @@
       "C_summary_faithfulness": "transcripts/p05_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p05/metadata/p05_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p05_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p05_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p05_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Daniel Cho",
+          "Nora",
+          "Scott Bessent"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e04.adfree.txt",
       "A5_gi_repair_text": "p05_e04.adfree.txt",
@@ -1413,10 +2012,20 @@
       "C_summary_faithfulness": "transcripts/p05_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p05/metadata/p05_e05.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p05_e05.txt",
+      "A10_gi_load_evidence": "transcripts/p05_e05.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p05_e05.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Daniel Cho",
+          "Nadia Sereni",
+          "Nora"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p05_e05.adfree.txt",
       "A5_gi_repair_text": "p05_e05.adfree.txt",
@@ -1435,10 +2044,20 @@
       "C_summary_faithfulness": "transcripts/p05_e05.txt"
     },
     "viewer-validation-corpus/v3::feeds/p06/metadata/p06_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p06_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p06_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p06_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Cam",
+          "Jordan Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p06_e01.adfree.txt",
       "A5_gi_repair_text": "p06_e01.adfree.txt",
@@ -1457,10 +2076,20 @@
       "C_summary_faithfulness": "transcripts/p06_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p06/metadata/p06_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p06_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p06_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p06_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Cam",
+          "Jordan Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p06_e02.adfree.txt",
       "A5_gi_repair_text": "p06_e02.adfree.txt",
@@ -1479,10 +2108,20 @@
       "C_summary_faithfulness": "transcripts/p06_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p06/metadata/p06_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p06_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p06_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p06_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Cam",
+          "Jordan Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p06_e03.adfree.txt",
       "A5_gi_repair_text": "p06_e03.adfree.txt",
@@ -1501,10 +2140,20 @@
       "C_summary_faithfulness": "transcripts/p06_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p06/metadata/p06_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p06_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p06_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p06_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Cam",
+          "Jordan Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p06_e04.adfree.txt",
       "A5_gi_repair_text": "p06_e04.adfree.txt",
@@ -1523,10 +2172,18 @@
       "C_summary_faithfulness": "transcripts/p06_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p06/metadata/p06_e05.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p06_e05.txt",
+      "A10_gi_load_evidence": "transcripts/p06_e05.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p06_e05.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Maya"
+        ],
+        "num_speakers": 1
       },
       "A4_search_indexer": "transcripts/p06_e05.adfree.txt",
       "A5_gi_repair_text": "p06_e05.adfree.txt",
@@ -1545,10 +2202,19 @@
       "C_summary_faithfulness": "transcripts/p06_e05.txt"
     },
     "viewer-validation-corpus/v3::feeds/p06/metadata/p06_e06.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p06_e06.txt",
+      "A10_gi_load_evidence": "transcripts/p06_e06.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p06_e06.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Liam",
+          "Maya"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p06_e06.adfree.txt",
       "A5_gi_repair_text": "p06_e06.adfree.txt",
@@ -1567,10 +2233,20 @@
       "C_summary_faithfulness": "transcripts/p06_e06.txt"
     },
     "viewer-validation-corpus/v3::feeds/p07/metadata/p07_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p07_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p07_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p07_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Alex Morgan",
+          "Dr. Elena Fischer"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p07_e01.adfree.txt",
       "A5_gi_repair_text": "p07_e01.adfree.txt",
@@ -1589,10 +2265,20 @@
       "C_summary_faithfulness": "transcripts/p07_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p07/metadata/p07_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p07_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p07_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p07_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Alex Morgan",
+          "Skanda Eminas"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p07_e02.adfree.txt",
       "A5_gi_repair_text": "p07_e02.adfree.txt",
@@ -1611,10 +2297,19 @@
       "C_summary_faithfulness": "transcripts/p07_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p07/metadata/p07_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p07_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p07_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p07_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Alex Morgan",
+          "Dr. Elena Fischer"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p07_e03.adfree.txt",
       "A5_gi_repair_text": "p07_e03.adfree.txt",
@@ -1633,10 +2328,19 @@
       "C_summary_faithfulness": "transcripts/p07_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p07/metadata/p07_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p07_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p07_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p07_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Alex Morgan",
+          "Skanda Amarnath"
+        ],
+        "num_speakers": 2
       },
       "A4_search_indexer": "transcripts/p07_e04.adfree.txt",
       "A5_gi_repair_text": "p07_e04.adfree.txt",
@@ -1655,10 +2359,20 @@
       "C_summary_faithfulness": "transcripts/p07_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p08/metadata/p08_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p08_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p08_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p08_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "A. correspondent",
+          "Ad",
+          "Renee Montagne-Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p08_e01.adfree.txt",
       "A5_gi_repair_text": "p08_e01.adfree.txt",
@@ -1677,10 +2391,20 @@
       "C_summary_faithfulness": "transcripts/p08_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p08/metadata/p08_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p08_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p08_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p08_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "A. correspondent",
+          "Ad",
+          "Renee Montague-Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p08_e02.adfree.txt",
       "A5_gi_repair_text": "p08_e02.adfree.txt",
@@ -1699,10 +2423,20 @@
       "C_summary_faithfulness": "transcripts/p08_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p08/metadata/p08_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p08_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p08_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p08_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "A. correspondent",
+          "Ad",
+          "Renee Montagne-Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p08_e03.adfree.txt",
       "A5_gi_repair_text": "p08_e03.adfree.txt",
@@ -1721,10 +2455,20 @@
       "C_summary_faithfulness": "transcripts/p08_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p08/metadata/p08_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p08_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p08_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p08_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "A. correspondent",
+          "Ad",
+          "Renee Montagne-Park"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p08_e04.adfree.txt",
       "A5_gi_repair_text": "p08_e04.adfree.txt",
@@ -1743,10 +2487,20 @@
       "C_summary_faithfulness": "transcripts/p08_e04.txt"
     },
     "viewer-validation-corpus/v3::feeds/p09/metadata/p09_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p09_e01.txt",
+      "A10_gi_load_evidence": "transcripts/p09_e01.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p09_e01.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Dr. Elena Fischer",
+          "Sam"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p09_e01.adfree.txt",
       "A5_gi_repair_text": "p09_e01.adfree.txt",
@@ -1765,10 +2519,20 @@
       "C_summary_faithfulness": "transcripts/p09_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p09/metadata/p09_e02.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p09_e02.txt",
+      "A10_gi_load_evidence": "transcripts/p09_e02.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p09_e02.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Sam",
+          "Skanda Amarnauth"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p09_e02.adfree.txt",
       "A5_gi_repair_text": "p09_e02.adfree.txt",
@@ -1787,10 +2551,20 @@
       "C_summary_faithfulness": "transcripts/p09_e02.txt"
     },
     "viewer-validation-corpus/v3::feeds/p09/metadata/p09_e03.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p09_e03.txt",
+      "A10_gi_load_evidence": "transcripts/p09_e03.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p09_e03.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Sam",
+          "Skanda Amarnath"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p09_e03.adfree.txt",
       "A5_gi_repair_text": "p09_e03.adfree.txt",
@@ -1809,10 +2583,20 @@
       "C_summary_faithfulness": "transcripts/p09_e03.txt"
     },
     "viewer-validation-corpus/v3::feeds/p09/metadata/p09_e04.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p09_e04.txt",
+      "A10_gi_load_evidence": "transcripts/p09_e04.adfree.txt",
       "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
         "is_adfree": true,
         "ref": "transcripts/p09_e04.adfree.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Dr. Elena Fischer",
+          "Sam"
+        ],
+        "num_speakers": 3
       },
       "A4_search_indexer": "transcripts/p09_e04.adfree.txt",
       "A5_gi_repair_text": "p09_e04.adfree.txt",

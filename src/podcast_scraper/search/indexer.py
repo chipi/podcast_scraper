@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,6 +17,10 @@ from podcast_scraper.search.corpus_scope import (
     vector_doc_scope_tag,
 )
 from podcast_scraper.workflow.metadata_generation import _determine_gi_path, _determine_kg_path
+from podcast_scraper.workflow.transcript_resolution import (
+    resolve_text_path,
+    TranscriptPurpose,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -98,16 +101,11 @@ def _transcript_path(episode_root: Path, doc: Dict[str, Any]) -> Optional[Path]:
     rel = content.get("transcript_file_path")
     if not isinstance(rel, str) or not rel.strip():
         return None
-    rel = rel.strip()
-    # #974: prefer the ad-free processing base (<base>.adfree.txt) when present, so
-    # search chunks and enrich-edges SPOKEN_BY share the coordinate space GI computed
-    # quote char_start in. Fall back to the raw transcript for pre-#974 corpora.
-    base, ext = os.path.splitext(rel)
-    adfree = (episode_root / f"{base}.adfree{ext}").resolve()
-    if adfree.is_file():
-        return adfree
-    p = (episode_root / rel).resolve()
-    return p if p.is_file() else None
+    # ANALYSIS: search chunks and enrich-edges SPOKEN_BY must share the coordinate space GI
+    # computed quote char_start in (#974), so the ad-free base wins and a pre-#974 corpus
+    # falls back to raw. The precedence lives in one place now (#2170).
+    resolved = resolve_text_path(episode_root, rel.strip(), purpose=TranscriptPurpose.ANALYSIS)
+    return resolved.resolve() if resolved is not None else None
 
 
 def _filter_rows_by_doc_types(

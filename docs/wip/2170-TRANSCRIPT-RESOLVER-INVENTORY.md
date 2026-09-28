@@ -167,9 +167,28 @@ segment sidecars — the viewer corpus ships only `.adfree.segments.json`, the a
 episode carrying all four artifacts closes it, with explicit assertions rather than a
 snapshot row, in `test_precedence_when_both_segment_sidecars_exist`.
 
-**Not covered at all:** A3 (`_build_speakers_from_diarized_segments`, `metadata_generation.py:1199`).
-Its precedence is inlined mid-function with nothing to call. Extracting it is part of the
-refactor; it joins the golden then.
+**A3 is covered now.** Its precedence was inlined mid-function with nothing to call, so it
+was absent from the first golden. Routing it through the resolver removed the inline
+precedence entirely, and what the golden pins is its **output** — `num_speakers` and the
+named voices — rather than a path it no longer chooses for itself. A path row would have
+been a tautology (an identical resolver call to A8's); the speaker record is the thing a
+regression would actually damage.
+
+### Proving the golden fires
+
+Three regressions are injected by tests at the bottom of the golden file, each asserting *which*
+rows move: a reader switched from `ANALYSIS` to `TIMELINE` (only `A4`, 40 episodes), the ad-free
+fallback deleted (`A1A2` plus four more, 40 each), and the `gi/load.py` fix reverted (only `A10`,
+40 episodes). The fourth regression in the arc doc's table — a sidecar resolved independently of
+its body — is covered by direct assertion instead, because forcing that mismatch would mean
+reimplementing the wrong version and testing the reimplementation.
+
+**Writing those tests found a blind spot in the golden.** The `A1A2` row recorded only
+`(ref, is_adfree)`. When nothing resolves, `load_transcript` reports the canonical relpath with
+`is_adfree=False` — on a corpus with no ad-free bodies that is byte-identical to a successful raw
+load. Deleting the fallback therefore moved five other readers' rows and left `A1A2` green. The row
+now also records `has_text` and `has_segments`. The positive golden had been green, reviewed and
+blind; only injection said so.
 
 ### Two things the golden exposed
 
@@ -202,3 +221,54 @@ demonstrate it. Stated here so the golden row is not read as more than it is.
 **15 readers to route. 16 sites left alone with a reason.** The number that matters for the arc: any
 of those 15 is a place a translated episode could read the wrong coordinate space, which is why this
 slice goes before the translation work rather than inside it.
+
+## What landed
+
+`workflow/transcript_resolution.py` owns both precedences. Resolution takes a
+`TranscriptPurpose` — `ANALYSIS` (ad-free first: the space GI's `char_start` indexes) or
+`TIMELINE` (raw first: the timeline the unbridged audio runs on) — so asking for "the
+transcript" without saying what for is no longer expressible.
+
+| API | For |
+| --- | --- |
+| `text_relpath_candidates` / `segments_relpath_candidates` | the pure ORDER, no disk access |
+| `resolve_text_path` / `resolve_segments_path` | first candidate that exists, or None |
+| `load_transcript` | body + its own sidecar + (ad-free only) its ad-map |
+| `load_processing_transcript` | kept name = `load_transcript(..., ANALYSIS)` |
+
+All 15 readers route through it. `adfree_transcript.py` keeps producing the artifacts and
+re-exports the moved names, so its existing importers are untouched.
+
+`load_transcript` derives the sidecar **from the body it resolved** rather than resolving it
+separately — pairing a body with the other variant's sidecar is the same displacement bug in
+a different shape.
+
+### The one behaviour change, and the two that were reverted
+
+**Changed on purpose:** A10. `gi/load.py` now resolves `ANALYSIS`, so `gi inspect` and
+`gi show-insight` read the text their offsets index. The golden moved on exactly this field,
+on exactly the 40 episodes that have an ad-free body, and on no other field — verified by a
+field-by-field diff before regenerating. A test asserts both halves: the correct excerpt, and
+what the raw body returned for the same offsets (`"r: buy things at example "` — mid-word,
+not even a sentence, and nothing raised).
+
+**Reverted before landing**, both caught by reading the old code against the new rather than
+by a test:
+
+- `load_transcript` initially accepted a `{"segments": [...]}` sidecar. The function it
+  replaces took bare lists only, so this would have handed GI and KG segments where they
+  previously got `None`. Narrowed back, with the reason in the code.
+- An `.adfree.txt` input now normalizes to its canonical base instead of having a second
+  suffix appended. No caller passes such a path (metadata always stores the plain `.txt`), so
+  no live behaviour changes — but the old code's answer for that input was self-contradictory
+  (it returned the ad-free file while reporting `is_adfree=False`), so the new behaviour is
+  declared in a test rather than left as a silent improvement.
+
+### Deliberately still resolving their own way
+
+- **A9** `capability_audit._transcript_opening` — keeps its inverted raw-first order. The
+  inversion is real; neither corpus can demonstrate it; and whether the audit's subject is
+  the canonical artifact or what GI saw is not this slice's call.
+- **B2** `corpus_text_file._resolve_readable_file_under_corpus` — serves whichever path was
+  requested, with degradation. It is not choosing a variant for an episode.
+- **Groups D, E, F** — as above.

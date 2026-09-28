@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Tuple
 
+from ..workflow.transcript_resolution import resolve_text_path, TranscriptPurpose
 from .contracts import EvidenceSpan, InsightSummary, InspectOutput, SupportingQuote
 from .io import read_artifact
 
@@ -17,15 +18,27 @@ logger = logging.getLogger(__name__)
 
 
 def _transcript_path_from_artifact_path(artifact_path: Path) -> Path:
-    """Derive transcript path from artifact path.
+    """The transcript whose character offsets this artifact's spans index.
 
-    Artifact: output_dir/metadata/<base>.gi.json
-    Transcript: output_dir/transcripts/<base>.txt
+    Artifact: ``output_dir/metadata/<base>.gi.json``
+    Transcript: ``output_dir/transcripts/<base>.adfree.txt``, else ``<base>.txt``
+
+    BUG FIXED HERE (#2170): this returned the raw ``.txt`` unconditionally, while
+    :func:`get_evidence_span` slices it with ``char_start`` / ``char_end`` that GI computed
+    against ``.adfree.txt``. On any episode whose ads were excised, every evidence span came
+    back displaced by the length of the ads before it — the right number of characters from
+    the wrong place, so it read as plausible text rather than as an error.
+
+    Bounded to ``gi inspect`` and ``gi show-insight``; nothing is written from this path.
     """
     stem = artifact_path.stem  # e.g. "1 - episode_title.gi"
     base = stem[:-3] if stem.endswith(".gi") else stem
     output_dir = artifact_path.parent.parent  # metadata -> output_dir
-    return output_dir / "transcripts" / f"{base}.txt"
+    rel = f"transcripts/{base}.txt"
+    resolved = resolve_text_path(output_dir, rel, purpose=TranscriptPurpose.ANALYSIS)
+    # Fall back to the canonical path when neither variant exists, so the caller still gets
+    # a path to report as missing rather than None.
+    return resolved if resolved is not None else output_dir / rel
 
 
 def load_transcript_for_evidence(transcript_path: Path) -> Optional[str]:

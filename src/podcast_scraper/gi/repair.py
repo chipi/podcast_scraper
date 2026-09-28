@@ -38,6 +38,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from ..workflow.transcript_resolution import (
+    resolve_text_path,
+    segments_relpath_candidates,
+    TranscriptPurpose,
+)
 from .corpus import find_legacy_placeholder_artifacts, is_legacy_placeholder_artifact
 
 logger = logging.getLogger(__name__)
@@ -138,11 +143,11 @@ def _segments_for(run_dir: Path, transcript_rel: str) -> Optional[List[Dict[str,
     Quote grounding resolves character spans against the transcript it is given, so the segments
     and the transcript text MUST come from the same variant or every span is off.
     """
-    base = (run_dir / transcript_rel).with_suffix("")
-    for candidate in (
-        base.with_name(base.name + ".adfree.segments.json"),
-        base.with_name(base.name + ".segments.json"),
-    ):
+    candidates = [
+        run_dir / rel
+        for rel in segments_relpath_candidates(transcript_rel, purpose=TranscriptPurpose.ANALYSIS)
+    ]
+    for candidate in candidates:
         doc = _read_json(candidate)
         if isinstance(doc, dict):
             segs = doc.get("segments")
@@ -163,10 +168,11 @@ def _transcript_text_for(run_dir: Path, transcript_rel: str) -> Tuple[str, str]:
 
     Returns the SAME variant the segments come from; see ``_segments_for``.
     """
-    base = (run_dir / transcript_rel).with_suffix("")
-    adfree = base.with_name(base.name + ".adfree.txt")
-    if adfree.is_file():
-        return adfree.read_text(encoding="utf-8"), adfree.name
+    resolved = resolve_text_path(run_dir, transcript_rel, purpose=TranscriptPurpose.ANALYSIS)
+    if resolved is not None:
+        return resolved.read_text(encoding="utf-8"), resolved.name
+    # Nothing on disk: raise from the canonical path, as this did before the resolver — the
+    # caller treats an unreadable transcript as a repair it cannot attempt.
     plain = run_dir / transcript_rel
     return plain.read_text(encoding="utf-8"), Path(transcript_rel).name
 

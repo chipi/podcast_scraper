@@ -17,10 +17,14 @@ Two fixture corpora, chosen because together they cover both branches of every p
   (the feed dir *is* the run root, no ``run_*``)
 - ``app-validation-corpus/v3`` — 40 episodes, NONE has ``.adfree.*``, real ``run_*`` dirs
 
-COVERAGE, stated honestly. This covers the 11 resolution sites that are callable as
-functions today. It does NOT yet cover A3 (`_build_speakers_from_diarized_segments`, line
-1199) — its precedence is inlined mid-function and there is nothing to call. Extracting it
-is part of the refactor, and it joins this golden then. Regenerate with::
+COVERAGE, stated honestly. This covers every resolution site the refactor routed, including
+A3 — whose precedence used to be inlined mid-function with nothing to call, and which is
+pinned here by its OUTPUT (the speaker record) rather than by a path it no longer chooses.
+The one regression proven by assertion rather than injection is called out at the bottom.
+
+The tests at the end INJECT each regression the golden exists to catch and assert which rows
+move. A golden that has only ever been green is indistinguishable from no golden — see
+`docs/architecture/MULTILINGUAL_ARC.md` §3.1. Regenerate with::
 
     REGENERATE_TRANSCRIPT_RESOLVER_GOLDEN=1 .venv/bin/python -m pytest \
         tests/integration/workflow/test_transcript_resolver_golden.py
@@ -31,7 +35,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, cast, Dict, List, Optional
 
 import pytest
 
@@ -137,6 +141,9 @@ def _probe(ep: Dict[str, Any]) -> Dict[str, Any]:
     from podcast_scraper.server.segments_view import segments_relpaths_for_transcript
     from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import _segments_sidecar
     from podcast_scraper.workflow.adfree_transcript import load_processing_transcript
+    from podcast_scraper.workflow.metadata_generation import (
+        _build_speakers_from_diarized_segments,
+    )
 
     run_root: Path = ep["run_root"]
     corpus_root: Path = ep["corpus_root"]
@@ -144,8 +151,28 @@ def _probe(ep: Dict[str, Any]) -> Dict[str, Any]:
     row: Dict[str, Any] = {}
 
     # A1/A2 — GI and KG, the only two readers already using the shared resolver.
+    #
+    # `has_text` is here because a fault-injection test proved the row blind without it:
+    # when nothing resolves, `load_transcript` reports the CANONICAL relpath as its ref with
+    # `is_adfree=False` — which on a corpus with no ad-free bodies is byte-identical to a
+    # successful raw load. So deleting the fallback moved five other readers' rows and left
+    # this one green. The text is not recorded (it is megabytes); whether there IS text is.
     loaded = load_processing_transcript(str(run_root), rel)
-    row["A1A2_gi_kg"] = {"ref": loaded.transcript_ref, "is_adfree": loaded.is_adfree}
+    row["A1A2_gi_kg"] = {
+        "ref": loaded.transcript_ref,
+        "is_adfree": loaded.is_adfree,
+        "has_text": bool(loaded.text),
+        "has_segments": loaded.segments is not None,
+    }
+
+    # A3 — the speaker record built from the diarized sidecar. Its precedence used to be
+    # inlined mid-function with nothing to call; it goes through the resolver now, so what
+    # is worth pinning is its OUTPUT, not a path it no longer chooses for itself.
+    speakers, num_speakers = _build_speakers_from_diarized_segments(str(run_root), rel, None)
+    row["A3_speaker_record"] = {
+        "num_speakers": num_speakers,
+        "named": sorted({s.name for s in speakers or [] if getattr(s, "name", None)}),
+    }
 
     # A4 — search indexer.
     row["A4_search_indexer"] = _rel(_transcript_path(run_root, ep["doc"]), run_root)
@@ -354,6 +381,45 @@ def test_precedence_when_both_segment_sidecars_exist(tmp_path: Path) -> None:
     assert _first_existing(run_root, order) != "transcripts/e01.adfree.segments.json"
 
 
+def test_gi_evidence_reads_the_text_its_offsets_index(tmp_path: Path) -> None:
+    """The A10 fix, asserted rather than left to a snapshot row.
+
+    ``get_evidence_span`` slices with ``char_start``/``char_end`` that GI computed against
+    ``.adfree.txt``. Reading the raw body instead returned the right NUMBER of characters
+    from the wrong place — plausible text, no error. A golden row alone would happily record
+    this regressing, so the offsets are exercised end to end here.
+    """
+    from podcast_scraper.gi.load import (
+        _transcript_path_from_artifact_path,
+        get_evidence_span,
+        load_transcript_for_evidence,
+    )
+
+    run_root = tmp_path / "feeds" / "pX"
+    _write_episode_with_every_variant(run_root)
+    artifact = run_root / "metadata" / "e01.gi.json"
+
+    resolved = _transcript_path_from_artifact_path(artifact)
+    assert resolved.name == "e01.adfree.txt"
+
+    text = load_transcript_for_evidence(resolved)
+    assert text is not None
+
+    # The offsets the ad-free sidecar carries for its only segment.
+    segs = json.loads((run_root / "transcripts" / "e01.adfree.segments.json").read_text())
+    span = get_evidence_span(text, segs[0]["char_start"], segs[0]["char_end"])
+    assert span.excerpt == "Welcome back to the show."
+
+    # Against the raw body the very same offsets land inside the sponsor line, mid-word:
+    # "r: buy things at example ". Asserted so the fix cannot be read as cosmetic — this is
+    # what `gi inspect` printed as an insight's evidence on any ad-excised episode. Note it
+    # is not even a sentence, and still nothing raised.
+    raw_text = (run_root / "transcripts" / "e01.txt").read_text(encoding="utf-8")
+    displaced = get_evidence_span(raw_text, segs[0]["char_start"], segs[0]["char_end"])
+    assert displaced.excerpt == "r: buy things at example "
+    assert displaced.excerpt != span.excerpt
+
+
 def test_golden_covers_both_precedence_branches() -> None:
     """A golden over one branch is not a regression guard.
 
@@ -370,3 +436,115 @@ def test_golden_covers_both_precedence_branches() -> None:
         if row["A6_gi_repair_segments"]
     }
     assert shapes == {"adfree", "raw"}, f"segment sidecar shapes covered: {shapes}"
+
+
+# ---------------------------------------------------------------------------
+# Proving the golden fires. See MULTILINGUAL_ARC.md §3.1: every assertion above
+# is satisfiable by a golden that can never fail, and one that has only ever
+# been green is indistinguishable from no golden. So each regression the golden
+# exists to catch gets injected here, and the test asserts WHICH rows move.
+# ---------------------------------------------------------------------------
+
+
+def _committed() -> Dict[str, Any]:
+    return cast(Dict[str, Any], json.loads(_GOLDEN.read_text(encoding="utf-8")))
+
+
+def _moved_fields(actual: Dict[str, Any], expected: Dict[str, Any]) -> Dict[str, int]:
+    """Which per-episode fields differ, and on how many episodes.
+
+    The same comparison used by hand before regenerating the golden for the A10 fix — kept
+    here so "one field, forty episodes" is a thing tests can assert rather than a claim.
+    """
+    moved: Dict[str, int] = {}
+    for key, arow in actual["per_episode"].items():
+        erow = expected["per_episode"][key]
+        for field in arow:
+            if arow[field] != erow[field]:
+                moved[field] = moved.get(field, 0) + 1
+    return moved
+
+
+def test_golden_catches_a_reader_switching_purpose(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The regression the resolver exists to prevent: an analysis reader served the timeline.
+
+    Only the search indexer is flipped, so the assertion is not merely "something changed" —
+    it is that the golden points at the ONE reader and says how many episodes.
+    """
+    from podcast_scraper.search import indexer
+    from podcast_scraper.workflow import transcript_resolution as tr
+
+    def forced_timeline(output_dir, relpath, *, purpose, include_cleaned=False):  # type: ignore[no-untyped-def]
+        return tr.resolve_text_path(
+            output_dir,
+            relpath,
+            purpose=tr.TranscriptPurpose.TIMELINE,
+            include_cleaned=include_cleaned,
+        )
+
+    monkeypatch.setattr(indexer, "resolve_text_path", forced_timeline)
+    moved = _moved_fields(_build(), _committed())
+    assert set(moved) == {"A4_search_indexer"}, f"expected only A4 to move, got {moved}"
+    # The 40 episodes that have both variants. The other 40 have no ad-free body, so for
+    # them the two purposes resolve the same file and nothing moves — which is why a golden
+    # over one corpus would have proved nothing.
+    assert moved["A4_search_indexer"] == 40
+
+
+def test_golden_catches_the_adfree_fallback_being_deleted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dropping the fallback breaks the pre-#974 corpus, and the golden must say so.
+
+    A resolver that returned only its first choice would look correct on any corpus where
+    every episode has an ad-free body — i.e. on the viewer fixtures alone.
+    """
+    from podcast_scraper.workflow import transcript_resolution as tr
+
+    real = tr.text_relpath_candidates
+
+    def first_choice_only(relpath, *, purpose, include_cleaned=False):  # type: ignore[no-untyped-def]
+        got = real(relpath, purpose=purpose, include_cleaned=include_cleaned)
+        return got[:1]
+
+    monkeypatch.setattr(tr, "text_relpath_candidates", first_choice_only)
+    moved = _moved_fields(_build(), _committed())
+    assert moved, "deleting the fallback moved nothing — the golden is not load-bearing"
+    # Every ANALYSIS reader loses the raw fallback on the corpus with no ad-free bodies.
+    assert "A1A2_gi_kg" in moved
+    assert moved["A1A2_gi_kg"] == 40
+
+
+def test_golden_catches_the_gi_load_fix_being_reverted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reverting A10 must move A10 and nothing else.
+
+    This row is the one with real evidence behind it: the fix moved exactly this field on
+    exactly these episodes when it landed. Injecting the revert closes the loop.
+    """
+    from podcast_scraper.gi import load as gi_load
+
+    monkeypatch.setattr(gi_load, "resolve_text_path", lambda *a, **k: None)
+    moved = _moved_fields(_build(), _committed())
+    assert set(moved) == {"A10_gi_load_evidence"}, f"expected only A10 to move, got {moved}"
+    assert moved["A10_gi_load_evidence"] == 40
+
+
+def test_the_sidecar_mismatch_regression_is_covered_by_assertion_not_injection() -> None:
+    """Honest note in executable form.
+
+    The fourth regression in the arc doc's table — ``load_transcript`` resolving its sidecar
+    independently of the body it loaded — is NOT proven by injection here. Forcing that
+    mismatch means reimplementing the wrong version, which tests the reimplementation rather
+    than the guard. It is covered by direct assertion in
+    ``test_transcript_resolution.py::test_segments_always_come_from_the_body_that_was_loaded``,
+    which pairs telltale sidecar contents with each body and checks they match.
+
+    This test exists so the gap is recorded where someone reading the proofs will see it.
+    """
+    from tests.unit.podcast_scraper.workflow import test_transcript_resolution as unit
+
+    assert hasattr(
+        unit.TestLoadTranscript, "test_segments_always_come_from_the_body_that_was_loaded"
+    )

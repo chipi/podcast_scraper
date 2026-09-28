@@ -91,6 +91,10 @@ from ...identity.roster_provenance import roster_provenance
 from ...identity.slugify import person_id as _person_id
 from ...kg.speaker_coherence import same_person
 from ...speaker_detectors.hosts import looks_like_publisher, names_the_show
+from ...workflow.transcript_resolution import (
+    resolve_segments_path,
+    TranscriptPurpose,
+)
 from ..corpus_selection import select_served_artifacts
 from ..migration import Migration, MigrationContext, MigrationResult
 from ..role_ledger import append_ledger, file_sha, new_run_id, read_ledger, RoleChange
@@ -305,12 +309,12 @@ def _segments_sidecar(metadata_path: Path, content: dict) -> Optional[Path]:
     rel = str((content or {}).get("transcript_file_path") or "")
     if not rel:
         return None
-    run_root = metadata_path.parent.parent
-    for suffix in (".adfree.segments.json", ".segments.json"):
-        candidate = run_root / rel.replace(".txt", suffix)
-        if candidate.is_file():
-            return candidate
-    return None
+    # ANALYSIS: the ad-free sidecar carries the same ``speaker`` ids and is what GI indexed
+    # (#2170). Note the old inline form used ``rel.replace(".txt", ...)``, which rewrote
+    # EVERY ".txt" in the path, not just the extension.
+    return resolve_segments_path(
+        metadata_path.parent.parent, rel, purpose=TranscriptPurpose.ANALYSIS
+    )
 
 
 def roster_is_a_guess(metadata_payload: dict, metadata_path: Optional[Path] = None) -> bool:

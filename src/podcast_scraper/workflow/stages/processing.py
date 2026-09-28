@@ -28,6 +28,7 @@ from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...utils.optional_deps import caused_by_missing_import
 from .. import metrics
 from ..episode_processor import process_episode_download as factory_process_episode_download
+from ..transcript_resolution import resolve_text_path, TranscriptPurpose
 
 
 # Use wrapper function if available (for testability)
@@ -1117,11 +1118,16 @@ def _newest_run_transcripts(root: Path) -> List[Path]:
     for meta in metas:
         stem = meta.name[: -len(".metadata.json")]
         transcripts = meta.parent.parent / filesystem.TRANSCRIPTS_SUBDIR
-        for suffix in (".adfree.txt", ".cleaned.txt", ".txt"):
-            candidate = transcripts / f"{stem}{suffix}"
-            if candidate.is_file():
-                out.append(candidate)
-                break
+        # ANALYSIS with the cleaned body allowed as a middle candidate: this scan wants any
+        # rendering with the pre-roll gone, and does not care about offsets (#2170).
+        candidate = resolve_text_path(
+            transcripts.parent,
+            f"{filesystem.TRANSCRIPTS_SUBDIR}/{stem}.txt",
+            purpose=TranscriptPurpose.ANALYSIS,
+            include_cleaned=True,
+        )
+        if candidate is not None:
+            out.append(candidate)
     return out
 
 

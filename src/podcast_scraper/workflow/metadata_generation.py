@@ -66,6 +66,11 @@ from ..exceptions import (
 from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem, llm_call_fuse
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
+from .transcript_resolution import (
+    resolve_segments_path,
+    resolve_text_path,
+    TranscriptPurpose,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1186,17 +1191,15 @@ def _build_speakers_from_diarized_segments(
     """
     if not transcript_file_path:
         return None, None
-    base = os.path.splitext(os.path.join(output_dir, transcript_file_path))[0]
-    # Prefer the ad-free base segments (#974); fall back to the raw segments sidecar.
-    for seg_path in (f"{base}.adfree.segments.json", f"{base}.segments.json"):
-        if os.path.isfile(seg_path):
-            try:
-                with open(seg_path, encoding="utf-8") as fh:
-                    segs = json.load(fh)
-            except (OSError, ValueError):
-                return None, None
-            break
-    else:
+    # ANALYSIS: the ad-free sidecar first, the raw one for a pre-#974 corpus (#974, #2170).
+    seg_path = resolve_segments_path(
+        output_dir, transcript_file_path, purpose=TranscriptPurpose.ANALYSIS
+    )
+    if seg_path is None:
+        return None, None
+    try:
+        segs = json.loads(seg_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return None, None
     if not isinstance(segs, list) or not segs:
         return None, None
@@ -2391,10 +2394,13 @@ def _build_content_metadata(
     transcript_text: Optional[str] = None
     if transcript_file_path and output_dir:
         try:
-            full_transcript_path = os.path.join(output_dir, transcript_file_path)
-            if os.path.exists(full_transcript_path):
-                with open(full_transcript_path, "r", encoding="utf-8") as f:
-                    transcript_text = f.read()
+            # TIMELINE: the summary being checked was written from the canonical body, so
+            # the check reads the same one (#2170).
+            resolved = resolve_text_path(
+                output_dir, transcript_file_path, purpose=TranscriptPurpose.TIMELINE
+            )
+            if resolved is not None:
+                transcript_text = resolved.read_text(encoding="utf-8")
         except Exception as exc:
             logger.debug("Error reading transcript for faithfulness check: %s", exc)
 
@@ -2912,8 +2918,19 @@ def _generate_episode_summary(  # noqa: C901
         )
         return None, call_metrics
 
-    # Read transcript file
-    full_transcript_path = os.path.join(output_dir, transcript_file_path)
+    # TIMELINE, i.e. the canonical body: the summariser has its OWN ad removal (the
+    # PatternBasedCleaner below, whose output it saves as `.cleaned.txt`), so it wants the
+    # full text rather than the ad-free base. That was previously true only because this
+    # joined the stored path with no variant logic at all; routing it through the resolver
+    # makes it a decision without changing the answer (#2170).
+    resolved_transcript = resolve_text_path(
+        output_dir, transcript_file_path, purpose=TranscriptPurpose.TIMELINE
+    )
+    full_transcript_path = str(
+        resolved_transcript
+        if resolved_transcript is not None
+        else os.path.join(output_dir, transcript_file_path)
+    )
     try:
         with open(full_transcript_path, "r", encoding="utf-8") as f:
             transcript_text = f.read()
@@ -4258,9 +4275,13 @@ def _reconcile_entities_in_summary(
     transcript_text_for_check = None
     if transcript_file_path:
         try:
-            full_transcript_path = os.path.join(output_dir, transcript_file_path)
-            with open(full_transcript_path, "r", encoding="utf-8") as f:
-                transcript_text_for_check = f.read()
+            # TIMELINE, for the same reason as the other faithfulness read (#2170).
+            resolved = resolve_text_path(
+                output_dir, transcript_file_path, purpose=TranscriptPurpose.TIMELINE
+            )
+            if resolved is None:
+                raise FileNotFoundError(os.path.join(output_dir, transcript_file_path))
+            transcript_text_for_check = resolved.read_text(encoding="utf-8")
         except Exception as exc:
             logger.debug(
                 "[%s] Error reading transcript for faithfulness check: %s",
