@@ -65,7 +65,22 @@ class UITestCase: XCTestCase {
    */
   override func setUp() {
     super.setUp()
-    continueAfterFailure = true
+    // STOP AT THE FIRST FAILURE.
+    //
+    // This was `true`, so a test carried on after its first failed assertion — and these are device
+    // tests, so "carried on" means it kept DRIVING THE APP and mutating server-side state that later
+    // suites read. `DownloadThroughUITests` failed "the deep link did not land", then hunted "More
+    // actions" for 20s on the wrong page and emitted a second, misleading failure about a control
+    // that was never going to be there.
+    //
+    // Two costs, and the second is the expensive one: the log names a symptom several steps
+    // downstream of the cause, and the account the run leaves behind is one nothing asked for.
+    //
+    // The trade is real and worth stating: the helpers in `Journey`/`AppSession` call `XCTFail`
+    // themselves, so aborting at the first one can lose a caller's more specific follow-up message.
+    // The helpers' messages are the specific ones — they carry the element inventory — so the
+    // cheaper loss is the follow-up, not the corrupted state.
+    continueAfterFailure = false
   }
 
   /**

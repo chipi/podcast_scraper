@@ -161,13 +161,15 @@ CAPABILITIES: list[Capability] = [
         name="sign-out is verified, with a retry when the tap lands under the nav",
         android=("AppSession.java", r"for \(int attempt = 1; attempt <= \d+; attempt\+\+\)"),
         ios=("AppSession.swift", r"for attempt in 1\.\.\."),
-        status=ANDROID_ONLY,
+        status=BOTH,
         why=(
-            "Android measured the Sign-out tap landing under the bottom nav and retries, verifying "
-            "afterwards. iOS taps the scrollTo result raw and sleeps — so when that tap misses, "
-            "ensureSignedIn proceeds believing it signed out, and can certify a session belonging "
-            "to the PREVIOUS suite's account. That defeats the per-suite isolation "
-            "#2091 exists for."
+            "Android measured the Sign-out tap landing UNDERNEATH the bottom nav: the tap hit "
+            "'Discover', the app navigated there, and the session was of course still present. So "
+            "it retries, re-resolves the node each round (one found before a scroll is stale after "
+            "it), and goes through `tap` rather than clicking the raw node, because `tap` lifts a "
+            "control clear of that overlap. iOS had the raw single tap until 2026-09-28; when it "
+            "missed, `ensureSignedIn` proceeded believing it had signed out and could certify the "
+            "PREVIOUS suite's account as this one's — defeating the isolation #2091 exists for."
         ),
     ),
 ]

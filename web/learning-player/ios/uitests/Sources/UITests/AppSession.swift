@@ -203,32 +203,73 @@ enum AppSession {
    * scroll-to-Sign-out dance has already broken twice when Profile grew (2026-09-18), and a second
    * copy would have to be fixed twice next time.
    */
+  /// RETRIED, and through `Journey.tap` — ported from the Android twin, which measured why.
+  ///
+  /// This tapped the node `scrollTo` returned, once, and trusted it. Android hit the failure that
+  /// makes that unsafe and fixed it there: "Sign out" is deliberately the LAST control on Profile
+  /// (#1962 — "quiet, last, least weight"), so scrolling to it parks it at the bottom of the screen,
+  /// measured UNDERNEATH the bottom nav. The tap landed on "Discover", the app navigated there, and
+  /// the session was of course still present. `Journey.tap` exists precisely to lift a control clear
+  /// of that overlap before touching it, and this call site skipped it — the same trap iOS's own
+  /// `Journey` documents for the transport row.
+  ///
+  /// Re-resolving inside the loop matters as much as the retry: a node found before a scroll is
+  /// stale afterwards, and tapping a stale node does nothing, silently.
+  ///
+  /// The app is not the suspect: `auth.logout()` drops the local identity in a `finally` so a
+  /// sign-out with no network still works.
   @discardableResult
   static func signOut(_ app: XCUIApplication) -> Bool {
     guard isSignedIn(app) else { return true } // already out; the caller's precondition holds
-    _ = Journey.openProfile(app)
-    guard let out = Journey.scrollTo(app, labels: ["Sign out"], contains: false) else {
-      print("=====SIGNOUT_TREE_START====="); print(app.debugDescription); print("=====SIGNOUT_TREE_END=====")
-      return false
+    for attempt in 1...3 {
+      _ = Journey.openProfile(app)
+      guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else {
+        print(
+          "=====SIGNOUT attempt \(attempt): no 'Sign out' on Profile :: "
+            + "\(Journey.labelledInventory(app, limit: 10))====="
+        )
+        continue
+      }
+      let tapped = Journey.tap(app, labels: ["Sign out"], contains: false, timeout: 10)
+      sleep(3)
+      if !isSignedIn(app) { return true }
+      print(
+        "=====SIGNOUT attempt \(attempt) tapped=\(tapped) but a session is still present :: "
+          + "\(Journey.labelledInventory(app, limit: 10))====="
+      )
     }
-    out.tap()
-    sleep(3)
-    return !isSignedIn(app)
+    return false
   }
 
   @discardableResult
   static func ensureSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
     if isSignedIn(app, as: identity) { return true }
     let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-    if isSignedIn(app) {
-      _ = Journey.openProfile(app)
-      guard let out = Journey.scrollTo(app, labels: ["Sign out"], contains: false) else {
-        XCTFail("signed in as someone else and Sign out was unreachable")
-        return false
-      }
-      out.tap()
-      sleep(3)
+    // DELEGATE to `signOut`, do not re-implement it here.
+    //
+    // This carried its own copy of the scroll-and-tap dance — the second copy that `signOut`'s
+    // docstring says it was extracted to prevent, and it had the raw-tap defect the loop above
+    // exists to fix. So the path that runs when the session belongs to SOMEONE ELSE was the one
+    // least able to get rid of them.
+    //
+    // And it must be able to FAIL. Before, a missed Sign-out tap fell through to `signIn`, which
+    // cannot reach the dev picker on a signed-in app (there is no "Sign in" link) and whose own
+    // fallback is `isSignedIn(app)` — any session. So the previous suite's account got certified as
+    // this suite's, silently, which is exactly the per-suite isolation #2091 exists to provide.
+    if isSignedIn(app), !signOut(app) {
+      XCTFail(
+        "signed in as another account and could not sign out after 3 attempts, so this suite "
+          + "cannot get its own session. Continuing would certify the previous suite's account."
+      )
+      return false
     }
-    return signIn(app, springboard, as: identity)
+    // VERIFY THE IDENTITY, not merely that a session exists.
+    //
+    // `signIn` returns `isSignedIn(app)` — any session — deliberately, because hunting the masthead
+    // by account name is unreliable before `/me` resolves, and being strict there caused false
+    // negatives on healthy sessions. That tolerance is right inside `signIn` and wrong as this
+    // function's contract: `ensureSignedIn(as:)` promises an account, so it checks for one.
+    // Same fix as the Android twin.
+    return signIn(app, springboard, as: identity) && isSignedIn(app, as: identity)
   }
 }

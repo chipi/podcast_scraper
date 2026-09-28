@@ -394,7 +394,16 @@ final class AppSession {
         // something has to keep exercising it or this quietly deletes that coverage.
         if (signInViaCallback(identity) && isSignedIn(identity)) return true;
         System.out.println("=====SIGNIN callback path did not land; falling back to the UI=====");
-        return signIn(identity);
+        // VERIFY THE IDENTITY on the fallback too, not merely that a session exists.
+        //
+        // `signIn` returns `isSignedIn()` — ANY session — and does so deliberately: it has a branch
+        // for "the picker never appeared because we were already signed in", where being strict
+        // about the name would reject a healthy session whose `/me` had not resolved yet. That
+        // tolerance is correct inside `signIn` and wrong as this function's contract, because
+        // `ensureSignedIn(identity)` promises an ACCOUNT. Without this the fallback could certify
+        // the previous suite's session as this suite's, which is the isolation #2091 exists for.
+        // The iOS twin now does the same.
+        return signIn(identity) && isSignedIn(identity);
     }
 
     /**
