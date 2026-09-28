@@ -116,6 +116,69 @@ describe('popup triggers carry a name Android can read', () => {
   })
 })
 
+/**
+ * The controls a DEVICE has actually caught, pinned so their names cannot be removed.
+ *
+ * This list came back (2026-09-28) after being deleted with the old guard, and the deletion was a
+ * mistake worth explaining, because the reasoning that produced it was half right.
+ *
+ * The old guard used a hand-kept list to do TWO jobs, and it was only bad at one of them. As a
+ * DISCOVERY mechanism it was useless — it found what someone remembered to add, which is why
+ * `views/` was invisible to it until five controls had already shipped unnamed. The repo-wide
+ * `aria-haspopup` rule above replaces that job properly. But the list was also a REGRESSION PIN on
+ * instances a device had measured, and that job it was doing correctly. Deleting both together
+ * left the five controls below guarded by nothing at all.
+ *
+ * Why these specifically, and why the haspopup rule does not reach them: NONE of them carries
+ * `aria-haspopup`, so under that rule alone their `sr-only` spans can be deleted and every check in
+ * this repo stays green. `SavedColorControl`'s five swatches are the sharp case — they were
+ * MEASURED on device as `<UNLABELLED>[ToggleButton]` (see the comment at SavedColorControl.vue) and
+ * they have no `aria-haspopup`, which directly contradicts the OverflowMenu measurement the rule
+ * above is drawn from. Two device measurements disagree and the distinguishing variable is
+ * unidentified.
+ *
+ * When measurements contradict, a guard covers the UNION of the measured failure shapes, not the
+ * intersection — the intersection is only safe if you know which variable separates them, and the
+ * docstring above says plainly that nobody does. Drawing it at the intersection was me resolving a
+ * contradiction in the direction that required less work.
+ *
+ * This costs nothing: every control here ALREADY has its name. The pin only forbids removing one.
+ * It should be deleted when the contradiction is resolved on a device and the general rule can be
+ * widened to cover these for a stated reason. (#2156)
+ */
+const MEASURED_ON_DEVICE = [
+  'components/SavedColorControl.vue',
+  'components/SavedFilterBar.vue',
+  'components/NoteComposer.vue',
+  'components/TranscriptList.vue',
+  'views/CollectionsView.vue',
+  'views/ResurfacingInbox.vue',
+]
+
+describe('controls a device has caught keep their names', () => {
+  for (const file of MEASURED_ON_DEVICE) {
+    it(`${file}: every aria-labelled button still has a readable name`, () => {
+      const src = readFileSync(join(__dirname, '..', file), 'utf8')
+      const labelled = buttonsIn(src).filter((b) => b.attrs.includes('aria-label'))
+      expect(
+        labelled.length,
+        `no aria-labelled buttons found in ${file} — did it move? A pin that matches nothing ` +
+          `passes silently, which is the failure mode this whole file exists to catch.`,
+      ).toBeGreaterThan(0)
+      for (const { body } of labelled) {
+        expect(
+          body.includes('sr-only') || body.includes('{{'),
+          `a button in ${file} has an aria-label and NO readable text. This file is on the pinned ` +
+            `list because a DEVICE reported one of its controls unnamed — SavedColorControl's ` +
+            `swatches came back <UNLABELLED>[ToggleButton] with no aria-haspopup, so the ` +
+            `repo-wide rule above does not cover them. Removing the name here is a regression a ` +
+            `device already paid for once.`,
+        ).toBe(true)
+      }
+    })
+  }
+})
+
 describe('interactive elements keep a reachable accessible name', () => {
   it('the masthead profile link carries text, not just an aria-label', () => {
     // The avatar is aria-hidden by design, so SOMETHING else inside the anchor has to be readable.
