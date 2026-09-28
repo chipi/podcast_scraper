@@ -79,10 +79,20 @@ def events(
     filters = [f"_msg:{_q(event_type)}", f"_time:{window}"]
     if surface:
         filters.append(f"(surface:{_q(surface)} OR component:{_q(surface)})")
+    # SAME TWO SHIPPING PATHS AS ``event_type`` ABOVE, and the field-only filter failed for the
+    # same reason. Under Alloy (prod) ``_msg`` is the raw JSON line and there is no ``run_id``
+    # field, so ``run_id:"…"`` matched nothing: measured 2026-09-28 against a real 50-episode
+    # repair run, where events(run_id=…) returned 0 while the events were plainly in VictoriaLogs
+    # with the id inside ``_msg``. That is worse than an error — the join key documented in
+    # ``server/jobs.py`` ("a single join key across the Jobs API and observability") reported an
+    # empty, healthy-looking result for a run that had emitted hundreds of events.
+    #
+    # Matching field OR phrase covers both paths, exactly as ``surface``/``component`` does: dev
+    # pushes keep real fields, Alloy keeps the id in the message text.
     if run_id:
-        filters.append(f"run_id:{_q(run_id)}")
+        filters.append(f"(run_id:{_q(run_id)} OR _msg:{_q(run_id)})")
     if episode_id:
-        filters.append(f"episode_id:{_q(episode_id)}")
+        filters.append(f"(episode_id:{_q(episode_id)} OR _msg:{_q(episode_id)})")
     query = " AND ".join(filters)
     url = f"{base.rstrip('/')}/select/logsql/query"
     try:
