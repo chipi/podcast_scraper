@@ -1,5 +1,7 @@
 # 96 episodes render zero topic chips, because GI wrote insights into the Topic nodes
 
+**Tracked as [#2164](https://github.com/chipi/podcast_scraper/issues/2164).**
+
 Found from one operator screenshot (2026-09-27): an episode's Insights panel showed
 **"Topics & People · 1"** — a single person chip, no topics at all — on an episode carrying nine
 insights.
