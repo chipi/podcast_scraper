@@ -295,6 +295,27 @@ control that was never going to be there.
 A third of the tier's per-suite cost was navigating to Profile and sleeping, to learn something the
 masthead already displayed.
 
+**A FOURTH, found by getting the refactor partly wrong.** The `sleep(6_000)`s were replaced with
+"two consecutive agreeing reads", which proves STABILITY but not DURATION — two reads a second
+apart both land inside the revalidation window, where boot paints a session and `/me` then refuses
+the token. The old path took ~40s and outlasted that window BY ACCIDENT, so deleting it exposed a
+race the slack had been hiding. The full tier caught it:
+
+```
+=====CALLBACK signed in as appjourneytests in 1906ms, no Custom Tab=====
+AssertionError: profile tab 'Topics' not tappable. On screen: … Create your free account … Sign in …
+```
+
+Sign-in succeeded, `startClean` believed it, the app signed itself out a few steps later, and the
+failure named a Profile TAB rather than the session. `settles` now requires the answer to hold
+CONTINUOUSLY for 6s — the sleep's guarantee without the navigation, which was the only part that
+was ever waste. `AppJourneyTests` 836.3s/1 failure → 844.7s/OK (8 tests): eight seconds for
+correctness.
+
+The transferable bit: **removing a wait is only safe when you know what the wait was for, and "it
+looks like padding" is not knowing.** The commit that removed it claimed the guarantee was "kept",
+reasoned from the code rather than from a run.
+
 **NOT PROVEN:** that removing the fallback is safe — it needs a run where the callback genuinely
 fails, and there has not been one since the net came off. Nor is the relaunch fix verified; it only
 proves itself the next time a WebView comes up blank.
