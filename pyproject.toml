@@ -59,6 +59,16 @@ dependencies = [
   # chain (SpaStaticFiles → og.build) reaches it, so every context that boots the server (api
   # image, dev, tests) needs it. Pure wheels, no system libs for PNG + bundled-TTF text.
   "pillow>=10.4.0,<13.0.0",
+  # JSON Schema validation for the GI / KG / enrichment artifact + config schemas. CORE, not dev:
+  # FOUR runtime modules import it — `gi/schema.py`, `kg/schema.py`,
+  # `enrichment/config_schema.py`, `server/routes/enrichment_config.py` — and each degrades to a
+  # weaker path when the import fails. It was declared only in the `dev` extra, so the prod images
+  # (api `[otel]`, pipeline `[ml]`/`[llm]`) never carried it and every prod run logged
+  # "jsonschema not installed; using minimal manual validation" — 30 times in one enrichment
+  # session (2026-09-28). Schema enforcement was silently OFF in production for GI and KG
+  # artifacts too, not only the enrichment config, which is why this is core rather than an extra.
+  # Pure-python wheel, no system libs.
+  "jsonschema>=4.26.0,<5.0.0",
   # NOTE: no 3rd-party observability SaaS SDKs here — Sentry/Langfuse are fully
   # optional opt-in extras ([sentry] / [langfuse]); the core no-ops without them.
   # See the [project.optional-dependencies] header + docs/guides/OBSERVABILITY_EXTENSIONS.md.
@@ -301,7 +311,6 @@ dev = [
   "vulture>=2.16,<3.0.0",  # Dead code detection (RFC-031)
   "interrogate>=1.7.0,<2.0.0",  # Docstring coverage (RFC-031)
   "codespell>=2.4.2,<3.0.0",  # Spell checking (RFC-031)
-  "jsonschema>=4.26.0,<5.0.0",  # Full JSON Schema validation for eval/GI/KG artifacts
   "pydeps>=3.0.6,<4.0.0",  # Module dependency visualization (RFC-038, #170)
   "pyan3==2.4.0",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
   "code2flow>=2.5.1,<3.0.0",  # Flowcharts from code (Issue #425)
