@@ -4271,6 +4271,43 @@ def process_transcript_download(
     # If skip_existing is True but generate_summaries is enabled, still return transcript path
     # so summaries can be generated even when transcript exists
     if _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg):
+        # rederive_only: AN EXISTING TRANSCRIPT IS THIS STAGE'S INPUT, NOT A REASON TO SKIP.
+        #
+        # This is the direct-download twin of the branch in ``process_episode_download`` (search
+        # "rederive_only: re-derive cleaning/GI/KG"). That one fixed the no-op for episodes with no
+        # transcript URL; this route kept it, so a feed whose publisher SERVES transcripts could not
+        # be re-derived at all.
+        #
+        # Measured on prod 2026-09-28: a feed-scoped rederive_only over 50 Odd Lots episodes
+        # re-derived 2 and skipped 48. The 2 were the only ones with no transcript URL
+        # (``transcript_source`` unset) — they reached the sibling branch. All 48
+        # ``direct_download`` episodes came through HERE and were dropped, so 48 stale KGs (19 of
+        # them carrying a misspelled duplicate of the host) survived a run that exited 0.
+        #
+        # Why the old path missed them even with ``generate_summaries`` on: the block below globs
+        # ``effective_output_dir`` RUN-LOCALLY, and under ``--single-feed-uses-corpus-layout`` every
+        # run gets a FRESH run dir while the transcript lives in a prior one. So the glob found
+        # nothing and fell through to ``return False`` — the same D7 corpus-vs-run-local blindness
+        # that ``_check_existing_transcript`` was already fixed for, one function over. Resolve it
+        # corpus-wide with the hardened helper instead, which also rejects metadata
+        # presence-markers and derivative files and preserves the real transcript_source.
+        if cfg.pipeline_stage == "rederive_only":
+            reused, reused_source = _resolve_existing_transcript_for_rederive(
+                episode, cfg, effective_output_dir, run_suffix
+            )
+            if reused is not None:
+                logger.info(
+                    "[%s] rederive_only: re-deriving from existing transcript %s",
+                    episode.idx,
+                    reused,
+                )
+                return True, reused, reused_source, 0
+            logger.warning(
+                "[%s] rederive_only: episode is recorded as present but no usable transcript was "
+                "found for it; nothing to re-derive. It will NOT be counted as processed.",
+                episode.idx,
+            )
+            return False, None, None, 0
         if cfg.generate_summaries:
             # Find existing transcript file to return its path for summarization.
             # Resolve the on-disk idx by STABLE guid — episode.idx shifts when the feed grows, so

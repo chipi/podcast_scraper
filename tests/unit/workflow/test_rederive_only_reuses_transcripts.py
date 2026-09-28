@@ -87,6 +87,10 @@ def _cfg(corpus, **over):
         prefer_types=[],
         delay_ms=0,
         metadata_format="json",
+        dry_run=False,
+        generate_summaries=True,
+        single_feed_uses_corpus_layout=False,
+        require_transcript_speakers=False,
     )
     base.update(over)
     return SimpleNamespace(**base)
@@ -209,3 +213,102 @@ class TestProcessEpisodeDownloadQueuesTheCascade:
             None,
         )
         assert called["n"] == 0, "rederive_only must never reach the transcription branch"
+
+
+class TestTheDirectDownloadRouteAlsoReDerives:
+    """The OTHER download route. Everything above tests an episode with no transcript URL.
+
+    THE GAP THIS CLOSES (prod, 2026-09-28). ``process_episode_download`` has the reuse branch the
+    tests above cover — but it calls ``process_transcript_download`` FIRST for any episode whose
+    publisher serves a transcript, and returns that result directly. So for a direct-download feed
+    the reuse branch is never reached, and ``process_transcript_download`` had no equivalent: it
+    called ``_check_existing_transcript`` (which correctly finds the episode CORPUS-WIDE, so →
+    skip), then looked for the transcript RUN-LOCALLY in ``effective_output_dir``. Under
+    ``--single-feed-uses-corpus-layout`` every run gets a fresh run dir while the transcript lives
+    in a prior one, so the glob missed and it returned ``(False, None, None, 0)``.
+
+    Measured: a feed-scoped ``rederive_only`` over 50 Odd Lots episodes re-derived 2 and skipped
+    48. The 2 were the only ones with no transcript URL — they reached the sibling branch. 48 stale
+    KGs survived a run that exited 0, 19 of them carrying a misspelled duplicate of the host.
+
+    The fresh-run-dir detail is load-bearing: pass the PRIOR run dir as ``effective_output_dir``
+    and the old run-local glob accidentally passes.
+    """
+
+    @staticmethod
+    def _episode_with_transcript_url(guid: str = "guid-1"):
+        ep_obj = _episode(guid)
+        ep_obj.transcript_urls = [
+            SimpleNamespace(url="https://example.com/ep1.vtt", type="text/vtt")
+        ]
+        return ep_obj
+
+    def test_a_published_transcript_episode_is_re_derived_not_skipped(
+        self, corpus, tmp_path, monkeypatch
+    ):
+        """The regression: returns success + the on-disk transcript, without downloading."""
+        monkeypatch.setattr(
+            ep.run_index, "corpus_root_from_cfg", lambda cfg: str(corpus.root), raising=False
+        )
+
+        def _no_network(*a, **k):  # pragma: no cover — must never be reached
+            raise AssertionError("rederive_only must not fetch the publisher transcript")
+
+        monkeypatch.setattr(ep, "_fetch_transcript_content", _no_network)
+
+        fresh_run = corpus.feed / "run_20260928-133000"
+        (fresh_run / "transcripts").mkdir(parents=True)
+
+        success, path, source, downloaded = ep.process_transcript_download(
+            self._episode_with_transcript_url(),
+            "https://example.com/ep1.vtt",
+            "text/vtt",
+            _cfg(corpus, generate_summaries=True, single_feed_uses_corpus_layout=True),
+            str(fresh_run),
+            "20260928-133000",
+        )
+        assert success is True, "the episode must be re-derived, not skipped"
+        assert path is not None and str(path).endswith((".txt", ".vtt", ".srt"))
+        assert source in ("direct_download", "whisper_transcription")
+        assert downloaded == 0, "no bytes: the transcript came off disk"
+
+    def test_a_missing_transcript_is_a_loud_failure_not_a_quiet_success(
+        self, corpus, tmp_path, monkeypatch
+    ):
+        """Symmetry with the sibling route — nothing to re-derive must not look like success."""
+        monkeypatch.setattr(
+            ep.run_index, "corpus_root_from_cfg", lambda cfg: str(corpus.root), raising=False
+        )
+        monkeypatch.setattr(ep, "_check_existing_transcript", lambda *a, **k: True)
+        monkeypatch.setattr(
+            ep, "_resolve_existing_transcript_for_rederive", lambda *a, **k: (None, None)
+        )
+        fresh_run = corpus.feed / "run_20260928-134000"
+        (fresh_run / "transcripts").mkdir(parents=True)
+        success, path, source, _b = ep.process_transcript_download(
+            self._episode_with_transcript_url(),
+            "https://example.com/ep1.vtt",
+            "text/vtt",
+            _cfg(corpus, generate_summaries=True, single_feed_uses_corpus_layout=True),
+            str(fresh_run),
+            "20260928-134000",
+        )
+        assert success is False and path is None and source is None
+
+    def test_a_non_rederive_stage_keeps_its_old_skip_behaviour(self, corpus, tmp_path, monkeypatch):
+        """The fix must be scoped: a normal run still skips an already-present episode."""
+        monkeypatch.setattr(
+            ep.run_index, "corpus_root_from_cfg", lambda cfg: str(corpus.root), raising=False
+        )
+        monkeypatch.setattr(ep, "_check_existing_transcript", lambda *a, **k: True)
+        fresh_run = corpus.feed / "run_20260928-135000"
+        (fresh_run / "transcripts").mkdir(parents=True)
+        success, _p, _s, _b = ep.process_transcript_download(
+            self._episode_with_transcript_url(),
+            "https://example.com/ep1.vtt",
+            "text/vtt",
+            _cfg(corpus, pipeline_stage=None, generate_summaries=True),
+            str(fresh_run),
+            "20260928-135000",
+        )
+        assert success is False, "a full run must still skip a present episode run-locally"
