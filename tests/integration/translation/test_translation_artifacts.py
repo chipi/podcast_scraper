@@ -445,3 +445,70 @@ class TestAdFreeOnEnglish:
         assert resolve_units_for_span(segs, first["char_start"], first["char_end"]) == [
             first["unit_id"]
         ]
+
+
+class TestTheManifestCarriesWhatS210Needs:
+    """S2.10 sizes capacity from the manifest, so the numbers have to be IN it.
+
+    Cost is a measured zero on local GPU, so recording cost alone would record nothing. What
+    makes capacity answerable is per-episode UNITS and TOKENS — facts that only exist at the
+    per-unit hook, since an episode makes 200-250 calls through it.
+    """
+
+    def test_the_translation_block_records_units_and_the_packing_shape(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _lay_down_spanish_episode(tmp_path)
+        _run(monkeypatch, tmp_path, cfg, _StubProvider())
+
+        manifest = json.loads(
+            (tmp_path / "transcripts" / "p10_e01.manifest.json").read_text(encoding="utf-8")
+        )
+        metrics = manifest["stages"]["translation"]["metrics"]
+        assert metrics["status"] == "translated"
+        assert metrics["units"] > 0
+        assert metrics["units_failed"] == 0
+        assert metrics["attempts_total"] >= metrics["units"]
+        # The packing shape, which is what explains a slow episode.
+        assert metrics["packed_units"] == metrics["units"]
+        assert metrics["packed_sentences"] >= metrics["packed_units"]
+        assert "packed_backchannel_units" in metrics
+        assert metrics["packed_oversized_units"] == 0
+
+    def test_a_failed_episode_records_which_units_failed(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Bounded to 20 ids: enough to find the pattern, not an unbounded list in every
+        manifest."""
+        _lay_down_spanish_episode(tmp_path)
+        _run(monkeypatch, tmp_path, cfg, _StubProvider(fail_units=("t0001.u01",)))
+
+        manifest = json.loads(
+            (tmp_path / "transcripts" / "p10_e01.manifest.json").read_text(encoding="utf-8")
+        )
+        metrics = manifest["stages"]["translation"]["metrics"]
+        assert metrics["status"] == "failed"
+        assert metrics["units_failed"] == 1
+        assert metrics["failed_unit_ids"] == ["t0001.u01"]
+
+    def test_the_alignment_fallback_is_counted(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Coarser subtitle granularity is not a failure, but it has to be countable — a corpus
+        where it happens often needs a different unit strategy, and nobody would know."""
+        _lay_down_spanish_episode(tmp_path)
+
+        class _BlockStub(_StubProvider):
+            def translate_unit(self, unit: Any, **kw: Any):
+                return {
+                    "sentences": [{"sent_id": unit.sentences[0].sent_id, "en_text": "EN block"}],
+                    "alignment": "unit",
+                    "metadata": {"attempts": 3},
+                }
+
+        _run(monkeypatch, tmp_path, cfg, _BlockStub())
+        manifest = json.loads(
+            (tmp_path / "transcripts" / "p10_e01.manifest.json").read_text(encoding="utf-8")
+        )
+        metrics = manifest["stages"]["translation"]["metrics"]
+        assert metrics["alignment_unit_fallbacks"] == metrics["units"] > 0
