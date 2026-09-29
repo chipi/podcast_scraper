@@ -372,8 +372,17 @@ def test_precedence_when_both_segment_sidecars_exist(tmp_path: Path) -> None:
 
     # TIMELINE reader takes the raw variant: the player streams unbridged audio, so the
     # ad-free sidecar (one segment short here, minutes short in reality) would drift it.
+    # S2.1b puts the English sidecar ahead of both — a LANGUAGE choice, not a timing one, since
+    # the English render carries the source segments' times. The contract this test exists for
+    # is RAW-before-AD-FREE, so that is asserted on the source-language candidates directly
+    # rather than being read off position 0 where an added head can quietly displace it.
     order = segments_relpaths_for_transcript(rel)
-    assert order[0] == "transcripts/e01.segments.json"
+    assert order[0] == "transcripts/e01.en.segments.json"
+    source_order = [c for c in order if ".en." not in c]
+    assert source_order[0] == "transcripts/e01.segments.json"
+    assert source_order.index("transcripts/e01.segments.json") < source_order.index(
+        "transcripts/e01.adfree.segments.json"
+    )
     assert _first_existing(run_root, order) == "transcripts/e01.segments.json"
 
     # The two really do land on different files for the same episode. That is the whole
@@ -503,16 +512,57 @@ def test_golden_catches_the_adfree_fallback_being_deleted(
 
     real = tr.text_relpath_candidates
 
-    def first_choice_only(relpath, *, purpose, include_cleaned=False):  # type: ignore[no-untyped-def]
-        got = real(relpath, purpose=purpose, include_cleaned=include_cleaned)
-        return got[:1]
+    def first_source_choice_only(relpath, *, purpose, include_cleaned=False):  # type: ignore[no-untyped-def]
+        """Keep the English head and the FIRST source-language candidate, dropping the fallback.
 
-    monkeypatch.setattr(tr, "text_relpath_candidates", first_choice_only)
+        Truncating to ``got[:1]`` — what this did before S2.1b — now also removes the English
+        head's successor, so all 80 episodes break instead of the 40 that actually depend on the
+        fallback, and the number stops meaning anything. An injected fault has to be the one the
+        test names, and nothing else.
+        """
+        got = real(relpath, purpose=purpose, include_cleaned=include_cleaned)
+        english = [c for c in got if ".en." in c]
+        source = [c for c in got if ".en." not in c]
+        return english + source[:1]
+
+    monkeypatch.setattr(tr, "text_relpath_candidates", first_source_choice_only)
     moved = _moved_fields(_build(), _committed())
     assert moved, "deleting the fallback moved nothing — the golden is not load-bearing"
     # Every ANALYSIS reader loses the raw fallback on the corpus with no ad-free bodies.
     assert "A1A2_gi_kg" in moved
     assert moved["A1A2_gi_kg"] == 40
+
+
+def test_the_english_branch_is_inert_on_this_corpus(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S2.1b's pure-addition claim, at corpus scale: remove the English head, nothing moves.
+
+    Every one of the 80 episodes resolves to exactly the file it resolved to before the English
+    branch existed, because none of them has a ``.en.*`` artifact — translation does not run yet.
+    That is the claim S2.1b is allowed to make and no more, so this asserts precisely it.
+
+    NOT COVERAGE OF THE ENGLISH BRANCH. An inert branch and a broken one look identical here.
+    What the branch does when the files DO exist is covered by
+    ``test_transcript_resolution.TestTheEnglishBranch``, which writes real ``.en.*`` bodies.
+
+    THIS TEST IS A TRIPWIRE. The moment a fixture episode gains ``.en.*`` artifacts, removing the
+    head will move rows and this will fail — which is the signal to convert it into a real
+    two-language golden rather than to relax it.
+    """
+    from podcast_scraper.workflow import transcript_resolution as tr
+
+    real = tr.text_relpath_candidates
+
+    def source_candidates_only(relpath, *, purpose, include_cleaned=False):  # type: ignore[no-untyped-def]
+        got = real(relpath, purpose=purpose, include_cleaned=include_cleaned)
+        return [c for c in got if ".en." not in c]
+
+    monkeypatch.setattr(tr, "text_relpath_candidates", source_candidates_only)
+    built = _build()
+    committed = _committed()
+    moved = _moved_fields(built, committed)
+    # The candidate-ORDER rows legitimately shrink (that is the head being removed). Every row
+    # that names a RESOLVED path must be untouched.
+    assert set(moved) <= {"B1_player_segments_order"}, moved
 
 
 def test_golden_catches_the_gi_load_fix_being_reverted(

@@ -13,6 +13,8 @@ import pytest
 
 from podcast_scraper.workflow.transcript_resolution import (
     adfree_transcript_relpath,
+    english_adfree_transcript_relpath,
+    english_transcript_relpath,
     load_processing_transcript,
     load_transcript,
     resolve_segments_path,
@@ -39,24 +41,35 @@ def _write(root: Path, rel: str, payload: object) -> None:
 class TestCandidateOrder:
     """Pure ordering — the part that must NOT consult the disk, so it can be reasoned about."""
 
-    def test_analysis_prefers_adfree(self) -> None:
+    def test_analysis_prefers_english_adfree_then_source_adfree(self) -> None:
         assert text_relpath_candidates(_REL, purpose=TranscriptPurpose.ANALYSIS) == [
+            "transcripts/01 - ep.en.adfree.txt",
             "transcripts/01 - ep.adfree.txt",
             "transcripts/01 - ep.txt",
         ]
 
-    def test_timeline_prefers_raw(self) -> None:
+    def test_timeline_prefers_english_raw_then_source_raw(self) -> None:
         assert text_relpath_candidates(_REL, purpose=TranscriptPurpose.TIMELINE) == [
+            "transcripts/01 - ep.en.txt",
             "transcripts/01 - ep.txt",
             "transcripts/01 - ep.adfree.txt",
         ]
 
-    def test_the_two_purposes_are_exact_opposites(self) -> None:
-        """If these ever agree, the reason the resolver takes a purpose has evaporated."""
+    def test_the_two_purposes_are_exact_opposites_within_one_language(self) -> None:
+        """If these ever agree, the reason the resolver takes a purpose has evaporated.
+
+        The literal `analysis == reversed(timeline)` no longer holds once the English branch
+        exists, and that is correct rather than a weakening: the English head selects a
+        LANGUAGE while the purpose selects a COORDINATE SPACE, so the lists stop being mirror
+        images. Drop the English candidates and the original invariant is intact — which is the
+        part that was ever load-bearing.
+        """
         analysis = text_relpath_candidates(_REL, purpose=TranscriptPurpose.ANALYSIS)
         timeline = text_relpath_candidates(_REL, purpose=TranscriptPurpose.TIMELINE)
-        assert analysis == list(reversed(timeline))
         assert analysis[0] != timeline[0]
+
+        source_only = [c for c in analysis if ".en." not in c]
+        assert source_only == list(reversed([c for c in timeline if ".en." not in c]))
 
     def test_cleaned_is_a_middle_candidate_never_a_first_choice(self) -> None:
         """The recurrent-host scan wants it; nobody wants it ahead of a real body."""
@@ -64,6 +77,7 @@ class TestCandidateOrder:
             _REL, purpose=TranscriptPurpose.ANALYSIS, include_cleaned=True
         )
         assert got == [
+            "transcripts/01 - ep.en.adfree.txt",
             "transcripts/01 - ep.adfree.txt",
             "transcripts/01 - ep.cleaned.txt",
             "transcripts/01 - ep.txt",
@@ -71,10 +85,12 @@ class TestCandidateOrder:
 
     def test_segments_candidates_follow_the_body_order(self) -> None:
         assert segments_relpath_candidates(_REL, purpose=TranscriptPurpose.ANALYSIS) == [
+            "transcripts/01 - ep.en.adfree.segments.json",
             "transcripts/01 - ep.adfree.segments.json",
             "transcripts/01 - ep.segments.json",
         ]
         assert segments_relpath_candidates(_REL, purpose=TranscriptPurpose.TIMELINE) == [
+            "transcripts/01 - ep.en.segments.json",
             "transcripts/01 - ep.segments.json",
             "transcripts/01 - ep.adfree.segments.json",
         ]
@@ -99,16 +115,127 @@ class TestCandidateOrder:
         stores the plain ``.txt``), so this changes no live behaviour; it defines an input
         that previously produced a contradiction.
         """
-        for given in ("transcripts/01 - ep.adfree.txt", "transcripts/01 - ep.cleaned.txt"):
+        given_paths = (
+            "transcripts/01 - ep.adfree.txt",
+            "transcripts/01 - ep.cleaned.txt",
+            # The suffixes STACK, so canonicalizing has to strip all of them. Stripping only the
+            # outermost would leave `01 - ep.en`, whose candidates resolve to nothing at all.
+            "transcripts/01 - ep.en.txt",
+            "transcripts/01 - ep.en.adfree.txt",
+        )
+        for given in given_paths:
             assert text_relpath_candidates(given, purpose=TranscriptPurpose.ANALYSIS) == [
+                "transcripts/01 - ep.en.adfree.txt",
                 "transcripts/01 - ep.adfree.txt",
                 "transcripts/01 - ep.txt",
-            ]
+            ], given
 
     def test_backslashes_are_normalized(self) -> None:
         assert text_relpath_candidates(
             "transcripts\\01 - ep.txt", purpose=TranscriptPurpose.TIMELINE
-        ) == ["transcripts/01 - ep.txt", "transcripts/01 - ep.adfree.txt"]
+        ) == [
+            "transcripts/01 - ep.en.txt",
+            "transcripts/01 - ep.txt",
+            "transcripts/01 - ep.adfree.txt",
+        ]
+
+
+class TestTheEnglishBranch:
+    """S2.1b. The branch that makes an English-normalized intelligence layer possible.
+
+    Every test here writes real files, because the whole question is which of several bodies on
+    disk a reader ends up holding — and holding the wrong one is not a degradation, it is an
+    English NLP stage reading Spanish and being confidently wrong about it (§5.2).
+    """
+
+    def test_it_is_a_pure_addition_when_no_english_exists(self, tmp_path: Path) -> None:
+        """The claim S2.1b rests on, checked rather than assumed.
+
+        For an episode with no ``.en.*`` on disk — every episode in the corpus today — both
+        purposes must resolve to exactly the file they resolved to before this branch existed.
+        The candidate LIST is longer; the answer is identical.
+        """
+        _write(tmp_path, _REL, "raw")
+        _write(tmp_path, "transcripts/01 - ep.adfree.txt", "adfree")
+
+        assert (
+            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.ANALYSIS)
+            == tmp_path / "transcripts/01 - ep.adfree.txt"
+        )
+        assert (
+            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.TIMELINE) == tmp_path / _REL
+        )
+
+    def test_analysis_takes_the_english_adfree_body_when_it_exists(self, tmp_path: Path) -> None:
+        for rel in (_REL, "transcripts/01 - ep.adfree.txt", "transcripts/01 - ep.en.txt"):
+            _write(tmp_path, rel, rel)
+        _write(tmp_path, "transcripts/01 - ep.en.adfree.txt", "english adfree")
+
+        assert (
+            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.ANALYSIS)
+            == tmp_path / "transcripts/01 - ep.en.adfree.txt"
+        )
+
+    def test_timeline_takes_the_english_raw_body_when_it_exists(self, tmp_path: Path) -> None:
+        """TIMELINE is about the unbridged audio timeline, and the English render carries the
+        source segments' times — so English-first here is a language choice, not a time one."""
+        for rel in (_REL, "transcripts/01 - ep.adfree.txt", "transcripts/01 - ep.en.adfree.txt"):
+            _write(tmp_path, rel, rel)
+        _write(tmp_path, "transcripts/01 - ep.en.txt", "english raw")
+
+        assert (
+            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.TIMELINE)
+            == tmp_path / "transcripts/01 - ep.en.txt"
+        )
+
+    def test_analysis_does_not_degrade_to_an_ad_laden_english_body(self, tmp_path: Path) -> None:
+        """The deliberate gap in the precedence.
+
+        With ``.en.txt`` present but ``.en.adfree.txt`` missing, ANALYSIS takes the SOURCE
+        ad-free text rather than the English one with its ads still in. Falling back to
+        ``.en.txt`` would put ad text into the space GI's offsets index, which is the coordinate
+        space this purpose exists to protect. S2.5 writes the English set atomically so the state
+        does not occur; this pins what happens if it ever does.
+        """
+        _write(tmp_path, _REL, "raw")
+        _write(tmp_path, "transcripts/01 - ep.adfree.txt", "source adfree")
+        _write(tmp_path, "transcripts/01 - ep.en.txt", "english raw WITH ads")
+
+        assert (
+            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.ANALYSIS)
+            == tmp_path / "transcripts/01 - ep.adfree.txt"
+        )
+
+    def test_the_sidecar_follows_the_english_body_that_was_loaded(self, tmp_path: Path) -> None:
+        """The displacement bug in its newest shape: English text with source-language segments.
+
+        ``load_transcript`` derives the sidecar from the body it actually resolved. If it instead
+        reached for a fixed name, an English body would come back paired with the source
+        language's segments, and every quote's speaker and timing would be read out of a
+        different text than the one the offsets index.
+        """
+        _write(tmp_path, _REL, "Maya: Hola.")
+        _write(tmp_path, "transcripts/01 - ep.segments.json", [{"text": "Hola.", "start": 0.0}])
+        _write(tmp_path, "transcripts/01 - ep.en.txt", "Maya: Hello.")
+        _write(
+            tmp_path,
+            "transcripts/01 - ep.en.segments.json",
+            [{"text": "Hello.", "start": 0.0}],
+        )
+
+        loaded = load_transcript(tmp_path, _REL, purpose=TranscriptPurpose.TIMELINE)
+        assert loaded.text == "Maya: Hello."
+        assert loaded.segments is not None
+        assert loaded.segments[0]["text"] == "Hello."
+
+    def test_english_relpath_helpers(self) -> None:
+        assert english_transcript_relpath(_REL) == "transcripts/01 - ep.en.txt"
+        assert english_adfree_transcript_relpath(_REL) == "transcripts/01 - ep.en.adfree.txt"
+        # `.en` goes BEFORE `.adfree`, so the ad-free helper composes on top of the English one
+        # and there is exactly one spelling of each of the four bodies.
+        assert adfree_transcript_relpath(english_transcript_relpath(_REL)) == (
+            english_adfree_transcript_relpath(_REL)
+        )
 
 
 class TestResolutionAgainstDisk:

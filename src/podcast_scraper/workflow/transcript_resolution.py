@@ -43,6 +43,12 @@ logger = logging.getLogger(__name__)
 ADFREE_SUFFIX = ".adfree"
 CLEANED_SUFFIX = ".cleaned"
 
+#: The English-derived variant (RFC-124 / S2.1b). Inserted BEFORE ``.adfree``, so the four bodies
+#: an episode can have are ``<base>.txt``, ``<base>.adfree.txt``, ``<base>.en.txt`` and
+#: ``<base>.en.adfree.txt`` -- source-language canonical, source-language ad-free, English
+#: canonical, English ad-free.
+EN_SUFFIX = ".en"
+
 PathLike = Union[str, "os.PathLike[str]"]
 
 
@@ -64,6 +70,17 @@ def adfree_transcript_relpath(transcript_relpath: str) -> str:
     """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.adfree.txt``."""
     base, ext = os.path.splitext(transcript_relpath)
     return f"{base}{ADFREE_SUFFIX}{ext or '.txt'}"
+
+
+def english_transcript_relpath(transcript_relpath: str) -> str:
+    """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.en.txt``."""
+    base, ext = os.path.splitext(transcript_relpath)
+    return f"{base}{EN_SUFFIX}{ext or '.txt'}"
+
+
+def english_adfree_transcript_relpath(transcript_relpath: str) -> str:
+    """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.en.adfree.txt``."""
+    return adfree_transcript_relpath(english_transcript_relpath(transcript_relpath))
 
 
 def _cleaned_transcript_relpath(transcript_relpath: str) -> str:
@@ -88,10 +105,18 @@ def _canonical_relpath(transcript_relpath: str) -> str:
     if not rel:
         return ""
     base, ext = os.path.splitext(rel)
-    for suffix in (ADFREE_SUFFIX, CLEANED_SUFFIX):
-        if base.lower().endswith(suffix):
-            return f"{base[: -len(suffix)]}{ext or '.txt'}"
-    return rel
+    # Strip REPEATEDLY, because the suffixes stack: ``ep1.en.adfree.txt`` has to canonicalize all
+    # the way to ``ep1.txt``. Stripping only the outermost one (what this did before the English
+    # branch existed) would leave ``ep1.en``, whose candidate list is built off the wrong base and
+    # resolves nothing -- the quiet kind of failure, since every candidate simply fails to exist.
+    changed = True
+    while changed:
+        changed = False
+        for suffix in (ADFREE_SUFFIX, CLEANED_SUFFIX, EN_SUFFIX):
+            if base.lower().endswith(suffix):
+                base = base[: -len(suffix)]
+                changed = True
+    return f"{base}{ext or '.txt'}" if base else rel
 
 
 def text_relpath_candidates(
@@ -105,6 +130,17 @@ def text_relpath_candidates(
     ``include_cleaned`` inserts ``.cleaned.txt`` as a middle candidate. It is not a third
     purpose: the cleaned body is the summariser's byproduct and only one reader wants it
     (the recurrent-host scan, which will take any rendering with the ads gone).
+
+    THE ENGLISH HEAD IS A PURE PREPEND (S2.1b). Each list gains one English candidate at the
+    front and its existing tail is untouched, so for an episode with no ``.en.*`` on disk the
+    resolved path is exactly what it was before this branch existed. That is why the resolver
+    needs no ``multilingual_ingest`` check: the flag gates whether the English files are ever
+    PRODUCED, and a candidate that does not exist costs one ``is_file()``.
+
+    ANALYSIS DOES NOT FALL BACK FROM ``.en.adfree.txt`` TO ``.en.txt``. Doing so would put an
+    ad-laden English body into the space GI's offsets index. The English artifact set is written
+    atomically (S2.5), so the intermediate state does not occur; if it somehow did, the honest
+    fallback is the source-language ad-free text, which is at least in the right coordinate space.
     """
     rel = _canonical_relpath(transcript_relpath)
     if not rel:
@@ -112,8 +148,8 @@ def text_relpath_candidates(
     adfree = adfree_transcript_relpath(rel)
     cleaned = [_cleaned_transcript_relpath(rel)] if include_cleaned else []
     if purpose is TranscriptPurpose.ANALYSIS:
-        return [adfree, *cleaned, rel]
-    return [rel, *cleaned, adfree]
+        return [english_adfree_transcript_relpath(rel), adfree, *cleaned, rel]
+    return [english_transcript_relpath(rel), rel, *cleaned, adfree]
 
 
 def segments_relpath_candidates(
