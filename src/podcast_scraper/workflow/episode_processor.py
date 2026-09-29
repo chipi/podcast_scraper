@@ -1137,8 +1137,15 @@ def _produce_transcript_sidecars(
     if not isinstance(segments, list) or not segments:
         return
 
+    # S2.7: the SOURCE ad-free base is only built for an English episode. `_AD_PATTERNS` are
+    # English regexes, so on a Spanish transcript they match nothing and the result is an
+    # IDENTITY artifact — a file asserting ads were removed when the patterns could not see
+    # them. Measured on the V.6a fixture: zero pattern hits on the Spanish source against two
+    # on its English render. The ad-free base for a translated episode is `.en.adfree.*`,
+    # built by the translation stage after the render exists (S2.5).
+    language = transcription_language(cfg)
     adfree_artifacts = None
-    if cfg.save_adfree_transcript:
+    if cfg.save_adfree_transcript and (language is None or language == "en"):
         from .adfree_transcript import produce_adfree_artifacts
 
         produced = produce_adfree_artifacts(
@@ -1151,6 +1158,14 @@ def _produce_transcript_sidecars(
         if produced is not None:
             adfree_rel, adfree_artifacts = produced
             logger.info("    saved ad-free transcript base: %s", adfree_rel)
+    elif cfg.save_adfree_transcript:
+        logger.info(
+            "    ad-free base SKIPPED for a %s episode: the ad patterns are English, so the "
+            "result would be an identity artifact. The ad-free base is built on the English "
+            "render instead (S2.5).",
+            language,
+        )
+        _invalidate_english_artifacts(rel_transcript_path, effective_output_dir)
 
     _write_turns_artifacts(
         cfg,
@@ -1161,6 +1176,40 @@ def _produce_transcript_sidecars(
         adfree=adfree_artifacts,
         episode=episode,
     )
+
+
+def _invalidate_english_artifacts(rel_transcript_path: str, effective_output_dir: str) -> None:
+    """Delete every `.en.*` derivative when the SOURCE transcript has just been rewritten (S2.7).
+
+    WHY DELETE RATHER THAN LEAVE STALE. The resolver keys on file PRESENCE with no status check
+    and D-38 makes `.en.txt` the default everything reads, so a stale English body outlives the
+    source it was translated from and is served as current — with char offsets that now index
+    different text. That is the displacement bug with a time axis.
+
+    `translation.json` is deliberately KEPT. It is the content-keyed translation memory (D-33):
+    a relabel changes every offset but no unit's text, so the ledger still answers for most
+    units and the re-render costs no GPU. Deleting it would turn the most common repair in this
+    corpus into a full re-translation.
+    """
+    import os as _os
+
+    base, ext = _os.path.splitext(rel_transcript_path)
+    for rel in (
+        f"{base}.en{ext or '.txt'}",
+        f"{base}.en.segments.json",
+        f"{base}.en.adfree{ext or '.txt'}",
+        f"{base}.en.adfree.segments.json",
+        f"{base}.en.adfree.admap.json",
+        f"{base}.en.turns.json",
+    ):
+        path = _os.path.join(effective_output_dir, rel)
+        try:
+            _os.remove(path)
+            logger.info("    invalidated stale English artifact: %s", rel)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            logger.warning("    could not invalidate %s: %s", rel, exc)
 
 
 def _write_turns_artifacts(
