@@ -251,6 +251,12 @@ public class NativeCapabilityTests extends UITestCase {
      * twice in a row on the strength of the node's own state.
      */
     private void clickVoiceInputToggleOnce() {
+        // CLOSE THE CARD FIRST. This is only ever called after `openComposerAndFindMic` has opened a
+        // person/topic card, and those cards render over everything — so the masthead tap that
+        // `openSettings` makes first landed on the card, reported success, and left the app on Home
+        // (`SETTINGS_NAV attempt 1 profileTap=true reachedProfile=false`, ~2.5 min per miss). The
+        // iOS twin never hit it: it goes to Settings BEFORE opening the card.
+        Journey.dismissCards();
         boolean settingsOpen = Journey.openSettings(profileLabels());
         if (!settingsOpen) {
             fail("could not reach Settings. On screen: " + Journey.labelledInventory(80));

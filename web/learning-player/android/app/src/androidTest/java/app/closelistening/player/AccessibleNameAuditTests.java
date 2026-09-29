@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiObject2;
+import androidx.test.uiautomator.Until;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -293,35 +294,19 @@ public class AccessibleNameAuditTests extends UITestCase {
         // Profile and Settings are reached through the masthead avatar, which is why they need this
         // suite's own labels: the link is named `auth.user?.name || t('profile.title')`, so for a
         // per-class identity the generic string is NOT what is on screen.
-        audit("Profile", Journey.openProfile(profileLabels()), findings);
-        // PROFILE ▸ TOPICS IS EXCLUDED, and this is a real open defect rather than a tidy-up.
-        //
-        // Walking it reports "15 of 29 nodes went stale mid-read" on roughly half of runs — always
-        // exactly 15 of 29 when it fires, so a fixed subset of controls is being destroyed and
-        // recreated while the surface is read. That is a genuine app behaviour worth fixing: a
-        // control recreated after load drops focus, moves a screen reader's position, and can
-        // swallow a tap already in flight.
-        //
-        // It is excluded rather than tolerated because the alternative is a suite that is red half
-        // the time, which trains everyone to ignore it — and NOT silently, because a silent
-        // exclusion is how this audit came to walk five surfaces while an issue claimed it covered
-        // the app.
-        //
-        // THE CAUSE IS NOT KNOWN. A first diagnosis blamed the dynamic tag at ProfileView.vue:641
-        // (`:is="i.openId ? 'button' : 'span'"`) flipping when `getStorylines()` resolves. That is
-        // WRONG: `load()` assigns interests, clusters and storylines together out of one
-        // `Promise.all` (ProfileView.vue:226-247), so there is no window where `openId` resolves
-        // late. Do not re-derive that theory. Candidates not yet tested: `onActivated` firing a
-        // second `load()` while the walk is in progress, and the Topics tab's own content
-        // re-rendering. Restore this line once the churn is settled — the surface has never been
-        // audited, so whatever names it holds are still unknown.
-        //
-        // UPDATE 2026-09-29 — the "15 of 29" is NOT app churn, on either tab. Profile ▸ Account has
-        // exactly 29 clickable nodes, and exactly 15 of them live only in the Account panel (Compact,
-        // Full, the twelve delivery checkboxes, Sign out). A diagnostic pre-pass recorded that. The
-        // walk was reading ACCOUNT, because "opened" was only the tap returning true; the tab switch
-        // landed mid-walk, `v-show` hid those 15, and they went stale. Measured on Stats, which
-        // failed the same way. So arrival is now verified: the Account panel has to be gone.
+        // ARRIVAL, not the tap's return value: a swallowed tap would re-audit the previous surface and
+        // report it clean. "Account" is Profile's own tab.
+        audit("Profile", Journey.openProfile(profileLabels())
+                && Journey.find("Account", false, 8_000) != null, findings);
+        // PROFILE TABS ARE AUDITED ONLY ONCE THEY HAVE ARRIVED. Topics was excluded for "15 of 29
+        // nodes went stale mid-read" on roughly half of runs, blamed on app churn. It was not churn:
+        // Profile ▸ Account has exactly 29 clickable nodes and exactly 15 of them live only in the
+        // Account panel (Compact, Full, the twelve delivery checkboxes, Sign out). The walk read
+        // ACCOUNT, because "opened" was only the tap returning true; the tab switch landed mid-walk,
+        // `v-show` hid those 15, and they went stale. Measured 2026-09-29 with a diagnostic pre-pass,
+        // on Stats, which failed the same way. So arrival is verified: the tab's own heading is on
+        // screen and the Account panel's "Sign out" is not.
+        audit("Profile ▸ Topics", openProfileTab("Topics", "Interest topics"), findings);
         audit("Profile ▸ Stats", openProfileTab("Stats", "Your activity"), findings);
 
         // Settings verifies by ARRIVING (Journey.openSettings), not by the tap returning true.
@@ -335,7 +320,10 @@ public class AccessibleNameAuditTests extends UITestCase {
         for (String bad : unusableOn("player")) findings.add("[player] " + bad);
 
         // The overflow, open — its items are only in the tree while the panel is rendered.
-        audit("player ⋯", Journey.tap("More actions", false, 15_000), findings);
+        // ARRIVAL again: the menu's items surface as `android.view.MenuItem`, whatever they are called.
+        audit("player ⋯", Journey.tap("More actions", false, 15_000)
+                && Journey.device().wait(Until.hasObject(By.pkg(Journey.PKG).clazz("android.view.MenuItem")),
+                        8_000), findings);
 
         // THE INSIGHTS PANEL AND ITS NOTE COMPOSER. `NoteComposer` is one of the components the
         // static guard lists, and no device suite has ever audited the names on the surface it

@@ -75,8 +75,8 @@ public abstract class UITestCase {
      */
     protected boolean startClean() {
         AppSession.relaunch();
-        // SIGN IN FIRST, then normalise the device switch — the opposite order to the iOS twin, on
-        // purpose. The offline switch lives in Settings, Settings is reached through the masthead
+        // SIGN IN FIRST, then normalise the device switch — the same order as the iOS twin, pinned by
+        // the drift ledger ("startClean signs in BEFORE normalising the offline switch"). The offline switch lives in Settings, Settings is reached through the masthead
         // avatar, and the avatar only exists when there IS a session. So a signed-out app cannot
         // reach the switch at all, and putting it first spends about a minute of swipes and
         // timeouts discovering that on every single test.

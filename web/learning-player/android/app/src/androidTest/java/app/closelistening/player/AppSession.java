@@ -472,9 +472,17 @@ final class AppSession {
                 }
                 String loc = c.getHeaderField("Location");
                 c.disconnect();
-                if (loc == null) return null;
+                // EVERY null names the hop it stopped at, as the iOS twin does ("CALLBACK mint
+                // stopped at <url>"); only the exception path used to, so a mint that ended on a
+                // non-redirect or an unexpected Location failed with nothing to explain it.
+                if (loc == null) {
+                    Journey.mark("=====MINT stopped at " + url + ": HTTP " + c.getResponseCode()
+                            + " with no Location=====");
+                    return null;
+                }
                 if (loc.startsWith("closelistening://")) {
                     int at = loc.indexOf("#token=");
+                    if (at < 0) Journey.mark("=====MINT callback carried no token: " + loc + "=====");
                     return at < 0 ? null : loc.substring(at + "#token=".length());
                 }
                 // PROTOCOL-RELATIVE FIRST. `//host/path` starts with "/" too, so the path branch
@@ -487,6 +495,7 @@ final class AppSession {
                 } else if (loc.startsWith("http")) {
                     url = loc;
                 } else {
+                    Journey.mark("=====MINT stopped at " + url + ": unrecognised Location " + loc + "=====");
                     return null;
                 }
             } catch (Throwable t) {
@@ -494,6 +503,7 @@ final class AppSession {
                 return null;
             }
         }
+        Journey.mark("=====MINT gave up after 6 redirects, last at " + url + "=====");
         return null;
     }
 
