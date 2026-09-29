@@ -159,6 +159,17 @@ def _repetition_signal(text: str, n: int = 12) -> Tuple[int, str]:
 _SPEAKER_DESCRIPTION_MAX_CHARS = 8_000
 
 
+def _kg_reply_snippet(raw: str, head: int = 300, tail: int = 200) -> str:
+    """A bounded, log-safe view of a model reply: whole if short, else head + tail.
+
+    Enough to tell a truncated JSON, a prose answer, a fenced block or an empty reply apart, without
+    writing a multi-kilobyte reply into every failure line.
+    """
+    if len(raw) <= head + tail:
+        return repr(raw)
+    return f"{raw[:head]!r} … [{len(raw) - head - tail} chars] … {raw[-tail:]!r}"
+
+
 def _clip_speaker_description(description: Optional[str], episode_title: str = "") -> str:
     """Bound the description so speaker detection cannot overflow the context window.
 
@@ -2783,6 +2794,9 @@ class OpenAICompatibleProvider:
             ner_entity_hints=(params or {}).get("ner_entity_hints"),
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
+        # Kept outside the try so a failure can say WHAT the model sent back (see the except below).
+        raw: Optional[str] = None
+        finish_reason: Optional[str] = None
         try:
             from ...utils.provider_metrics import (
                 _safe_openai_retryable,
@@ -2830,10 +2844,37 @@ class OpenAICompatibleProvider:
             # 2026-08-24 cost audit: KG extraction fed the metrics aggregate above but
             # emitted no llm_cost event — invisible in per-call cost telemetry.
             self._emit_stage_cost(stage="kg", capability="kg", model=model, response=response)
-            raw = (response.choices[0].message.content or "").strip()
-            return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
+            choice = response.choices[0]
+            raw = (choice.message.content or "").strip()
+            finish_reason = getattr(choice, "finish_reason", None)
+            parsed = parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
+            if not parsed or not (parsed.get("topics") or parsed.get("entities")):
+                # A reply arrived and yielded nothing. Downstream this only reads as "no topics",
+                # so say here what the model actually returned.
+                logger.warning(
+                    "kg: %s returned no usable topics/entities "
+                    "(finish_reason=%s, reply %d chars): %s",
+                    model,
+                    finish_reason,
+                    len(raw),
+                    _kg_reply_snippet(raw),
+                )
+            return parsed
         except Exception as e:
-            logger.debug("OpenAI extract_kg_graph failed: %s", e, exc_info=True)
+            # WARNING, not DEBUG (2026-09-29): three episodes failed KG extraction twice in prod and
+            # the only trace anywhere was "produced no topics/entities" — this handler had eaten the
+            # reason at DEBUG. The same episodes extracted cleanly 3/3 in isolation, so the cause
+            # lived in exactly the detail this line used to hide. Behaviour is unchanged (still
+            # None, so the fallback chain and "no topics" path run as before); only visibility is.
+            logger.warning(
+                "kg: extract_kg_graph failed on %s (%s: %s; finish_reason=%s): reply=%s",
+                model,
+                type(e).__name__,
+                e,
+                finish_reason,
+                "<none received>" if raw is None else _kg_reply_snippet(raw),
+            )
+            logger.debug("OpenAI extract_kg_graph traceback", exc_info=True)
             return None
 
     def extract_quotes(
