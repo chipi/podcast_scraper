@@ -1368,6 +1368,16 @@ corpus-completeness-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
 
+# Phase 0 gate (#2175): what language is every episode in, and WHERE did that answer come from?
+# READ-ONLY. Non-zero exit when the report cannot be trusted as a measurement of the CORPUS --
+# specifically when NO episode resolved from 'rss', which means it measured the run configuration
+# instead (the same shape as capability_audit's "0/36 openings, defect rate 0.0%"). Finding a
+# non-English episode is a RESULT, not a failure. Run AFTER the m0011 backfill, and before S0.6:
+# after S0.6 a feed whose RSS says `de` is genuinely transcribed as German. CORPUS_DIR required.
+corpus-language-audit:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_language_audit import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
 # Repair gate for #1655: list every episode still carrying a pre-#1657 placeholder insight
 # ("Summary insight (stub).") instead of real GI. Non-zero exit if ANY remain. Run it TWICE —
 # before the repair to size the work-list, and after to prove the repair landed. Those episodes
