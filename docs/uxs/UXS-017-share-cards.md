@@ -35,7 +35,7 @@ generated frame**. Quote-led editorial layout (operator pick over stat-led / typ
 ### Tokens (default dark theme — `theme/directions.css`)
 
 | Role | Value |
-|---|---|
+| --- | --- |
 | Canvas (bg) | `#07090a` |
 | Foreground | `#d6e2d8` |
 | Muted | `#7f958a` |
@@ -54,7 +54,7 @@ precisely three things: the short **hairline** under the title, the one **live s
 
 ### Layout (portrait 1080×1440, padding 96)
 
-```
+```text
 KICKER            ← mono, muted, tracked, uppercase ("TOPIC" / "EPISODE · CROSS-SHOW")
 Title             ← Georgia serif, ~92px, wrapped
 ──                ← teal hairline (the accent)

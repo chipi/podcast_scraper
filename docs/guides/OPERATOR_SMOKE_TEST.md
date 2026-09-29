@@ -34,19 +34,23 @@ that gets deleted when its arc ends. The smoke job drives
 ## 4. What to validate
 
 ### 4a. Unauthed (keep existing, already green in spirit)
+
 - Public (no creds) sees coming-soon; `login-button` absent.
 - Preview users reach the login wall (`Sign in to explore the knowledge graph`).
 - Sign-in 307→Google with HTTPS operator `redirect_uri`.
 - `/api/health` 200.
 
 ### 4b. Authed as **creator** (NEW — minted-session test account)
+
 The operator surface is read-only, so unlike the player there is **no reversible-write** round-trip; we assert **authenticated reads succeed (200, not 401/403)** across the creator-visible plane:
+
 - `/api/app/me` → 200, `role ∈ {creator, admin}`.
 - A representative slice of `_OPERATOR_PUBLIC_READ_ROUTES` returns 200 with well-formed bodies: `corpus_digest`, `corpus_library`, `corpus_metrics`, `corpus_coverage`, `index_stats`, `search` (a trivial query), `corpus_trending`. (Pick the cheap, always-present ones; avoid heavy binary/media.)
 - **Negative guard:** the *player* per-user routes and the *admin-only* routes behave correctly for a creator (see 4d).
 - One **UI** check (cookie auth): past `/preview`, the SPA boots into the viewer (digest or graph shell visible), NOT the login wall.
 
 ### 4c. Authed as **admin** — DROPPED (2026-08-27 decision)
+
 We deliberately do **not** mint an admin session in CI. An admin token from a CI secret that can read
 the admin/user-management plane (`/api/app/admin/users` returns user emails) is needless overhead + a
 security gap for a smoke. A **creator** token already proves the surface works AND that the admin
@@ -54,6 +58,7 @@ boundary holds (4d). If admin-surface coverage is ever wanted, it belongs in sta
 provider), not a prod smoke.
 
 ### 4d. Role-boundary guard (the operator-specific value)
+
 - creator token → operator read routes **200**; admin-only route **403** (asserted with the *creator*
   token — the denial is the assertion; no admin token minted).
 
@@ -78,6 +83,7 @@ Uses the **stored opaque `u_…` id**, not the email (same gotcha proven on the 
 ## 7. Wiring into the deploy (close the gap)
 
 Add a gating `smoke` job to `deploy-operator.yml`, mirroring `deploy-player.yml`:
+
 - `needs: deploy`, `if: needs.deploy.result == 'success'`, `working-directory: web/gi-kg-viewer`.
 - `npm ci` → `playwright install --with-deps chromium` → `npm run test:e2e:live`.
 - env: `LIVE_BASE_URL=https://${OPERATOR_DOMAIN}`, `OPERATOR_PREVIEW_USER`, `OPERATOR_PREVIEW_PASS` (→ `PLAYER_PREVIEW_PASS`), `PLAYER_APP_SESSION_SECRET`, `OPERATOR_SMOKE_CREATOR_USER_ID`, `OPERATOR_SMOKE_ADMIN_USER_ID`.
