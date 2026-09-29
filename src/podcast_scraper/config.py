@@ -1961,6 +1961,33 @@ class Config(BaseModel):
         description="vLLM OpenAI-compatible base URL (e.g. http://<dgx>:8003/v1). Set explicitly "
         "by DGX profiles; no env fallback (unlike openai_api_base) to avoid a stale-env route.",
     )
+    # --- translation (#2169, Gate V) --------------------------------------------------------
+    # A SECOND vLLM, co-resident with the summary one rather than swapped against it: an
+    # episode needs translation and summarization in the same pipeline pass, so the homelab
+    # runs TranslateGemma-12B on its own port (:8005) alongside the 30B on :8003.
+    # `gpu-mode-swap.sh prod` brings both up; the tailnet ACL grants :8005 to tag:prod.
+    #
+    # Separate fields rather than reusing vllm_api_base, because both endpoints are live at
+    # once -- one base URL cannot address two models on different ports, and overloading it
+    # would make "which model answered" unanswerable from the config.
+    translate_api_base: Optional[str] = Field(
+        default=None,
+        alias="translate_api_base",
+        description="Translation vLLM OpenAI-compatible base URL (e.g. http://<dgx>:8005/v1). "
+        "Set explicitly by DGX profiles; no env fallback, matching vllm_api_base.",
+    )
+    translate_api_key: Optional[str] = Field(
+        default=None,
+        alias="translate_api_key",
+        description="Bearer for the translation endpoint. Usually unset — the stack accepts "
+        "`Bearer EMPTY`, mirroring prod-vllm.",
+    )
+    translate_model: Optional[str] = Field(
+        default=None,
+        alias="translate_model",
+        description="Translation model id as served (e.g. google/translategemma-12b-it, or "
+        "the `translate` alias). Pin the real HF id so the served model is verifiable.",
+    )
     vllm_api_key: Optional[str] = Field(
         default=None,
         alias="vllm_api_key",
