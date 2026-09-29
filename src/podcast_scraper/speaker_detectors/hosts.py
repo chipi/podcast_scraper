@@ -529,9 +529,22 @@ def detect_hosts_from_transcript_intro(
     nlp: Optional[Any] = None,
     intro_duration_seconds: int = 120,
     words_per_second: float = 2.5,
+    text_language: Optional[str] = None,
 ) -> Set[str]:
-    """Detect host names from transcript intro patterns (first 60-120 seconds)."""
+    """Detect host names from transcript intro patterns (first 60-120 seconds).
+
+    ``text_language`` is the S2.14 guard: the cue regexes below are English (``I'm X``,
+    ``Welcome to … I'm X``) and the NER model is ``en_core_web_sm``, so on non-English prose
+    this does not find nothing — measured on the V.6a Spanish fixture, recall held at 2/2 while
+    precision fell from 67% to 18%. A missing name is visible; a wrong one becomes a person.
+    Left ``None`` the guard does not engage, which is the pre-existing behaviour for every
+    caller that has no language to offer.
+    """
     if not transcript_text or not nlp:
+        return set()
+    from ..languages_guard import refuse_non_english
+
+    if refuse_non_english("transcript-intro host detection", text_language):
         return set()
 
     intro_word_count = int(intro_duration_seconds * words_per_second)
