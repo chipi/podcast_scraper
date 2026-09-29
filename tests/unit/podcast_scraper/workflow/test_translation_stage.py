@@ -103,17 +103,19 @@ class TestTheDecision:
 
 
 class TestTheLedgerEntry:
-    def test_an_english_episode_gets_NO_block(self, tmp_path: Path) -> None:
-        """The one outcome that is decided and then deliberately not written down.
+    def test_an_english_episode_records_the_stage_as_having_found_nothing(
+        self, tmp_path: Path
+    ) -> None:
+        """ONE PIPELINE. A stage that found nothing to do says so; it does not vanish.
 
-        S0.10's guard measured why: recording a block is what moves
-        ``pipeline_composition_version``, which "reprocess below version X" and the prod-state
-        pin key on. For 678 English episodes that is a corpus-wide hash change buying a
-        distinction with no consumer — there was never anything translation could have done to
-        an English episode, and ``episode.language`` already says so.
+        This asserted the opposite for one slice. The reasoning then was that withholding the
+        block keeps ``pipeline_composition_version`` from moving on the 678 English episodes
+        already on disk. That was backwards twice over: the hash exists to say which pipeline
+        shape produced an episode, so it moving is it working — and withholding made the hash a
+        function of the EPISODE'S LANGUAGE instead of the code, so two episodes off the same
+        commit hashed differently because one was Spanish.
 
-        The arc's S2.2 row originally said the opposite ("every English episode's ledger gains
-        translation: skipped") and was corrected to this.
+        ``ran=False`` carries the real fact: the stage ran, and there was nothing to translate.
         """
         (tmp_path / "transcripts").mkdir()
         outcome = run_translation_stage(
@@ -124,10 +126,17 @@ class TestTheLedgerEntry:
         )
         assert outcome.status == STATUS_SKIPPED
         assert outcome.reason == REASON_ALREADY_ENGLISH
-        assert not (tmp_path / "transcripts" / "01 - ep.manifest.json").exists()
+        assert outcome.ran is False
 
-    def test_every_other_outcome_IS_written(self, tmp_path: Path) -> None:
-        """So the silence above is a choice, not an inability to write.
+        block = json.loads((tmp_path / "transcripts" / "01 - ep.manifest.json").read_text())[
+            "stages"
+        ]["translation"]
+        assert block["ran"] is False
+        assert block["metrics"]["reason"] == REASON_ALREADY_ENGLISH
+        assert block["metrics"]["source_language"] == "en"
+
+    def test_a_non_english_episode_records_it_the_same_way(self, tmp_path: Path) -> None:
+        """The same block, a different reason. The SHAPE must not vary by language.
 
         `flag_off` matters most here: non-English episodes seen while the flag was off are the
         population the rollout is sized against, and nothing else in the corpus records them.
@@ -162,6 +171,34 @@ class TestTheLedgerEntry:
         metrics = data["stages"]["translation"]["metrics"]
         assert metrics["status"] == STATUS_PENDING
         assert metrics["source_language"] == "es"
+
+    def test_the_block_has_the_SAME_SHAPE_in_every_language(self, tmp_path: Path) -> None:
+        """The invariant the per-language record broke, asserted at the stage that writes it.
+
+        There is one pipeline. Two episodes off the same commit must produce the same manifest
+        SHAPE — the same stage keys, the same metric keys — and differ only in the VALUES those
+        keys carry. A shape that varies with content is what made `pipeline_composition_version`
+        disagree with itself across languages.
+        """
+        shapes = {}
+        for language in ("en", "es", "de"):
+            out = tmp_path / language
+            (out / "transcripts").mkdir(parents=True)
+            run_translation_stage(
+                _cfg(language=language),
+                transcript_relpath=REL,
+                effective_output_dir=str(out),
+            )
+            data = json.loads((out / "transcripts" / "01 - ep.manifest.json").read_text())
+            block = data["stages"]["translation"]
+            shapes[language] = (
+                sorted(data["stages"]),
+                sorted(block),
+                sorted(block["metrics"]),
+            )
+
+        assert shapes["en"] == shapes["es"] == shapes["de"], shapes
+        assert "translation" in shapes["en"][0]
 
     def test_a_manifest_write_failure_does_not_lose_the_episode(self, tmp_path: Path) -> None:
         """No `transcripts/` directory, so the write fails. The decision still comes back."""

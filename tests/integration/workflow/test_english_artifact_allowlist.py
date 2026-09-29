@@ -49,7 +49,19 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, cast, Dict, get_args, get_origin, Iterator, List, Set, Type, Union
+from typing import (
+    Any,
+    cast,
+    Dict,
+    get_args,
+    get_origin,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Type,
+    Union,
+)
 
 import pytest
 from pydantic import BaseModel
@@ -89,26 +101,28 @@ ALLOWLIST: frozenset[str] = frozenset(
 #: by a reprocessing decision — `pipeline_composition_version` is what "reprocess below version
 #: X" and the prod-state pin key on.
 #:
-#: ``translation`` is deliberately ABSENT: an English episode records no translation block, which
-#: is what keeps its composition hash where it was (see ``TestCompositionVersion``). A non-English
-#: episode does get one, and that episode's hash differs — correctly, because its pipeline ran a
-#: different set of stages.
+#: THE STAGES THE PIPELINE RECORDS. Not "the English stages" — there is no such thing. One
+#: pipeline runs for every episode in every language, and a stage that finds nothing to do on a
+#: given episode records that it found nothing rather than vanishing from the ledger. Naming this
+#: `_ENGLISH_STAGES` is what made a per-language stage set look reasonable for one slice.
 #:
-#: ``turns`` (RFC-123 / S1.2) is here because an English episode records it, but it is
-#: deliberately NOT in ``CANONICAL_STAGE_ORDER`` — so the composition hash below is unchanged by
-#: its presence, which is the whole point and is asserted directly in
-#: ``test_the_turns_block_does_not_move_the_composition_hash``.
+#: ``translation`` is therefore HERE, and an English episode records it with ``ran=False``.
+#:
+#: ``turns`` (RFC-123 / S1.2) is here too, but is deliberately NOT in ``CANONICAL_STAGE_ORDER``
+#: — it is a structural view of an artifact rather than a stage in the graph, so it does not
+#: enter the composition hash. Asserted directly in ``TestCompositionVersion``.
 #:
 #: WHAT THIS LIST CANNOT DO. It is pinned literally, so it pins the shape of the stages it is
 #: TOLD about — it does not discover the pipeline's actual stage set. When S1.2 started writing a
 #: `turns` block this guard stayed green until the list was edited by hand. That is a real limit
 #: of the instrument, recorded here rather than left to be rediscovered: adding a stage requires
 #: editing this line, and nothing fails if you forget.
-_ENGLISH_STAGES: tuple[str, ...] = (
+_PIPELINE_STAGES: tuple[str, ...] = (
     "asr",
     "diarization",
     "naming",
     "turns",
+    "translation",
     "summary",
     "gi",
     "kg",
@@ -180,6 +194,15 @@ def _metadata_key_paths(
     return out
 
 
+def _stage_metrics(stage: str) -> Optional[Dict[str, Any]]:
+    """The real metrics for the stages that report any; ``None`` for the rest."""
+    if stage == "turns":
+        return _turns_metrics()
+    if stage == "translation":
+        return _translation_metrics()
+    return None
+
+
 def _turns_metrics() -> Dict[str, Any]:
     """The real ``turns`` metrics shape, from the reporter the pipeline uses (RFC-123 §Monitoring).
 
@@ -202,7 +225,23 @@ def _turns_metrics() -> Dict[str, Any]:
     )
 
 
-def _generated_manifest(stages: tuple[str, ...] = _ENGLISH_STAGES) -> Dict[str, Any]:
+def _translation_metrics() -> Dict[str, Any]:
+    """The real ``translation`` metrics shape, from the stage's own reporter (RFC-124 / S2.2).
+
+    Built from an English episode's outcome, because that is the one every episode in the
+    corpus produces today — the stage ran and found nothing to translate.
+    """
+    from podcast_scraper.workflow.translation_stage import TranslationOutcome
+
+    return TranslationOutcome(
+        status="skipped",
+        source_language="en",
+        language_source="profile_default",
+        reason="already_english",
+    ).to_metrics()
+
+
+def _generated_manifest(stages: tuple[str, ...] = _PIPELINE_STAGES) -> Dict[str, Any]:
     """A manifest built the way the pipeline builds one, in a throwaway directory."""
     with tempfile.TemporaryDirectory() as d:
         rel = "transcripts/01 - ep.txt"
@@ -215,9 +254,9 @@ def _generated_manifest(stages: tuple[str, ...] = _ENGLISH_STAGES) -> Dict[str, 
                 pm.stage_block(
                     ran=True,
                     method_version=f"{stage}-1",
-                    # The turns block carries metrics, and a block whose metrics are absent pins
-                    # three key paths instead of ten — so it is built from the real reporter.
-                    metrics=_turns_metrics() if stage == "turns" else None,
+                    # A block whose metrics are absent pins three key paths instead of ten, so
+                    # every stage that reports metrics is built from its own real reporter.
+                    metrics=_stage_metrics(stage),
                 ),
                 episode_id="ep1",
                 feed_id="f1",
@@ -240,7 +279,7 @@ def _build() -> Dict[str, Any]:
         ),
         "episode_metadata_key_paths": sorted(_metadata_key_paths()),
         "manifest_key_paths": sorted(_manifest_key_paths()),
-        "pipeline_composition_version": pm.pipeline_composition_version(_ENGLISH_STAGES),
+        "pipeline_composition_version": pm.pipeline_composition_version(_PIPELINE_STAGES),
     }
 
 
@@ -292,8 +331,8 @@ class TestArtifactShape:
         every episode in the corpus — invalidating those queries for a sidecar no consumer reads
         yet — so it is excluded there, and this is the assertion that keeps it excluded.
         """
-        core = tuple(s for s in _ENGLISH_STAGES if s != "turns")
-        assert pm.pipeline_composition_version(_ENGLISH_STAGES) == (
+        core = tuple(s for s in _PIPELINE_STAGES if s != "turns")
+        assert pm.pipeline_composition_version(_PIPELINE_STAGES) == (
             pm.pipeline_composition_version(core)
         )
         assert "turns" not in pm.CANONICAL_STAGE_ORDER
@@ -331,143 +370,125 @@ class TestArtifactShape:
 class TestCompositionVersion:
     """The hash `reprocess below version X` and the prod-state pin key on.
 
-    Corrected from the issue's original framing, which named the wrong lever.
     `pipeline_composition_version` is NOT simply "the stages present": it intersects the
-    recorded stage keys with `CANONICAL_STAGE_ORDER`, so there are TWO gates and a stage must
-    pass both to affect the hash.
+    recorded stage keys with `CANONICAL_STAGE_ORDER`, so a stage must pass both gates to
+    affect the hash.
+
+    THIS CLASS PREVIOUSLY ENCODED THE OPPOSITE OF WHAT IT NOW ASSERTS, and the correction is
+    the point of the rewrite. It used to say the "safe shape" for Phase 2 was to declare
+    `translation` in the order but never RECORD it for an English episode, so the English
+    hash would not move. That advice was mine, written in Phase 0, and in S2.2 I cited it back
+    as though it were an independent measurement and let it override the arc's plan. It was an
+    opinion in the shape of a test.
+
+    It was also wrong on the merits. There is ONE pipeline — ASR, diarization, naming,
+    translation, summary, GI, KG — and it runs for every episode in every language. Withholding
+    the record made the hash a function of the EPISODE'S LANGUAGE instead of the code: two
+    episodes off the same commit hashed differently because one was Spanish. A provenance hash
+    that varies with content is not a stable hash, it is a broken one.
     """
 
-    def test_the_english_stage_graph_hash_is_pinned(self) -> None:
+    def test_the_stage_graph_hash_is_pinned(self) -> None:
         assert (
-            pm.pipeline_composition_version(_ENGLISH_STAGES)
+            pm.pipeline_composition_version(_PIPELINE_STAGES)
             == _baseline()["pipeline_composition_version"]
         )
+
+    def test_the_hash_does_not_depend_on_the_episodes_language(self) -> None:
+        """THE INVARIANT THIS CLASS EXISTS FOR, and the one that would have caught the defect.
+
+        Same code, same pipeline, different episode language — the composition hash must be
+        identical, because the pipeline is identical. Driven through the real
+        `run_translation_stage` and a real written manifest, not through set arithmetic, since
+        the claim is about what the pipeline WRITES.
+        """
+        from podcast_scraper import config
+        from podcast_scraper.workflow.translation_stage import run_translation_stage
+
+        def hash_for(language: str) -> str:
+            with tempfile.TemporaryDirectory() as d:
+                rel = "transcripts/01 - ep.txt"
+                (Path(d) / "transcripts").mkdir(parents=True)
+                for stage in (s for s in _PIPELINE_STAGES if s != "translation"):
+                    pm.update_stage(d, rel, stage, pm.stage_block(ran=True, method_version="x"))
+                run_translation_stage(
+                    config.Config(rss="https://e.com/f.xml", language=language),
+                    transcript_relpath=rel,
+                    effective_output_dir=d,
+                )
+                data = json.loads(Path(pm.manifest_path(d, rel)).read_text(encoding="utf-8"))
+                return str(data["pipeline_composition_version"])
+
+        assert hash_for("en") == hash_for("es") == _baseline()["pipeline_composition_version"]
+
+    def test_every_language_records_the_translation_stage(self) -> None:
+        """The mechanism behind the invariant above, so a regression names its own cause.
+
+        An English episode records `translation` with `ran=False` — the stage ran and found
+        nothing to do. That is a RESULT. Absence would have meant "this episode predates the
+        translation stage", which is the measured-vs-defaulted confusion `language_source`
+        exists to prevent.
+        """
+        from podcast_scraper import config
+        from podcast_scraper.workflow.translation_stage import run_translation_stage
+
+        for language, expected_reason in (("en", "already_english"), ("es", "flag_off")):
+            with tempfile.TemporaryDirectory() as d:
+                rel = "transcripts/01 - ep.txt"
+                (Path(d) / "transcripts").mkdir(parents=True)
+                run_translation_stage(
+                    config.Config(rss="https://e.com/f.xml", language=language),
+                    transcript_relpath=rel,
+                    effective_output_dir=d,
+                )
+                data = json.loads(Path(pm.manifest_path(d, rel)).read_text(encoding="utf-8"))
+
+            block = data["stages"]["translation"]
+            assert block["ran"] is False, language
+            assert block["metrics"]["reason"] == expected_reason
+            assert block["metrics"]["source_language"] == language
 
     def test_a_stage_outside_the_canonical_order_cannot_move_the_hash(self) -> None:
-        """Gate one. Recording a stage changes nothing while it is not in the tuple.
-
-        The example used to be ``translation``. S2.2 put translation IN the tuple deliberately
-        (a pipeline with a translation step is not the pipeline without one), so the example is
-        now ``turns`` — which is outside the tuple, also deliberately, for the opposite reason:
-        it is a structural view of an artifact rather than a stage in the graph.
-        """
+        """Gate one. `turns` is outside the tuple deliberately — it is a structural view of an
+        artifact, not a stage in the graph — so recording it changes nothing."""
         assert "turns" not in pm.CANONICAL_STAGE_ORDER
         assert pm.pipeline_composition_version(
-            [*_ENGLISH_STAGES, "turns"]
-        ) == pm.pipeline_composition_version(_ENGLISH_STAGES)
+            [*_PIPELINE_STAGES, "turns"]
+        ) == pm.pipeline_composition_version(_PIPELINE_STAGES)
 
-    def test_declaring_the_stage_but_never_recording_it_is_the_safe_shape(self) -> None:
-        """Gate two, and the shape Phase 2 DID adopt — no longer a recommendation.
+    def test_a_stage_leaving_the_recorded_set_does_move_the_hash(self) -> None:
+        """Gate two, and the inverse that makes the pin mean something.
 
-        ``translation`` is declared in ``CANONICAL_STAGE_ORDER`` as of S2.2, and that alone is
-        harmless: the hash for an English episode only moves if the stage is RECORDED for it,
-        including recorded as skipped. So ``translation_stage`` does not write a block when the
-        reason is ``already_english``, and the arc's S2.2 text ("every English episode's ledger
-        gains translation: skipped") was corrected to match this measurement.
-
-        The monkeypatch is gone because the stage is really in the tuple now — the assertion is
-        against the shipped order, not a simulated one.
+        A test that only ever confirms "unchanged" cannot tell a stable hash from one that never
+        moves at all. Dropping a real stage from the recorded set must move it.
         """
-        assert "translation" in pm.CANONICAL_STAGE_ORDER
-        assert (
-            pm.pipeline_composition_version(_ENGLISH_STAGES)
-            == _baseline()["pipeline_composition_version"]
-        )
-
-    def test_the_english_episode_really_gets_no_translation_block(self) -> None:
-        """The decision above, asserted through the stage itself rather than about it.
-
-        Gate two is only safe while the writer actually declines to write. This drives the real
-        ``run_translation_stage`` for an English episode and requires the manifest to come back
-        with no ``translation`` key and the pinned English hash intact.
-        """
-        from podcast_scraper import config
-        from podcast_scraper.workflow.translation_stage import run_translation_stage
-
-        with tempfile.TemporaryDirectory() as d:
-            rel = "transcripts/01 - ep.txt"
-            (Path(d) / "transcripts").mkdir(parents=True)
-            for stage in _ENGLISH_STAGES:
-                pm.update_stage(d, rel, stage, pm.stage_block(ran=True, method_version="x"))
-
-            run_translation_stage(
-                config.Config(rss="https://e.com/f.xml", language="en"),
-                transcript_relpath=rel,
-                effective_output_dir=d,
-            )
-            data = json.loads(Path(pm.manifest_path(d, rel)).read_text(encoding="utf-8"))
-
-        assert "translation" not in data["stages"]
-        assert data["pipeline_composition_version"] == _baseline()["pipeline_composition_version"]
-
-    def test_a_non_english_episode_does_get_one(self) -> None:
-        """The inverse, so the decision above is a choice and not an inability to write.
-
-        A stage that never records anything would pass the test above for the wrong reason.
-        """
-        from podcast_scraper import config
-        from podcast_scraper.workflow.translation_stage import run_translation_stage
-
-        with tempfile.TemporaryDirectory() as d:
-            rel = "transcripts/01 - ep.txt"
-            (Path(d) / "transcripts").mkdir(parents=True)
-            run_translation_stage(
-                config.Config(rss="https://e.com/f.xml", language="es"),
-                transcript_relpath=rel,
-                effective_output_dir=d,
-            )
-            data = json.loads(Path(pm.manifest_path(d, rel)).read_text(encoding="utf-8"))
-
-        assert data["stages"]["translation"]["metrics"]["source_language"] == "es"
-        assert data["stages"]["translation"]["metrics"]["reason"] == "flag_off"
-
-    def test_recording_the_stage_does_move_the_hash(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The inverse, so the pin above means something.
-
-        A test that only ever confirms "unchanged" cannot distinguish a stable hash from a hash
-        that never moves at all.
-        """
-        monkeypatch.setattr(pm, "CANONICAL_STAGE_ORDER", (*pm.CANONICAL_STAGE_ORDER, "translation"))
-        assert (
-            pm.pipeline_composition_version([*_ENGLISH_STAGES, "translation"])
-            != _baseline()["pipeline_composition_version"]
-        )
-
-    def test_recording_a_stage_as_ran_false_still_moves_the_hash(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """The trap, demonstrated end to end through a real written manifest.
-
-        `stage_block(ran=False)` is the obvious way to record "this stage was skipped", and it
-        appears NOWHERE in `src/` or `tests/` today — so translation would be the first use.
-        It is also precisely wrong here: the hash keys on the stage being **present in the
-        recorded set**, and `ran` is just a field inside the block. Recording a skipped
-        translation therefore moves the composition hash for every English episode.
-
-        Asserted through `update_stage` rather than by calling the hash function with a hand-made
-        list, because the claim is about what the pipeline WRITES, not about set arithmetic.
-        """
-        monkeypatch.setattr(pm, "CANONICAL_STAGE_ORDER", (*pm.CANONICAL_STAGE_ORDER, "translation"))
         pinned = _baseline()["pipeline_composition_version"]
+        without_translation = [s for s in _PIPELINE_STAGES if s != "translation"]
+        assert pm.pipeline_composition_version(without_translation) != pinned
 
+    def test_ran_false_does_not_keep_a_stage_out_of_the_hash(self) -> None:
+        """The mechanic the old advice was built on, kept because it is still true and still
+        surprising: the hash keys on the stage being PRESENT in the recorded set, and `ran` is
+        just a field inside the block.
+
+        What changed is the conclusion drawn from it. It used to read as "therefore do not
+        record a skipped stage"; it now reads as "therefore recording it is what puts the stage
+        in the graph, which is exactly what we want it to say."
+        """
         with tempfile.TemporaryDirectory() as d:
             rel = "transcripts/01 - ep.txt"
             (Path(d) / "transcripts").mkdir(parents=True)
-            for stage in _ENGLISH_STAGES:
+            for stage in (s for s in _PIPELINE_STAGES if s != "translation"):
                 pm.update_stage(d, rel, stage, pm.stage_block(ran=True, method_version="x"))
             path = Path(pm.manifest_path(d, rel))
             before = json.loads(path.read_text(encoding="utf-8"))
-            assert before["pipeline_composition_version"] == pinned, "English baseline intact"
 
-            # The one line Phase 2 must not write for an English episode.
             pm.update_stage(d, rel, "translation", pm.stage_block(ran=False))
             after = json.loads(path.read_text(encoding="utf-8"))
 
         assert after["stages"]["translation"]["ran"] is False, "recorded, and honestly skipped"
-        assert after["pipeline_composition_version"] != pinned, (
-            "a stage recorded as ran=False still entered the hash — which is the whole point: "
-            "`ran` does not keep it out"
-        )
+        assert after["pipeline_composition_version"] != before["pipeline_composition_version"]
+        assert after["pipeline_composition_version"] == _baseline()["pipeline_composition_version"]
 
 
 class TestTheCheckFires:

@@ -14,24 +14,32 @@ and the deadline accounting. It performs no translation — S2.3 brings the vLLM
 the artifacts. So a non-English episode with the flag on records ``pending`` here, which is the
 honest state: the pipeline knows it owes a translation and has not produced one.
 
-WHICH EPISODES GET A LEDGER ENTRY, AND WHY NOT ALL OF THEM. Every outcome is recorded EXCEPT
-``already_english``. The arc's S2.2 text says "every English episode's ledger gains
-``translation: skipped``"; S0.10's guard, written later and against a measurement, says the
-opposite — ``test_declaring_the_stage_but_never_recording_it_is_the_safe_shape``:
+EVERY EPISODE GETS A LEDGER ENTRY. THERE IS ONE PIPELINE, NOT A PER-LANGUAGE ONE.
 
-    Adding ``"translation"`` to ``CANONICAL_STAGE_ORDER`` is harmless on its own. The hash for
-    an English episode only moves if the stage is RECORDED for it — including recorded as
-    skipped. So: do not call ``update_stage`` for a skipped translation.
+ASR -> diarization -> naming -> translation -> summary -> GI -> KG runs for every episode in
+every language. Translation is a stage in that graph; on an English episode it runs and finds
+nothing to do, which is a RESULT, not an absence. So the block is written for every outcome,
+``already_english`` included.
 
-The guard wins, because the cost is concrete and the benefit is not. Recording the block for
-678 English episodes moves every one of their ``pipeline_composition_version`` values, which is
-what "reprocess everything below version X" and the prod-state pin key on — and it buys a
-distinction with no consumer, since for an English episode there was never anything translation
-could have done, and ``episode.language`` already says so.
+THIS REVERSES WHAT THIS MODULE DID FIRST, AND THE REVERSAL IS THE CORRECTION. The first version
+withheld the block for English episodes to keep ``pipeline_composition_version`` from moving on
+the 678 English episodes already on disk. Two things were wrong with that:
 
-Every other outcome IS recorded, including ``flag_off``. That population — non-English episodes
-seen while the flag was off — is exactly what the rollout has to be sized against, and it is the
-one thing no other artifact records.
+1. The hash exists to say WHICH PIPELINE SHAPE produced an episode. The pipeline gained a
+   stage, so the hash moving is the hash working. Suppressing the record to hold a provenance
+   value still is falsifying the description to avoid an operational inconvenience — and the
+   inconvenience is real but one-time: a "reprocess below version X" query gets reissued once.
+
+2. Worse, withholding it made the hash a function of the EPISODE'S LANGUAGE rather than of the
+   code. Two episodes off the same commit produced different stage-graph hashes because one was
+   Spanish. That is not a stable hash, it is a broken one, and it would split exactly the
+   queries the hash exists to serve.
+
+``ran`` distinguishes the two facts that remain: ``ran=False`` means the stage ran and produced
+nothing (nothing to translate, flag off), ``ran=True`` means it attempted a translation. The
+stage's PRESENCE says it was part of the pipeline; ``ran`` says what it did. Absence would have
+said neither — which is the same measured-vs-defaulted confusion ``language_source`` exists to
+prevent, one slice after Phase 0 built the machinery to prevent it.
 """
 
 from __future__ import annotations
@@ -193,11 +201,7 @@ def run_translation_stage(
             outcome.reason,
         )
 
-    if (
-        effective_output_dir
-        and transcript_relpath
-        and outcome.reason != REASON_ALREADY_ENGLISH  # see the module docstring
-    ):
+    if effective_output_dir and transcript_relpath:
         _record(
             outcome,
             effective_output_dir=effective_output_dir,

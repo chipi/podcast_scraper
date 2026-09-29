@@ -115,6 +115,13 @@
     "stages.summary.cost_usd",
     "stages.summary.method_version",
     "stages.summary.ran",
+    "stages.translation.cost_usd",
+    "stages.translation.method_version",
+    "stages.translation.metrics.language_source",
+    "stages.translation.metrics.reason",
+    "stages.translation.metrics.source_language",
+    "stages.translation.metrics.status",
+    "stages.translation.ran",
     "stages.turns.cost_usd",
     "stages.turns.method_version",
     "stages.turns.metrics.adfree.backchannels",
@@ -128,5 +135,5 @@
     "stages.turns.ran",
     "updated_at"
   ],
-  "pipeline_composition_version": "pc-dba934bc"
+  "pipeline_composition_version": "pc-cf90c1cf"
 }
