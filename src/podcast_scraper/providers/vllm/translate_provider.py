@@ -1,0 +1,291 @@
+"""GemmaTranslateProvider — TranslateGemma served on the DGX (ADR-156 / RFC-124 S2.3).
+
+A SIBLING of :class:`VLLMProvider`, not a subclass. Both talk to a vLLM endpoint through the
+shared :class:`OpenAICompatibleProvider` transport — so retries, the temperature/context
+self-healing, the per-request timeout bound (#1852/#1894) and the SDK plumbing are inherited,
+not re-implemented — but this one serves a DIFFERENT model on a DIFFERENT port for a DIFFERENT
+operation, with its own config namespace (``translate_*``) and its own telemetry identity.
+
+TWO THINGS DIVERGE FROM EVERY OTHER PROVIDER IN THIS TREE, both forced by the model:
+
+1. **It calls ``/v1/completions``, not ``/v1/chat/completions``.** TranslateGemma's chat template
+   requires structured content — ``{type, source_lang_code, target_lang_code, text}`` — and vLLM
+   strips those custom keys before the template sees them, so the chat route returns HTTP 400
+   (verified against the live service; vLLM does not support custom content fields). The prompt
+   is therefore rendered client-side from the prompt store and posted raw.
+
+2. **The prompt lives in the prompt store, not in this file.** ``shared/translation/
+   translategemma_v1.j2`` is the whole interface to the model, so it gets a SHA256 like every
+   other prompt and that hash goes into the result metadata. A prompt paraphrased from memory
+   once cost a full measurement run: the omitted sentence was "Produce only the English
+   translation, without any additional explanations or commentary", and without it the model
+   returned commentary ("Here's a translation that aims for accuracy and nuance: ...") that
+   would have landed in ``.en.txt`` as though somebody had spoken it.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import time
+from typing import Any, Dict, Optional, Set
+
+from ... import config
+from ...languages import language_registry, normalize_language_tag
+from ...prompts.store import get_prompt_metadata, render_prompt
+from ..openai.openai_provider import OpenAICompatibleProvider
+
+logger = logging.getLogger(__name__)
+
+#: The prompt that defines this provider's contract with the model.
+PROMPT_NAME = "shared/translation/translategemma_v1"
+
+#: ``render_prompt`` strips trailing whitespace, which every other caller wants because their
+#: prompt is a chat MESSAGE. For a raw completions prompt the newline after
+#: ``<start_of_turn>model`` is the generation cue the model was trained on, so it is re-added
+#: here rather than by changing ``render_prompt`` for its other callers.
+_GENERATION_CUE = "\n"
+
+#: vLLM stops at the model turn's end; without this the model runs on into a new user turn.
+_STOP = ["<end_of_turn>"]
+
+#: The model card documents a **2K token** total input context. The served container is
+#: configured with a larger window, which is not the same as the model supporting it: a unit
+#: measured at 4,800 prompt tokens came back as a translation of its FIRST SENTENCE with
+#: ``finish_reason: stop`` — a silent 99% content loss. Unit packing budgets against THIS.
+MODEL_INPUT_TOKEN_LIMIT = 2048
+
+_VLLM_DUMMY_BEARER = "EMPTY"
+
+
+class TranslateServedModelMismatch(RuntimeError):
+    """The endpoint serves a different model than the profile pins (ADR-143/144).
+
+    Fail-closed: a corpus attributed to the wrong translation model cannot be distinguished from
+    a correct one after the fact.
+    """
+
+
+class TranslationUnavailable(RuntimeError):
+    """No translator is configured, so there is nothing to call."""
+
+
+class GemmaTranslateProvider(OpenAICompatibleProvider):
+    """Translate one unit of text with TranslateGemma over a vLLM endpoint."""
+
+    _CONFIG_NS: str = "translate"
+    _TELEMETRY_PROVIDER: str = "gemma_translate"
+    _PROVIDER_LABEL: str = "TranslateGemma"
+
+    def __init__(self, cfg: config.Config):
+        super().__init__(cfg)
+        # Open models do not reject a non-default temperature the way some OpenAI models do.
+        self._temp_fixed_at_default = set()
+        self._served_verified = False
+
+    # -- identity / auth -------------------------------------------------------------------
+    def _authenticate(self, cfg: "config.Config") -> None:
+        """A local vLLM bearer is optional — no required-key validation (ADR-147)."""
+        return None
+
+    def _resolve_api_key(self, cfg: "config.Config") -> Optional[str]:
+        explicit: Optional[str] = getattr(cfg, "translate_api_key", None)
+        if explicit:
+            return explicit
+        env_name: str = getattr(cfg, "translate_api_key_env", None) or "TRANSLATE_API_KEY"
+        from_env = os.getenv(env_name)
+        return from_env or _VLLM_DUMMY_BEARER
+
+    def _token_kwarg(self, n: int, model: Optional[str] = None) -> Dict[str, Any]:
+        return {"max_tokens": n}
+
+    @property
+    def translate_model(self) -> Optional[str]:
+        return getattr(self.cfg, "translate_model", None)
+
+    def is_configured(self) -> bool:
+        return bool(getattr(self.cfg, "translate_api_base", None) and self.translate_model)
+
+    # -- lifecycle -------------------------------------------------------------------------
+    def initialize(self) -> None:
+        """Verify the served model before first use, then the normal init (ADR-147 B3)."""
+        if getattr(self.cfg, "translate_verify_served_model", True):
+            self._verify_served_model()
+        super().initialize()
+
+    def _verify_served_model(self) -> None:
+        """Mismatch raises; UNREACHABLE only warns.
+
+        Unreachable is not a mismatch — the real call surfaces connectivity anyway, and hard
+        failing here would make importing this module offline impossible.
+        """
+        if self._served_verified or not self.is_configured():
+            return
+        expected = str(self.translate_model)
+        try:
+            served: Set[str] = {m.id for m in self.client.models.list().data}
+        except Exception as exc:  # noqa: BLE001 — unreachable != mismatch
+            logger.warning(
+                "translate: could not verify the served model (%s); the translation call will "
+                "surface any real connectivity problem",
+                type(exc).__name__,
+            )
+            return
+        if not any(s.casefold() == expected.casefold() for s in served):
+            raise TranslateServedModelMismatch(
+                f"the translate endpoint serves {sorted(served)!r}, not {expected!r}. Refusing "
+                "to translate: a corpus attributed to the wrong translation model cannot be "
+                "distinguished from a correct one after the fact (ADR-143/144)."
+            )
+        self._served_verified = True
+
+    # -- the prompt ------------------------------------------------------------------------
+    def _language_name(self, code: Optional[str]) -> str:
+        """The English name of a DECLARED language, or raise.
+
+        Raising is the point: a guessed language name reaches the model as an instruction it
+        follows confidently, producing fluent output nobody can tell is wrong from the artifact.
+        """
+        normalized = normalize_language_tag(code)
+        if not normalized:
+            raise ValueError(f"no usable language tag to translate from: {code!r}")
+        entry = language_registry().get(normalized)
+        if entry is None:
+            raise ValueError(
+                f"language {normalized!r} is not declared in config/languages.yaml, so its name "
+                "cannot be stated to the translator — declare it there rather than guessing here"
+            )
+        return entry.name
+
+    def build_prompt(self, text: str, *, source_language: str, target_language: str = "en") -> str:
+        """Render the store's template. Pure, so the exact string can be pinned by a test."""
+        source_code = normalize_language_tag(source_language) or ""
+        target_code = normalize_language_tag(target_language) or ""
+        if source_code and source_code == target_code:
+            raise ValueError(
+                f"refusing to translate {source_code!r} into itself — the caller decided wrongly "
+                "that this unit needed translating"
+            )
+        rendered = render_prompt(
+            PROMPT_NAME,
+            source_name=self._language_name(source_language),
+            source_code=source_code,
+            target_name=self._language_name(target_language),
+            target_code=target_code,
+            # The model's own template applies `| trim` to the text; match it.
+            text=text.strip(),
+        )
+        return rendered + _GENERATION_CUE
+
+    # -- the operation ---------------------------------------------------------------------
+    def translate(
+        self,
+        text: str,
+        *,
+        source_language: str,
+        target_language: str = "en",
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Translate one unit. See :class:`~podcast_scraper.translation.base.TranslationProvider`.
+
+        Returns ``text: None`` for a unit that could not be translated, rather than raising:
+        the caller counts failures across an episode and applies RFC-124 §5.3's completeness
+        gate. Only misconfiguration and a served-model mismatch raise.
+        """
+        if not self.is_configured():
+            raise TranslationUnavailable(
+                "translate_api_base / translate_model are unset; there is no translator to call"
+            )
+        meta: Dict[str, Any] = {
+            "provider": self._TELEMETRY_PROVIDER,
+            "model": self.translate_model,
+            "source_language": normalize_language_tag(source_language),
+            "target_language": normalize_language_tag(target_language),
+            "prompt": get_prompt_metadata(PROMPT_NAME),
+        }
+        if not text or not text.strip():
+            return {"text": "", "metadata": {**meta, "skipped": "empty_input"}}
+
+        self._verify_served_model()
+        # Narrowed for the typed SDK: `is_configured()` above already established it is set, but
+        # the property is Optional[str] and the SDK's `model` parameter is not.
+        model = str(self.translate_model)
+        prompt = self.build_prompt(
+            text, source_language=source_language, target_language=target_language
+        )
+        overrides = params or {}
+        # Generous by default: a translation's length is bounded by its input's, and a cap that
+        # truncates produces a silently short translation rather than an error.
+        budget = int(overrides.get("max_tokens") or max(256, len(text) // 2))
+
+        started = time.monotonic()
+        try:
+            resp = self.client.completions.create(
+                model=model,
+                prompt=prompt,
+                max_tokens=budget,
+                # Deterministic INTENT. Measured: vLLM at temperature 0 still returns different
+                # text for ~9% of identical requests, so this is not a reproducibility guarantee
+                # and `en_sha256` must not be read as one.
+                temperature=float(overrides.get("temperature", 0.0)),
+                stop=_STOP,
+                timeout=self._chat_request_timeout,
+            )
+        except Exception as exc:  # noqa: BLE001 — a unit failure is a result, not an exception
+            logger.warning("translate: unit failed (%s): %s", type(exc).__name__, exc)
+            return {
+                "text": None,
+                "metadata": {
+                    **meta,
+                    "error": f"{type(exc).__name__}: {exc}",
+                    "elapsed_s": round(time.monotonic() - started, 3),
+                },
+            }
+
+        elapsed = time.monotonic() - started
+        choice = resp.choices[0] if resp.choices else None
+        usage = getattr(resp, "usage", None)
+        finish_reason = getattr(choice, "finish_reason", None) if choice else None
+        out = (getattr(choice, "text", "") or "").strip() if choice else ""
+        meta.update(
+            {
+                "finish_reason": finish_reason,
+                "prompt_tokens": getattr(usage, "prompt_tokens", None),
+                "completion_tokens": getattr(usage, "completion_tokens", None),
+                "elapsed_s": round(elapsed, 3),
+            }
+        )
+        self._record_translation_call(meta)
+
+        if not out:
+            # An empty string is not a translation of non-empty input; accepting it would put a
+            # silently blank turn into the English render while looking successful.
+            meta["error"] = "the response carried no completion text"
+            return {"text": None, "metadata": meta}
+        if finish_reason == "length":
+            # Not a shorter translation — a wrong one. `finish_reason: stop` on an oversized unit
+            # is the OTHER truncation shape and is caught by the caller's length budget, not here.
+            meta["error"] = (
+                f"the model was cut off at max_tokens ({budget}); the translation is truncated"
+            )
+            return {"text": None, "metadata": meta}
+        return {"text": out, "metadata": meta}
+
+    def _record_translation_call(self, meta: Dict[str, Any]) -> None:
+        """Feed the run-level counters, the same way every other LLM operation does."""
+        pm = getattr(self, "pipeline_metrics", None) or getattr(self.cfg, "pipeline_metrics", None)
+        recorder = getattr(pm, "record_llm_translation_call", None)
+        if not callable(recorder):
+            return
+        try:
+            recorder(
+                input_tokens=int(meta.get("prompt_tokens") or 0),
+                output_tokens=int(meta.get("completion_tokens") or 0),
+                # Local GPU: a measured zero, not an unmeasured None.
+                cost_usd=0.0,
+            )
+        except Exception:  # noqa: BLE001 — telemetry never breaks the operation
+            logger.debug("translate: metrics recorder failed", exc_info=True)
+
+    def cleanup(self) -> None:
+        return None

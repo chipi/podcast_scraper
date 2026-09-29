@@ -2194,6 +2194,34 @@ class Config(BaseModel):
         alias="vllm_speaker_user_prompt",
         description="User prompt name for vLLM speaker detection/NER (shared template).",
     )
+    # --- translation namespace (RFC-124 / ADR-156) --------------------------------------------
+    # `translate_api_base` / `translate_api_key` / `translate_model` are declared above with the
+    # other API namespaces and are REGISTRY-GOVERNED, so a profile cannot route translation at an
+    # unsanctioned endpoint. These three complete the namespace the provider reads through the
+    # `{ns}_` indirection it inherits from OpenAICompatibleProvider.
+    translate_provider: str = Field(
+        default="gemma_translate",
+        alias="translate_provider",
+        description="Which translation provider to build. One today (`gemma_translate`, "
+        "TranslateGemma over vLLM); the field exists so a second — the 27B, or the apache-2.0 "
+        "fallback in ADR-156's alternatives — is a profile change rather than a code change.",
+    )
+    translate_api_key_env: Optional[str] = Field(
+        default="TRANSLATE_API_KEY",
+        alias="translate_api_key_env",
+        description="Env var the translation provider reads the bearer from when "
+        "translate_api_key is unset. A locally served vLLM ignores it.",
+    )
+    translate_verify_served_model: bool = Field(
+        default=True,
+        alias="translate_verify_served_model",
+        description="Fail-closed (ADR-143/144): at initialize(), assert GET /v1/models advertises "
+        "the configured translate_model, so a wrong model on the :8005 slot fails the run instead "
+        "of producing a corpus attributed to a model that never ran. A corpus translated by the "
+        "wrong model cannot be distinguished from a correct one after the fact. Unreachable "
+        "endpoint only warns — that is not a mismatch. Set False for offline/unit contexts.",
+    )
+
     vllm_verify_served_model: bool = Field(
         default=True,
         alias="vllm_verify_served_model",

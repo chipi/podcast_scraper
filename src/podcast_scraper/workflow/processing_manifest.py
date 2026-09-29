@@ -105,6 +105,10 @@ class EpisodeCostProbe:
         "gi_cost_usd",
         "kg_cost_usd",
         "speaker_detection_cost_usd",
+        "translation_cost_usd",
+        "translation_units",
+        "translation_input_tokens",
+        "translation_output_tokens",
     )
 
     def __init__(self, inner: Any) -> None:
@@ -113,6 +117,38 @@ class EpisodeCostProbe:
         object.__setattr__(self, "gi_cost_usd", 0.0)
         object.__setattr__(self, "kg_cost_usd", 0.0)
         object.__setattr__(self, "speaker_detection_cost_usd", 0.0)
+        object.__setattr__(self, "translation_cost_usd", 0.0)
+        object.__setattr__(self, "translation_units", 0)
+        object.__setattr__(self, "translation_input_tokens", 0)
+        object.__setattr__(self, "translation_output_tokens", 0)
+
+    def record_llm_translation_call(
+        self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
+    ) -> Any:
+        """Accumulate this episode's translation cost AND its unit/token totals, then forward.
+
+        TOKENS AND UNITS, not just cost, unlike every other recorder here. Translation is local
+        GPU, so its cost is a measured zero and accumulating it alone would record nothing useful.
+        What S2.10 needs to size translation capacity is how many UNITS an episode took and how
+        many tokens they moved — and those are per-unit facts that only exist at this hook, since
+        an episode makes 200-250 calls through it.
+        """
+        object.__setattr__(self, "translation_units", self.translation_units + 1)
+        object.__setattr__(
+            self, "translation_input_tokens", self.translation_input_tokens + int(input_tokens or 0)
+        )
+        object.__setattr__(
+            self,
+            "translation_output_tokens",
+            self.translation_output_tokens + int(output_tokens or 0),
+        )
+        if cost_usd:
+            object.__setattr__(
+                self, "translation_cost_usd", self.translation_cost_usd + float(cost_usd)
+            )
+        return self._inner.record_llm_translation_call(
+            input_tokens, output_tokens, cost_usd=cost_usd
+        )
 
     def record_llm_speaker_detection_call(
         self, input_tokens: int, output_tokens: int, cost_usd: Optional[float] = None
