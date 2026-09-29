@@ -7,8 +7,8 @@ is its read context. This guide is the single place a **human or an agent** can 
 tools exist, how to chain them, how to configure it in Claude, and how to maintain it.
 
 - **Design / rationale:** [RFC-095](../rfc/RFC-095-generic-mcp-server.md) · **spec:**
-  [PRD-034](../prd/PRD-034-generic-mcp-server.md) · **e2e testing:**
-  `docs/wip/MCP-E2E-GUIDE.md`.
+  [PRD-034](../prd/PRD-034-generic-mcp-server.md) · **e2e testing:** "Exercising it
+  end-to-end" below.
 - **38 tools**, stdio transport, read-only. Every tool returns a uniform envelope:
   `{ok, data, note}` (`ok=False` on a clean error — never a crash; `note` says *why* a result
   is empty so an agent never confuses "no data" with "feature off").
@@ -164,6 +164,63 @@ compare_subjects(personA, personB)   → contrast the two voices        (compare
 ```
 
 Or the one-call shortcuts: `entity_dossier(topic_id)` / `episode_digest(metadata_path)`.
+
+## Exercising it end-to-end
+
+Three layers, cheapest first. All read-only.
+
+**1. The CI regression guard** — the standardized, synthetic-corpus version:
+
+```sh
+.venv/bin/python -m pytest tests/integration/test_mcp_pivot_chain_e2e.py -v
+```
+
+Builds the index at setup if absent, then asserts ids flow search → graph across surfaces. It
+skips cleanly where the embedding model is unavailable (model-less unit CI) and runs fully in
+the ML tier or locally.
+
+**2. The ad-hoc harness** — same chain, any corpus, readable trace:
+
+```sh
+# synthetic corpus (build the index once, offline)
+HF_HUB_OFFLINE=1 .venv/bin/python -m podcast_scraper.cli index-two-tier \
+  --output-dir tests/fixtures/app-validation-corpus/v3
+.venv/bin/python scripts/mcp_e2e_pivot_chain.py --corpus tests/fixtures/app-validation-corpus/v3
+
+# or a larger local snapshot that is already indexed
+.venv/bin/python scripts/mcp_e2e_pivot_chain.py --corpus .test_outputs/manual/prod-v2/corpus
+```
+
+It drives the golden pivot chain through the registered tools — centrality → momentum →
+relational → temporal → search → **pivot bridge** → graph → composite — and asserts ids flow
+surface to surface. Exit 0 means the chain connected.
+
+**3. A real MCP client — the wire layer, and the only true dogfood.** The two harnesses above
+call the tools directly; neither proves a client can *discover* and *chain* them. Point Claude
+at the stdio server and give it the golden prompt from the worked example above, then watch
+which tools it picks:
+
+```sh
+claude mcp add podcast-corpus -- \
+  .venv/bin/python -m podcast_scraper.cli mcp --corpus "$PWD/.test_outputs/manual/prod-v2/corpus"
+```
+
+For Claude Desktop, the equivalent `claude_desktop_config.json` entry needs absolute paths:
+
+```json
+{
+  "mcpServers": {
+    "podcast-corpus": {
+      "command": "/ABSOLUTE/PATH/.venv/bin/python",
+      "args": ["-m", "podcast_scraper", "mcp", "--corpus", "/ABSOLUTE/PATH/corpus"]
+    }
+  }
+}
+```
+
+Requires the `.[dev,search]` extras — the MCP SDK ships in `[dev]`. To check the server starts
+at all, run it directly: `.venv/bin/python -m podcast_scraper.cli mcp --corpus <dir>` waits on
+stdio rather than exiting.
 
 ## Maintenance (for the next agent)
 

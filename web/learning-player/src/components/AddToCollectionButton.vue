@@ -196,10 +196,34 @@ async function createAndAdd(): Promise<void> {
         <span aria-hidden="true">+</span>
         {{ t('collections.pill') }}
       </template>
-      <!-- A plain bookmark — the folded-corner-plus-plus glyph was too busy at 16px (operator
-           2026-09-13). "Add to collection" is carried by the aria-label / menu, not by icon detail. -->
+      <!-- A BOARD — four cells, no plus (operator 2026-09-27, picked from a rendered comparison).
+           THE GLYPH IT REPLACED. It drew `M6 3v18l6-4 6 4V3z`, the bookmark — which is this app's
+           HIGHLIGHT mark: `CaptureMoment` in the player transport draws it for mark-a-moment, and
+           the transcript's line save draws it too. So a collection control and a capture control
+           were the same shape, and the operator read the transport's capture button as a stray
+           copy of this one and asked for it to be deleted. It is not a copy, and on a phone it is
+           the only way to mark a moment: a glyph collision came one instruction from removing a
+           feature. One glyph per concept now — see UXS-014.
+           WHY A GRID, NOT A FOLDER. A folder was tried first and rejected on sight: it is the
+           filesystem's metaphor, and these are `Boards` (RFC-119 calls them pinboards) — the wrong
+           idea before it is the wrong drawing. It also carried a `+`, which is what made it the
+           busiest mark in the set at 16px.
+           WHY NO PLUS. The pill variant already says "+ Collection" in words and the icon variant
+           carries `collections.addTo` as its accessible name, so the `+` was a third stroke paying
+           for nothing. Dropping it is the same call made against the folded-corner-plus-plus glyph
+           on 2026-09-13, for the same reason.
+           WHY FOUR CELLS RATHER THAN OFFSET CARDS. Stacked cards say "a set kept together" more
+           precisely, and were the first recommendation — but their whole meaning is the OVERLAP,
+           and at 16px, the size that actually ships in a card row, the overlap mushes into a thick
+           square. Four separated cells keep air between the strokes and stay crisp. Rendered at
+           16/24/64 side by side before choosing; legibility at the shipping size won over the
+           better metaphor.
+           Nothing else in the app draws a grid — checked against the compass (Browse) and the
+           4-bar (Library) at 16px in the muted state they share. The "grid means app launcher"
+           worry is a convention imported from other software, not a collision here. -->
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-        <path d="M6 3v18l6-4 6 4V3z" />
+        <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
       </svg>
       <!-- A non-hidden accessible name for the ICON-ONLY variant (2026-09-24, Android device tier).
            `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System
@@ -232,15 +256,71 @@ async function createAndAdd(): Promise<void> {
            of what it means here. -->
       <ul class="max-h-48 overflow-y-auto">
         <li v-for="c in collections" :key="c.id">
+          <!--
+            The row states its own colour and its own width (operator 2026-09-27: the board NAMES
+            did not render on device — "✓ Added" was there, the name beside it was not).
+
+            NOT REPRODUCED, so this is the two ways it could happen removed, not a diagnosis. What
+            was ruled out, each by measurement rather than by reading: the stored rows on prod carry
+            their names (`AI`, `Investments`, `Tech`); the Vue DOM renders all three with the right
+            classes; the compiled CSS paints them at full width and full contrast in Chromium, both
+            standalone and underneath the sheet this was opened from; and prod runs this exact file.
+            What is left is the iOS WKWebView the screenshot came from, which is not reachable here.
+
+            So both remaining candidates are closed off by construction:
+
+            1. COLOUR was inherited. The name was the ONLY text in this teleported panel with no
+               colour of its own — the header, the "✓ Added", the input and Create all state theirs,
+               which is why they survived and it did not. The panel teleports to `<body>` or into an
+               open `<dialog>`, and a `<dialog>`'s UA style sets `color: CanvasText`, so a control
+               relying on inheritance can land black-on-black through no fault of the theme. Both
+               branches are explicit now.
+            2. WIDTH was `flex-basis: auto` plus `min-w-0`, which lets this span — and only this
+               span, since its sibling is `shrink-0` — be shrunk to zero by the flex algorithm.
+               At zero width `truncate` (`overflow: hidden`) renders nothing at all: no text, not
+               even an ellipsis. Exactly the symptom. `flex-1` gives it a definite basis and the
+               remaining space instead.
+          -->
           <button
             type="button"
             class="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-overlay"
-            :class="holds(c.id) ? 'text-grounded' : ''"
+            :class="holds(c.id) ? 'text-grounded' : 'text-canvas-foreground'"
             data-testid="add-to-collection-pick"
             :data-contains="holds(c.id) ? 'true' : undefined"
             @click="pick(c.id)"
           >
-            <span class="min-w-0 truncate">{{ c.name }}</span>
+            <!--
+              NO TRUNCATION. The board name wraps rather than being clipped (operator 2026-09-27,
+              after three wrong fixes and a diagnostic build).
+
+              The bug: on the SECOND open of this menu the names vanished, leaving only "✓ Added".
+              It read as a colour problem for three attempts and it was a LAYOUT problem.
+
+              Proven on device by tinting this span's box. First open: full-width box, names
+              visible. Second open: the box collapsed to a sliver, wide enough only for the
+              diagnostic's character count, with the name clipped away. The discriminator is the
+              `shrink-0` "✓ Added" sibling, which only exists once the item is in that board — i.e.
+              from the second open onwards. With no sibling the name is the row's only child and
+              gets full width whatever the flex maths says; with one, the distribution matters, and
+              it was being computed against the wrong container width — `place()` forces a
+              synchronous layout while the panel is still `visibility:hidden` at `left:0;top:0`,
+              and nothing invalidates it after the reveal.
+
+              `flex-1` did not save it: `flex: 1 1 0%` distributes FREE SPACE, and there was none to
+              distribute. `truncate`'s `overflow:hidden` then hid the text instead of letting it
+              spill, which is precisely what made a layout fault look like an invisible colour.
+
+              So the fix removes the need for the measurement to be right rather than trying to fix
+              the measurement: no `overflow:hidden`, no `nowrap`, no `flex-1`. A 224px panel with
+              short board names has room to wrap, and a wrapped name is legible where a clipped one
+              is nothing. `break-words` keeps a pathological name from widening the panel.
+
+              Deliberately NOT touched: `useAnchoredMenu`'s invisible-measure-reveal flow. Every
+              menu in the app shares it and it exists to prevent a focus-blur and an off-position
+              flash. If it needs fixing it should be fixed in `place()`, for all of them, not worked
+              around here.
+            -->
+            <span class="min-w-0 flex-1 break-words">{{ c.name }}</span>
             <span
               v-if="addedTo === c.id || holds(c.id)"
               class="shrink-0 whitespace-nowrap text-xs text-grounded"

@@ -446,7 +446,14 @@ class TestPipelineErrorRecoveryE2E:
         assert len(transcript_files) >= 1, "Should create transcript files in new output directory"
 
     def test_pipeline_handles_invalid_config_gracefully(self):
-        """Test that pipeline handles invalid configuration gracefully."""
+        """Test that pipeline handles invalid configuration gracefully.
+
+        THIS TEST CANNOT FAIL. It wraps the call in try/except, swallows the exception
+        and asserts nothing, so it passes whether the code works or not. Flagged by the
+        2026-08-18 test audit and re-verified 2026-09-27. Left in place deliberately:
+        strengthening it needs a decision about what it was meant to prove — see
+        docs/guides/TESTING_GUIDE.md, "Known gaps neither script catches".
+        """
         # Test that config validation catches invalid values
         # Note: max_episodes might accept negative values (treated as None or 0)
         # Let's test with a truly invalid config value

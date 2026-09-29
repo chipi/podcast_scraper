@@ -2,9 +2,11 @@
 
 Fresh consolidation of every item parked "because it needs backend", re-derived
 from **user-facing effect** and checked against **actual backend readiness**
-(probe 2026-09-10). Supersedes the scattered "Backend/data-dep" notes in
-`PLAYER-UX-BACKLOG-2026-09-09.md`. Each area is sized to **open and close as one
-themed branch/epic**.
+(probe 2026-09-10). Supersedes the scattered "Backend/data-dep" notes in the
+2026-09-09 player UX backlog, which was retired on 2026-09-27 once every clean-UI
+item was built or ruled won't-do — its two WON'T-DO rulings (SD.10 inline show page,
+BE.3 insight-count popup) now live as a comment on #1596. Each area here is sized to
+**open and close as one themed branch/epic**.
 
 Readiness legend: **READY** = data already returned by an API, UI-only surfacing ·
 **SCHEMA** = data computed, needs a small schema/endpoint add · **PIPELINE** = data

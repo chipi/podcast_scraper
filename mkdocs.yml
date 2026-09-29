@@ -38,6 +38,8 @@ nav:
       - Prod Operator Cheat Sheet: guides/PROD_OPERATOR_CHEAT_SHEET.md
       - Player public launch (#1163): guides/PLAYER_PUBLIC_LAUNCH.md
       - Operator surface deploy (RFC-108): guides/OPERATOR_SURFACE_DEPLOY.md
+      - Operator surface post-deploy smoke test: guides/OPERATOR_SMOKE_TEST.md
+      - "Consumer e2e on an Intel Mac (container harness)": guides/E2E_ON_INTEL_MAC.md
       - Observability runbook (operate/debug + current state): guides/OBSERVABILITY_RUNBOOK.md
       - Observability architecture (emit/ship, ADR-119): guides/OBSERVABILITY_ARCHITECTURE.md
       - Observability control plane (#803): guides/OBSERVABILITY_CONTROL_PLANE.md
@@ -99,6 +101,7 @@ nav:
       - architecture/ARCHITECTURE.md
       - Non-Functional Requirements: architecture/NON_FUNCTIONAL_REQUIREMENTS.md
       - Testing Strategy: architecture/TESTING_STRATEGY.md
+      - "Test-corpus fixture ladder (v4)": architecture/TEST_CORPUS_FIXTURE_LADDER.md
       - Agent-navigable codebases: architecture/AGENT_NAVIGABLE_CODEBASE.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
       - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
@@ -192,6 +195,7 @@ nav:
       - UXS-014 Interaction Patterns: uxs/UXS-014-interaction-patterns.md
       - UXS-015 Operator Shows Library: uxs/UXS-015-operator-shows-library.md
       - UXS-016 Query Workspace: uxs/UXS-016-query-workspace.md
+      - UXS-017 Shareable Cards: uxs/UXS-017-share-cards.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md

@@ -2793,6 +2793,15 @@ class FeedSignalPerson(BaseModel):
     person_id: str
     name: str
     episode_count: int = Field(ge=1, description="Episodes of this show that mention the person.")
+    role: str | None = Field(
+        default=None,
+        description=(
+            "Strongest speaker role across this show's episodes — host > guest > mentioned, the "
+            "same precedence `_aggregate_role` applies on the person card. None when no episode "
+            "node carried a role, which is how older KGs degrade: the chip renders unbadged rather "
+            "than claiming a 'mentioned' it cannot support."
+        ),
+    )
 
 
 class FeedSignalStoryline(BaseModel):

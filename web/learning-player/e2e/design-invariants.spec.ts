@@ -392,7 +392,11 @@ test.describe('design invariants', () => {
       return { overflow: row.scrollWidth - row.clientWidth, kids }
     })
 
-    expect(m.kids.length, 'no transport buttons found — this assertion would be vacuous').toBeGreaterThanOrEqual(5)
+    // FOUR, the desktop row: skip back, play, skip forward, speed. The queue-panel button that made
+    // it five was removed from this row on purpose (e38275233 — the masthead already opens the
+    // queue), and the output-route button self-hides where no route is available. This floor only
+    // guards against a vacuous pass on an empty row; mobile carries more controls and clears it.
+    expect(m.kids.length, 'no transport buttons found — this assertion would be vacuous').toBeGreaterThanOrEqual(4)
 
     expect(
       m.overflow,

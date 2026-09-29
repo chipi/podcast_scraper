@@ -20,7 +20,7 @@ import {
  * (`topics_unavailable_reason: null`, which reads as "nothing configured").
  *
  * So everything about rows runs live here. Everything about bands is in the second describe,
- * still stubbed, recorded in docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * still stubbed, recorded in docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 
 /** Land on the Digest against the live corpus. */

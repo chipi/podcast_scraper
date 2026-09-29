@@ -27,7 +27,7 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } 
  * **three-state matrix per counter** — a positive value, an explicit ``0``, and a legacy ``null``
  * that must render "—" — which a single committed run cannot express simultaneously. That is a
  * fixture requirement, not an assertion rewrite. Recorded in
- * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 
 async function mockRunSummary(

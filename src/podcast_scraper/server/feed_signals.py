@@ -27,6 +27,11 @@ from podcast_scraper.enrichment.enrichers._loaders import (
 from podcast_scraper.kg.filters import is_filler_topic
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
+
+# The episode card's role extractor and precedence, reused rather than re-implemented: the show
+# page and the episode card must not be able to disagree about what "host" means.
+from podcast_scraper.server.app_kg_view import _role_of
+from podcast_scraper.server.app_relational_view import _aggregate_role, _ROLE_RANK
 from podcast_scraper.server.corpus_catalog import (
     filter_rows,
 )
@@ -83,11 +88,29 @@ def _person_like_nodes(art: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
+def person_sort_key(
+    pid: str, entry: tuple[str, set[str]], person_roles: dict[str, list[str]]
+) -> tuple[int, int, str]:
+    """Order show people by ROLE first: host > guest > mentioned, then footprint, then name.
+
+    Public (no underscore) and separate from the comprehension that uses it so a test can exercise
+    THE SHIPPED COMPARISON. Written inline first, it could only be tested by a test that rebuilt the
+    same expression — which passed happily when the role term was deleted from the real one. A
+    duplicated sort key is not a tested sort key.
+
+    Roleless people (older KGs carry none) rank last rather than being dropped: an unbadged chip is
+    honest, a missing person is a silent loss.
+    """
+    name, eps = entry
+    return (-_ROLE_RANK.get(_aggregate_role(person_roles.get(pid, [])) or "", 0), -len(eps), name)
+
+
 def _accumulate_kg_entities(
     art: dict[str, Any],
     ep_key: str,
     topic_eps: dict[str, tuple[str, set[str]]],
     person_eps: dict[str, tuple[str, set[str]]],
+    person_roles: dict[str, list[str]] | None = None,
 ) -> None:
     """Fold one episode KG's Topic + Person nodes into the running per-feed aggregates.
 
@@ -119,6 +142,15 @@ def _accumulate_kg_entities(
             continue
         _, eps = person_eps.setdefault(pid, (name, set()))
         eps.add(ep_key)
+        # Collect the per-episode role so the show page can distinguish host / guest / mentioned
+        # instead of listing everyone identically (operator 2026-09-27). Read with the SAME
+        # extractor the episode card uses (`_role_of`), so the two surfaces cannot drift on what a
+        # role is; aggregated to the strongest by the caller, because a person can host one episode
+        # of a show and merely be mentioned in the next.
+        if person_roles is not None:
+            role = _role_of(n.get("properties") or {})
+            if role:
+                person_roles.setdefault(pid, []).append(role)
 
 
 def _read_enrichment_data(root: str, enricher_id: str) -> dict[str, Any] | None:
@@ -410,6 +442,7 @@ def compute_feed_signals(
 
     topic_eps: dict[str, tuple[str, set[str]]] = {}
     person_eps: dict[str, tuple[str, set[str]]] = {}
+    person_roles: dict[str, list[str]] = {}
     show_episode_ids: set[str] = set()
     scanned = 0
     for r in rows[:max_episodes]:
@@ -421,7 +454,7 @@ def compute_feed_signals(
         scanned += 1
         ep_key = r.episode_id or r.metadata_relative_path
         show_episode_ids.add(ep_key)
-        _accumulate_kg_entities(art, ep_key, topic_eps, person_eps)
+        _accumulate_kg_entities(art, ep_key, topic_eps, person_eps, person_roles)
 
     # None, not a zero-valued row, when there was nothing to measure. A show with no KG episodes
     # would otherwise render "0.00 pairs/episode · 0 scanned", which an operator reads as a
@@ -450,10 +483,24 @@ def compute_feed_signals(
             topic_eps.items(), key=lambda kv: (-len(kv[1][1]), kv[1][0])
         )[:top_k]
     ]
+    # ROLE-FIRST ordering (operator 2026-09-27). The band used to sort on episode count alone, so a
+    # show's own host could sit below a guest who happened to appear in one more episode — the page
+    # is titled "what this show's about", and the person it is most about was placed by a tiebreak.
+    # Sort host > guest > mentioned, then by footprint within the role, then by name. Roleless
+    # people (older KGs carry no role) sort last rather than being dropped: an unbadged chip is
+    # honest, an omitted person is not.
+    #
+    # Selection still happens AFTER ordering, so `top_k` now keeps the show's hosts rather than
+    # whichever names had the highest counts.
     key_people = [
-        FeedSignalPerson(person_id=pid, name=name, episode_count=len(eps))
+        FeedSignalPerson(
+            person_id=pid,
+            name=name,
+            episode_count=len(eps),
+            role=_aggregate_role(person_roles.get(pid, [])),
+        )
         for pid, (name, eps) in sorted(
-            person_eps.items(), key=lambda kv: (-len(kv[1][1]), kv[1][0])
+            person_eps.items(), key=lambda kv: person_sort_key(kv[0], kv[1], person_roles)
         )[:top_k]
     ]
     return CorpusFeedSignalsResponse(

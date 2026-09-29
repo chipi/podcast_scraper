@@ -13,8 +13,10 @@ the *how*.
 ## 0. Prerequisites (one-time, local machine)
 
 - **Node 20+**, the repo installed (`npm ci` in `web/learning-player`).
-- **iOS:** macOS + **Xcode** (`xcodebuild -version`) + **CocoaPods** (`pod --version`,
-  `brew install cocoapods` if missing). Simulator builds need **no** Apple ID / no
+- **iOS:** macOS + **Xcode** (`xcodebuild -version`) + **CocoaPods 1.17.0** (`pod --version`,
+  `brew install cocoapods` if missing). 1.17.0 is the reference: `pod install` writes its own
+  version into `ios/App/Podfile.lock` (`COCOAPODS:`), so a different one leaves that file
+  modified after every `cap sync`. Simulator builds need **no** Apple ID / no
   code signing.
 - **Android:** **JDK 21** (`java -version` → 21; Capacitor 8 requires it),
   **Android Studio** + SDK, `adb` on PATH (`$ANDROID_HOME/platform-tools`), and a

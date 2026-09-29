@@ -53,7 +53,7 @@ mocks fall into four kinds:
 | **state matrix** | one control seen in several states at once | three-state run counters, >15 feeds, an episode published today |
 | **by design** | a constructed fixture is the better test | graph topologies, the handoff matrix's fixed graph |
 
-`docs/wip/CORPUS-V4-FIXTURE-LADDER.md` §B is the authority on what v4 must add.
+`docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md` §B is the authority on what v4 must add.
 
 It is no longer necessary. The **same fixture-bootstrapped API the consumer suite uses** serves
 every endpoint this app calls — `/api/corpus/*`, `/api/search`, `/api/index/stats`, `/api/artifacts`.

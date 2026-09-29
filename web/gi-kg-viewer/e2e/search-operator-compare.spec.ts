@@ -44,7 +44,7 @@ import {
  * (an ungrounded pack is a state a healthy backend will not produce on demand) and the compare
  * **server error** surface — category C, same family as a 404.
  *
- * v4 requirement recorded in docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B: search results must carry
+ * v4 requirement recorded in docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B: search results must carry
  * speaker/topic subject metadata, and a single query must be able to surface two of them.
  */
 test.describe('Search — Compare operator (§S8)', () => {

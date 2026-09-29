@@ -96,18 +96,13 @@ test('the queue panel, with a real queue and real history', async ({ page }) => 
   await finish(page, '/podcast/p03', 'Marine Biology for Divers')
   await queueFrom(page, '/podcast/p01', 3)
 
-  // Open the panel from the PLAYER, which is where it lives (#1838). Home's opener rides the
-  // resume hero, and every episode here has been finished — so there is nothing to resume and that
-  // entry point is correctly absent.
-  await page.goto('/podcast/p01')
-  await page.getByText('Building Trails That Last').first().click()
-  await expect(page).toHaveURL(/\/episode\//)
+  // Go to /queue, which is where both halves live since 2026-09-27. The panel this spec was
+  // written against is gone with its last opener — the player's transport button — so the surface
+  // under review is the page, and `panel` below is the page's own container.
+  await page.goto('/queue')
   await settle(page)
-  const opener = page.getByTestId('player-queue')
-  await expect(opener).toBeVisible({ timeout: 20_000 })
-  await opener.click()
 
-  const panel = page.getByTestId('queue-panel')
+  const panel = page.getByTestId('queue-page')
   await expect(panel).toBeVisible()
   await expect(panel.getByTestId('queue-panel-recent')).toBeVisible({ timeout: 20_000 })
   await settle(page)

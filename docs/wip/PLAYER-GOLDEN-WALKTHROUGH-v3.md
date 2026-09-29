@@ -178,9 +178,11 @@ The rest of the Knowledge Panel is the episode's intelligence:
 
 - **Ask** — grounded extractive search *within this episode* (no LLM; returns passages + ▶ timestamps).
 - **Summary** — the GIL episode summary.
-- **Topics & People** — the KG entities, tagged with two enrichment markers: **"Theme · interest rates"**
-  (the dominant **`topic_theme_clusters`** cluster for this episode) and **"Similar · global trade"**.
-  Every chip opens its entity card (§2.2 / §2.3).
+- **Topics & People** — the KG entities, tagged with a **"Storyline · interest rates"** lead-in (the
+  dominant **`topic_theme_clusters`** cluster for this episode). Every chip opens its entity card
+  (§2.2 / §2.3). The old **"Theme ·"** and **"Similar ·"** markers are gone: #1603 found they said the
+  opposite of what UXS-013 specifies, and `learning-legibility.test.ts` now fails any consumer string
+  that reintroduces either.
 - **Insights · 12** — the grounded claims: each a CLAIM + ▶ timestamp + the claim text + the verbatim
   supporting quote + the speaker. Save any to Highlights / Favorites.
 
@@ -212,7 +214,7 @@ user).
 | **temporal_velocity** | det | per topic, mention counts over time + last-month/6-mo velocity | topic card **Momentum**; Home **Trending topics** (4 views) | "Rising · N×" badge; chips/sparklines/stream/scatter | Momentum only if velocity ≥ 1.5; Home chips also need total ≥ 3 |
 | **topic_similarity** | ML | per topic, top-k embedding-nearest topics | topic card **Similar topics** | chips (max 8) | — |
 | **topic_cooccurrence_corpus** | det | topic pairs co-occurring across episodes + lift/pmi | topic card **Discussed alongside** | chips w/ lift (max 8) | lift > 1 **and** ≥ 2 shared episodes |
-| **topic_theme_clusters** | det | clusters of topics that co-occur ("themes") | Home **Storylines**; Knowledge-Panel **"Theme ·"** marker; entity-card theme siblings | rail + pill marker | — |
+| **topic_theme_clusters** | det | clusters of topics that co-occur (the consumer word is **storyline**) | Home **Storylines**; Knowledge-Panel **"Storyline ·"** lead-in; entity-card storyline siblings | rail + pill marker | — |
 | **grounding_rate** | det | per person, share of their insights backed by a quote | person card **Grounding** | "X of Y (Z%)" line | hides if 0 insights |
 | **guest_coappearance** | det | person pairs sharing episodes, ranked by count | person card **Often appears with** | chips (max 8) | sorted by shared-episode count |
 | **topic_consensus** | ML | cross-person corroboration pairs per topic (embedding cosine + low NLI contradiction) | person card **"Where they agree"** (consumer, `es-consensus`); operator viewer person landing | counterpart + topic + both claims (max 8) | precision 0.91 on prod-v2; hides when person is in no pair; diarization placeholders filtered |
@@ -244,8 +246,10 @@ consumer "disagreements" row was removed 2026-07-09), `stance_timeline` / `stanc
   scores each with **lift** (observed/expected co-occurrence) and **PMI**. "Discussed alongside" is
   lift-ranked, so it favours *surprising* pairings over merely-frequent ones.
 - **topic_theme_clusters** (deterministic) — average-linkage clustering over the co-occurrence-lift graph;
-  a cluster of ≥ 2 topics becomes a **theme / storyline** with a canonical label. This is what powers
-  Home "Storylines" and the "Theme ·" marker.
+  a cluster of ≥ 2 topics becomes a **storyline** with a canonical label. This is what powers
+  Home "Storylines" and the "Storyline ·" lead-in. The artifact filename keeps the old `theme` word
+  deliberately — the #1603 rename covered the consumer vocabulary and the code symbols, not the
+  on-disk artifact name.
 - **grounding_rate** (deterministic) — per person, `grounded_insights / total_insights`, where "grounded"
   = the insight has a `SUPPORTED_BY` quote. Diarization placeholders (`SPEAKER_NN`) are filtered so the
   rate is meaningful. It's a per-speaker credibility signal.
@@ -321,7 +325,7 @@ e2e is `tests/fixtures/app-validation-corpus/v3`, guarded by
 - `temporal_velocity` → topic Momentum + Home Trending (§2.1/2.2)
 - `topic_similarity` → topic "Similar topics" (§2.2)
 - `topic_cooccurrence_corpus` → topic "Discussed alongside" (§2.2)
-- `topic_theme_clusters` → Home Storylines + Knowledge-Panel "Theme" (§2.1/2.5)
+- `topic_theme_clusters` → Home Storylines + Knowledge-Panel "Storyline ·" (§2.1/2.5)
 - `grounding_rate` → person "Grounding" (§2.3)
 - `guest_coappearance` → person "Often appears with" (§2.3)
 - `topic_consensus` → person **"Where they agree"** (§2.3) + operator viewer

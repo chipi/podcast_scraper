@@ -90,9 +90,29 @@ enum Journey {
         let el = q.matching(predicate).firstMatch
         if el.exists && el.isHittable { return el }
       }
+      // SAY SO when only a non-hittable match exists.
+      //
+      // The pass above requires `isHittable`; this one accepts mere existence, which for web content
+      // is usually the inert copy — WebKit exposes each masthead control twice and only one of them
+      // is interactive. `tapWithinScreen` then taps it, and its own docstring names the outcome: "a
+      // silent no-op is the worst failure shape there is, because the symptom surfaces somewhere
+      // else entirely as 'the control is not there'". That is what cost 2026-09-25.
+      //
+      // Not turned into a failure: the fallback earns its place, because an element can be genuinely
+      // tappable by coordinate while reporting `isHittable == false`, and `tapWithinScreen` exists
+      // precisely to handle that. The behaviour stands; the silence goes. The Android twin prints the
+      // same marker from `tap`, so a "page never changed" failure has its cause in the same log on
+      // either tier rather than several steps upstream.
       for q in queries {
         let el = q.matching(predicate).firstMatch
-        if el.exists { return el }
+        if el.exists {
+          print(
+            "=====TAP_NONHITTABLE \(labels) — only a NON-hittable match exists "
+              + "(frame=\(el.frame)). The tap may land on nothing; if a later step reports the "
+              + "control is absent or the page did not change, this is why.====="
+          )
+          return el
+        }
       }
       usleep(400_000)
     } while Date() < deadline
@@ -313,14 +333,45 @@ enum Journey {
     var lastSignature = ""
     var stalled = 0
     for _ in 0...maxSwipes {
-      if let el = find(app, labels: labels, contains: contains, timeout: 2) { return el }
+      // HITTABLE, or keep scrolling. `find` returns a NON-hittable match through its fallback
+      // branch, so accepting whatever it hands back made this return on the FIRST iteration
+      // without ever swiping — which is the opposite of what a scroll-to-element helper is for.
+      //
+      // MEASURED 2026-09-28: `signOut` asked for "Sign out", got
+      //     =====TAP_NONHITTABLE ["Sign out"] … frame=(19.0, 878.0, 364.0, 45.0)=====
+      // on a ~874pt screen. The control is the LAST item on Profile by design (#1962), so it sits
+      // just below the fold; this returned it unscrolled, the tap landed on nothing, and the
+      // caller reported "signed in as another account and could not sign out after 3 attempts".
+      // Two of four phase-4 failures were that one line.
+      if let el = find(app, labels: labels, contains: contains, timeout: 2), el.isHittable {
+        return el
+      }
       app.swipeUp()
       usleep(800_000)
       // Label AND vertical position. Labels alone assume the first twelve change as you scroll —
       // true on these surfaces today (only "Skip to content" is fixed chrome) but nowhere written
       // down, so a sticky header would silently make every page look stalled after two swipes.
       // Frames move whenever the page does, which is the thing actually being detected.
+      // BELOW THE STICKY CHROME (ported from Android's `Journey.signature()`, 2026-09-29).
+      //
+      // This took the first twelve staticTexts in TREE order, which on every page in this app is
+      // the masthead — and the masthead is FIXED. The signature therefore never changed, every
+      // surface read as stalled after two swipes, and this gave up long before reaching anything
+      // below the fold. The comment directly above warns about "a sticky header" doing exactly
+      // this; the warning was written and the bug was left in.
+      //
+      // Android met it (Settings reporting "no Offline mode row" while sitting on Settings with the
+      // row three sections down, 2026-09-24), fixed it there, and its comment records that the iOS
+      // twin still had it. Measured here: `signOut` on a Profile page — inventory `Change photo |
+      // Account | Topics | Stats` — could not reach "Sign out", which is deliberately the LAST
+      // control on that page (#1962) and so always just below the fold.
+      //
+      // 12%-88% excludes the masthead and the tab bar, leaving only nodes that move when the page
+      // does.
+      let top = app.frame.height * 0.12
+      let bottom = app.frame.height * 0.88
       let signature = app.staticTexts.allElementsBoundByIndex
+        .filter { $0.frame.midY > top && $0.frame.midY < bottom && !$0.label.isEmpty }
         .prefix(12).map { "\($0.label)@\(Int($0.frame.origin.y))" }.joined(separator: "|")
       if signature == lastSignature {
         stalled += 1
@@ -355,10 +406,26 @@ enum Journey {
     return app
   }
 
-  /// Masthead avatar → Profile. Its accessible name is the user's display name, falling back to
-  /// "Your profile" when the account has no name, so both are accepted.
+  /// Masthead avatar → Profile, for a caller that knows WHICH account is signed in.
+  ///
+  /// The masthead link is named `auth.user?.name || t('profile.title')`, so its label is the
+  /// ACCOUNT NAME once `/me` resolves and the generic "Your profile" only until then. The caller is
+  /// the only one who knows the first of those, which is why the labels are a parameter.
+  ///
+  /// The label-less overload below keeps a hardcoded list, and that list is why this parameter
+  /// exists: it holds `simtest` and `uitest` from when every suite shared one account. Per-suite
+  /// identities landed (#2091) and the list was never updated, so a suite signed in as
+  /// `appjourneytests` matched only the generic fallback — and once the name resolved, nothing.
+  /// The Android twin already takes labels for exactly this reason and its own comment records the
+  /// flaw as latent here (`Journey.java:499-507`).
+  ///
+  /// The consequence is worse than a slow timeout. `UITestCase.startClean` drives
+  /// `setOfflineMode` through this, and that is the one guarantee `startClean` exists to give — so
+  /// a miss here does not fail loudly, it leaves forced-offline in whatever state the previous
+  /// suite left it, which is the 2026-09-16 cross-suite poisoning this base class was written to
+  /// end.
   @discardableResult
-  static func openProfile(_ app: XCUIApplication) -> Bool {
+  static func openProfile(_ app: XCUIApplication, labels: [String]) -> Bool {
     // TOP first. The control is the masthead avatar, so it scrolls away with the page — and an
     // element above the viewport is in the accessibility tree with a NEGATIVE y, where `tap()`
     // lands on nothing. Whatever the previous step left on screen, the header is reachable from the
@@ -369,15 +436,25 @@ enum Journey {
     // hazard the swipes above exist to prevent) or a node being replaced under the tap — and
     // `TAP_MISS`/success alone cannot tell them apart. `.exists` first: reading `.frame` on a query
     // that matches nothing is an XCTest FAILURE, not a nil, and would replace the real result.
-    for label in ["Your profile", "simtest", "uitest"] {
+    for label in labels {
       for (kind, q) in [("link", app.links[label]), ("button", app.buttons[label])] {
         let e = q.firstMatch
         guard e.exists else { continue }
         print("=====PROFILE_CTL \(kind) '\(label)' frame=\(e.frame) hittable=\(e.isHittable)=====")
       }
     }
-    return tap(app, labels: ["Your profile", "simtest", "uitest"], timeout: 25)
+    return tap(app, labels: labels, timeout: 25)
   }
+
+
+  // NO LABEL-LESS OVERLOADS (2026-09-29). `openProfile`, `openSettings` and `setOfflineMode`
+  // each had one, and each hardcoded ["Your profile", "simtest", "uitest"] — right only while every
+  // suite silently shared `simtest`. Once suites got their own accounts, every caller of those
+  // overloads failed "could not reach Settings" on a Home screen showing the avatar. They were
+  // found one tier run at a time (plus a FOURTH private copy in ConfigOfflineToggleTests); removing
+  // the overloads makes the compiler find the rest. Pass `profileLabels` from the suite. The one
+  // caller that genuinely cannot know the account, `AppSession.signOut`, discovers it from the
+  // masthead instead.
 
   /// Bottom tab bar.
   @discardableResult
@@ -485,10 +562,10 @@ enum Journey {
     return clear
   }
 
-  /// Profile → gear → Settings.
+  /// Profile → gear → Settings, for a caller that knows which account is signed in.
   @discardableResult
-  static func openSettings(_ app: XCUIApplication) -> Bool {
-    guard openProfile(app) else { return false }
+  static func openSettings(_ app: XCUIApplication, labels: [String]) -> Bool {
+    guard openProfile(app, labels: labels) else { return false }
     sleep(3)
     guard tap(app, labels: ["Settings"], contains: true, timeout: 20) else {
       // SAY WHAT PAGE WE ARE ON. `tap` logs only `TAP_MISS ["Settings"]`, which is indistinguishable
@@ -502,12 +579,16 @@ enum Journey {
     return true
   }
 
+
   /// Drive Settings → Config → "Offline mode" to an ABSOLUTE state (idempotent: a no-op when it
   /// already matches). The switch persists to `localStorage`, which the host cannot reach, so this
   /// is the only way to set it — see ConfigOfflineToggleTests for the standalone version.
   @discardableResult
-  static func setOfflineMode(_ app: XCUIApplication, on wanted: Bool) -> Bool {
-    guard openSettings(app) else { print("=====OFFLINE_SET no settings====="); return false }
+  static func setOfflineMode(_ app: XCUIApplication, on wanted: Bool, labels: [String]) -> Bool {
+    guard openSettings(app, labels: labels) else {
+      print("=====OFFLINE_SET no settings=====")
+      return false
+    }
     let predicate = NSPredicate(format: "label CONTAINS[c] 'Offline mode'")
     var control = app.checkBoxes.matching(predicate).firstMatch
     if !control.waitForExistence(timeout: 10) { control = app.switches.matching(predicate).firstMatch }
@@ -541,4 +622,5 @@ enum Journey {
     guard control.exists else { return false }
     return String(describing: control.value).contains("1") == wanted
   }
+
 }

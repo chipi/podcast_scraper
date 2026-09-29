@@ -51,11 +51,15 @@ final class NativeCapabilityTests: UITestCase {
 
   func testN1DictationAffordanceAppearsWhenEnabled() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
 
     // Dictation is OFF by default and lives behind a Settings opt-in, so the mic cannot appear
     // until that switch is on — which is itself worth asserting, since a mic that showed up
     // unbidden would be a privacy surprise.
-    guard Journey.openSettings(app) else { XCTFail("could not reach Settings"); return }
+    guard Journey.openSettings(app, labels: profileLabels) else { XCTFail("could not reach Settings"); return }
     _ = Journey.scrollTo(app, labels: ["Voice input for notes"])
     Journey.shot(self, "n1-a-settings-voice")
 
@@ -69,7 +73,30 @@ final class NativeCapabilityTests: UITestCase {
     }
     let wasOn = String(describing: toggle.value).contains("1")
     if !wasOn { toggle.tap(); sleep(2) }
-    defer { if !wasOn { _ = Journey.tap(app, labels: ["Voice input"], contains: true, timeout: 6) } }
+    // RESTORE THROUGH SETTINGS, and say so when it fails. This was a bare `tap(["Voice input"])` with
+    // its result discarded — but by the end of the test the app is on an entity card scrolled to the
+    // note composer, where no such control exists, so the restore was a TAP_MISS every time and the
+    // switch stayed ON for the rest of the run. The Android twin restores through Settings in a
+    // `finally`; this now does the same.
+    defer {
+      if !wasOn {
+        _ = Journey.dismissSheets(app)
+        if Journey.openSettings(app, labels: profileLabels) {
+          _ = Journey.scrollTo(app, labels: ["Voice input for notes"])
+          var restore = app.checkBoxes.matching(predicate).firstMatch
+          if !restore.waitForExistence(timeout: 8) { restore = app.switches.matching(predicate).firstMatch }
+          if restore.waitForExistence(timeout: 8), String(describing: restore.value).contains("1") {
+            restore.tap()
+            sleep(2)
+          }
+          if restore.exists, String(describing: restore.value).contains("1") {
+            XCTFail("left 'Voice input for notes' ON — the restore did not take")
+          }
+        } else {
+          XCTFail("could not reach Settings to switch 'Voice input for notes' back off")
+        }
+      }
+    }
 
     // A PERSON card, not a topic one. Both carry a note composer, but the topic card ends with a
     // long annotated episode list, so notes sit far below the fold — sixteen swipes inside the
@@ -176,6 +203,10 @@ final class NativeCapabilityTests: UITestCase {
 
   func testN2NativeShareSheetOpens() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
     guard Journey.tap(app, labels: ["Share"], contains: true, timeout: 12) else {
@@ -226,7 +257,11 @@ final class NativeCapabilityTests: UITestCase {
 
   func testN3PushPermissionPromptOnEnable() {
     let app = Journey.launch()
-    Journey.openProfile(app)
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
+    Journey.openProfile(app, labels: profileLabels)
     sleep(4)
     // ProfileView is kept alive (`KEEP_ALIVE_TABS`), so whichever tab a PREVIOUS test left selected
     // is still selected here — the matrix is on Account, and running after a test that opened
@@ -287,7 +322,11 @@ final class NativeCapabilityTests: UITestCase {
    */
   func testN4AvatarUploadAndCrop() throws {
     let app = Journey.launch()
-    guard Journey.openProfile(app) else { XCTFail("could not open Profile"); return }
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
+    guard Journey.openProfile(app, labels: profileLabels) else { XCTFail("could not open Profile"); return }
     sleep(4)
     Journey.shot(self, "n4-a-avatar-before")
 

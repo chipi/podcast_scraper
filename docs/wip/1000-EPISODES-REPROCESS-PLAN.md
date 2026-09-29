@@ -6,7 +6,7 @@ corpus is the current stage of *this* plan, not a separate north star). This is
 the single canonical arc doc.
 
 Umbrella sequencing plan. Not authoritative for component detail — the component
-specs (`CORPUS-V4-FIXTURE-LADDER.md`, the issue bodies, `autoresearch/JUDGING.md`)
+specs (`TEST_CORPUS_FIXTURE_LADDER.md`, the issue bodies, `autoresearch/JUDGING.md`)
 are. This doc carries the ordering and the gates. The durable **methodology**
 (single-variable validation, reprocess-once economics, the judge-panel parity gate)
 lives permanently in **ADR-143** (`docs/adr/ADR-149-corpus-reprocess-methodology.md`) —

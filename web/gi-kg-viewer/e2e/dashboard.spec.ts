@@ -112,7 +112,7 @@ test.describe('Dashboard tab', () => {
    * The v3 corpus configures no digest topic queries, so `/api/corpus/digest` returns
    * `topics: []` with `topics_unavailable_reason: null` — there is no assertion to rewrite,
    * because the surface under test has nothing to render. Recorded in
-   * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+   * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
    */
   test('FR6.1: Intelligence shows retrieval-grounded topic briefing cards', async ({ page }) => {
     await setupDashboardApiMocks(page)

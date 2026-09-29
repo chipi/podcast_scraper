@@ -76,12 +76,34 @@ const active = computed(() =>
       class="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-overlay px-1 text-[10px] font-bold text-canvas-foreground"
     >{{ badge }}</span>
     <!-- Decorative to assistive tech: it repeats `ariaLabel` verbatim, and left exposed it is the
-         element whose frame WebKit reports for the whole link (see above). -->
+         element whose frame WebKit reports for the whole link (see above).
+
+         REVEALED ONLY WHERE A POINTER CAN HOVER (operator 2026-09-27: "why the queue label under
+         button stays when I press it?"). On a touch screen there is no hover to END: iOS applies
+         `:hover` on tap and leaves it applied until you tap something else. So the tooltip lit on
+         tap, survived the navigation, and sat under the icon on the page it had just opened — a
+         label captioning a control you were no longer looking at.
+
+         The operator's own observation pinned the scope before I read a line: it happened on Queue
+         and Search but "nothing on alerts and profile". Exactly right — those two are not
+         `NavIconLink`s and carry no tooltip; and of the four that are, only Search and Queue are
+         visible at phone width (Browse and Library sit inside the `hidden … sm:flex` span).
+
+         `@media (hover: hover)` is the honest condition: show a hover affordance to things that
+         hover. Tailwind can do this globally with `hoverOnlyWhenSupported`, but that rewrites every
+         `hover:` utility in the app at once, and most of them are background tints where latching
+         is invisible. This one paints a persistent overlay, so this is the one that had to change.
+         `group-focus-visible` stays: keyboard focus is a real state that ends.
+
+         The INVERSE idiom, `[@media(hover:none)]:opacity-100`, is what a hover-hidden CONTROL needs
+         so touch users can reach it at all — see `TranscriptList` and the guard in
+         `__checks__/touch-affordances.test.ts`. Opposite problem, opposite fix: a control must
+         appear without hover; a tooltip must not appear without it. -->
     <span
       :class="[
         'pointer-events-none absolute top-full z-50 mt-1.5 whitespace-nowrap',
         tooltipAlign === 'end' ? 'right-0' : 'left-1/2 -translate-x-1/2',
-        'rounded-md bg-elevated px-2 py-1 text-xs font-medium text-canvas-foreground opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100',
+        'rounded-md bg-elevated px-2 py-1 text-xs font-medium text-canvas-foreground opacity-0 shadow-xl transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-100 group-focus-visible:opacity-100',
       ]"
       role="tooltip"
       aria-hidden="true"

@@ -63,6 +63,68 @@ describe('AddToCollectionButton (#1839)', () => {
     expect(add).toHaveBeenCalledWith('col_1', { kind: 'episode', ref: 'ep-x' })
   })
 
+  it('every board row states its own colour and its own width', async () => {
+    /*
+     * The board NAMES did not render on the operator's device (2026-09-27) while the "✓ Added"
+     * beside them did. Never reproduced off-device — the data, the DOM and the compiled CSS in
+     * Chromium were all measured correct — so what is pinned here is the two properties that make
+     * the symptom impossible, rather than a reproduction of it.
+     *
+     * COLOUR: the name was the only text in this teleported panel inheriting its colour. A panel
+     * teleported into an open `<dialog>` inherits the UA's `CanvasText`, so an inheriting control
+     * can land black-on-black with a perfectly good theme. Both branches must be explicit.
+     *
+     * WIDTH: `min-w-0` with `flex-basis: auto` lets this span — and only this one, its sibling is
+     * `shrink-0` — shrink to zero, and at zero width `truncate`'s `overflow: hidden` paints no
+     * text and no ellipsis. `flex-1` gives it a definite basis.
+     *
+     * Asserted on the rendered class list rather than the source, so it also covers the branch
+     * being picked correctly for held vs unheld rows.
+     */
+    vi.spyOn(api, 'getCollections').mockResolvedValue([
+      col({ id: 'col_1', name: 'AI' }),
+      col({ id: 'col_2', name: 'Investments' }),
+    ])
+    vi.spyOn(api, 'getCollectionsContaining').mockResolvedValue({ ids: ['col_2'], checked: true })
+    const w = await mountIt()
+    await w.get('[data-testid="add-to-collection"]').trigger('click')
+    await flushPromises()
+
+    const rows = w.findAll('[data-testid="add-to-collection-pick"]')
+    expect(rows, 'expected one row per board').toHaveLength(2)
+
+    const [plain, held] = rows
+    // The names are on screen at all — the thing the operator could not see.
+    expect(plain.text()).toContain('AI')
+    expect(held.text()).toContain('Investments')
+
+    // An explicit colour in BOTH states, never inherited through the teleport.
+    expect(plain.classes(), 'an unheld row must state its colour').toContain('text-canvas-foreground')
+    expect(held.classes(), 'a held row is grounded, and says so').toContain('text-grounded')
+
+    /*
+     * The name must not be CLIPPABLE. Proven on device 2026-09-27: from the second open onwards —
+     * once the `shrink-0` "✓ Added" sibling exists — the flex distribution was computed against the
+     * wrong container width (a forced sync layout while the panel is still `visibility:hidden`),
+     * the name span collapsed to a sliver, and `truncate`'s `overflow:hidden` hid the text rather
+     * than letting it spill. Three fixes chased it as a colour bug because clipped and invisible
+     * look identical.
+     *
+     * So this asserts the ABSENCE of the clipping, not the presence of a width. A width can be
+     * computed wrong; `overflow: visible` cannot hide anything whatever the width comes out as.
+     */
+    for (const row of rows) {
+      const name = row.find('span')
+      expect(
+        name.classes(),
+        'the board name is truncatable again — a mis-measured flex row will clip it to nothing, ' +
+          'which is the bug that took three attempts because it looks exactly like invisible text',
+      ).not.toContain('truncate')
+      expect(name.classes(), 'nor may it be clipped by hand').not.toContain('overflow-hidden')
+      expect(name.classes(), 'it wraps instead').toContain('break-words')
+    }
+  })
+
   it('creates a new collection and pins into it', async () => {
     vi.spyOn(api, 'getCollections').mockResolvedValue([])
     const create = vi.spyOn(api, 'createCollection').mockResolvedValue(col({ id: 'col_2', name: 'New' }))

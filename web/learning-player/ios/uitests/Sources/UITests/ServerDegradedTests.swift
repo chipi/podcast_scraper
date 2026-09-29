@@ -24,6 +24,17 @@ import XCTest
  * broken, `isOffline()` was false, so no banner appeared at all.
  */
 final class ServerDegradedTests: UITestCase {
+  /// SHARED account, matching the Android twin (`ServerDegradedTests.java:56`).
+  ///
+  /// The session under test has to PREDATE the secret change — the whole scenario is a token the
+  /// server can no longer verify — so this suite reads the session `ios-journey-signin` seeded,
+  /// which is `simtest`. A per-suite identity signed in by this test is a different arrangement,
+  /// so it would not be the same test.
+  ///
+  /// Android declared this; iOS never did, and got away with it only because NO iOS suite had its
+  /// own account — every one of them was `simtest` by accident.
+  override var accountIdentity: String { Self.sharedSeededIdentity }
+
   private let episodeSlug = "p09-a4bbb5dde3"
   private let episodeTitle = "Risk Is a Systems Property"
 
@@ -33,7 +44,7 @@ final class ServerDegradedTests: UITestCase {
     let app = Journey.launch()
     Journey.shot(self, "11-a-home-healthy")
     XCTAssertNotNil(
-      Journey.find(app, labels: ["Your profile", "simtest"], timeout: 20),
+      Journey.find(app, labels: profileLabels, timeout: 20),
       "not signed in — run `make ios-journey-signin` before this target"
     )
     AppSession.openEpisode(app, slug: episodeSlug)

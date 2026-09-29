@@ -7,6 +7,7 @@ import addToCollectionSrc from "../components/AddToCollectionButton.vue?raw"
 import downloadSrc from "../components/DownloadButton.vue?raw"
 import episodeActionsSrc from "../components/EpisodeActions.vue?raw"
 import favoriteSrc from "../components/FavoriteButton.vue?raw"
+import navIconLinkSrc from "../components/NavIconLink.vue?raw"
 import queueButtonSrc from "../components/QueueButton.vue?raw"
 import transcriptSrc from "../components/TranscriptList.vue?raw"
 import savedColorControlSrc from "../components/SavedColorControl.vue?raw"
@@ -38,15 +39,54 @@ describe("affordances survive on touch", () => {
     // hover. `opacity-0 + group-hover` alone leaves the control transparent but tappable —
     // undiscoverable rather than obviously missing, which is worse than absent. This is the entry
     // point to capture → highlights → notes → resurfacing, i.e. the whole learning loop.
-    const buttons = transcriptSrc.split("<button").filter((b) => HOVER_HIDDEN.test(b))
-    expect(buttons.length, "expected a hover-quiet capture button to exist").toBeGreaterThan(0)
-    for (const b of buttons) {
+    //
+    // Split on `<Highlight`, not `<button`: the control became the shared `HighlightToggle` on
+    // 2026-09-27. Splitting on a tag the file no longer contains yields ONE chunk — the whole
+    // source — which still matched the regex and still contained the required class, somewhere.
+    // The check went on passing while testing nothing in particular, which is the failure mode
+    // this whole file exists to catch in the app.
+    const controls = transcriptSrc.split("<HighlightToggle").filter((b) => HOVER_HIDDEN.test(b))
+    expect(
+      controls.length,
+      "expected a hover-quiet capture control to exist — if it was renamed again, re-anchor this " +
+        "split rather than letting it match the whole file",
+    ).toBeGreaterThan(0)
+    for (const b of controls) {
       expect(
         b,
         "A hover-hidden control must also carry [@media(hover:none)]:opacity-100, or it is " +
           "invisible on the primary platform."
       ).toContain("[@media(hover:none)]:opacity-100")
     }
+  })
+
+  it("a hover TOOLTIP is gated to devices that hover, so a tap cannot leave it stuck", () => {
+    /*
+     * The mirror image of the check above, and the operator found it on device (2026-09-27): "why
+     * the queue label under button stays when I press it?"
+     *
+     * iOS applies `:hover` on tap and leaves it applied until you tap elsewhere. There is no hover
+     * to end, so a `group-hover` tooltip lights on tap, SURVIVES the navigation, and sits under the
+     * icon on the page it just opened — captioning a control the user is no longer looking at.
+     *
+     * A control hidden behind hover needs `[@media(hover:none)]:opacity-100` so touch can reach it.
+     * A tooltip needs the opposite: `[@media(hover:hover)]:` so touch never triggers it. Both rules
+     * live here because they are one question — what does hover mean on a device without one — and
+     * getting them backwards is easy.
+     */
+    const tooltip = navIconLinkSrc.slice(
+      navIconLinkSrc.indexOf('role="tooltip"') - 900,
+      navIconLinkSrc.indexOf('role="tooltip"'),
+    )
+    expect(tooltip, "the tooltip span moved — re-anchor this check").toContain("opacity-0")
+    expect(
+      tooltip,
+      "the nav tooltip reveals on a bare `group-hover`, so tapping the icon leaves the label " +
+        "stuck under it on the next page. Gate it with [@media(hover:hover)]:group-hover:…",
+    ).not.toMatch(/(?<!\]:)group-hover:opacity-100/)
+    expect(tooltip).toContain("[@media(hover:hover)]:group-hover:opacity-100")
+    // Keyboard focus is a real state that ends, so it must still reveal.
+    expect(tooltip, "keyboard users lost the label").toContain("group-focus-visible:opacity-100")
   })
 
   it("search is reachable from the primary nav (#1588)", () => {
@@ -150,6 +190,55 @@ describe("affordances survive on touch", () => {
       )
     }
   })
+
+  it("the Saved colour strip FITS a phone, so its last swatch is not hidden behind a scroll", () => {
+    /*
+     * The strip is `overflow-x-auto` with the scrollbar suppressed, so overspending the width does
+     * not look like a bug — it looks like five colours. Measured off the operator's 393pt device on
+     * 2026-09-27: the content box is 324.6pt, and the row was asking for 284pt of swatches (6 x 44
+     * + 5 x gap-1) plus 8 + 1 + 8 + 44 on the right = 345pt. Violet was clipped exactly in half.
+     *
+     * The budget below is what makes the row honest. It is asserted from the source rather than
+     * from a layout, because jsdom does not lay anything out and the failure is purely dimensional
+     * — the same reason every other check in this file is static.
+     */
+    const PHONE_CONTENT_PT = 324.6 // measured; 393pt device less its ~34pt margins
+    const TARGET = 44 // h-11 / w-11, the touch floor the check above pins
+    const SWATCHES = 6 // "any colour" + HIGHLIGHT_COLORS
+    const SEPARATOR = 1 // the w-px hairline
+
+    // The row and the right-hand cluster must both be at gap-1 (4pt), and the swatch group at no
+    // gap at all. A `gap-2` anywhere here is 4pt the strip does not have.
+    // The LAST such div before the swatches, not the first — the first is the search+sort row
+    // above, which has its own width budget and would let a `gap-2` here pass unnoticed.
+    const anyAt = savedFilterBarSrc.indexOf("savedFilterColorAny")
+    const row = savedFilterBarSrc.slice(
+      savedFilterBarSrc.lastIndexOf('<div class="flex items-center gap-', anyAt),
+      anyAt,
+    )
+    expect(row, "the colour row went back to gap-2 — that is 4pt the strip cannot spare").toContain(
+      '<div class="flex items-center gap-1">',
+    )
+    expect(
+      row,
+      "the swatch group must carry NO gap: a 16pt dot inside a 44pt target is already spaced, and " +
+        "the gap is what pushed the sixth colour off screen",
+    ).not.toMatch(/class="flex min-w-0 items-center gap-\d/)
+    expect(
+      savedFilterBarSrc,
+      "the muted/clear cluster went back to gap-2",
+    ).toContain('class="ml-auto flex shrink-0 items-center gap-1"')
+
+    // And the arithmetic those classes buy, stated so a seventh colour fails HERE rather than on a
+    // device: strip + gap + hairline + gap + bell must clear the phone's content box.
+    const needed = SWATCHES * TARGET + 4 + SEPARATOR + 4 + TARGET
+    expect(
+      needed,
+      `the Saved filter row needs ${needed}pt but a phone gives ${PHONE_CONTENT_PT}pt — something ` +
+        "was added to the row. Adding a colour or a control here means re-deriving this budget, " +
+        "not letting the strip scroll: the scrollbar is hidden, so the overflow is invisible",
+    ).toBeLessThanOrEqual(PHONE_CONTENT_PT)
+  })
 })
 
 /**
@@ -190,6 +279,77 @@ describe("search survives the loss of its tab (#1588)", () => {
     const tabs = nav.slice(nav.indexOf("const TABS"), nav.indexOf("] as const"))
     expect(tabs).not.toContain("'search'")
     expect(tabs).toContain("'browse'")
+  })
+})
+
+/**
+ * Guardrail (operator 2026-09-23, re-homed 2026-09-27) — the queue must stay reachable without
+ * playing something first.
+ *
+ * `/queue` once had no nav entry: the only ways in were the player's queue button and Home's resume
+ * hero, and that hero renders ONLY while an episode is in progress. Finish everything you were
+ * listening to and the queue you had been filling became unreachable unless you first started an
+ * episode you did not want to play — which is also the state you are in offline, wanting exactly
+ * the thing you queued.
+ *
+ * Both of those entrances were removed on 2026-09-27 as duplication, leaving the masthead control
+ * as the ONLY one. That makes these checks load-bearing in a way they were not before: with the
+ * fallbacks gone, this link slipping inside the `hidden … sm:flex` span takes the queue off phones
+ * entirely, and the desktop layout would still look correct.
+ *
+ * Static source checks for the same reason as the rest of this file — the breakage is a media
+ * query, and jsdom does not evaluate one.
+ */
+describe("the queue is reachable at every width", () => {
+  it("the masthead queue link sits OUTSIDE the desktop-only icon span", () => {
+    const queueAt = appSrc.indexOf('data-testid="masthead-queue"')
+    expect(queueAt, "masthead queue link not found in App.vue").toBeGreaterThan(-1)
+
+    const desktopOnlyAt = appSrc.indexOf('class="hidden items-center gap-1.5 sm:flex"')
+    expect(desktopOnlyAt, "desktop-only icon span not found in App.vue").toBeGreaterThan(-1)
+    const spanClosesAt = appSrc.indexOf("</span>", desktopOnlyAt)
+    expect(spanClosesAt, "desktop-only span never closes").toBeGreaterThan(desktopOnlyAt)
+
+    // After the span closes => not inside it => visible at every width.
+    expect(
+      queueAt,
+      "the masthead queue icon must not be inside the `hidden … sm:flex` span: since Home's " +
+        "resume hero and the player's panel button were removed, it is the only way into /queue",
+    ).toBeGreaterThan(spanClosesAt)
+  })
+
+  it("the go-to-queue glyph carries no add-modifier", () => {
+    // It drew the list WITH a trailing wedge, which read as the same "add to queue" mark
+    // `QueueButton` draws with a plus — a destination dressed as an action (operator 2026-09-27).
+    // The modifier is the whole difference, so the absence of one is the thing to pin.
+    const start = appSrc.indexOf('data-testid="masthead-queue"')
+    const glyph = appSrc.slice(start, appSrc.indexOf("</svg>", start))
+    const paths = [...glyph.matchAll(/<path d="([^"]+)"/g)].map((m) => m[1])
+    expect(paths.length, "expected the masthead queue glyph's paths").toBeGreaterThan(0)
+    for (const d of paths) {
+      /*
+       * HORIZONTAL COMMANDS ONLY — `M` and `h`, nothing else.
+       *
+       * The invariant is "no modifier", not "no decimals". The first version of this required
+       * `^M\d+ \d+h\d+$`, which encoded the glyph that happened to be there rather than the rule,
+       * and it rejected the list BULLETS added on 2026-09-27 (`M4 6h.01`) — a correct change failing
+       * a guard that had over-specified. Stated properly, every modifier this is meant to exclude
+       * needs a command it now forbids: a plus needs `v` for its upright, a tick needs `l`, a wedge
+       * needs `l`/`z`. A bullet is a zero-length `h`, which is still just a horizontal mark.
+       */
+      expect(
+        d,
+        `"${d}" uses a non-horizontal path command — a queue DESTINATION must not draw a plus ` +
+          "(needs v), a tick or a wedge (need l/z), or it reads as an action on this episode",
+      ).toMatch(/^M[\d.]+ [\d.]+(h-?[\d.]+)+$/)
+    }
+  })
+
+  it("QueueButton keeps a modifier, so the two are never the same mark", () => {
+    // The other half of the pair: if QueueButton ever lost its plus/tick, the check above would
+    // still pass while both controls drew the identical bare list.
+    expect(queueButtonSrc, "the add state needs its plus").toContain('d="M21 12h-6"')
+    expect(queueButtonSrc, "the queued state needs its tick").toContain('d="M15 16l2 2 4-4"')
   })
 })
 

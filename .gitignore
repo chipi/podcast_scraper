@@ -344,7 +344,7 @@ docs/wip/search-v3/eval/latest.json
 tests/fixtures/app-validation-corpus/v3/search/lance_index/
 # Sidecar of the same index build (incremental-skip fingerprints). The rule above covered only the
 # lance_index/ dir, so this artifact showed up as untracked the first time the index was built
-# locally — see docs/wip/2026-08-13-e2e-on-intel-mac.md.
+# locally — see docs/guides/E2E_ON_INTEL_MAC.md.
 tests/fixtures/app-validation-corpus/v3/search/episode_fingerprints.json
 tests/fixtures/app-validation-corpus/v3/search/metadata.json
 # Per-user app state the e2e api writes INTO the fixture corpus (sessions, per-user files) — the

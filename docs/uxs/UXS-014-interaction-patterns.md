@@ -138,7 +138,7 @@ card server-side with Pillow (`server/og/`), and `server/spa.py` (`SpaStaticFile
 static rule reach the backend without the coming-soon gate. Kinds: topic, person, organization,
 episode, show, storyline. The server card layouts (full-bleed episode background, framed square,
 guest gallery, KPI trend tile) are richer than the client canvas card — kept in step by eye; the
-SSOT is `docs/wip/2026-09-11-share-card-design.md`.
+SSOT is `docs/uxs/UXS-017-share-cards.md`.
 
 ## Tab strips and option groups (#1594 item 7)
 
@@ -287,6 +287,65 @@ player. This section is the single contract; components conform, they do not re-
 - **Follow = subscribe to a *show* (or interest token).** The follow **pill** (`+ Follow` /
   `✓ Following`), rendered/behaving identically wherever it appears. It is not a save; the two are
   never merged and the episode heart is never swapped for a follow pill.
+
+### One glyph per concept (operator 2026-09-27)
+
+Three save-ish marks exist, and each belongs to exactly one destination. A glyph that appears in two
+of these rows is a bug, not a style choice.
+
+| Glyph | Concept | Scope | Store |
+| --- | --- | --- | --- |
+| **heart** `.lp-fav` | favourite | a WHOLE object — episode, show, topic, person | favorites |
+| **bookmark** `HighlightToggle` | highlight / capture | a FRAGMENT — a transcript span, an insight, a timestamp | capture → `/api/app/highlights` |
+| **2×2 board grid** `AddToCollectionButton` | file into a named board | anything, including a highlight | collections |
+
+This had to be written down because the app had broken it in both directions at once, and the
+operator found it from the outside — *"we can favourite insights and bookmark parts of transcript,
+feels inconsistent"*:
+
+- The **heart meant two things.** The Knowledge panel's insight save rendered `FavoriteButton` in a
+  `controlled` variant and announced *"Save to favorites"*, while writing an insight HIGHLIGHT
+  through the capture store. `services/types.ts` already carried the comment *"Saveable favorite
+  kinds. `insight` is NOT one — an insight is a capture"* (#1593 banned it). So the data layer was
+  right and the interface said the opposite, out loud, to a screen reader. The identical action one
+  panel away — saving a transcript line — drew a bookmark.
+- The **bookmark meant two things.** `AddToCollectionButton` drew `M6 3v18l6-4 6 4V3z`, and
+  `CaptureMoment` in the player transport draws the same shape for mark-a-moment. The operator read
+  the transport's capture control as a stray add-to-collection button and asked for it to be
+  deleted as a duplicate. It is not one: on a phone it is the ONLY way to mark a moment, because the
+  masthead's copy is `hidden lg:inline-flex`. A glyph collision came within one instruction of
+  removing a feature.
+
+The remedies are structural, not cosmetic. `FavoriteButton`'s `controlled` variant is **deleted**
+rather than left unused — while a parent could own the state, the heart could be reattached to a
+non-favourite store again, which is exactly how this happened. The insight save and the transcript
+line now render from **one** component. And collections took a new glyph, because it was the one
+borrowing rather than the one being borrowed from.
+
+**Choosing the collections mark — the rule the process produced.** A folder was drawn first and
+rejected on sight: it is the *filesystem's* metaphor, and the product calls these **Boards**
+(RFC-119: "pinboards"). Wrong idea before it was a wrong drawing. Candidates were then rendered at
+**16px — the size that actually ships in a card row** — sat beside the heart and the bookmark,
+because the only question that matters is whether a mark is instantly *not the other two*. Two
+findings worth keeping:
+
+- **The `+` was the cost, not the shape.** Every "add" glyph tested got busier for it, and it buys
+  nothing: the pill variant already reads "+ Collection" in words and the icon variant carries
+  `collections.addTo` as its accessible name. Same conclusion the folded-corner-plus-plus glyph
+  reached on 2026-09-13 — reached twice now, which is why the guard asserts its absence.
+- **Legibility at the shipping size beats the better metaphor.** Offset stacked cards say "a set
+  kept together" more precisely and were the first recommendation; but their meaning *is* the
+  overlap, and at 16px the overlap mushes into a thick square. Four separated cells keep air
+  between the strokes. Rendered and compared before choosing rather than argued.
+
+Grid-means-app-launcher is a convention imported from other software, not a collision here —
+checked against the compass (Browse) and the 4-bar (Library) at 16px in the muted state they share.
+
+**"Can I favourite an insight / collect a transcript line?"** — favouriting a fragment stays banned
+(#1593): a favourite is about a whole object. Collecting one already works, in two honest steps —
+highlight it, then add the highlight to a board (`kind: highlight` is a first-class collection
+item). Do not add a second control to a fragment to shortcut that; add it to the board from the
+highlight.
 
 **The shared minimum row (`EpisodeActions`).** Every episode surface shows favourite · queue inline
 plus a `⋯` overflow carrying download · add-to-collection, via the one component. Two inline + `⋯` is
@@ -702,6 +761,18 @@ alone from the header and both sections from the player — the same thing meani
 things depending on how you arrived. Extracted into one component used by both. The rule this is an
 instance of: **when a surface gains a second entry point, the surface does not get to differ by
 entry point.**
+
+**And then the second entry point went too** (operator 2026-09-27). The full player's opener was
+removed for the same reason the mini-player's was, which left `QueuePanel` with no way in at all, so
+it was deleted; `/queue` is the one surface. Worth noting what the extraction bought: because both
+halves had already been made to travel together, deleting the panel cost nothing but the panel. Had
+Recently played still lived inside it, removing a *button* would have removed a *feature*.
+
+**What replaced it is an action, not a route.** The player's title row now carries the shared
+`QueueButton` — add/remove THIS episode, marked when it is already queued. The general form:
+**a control on an item's own surface should act on that item.** A button that only navigates
+somewhere the global nav already reaches is spending a slot to duplicate the masthead, and it has no
+state to show while it does it.
 
 **The mini-player line is a compact ROW, not a sentence.** Show as kicker, episode below — the shape
 Podcast, Queue and the entity lists already use. One truncated line ended in an ellipsis having said

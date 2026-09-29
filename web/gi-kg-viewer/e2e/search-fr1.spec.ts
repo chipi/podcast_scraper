@@ -117,7 +117,7 @@ test.describe('Search FR1 surfaces (live index)', () => {
  *
  * This is the same gap that blocks `person-landing.spec.ts`, whose only shipped entry point is the
  * lifted speaker link — that file is NOT unblocked by the search index alone. Recorded in
- * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 test.describe('Search FR1 — compound/lifted surfaces (stubbed: corpus produces no lifted blocks)', () => {
   test.beforeEach(async ({ page }) => {

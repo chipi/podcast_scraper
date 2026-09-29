@@ -142,7 +142,7 @@ test.describe('Corpus Library tab', () => {
    *
    * This asserts the *empty* branch of the Similar panel. Against a real indexed corpus every
    * episode has nearest neighbours, so `items: []` is unreachable — the state has to be built,
-   * not discovered. Recorded in docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+   * not discovered. Recorded in docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
    */
   test('similar empty state when API returns no peers', async ({ page }) => {
     await page.route('**/api/index/stats**', async (route) => {
@@ -227,7 +227,7 @@ test.describe('Corpus Library tab', () => {
    *
    * The "why this episode" snippet is driven by an *active search context*, so the test has to
    * run a query and get results back. Migrating it needs a live `/api/search`; see the search
-   * blocker recorded in docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+   * blocker recorded in docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
    */
   test('active search context renders "why this episode" snippet on Library rows', async ({
     page,
@@ -361,7 +361,7 @@ test.describe('Corpus Library tab', () => {
  * **9** feeds. It also has to run fully stubbed rather than half-live: 16 synthetic feeds against
  * a live episode list describe a corpus that does not exist, and the contradiction made the test
  * flaky (feed chip never settling) rather than failing honestly. Recorded in
- * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 test.describe('Corpus Library tab — feed-count threshold (stubbed corpus)', () => {
   test.beforeEach(async ({ page }) => {

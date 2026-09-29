@@ -14,34 +14,71 @@ import XCTest
  * "sign-in did not complete" when no sign-in had been attempted at all.
  */
 enum AppSession {
-  /// Whether the app is STILL signed in once the boot revalidation has landed.
+  /// How long the answer has to HOLD before it is believed. See `settles`.
+  private static let stableForSeconds: TimeInterval = 6
+
+  /// True only when `label` is continuously present for `stableForSeconds`.
   ///
-  /// "Sign out" lives on the PROFILE page and nowhere else, but the app cold-boots to Home — so
-  /// this asked a Home screen whether it had a Profile-only control and was answered "no" every
-  /// time, whatever the session actually was. The offline suite reported that as "the app fell
-  /// back to signed-out" on a device whose stored token was valid, and the download suite re-ran
-  /// a sign-in it did not need. Go to Profile first, then read the answer.
+  /// Two reads a second apart are not evidence of a session: boot paints the last-known identity
+  /// from the device snapshot and THEN revalidates, so both reads can land inside the same
+  /// revalidation window and agree with each other about a token the server is about to refuse.
+  /// The check has to outlast the window, not sample it twice.
   ///
-  /// Opening Profile DELEGATES to `Journey.openProfile` rather than keeping a second copy of the
-  /// selector. The header entry point is labelled with the signed-in DISPLAY NAME (`simtest`), not
-  /// the static "Your profile" this used to hard-code — so once that label changed, this helper
-  /// reported signed-out for every session and `signIn` then failed looking for a "Sign in" link
-  /// that was correctly absent on a signed-in app. `Journey` already carried the fallback list;
-  /// only this copy was stale. Two helpers knowing the same UI differently is the actual defect.
+  /// Ported from the Android twin, where the same fix turned a 1-failure run into `OK (8 tests)`
+  /// (`AppSession.java:settles`). Android earned it the hard way: a sign-in reported success, the
+  /// app signed itself out four steps later, and the failure named a Profile TAB rather than the
+  /// session.
+  private static func settles(_ app: XCUIApplication, _ label: String, timeout: TimeInterval)
+    -> Bool
+  {
+    let deadline = Date().addingTimeInterval(timeout)
+    var since: Date?
+    while Date() < deadline {
+      if let hit = Journey.find(app, labels: [label], contains: true, timeout: 1) {
+        if since == nil {
+          since = Date()
+          print("=====SETTLE_HIT '\(label)' matched label='\(hit.label)' type=\(hit.elementType.rawValue) frame=\(hit.frame)=====")
+        }
+        if Date().timeIntervalSince(since!) >= stableForSeconds { return true }
+      } else {
+        if since != nil {
+          print("=====SETTLE '\(label)' appeared then vanished — inside the revalidation window=====")
+        }
+        since = nil
+      }
+      usleep(500_000)
+    }
+    return false
+  }
+
   /// Signed in AT ALL. Prefer `isSignedIn(_:as:)` — with per-suite accounts (#2091) "a session
   /// exists" is no longer the question worth asking.
+  ///
+  /// READ THE MASTHEAD; DO NOT NAVIGATE (2026-09-28). This used to drive `openProfile` and then
+  /// scroll Profile hunting "Sign out", which made a question about the SESSION depend on two
+  /// unrelated things working: reaching Profile, and a control that is deliberately the last item
+  /// on that page (#1962) being scrolled into view.
+  ///
+  /// MEASURED, full iOS tier, `NativeOnlySurfacesTests`: the app signed in FIVE times — the api log
+  /// holds five complete `auth/login` -> `auth/callback` pairs — and this returned false after every
+  /// one, so `signIn` retried. The diagnostic that `openProfile` prints says the control was never
+  /// the problem:
+  ///     =====PROFILE_CTL link 'simtest' frame=(349.0, 62.0, 48.0, 18.0) hittable=true=====   (x12)
+  /// Found, on screen, hittable, tapped — and the app stayed on Home, so a Profile-only control
+  /// could not be found and a valid session read as signed-out. The test burned 500+ seconds in a
+  /// poll loop and never reached its assertions.
+  ///
+  /// The notifications bell is in the masthead of every signed-in page, so no navigation is needed
+  /// to answer the question. `contains` because the label is STATE-DEPENDENT — `notifications.bell`
+  /// normally, `notifications.bellCounted` ("Notifications (3 unread)") when anything is unread, so
+  /// an exact match is a test that passes or fails on how much unread mail the account has. Same
+  /// control and same reasoning as the Android twin (`AppSession.java:48`).
+  static func hasAnySession(_ app: XCUIApplication) -> Bool {
+    Journey.find(app, labels: ["Notifications"], contains: true, timeout: 8) != nil
+  }
+
   static func isSignedIn(_ app: XCUIApplication) -> Bool {
-    _ = Journey.openProfile(app)
-    // SCROLL to it. "Sign out" is deliberately the last control on Profile (#1962 — "quiet, last,
-    // least weight"), so on any account with content it is below the fold. Waiting for it to exist
-    // without scrolling asks whether it is on SCREEN, which is not the question: on 2026-09-18 a
-    // capture-stats block was added above it and every suite that calls this reported "sign-in did
-    // not complete" for a session that was perfectly valid and an app sitting on a signed-in Home.
-    guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else { return false }
-    // The painted session is not the answer — the revalidation that follows it is. Six seconds is
-    // the observed worst case for `refresh()` against the local fixture api plus a re-render.
-    sleep(6)
-    return Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil
+    settles(app, "Notifications", timeout: 20)
   }
 
   /// Open an episode by slug through the app's deep-link scheme (#1925).
@@ -83,7 +120,7 @@ enum AppSession {
   /// mechanism; nothing server-side had to change.
   @discardableResult
   static func signIn(
-    _ app: XCUIApplication, _ springboard: XCUIApplication, as identity: String = "uitest"
+    _ app: XCUIApplication, _ springboard: XCUIApplication, as identity: String
   ) -> Bool {
     let signIn = app.links["Sign in"].firstMatch
     guard signIn.waitForExistence(timeout: 20) else {
@@ -161,31 +198,31 @@ enum AppSession {
    * the identity, so Profile being reachable by that label answers both questions at once.
    */
   static func isSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
-    // Open Profile by the identity label WHEN IT IS THERE, else the generic one.
+    // READ THE MASTHEAD; DO NOT NAVIGATE (2026-09-28) — and the identity answers BOTH questions at
+    // once, so there is nothing left for Profile to add.
     //
-    // This used to reach the page by the identity alone, on the reasoning that "the masthead entry
-    // is labelled with the display NAME, which for a dev-picker account IS the identity". That does
-    // not hold: the avatar is `aria-label="auth.user?.name || 'Your profile'"`, so any account
-    // without a resolved name is labelled generically — and the check then reported SIGNED OUT
-    // about an app that was demonstrably signed in, with the avatar, the queue badge and the
-    // offline stale-notice all on screen (2026-09-24).
-    guard Journey.tap(app, labels: [identity], contains: true, timeout: 8)
-      || Journey.tap(app, labels: ["Your profile"], contains: false, timeout: 8)
-    else { return false }
-
-    // The RIGHT account, checked FIRST — before the scroll below moves it off screen. Profile
-    // prints the name and the email, and a dev identity appears in at least one of them
-    // (`simtest` / `simtest@e2e.local`). This is what keeps per-suite isolation (#2091) honest:
-    // "some session exists" is not the question, "whose" is.
-    guard Journey.find(app, labels: [identity], contains: true, timeout: 10) != nil else {
-      return false
-    }
-
-    // A session EXISTS — "Sign out" is deliberately the last control on Profile (#1962).
-    guard Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil else { return false }
-    // The painted session is not the answer — the revalidation that follows it is.
-    sleep(6)
-    return Journey.scrollTo(app, labels: ["Sign out"], contains: false) != nil
+    // The masthead entry is `aria-label="auth.user?.name || 'Your profile'"`, so once `/me`
+    // resolves it carries the account NAME. That is the whole answer: a session exists, and it is
+    // THIS one. The previous version tapped through to Profile and then scrolled for "Sign out",
+    // which made a question about the session depend on reaching a page and on a control that is
+    // deliberately the last item on it (#1962).
+    //
+    // It also had a race the old comment names but does not fix: the generic "Your profile"
+    // fallback is what the masthead shows BEFORE the name resolves, so tapping it happily proceeds
+    // on an app whose session has not been confirmed yet. `settles` removes the need for the
+    // fallback entirely — waiting for the NAME to appear and HOLD is the same thing as waiting for
+    // the revalidation to land, so the unresolved window is something to wait through, not to
+    // tolerate.
+    //
+    // MEASURED cost of the old shape, full iOS tier, `NativeOnlySurfacesTests`: five complete
+    // `auth/login` -> `auth/callback` pairs in the api log, every one of them reported as
+    // not-signed-in, each triggering another retry. 500+ seconds in a poll loop, assertions never
+    // reached. `openProfile`'s own diagnostic shows the control was never at fault:
+    //     =====PROFILE_CTL link 'simtest' frame=(349.0, 62.0, 48.0, 18.0) hittable=true=====  (x12)
+    //
+    // Identical to the Android twin, which is the point — `AppSession.java` is
+    // `settles(identity, 20_000)` and nothing else (#2091 parity).
+    return settles(app, identity, timeout: 20)
   }
 
   /**
@@ -203,32 +240,263 @@ enum AppSession {
    * scroll-to-Sign-out dance has already broken twice when Profile grew (2026-09-18), and a second
    * copy would have to be fixed twice next time.
    */
+  /// RETRIED, and through `Journey.tap` — ported from the Android twin, which measured why.
+  ///
+  /// This tapped the node `scrollTo` returned, once, and trusted it. Android hit the failure that
+  /// makes that unsafe and fixed it there: "Sign out" is deliberately the LAST control on Profile
+  /// (#1962 — "quiet, last, least weight"), so scrolling to it parks it at the bottom of the screen,
+  /// measured UNDERNEATH the bottom nav. The tap landed on "Discover", the app navigated there, and
+  /// the session was of course still present. `Journey.tap` exists precisely to lift a control clear
+  /// of that overlap before touching it, and this call site skipped it — the same trap iOS's own
+  /// `Journey` documents for the transport row.
+  ///
+  /// Re-resolving inside the loop matters as much as the retry: a node found before a scroll is
+  /// stale afterwards, and tapping a stale node does nothing, silently.
+  ///
+  /// The app is not the suspect: `auth.logout()` drops the local identity in a `finally` so a
+  /// sign-out with no network still works.
   @discardableResult
   static func signOut(_ app: XCUIApplication) -> Bool {
     guard isSignedIn(app) else { return true } // already out; the caller's precondition holds
-    _ = Journey.openProfile(app)
-    guard let out = Journey.scrollTo(app, labels: ["Sign out"], contains: false) else {
-      print("=====SIGNOUT_TREE_START====="); print(app.debugDescription); print("=====SIGNOUT_TREE_END=====")
-      return false
+    for attempt in 1...3 {
+      // HOME FIRST. Whatever ran before may have left the app anywhere, and the masthead avatar is
+      // the entry point everything below depends on.
+      //
+      // MEASURED 2026-09-29: all four `NativeOnlySurfacesTests` failed "could not sign out after 3
+      // attempts" with the inventory showing the SETTINGS page, not Profile —
+      //     Clear cache | Remove downloads | Support | Third-party software | Privacy policy
+      // `setOfflineMode` reaches its switch through Settings and leaves the app there, so the NEXT
+      // test's sign-out starts on Settings, where "Sign out" does not exist. `startClean` returns
+      // to Home at its END, but `signOut` runs inside `ensureSignedIn`, which is earlier — so that
+      // fix could never cover this call.
+      _ = Journey.openTab(app, "Home")
+      // OPEN PROFILE WITHOUT KNOWING WHOSE IT IS.
+      //
+      // `signOut` runs precisely when the session belongs to SOMEONE ELSE, so the account name —
+      // which is what the masthead entry is labelled with once `/me` resolves — is the one thing it
+      // cannot be told. The label-less `openProfile` overload answers that with a hardcoded
+      // ["Your profile", "simtest", "uitest"], and that list is only ever right by accident: it
+      // worked while every suite shared `simtest`, and stopped the moment suites got their own
+      // accounts (#2091).
+      //
+      // MEASURED 2026-09-28: with the previous suite signed in as `appjourneytests`, all three
+      // attempts reported the app on HOME — `Choose interests | Not now | Sort: Rising | …` — never
+      // Profile, because no label in that list was on screen.
+      //
+      // Discover it instead. The masthead's links are FIXED chrome plus exactly one variable entry:
+      // the account. Whatever link is not chrome IS the profile entry, whatever it is called today.
+      let chrome: Set<String> = [
+        "Skip to content", "Settings", "Search", "Queue", "Home", "Discover", "Library",
+      ]
+      // MASTHEAD BAND ONLY. The first cut took every non-chrome link on the page and handed the
+      // list to `openProfile`, which ORs them into ONE predicate — so `firstMatch` picked an
+      // episode card and navigated there instead. Measured: the candidates were
+      //     ["CROSS-SHOW Risk Is a Systems Property 4 min ● insights", "1 Cross-Show",
+      //      "2 The Drift", "appjourneytests"]
+      // with the account LAST. The masthead entry measures at y≈64 (`PROFILE_CTL … frame=(349.0,
+      // 64.0, …)`), so the top band is what separates chrome from content.
+      let band = app.frame.height * 0.15
+      let candidates =
+        app.links.allElementsBoundByIndex
+        .filter { $0.frame.minY >= 0 && $0.frame.minY < band }
+        .map { $0.label.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty && !$0.hasPrefix("Close Listening") && !$0.hasPrefix("Queue (") }
+        .filter { !chrome.contains($0) }
+      print("=====SIGNOUT profile candidates \(candidates.prefix(4))=====")
+      _ = Journey.openProfile(app, labels: candidates + ["Your profile"])
+      // SELECT THE ACCOUNT TAB. Profile is tabbed (Account / Topics / Stats) and "Sign out" is in
+      // the Account panel (`ProfileView.vue:803`) — so on any other tab it is not below the fold,
+      // it is NOT RENDERED, and no amount of scrolling will produce it.
+      //
+      // The tab STICKS between visits: ProfileView is kept alive (`ProfileView.vue:89`,
+      // KEEP_ALIVE_TABS), so setup runs once and the last tab a test looked at is the tab the next
+      // `openProfile` lands on. Any suite that visits Profile ▸ Topics or ▸ Stats therefore breaks
+      // sign-out for whatever runs after it — across suites, because the app is not reinstalled
+      // between them.
+      //
+      // MEASURED 2026-09-28: three identical attempts, each reporting "no 'Sign out' on Profile"
+      // over an inventory that plainly shows the page — `Change photo | … | Account | Topics |
+      // Stats | … | Your profile` — and no Sign out anywhere in it.
+      //
+      // This was invisible until today because it was masked by a SECOND bug: `isSignedIn` could
+      // not detect a session either, so `signOut`'s own guard concluded "already signed out" and
+      // returned success without signing anything out. Fixing the detection is what made this one
+      // reachable; two wrongs had been cancelling since the tabs landed.
+      _ = Journey.tap(app, labels: ["Account"], contains: false, timeout: 5)
+      // BEST-EFFORT SCROLL, NOT A GATE. `scrollTo` used to guard this tap, and its failure aborted
+      // the whole attempt — but `tap` does its own scroll-into-view off the element's FRAME
+      // (`while el.frame.maxY > height - 90 { swipeUp }`), which is the mechanism that actually
+      // works on this page. Gating the good mechanism behind the fragile one is why sign-out had
+      // three attempts and no chance.
+      //
+      // `scrollTo` is fragile HERE specifically: it stops after two unchanged text signatures, and
+      // its own comment names the hazard — "a sticky header would silently make every page look
+      // stalled after two swipes". Profile has a sticky Account/Topics/Stats tab bar, so it reports
+      // "no 'Sign out' on Profile" about a page that has one, just below the fold.
+      _ = Journey.scrollTo(app, labels: ["Sign out"], contains: false)
+      // NOTHING TO SIGN OUT OF. Measured 2026-09-29: `TAP_MISS ["Sign out"]` — the control is not
+      // in the tree AT ALL, not merely below the fold — while the only non-chrome masthead link is
+      // the GENERIC "Your profile". Both facts say the same thing: `auth.isAuthenticated` is false,
+      // because the button is `v-if="auth.isAuthenticated"` and the masthead label is
+      // `auth.user?.name || 'Your profile'`.
+      //
+      // `isSignedIn` still answers yes there, because it reads the notifications bell, which renders
+      // under `auth.hasSession` — a stale local session survives where an authenticated one does
+      // not. So this loop was retrying a sign-out that had nothing to act on, three times, and then
+      // failing the suite.
+      //
+      // Requires BOTH signals, deliberately: a signed-in Profile shows the account name AND the
+      // button, so neither alone would be safe. `ensureSignedIn` then verifies the identity anyway,
+      // which is the backstop if this is ever wrong.
+      if candidates == ["Your profile"],
+        Journey.find(app, labels: ["Sign out"], contains: false, timeout: 2) == nil
+      {
+        // RELAUNCH, don't just navigate. This state is a stale local session — `hasSession` true,
+        // `isAuthenticated` false — and returning from it with the app untouched leaves the caller
+        // unable to do anything: `signIn` then hunts a "Sign in" link that the masthead does not
+        // show either, and fails "neither Sign in nor Sign out present" (measured 2026-09-29).
+        // A relaunch re-runs the boot revalidation, `/me` refuses the token, and the app settles
+        // into a REAL signed-out state where the Sign in link exists.
+        print("=====SIGNOUT nothing to sign out of — no account name, no Sign out control=====")
+        app.terminate()
+        app.launch()
+        _ = app.wait(for: .runningForeground, timeout: 30)
+        sleep(7)  // boot paints the device snapshot, then revalidates; same wait as Journey.launch
+        return true
+      }
+      let tapped = Journey.tap(app, labels: ["Sign out"], contains: false, timeout: 10)
+      sleep(3)
+      if !isSignedIn(app) { return true }
+      print(
+        "=====SIGNOUT attempt \(attempt) tapped=\(tapped) but a session is still present :: "
+          + "\(Journey.labelledInventory(app, limit: 10))====="
+      )
     }
-    out.tap()
-    sleep(3)
-    return !isSignedIn(app)
+    return false
   }
 
   @discardableResult
   static func ensureSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
     if isSignedIn(app, as: identity) { return true }
-    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-    if isSignedIn(app) {
-      _ = Journey.openProfile(app)
-      guard let out = Journey.scrollTo(app, labels: ["Sign out"], contains: false) else {
-        XCTFail("signed in as someone else and Sign out was unreachable")
-        return false
-      }
-      out.tap()
-      sleep(3)
+    // DELEGATE to `signOut`, do not re-implement it here.
+    //
+    // This carried its own copy of the scroll-and-tap dance — the second copy that `signOut`'s
+    // docstring says it was extracted to prevent, and it had the raw-tap defect the loop above
+    // exists to fix. So the path that runs when the session belongs to SOMEONE ELSE was the one
+    // least able to get rid of them.
+    //
+    // And it must be able to FAIL. Before, a missed Sign-out tap fell through to `signIn`, which
+    // cannot reach the dev picker on a signed-in app (there is no "Sign in" link) and whose own
+    // fallback is `isSignedIn(app)` — any session. So the previous suite's account got certified as
+    // this suite's, silently, which is exactly the per-suite isolation #2091 exists to provide.
+    if isSignedIn(app), !signOut(app) {
+      XCTFail(
+        "signed in as another account and could not sign out after 3 attempts, so this suite "
+          + "cannot get its own session. Continuing would certify the previous suite's account."
+      )
+      return false
     }
-    return signIn(app, springboard, as: identity)
+    // VERIFY THE IDENTITY, not merely that a session exists.
+    //
+    // `signIn` returns `isSignedIn(app)` — any session — deliberately, because hunting the masthead
+    // by account name is unreliable before `/me` resolves, and being strict there caused false
+    // negatives on healthy sessions. That tolerance is right inside `signIn` and wrong as this
+    // function's contract: `ensureSignedIn(as:)` promises an account, so it checks for one.
+    // Same fix as the Android twin.
+    // THE CALLBACK PATH, not the dev picker — and no fallback to it. Same as the Android twin
+    // (`AppSession.java` `ensureSignedIn`: callback-only, because a fallback "converted a precise
+    // failure into a confusing one"). `signIn` still exists for a test that means to drive the UI.
+    return signInViaCallback(app, as: identity) && isSignedIn(app, as: identity)
+  }
+
+  /// The origin the fixture api is reached through — the Makefile's `IOS_ORIGIN_PORT`, also baked
+  /// into the app bundle as its API base. Overridable via `LP_ORIGIN_PORT`
+  /// (`TEST_RUNNER_LP_ORIGIN_PORT` on the xcodebuild line). A wrong port does NOT degrade quietly:
+  /// there is no UI fallback, so the mint fails and names the URL it tried.
+  private static var originPort: String {
+    ProcessInfo.processInfo.environment["LP_ORIGIN_PORT"] ?? "4174"
+  }
+
+  /// Stop at every redirect so each `Location` can be read — the last is a `closelistening://`
+  /// URL, which URLSession cannot follow and which carries the token.
+  private final class StopAtRedirect: NSObject, URLSessionTaskDelegate {
+    func urlSession(
+      _ session: URLSession, task: URLSessionTask,
+      willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+      completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+      completionHandler(nil)
+    }
+  }
+
+  /// Mint a real native session through the mock provider — the same HTTP hops the dev picker
+  /// drives, ending at `closelistening://auth#token=<signed>`. Returns nil so the caller reports.
+  private static func mintNativeToken(_ identity: String) -> String? {
+    let session = URLSession(
+      configuration: .ephemeral, delegate: StopAtRedirect(), delegateQueue: nil)
+    guard
+      let encoded = identity.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+      var url = URL(
+        string: "http://127.0.0.1:\(originPort)/api/app/auth/login?as=\(encoded)&platform=native")
+    else { return nil }
+    for _ in 0..<6 {
+      var location: String?
+      let done = DispatchSemaphore(value: 0)
+      session.dataTask(with: url) { _, response, _ in
+        location = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Location")
+        done.signal()
+      }.resume()
+      guard done.wait(timeout: .now() + 20) == .success, let loc = location else {
+        print("=====CALLBACK mint stopped at \(url) — no redirect=====")
+        return nil
+      }
+      if loc.hasPrefix("closelistening://") {
+        return loc.components(separatedBy: "#token=").dropFirst().first
+      }
+      guard let next = URL(string: loc, relativeTo: url)?.absoluteURL else { return nil }
+      url = next
+    }
+    return nil
+  }
+
+  /// Sign in by delivering the OAuth callback as a deep link — no dev picker, no text field.
+  ///
+  /// WHY (2026-09-29): the dev picker's "or a custom name…" field is where XCUITest's wait-for-idle
+  /// stalls — after tapping it iOS never reports the app idle, and every following interaction
+  /// waits its full 60 s: seven in one run, 420 s of 537. The wait itself is NOT the problem and
+  /// must stay: it is what lets a page finish scrolling before the next tap (~3 s after a swipe on
+  /// Settings). Disabling it was measured and broke the Offline mode tap
+  /// (`OFFLINE_TOGGLE before=0 after=0`). So the fix is not to touch that field.
+  ///
+  /// Android has signed in this way since 2026-09-28; this is the port. The link is delivered the
+  /// way `openEpisode` delivers links, including SpringBoard's "Open in…?" confirmation.
+  static func signInViaCallback(_ app: XCUIApplication, as identity: String) -> Bool {
+    let started = Date()
+    // "Sign in" PRESENT first, as the Android twin requires. Without it, called on an app already
+    // signed in as `identity`, the postcondition below is satisfied by the precondition and this
+    // "succeeds" having delivered nothing. It also proves web content is painted, which the deep
+    // link needs to be heard at all. A LINK, so `/login`'s own "Sign in" submit button cannot pass.
+    guard app.links["Sign in"].firstMatch.waitForExistence(timeout: 20) else {
+      Journey.inventory(app, "callback-no-sign-in")
+      print("=====CALLBACK no signed-out 'Sign in' on screen: no web content yet, or a session "
+        + "already exists — neither is a state this path can act on=====")
+      return false
+    }
+    guard let token = mintNativeToken(identity), !token.isEmpty else {
+      XCTFail(
+        "could not mint a native session for \(identity) via http://127.0.0.1:\(originPort) — "
+          + "is the origin up, and is LP_ORIGIN_PORT the Makefile's IOS_ORIGIN_PORT?")
+      return false
+    }
+    guard let url = URL(string: "closelistening://auth#token=\(token)") else { return false }
+    XCUIDevice.shared.system.open(url)
+    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    let confirm = springboard.buttons["Open"]
+    if confirm.waitForExistence(timeout: 5) { confirm.tap() }
+    _ = app.wait(for: .runningForeground, timeout: 15)
+    let ok = isSignedIn(app, as: identity)
+    let ms = Int(Date().timeIntervalSince(started) * 1000)
+    print("=====CALLBACK \(ok ? "signed in" : "FAILED") as \(identity) in \(ms)ms, no dev picker=====")
+    return ok
   }
 }

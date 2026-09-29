@@ -30,7 +30,13 @@ beforeEach(() => {
   // network (its own coverage lives in EpisodeDensity.test.ts).
   vi.spyOn(api, "getEpisodeEnrichment").mockResolvedValue({})
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  // The notes viewer teleports to <body>, and these mounts are never unmounted — so without this
+  // one test's open viewer is still in the document during the next, and a test asserting the
+  // viewer is ABSENT passes or fails on its predecessor's leftovers rather than its own behaviour.
+  document.body.innerHTML = ""
+})
 
 function episode(): EpisodeDetail {
   return {
@@ -304,13 +310,17 @@ describe("KnowledgePanel", () => {
     expect(w.text()).toContain("Insights appear once this episode is processed.")
   })
 
-  it("shows the insight save as a sign-in-gated heart when signed out", () => {
+  it("shows the insight save as a sign-in-gated BOOKMARK when signed out", () => {
     const w = mountPanel()
-    // The save renders signed-out (#1590) as the shared `.lp-fav` heart, but gated: the label is
-    // the sign-in prompt, not the active "Save to favorites".
-    expect(w.find(".lp-fav").exists()).toBe(true)
-    expect(w.find('[aria-label="Sign in to save this"]').exists()).toBe(true)
-    expect(w.find('[aria-label="Save to favorites"]').exists()).toBe(false)
+    // Renders signed-out (#1590) but gated: the label is the sign-in prompt.
+    //
+    // A bookmark, not a heart (operator 2026-09-27). It writes a HIGHLIGHT, the same as a
+    // transcript line does, and the heart is the favourite mark for whole objects. It used to
+    // announce "Save to favorites" while doing neither.
+    const save = w.find('[data-testid="highlight-toggle"]')
+    expect(save.exists()).toBe(true)
+    expect(save.attributes("aria-label")).toBe("Sign in to mark this moment")
+    expect(w.find(".lp-fav").exists(), "the heart does not belong on a fragment").toBe(false)
   })
 
   it("lets a signed-in user save an insight to highlights (P2 capture)", async () => {
@@ -337,7 +347,7 @@ describe("KnowledgePanel", () => {
     const create = vi.spyOn(api, "createHighlight").mockResolvedValue(created)
     const w = mountPanel()
     await flushPromises()
-    const save = w.find(".lp-fav")
+    const save = w.find('[data-testid="highlight-toggle"]')
     expect(save.exists()).toBe(true)
     await save.trigger("click")
     await flushPromises() // the gate resolves the session before acting (#1590)
@@ -355,17 +365,22 @@ describe("KnowledgePanel", () => {
     const w = mountPanel()
     await flushPromises()
 
-    const save = w.find(".lp-fav")
+    const save = w.find('[data-testid="highlight-toggle"]')
     expect(save.exists()).toBe(true) // renders signed-out as a teaser
     await save.trigger("click")
     await flushPromises()
     expect(create).not.toHaveBeenCalled() // gated → routes to sign-in, no write
   })
 
-  it("the insight save is the one shared heart, writing a highlight not a favorite (RFC-121/#1593)", async () => {
-    // An insight is saved by the ONE shared `.lp-fav` heart. It writes an insight HIGHLIGHT (capture
-    // path); it must NEVER call the favorites path — favorite(insight) is the "same text, two
-    // destinations" #1593 banned.
+  it("the insight save is the one shared BOOKMARK, writing a highlight not a favorite (RFC-121/#1593)", async () => {
+    // An insight is saved by the ONE shared `HighlightToggle` — the same component the transcript
+    // line uses, because it is the same action. It writes an insight HIGHLIGHT (capture path) and
+    // must NEVER call the favorites path: favourite(insight) is the "same text, two destinations"
+    // that #1593 banned.
+    //
+    // It drew a HEART until 2026-09-27, which is how the ban survived in the data layer while the
+    // UI said the opposite out loud. The heart's absence is asserted, not just the bookmark's
+    // presence — otherwise reattaching one alongside would keep this green.
     const auth = useAuthStore()
     auth.user = { user_id: "u1", email: "a@b.c", name: "A" }
     vi.spyOn(api, "getHighlights").mockResolvedValue([])
@@ -390,9 +405,10 @@ describe("KnowledgePanel", () => {
     const w = mountPanel()
     await flushPromises()
 
-    const hearts = w.findAll(".lp-fav")
-    expect(hearts.length).toBe(1) // one save per insight, not two
-    await hearts[0].trigger("click")
+    const saves = w.findAll('[data-testid="highlight-toggle"]')
+    expect(saves.length).toBe(1) // one save per insight, not two
+    expect(w.findAll(".lp-fav").length, "no heart on a fragment").toBe(0)
+    await saves[0].trigger("click")
     await flushPromises()
     expect(create).toHaveBeenCalled() // → highlights/capture path
     expect(addFav).not.toHaveBeenCalled() // never the favorites path (#1593)
@@ -707,6 +723,151 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     expect(url).toContain("/notes.html")
     // The URL must name THIS episode — a route that always exports the same one is worse than none.
     expect(url).toContain(episode().slug)
+  })
+
+  it("on NATIVE, PDF OPENS the notes in the app instead of handing them to a save dialog", async () => {
+    /*
+     * The share sheet is a SAVE dialog, and it was the whole answer to a control the reader takes
+     * to mean "show me the document" (operator 2026-09-27: "he offers me to download HTML rather
+     * than opening me PDF in a new browser window").
+     *
+     * `openExternal` is spied too, because the obvious way to "open" this is the one already tried
+     * and failed: SFSafariViewController does not share the cookie jar, so the export arrives
+     * unauthenticated and renders the sign-in gate. The document must come from the FETCH — which
+     * carries the shell's bearer token — and be displayed from memory.
+     */
+    vi.spyOn(native, "isNative").mockReturnValue(true)
+    const external = vi.spyOn(native, "openExternal").mockResolvedValue(undefined)
+    const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
+    vi.spyOn(api, "fetchEpisodeNotes").mockResolvedValue("<html><body>NOTES BODY</body></html>")
+
+    const w = mountPanel()
+    await flushPromises()
+    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await flushPromises()
+
+    const frame = document.querySelector('[data-testid="episode-notes-frame"]')
+    expect(frame, "the notes must be ON SCREEN, not handed to a save dialog").toBeTruthy()
+    // `srcdoc`, not `src`: the bytes already fetched, so there is no second, cookie-less request.
+    expect(frame?.getAttribute("srcdoc")).toContain("NOTES BODY")
+    expect(frame?.hasAttribute("src")).toBe(false)
+
+    expect(
+      external,
+      "the external browser is the route that lands on the sign-in gate",
+    ).not.toHaveBeenCalled()
+    expect(
+      share,
+      "sharing is an action inside the viewer, not the act of opening it",
+    ).not.toHaveBeenCalled()
+  })
+
+  it("search collapses identical hits and drops the keyboard", async () => {
+    /*
+     * Two defects from one screenshot (operator 2026-09-27). The SAME chunk came back twice,
+     * filling a phone screen with room for about one result; and the keyboard covered the results,
+     * which render below the input.
+     *
+     * The dedupe is PRESENTATION, not a fix — duplicate chunks in the index are an index-side
+     * defect (same neighbourhood as #2159's chunking bug). Keyed on text, because the doc_ids
+     * differ; identical ids would already have been collapsed server-side.
+     */
+    const hit = (doc_id: string, text: string) =>
+      ({ doc_id, text, score: 1, metadata: {}, source_tier: "transcript" }) as never
+    vi.spyOn(api, "searchEpisode").mockResolvedValue({
+      query: "agents",
+      results: [hit("a", "Agentic engineering."), hit("b", "Agentic engineering."), hit("c", "Other.")],
+      error: null,
+    } as never)
+
+    const w = mountPanel()
+    await flushPromises()
+    const input = w.get("#kp-ask")
+    const blur = vi.spyOn(input.element as HTMLInputElement, "blur")
+    await input.setValue("agents")
+    await w.get("form").trigger("submit")
+    await flushPromises()
+
+    const texts = w.findAll("li p").map((p) => p.text())
+    expect(texts.filter((t) => t === "Agentic engineering.")).toHaveLength(1)
+    expect(texts).toContain("Other.")
+    expect(blur, "the keyboard must get out of the way of the results it just produced").toHaveBeenCalled()
+  })
+
+  it("the control says Search, because that is what it does", () => {
+    // It was labelled "Ask" while running `searchEpisode()` and rendering raw chunks. There is no
+    // synthesis endpoint in the app, so the label promised something nothing could produce.
+    const w = mountPanel()
+    expect(w.get("#kp-ask").attributes("placeholder")).toBe("Search this episode…")
+    expect(w.text()).not.toContain("Ask this episode")
+  })
+
+  it("the viewer mounts INSIDE an open dialog, or the top layer hides it", async () => {
+    /*
+     * The regression this exists for (operator 2026-09-27): "on last deploy nothing happens when I
+     * click PDF on insights". Something did happen — the notes fetched and the overlay rendered.
+     * It was just invisible, because this panel is `showModal()`'d on mobile and therefore in the
+     * TOP LAYER, which paints above the entire normal layer no matter what z-index anything there
+     * carries. The viewer was teleported to `body` with `z-[60]` and sat behind the panel.
+     *
+     * Asserted as the TELEPORT TARGET rather than as visibility, deliberately: jsdom implements
+     * neither the top layer nor `showModal` stacking, so an element hidden behind a modal is
+     * indistinguishable here from one in front of it. Three tests passed over this bug for exactly
+     * that reason. The target is the thing a unit test CAN see, so the target is what gets pinned.
+     */
+    vi.spyOn(native, "isNative").mockReturnValue(true)
+    vi.spyOn(api, "fetchEpisodeNotes").mockResolvedValue("<html><body>NOTES BODY</body></html>")
+
+    const dialog = document.createElement("dialog")
+    dialog.setAttribute("open", "")
+    document.body.appendChild(dialog)
+
+    const w = mountPanel()
+    await flushPromises()
+    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await flushPromises()
+
+    const frame = document.querySelector('[data-testid="episode-notes-frame"]')
+    expect(frame, "the viewer did not render at all").toBeTruthy()
+    expect(
+      dialog.contains(frame),
+      "the viewer mounted outside the open <dialog>, so on device the top layer paints over it " +
+        "and the control looks dead — use sheetTeleportTarget()",
+    ).toBe(true)
+  })
+
+  it("the viewer still reaches the share sheet — that is the route to Print → Save as PDF", async () => {
+    vi.spyOn(native, "isNative").mockReturnValue(true)
+    const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
+    vi.spyOn(api, "fetchEpisodeNotes").mockResolvedValue("<html><body>NOTES BODY</body></html>")
+
+    const w = mountPanel()
+    await flushPromises()
+    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await flushPromises()
+
+    const shareBtn = document.querySelector<HTMLElement>(
+      '[data-testid="episode-notes-viewer-share"]',
+    )
+    expect(shareBtn).toBeTruthy()
+    shareBtn!.click()
+    await flushPromises()
+    expect(share).toHaveBeenCalledTimes(1)
+    expect(share.mock.calls[0][2]).toBe("text/html")
+  })
+
+  it("a failed export SAYS so rather than doing nothing", async () => {
+    // The control it replaced failed in silence on the phone, which reads as a dead button.
+    vi.spyOn(native, "isNative").mockReturnValue(true)
+    vi.spyOn(api, "fetchEpisodeNotes").mockRejectedValue(new Error("offline"))
+
+    const w = mountPanel()
+    await flushPromises()
+    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await flushPromises()
+
+    expect(w.find('[data-testid="episode-notes-error"]').exists()).toBe(true)
+    expect(document.querySelector('[data-testid="episode-notes-frame"]')).toBeNull()
   })
 
   it("on the web the Markdown chip is a download link, not a share", async () => {

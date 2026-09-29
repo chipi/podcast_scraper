@@ -586,7 +586,11 @@ const mainBottomPadding = computed(() =>
              are most likely to be in offline, on a plane, wanting the thing you queued.
              Not inside the `sm:` group with Browse/Library: the whole point is that it survives at
              phone width. The badge is the queue's own length, so the control answers "is there
-             anything in there" without being opened. -->
+             anything in there" without being opened.
+
+             This is also the ONLY nav-level way into the queue since 2026-09-27 — Home's resume
+             hero and the player's panel button were both removed as redundant with it, so the
+             reachability guard that used to sit on HomeView now sits on this control. -->
         <NavIconLink
           v-if="auth.hasSession"
           :to="{ name: 'queue' }"
@@ -595,8 +599,22 @@ const mainBottomPadding = computed(() =>
           owns="queue"
           data-testid="masthead-queue"
         >
+          <!-- A BULLETED LIST — lines WITH leading marks (operator 2026-09-27, second pass).
+               First pass removed the trailing wedge, because that put this in the same family as
+               `QueueButton`'s lines-plus-a-plus and made a destination read as an action. Correct,
+               but it landed on a BARE three-line list — which is byte-identical to the Summary
+               opener over the artwork (`M4 6h16M4 12h16M4 18h10`, PlayerView). Two controls, one
+               drawing, on screens the reader sees together. I replaced one collision with another
+               within the same session, and the glyph guard did not catch it because it only
+               policed heart / bookmark / board.
+               The bullets are what make this a LIST OF THINGS rather than a block of prose: Summary
+               is text (plain rules, shortest last), this is items (each rule led by its own mark).
+               Still no plus and no wedge, so it stays a destination rather than an action.
+               `__checks__/save-affordances.test.ts` now asserts no two of these glyphs share
+               geometry, so the next collision fails in vitest instead of on a device. -->
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-            <path d="M3 6h13" /><path d="M3 12h13" /><path d="M3 18h9" /><path d="m17 15 4 3-4 3z" />
+            <path d="M4 6h.01" /><path d="M4 12h.01" /><path d="M4 18h.01" />
+            <path d="M9 6h11" /><path d="M9 12h11" /><path d="M9 18h11" />
           </svg>
         </NavIconLink>
         <!-- Notification bell, at EVERY width (wave-I): the in-app inbox surface. Authenticated

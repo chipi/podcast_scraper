@@ -1,4 +1,7 @@
-# Device tiers + PR #2127 — handover, 2026-09-27
+# Device tiers — handover, 2026-09-27
+
+> Branch-level context for all 110 commits: `BRANCH-HANDOVER-ui-followups-2026-09-27.md`.
+> This file covers the device-tier arc (2026-09-25 → 09-27) only.
 
 Branch `fix/ui-followups-2026-09-18`, **pushed**. Supersedes
 `ANDROID-TIER-HANDOVER-2026-09-26.md`, which covered only the Android half.

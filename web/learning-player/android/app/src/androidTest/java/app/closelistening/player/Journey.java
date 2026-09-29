@@ -45,7 +45,65 @@ final class Journey {
 
     static final String PKG = "app.closelistening.player";
 
+    /**
+     * The single origin the app talks to, PASSED IN rather than duplicated.
+     *
+     * Not the emulator's 10.0.2.2 alias: the tier sets `adb reverse` for this port so the Android
+     * build's API base is BYTE-IDENTICAL to the iOS one and the two tiers cannot drift apart on
+     * configuration.
+     *
+     * This was `static final int ORIGIN_PORT = 4174` with a comment saying "mirrors
+     * `IOS_ORIGIN_PORT`; if that moves, this moves" — a hand-kept copy of a value that lives in the
+     * Makefile, committed on the same day as a commit whose whole thesis was that a hand-kept list
+     * was itself the bug. A constant that is correct only while someone remembers to update it is
+     * the same defect in a smaller box, and the failure would be quiet: the mint would connect to
+     * a port nothing serves, `signInViaCallback` would return false, and the tier would fall back
+     * to the UI path and pass — slower, flakier, and with the reason invisible.
+     *
+     * `android-suite` passes `-e originPort $(IOS_ORIGIN_PORT)`, so the Makefile stays the one
+     * place the number exists. Absent, this FAILS rather than defaulting: a default would restore
+     * the mirror, and restore it in the form that cannot be noticed.
+     */
+    static int originPort() {
+        String raw = InstrumentationRegistry.getArguments().getString("originPort");
+        if (raw != null && !raw.trim().isEmpty()) {
+            try {
+                return Integer.parseInt(raw.trim());
+            } catch (NumberFormatException e) {
+                throw new AssertionError("originPort was passed as '" + raw + "', which is not a port");
+            }
+        }
+        throw new AssertionError(
+                "originPort was not passed to the instrumentation. `android-suite` supplies it with "
+                        + "`-e originPort $(IOS_ORIGIN_PORT)`; run suites through that target rather "
+                        + "than calling `am instrument` directly. This deliberately does not default "
+                        + "to 4174 — a default would silently re-create the hand-kept copy of a "
+                        + "Makefile value that this replaced.");
+    }
+
     private Journey() {}
+
+    /**
+     * A diagnostic line that SURVIVES a tier run.
+     *
+     * This harness prints `=====MARKER …=====` lines everywhere and several comments treat them as
+     * the record of what happened. They are not: instrumentation `System.out` does not reach
+     * `am instrument -w` stdout, so a full `test-android` log contains ZERO of them. Measured
+     * 2026-09-28 — `grep -c "=====" ` over a complete tier log returned 0, while a phase-2 failure
+     * needed exactly those lines to explain itself and could not.
+     *
+     * It is the same failure this repo keeps finding in other forms: a diagnostic that looks like it
+     * is recording something. The earlier attempt to dump an accessibility hierarchy through
+     * `System.out` vanished for this reason too, and was misread at the time as the dump failing.
+     *
+     * So markers go to LOGCAT as well, under one tag `android-suite` can pull back on failure.
+     * `System.out` is kept because it does show up when a single suite is run by hand, which is how
+     * these are read during development.
+     */
+    static void mark(String message) {
+        System.out.println(message);
+        android.util.Log.i("LPHARNESS", message);
+    }
 
     static UiDevice device() {
         return UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
@@ -291,6 +349,27 @@ final class Journey {
             }
             el = again;
         }
+        // SAY SO when the thing about to be clicked is not clickable.
+        //
+        // `find` prefers a clickable node, then a clickable ancestor, and only then falls back to
+        // ANY matching node — which for web content is usually the inert `TextView` carrying the
+        // words, since every control is exposed twice. `find`'s own header warns that tapping that
+        // "does nothing at all, silently, and the failure surfaces several steps later as 'the page
+        // never changed'", and then `tap` clicks it anyway.
+        //
+        // Not converted into a failure, deliberately. The fallback exists because a control that IS
+        // reachable by coordinate but reports `clickable=false` is common enough in this bridge that
+        // refusing would break working call sites — and the comment above records the ruling that
+        // "never clicking a control that is plainly present" is the worse outcome. So the behaviour
+        // stands and the silence goes: when this marker appears, a later "the page never changed"
+        // has its cause in the same log rather than several steps away.
+        if (!Boolean.TRUE.equals(attr(el, UiObject2::isClickable))) {
+            mark("=====TAP_NONCLICKABLE " + names + " resolved to a node with "
+                    + "clickable=false and no clickable ancestor (cls="
+                    + attr(el, UiObject2::getClassName) + ", bounds=" + lastGood + "). The click may "
+                    + "land on nothing; if a later step reports the page did not change, this is why."
+                    + "=====");
+        }
         try {
             el.click();
             return true;
@@ -507,6 +586,21 @@ final class Journey {
      * at. The same latent flaw is in the iOS file, masked by its account choices.
      */
     static boolean openProfile(List<String> labels) {
+        // TRY FIRST, SWIPE ONLY IF THAT FAILS.
+        //
+        // This opened with twelve unconditional `swipeDown()`s — about eight seconds — on the
+        // premise, ported from the iOS twin, that the masthead "scrolls away with the page". Two
+        // comments in this file disagree about that, and the other one is the MEASURED one:
+        // `signature()` exists precisely because the masthead and bottom nav are FIXED, so taking
+        // the first twelve nodes in tree order took the masthead every time and every page read as
+        // stalled after two swipes. On Android the accessibility tree holds only ON-SCREEN nodes,
+        // so a fixed masthead is always in it.
+        //
+        // The swipes are kept as a FALLBACK rather than deleted, because the contradiction is
+        // resolved by argument here and not by measurement, and the cost of being wrong is a suite
+        // that cannot reach Profile at all. Trying first makes them free when the measured claim
+        // holds, which is the common case; if it ever does not, the old behaviour is still there.
+        if (tap(labels, false, 3_000)) return true;
         for (int i = 0; i < 12; i++) swipeDown();
         if (tap(labels, false, 15_000)) return true;
         // POSITIONAL fallback: when signed in as an account this caller cannot name — the
@@ -514,11 +608,6 @@ final class Journey {
         // can sign this one in. The avatar is the rightmost control in the masthead band whatever
         // it is called, and position does not depend on knowing the name.
         return tapRightmostInMasthead();
-    }
-
-    /** The seeded accounts plus the generic label — for callers with no identity of their own. */
-    static boolean openProfile() {
-        return openProfile(Arrays.asList("Your profile", "simtest", "uitest"));
     }
 
     private static boolean tapRightmostInMasthead() {
@@ -565,7 +654,7 @@ final class Journey {
             boolean settingsTap = tap("Settings", true, 15_000);
             sleep(2_000);
             if (scrollTo(Arrays.asList(OFFLINE_ROW), false, 12) != null) return true;
-            System.out.println("=====SETTINGS_NAV attempt " + attempt
+            mark("=====SETTINGS_NAV attempt " + attempt
                     + " profileTap=" + profile + " reachedProfile=" + onProfile
                     + " settingsTap=" + settingsTap
                     + " :: " + labelledInventory(16) + "=====");
@@ -611,24 +700,24 @@ final class Journey {
     static boolean setOfflineMode(boolean wanted, List<String> profileLabels) {
         for (int round = 1; round <= 3; round++) {
             boolean observed = isForcedOffline();
-            System.out.println("=====OFFLINE_SET round " + round + " observed=" + observed
+            mark("=====OFFLINE_SET round " + round + " observed=" + observed
                     + " wanted=" + wanted + "=====");
             if (observed == wanted) return true;
 
             if (!openSettings(profileLabels)) {
-                System.out.println("=====OFFLINE_SET settings unreachable :: "
+                mark("=====OFFLINE_SET settings unreachable :: "
                         + labelledInventory(12) + "=====");
                 return false;
             }
             UiObject2 row = scrollTo(Arrays.asList(OFFLINE_ROW), false, 20);
             if (row == null) {
-                System.out.println("=====OFFLINE_SET no 'Offline mode' row :: "
+                mark("=====OFFLINE_SET no 'Offline mode' row :: "
                         + labelledInventory(16) + "=====");
                 return false;
             }
             UiObject2 box = nearestCheckable(row);
             if (box == null) {
-                System.out.println("=====OFFLINE_SET nothing checkable for the row :: "
+                mark("=====OFFLINE_SET nothing checkable for the row :: "
                         + labelledInventory(16) + "=====");
                 return false;
             }
@@ -647,22 +736,22 @@ final class Journey {
             // of y=133, then y=1960, then y=249 on three consecutive visits, because where a web
             // page sits when you arrive is not stable. A coordinate is a guess about scroll
             // position; an accessibility action addresses the element itself.
-            System.out.println("=====OFFLINE_SET clicking box bounds=" + attr(box, UiObject2::getVisibleBounds)
+            mark("=====OFFLINE_SET clicking box bounds=" + attr(box, UiObject2::getVisibleBounds)
                     + " rowBounds=" + attr(row, UiObject2::getVisibleBounds)
                     + " rowName='" + nameOf(row) + "'"
                     + " rowCls=" + attr(row, UiObject2::getClassName) + "=====");
             try {
                 box.click();
             } catch (Throwable t) {
-                System.out.println("=====OFFLINE_SET click threw " + t + "=====");
+                mark("=====OFFLINE_SET click threw " + t + "=====");
                 return false;
             }
             sleep(1_500);
-            System.out.println("=====OFFLINE_SET round " + round + " clicked the box=====");
+            mark("=====OFFLINE_SET round " + round + " clicked the box=====");
         }
         boolean now = isForcedOffline();
         if (now != wanted) {
-            System.out.println("=====OFFLINE_SET after 3 rounds the app reports offline=" + now
+            mark("=====OFFLINE_SET after 3 rounds the app reports offline=" + now
                     + ", wanted " + wanted + " :: " + labelledInventory(16) + "=====");
         }
         return now == wanted;
@@ -738,7 +827,7 @@ final class Journey {
             }
             cur = parent;
         }
-        System.out.println("=====CHECKBOX no checkable inside any of the 4 ancestors of '"
+        mark("=====CHECKBOX no checkable inside any of the 4 ancestors of '"
                 + nameOf(labelled) + "'=====");
         return null;
     }
@@ -796,15 +885,15 @@ final class Journey {
                     .getTargetContext().getExternalFilesDir(null);
             java.io.File dir = new java.io.File(base, "lp-shots");
             if (!dir.exists() && !dir.mkdirs()) {
-                System.out.println("=====SHOT could not create " + dir.getAbsolutePath() + "=====");
+                mark("=====SHOT could not create " + dir.getAbsolutePath() + "=====");
                 return;
             }
             java.io.File out = new java.io.File(dir, name + ".png");
             boolean ok = device().takeScreenshot(out);
-            System.out.println("=====SHOT " + (ok ? "saved " : "FAILED ") + out.getAbsolutePath()
+            mark("=====SHOT " + (ok ? "saved " : "FAILED ") + out.getAbsolutePath()
                     + "=====");
         } catch (Throwable t) {
-            System.out.println("=====SHOT threw " + t + "=====");
+            mark("=====SHOT threw " + t + "=====");
         }
     }
 }

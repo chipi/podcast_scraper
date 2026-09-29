@@ -23,6 +23,10 @@ final class OfflineCacheTests: UITestCase {
 
   func test08BrowseThenOfflineShowsCachedContent() {
     let app = Journey.launch()
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
 
     // --- 1. WARM THE CACHE: browse the surfaces we will later assert on, online.
     Journey.shot(self, "08-a-home-online")
@@ -36,11 +40,11 @@ final class OfflineCacheTests: UITestCase {
     sleep(5)
 
     // --- 2. GO OFFLINE via the real Config switch.
-    guard Journey.setOfflineMode(app, on: true) else {
+    guard Journey.setOfflineMode(app, on: true, labels: profileLabels) else {
       XCTFail("could not turn Offline mode ON")
       return
     }
-    defer { _ = Journey.setOfflineMode(app, on: false) }
+    defer { _ = Journey.setOfflineMode(app, on: false, labels: profileLabels) }
 
     // --- 3. OBSERVE: cached content should be presented, not a wall of retry prompts.
     Journey.openTab(app, "Home")

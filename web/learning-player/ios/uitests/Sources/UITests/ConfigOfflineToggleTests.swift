@@ -20,11 +20,18 @@ import XCTest
 final class ConfigOfflineToggleTests: UITestCase {
   private func openSettings(_ app: XCUIApplication) -> Bool {
     // The masthead avatar is a link whose accessible name is the user's display name, falling back
-    // to "Your profile" when the profile has no name. Accept either so the test does not depend on
-    // which identity seeded the session.
-    let profile = app.links.matching(
-      NSPredicate(format: "label == 'Your profile' OR label == 'simtest' OR label == 'uitest'")
-    ).firstMatch
+    // to "Your profile" when the profile has no name.
+    //
+    // THIS SUITE'S identity, not a hardcoded list. What stood here was a FOURTH copy of
+    // ["Your profile", "simtest", "uitest"] — the same literals `Journey.openProfile`,
+    // `AppSession.signOut` and `Journey.setOfflineMode` each carried — and like the others it was
+    // right only while every suite shared `simtest`. This suite signs in as
+    // `configofflinetoggletests`, so once per-suite accounts became real none of the three matched
+    // and it reported "could not reach Settings" about a Home screen with the avatar right there.
+    let wanted = ([accountIdentity, "Your profile"])
+      .map { "label == '\($0)'" }
+      .joined(separator: " OR ")
+    let profile = app.links.matching(NSPredicate(format: wanted)).firstMatch
     guard profile.waitForExistence(timeout: 25) else {
       print("=====NO_PROFILE_LINK_TREE_START====="); print(app.debugDescription); print("=====NO_PROFILE_LINK_TREE_END=====")
       return false
@@ -47,7 +54,29 @@ final class ConfigOfflineToggleTests: UITestCase {
     let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
+    guard startClean(app) else {
+      XCTFail("sign-in did not complete as \(accountIdentity)")
+      return
+    }
     sleep(6) // let boot revalidation land so the masthead has painted the signed-in state
+
+    // PUT THE SWITCH BACK, whatever happens below.
+    //
+    // This test flips forced-offline ON and left it there. The switch is DEVICE-LOCAL — it survives
+    // a relaunch and an account change, which is precisely why `UITestCase`'s docstring names
+    // `lp.forceOffline` as the one piece of leaked state worth normalising — so every suite that
+    // ran afterwards started offline.
+    //
+    // That is unrecoverable from inside a later test, not merely inconvenient: with the app
+    // offline `/me` never resolves, so there is no account name, no "Sign out" (it is
+    // `v-if="auth.isAuthenticated"`) and no "Sign in" either. Measured 2026-09-29 — the next
+    // suite's `signIn` dumped an inventory reading `Offline mode is on — showing saved` with three
+    // `Try again` buttons, and failed "neither Sign in nor Sign out present" on an app that simply
+    // could not reach the server.
+    //
+    // `defer` rather than a trailing call: the assertions below can return early, and a restore
+    // that only runs on the happy path is the one that will not run when it matters.
+    defer { _ = Journey.setOfflineMode(app, on: false, labels: profileLabels) }
 
     guard openSettings(app) else { XCTFail("could not reach Settings"); return }
 

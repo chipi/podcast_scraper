@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -24,57 +24,177 @@ import { describe, expect, it } from 'vitest'
 const APP_VUE = readFileSync(join(__dirname, '../App.vue'), 'utf8')
 
 /**
- * Components whose icon-only buttons must carry a real text node, not just `aria-label`.
+ * A control with a ROLE-CHANGING aria attribute and nothing readable inside is unnamed on Android.
  *
- * Android System WebView drops an `aria-label` when the button's subtree has no text, so the
- * control is announced as an unnamed "Button" and is unfindable by name. This has now been found
- * THREE times in this codebase — `SavedColorControl`'s trigger (2026-09-24), its swatches, and
- * `SavedFilterBar`'s filter swatches (both 2026-09-26) — each time only because a device test
- * tripped over it, and the third one arrived disguised as "the seed coloured too few items".
+ * Repo-wide, no list. This replaced a hand-maintained array of six filenames (2026-09-27), which
+ * guarded whatever someone had remembered to add — which is why `views/` was invisible to it until
+ * five controls had already shipped unnamed.
  *
- * A regex cannot compute accessible names honestly, so this does the narrow, checkable thing:
- * for the components listed here, every `<button>` that carries an `aria-label` must also contain
- * an `sr-only` span. Add a component when a device run finds the shape again.
+ * ## The rule, and how it was settled on a device
+ *
+ * Two measurements used to contradict each other and the guard was drawn at their INTERSECTION,
+ * with the contradiction written down as unresolved:
+ *
+ *   - `OverflowMenu.vue` (2026-09-24, Android System WebView 150.0.7871.181): the ⋯ trigger arrived
+ *     as a zero-child `Button` with an empty contentDescription. The same page showed `Play`,
+ *     `Skip back 15 seconds`, `Mark this moment` and `Playback speed` — all icon-only with an
+ *     `aria-label` — all NAMED. It concluded the cause was `aria-haspopup` PLUS a hidden subtree,
+ *     and that "neither alone does it".
+ *   - `SavedColorControl.vue`: its five colour swatches measured `<UNLABELLED>[ToggleButton]` on
+ *     2026-09-26 — with NO `aria-haspopup`.
+ *
+ * Settled 2026-09-28 by A/B on the device rather than by argument. With the swatches' `sr-only`
+ * spans removed (full build → cap sync → assembleDebug → install), `AppJourneyTests
+ * #test07SavedColourPicker` failed with exactly five `<UNLABELLED>[ToggleButton]` in the inventory;
+ * restoring the spans made it pass again. Pass → fail → pass, one variable.
+ *
+ * So `OverflowMenu`'s "neither alone does it" is WRONG as a general rule, and the resolved shape
+ * fits every measurement taken so far:
+ *
+ *      aria-haspopup + no text node  ->  UNNAMED   (the ⋯ trigger)
+ *      aria-pressed  + no text node  ->  UNNAMED   (the colour swatches)
+ *      plain button  + no text node  ->  named     (Play, Skip back 15 seconds)
+ *
+ * Both attributes change the node's ROLE — PopUpButton and ToggleButton respectively — and it is in
+ * that remapping that the computed name is lost. A plain Button keeps it.
+ *
+ * ## Why still not "every icon-only button"
+ *
+ * Because the measurements say plain buttons are fine, and the wider rule is not free: an
+ * `sr-only` span is `position:absolute`, and an unanchored one is what dragged the masthead link's
+ * accessibility frame off the display (see below). Demanding one on already-named controls would
+ * spread that hazard to fix a defect they do not have. The rule covers exactly what is measured —
+ * which is now 32 controls rather than 6.
+ *
+ * (#2156)
  */
-const SR_ONLY_REQUIRED = [
+function vueFilesUnder(dir: string): string[] {
+  const out: string[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) out.push(...vueFilesUnder(full))
+    else if (entry.name.endsWith('.vue')) out.push(full)
+  }
+  return out
+}
+
+/** `<button …>…</button>` bodies paired with their attribute string, template only. */
+function buttonsIn(src: string): { attrs: string; body: string }[] {
+  const withoutBlocks = src.replace(/<(script|style)\b[\s\S]*?<\/\1>/g, '')
+  const out: { attrs: string; body: string }[] = []
+  for (const m of withoutBlocks.matchAll(/<button\b/g)) {
+    const start = m.index
+    const end = withoutBlocks.indexOf('</button>', start)
+    if (start === undefined || end === -1) continue
+    const whole = withoutBlocks.slice(start, end)
+    const gt = whole.indexOf('>')
+    if (gt === -1) continue
+    out.push({ attrs: whole.slice(0, gt), body: whole.slice(gt + 1) })
+  }
+  return out
+}
+
+describe('role-changed controls carry a name Android can read', () => {
+  it('every aria-haspopup or aria-pressed button has readable text or an sr-only name', () => {
+    const roots = [join(__dirname, '../components'), join(__dirname, '../views')]
+    const offenders: string[] = []
+    let checked = 0
+
+    for (const root of roots) {
+      for (const file of vueFilesUnder(root)) {
+        for (const { attrs, body } of buttonsIn(readFileSync(file, 'utf8'))) {
+          // BOTH attributes, since 2026-09-28. `aria-pressed` was added after a device A/B showed
+          // the colour swatches going `<UNLABELLED>[ToggleButton]` with the span removed and named
+          // with it restored — they carry no `aria-haspopup`, so the old rule did not cover them.
+          if (!attrs.includes('aria-haspopup') && !attrs.includes('aria-pressed')) continue
+          checked += 1
+          // VISIBLE TEXT COUNTS. The requirement is something readable in the subtree, not the
+          // `sr-only` class specifically — ToolbarMenu's pill has a label beside its icon and is
+          // named because of it. Demanding a hidden span there would cargo-cult the fix rather
+          // than the reason.
+          const readable = body.includes('sr-only') || body.includes('{{')
+          if (!readable) offenders.push(`${file.slice(file.indexOf('/src/') + 5)}`)
+        }
+      }
+    }
+
+    // If this collapses, the scan has broken rather than the app. 32 such controls existed when the
+    // rule was widened; the floor is deliberately well below that so ordinary additions and
+    // removals do not trip it, while a scan that suddenly matches almost nothing does.
+    expect(
+      checked,
+      'almost no aria-haspopup/aria-pressed buttons found — the scan or the markup moved',
+    ).toBeGreaterThanOrEqual(20)
+    expect(
+      offenders,
+      `these controls change ROLE via aria-haspopup or aria-pressed and have nothing readable ` +
+        `inside them. Measured on Android System WebView 150: such a node arrives as a ` +
+        `PopUpButton/ToggleButton with an empty name — the label appears nowhere in the ` +
+        `hierarchy, TalkBack announces only the role, and no device test can address it by ` +
+        `intent. A PLAIN button in the same shape keeps its name; it is the role remapping that ` +
+        `loses it. Verified by A/B on device: removing SavedColorControl's swatch spans produced ` +
+        `five <UNLABELLED>[ToggleButton] and restoring them fixed it.`,
+    ).toEqual([])
+  })
+})
+
+/**
+ * The controls a DEVICE has actually caught, pinned so their names cannot be removed.
+ *
+ * This list came back (2026-09-28) after being deleted with the old guard, and the deletion was a
+ * mistake worth explaining, because the reasoning that produced it was half right.
+ *
+ * The old guard used a hand-kept list to do TWO jobs, and it was only bad at one of them. As a
+ * DISCOVERY mechanism it was useless — it found what someone remembered to add, which is why
+ * `views/` was invisible to it until five controls had already shipped unnamed. The repo-wide
+ * `aria-haspopup` rule above replaces that job properly. But the list was also a REGRESSION PIN on
+ * instances a device had measured, and that job it was doing correctly. Deleting both together
+ * left the five controls below guarded by nothing at all.
+ *
+ * Why these specifically, and why the haspopup rule does not reach them: NONE of them carries
+ * `aria-haspopup`, so under that rule alone their `sr-only` spans can be deleted and every check in
+ * this repo stays green. `SavedColorControl`'s five swatches are the sharp case — they were
+ * MEASURED on device as `<UNLABELLED>[ToggleButton]` (see the comment at SavedColorControl.vue) and
+ * they have no `aria-haspopup`, which directly contradicts the OverflowMenu measurement the rule
+ * above is drawn from. Two device measurements disagree and the distinguishing variable is
+ * unidentified.
+ *
+ * When measurements contradict, a guard covers the UNION of the measured failure shapes, not the
+ * intersection — the intersection is only safe if you know which variable separates them, and the
+ * docstring above says plainly that nobody does. Drawing it at the intersection was me resolving a
+ * contradiction in the direction that required less work.
+ *
+ * This costs nothing: every control here ALREADY has its name. The pin only forbids removing one.
+ * It should be deleted when the contradiction is resolved on a device and the general rule can be
+ * widened to cover these for a stated reason. (#2156)
+ */
+const MEASURED_ON_DEVICE = [
   'components/SavedColorControl.vue',
   'components/SavedFilterBar.vue',
-  // Added after the guard found them by scan, not by a device run: the dictation mic
-  // (`NativeCapabilityTests` could not find it at all on its first execution) and the transcript
-  // capture button, which no suite reaches.
   'components/NoteComposer.vue',
   'components/TranscriptList.vue',
-  // VIEWS TOO (2026-09-26). Paths are relative to `src/` now, because this list used to resolve
-  // against `src/components/` alone — so a view could not be listed here at all. That blind spot
-  // is why the five controls below survived: `collections.remove`, `collections.removeItem`,
-  // `revisit.dismiss`, `revisit.retire` and `revisit.remove`, every one an icon-only button with
-  // an `aria-label` and no text node. No device suite reaches either surface, and
-  // `AccessibleNameAuditTests` does not walk them either (it covers Home/Discover/Library/player
-  // and the player overflow), so nothing else in the repo would ever have caught them. (#2156)
   'views/CollectionsView.vue',
   'views/ResurfacingInbox.vue',
 ]
 
-describe('icon-only buttons carry text, not only an aria-label', () => {
-  for (const file of SR_ONLY_REQUIRED) {
-    it(`${file}: every aria-labelled button has an sr-only name`, () => {
+describe('controls a device has caught keep their names', () => {
+  for (const file of MEASURED_ON_DEVICE) {
+    it(`${file}: every aria-labelled button still has a readable name`, () => {
       const src = readFileSync(join(__dirname, '..', file), 'utf8')
-      const buttons = src.split('<button').slice(1)
-      const labelled = buttons.filter((b) => b.includes('aria-label'))
-      expect(labelled.length, `no aria-labelled buttons found in ${file} — did it move?`).toBeGreaterThan(0)
-      for (const b of labelled) {
-        const body = b.slice(0, b.indexOf('</button>'))
-        // VISIBLE TEXT COUNTS. The requirement is a real text node, not the `sr-only` class
-        // specifically — a button rendering `{{ t('notes.remove') }}` is already named, and
-        // demanding a hidden span as well would be cargo-culting the fix rather than the reason.
-        // This guard flagged two such buttons as defects on its first outing (2026-09-26).
-        const hasTextNode = body.includes('sr-only') || body.includes('{{')
+      const labelled = buttonsIn(src).filter((b) => b.attrs.includes('aria-label'))
+      expect(
+        labelled.length,
+        `no aria-labelled buttons found in ${file} — did it move? A pin that matches nothing ` +
+          `passes silently, which is the failure mode this whole file exists to catch.`,
+      ).toBeGreaterThan(0)
+      for (const { body } of labelled) {
         expect(
-          hasTextNode,
-          `a button in ${file} has an aria-label but NO text node — neither visible text nor an ` +
-            `sr-only span. On Android System WebView the label is dropped and the control is ` +
-            `announced as an unnamed "Button", unfindable by name. That is how a colour filter ` +
-            `looked like a broken seed and a dictation mic looked like a missing feature.`,
+          body.includes('sr-only') || body.includes('{{'),
+          `a button in ${file} has an aria-label and NO readable text. This file is on the pinned ` +
+            `list because a DEVICE reported one of its controls unnamed — SavedColorControl's ` +
+            `swatches came back <UNLABELLED>[ToggleButton] with no aria-haspopup, so the ` +
+            `repo-wide rule above does not cover them. Removing the name here is a regression a ` +
+            `device already paid for once.`,
         ).toBe(true)
       }
     })

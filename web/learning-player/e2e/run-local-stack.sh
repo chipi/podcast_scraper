@@ -16,7 +16,7 @@
 # x86_64 wheels. Everything else runs natively: the app's runtime deps are in the venv, and
 # Playwright starts the mock podcast host itself (webServer), exactly as it does in CI.
 #
-# Requires the API image built once:  see docs/wip/2026-08-13-e2e-on-intel-mac.md
+# Requires the API image built once:  see docs/guides/E2E_ON_INTEL_MAC.md
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"

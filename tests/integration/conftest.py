@@ -395,7 +395,7 @@ def _instant_retry_backoff():
     Provider error / resilience tests mock the upstream API to fail, then run
     ``retry_with_metrics()``'s real ``time.sleep()`` schedule — e.g. Gemini's *production*
     config is 6 retries @ up to 60s backoff, so one ``test_summarize_api_error`` used to sit
-    for ~123s (``docs/wip/nightly-test-time-analysis.md``). That wait tests nothing here: the
+    for ~123s. That wait tests nothing here: the
     retry SCHEDULE (delays/jitter/cap/exhaustion) is asserted with a mocked clock in
     ``tests/unit/.../test_provider_metrics.py``. Here we only need the retry PATH to run
     (N attempts → correct terminal error), which it still does — instantly.
@@ -403,6 +403,13 @@ def _instant_retry_backoff():
     Module-scoped on the retry util's own ``time`` reference, so global ``time.sleep`` and
     every other module are untouched. One fixture → ALL providers + integration resilience
     tests, no per-directory gaps.
+
+    Why this exists at all (2026-08-03 timing analysis): the nightly timeout had crept
+    30 → 45 → 60 minutes, and the cause was NOT uniform growth. Six Gemini error-path tests
+    were each burning 59–123s in real backoff sleeps, and two HTTP retry tests ~248s apiece —
+    roughly 8 minutes between them. Raising the timeout again would have hidden that. If the
+    nightly starts creeping again, look for a new real-``sleep`` path before touching the
+    timeout.
     """
     from podcast_scraper.utils import provider_metrics
 

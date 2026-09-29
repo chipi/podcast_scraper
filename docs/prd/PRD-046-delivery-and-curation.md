@@ -44,6 +44,40 @@ would make us a worse Snipd; distributing the graph is the category-of-one move.
 - **The gap**: no outbound channel (delivery), no organization layer above the flat highlight list
   (curation), and no consent/email-identity model to deliver against.
 
+### Why this shape — the moat, and its honest limits
+
+Carried in from the 2026-08-04 design pass, because it is the reasoning behind every FR below
+and would otherwise have to be re-derived from scratch.
+
+**The category is a *feeder*. We are the *graph*.** Verified competitor read (2026-08-04):
+Snipd (leader) and Podwise both do snip/episode → transcript → per-clip AI summary → sync into
+the user's *external* PKM (Obsidian, Notion, Readwise, Logseq). Snipd's own words: *"Snipd
+doesn't replace your PKM system — it feeds into it."* None of them are the connected corpus;
+they make atoms and hand the connecting work to the user's vault. PRD-041 already shipped the
+layer they lack — a per-user knowledge corpus over the shared GIL/KG ontology, with grounded
+cross-episode recall, canonical-identity guest threads and contradiction surfaces, on our own
+surface with no external PKM required.
+
+**Moat statement.** Competitors sell a highlight reel you must connect yourself; we sell a
+second brain that connects itself and compounds as you listen. The clip is the atom everyone
+has; the grounded, cross-episode, canonical-identity graph over those clips is the defensible
+layer, because it requires the whole pipeline (RFC-055 KG extraction, RFC-072 canonical
+identity, RFC-090 hybrid retrieval) that we already run and a competitor would build from zero.
+
+**Honest limits — do not oversell.** We do not win on distribution or integration breadth. Snipd
+is on iOS and Android, is where people already listen, and has a mature Obsidian/Notion/Readwise
+export mesh. The moat is **depth**, not breadth.
+
+**The design rule that falls out of it, and the reason it is here rather than in a retired
+note:** every new surface must distribute the *connected corpus*, never a flat list. A digest
+resurfaces highlights linked to their entity/guest/topic. A share card names the guest and
+topic. An Obsidian export emits wikilinked entity notes, not a flat highlight dump — otherwise
+the export is just a worse Snipd.
+
+**Caveat on the above:** the competitor read is a point-in-time snapshot from a 2026-08-04 web
+search. Snipd and Podwise ship fast and may already have a graph feature that pass did not
+surface. Re-check before betting a roadmap on the gap still being there.
+
 ## Goals
 
 1. **Close the delivery loop** — a per-user digest ("Your Week") + resurfacing nudges delivered via
@@ -160,6 +194,7 @@ would make us a worse Snipd; distributing the graph is the category-of-one move.
 
 ## Related
 
-- Epic [#1413](https://github.com/chipi/podcast_scraper/issues/1413); design doc
-  `docs/wip/PLAYER-CURATION-DELIVERY-MOAT-ARCH.md`.
+- Epic [#1413](https://github.com/chipi/podcast_scraper/issues/1413). The 2026-08-04 design
+  pass that preceded this PRD was folded into "Why this shape" above and retired; its
+  architecture is now carried by RFC-110, RFC-111, ADR-144 and ADR-145.
 - Next arc: graph-aware Obsidian/Notion export + MCP remote transport (RFC-095 OQ-1).

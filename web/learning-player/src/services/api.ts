@@ -384,14 +384,31 @@ export async function getOrgCard(id: string): Promise<OrgCard> {
   )
 }
 
-/** Topic perspectives — each speaker's grounded insights on the topic (#1146). */
-export function getTopicPerspectives(
+/**
+ * Topic perspectives — each speaker's grounded insights on the topic (#1146).
+ *
+ * Person photos ABSOLUTISED, same as every other people-carrying endpoint. `build_topic_perspectives`
+ * hydrates `image_url` server-side and `TopicPerspectives.vue` renders it into a `ProfileAvatar`,
+ * but the server returns it relative — which resolves against `capacitor://localhost` in the native
+ * shell, 404s, and falls back to initials without an error anyone can see.
+ *
+ * Found by sweeping every endpoint that can carry a person photo after the same bug turned up on
+ * the key-voices rail (operator 2026-09-27). This was the last one still raw.
+ */
+export async function getTopicPerspectives(
   id: string,
   scope?: "all" | "mine"
 ): Promise<TopicPerspectivesResponse> {
-  return getJSON<TopicPerspectivesResponse>(`/topics/${encodeURIComponent(id)}/perspectives`, {
-    scope,
-  })
+  const resp = await getJSON<TopicPerspectivesResponse>(
+    `/topics/${encodeURIComponent(id)}/perspectives`,
+    { scope }
+  )
+  return {
+    ...resp,
+    perspectives: (resp.perspectives ?? []).map((p) =>
+      p.image_url ? { ...p, image_url: resolveMediaUrl(p.image_url) ?? p.image_url } : p
+    ),
+  }
 }
 
 /** Topic conversation arc — weekly volume × sentiment, the aggregate-first overview (ADR-108). */
@@ -1368,7 +1385,29 @@ export async function markAllNotificationsRead(): Promise<{ unread: number }> {
  */
 export async function getKeyVoices(limit = 8): Promise<KeyVoicesResponse> {
   try {
-    return await getJSON<KeyVoicesResponse>(`/key-voices?limit=${limit}`)
+    /*
+     * ABSOLUTISED, like every other surface carrying a person photo (operator 2026-09-27: "no
+     * people images here on home page").
+     *
+     * The server sets `image_url` correctly and `KeyVoicesRail` renders it into `ProfileAvatar`.
+     * But the server returns it RELATIVE (`/api/app/persons/<id>/photo`), and inside the Capacitor
+     * WebView the document origin is `capacitor://localhost` — so a relative path resolves THERE,
+     * 404s, and `ProfileAvatar` falls back to initials. On the web, same server and same user, it
+     * works, because the origins match. Silent either way: a 404 on an `<img>` is not an error
+     * anyone sees, and initials are a legitimate-looking state.
+     *
+     * Same defect the artwork, audio and profile-avatar URLs each hit in turn, and the reason
+     * `withAbsoluteEntityImages` exists. This rail was the one people-carrying endpoint never
+     * routed through it. Mapped directly rather than reusing that helper because the payload has
+     * no `web` / `related_people` shape — it is a flat `voices` list.
+     */
+    const resp = await getJSON<KeyVoicesResponse>(`/key-voices?limit=${limit}`)
+    return {
+      ...resp,
+      voices: (resp.voices ?? []).map((v) =>
+        v.image_url ? { ...v, image_url: resolveMediaUrl(v.image_url) ?? v.image_url } : v,
+      ),
+    }
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return { voices: [] }
     throw err

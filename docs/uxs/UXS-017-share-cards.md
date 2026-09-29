@@ -1,8 +1,17 @@
-# Shareable card — design note (2026-09-11)
+# UXS-017: Shareable cards
 
-Design record for the shareable "collectible" card (#2036). Captures the aesthetic decision, the
-one that was rejected and *why*, the exact tokens, the layout, and what's built vs left. This is the
-design SSOT for the card; the interaction spec lives in UXS-014 (§Sharing).
+- **Status**: Active — the design SSOT for the card
+- **Authored**: 2026-09-11 · promoted out of `docs/wip/` on 2026-09-27
+- **Related**: [UXS-014](UXS-014-interaction-patterns.md) (§Sharing — the interaction spec),
+  [UXS-011](UXS-011-consumer-learning-app.md) (tokens), issue #2036
+
+Design record for the shareable "collectible" card. Captures the aesthetic decision, the one that
+was rejected and *why*, the exact tokens, the layout, and what is built versus left.
+
+**Two renderers must stay in step.** `entityShareCard.ts` draws the client canvas card;
+`src/podcast_scraper/server/og/card.py` is a Pillow port of the same design, used for `og:image`
+so a shared link unfurls. They are kept in lock-step **by eye** — nothing tests one against the
+other, so a change here means changing both.
 
 ## Use case
 
@@ -26,7 +35,7 @@ generated frame**. Quote-led editorial layout (operator pick over stat-led / typ
 ### Tokens (default dark theme — `theme/directions.css`)
 
 | Role | Value |
-|---|---|
+| --- | --- |
 | Canvas (bg) | `#07090a` |
 | Foreground | `#d6e2d8` |
 | Muted | `#7f958a` |
@@ -45,7 +54,7 @@ precisely three things: the short **hairline** under the title, the one **live s
 
 ### Layout (portrait 1080×1440, padding 96)
 
-```
+```text
 KICKER            ← mono, muted, tracked, uppercase ("TOPIC" / "EPISODE · CROSS-SHOW")
 Title             ← Georgia serif, ~92px, wrapped
 ──                ← teal hairline (the accent)

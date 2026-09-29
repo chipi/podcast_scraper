@@ -49,6 +49,26 @@ const topics = computed(() => signals.value?.top_topics ?? [])
 const people = computed(() => signals.value?.key_people ?? [])
 
 /**
+ * Localise a speaker role for the people chips — the SAME map and keys `KnowledgePanel` uses, so
+ * the show page and the episode card cannot drift on what a role is called.
+ *
+ * An unrecognised role falls through to its raw string rather than vanishing (the idiom
+ * `TrendingSparkChips` and `KnowledgePanel` both follow), so a new server-side role still shows.
+ * An ABSENT role returns "", and the caller renders no badge — older KGs carry no role, and an
+ * unbadged chip is honest where a guessed "mentioned" would not be.
+ */
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  host: 'ec.roleHost',
+  guest: 'ec.roleGuest',
+  mentioned: 'ec.roleMentioned',
+}
+function roleLabel(role: string | null | undefined): string {
+  if (!role) return ''
+  const key = ROLE_LABEL_KEYS[role.toLowerCase()]
+  return key ? t(key) : role
+}
+
+/**
  * Distinctiveness, which is what the band's title actually asks.
  *
  * Coverage alone can't answer "what this show's about": in the validation corpus every show
@@ -186,15 +206,40 @@ const hasAny = computed(
     <div v-if="people.length">
       <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigPeople') }}</h3>
       <div class="flex flex-wrap gap-1.5">
+        <!--
+          Role badge + role ORDER (operator 2026-09-27): mark people host/guest/mentioned in the
+          same style as the episode Insights panel, and order by it too.
+
+          Same markup and the same i18n keys as `kp-person-role` (`ec.roleHost` / `ec.roleGuest` /
+          `ec.roleMentioned`), so one idea has one appearance across the two surfaces that list
+          people.
+
+          The ORDER is server-side, in `feed_signals.key_people` — host > guest > mentioned, then
+          footprint, then name. It has to be there rather than here, because `top_k` truncates:
+          sorting on the client would only rearrange whichever names survived a count-based cut, and
+          a show's own host could be missing from the list altogether. So this renders the array as
+          given.
+
+          A roleless person (older KGs carry none) renders unbadged rather than being labelled
+          "mentioned" — the badge reports what the KG knows, and an absent role is not a claim.
+        -->
         <button
           v-for="p in people"
           :key="p.person_id"
           type="button"
           data-testid="ps-person"
+          :data-role="p.role?.toLowerCase()"
           class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
           @click="emit('open', { kind: 'person', id: p.person_id })"
         >
-          {{ p.name }} <span class="text-muted">· {{ p.episode_count }}</span>
+          {{ p.name
+          }}<span
+            v-if="roleLabel(p.role)"
+            data-testid="ps-person-role"
+            class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
+            >{{ roleLabel(p.role) }}</span
+          >
+          <span class="text-muted">· {{ p.episode_count }}</span>
         </button>
       </div>
     </div>

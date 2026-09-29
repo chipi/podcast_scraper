@@ -5,10 +5,18 @@
  * the control hid the capability — tapping routes to sign-in and returns here. Stops click
  * propagation so it works on cards/links without triggering navigation.
  *
- * `controlled` variant: the parent owns the active state and the toggle side-effect. Used by
- * KnowledgePanel's insight save, which writes a highlight via the capture store (NOT the favorites
- * store — favorite(insight) is banned, #1593). The parent must pass `active` and listen for
- * `toggle`; `item` is optional (only the `label` field is used, for the accessible name).
+ * The heart means exactly ONE thing: a favourite, on a WHOLE object — an episode, a show, a topic,
+ * a person. It is not the save mark for a fragment; that is the bookmark, and it lives in
+ * `HighlightToggle`.
+ *
+ * There used to be a `controlled` variant, whose only caller was the Knowledge panel's insight
+ * save. It rendered a heart while writing an insight HIGHLIGHT through the capture store — never
+ * the favorites store, because favourite(insight) is banned (#1593) — so the heart meant a
+ * favourite here and a highlight there, and announced "Save to favorites" either way. The operator
+ * spotted it from the outside (2026-09-27: "we can favourite insights and bookmark parts of
+ * transcript, feels inconsistent"). The variant is GONE rather than left available: as long as a
+ * parent could own the state, the heart could quietly be reattached to a non-favourite store again,
+ * which is the whole way this happened.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,19 +25,7 @@ import { useSignInGate } from '../composables/useSignInGate'
 import type { FavoriteAdd } from '../services/types'
 
 const props = defineProps<{
-  item?: FavoriteAdd
-  /**
-   * External active state for the `controlled` variant. Ignored by `icon` and `menuitem` variants,
-   * which read state from the favorites store.
-   */
-  active?: boolean
-  /**
-   * Context label for the `controlled` variant's `sr-only` name. When provided, the accessible
-   * name becomes e.g. "Save to favorites — Sleep consolidates memory." so multiple hearts on
-   * one panel don't all announce identically (2026-09-25, Android device tier).
-   * `icon` and `menuitem` variants ignore this; their items are disambiguated by surrounding context.
-   */
-  label?: string
+  item: FavoriteAdd
   /**
    * `menuitem` renders this inside an `OverflowMenu` instead of as a standalone circular button.
    *
@@ -39,36 +35,22 @@ const props = defineProps<{
    * still has to be REACHABLE, though: tapping it is the only way to unsave, so it moves into the ⋯
    * rather than disappearing. Mirrors DownloadButton / AddToCollectionButton's `menuitem` variant,
    * including `data-menuitem` so the menu's arrow-key roaming picks it up.
-   *
-   * `controlled` lets the parent own the active state and the toggle side-effect; the component
-   * only renders correctly and announces correctly. Required when the item's persistence path is
-   * not the favorites store (e.g. insight highlights, which go through the capture store).
    */
-  variant?: 'icon' | 'menuitem' | 'controlled'
+  variant?: 'icon' | 'menuitem'
 }>()
-
-const emit = defineEmits<{ (e: 'toggle'): void }>()
 
 const { t } = useI18n()
 const favorites = useFavoritesStore()
 
-// For `icon` / `menuitem`: derive state from the store. For `controlled`: the parent provides it.
-const storeActive = computed(() => (props.item ? favorites.has(props.item.kind, props.item.ref) : false))
-const isActive = computed(() => props.variant === 'controlled' ? (props.active ?? false) : storeActive.value)
+const isActive = computed(() => favorites.has(props.item.kind, props.item.ref))
 
 const { isGated, gated } = useSignInGate()
-// `item` is required for non-controlled variants; safe to assert here since the call branch
-// only fires when `variant !== 'controlled'`, where the caller must provide `item`.
-const storeToggle = gated(() => favorites.toggle(props.item!))
+const storeToggle = gated(() => favorites.toggle(props.item))
 
 function onGatedClick(e: MouseEvent): void {
   e.preventDefault()
   e.stopPropagation()
-  if (props.variant === 'controlled') {
-    emit('toggle')
-  } else {
-    storeToggle()
-  }
+  storeToggle()
 }
 </script>
 
@@ -101,16 +83,12 @@ function onGatedClick(e: MouseEvent): void {
          `AccessibleNameAuditTests` counts this class app-wide and fails on it. -->
     <template v-else>
       <span aria-hidden="true">{{ isActive ? '♥' : '♡' }}</span>
-      <!-- The `label` prop appends context to the `sr-only` name in the `controlled` variant (e.g.
-           the insight text), so several hearts on one panel don't all announce as the same string.
-           `icon` / `menuitem` variants keep the short form; they live in card rows that already
-           provide surrounding context. -->
+      <!-- The short form is enough here. The `label` disambiguation existed for the `controlled`
+           variant, where many hearts sat on one panel; the remaining variants live in card rows
+           that already provide surrounding context. `HighlightToggle` carries `label` for the case
+           that needed it. -->
       <span class="sr-only">{{
-        isGated
-          ? t('auth.signInToSave')
-          : isActive
-            ? (variant === 'controlled' && label ? `${t('fav.remove')} — ${label}` : t('fav.remove'))
-            : (variant === 'controlled' && label ? `${t('fav.add')} — ${label}` : t('fav.add'))
+        isGated ? t('auth.signInToSave') : isActive ? t('fav.remove') : t('fav.add')
       }}</span>
     </template>
   </button>

@@ -26,12 +26,13 @@ import { hitStartSeconds, insightStartSeconds } from "../player/insights"
 import { speakerLabel } from "../utils/format"
 import EpisodeRow from "./EpisodeRow.vue"
 import { useAuthStore } from "../stores/auth"
+import { sheetTeleportTarget } from "../composables/sheetStack"
 import { useSignInGate } from "../composables/useSignInGate"
 import { scrollBehavior } from "../utils/motion"
 import { useQueueStore } from "../stores/queue"
 import { useCaptureStore } from "../stores/capture"
 import CollapsibleSection from "./CollapsibleSection.vue"
-import FavoriteButton from "./FavoriteButton.vue"
+import HighlightToggle from "./HighlightToggle.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
@@ -88,21 +89,41 @@ function notesUrl(ext: 'md' | 'html'): string {
 }
 
 /**
- * The print-styled notes, for the browser's Save-as-PDF.
+ * The print-styled notes.
  *
- * On NATIVE this fetches the document and shares the file; it does not hand the URL to a browser.
- * `openExternal` opens SFSafariViewController, which does not share the app's cookie jar — so the
- * export route arrived unauthenticated and rendered the sign-in gate instead of the notes. The
- * operator reported exactly that, along with the tell: "when I copy the link from there and open
- * it in a normal browser, it works fine" — because that browser had a session.
+ * On NATIVE this now OPENS them, in the app (operator 2026-09-27: "when I click a PDF, he offers
+ * me to download HTML rather than opening me PDF in a new browser window"). It used to go straight
+ * to the share sheet — which is a SAVE dialog. Reasonable if you wanted the file; wrong as the
+ * answer to a control the reader takes to mean "show me the document".
  *
- * Shared as `.html` rather than converted here: iOS renders it in the share sheet's preview and
- * offers Print -> Save as PDF, which is the real print-to-PDF path on the platform. Bundling a PDF
- * library to re-implement a renderer the OS already has would be the wrong trade.
+ * Note what this is NOT: it is not the external-browser route, which was tried and failed.
+ * `openExternal` opens SFSafariViewController, which does not share the app's cookie jar, so the
+ * export arrived unauthenticated and rendered the sign-in gate — the operator's tell at the time
+ * was "when I copy the link and open it in a normal browser, it works fine", because that browser
+ * had a session. The document here is FETCHED by the app (`apiFetch`, carrying the shell's bearer
+ * token) and then displayed from memory. There is no second request, so there is nothing to
+ * authenticate twice.
  *
- * Web keeps opening a tab, where the cookie travels and the user can see what they are printing.
+ * Sharing stays one tap away INSIDE the viewer, because the share sheet is the route to iOS's
+ * Print -> Save as PDF, and that is the real print-to-PDF path on the platform. Bundling a PDF
+ * library to re-implement a renderer the OS already has would still be the wrong trade.
+ *
+ * Web keeps opening a tab: the cookie travels there, and a browser tab is already the thing the
+ * native side is approximating.
  */
 const printingNotes = ref(false)
+const notesHtml = ref<string | null>(null)
+const notesError = ref(false)
+/**
+ * Where the viewer mounts — the OPEN DIALOG when there is one, else `body`.
+ *
+ * This panel is `showModal()`'d on mobile, so it lives in the top layer, and the top layer paints
+ * above everything in the normal layer regardless of z-index. Teleporting the viewer to `body` put
+ * it behind the panel: rendered, correct, invisible. Resolved at open rather than at setup, because
+ * whether a dialog is up depends on the route the reader took to get here.
+ */
+const notesTeleportTarget = ref<HTMLElement | string>('body')
+
 async function openPrintableNotes(): Promise<void> {
   if (!isNative()) {
     await openExternal(notesUrl('html'))
@@ -110,16 +131,27 @@ async function openPrintableNotes(): Promise<void> {
   }
   if (printingNotes.value) return
   printingNotes.value = true
+  notesError.value = false
+  notesTeleportTarget.value = sheetTeleportTarget()
   try {
-    const html = await fetchEpisodeNotes(props.episode.slug, 'html')
-    await saveAndShareText(
-      exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes'),
-      html,
-      'text/html',
-    )
+    notesHtml.value = await fetchEpisodeNotes(props.episode.slug, 'html')
+  } catch {
+    // A failed export has to SAY so. Silence reads as a dead control — the same failure mode as
+    // the `<a download>` this button replaced, which did nothing at all on the phone.
+    notesError.value = true
   } finally {
     printingNotes.value = false
   }
+}
+
+/** Hand the already-fetched document to the share sheet — the way to iOS Print -> Save as PDF. */
+async function shareOpenNotes(): Promise<void> {
+  if (!notesHtml.value) return
+  await saveAndShareText(
+    exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes'),
+    notesHtml.value,
+    'text/html',
+  )
 }
 
 /**
@@ -409,17 +441,51 @@ const q = ref("")
 const results = ref<SearchHit[]>([])
 const searching = ref(false)
 const askError = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
+
+/**
+ * Collapse hits whose text is identical.
+ *
+ * The operator's screenshot showed the SAME chunk returned twice, filling a phone screen that only
+ * has room for about one result. This is presentation, NOT a fix: duplicate chunks in the index are
+ * an index-side defect, in the same neighbourhood as the chunking bug in #2159 (a boundaryless
+ * transcript became one 44,924-char chunk, and overlapping chunks return near-identical text).
+ * Collapsing them here stops the reader paying for it; it does not stop it happening, and the
+ * duplicate is still in the index for whoever picks that up.
+ *
+ * Keyed on trimmed text rather than `doc_id`, precisely because the ids differ — identical ids
+ * would have been deduped by the backend already.
+ */
+function dedupeByText(hits: SearchHit[]): SearchHit[] {
+  const seen = new Set<string>()
+  return hits.filter((h) => {
+    const key = (h.text ?? '').trim()
+    if (!key || seen.has(key)) return seen.has(key) ? false : true
+    seen.add(key)
+    return true
+  })
+}
+
 async function runSearch(): Promise<void> {
   const query = q.value.trim()
   if (!query) {
     results.value = []
     return
   }
+  /*
+   * Drop the keyboard before the results land (operator 2026-09-27).
+   *
+   * Results render BELOW the input, and on a phone the keyboard covers most of the panel — so a
+   * search you had just run showed you roughly one hit of however many it found. Blurring on
+   * submit dismisses it, which is also what the platform expects once a query is committed: the
+   * text field has done its job.
+   */
+  searchInput.value?.blur()
   searching.value = true
   askError.value = false
   try {
     const resp = await searchEpisode(props.slug, query)
-    results.value = resp.results
+    results.value = dedupeByText(resp.results)
     askError.value = Boolean(resp.error)
   } catch {
     askError.value = true
@@ -560,22 +626,38 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </p>
         </section>
 
-        <!-- Ask -->
+        <!--
+          SEARCH, not "Ask" (operator 2026-09-27: "Ask episode doesn't feel right here").
+
+          It was labelled Ask and it runs `searchEpisode()`, rendering ranked transcript chunks —
+          `hit.text`, with `kp.noResults` when empty. There is no synthesis endpoint in the app:
+          `app_search.py` exposes `GET /search` and nothing else. So the label promised an answer
+          that nothing in the stack could produce, which is the whole of why it "didn't feel right".
+
+          Renamed rather than built, deliberately and on the operator's call. Making it answer means
+          a new backend route, per-question gateway cost, and deterministic fixtures to keep CI
+          airgapped (LLMs in CI are banned). That is its own piece of work, not a label fix.
+
+          The three sibling keys — `searching`, `searchError`, `noResults` — already said "search".
+          Only the two user-facing ones lied, and the i18n KEYS were renamed too so the code stops
+          carrying the fiction.
+        -->
         <form class="mb-5" @submit.prevent="runSearch">
-          <label class="sr-only" for="kp-ask">{{ t("kp.ask") }}</label>
+          <label class="sr-only" for="kp-ask">{{ t("kp.searchAction") }}</label>
           <div class="lp-search flex gap-2">
             <input
               id="kp-ask"
+              ref="searchInput"
               v-model="q"
               type="search"
-              :placeholder="t('kp.askPlaceholder')"
+              :placeholder="t('kp.searchPlaceholder')"
               class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
             />
             <button
               type="submit"
               class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
             >
-              {{ t("kp.ask") }}
+              {{ t("kp.searchAction") }}
             </button>
           </div>
           <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
@@ -644,12 +726,89 @@ watch(() => auth.isAuthenticated, loadCaptures)
           >{{ t("kp.exportMarkdownShort") }}</a>
           <button
             type="button"
+            :disabled="printingNotes"
             :aria-label="t('kp.exportNotesPdf')"
             data-testid="episode-notes-pdf"
-            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay"
+            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
             @click="openPrintableNotes"
           >{{ t("kp.exportPdfShort") }}</button>
+          <!-- The export can fail (offline, a dead session), and it used to fail in silence. -->
+          <span v-if="notesError" class="text-xs text-danger" data-testid="episode-notes-error">
+            {{ t("kp.exportFailed") }}
+          </span>
         </div>
+
+        <!--
+          The notes, OPEN, on native (operator 2026-09-27).
+
+          TELEPORTED INTO THE OPEN DIALOG, NOT INTO `body`. This panel is a `<dialog>` opened with
+          `showModal()` on mobile (`PlayerView.vue`), which puts it in the TOP LAYER — and the top
+          layer paints above the whole normal layer no matter what z-index anything there carries.
+          The first version of this teleported to `body` with `z-[60]`; the notes fetched, the
+          overlay rendered, and it sat invisible BEHIND the panel. The operator's report was "on
+          last deploy nothing happens when I click PDF on insights", and nothing is exactly what it
+          looked like. My own comment here named the hazard and then did the opposite of what it
+          said.
+
+          `sheetTeleportTarget()` is the existing answer to this — it returns `dialog[open]` when
+          there is one and `body` otherwise, and `EntityCard` already uses it for the same reason.
+          Resolved per open, because whether a dialog is up depends on how you got here.
+
+          None of my three tests caught it: jsdom implements neither the top layer nor `showModal`
+          stacking, so an element hidden behind a modal is indistinguishable there from one on top
+          of it. The device tier is the only place this is observable, and it does not run in CI.
+
+          An `<iframe srcdoc>` is what makes this work without a second request. The export is a
+          COMPLETE standalone document — its own `<html>`, its own print stylesheet — so injecting
+          it into this page would both break the page's styling and lose the print styling that is
+          the entire point of the .html format. An iframe gives it its own document, and `srcdoc`
+          means the bytes we already fetched with the shell's bearer token are the bytes rendered:
+          no URL for SFSafariViewController to re-request without a cookie, which is exactly how
+          the previous attempt at "open it" ended up on the sign-in gate.
+
+          `sandbox` with nothing granted: the document is ours, but it is assembled from episode
+          content, and a viewer has no reason to run script or navigate anywhere.
+        -->
+        <Teleport :to="notesTeleportTarget">
+          <div
+            v-if="notesHtml"
+            class="fixed inset-0 z-[60] flex flex-col bg-canvas"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="t('kp.exportNotesPdf')"
+            data-testid="episode-notes-viewer"
+          >
+            <div
+              class="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]"
+            >
+              <button
+                type="button"
+                class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+                data-testid="episode-notes-viewer-close"
+                @click="notesHtml = null"
+              >
+                {{ t("kp.exportClose") }}
+              </button>
+              <!-- The share sheet is still here, because it is the route to Print -> Save as PDF.
+                   It is an action WITHIN the document now, not the whole answer to opening it. -->
+              <button
+                type="button"
+                class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
+                data-testid="episode-notes-viewer-share"
+                @click="shareOpenNotes"
+              >
+                {{ t("kp.exportShare") }}
+              </button>
+            </div>
+            <iframe
+              :srcdoc="notesHtml"
+              sandbox=""
+              class="min-h-0 flex-1 w-full border-0 bg-white"
+              :title="t('kp.exportNotesPdf')"
+              data-testid="episode-notes-frame"
+            />
+          </div>
+        </Teleport>
 
         <!--
         The digest, under the summary and above the insights. Its own labelled block rather than
@@ -874,18 +1033,26 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   >
                     ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
                   </button>
-                  <!-- Favorite this insight (RFC-121): the ONE save affordance, the shared `.lp-fav`
-                     heart. It writes an insight highlight via the capture store — NOT the favorites
-                     store (favorite(insight) is banned, #1593). Auth-gated means deferred, not
-                     hidden (#1590): renders signed-out and routes to sign-in.
-                     `controlled` variant: FavoriteButton renders + names the button; KnowledgePanel
-                     owns the active state and toggle side-effect (capture store path). `label` is
-                     truncated insight text, giving each heart a distinct accessible name so multiple
-                     insights on one panel don't all announce identically (2026-09-25, Android tier). -->
-                  <FavoriteButton
-                    variant="controlled"
+                  <!-- Save this insight — a BOOKMARK, like every other highlight (operator
+                       2026-09-27).
+
+                       It was a heart, the shared `FavoriteButton` in its `controlled` variant. The
+                       destination was always right — it writes an insight highlight via the capture
+                       store, never the favorites store, because favourite(insight) is banned
+                       (#1593) — but the GLYPH said favourite, and the accessible name literally
+                       said "Save to favorites". So the heart meant a favourite on an episode header
+                       and a highlight here, while the identical action on a transcript line two
+                       panels away drew a bookmark.
+
+                       One glyph per concept now: bookmark = highlight, heart = favourite, and the
+                       transcript line and this share `HighlightToggle` rather than agreeing by
+                       coincidence. `label` is truncated insight text, so several on one panel do
+                       not all announce identically (2026-09-25, Android tier). -->
+                  <HighlightToggle
+                    context="insight"
                     :label="ins.text.slice(0, 60)"
-                    :active="savedInsightIds.has(ins.id)"
+                    :saved="savedInsightIds.has(ins.id)"
+                    :gated="isGated"
                     @toggle="captureInsight(ins)"
                   />
                 </span>

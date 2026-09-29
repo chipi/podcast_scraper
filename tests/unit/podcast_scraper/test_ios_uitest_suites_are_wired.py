@@ -165,6 +165,33 @@ def _suites_reachable_from(entry: str) -> set[str]:
 
 
 @pytest.mark.unit
+def test_no_ios_test_is_quietly_skipped() -> None:
+    """A wired suite whose tests call `XCTSkip` runs less than it appears to.
+
+    The twin of the Android guard. A skipped XCTest still lets the suite report success, so the tier
+    keeps claiming coverage it no longer has — the same shape as a suite no target runs, one level
+    down, and the same shape as `OK (0 tests)` passing on Android before that was closed.
+
+    There are none today, so this is a floor rather than a cleanup. The bar for adding one is a
+    reason written beside it: "flaky" is not a reason (fix it or delete it — a quarantined test
+    nobody runs is exactly what this file exists to catch).
+    """
+    skipped: list[str] = []
+    for path in sorted(UITESTS_DIR.glob("*.swift")):
+        # Comments stripped first: these files discuss skipping while explaining decisions, and a
+        # guard that fires on prose is the fake check this suite exists to catch.
+        code = re.sub(r"//[^\n]*|/\*[\s\S]*?\*/", " ", path.read_text(encoding="utf-8"))
+        if re.search(r"\bXCTSkip(?:If|Unless)?\s*\(", code):
+            skipped.append(path.name)
+
+    assert not skipped, (
+        f"These iOS suites skip tests at runtime: {sorted(skipped)}.\n\n"
+        "A skipped test still reports success, so the tier's green says more than it knows. Fix it "
+        "or delete it; if it must be skipped, say why beside the call and list the file here."
+    )
+
+
+@pytest.mark.unit
 def test_every_suite_is_reachable_from_the_test_ios_ENTRY_POINT() -> None:
     """Reachable from *a* target is not the same as reachable from the GATE.
 

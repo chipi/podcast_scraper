@@ -47,6 +47,59 @@ describe('TopicConversationArc (consumer)', () => {
     await flushPromises()
     expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
   })
+
+  it('SAYS it is loading instead of appearing out of nowhere', async () => {
+    /*
+     * The defect the operator hit (2026-09-27): "conversation over time showed up later after I
+     * clicked some buttons and was not there when I opened the page." It was the wait, not the
+     * clicking — this rendered nothing at all until the fetch resolved, and the endpoint is a
+     * corpus-wide uncached scan, so it popped in seconds later with no warning.
+     *
+     * Every other test in this file awaits `flushPromises()` FIRST, so all of them only ever
+     * observed the resolved state. That is why an empty loading state shipped: the one moment the
+     * user actually complained about was the one moment no test looked at.
+     */
+    let resolve!: (r: TopicConversationArcResponse) => void
+    vi.spyOn(api, 'getTopicConversationArc').mockReturnValue(
+      new Promise<TopicConversationArcResponse>((r) => {
+        resolve = r
+      }),
+    )
+    const w = mountIt('topic:ai')
+    await Promise.resolve() // let the watcher fire, but do NOT settle the fetch
+
+    expect(
+      w.find('[data-testid="topic-arc-loading"]').exists(),
+      'an in-flight arc must announce itself, or it reads as a section that appears at random',
+    ).toBe(true)
+    expect(w.text()).toContain(en.ec.conversationArc) // named while loading, not a bare box
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+
+    resolve(RESP)
+    await flushPromises()
+    // ...and it hands over cleanly: the placeholder goes, the chart arrives, heading unchanged.
+    expect(w.find('[data-testid="topic-arc-loading"]').exists()).toBe(false)
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(true)
+  })
+
+  it('bars grow to fill the box when a topic has only a few weeks', async () => {
+    // Fixed 8px bars left-aligned in a full-width scroller made a two-week topic look like a chart
+    // that had failed to load. `flex: 1 1 8px` with a cap lets sparse spread and keeps dense
+    // scrolling; the cap is what stops three weeks becoming three slabs.
+    vi.spyOn(api, 'getTopicConversationArc').mockResolvedValue(RESP)
+    const w = mountIt('topic:ai')
+    await flushPromises()
+    const bar = w.get('[data-testid="tca-bar-2024-W03"]')
+    // Vue expands the `flex` shorthand into longhands, so assert what is actually emitted rather
+    // than the source spelling — matching on `flex: 1 1 8px` would fail on a correct element.
+    const style = bar.attributes('style') ?? ''
+    expect(style, 'bars must be able to grow').toContain('flex-grow: 1')
+    expect(style, 'and to give space back').toContain('flex-shrink: 1')
+    expect(style, 'from an 8px basis, so a dense topic still scrolls').toContain('flex-basis: 8px')
+    expect(style, 'and must stay readable when there are many').toContain('min-width: 8px')
+    expect(style, 'and must not become slabs when there are few').toContain('max-width: 28px')
+    expect(bar.classes(), 'shrink-0 would defeat the growth').not.toContain('shrink-0')
+  })
 })
 
 describe('TopicConversationArc — a failed load must not look like a topic with no arc', () => {

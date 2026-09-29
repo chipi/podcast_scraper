@@ -3,7 +3,7 @@
 Loads every ``tests/fixtures/roster-golden/*.yaml`` fixture and drives the SHIPPED
 ``resolve_speaker_roster`` directly with each fixture's pre-resolved inputs. This suite never
 re-implements any part of the roster's logic — it constructs inputs and asserts on the real
-output, which is the whole point (CORPUS-V4-FIXTURE-LADDER.md §F0: a diagnostic that restates
+output, which is the whole point (TEST_CORPUS_FIXTURE_LADDER.md §F0: a diagnostic that restates
 the rule in its own words measures its own words, not the shipped code).
 
 See ``tests/fixtures/roster-golden/SCHEMA.md`` for the fixture contract, the friendly-shorthand
@@ -104,7 +104,7 @@ def test_golden_roster_matches_expected(case: Dict[str, Any]) -> None:
 
 def test_the_fixtures_actually_contain_traps() -> None:
     """Guard the guard: a fixture set that never exercises an ad voice or a real guest would
-    pass vacuously — it would not be testing anything CORPUS-V4-FIXTURE-LADDER.md calls out."""
+    pass vacuously — it would not be testing anything TEST_CORPUS_FIXTURE_LADDER.md calls out."""
     assert CASES, "no roster-golden fixtures loaded"
     for case in CASES:
         expected = case.get("expected_roster")
@@ -129,7 +129,7 @@ def test_the_fixtures_actually_contain_traps() -> None:
 
 
 def test_no_roster_name_lacks_a_source() -> None:
-    """The universal assertion from CORPUS-V4-FIXTURE-LADDER.md §G:
+    """The universal assertion from TEST_CORPUS_FIXTURE_LADDER.md §G:
 
     'No name may appear in the roster that is not either (a) stated in the feed, (b) stated in
     the episode description, or (c) spoken in the transcript by the voice it is assigned to.'
@@ -164,7 +164,7 @@ def test_no_roster_name_lacks_a_source() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Perturbations — one-line transforms of a fixture dict, from CORPUS-V4-FIXTURE-LADDER.md §G's
+# Perturbations — one-line transforms of a fixture dict, from TEST_CORPUS_FIXTURE_LADDER.md §G's
 # perturbation table. Each is verified against the real roster (see SCHEMA.md "Honesty
 # workflow"). Ones that pass are wired into `test_perturbation` below; ones that do NOT are left
 # defined here (so the transform is inspectable and re-runnable) with a `# PENDING:` comment
@@ -362,7 +362,7 @@ def perturb_no_feed_hosts(fixture: Dict[str, Any]) -> Dict[str, Any]:
 # +merged_cluster — append a host sentence ("Welcome back to Hard Fork, I'm Kevin Roose.") to the
 # guest's own voice_texts, simulating a diarization cluster merge that folds a host's self-intro
 # into the guest's cluster. Before #1226 this flipped GUEST_1 to role="host" — a phantom third
-# host on a two-host show (CORPUS-V4-FIXTURE-LADDER.md §G case #10, "uncapped conversation-derived
+# host on a two-host show (TEST_CORPUS_FIXTURE_LADDER.md §G case #10, "uncapped conversation-derived
 # roles"): resolve_speaker_roster step 1 named any self-intro-matches-a-stated-host voice with no
 # dedup, so the merged cluster claimed "Kevin Roose" a second time. Fixed by the #1226 dedup guard
 # (a stated host name identifies one person, claimable once). Now GREEN: the role no longer flips.
@@ -386,7 +386,7 @@ def assert_merged_cluster(roster: SpeakerRoster) -> None:
 
 
 # PENDING: +crosspost — swap in another show's host (known_hosts=["Ezra Klein"]), simulating
-# Hard Fork airing as a guest episode on a different feed. CORPUS-V4-FIXTURE-LADDER.md §G case #12
+# Hard Fork airing as a guest episode on a different feed. TEST_CORPUS_FIXTURE_LADDER.md §G case #12
 # ("the feed's hosts are not the episode's"). Deliberately left PENDING and precision-UNSAFE to fix.
 #
 # CORRECTED mechanism (#1228, verified against the shipped roster 2026-07-31 — the issue's original

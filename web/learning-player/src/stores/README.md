@@ -28,9 +28,9 @@ a refetch.
 request, and reverts on rejection — deliberately never throwing, so `void store.toggle()` in a
 template handler cannot raise an unhandled rejection. **The consequence matters:** a caller cannot
 tell success from failure unless the action *returns* it. `capture.*` returns `boolean` for exactly
-this reason ([S8](../../../../docs/wip/2026-08-13-player-overhaul-observations.md)) — callers were
-announcing "Saved" to screen readers after failed POSTs. If you add a write whose outcome the user
-can perceive, return the outcome.
+this reason — found in the 2026-08-13 player overhaul review, where callers were announcing
+"Saved" to screen readers after failed POSTs. If you add a write whose outcome the user can
+perceive, return the outcome.
 
 **3. Every per-user write must be gated.** Signed out, an ungated call 401s, the store swallows it,
 and the control flips then silently reverts — which reads to the user as their own action failing.

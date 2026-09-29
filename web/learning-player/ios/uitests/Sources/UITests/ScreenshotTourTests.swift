@@ -97,7 +97,7 @@ final class ScreenshotTourTests: UITestCase {
     }
 
     // --- profile, every tab, then settings ----------------------------------------------------
-    if Journey.openProfile(app) {
+    if Journey.openProfile(app, labels: profileLabels) {
       sleep(4)
       frame("t08-profile-account")
       if Journey.tap(app, labels: ["Topics"], timeout: 10) { sleep(3); frame("t09-profile-topics") }
@@ -272,11 +272,11 @@ final class ScreenshotTourTests: UITestCase {
 
     // --- offline, with the cache already warmed by everything above ----------------------------
     Journey.dismissSheets(app)
-    if Journey.setOfflineMode(app, on: true) {
+    if Journey.setOfflineMode(app, on: true, labels: profileLabels) {
       Journey.openTab(app, "Home")
       sleep(5)
       frame("t25-home-offline")
-      _ = Journey.setOfflineMode(app, on: false)
+      _ = Journey.setOfflineMode(app, on: false, labels: profileLabels)
     }
 
     Journey.openTab(app, "Home")

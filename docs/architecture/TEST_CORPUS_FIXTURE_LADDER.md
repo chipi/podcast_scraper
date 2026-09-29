@@ -1,9 +1,16 @@
-# Evolving the fixtures for corpus v4 — every failure we actually hit
+# Test-corpus fixture ladder — every failure the fixtures actually hit
 
-**Status:** WIP note. Not authoritative. Written 2026-07-14, at the end of the v3 speaker/ads arc.
+**Status:** Authoritative for what corpus v4 must add. Written 2026-07-14 at the end of the v3
+speaker/ads arc; promoted out of `docs/wip/` on 2026-09-27 because nineteen files cite it —
+fourteen e2e specs, the roster-golden `SCHEMA.md` and its fixture, a diarization unit test, and
+both e2e READMEs, one of which calls **§B the authority on what v4 must add**. A spec that much
+code defers to cannot live in a directory whose contract is "deleted when the arc ends".
 
-**Tracked by:** #1189 (golden fixtures — one per show, real diarization + feed metadata + hand-labelled
-truth). Mid-roll house ads: #1188.
+**Tracked by:** #1189 (golden fixtures — one per show, real diarization + feed metadata +
+hand-labelled truth). Mid-roll house ads: #1188.
+
+**Read §B before changing a browser-suite mock** and §G before touching the roster-golden
+fixtures — those are the two sections the citing code actually depends on.
 
 ## Why this note exists
 

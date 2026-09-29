@@ -138,6 +138,12 @@ describe('auth gate coverage (#1590)', () => {
     // The class, not one historical instance. A component that imports the gate is a component that
     // knows about deferred actions; combining that with `v-if="auth.isAuthenticated"` means some
     // control is hidden while another is gated, which is exactly the half-wired state.
+    //
+    // KNOWN BLIND SPOT (2026-08-13 review): this whole file checks SOURCE, not BEHAVIOUR. It cannot
+    // catch a component that imports the gate and then calls the store directly anyway — which is
+    // precisely the bug that shipped on PodcastView and KnowledgePanel, where `gated()` was wired
+    // onto controls that then bypassed it. Only ShowTile and TranscriptList have behavioural
+    // gated-path tests; everything else here is source-guarded only.
     const halfWired = files
       .filter((f) => f.text.includes('useSignInGate'))
       .filter((f) => f.text.includes('v-if="auth.isAuthenticated"'))

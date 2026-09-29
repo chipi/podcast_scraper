@@ -73,6 +73,50 @@ describe('MiniPlayer audio failure (Player #3)', () => {
 })
 
 
+describe('MiniPlayer progress hairline', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('animates a TRANSFORM, never width — this bar ticks ~4x/sec while anything plays', async () => {
+    /*
+     * It drove `width`, a LAYOUT property, bound to `currentTime` with a 500ms transition — so a
+     * fixed-position bar forced style+layout roughly four times a second for as long as audio
+     * played. `transform: scaleX` draws the same picture on the compositor, with no layout at all.
+     *
+     * Asserted because NOTHING covered this bar, which is how an animated layout property lived in
+     * the app's most persistent element without anyone noticing. `origin-left` is part of the
+     * contract: without it a scale reads as a zoom from the centre rather than a fill.
+     *
+     * It is also half of an UNCONFIRMED fix for the fixed-chrome-mid-scroll artifact (2026-09-27).
+     * That is not what this test claims — it claims the bar does not re-lay-out on every tick.
+     */
+    const player = nowPlaying()
+    player.duration = 100
+    player.currentTime = 25
+    const w = await mountMini()
+
+    const fill = w.get('.bg-accent')
+    const style = fill.attributes('style') ?? ''
+    expect(style, 'progress must be a compositor-only transform').toContain('scaleX(0.25)')
+    expect(style, 'width is a layout property — it re-lays-out the bar on every tick').not.toMatch(
+      /(^|[^-])width:/,
+    )
+    expect(fill.classes(), 'a scale without origin-left zooms from the centre').toContain(
+      'origin-left',
+    )
+    expect(fill.classes()).toContain('transition-transform')
+  })
+
+  it('clamps rather than overscaling when position exceeds duration', async () => {
+    // A stale `currentTime` past a shortened duration would otherwise scale the fill beyond its
+    // track. `width` clamped implicitly at 100%; a transform does not.
+    const player = nowPlaying()
+    player.duration = 100
+    player.currentTime = 250
+    const w = await mountMini()
+    expect(w.get('.bg-accent').attributes('style')).toContain('scaleX(1)')
+  })
+})
+
 describe('MiniPlayer line composition (operator 2026-09-23)', () => {
   beforeEach(() => setActivePinia(createPinia()))
 

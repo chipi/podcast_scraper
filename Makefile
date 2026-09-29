@@ -77,7 +77,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: ios-origin-up ios-origin-down test-app-ios-sim-download
+.PHONY: ios-origin-up ios-origin-down ios-origin-check app-e2e-users-reset test-app-ios-sim-download
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
 .PHONY: test-app-ios-native test-app-ios-prod-tour
@@ -1838,9 +1838,29 @@ E2E_API_IMAGE_STAMP ?= .e2e-api-image.stamp
 #: dependency and config inputs, and a change to any of them reproduces exactly the "suite
 #: certifies old server code" failure the stamp exists to prevent (advisor-2 #7).
 E2E_API_IMAGE_INPUTS ?= src/podcast_scraper pyproject.toml config docker/api
-APP_E2E_CT ?= lp-e2e-api
-APP_E2E_VOL ?= lp-e2e-corpus
-APP_E2E_STATE ?= lp-e2e-state
+# PER-WORKTREE NAMES (2026-09-28). This machine runs three worktrees of this repo —
+# `podcast_scraper-FUTURE`, `-ai-ml-improvements`, `-infra` — and these three names used to be
+# shared by all of them.
+#
+# Sharing was survivable while the only operations were create and destroy: a collision showed up
+# immediately as a container that would not start. `app-e2e-users-reset` changed that. It deletes
+# `/app/state/users` inside whatever answers to this name, so a device tier running in a SIBLING
+# worktree has its accounts removed mid-run, silently, and the failures surface over there as
+# missing content. That is the "a shared machine may host another agent's live work" class from
+# AGENTS.md rule 4, which this repo has a logged incident for.
+#
+# The port is NOT scoped, deliberately — `APP_E2E_PORT` is baked into built clients and into
+# `playwright.config.ts`, so changing it is a much wider change. Two worktrees running device tiers
+# at once therefore still collide, but now they collide on the PORT, where `app-e2e-api-up` already
+# has a loud "something is already serving :8011 and it is not our container" guard. Loud beats
+# silent; this converts a silent data loss into an error message.
+#
+# ONE-TIME TRANSITION: a container from before this change is called `lp-e2e-api` and will now read
+# as foreign. Remove it once — `docker rm -f lp-e2e-api` — or the port guard will stop the next run.
+E2E_WORKTREE ?= $(notdir $(CURDIR))
+APP_E2E_CT ?= lp-e2e-api-$(E2E_WORKTREE)
+APP_E2E_VOL ?= lp-e2e-corpus-$(E2E_WORKTREE)
+APP_E2E_STATE ?= lp-e2e-state-$(E2E_WORKTREE)
 # 8011 is ALSO what web/learning-player/playwright.config.ts starts its own api on, with
 # `reuseExistingServer: !CI`. So whenever this container is up, the browser suite silently REUSES it
 # instead of starting its own — and Playwright's globalSetup then wipes `e2e/.app-state`, a
@@ -1909,6 +1929,97 @@ app-e2e-api-up:
 	@scripts/tools/wait_for_e2e_api.sh $(APP_E2E_PORT) $(APP_E2E_CT)
 	@echo "✓ $(APP_E2E_CT) healthy on :$(APP_E2E_PORT)"
 
+# Is the origin still there? Two seconds, between phases (2026-09-27).
+#
+# Only phase 3 runs `ios-origin-up`; phases 4 and 5 assumed it was still alive. It is a backgrounded
+# `vite preview`, and a shell job that started it takes it down when the job ends — a trap this repo
+# has already hit and written down. When it dies mid-run, every later suite tests against NOTHING
+# and fails as a wall of UI-regression-shaped "element not found", which is forty minutes of reading
+# the wrong story.
+#
+# BOTH endpoints, because they fail differently and the distinction is the whole value:
+# `/api/health` says the proxy and the api are reachable; `/api/app/me` says the api can still
+# AUTHENTICATE — 401 is healthy (no credential presented), 503 means the session secret is gone,
+# which is the degraded drill's leftover and reads as a mass sign-out rather than as a server fault.
+ios-origin-check:
+	@curl -fsS --max-time 2 "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/health" >/dev/null 2>&1 || { \
+		echo "FAIL: the origin on :$(IOS_ORIGIN_PORT) is GONE — every later suite would test against nothing."; \
+		echo "      A backgrounded 'vite preview' dies with the shell job that started it."; \
+		echo "      Restart it with: make ios-origin-up"; \
+		exit 1; \
+	}
+	@# ALLOW-LIST the healthy codes, do not deny-list the one bad one. The first version rejected
+	@# 503 and passed everything else, so `/api/app/me -> 500` printed "✓ origin alive" — a check
+	@# that reports health for an api throwing on every request. Naming the good states is the only
+	@# form that cannot be widened by accident.
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app/me" 2>/dev/null); \
+	case "$$code" in \
+		401|200) ;; \
+		503) \
+			echo "FAIL: /api/app/me returns 503 — the api cannot authenticate ANYONE."; \
+			echo "      That is the degraded-server drill's leftover (an empty APP_SESSION_SECRET),"; \
+			echo "      not a UI fault. Every auth-gated assertion after this would fail as a sign-out."; \
+			echo "      Restore with: make app-e2e-api-up"; \
+			exit 1;; \
+		*) \
+			echo "FAIL: /api/app/me returns $$code — expected 401 (healthy, no credential sent)"; \
+			echo "      or 200. The api is answering but not in a state any suite can rely on."; \
+			exit 1;; \
+	esac; \
+	echo "✓ origin alive on :$(IOS_ORIGIN_PORT) (/api/app/me -> $$code)"
+
+# Every device-tier run starts from VIRGIN SERVER-SIDE ACCOUNTS (#2091, 2026-09-27).
+#
+# `simctl uninstall` and `pm clear` reset the DEVICE. Neither touches the backend, and the account's
+# queue, favourites, listening history, playback positions, completed set, interests and library
+# subscriptions all live server-side under $(APP_E2E_CT):/app/state/users. So they survived not just
+# between suites but BETWEEN RUNS, indefinitely: `ios-origin-up` reuses a healthy container unless
+# the image inputs are newer, so `simtest` accumulated without bound.
+#
+# That regime is behind three of the five false greens catalogued in #2091 — `PersonalisationTests`
+# passing for days on an account that already had listening data and masking a real product bug;
+# `NativeOnlySurfacesTests` "queueing" for months against a queue an earlier session left; and
+# `AppJourneyTests.test03` breaking once Home grew long enough to push the Trends rail out of the
+# accessibility tree. Each one was green because of history rather than behaviour.
+#
+# Measured on 2026-09-27: a container up 19 hours still held two accounts from earlier runs.
+#
+# This is the sibling of `pm clear` / `simctl uninstall`, and it is deliberately NOT a reset route
+# on the api. A test-only HTTP endpoint would be new server surface whose only safe gate is
+# `provider == mock`, and per-test identities dissolve the need for it anyway. The container is
+# already ours; `docker exec` needs no new product code at all.
+# WAS a hazard, FIXED: `APP_E2E_CT`/`VOL`/`STATE` are worktree-scoped (see their definitions).
+#
+# This machine runs several worktrees of this repo (AGENTS.md names them), and they used to default
+# to the same container and volume names. A device run in a SIBLING worktree would have its accounts
+# deleted out from under it the moment this fired here — the "another agent's live work" class the
+# 2026-08-25 incident log exists for. The Makefile already distrusted the shared PORT (the "foreign"
+# check in `app-e2e-api-up`) while sharing the NAME, which was the same assumption twice with only
+# one of them guarded.
+#
+# The old note here declined the rename because it "is its own change with its own blast radius".
+# That was correct, and the radius landed the same day: a container started BEFORE the rename kept
+# serving :8011 against the OLD volumes, `ios-origin-up` reused it on health alone, and the first
+# target to use the new names got two EMPTY volumes from `docker run -v`. Five phases certified an
+# api nobody had seeded. Both holes are now guarded — reuse checks the mounted volume names, and
+# `_app-e2e-api-restart` refuses a volume that is missing or has no `feeds/` — so the lesson to keep
+# is the shape: renaming a shared resource is not done when the variable changes, it is done when
+# everything still holding the OLD one is either torn down or detected.
+app-e2e-users-reset:
+	@if ! docker ps --filter "name=$(APP_E2E_CT)" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
+		echo "--> no $(APP_E2E_CT) container running; no server-side accounts to reset"; \
+	else \
+		before=$$(docker exec $(APP_E2E_CT) sh -c 'ls -1 /app/state/users 2>/dev/null | wc -l' | tr -d ' \r'); \
+		docker exec $(APP_E2E_CT) sh -c 'find /app/state/users -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null' || true; \
+		after=$$(docker exec $(APP_E2E_CT) sh -c 'ls -1 /app/state/users 2>/dev/null | wc -l' | tr -d ' \r'); \
+		echo "--> server-side accounts reset: $$before -> $$after"; \
+		if [ "$$after" != "0" ]; then \
+			echo "FAIL: $$after account(s) survived the reset — the tier would start dirty."; \
+			echo "      A reset that half-worked is worse than none: the run looks clean and is not."; \
+			exit 1; \
+		fi; \
+	fi
+
 # The single origin the simulator talks to: vite preview proxying /api and /audio. Backgrounded,
 # with its pid parked so `ios-origin-down` can reap it — AGENTS.md: reap what you start.
 ios-origin-up:
@@ -1920,12 +2031,27 @@ ios-origin-up:
 	@# code" hole the image stamp closes for the browser path (advisor-2 #7). A container older than
 	@# the image inputs is torn down and replaced; a hand-started venv api (no container) is left
 	@# alone, since it always runs the working tree.
+	@# STALE ALSO MEANS "MOUNTING VOLUMES WE NO LONGER USE" (2026-09-28).
+	@#
+	@# A running container is reused on health, and health says nothing about WHICH volumes it has
+	@# open. When `APP_E2E_VOL`/`STATE` became worktree-scoped, a container from before the rename
+	@# kept serving :8011 against the old ones and was reused all the way through phase 5 — so the
+	@# suites passed against volumes the Makefile no longer names, and the first target to use the
+	@# NEW names got two empty ones from Docker and an api with no corpus at all.
 	@stale=""; \
 	if docker ps --filter "name=$(APP_E2E_CT)" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
 		if [ ! -f $(E2E_API_IMAGE_STAMP) ] || \
 		   [ -n "$$(find $(E2E_API_IMAGE_INPUTS) -newer $(E2E_API_IMAGE_STAMP) -print -quit 2>/dev/null)" ]; then \
 			stale=1; \
 		fi; \
+		mounted=$$(docker inspect $(APP_E2E_CT) \
+			--format '{{range .Mounts}}{{.Name}} {{end}}' 2>/dev/null); \
+		for want in $(APP_E2E_VOL) $(APP_E2E_STATE); do \
+			case " $$mounted " in \
+				*" $$want "*) ;; \
+				*) echo "--> containerised api does not mount '$$want' — rebuilding"; stale=1;; \
+			esac; \
+		done; \
 	fi; \
 	if [ -n "$$stale" ]; then \
 		echo "--> containerised api predates its inputs — rebuilding before the device run"; \
@@ -1990,6 +2116,40 @@ ios-origin-up:
 # Deliberately not `.PHONY`-exported as a user-facing target — it is a step, and running it by hand
 # with no SECRET leaves an api that cannot log anyone in.
 _app-e2e-api-restart:
+	@# THE VOLUMES MUST ALREADY EXIST AND HOLD THE CORPUS.
+	@#
+	@# `docker run -v name:/path` CREATES a missing named volume, empty, and says nothing. This
+	@# target only ever re-runs an api over state that `app-e2e-api-up` seeded, so a missing volume
+	@# means the name drifted — and the silent creation converts that into an api with no episodes,
+	@# no accounts, and a root-owned `/app/state` the non-root app user cannot write.
+	@#
+	@# MEASURED 2026-09-28, and it cost a 70-minute tier run. `APP_E2E_VOL`/`STATE` became
+	@# worktree-scoped earlier that day, while a container from before the rename was still serving
+	@# :8011 against the OLD volumes. `ios-origin-up`'s "already healthy" short-circuit skipped
+	@# `app-e2e-api-up`, so the new names were never created. Phases 1-5 passed against the old
+	@# volumes; then this target ran with the NEW names, Docker made them empty, and the degraded
+	@# drill asserted incident behaviour against an api with nothing in it. It failed four steps
+	@# later as "the app's WebView never painted", naming a surface rather than the cause.
+	@#
+	@# So: FAIL here, where the name is, instead of somewhere downstream where it is not.
+	@for v in $(APP_E2E_VOL) $(APP_E2E_STATE); do \
+		docker volume inspect "$$v" >/dev/null 2>&1 || { \
+			echo "FAIL: volume '$$v' does not exist, and this target must not create it."; \
+			echo "      It restarts an api over ALREADY-SEEDED state; an empty volume would give"; \
+			echo "      an api with no corpus and no accounts, which fails much later and"; \
+			echo "      elsewhere. Run 'make app-e2e-api-up' to seed it, or reconcile the name."; \
+			exit 1; }; \
+	done
+	@# SEEDED, not merely non-empty. A "does it have any entries" count is not enough: the first
+	@# version of this guard counted a stray `.viewer` directory the origin had written and passed
+	@# a corpus volume with no corpus in it. Look for the thing the seeder actually puts there.
+	@docker run --rm -v $(APP_E2E_VOL):/c $(APP_E2E_IMAGE) \
+		sh -c 'test -d /c/feeds' >/dev/null 2>&1 || { \
+		echo "FAIL: corpus volume '$(APP_E2E_VOL)' has no 'feeds/' — it is not seeded."; \
+		echo "      The api would come up healthy and serve nothing, so every content assertion"; \
+		echo "      after this point would fail for a reason that has nothing to do with the app."; \
+		echo "      Run 'make app-e2e-api-up' to re-seed it."; \
+		exit 1; }
 	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
 	@docker run -d --name $(APP_E2E_CT) -p $(APP_E2E_PORT):8000 \
 		-v $(APP_E2E_VOL):/app/output -v $(APP_E2E_STATE):/app/state \
@@ -2029,6 +2189,8 @@ app-e2e-api-down:
 #
 # Prerequisites, installed by the machine owner (Homebrew's prefix is not writable by every user):
 #   brew install cocoapods xcodegen      # plus Xcode with an iOS simulator runtime
+# CocoaPods 1.17.0 is the reference: `pod install` (run by `cap sync`) stamps its own version
+# into ios/App/Podfile.lock (`COCOAPODS:`), so any other version dirties that file on every run.
 #
 # The UI-test project lives in $(APP_DIR)/ios/uitests and is DELIBERATELY separate from
 # ios/App.xcodeproj: it drives the installed app by bundle id, so ``npx cap add ios`` (which
@@ -2036,7 +2198,21 @@ app-e2e-api-down:
 IOS_SIM ?= iPhone 17
 IOS_BUNDLE_ID ?= app.closelistening.player
 IOS_UITESTS_DIR = $(APP_DIR)/ios/uitests
-IOS_DD ?= /tmp/lp-ios-dd
+# WORKTREE-SCOPED, for the same reason the e2e container and volumes are: this machine runs several
+# worktrees of this repo, and `/tmp/lp-ios-dd` was shared by all of them. Two worktrees building iOS
+# into one derived-data tree corrupt each other's modules, and a wipe to recover takes out a sibling
+# agent's cache as collateral — the 2026-08-25 class.
+#
+# It also lives under /tmp, which macOS prunes on age. That is how this surfaced (2026-09-28): the
+# 42 `.scan` dependency-scan results survived while every `.pcm` they name was pruned, so the build
+# trusted a scan whose module was gone and failed 14 times with
+#     fatal error: module file 'UIKit-2L880IKKYX6Z0JYSOA9SKNWBJ.pcm' not found
+# naming a CapacitorCordova prefix header — a dependency nobody had touched. It reads as a broken
+# Pod, and it is a pruned cache.
+#
+# Scoping alone does not stop the pruning; `ios-dd-check` below detects the inconsistent state and
+# says which it is, so the next person does not debug Capacitor.
+IOS_DD ?= /tmp/lp-ios-dd-$(E2E_WORKTREE)
 # The DEVICE journey needs ONE origin that serves both the api and the episode audio (#1925
 # decision 4). The fixture corpus stores `content.media_url` as a RELATIVE `/audio/<id>.mp3` so no
 # host is baked into 36 committed files, and `resolveMediaUrl` absolutises it against the API base
@@ -2049,6 +2225,18 @@ IOS_DD ?= /tmp/lp-ios-dd
 # base whose origin also answers /audio.
 IOS_ORIGIN_PORT ?= 4174
 IOS_MEDIA_PORT ?= 18765
+
+# The account the make-level seeding targets mint, and the one suites opt into when they genuinely
+# depend on seeded state.
+#
+# This string exists in FOUR places — here, `ios-journey-signin`'s `as=` query, and the
+# `sharedSeededIdentity` / `SHARED_SEEDED_IDENTITY` constants in the two `UITestCase` files. Neither
+# harness can read this Makefile, so the copies are unavoidable; what is avoidable is them drifting
+# apart silently. `tests/unit/podcast_scraper/test_device_tiers_do_not_drift.py` pins all four
+# together, because a mismatch here does not fail loudly: the seeding would populate one account and
+# the suite would read an empty one, which is exactly how `ios-contact-sheet` came to photograph a
+# tour of empty states for weeks with nothing asserting on it.
+IOS_SEED_IDENTITY ?= simtest
 
 # `OfflinePlaybackTests` — plays an episode from disk and seeks in it.
 #
@@ -2182,14 +2370,18 @@ test-app-ios-native:
 # ORDER IS LOAD-BEARING, and not obvious from the names:
 #   1. download  — signs in as the SHARED `simtest` account and downloads two episodes through the
 #                  UI. It SEEDS what the offline suites consume, so it cannot move.
-#   2. offline   — auto-advance from what step 1 downloaded, with the api DOWN. Needs 1. It calls
-#                  `app-e2e-api-down`, which removes the container AND the `lp-e2e-corpus` /
-#                  `lp-e2e-state` volumes — so it does not merely pause the backend, it destroys
-#                  the corpus and every account on it. That is the point of the step, and it is
-#                  also why step 3 cannot simply follow it.
-#   2b. RECOVER  — `ios-origin-up` rebuilds the api and restarts the media host + single origin;
-#                  `ios-journey-signin` then mints a fresh session through the mock provider's
-#                  native flow and writes it to the app's DURABLE store.
+#   2. offline   — auto-advance from what step 1 downloaded, with the app CUT OFF. Needs 1. It now
+#                  calls `ios-origin-down`, which stops the single origin the app talks to. The api
+#                  container, its volumes and its accounts SURVIVE (2026-09-28).
+#
+#                  It used to call `app-e2e-api-down`, which removes the container AND the
+#                  `$(APP_E2E_VOL)` / `$(APP_E2E_STATE)` volumes — destroying the corpus and every
+#                  account, which step 3 then had to rebuild and re-seed to reach a state it already
+#                  had. Being offline never required destroying the backend: the app sees one
+#                  address, so a stopped origin and a stopped api are the same refused connection.
+#   2b. RECOVER  — `ios-origin-up` restarts the media host + single origin, REUSING the healthy api
+#                  rather than rebuilding it; `ios-journey-signin` then mints a fresh session
+#                  through the mock provider's native flow and writes it to the app's DURABLE store.
 #
 #                  BOTH are required and both were missing until 2026-09-25. Steps 3 and 4 ran
 #                  against a dead :$(APP_E2E_PORT) behind an origin that answered 502, with the app
@@ -2271,6 +2463,8 @@ test-ios:
 	@# fragility rather than a fixed one. Uninstall is the simulator's equivalent: the next target
 	@# installs a fresh bundle anyway, so this costs nothing but removes the carry-over.
 	@xcrun simctl uninstall booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true
+	@# ...and a clean SERVER-SIDE account to go with the clean device. See `app-e2e-users-reset`.
+	@$(MAKE) app-e2e-users-reset
 	@set -e; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 1/6 download (seeds the offline suites) ==="; \
 	$(MAKE) test-app-ios-sim-download; \
@@ -2281,8 +2475,10 @@ test-ios:
 	$(MAKE) ios-journey-signin; \
 	$(MAKE) test-app-ios-playback; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 4/6 journey + personalisation + cache ==="; \
+	$(MAKE) ios-origin-check; \
 	$(MAKE) test-app-ios-journey-ui; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 5/6 native capabilities + native-only surfaces ==="; \
+	$(MAKE) ios-origin-check; \
 	$(MAKE) test-app-ios-native; \
 	echo ""; echo "=== test-ios [$$(date '+%H:%M:%S')] 6/6 degraded server (DESTRUCTIVE — runs last) ==="; \
 	$(MAKE) test-app-ios-server-degraded; \
@@ -2359,6 +2555,15 @@ test-android:
 	@# switch is in Settings, Settings is behind the masthead avatar, and the avatar needs a
 	@# session. That wedge is unrecoverable from inside a test, so it is handled here instead.
 	@$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null
+	@# ...and the SERVER-SIDE half of that clean slate, which `pm clear` cannot reach.
+	@#
+	@# BETWEEN RUNS ONLY, and the earlier version of this comment claimed more than that: it said
+	@# the 14 suites would otherwise "inherit each other's accounts as well as the previous run's".
+	@# They still do. This fires once, here, before phase 1. Within-run isolation comes from
+	@# per-suite identities (`UITestCase.accountIdentity`), not from this target — and the suites
+	@# that opt into `simtest` share deliberately. Claiming coverage a target does not provide is
+	@# how the next person stops looking.
+	@$(MAKE) app-e2e-users-reset
 	@rc=0; \
 	echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 1/7 harness (sign-in, nav, deep links, offline switch) ==="; \
 	$(MAKE) android-suite SUITE=HarnessSmokeTests || rc=$$?; \
@@ -2371,7 +2576,8 @@ test-android:
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=OfflineCacheTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=ConfigOfflineToggleTests || rc=$$?; }; fi; \
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 5/7 journey + personalisation + native capabilities + stack depth ==="; \
-		$(MAKE) android-suite SUITE=AppJourneyTests || rc=$$?; \
+		$(MAKE) ios-origin-check || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=AppJourneyTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=PersonalisationTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=NativeCapabilityTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=StackDepthProbeTests || rc=$$?; }; \
@@ -2379,7 +2585,8 @@ test-android:
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/7 degraded server (needs a session — BEFORE the sign-out suite) ==="; \
 		$(MAKE) test-android-server-degraded || rc=$$?; fi; \
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 7/7 native-only surfaces (leaves the device offline+signed-out) ==="; \
-		$(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; fi; \
+		$(MAKE) ios-origin-check || rc=$$?; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=NativeOnlySurfacesTests || rc=$$?; }; fi; \
 	echo ""; echo "--> resetting the device (the last suite leaves it offline AND signed out by design)"; \
 	$(ADB) shell pm clear $(ANDROID_PKG) >/dev/null 2>&1 || true; \
 	$(MAKE) ios-origin-down >/dev/null 2>&1 || true; \
@@ -2394,12 +2601,53 @@ android-suite:
 	@# Optional `TEST=<method>` runs ONE test, via `am instrument`'s `Class#method` form. The
 	@# degraded-server drill needs it: its two tests require different HOST conditions, created
 	@# between them, so they cannot share an invocation (2026-09-25).
+	@#
+	@# `-e originPort` keeps the port in ONE place. `Journey.originPort()` reads it and FAILS when it
+	@# is absent rather than defaulting: a default would re-create the hand-kept copy of this
+	@# Makefile value that used to sit in Journey.java, and re-create it invisibly — the mint would
+	@# hit a dead port, the callback sign-in would return false, and the tier would fall back to the
+	@# slow UI path and still pass.
+	@#
+	@# NOTE FOR ANYONE EDITING BELOW: everything from `@target=` down is ONE shell command joined by
+	@# backslashes. A `@#` line inserted into the middle of it is not a comment — it becomes shell
+	@# input, and the recipe dies with "/bin/sh: -e: command not found". That is exactly how this
+	@# target got broken while adding the line above. Comments go here, above the command.
+	@#
+	@# A SUITE THAT RAN NOTHING IS NOT A PASS (2026-09-27).
+	@#
+	@# `am instrument` prints `OK (0 tests)` when the class resolves to nothing runnable — a typo in
+	@# SUITE=, a class that was renamed, every method @Ignore'd. That string matches `^OK (`, so the
+	@# old check reported success for a suite that executed zero tests. The two Python wiring guards
+	@# (`test_{ios,android}_uitest_suites_are_wired.py`) catch a suite LEAVING the Makefile; nothing
+	@# caught one that is still wired and runs nothing. Same false-green shape as the state leaks in
+	@# #2091 — green by absence rather than by behaviour.
+	@#
+	@# MARKERS ON FAILURE (2026-09-28). The harness prints `=====MARKER …=====` lines throughout and
+	@# several of its comments treat them as the record of what happened. They are not: instrumentation
+	@# `System.out` does not reach `am instrument -w` stdout, so a complete `test-android` log contains
+	@# ZERO of them — measured, `grep -c "====="` over a full tier log returned 0 while a phase-2
+	@# failure needed exactly those lines to explain itself. `Journey.mark` now also writes them to
+	@# logcat under `LPHARNESS`, the buffer is cleared before each suite, and the tail is printed when
+	@# a suite fails. Without this a tier failure says only which suite died, never why.
 	@target="$(ANDROID_PKG).$(SUITE)"; \
 	if [ -n "$(TEST)" ]; then target="$$target\#$(TEST)"; fi; \
-	out=$$($(ADB) shell am instrument -w -e class "$$target" \
+	$(ADB) logcat -c >/dev/null 2>&1 || true; \
+	out=$$($(ADB) shell am instrument -w -e class "$$target" -e originPort $(IOS_ORIGIN_PORT) \
 		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
 	echo "$$out"; \
-	echo "$$out" | grep -q "^OK (" || { echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; exit 1; }
+	echo "$$out" | grep -q "^OK (" || { \
+		echo "FAIL: $(SUITE)$${TEST:+#$(TEST)}"; \
+		echo "--- harness markers for this run (logcat LPHARNESS) ---"; \
+		$(ADB) logcat -d -s LPHARNESS:I 2>/dev/null | tail -40 || true; \
+		echo "--- end markers ---"; \
+		exit 1; \
+	}; \
+	if echo "$$out" | grep -q "^OK (0 tests)"; then \
+		echo "FAIL: $(SUITE)$${TEST:+#$(TEST)} reported OK but ran ZERO tests."; \
+		echo "      The class resolved to nothing runnable — check the name for a typo or a"; \
+		echo "      rename, and check for @Ignore on every method."; \
+		exit 1; \
+	fi
 
 # The degraded-server drill (#2139) — the sibling of `test-app-ios-server-degraded`, and corrected
 # the same way (2026-09-25).
@@ -2427,19 +2675,41 @@ test-android-server-degraded:
 	@echo "--> 2/3 restarting the api with NO signing secret, same data (the reboot)"
 	@$(MAKE) _app-e2e-api-restart SECRET=
 	@# PROVE the scenario before asserting on it. A silently-wrong drill is what this cost.
-	@code=$$(curl -s -o /dev/null -w '%{http_code}' \
+	@#
+	@# THE STATUS CODE IS NOT THE PROOF — the BODY is. `503` is returned by at least two unrelated
+	@# faults, and this drill is only about one of them:
+	@#     {"detail":"Auth is not configured."}                       <- no signing secret. THIS one.
+	@#     {"detail":"Storage temporarily unavailable (permission..."} <- /app/state unwritable.
+	@# On 2026-09-28 the second one satisfied a code-only check, and the drill printed "the incident,
+	@# reproduced" over an api that had no corpus, no accounts and an unwritable state dir. Every
+	@# assertion after it was meaningless, and the suite failed on a blank WebView instead.
+	@body=$$(curl -s -w '\n%{http_code}' \
 		-H "Authorization: Bearer probe.probe.probe" \
 		"http://127.0.0.1:$(APP_E2E_PORT)/api/app/me"); \
+	code=$$(echo "$$body" | tail -1); detail=$$(echo "$$body" | sed '$$d'); \
 	[ "$$code" = "503" ] || { \
 		echo "FAIL: the api answers $$code on /api/app/me, not 503 — it can still authenticate,"; \
 		echo "      so this is NOT the lost-secret incident and the assertions below are vacuous."; \
-		exit 1; }
-	@echo "✓ api is UP and cannot authenticate anyone (503) — the incident, reproduced"
+		exit 1; }; \
+	case "$$detail" in \
+		*"Auth is not configured"*) ;; \
+		*) echo "FAIL: the api answers 503, but NOT for the missing signing secret:"; \
+		   echo "      $$detail"; \
+		   echo "      A 503 from another fault (commonly an unwritable /app/state) would make this"; \
+		   echo "      drill assert incident behaviour against a differently-broken server."; \
+		   exit 1;; \
+	esac
+	@echo "✓ api is UP and cannot authenticate anyone (503 'Auth is not configured') — reproduced"
 	@echo "--> 3/3 asserting the app notices, stays honest, and keeps its cache"
 	@$(MAKE) android-suite SUITE=ServerDegradedTests TEST=test11bDegradedServerIsDetectedAndCacheSurvives; \
 		rc=$$?; \
 		echo "--> restoring the api (this drill leaves it UNABLE TO AUTHENTICATE)"; \
-		$(MAKE) _app-e2e-api-restart SECRET=e2e-secret >/dev/null 2>&1 || true; \
+		if ! $(MAKE) _app-e2e-api-restart SECRET=e2e-secret >/tmp/lp-degraded-restore.log 2>&1; then \
+			echo "FAIL: the api was NOT restored — it is still unable to authenticate anyone."; \
+			echo "      Every later suite would fail against it for a reason of this drill's making."; \
+			sed 's/^/      /' /tmp/lp-degraded-restore.log; \
+			rc=1; \
+		fi; \
 		exit $$rc
 
 android-emulator-up:
@@ -2485,7 +2755,7 @@ test-app-ios-prod-tour:
 # store, so the journey suite starts signed in. Write through the preferences DAEMON (the app reads
 # that); the container plist lags behind and must not be written directly — see the note below.
 ios-journey-signin:
-	@tok=""; url="http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app/auth/login?as=simtest&platform=native"; \
+	@tok=""; url="http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app/auth/login?as=$(IOS_SEED_IDENTITY)&platform=native"; \
 	for i in 1 2 3 4 5; do \
 		loc=$$(curl -s -c /tmp/lp-ios-jar.txt -b /tmp/lp-ios-jar.txt -o /dev/null -D - "$$url" \
 			| awk 'tolower($$1)=="location:"{print $$2}' | tr -d '\r'); \
@@ -2612,7 +2882,29 @@ test-app-ios-server-degraded:
 #     source" with NO transport, and a test looking for Play reports the control missing rather than
 #     the audio. Hence the single origin, which is what `ios-origin-up` exists to provide.
 # All three are invisible until something downstream fails oddly, so the recipe is the artefact.
-ios-app-install: ios-origin-up
+# A derived-data tree that has been PARTIALLY pruned is worse than one that is missing: xcodebuild
+# trusts the scan results it still has and fails deep inside a dependency it has no quarrel with.
+#
+# The signature is exact — `ExplicitPrecompiledModules` holding `.scan` files and NO `.pcm`. Both
+# are regenerated build outputs, so removing the tree costs a cold build and nothing else. This
+# deletes only $(IOS_DD), which is worktree-scoped precisely so that is not somebody else's cache.
+#
+# Not a retry wrapper around a flaky build: it removes the CAUSE (a cache that cannot be valid) and
+# says so out loud, rather than papering over a failure whose real reason would stay hidden.
+ios-dd-check:
+	@mods="$(IOS_DD)/Build/Intermediates.noindex/ExplicitPrecompiledModules"; \
+	if [ -d "$$mods" ]; then \
+		scans=$$(find "$$mods" -name '*.scan' 2>/dev/null | wc -l | tr -d ' '); \
+		pcms=$$(find "$$mods" -name '*.pcm' 2>/dev/null | wc -l | tr -d ' '); \
+		if [ "$$scans" -gt 0 ] && [ "$$pcms" -eq 0 ]; then \
+			echo "--> derived data at $(IOS_DD) is INCONSISTENT: $$scans scan results, 0 compiled"; \
+			echo "    modules. /tmp was pruned under it. Clearing for a cold build — the"; \
+			echo "    alternative is 14 'module file not found' errors naming a Pod that is fine."; \
+			rm -rf "$(IOS_DD)"; \
+		fi; \
+	fi
+
+ios-app-install: ios-origin-up ios-dd-check
 	@echo "--> building the player against the single origin on :$(IOS_ORIGIN_PORT) (api + audio)"
 	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
 		npm run build >/dev/null && npx cap sync ios >/dev/null
@@ -2655,13 +2947,23 @@ ios-contact-sheet: ios-app-install
 	@# The journey + personalisation suites already CREATE that data as a side effect of asserting
 	@# on it (boards, favourites, played episodes, chosen interests), so running them first is both
 	@# the seed and a check that the seeding path still works.
-	@echo "--> seeding data so the tour photographs a populated app"
+	@#
+	@# SAME ACCOUNT, stated explicitly. This step stopped seeding anything the tour could see when
+	@# per-suite identities landed (#2091): the seeders moved to `appjourneytests` /
+	@# `personalisationtests` while `ScreenshotTourTests` overrides to `simtest`, so the tour
+	@# photographed an account nobody had populated — straight back to the empty states this step was
+	@# added to remove. Nothing asserts on a contact sheet, so it regressed in silence for weeks.
+	@# `TEST_RUNNER_LP_FORCE_IDENTITY` puts the seeders on the tour's account; `UITestCase`
+	@# reads it. Deliberately explicit here rather than a default, so the sharing is visible at the
+	@# call site that depends on it.
+	@echo "--> seeding data so the tour photographs a populated app (as $(IOS_SEED_IDENTITY))"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/AppJourneyTests \
 			-only-testing:OfflineSpikeUITests/PersonalisationTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
+			TEST_RUNNER_LP_FORCE_IDENTITY=$(IOS_SEED_IDENTITY) \
 			2>&1 | grep -E '=====|Test Case.*(passed|failed)|error:|XCTAssert|TEST (SUCCEEDED|FAILED)' || true
 	@echo "--> touring every surface"
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
@@ -2727,8 +3029,30 @@ test-app-ios-sim-offline:
 	@#
 	@# What remains is the journey a person actually takes: sign in online, close the app, lose
 	@# connectivity, open it again.
-	@$(MAKE) app-e2e-api-down
-	@echo "--> api is DOWN; running the offline journey"
+	@#
+	@# KILL THE ORIGIN, NOT THE API (2026-09-28). This ran `app-e2e-api-down`, which removes the
+	@# container AND both volumes — so it did not merely take connectivity away, it destroyed the
+	@# corpus and every account on it. Phase 3 then had to rebuild the container and re-seed the
+	@# whole corpus to get back to a state it already had, minutes of work for nothing, and every
+	@# account minted up to that point was gone with it.
+	@#
+	@# That is also why the two tiers ran under different state regimes without anyone choosing it:
+	@# iOS wiped its accounts mid-run here while Android, which never tears the api down, carried
+	@# them through all seven phases.
+	@#
+	@# The app talks to ONE address — the origin on :$(IOS_ORIGIN_PORT), for both `/api` and
+	@# `/audio`. With the origin gone, connections are refused exactly as they are when the api is
+	@# gone; from inside the WebView the two are indistinguishable. The api container, its volumes
+	@# and its accounts survive, so `ios-origin-up` in phase 3 reuses the healthy api instead of
+	@# re-seeding.
+	@#
+	@# NOT VERIFIED ON DEVICE. The reasoning above is about what the app can observe, and the thing
+	@# it does not cover is whether any assertion in `OfflineAutoAdvanceTests` depends on the api
+	@# PROCESS being absent rather than unreachable. Nothing in the suite should — it drives a
+	@# WebView that only ever sees refused connections — but the iOS tier has not run since the
+	@# `ios-origin-up` hang, so this is argued rather than measured.
+	@$(MAKE) ios-origin-down
+	@echo "--> origin is DOWN (api + accounts intact); running the offline journey"
 	@# `| tail` makes the pipeline's status the TAIL's, so this target reported success while its
 	@# suite failed four assertions. PIPESTATUS carries the real one.
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \

@@ -22,7 +22,7 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } 
  * ``{"runs": []}`` and all four panels correctly render nothing. Beyond that, three of these
  * tests are a **state matrix** — multi-feed, single-feed, and legacy (``feed_id: null``) — which
  * one committed corpus cannot express simultaneously no matter how it is built. Recorded in
- * docs/wip/CORPUS-V4-FIXTURE-LADDER.md §B.
+ * docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md §B.
  */
 
 async function mockRunSummary(
