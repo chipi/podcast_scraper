@@ -330,10 +330,16 @@ class TestMLProviderTranscription(unittest.TestCase):
 
     @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
     def test_transcribe_with_language(self, mock_import_whisper):
-        """Test transcription with explicit language."""
+        """An ENGLISH language reaches the model. Non-English is refused — see below.
+
+        This asserted `language="fr"` was passed straight through, which is the behaviour S0.7
+        (#2178) deliberately removed: this provider's model default is `base.en`, and for a
+        non-English language `normalize_whisper_model_name` strips the `.en` and runs the small
+        multilingual ["base", "tiny"] chain, whose output is confident and wrong.
+        """
         mock_model = Mock()
         mock_model.device.type = "cpu"
-        mock_model.transcribe.return_value = {"text": "Bonjour", "segments": []}
+        mock_model.transcribe.return_value = {"text": "Hello there", "segments": []}
         mock_whisper_lib = Mock()
         mock_whisper_lib.load_model.return_value = mock_model
         mock_import_whisper.return_value = mock_whisper_lib
@@ -341,12 +347,34 @@ class TestMLProviderTranscription(unittest.TestCase):
         provider = MLProvider(self.cfg)
         provider.initialize()
 
-        result = provider.transcribe("/path/to/audio.mp3", language="fr")
+        result = provider.transcribe("/path/to/audio.mp3", language="en")
 
-        self.assertEqual(result, "Bonjour")
+        self.assertEqual(result, "Hello there")
         # Verify language was passed to transcribe
         call_args = mock_model.transcribe.call_args
-        self.assertEqual(call_args[1]["language"], "fr")
+        self.assertEqual(call_args[1]["language"], "en")
+
+    @patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper")
+    def test_transcribe_refuses_a_non_english_language(self, mock_import_whisper):
+        """S0.7 (#2178): refuse rather than transcribe badly.
+
+        The refusal must happen BEFORE the model is called — a wasted transcription that gets
+        discarded is the cost, but a wrong transcript that gets KEPT is the hazard.
+        """
+        mock_model = Mock()
+        mock_model.device.type = "cpu"
+        mock_whisper_lib = Mock()
+        mock_whisper_lib.load_model.return_value = mock_model
+        mock_import_whisper.return_value = mock_whisper_lib
+
+        provider = MLProvider(self.cfg)
+        provider.initialize()
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.transcribe("/path/to/audio.mp3", language="fr")
+
+        self.assertIn("English-only", str(ctx.exception))
+        mock_model.transcribe.assert_not_called()
 
     def test_transcribe_not_initialized(self):
         """Test transcribe raises ProviderNotInitializedError if not initialized."""

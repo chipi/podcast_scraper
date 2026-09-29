@@ -28,15 +28,22 @@
     <itunes:explicit>no</itunes:explicit>
     <itunes:image href="/images/p01_cover.svg"/>
 
-    <item>
-      <title>Episodio 1: Construir senderos que duran</title>
-      <guid isPermaLink="false">p10_e01</guid>
-      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
-      <description>Maya habla con el constructor de senderos Liam Verbeek sobre drenaje, elección de trazado, y cómo mantener los senderos utilizables durante el invierno.</description>
-      <enclosure url="/audio/p10_e01.mp3" length="500000" type="audio/mpeg"/>
-      <itunes:episode>1</itunes:episode>
-      <itunes:duration>00:01:00</itunes:duration>
-      <itunes:episodeType>full</itunes:episodeType>
-    </item>
+    <!--
+      NO <item> ON PURPOSE.
+
+      This fixture exists to exercise CHANNEL-level <language> parsing (S0.1a / #2172), which
+      needs no episode at all. It first carried an item declaring `p10_e01` with an enclosure,
+      and tests/integration/infrastructure/test_fixture_mapping.py correctly failed: it asserts
+      every RSS-declared episode has matching audio AND a transcript, and neither exists for a
+      feed whose whole purpose is a two-word metadata check.
+
+      Adding a 4th audio fixture + transcript just to satisfy that would be the tail wagging the
+      dog; adding this feed to a skip list would weaken an invariant that is doing its job. An
+      item-less channel is the honest shape — a real feed with zero episodes is also a state the
+      parser must survive.
+
+      V.6a (#2186) is where a Spanish feed WITH episodes belongs, and it brings its own
+      transcript + segments (and audio in V.6b).
+    -->
   </channel>
 </rss>

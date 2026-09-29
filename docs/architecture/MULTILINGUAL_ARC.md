@@ -453,6 +453,86 @@ TranslateGemma's report confirms it was optimised with "an ensemble of reward mo
 MetricX-QE and AutoMQM" — an argument for QE later, and a caution that QE from the same lineage would
 partly mark its own homework.
 
+#### DEPLOYED AND MEASURED 2026-09-29 — `google/translategemma-12b-it`
+
+Running on the DGX at `:8005`, **co-resident with the 30B summary model on `:8003`** rather than
+swapped against it, because an episode needs translation and summarization in the same pipeline
+pass. `gpu-mode-swap.sh prod` brings both up; the tailnet ACL grants `:8005`. Revision pinned to
+`d1b225e1caa1…` (ADR-155).
+
+**The model id in this table was wrong in a way worth recording:** the real id is
+`google/translategemma-12b-it` — *one word*, no hyphen after "translate". `translate-gemma-…`
+404s. It is `gated: manual`, so the terms need accepting by the token's owner; before that, the
+HF API returns 200 on metadata and **403 on the files**, which presents as a boot hang rather
+than an auth error.
+
+**Memory — the fraction is of TOTAL, and covers weights PLUS KV cache.** Measured:
+
+| | GiB |
+| --- | --- |
+| total usable (GB10) | 121.7 |
+| prod-vllm's ACTUAL footprint | 29.1 |
+| other compute apps (whisper/diarize/speaches) | 5.1 |
+| **TranslateGemma-12B weights** | **23.3** |
+
+The first boot used `--gpu-memory-utilization=0.20` (= 24.3 GiB) and vLLM refused:
+`No available memory for the cache blocks`. ~1 GiB left for cache is an impossible config, not a
+tuning miss. `0.32` → 38.9 GiB budget → **72,086 tokens of KV cache, 8.80× concurrency** at
+`max-model-len` 8192.
+
+The reasoning error worth keeping: prod-vllm is *allowed* 0.75 but **holds 29 GiB**. The fraction
+is a ceiling a stack may claim, not what it occupies — which is what makes co-residency possible,
+and is only knowable by measuring.
+
+**It translates well.** es→en on the V.6a fixture:
+
+> **in** — `Maya: Bienvenidos de nuevo a Sesiones de Sendero. … Maya: Este episodio es patrocinado
+> por Strava. Comienza en strava.com/podcast.`
+>
+> **out** — `Maya: Welcome back to Trail Sessions. … Maya: This episode is sponsored by Strava.
+> Visit strava.com/podcast to get started.`
+
+Three consequences for the plan, each now evidence rather than assumption:
+
+1. **Speaker labels survive verbatim** (`Maya:`, `Liam Verbeek:`). S2.6's design — carry the label
+   onto the English line, never through the translator — is compatible with how the model behaves.
+2. **The English render is ad-detectable.** That output contains `sponsored by` **and**
+   `visit strava.com` — two `_AD_PATTERNS` hits, against **zero** on the Spanish source (§5.2
+   hazard 4). Ad-detection-after-translation is demonstrated end to end, not predicted.
+3. **It translates the SHOW TITLE** (`Sesiones de Sendero` → `Trail Sessions`). S2.4 has to decide
+   deliberately whether titles go through the translator; drifting into it would rename shows.
+
+**API contract — the chat route is unusable.** `/v1/chat/completions` rejects even the exact
+structured content the model's own `chat_template.jinja` documents
+(`content=[{type, source_lang_code, target_lang_code, text}]`): vLLM transforms the content list
+before the template sees it, and the template's `content | length != 1` guard then fires.
+**S2.3 must use `/v1/completions`** with the prompt rendered by the caller:
+
+```text
+<start_of_turn>user
+You are a professional {source_lang} ({src_code}) to {target_lang} ({tgt_code}) translator. Your
+goal is to accurately convey the meaning and nuance of the original text.
+
+{text}<end_of_turn>
+<start_of_turn>model
+```
+
+The language-name map the template uses (`es` → `Spanish`, and ~hundreds more including regional
+subtags) is inside `chat_template.jinja` in the model snapshot — the client needs the same mapping.
+
+**Throughput: 4.3 tok/s** (74 completion tokens in 17.1 s) — measured while the box was at ~96%
+GPU under a production load, so this is *contention*, not capacity. It is still the only real
+number available, and at ~200 units per episode translation is a material wall-time cost. **S2.10
+needs a quiet box** for a figure worth planning against.
+
+**Licence, re-confirmed against the accepted terms.** §4.3: *"Google claims no rights in Outputs
+you generate using Gemma."* §1.5: *"For clarity, Outputs are not deemed Model Derivatives."* So
+§3.1's distribution obligations (the `Notice` file, passing the agreement on, propagating §3.2)
+bind redistribution of **weights**, which we never do — not publication of translated text. One
+clause to keep in view: §1.2 counts "making Gemma or its functionality available as a hosted
+service via API" as Distribution, which would matter only if the translator itself were exposed
+to users.
+
 ### 6.2 ASR evidence — Whisper FLEURS WER
 
 **Source**: Whisper paper, Appendix D.2.4, **Table 13 "WER (%) on Fleurs"**, the **`large-v2`** row.

@@ -2423,6 +2423,18 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_full": ProfilePreset(
         name="prod_dgx_full",
+        # S0.7 (#2178): HOLD, not failover. The local `whisper` tier in the fallback chain cannot
+        # transcribe a non-English episode -- normalize_whisper_model_name strips the `.en` and the
+        # chain runs ["base", "tiny"] -- so as a FALLBACK it converts a DGX outage into a silently
+        # bad transcript: a plausible transcript of the wrong words that summary, GI, KG and search
+        # all then trust. `hold` (ADR-122) backoff-retries the chosen model, trips after N, pauses
+        # and probes, then raises ResilienceFuseOpenError and HALTS the batch; it never switches
+        # backends, so the chain is never traversed. ADR-122's 2026-07-21 update makes this
+        # explicitly supported for a serve deployment. THE TRADE: a sustained DGX outage stops
+        # ingest instead of degrading -- a halted run is recoverable, a corpus of confidently wrong
+        # transcripts is not. The chain stays populated to satisfy ADR-096's non-DGX-escape-hatch
+        # validator; with `hold` it is inert.
+        resilience_failure_strategy="hold",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         # No coverage-gated ASR failover (2026-08-04): this is the Qwen / model-bake-off profile, so
         # ASR must be CONSTANT (always DGX whisper). A MOSS re-transcribe on a low-coverage episode
@@ -2483,6 +2495,18 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "eval_default": ProfilePreset(
         name="eval_default",
+        # S0.7 (#2178): HOLD, not failover. The local `whisper` tier in the fallback chain cannot
+        # transcribe a non-English episode -- normalize_whisper_model_name strips the `.en` and the
+        # chain runs ["base", "tiny"] -- so as a FALLBACK it converts a DGX outage into a silently
+        # bad transcript: a plausible transcript of the wrong words that summary, GI, KG and search
+        # all then trust. `hold` (ADR-122) backoff-retries the chosen model, trips after N, pauses
+        # and probes, then raises ResilienceFuseOpenError and HALTS the batch; it never switches
+        # backends, so the chain is never traversed. ADR-122's 2026-07-21 update makes this
+        # explicitly supported for a serve deployment. THE TRADE: a sustained DGX outage stops
+        # ingest instead of degrading -- a halted run is recoverable, a corpus of confidently wrong
+        # transcripts is not. The chain stays populated to satisfy ADR-096's non-DGX-escape-hatch
+        # validator; with `hold` it is inert.
+        resilience_failure_strategy="hold",
         transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)
         summary="vllm_qwen3_30b_a3b_nvfp4",
