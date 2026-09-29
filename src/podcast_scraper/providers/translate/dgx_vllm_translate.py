@@ -64,17 +64,21 @@ class TranslateUnavailable(TranslateError):
 
 @dataclass
 class TranslateResult:
-    """One unit's outcome. ``text is None`` means this unit failed; the episode need not.
+    """One unit's outcome. ``text is None`` means THIS UNIT failed.
 
-    Per-unit failure is a first-class result rather than an exception because S2.4's semantics
-    require an episode to survive a single bad unit — the alternative is one retryable hiccup
-    costing a whole transcript.
+    IT SAYS NOTHING ABOUT THE EPISODE, deliberately. An earlier version of this docstring said
+    "the episode need not fail" — a policy this class cannot see enough to set, and one RFC-124
+    §5.3 decides the other way: a non-English episode without a COMPLETE English set skips
+    summary, GI and KG. The client reports per-unit facts; the caller owns the episode.
     """
 
     text: Optional[str]
     attempts: int = 0
     error: Optional[str] = None
     elapsed_s: float = 0.0
+    #: ``length`` means the model was cut off at ``max_tokens``. Recorded because a truncated
+    #: translation is the dangerous case: it is not empty, so it looks like a success.
+    finish_reason: Optional[str] = None
 
     @property
     def ok(self) -> bool:
@@ -237,12 +241,24 @@ class DgxVllmTranslateClient:
                 req = urllib.request.Request(url, data=payload, headers=self._headers())
                 with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:  # noqa: S310
                     body = json.loads(resp.read().decode("utf-8"))
-                out = _first_completion(body)
+                out, finish_reason = _first_completion(body)
                 if out is None:
                     last_error = "the response carried no completion text"
+                elif finish_reason == "length":
+                    # THE DANGEROUS CASE. A unit cut off at `max_tokens` is not empty, so every
+                    # check built on "did we get text back" passes it -- and a silently short
+                    # translation is worse than a missing one, because the gate that would have
+                    # caught a missing unit never fires. Treated as a failure.
+                    last_error = (
+                        f"the model was cut off at max_tokens ({budget}); the translation is "
+                        "truncated, which is not a shorter translation but a wrong one"
+                    )
                 else:
                     return TranslateResult(
-                        text=out, attempts=attempt, elapsed_s=time.monotonic() - started
+                        text=out,
+                        attempts=attempt,
+                        elapsed_s=time.monotonic() - started,
+                        finish_reason=finish_reason,
                     )
             except Exception as exc:  # noqa: BLE001 — every transport failure is retryable here
                 last_error = f"{type(exc).__name__}: {exc}"
@@ -295,21 +311,25 @@ class DgxVllmTranslateClient:
             )
 
 
-def _first_completion(body: Any) -> Optional[str]:
-    """The completion text from a ``/v1/completions`` response, or ``None``.
+def _first_completion(body: Any) -> tuple[Optional[str], Optional[str]]:
+    """``(text, finish_reason)`` from a ``/v1/completions`` response.
 
-    An empty string is NOT a usable translation of non-empty input, so it is treated as a
-    failure — otherwise a silently empty unit would look like a successful one.
+    ``text`` is ``None`` when there is nothing usable. An empty string is NOT a translation of
+    non-empty input, so it is treated as absent — otherwise a silently empty unit would look
+    like a successful one. ``finish_reason`` is returned rather than judged here so the caller
+    decides what ``length`` means; this function only reports what the server said.
     """
     if not isinstance(body, dict):
-        return None
+        return None, None
     choices = body.get("choices")
     if not isinstance(choices, list) or not choices:
-        return None
+        return None, None
     first = choices[0]
     if not isinstance(first, dict):
-        return None
+        return None, None
+    reason = first.get("finish_reason")
+    reason = reason if isinstance(reason, str) else None
     text = first.get("text")
     if not isinstance(text, str) or not text.strip():
-        return None
-    return text.strip()
+        return None, reason
+    return text.strip(), reason

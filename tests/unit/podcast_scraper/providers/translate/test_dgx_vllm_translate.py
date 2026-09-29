@@ -52,6 +52,7 @@ def _install(
     models: Optional[List[str]] = None,
     completion: Any = "Hello world.",
     fail_times: int = 0,
+    finish_reason: str = "stop",
 ) -> List[Dict[str, Any]]:
     """Fake the endpoint. Returns the list of request bodies actually posted."""
     sent: List[Dict[str, Any]] = []
@@ -68,7 +69,7 @@ def _install(
             raise OSError("connection reset")
         if completion is None:
             return _Resp({"choices": []})
-        return _Resp({"choices": [{"text": completion}]})
+        return _Resp({"choices": [{"text": completion, "finish_reason": finish_reason}]})
 
     monkeypatch.setattr(mod.urllib.request, "urlopen", fake_urlopen)
     monkeypatch.setattr(mod.time, "sleep", lambda _s: None)
@@ -186,7 +187,13 @@ class TestOneUnit:
     def test_a_unit_that_never_succeeds_fails_WITHOUT_raising(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """S2.4's semantics: one bad unit must not cost the whole transcript."""
+        """A failed unit is reported, not raised — so the CALLER can see how many failed.
+
+        This docstring used to say "one bad unit must not cost the whole transcript", which is
+        an episode-level policy the client cannot see enough to set, and which RFC-124 §5.3
+        decides the other way: an episode without a COMPLETE English set skips summary, GI and
+        KG. Reporting is what lets that decision happen where the counts are visible.
+        """
         _install(monkeypatch, fail_times=99)
         got = DgxVllmTranslateClient(_Cfg(), max_attempts=2).translate(
             "Hola.", source_language="es"
@@ -194,6 +201,30 @@ class TestOneUnit:
         assert got.ok is False
         assert got.text is None
         assert got.error and "OSError" in got.error
+
+    def test_a_TRUNCATED_completion_is_a_failure_not_a_short_translation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The dangerous case, and the one this client originally got wrong.
+
+        A unit cut off at `max_tokens` comes back non-empty, so every check built on "did we get
+        text back" passes it. A silently short translation is worse than a missing one: the gate
+        that would have caught a missing unit never fires, and the summary reads coherent.
+        """
+        _install(monkeypatch, completion="Hello wor", finish_reason="length")
+        got = DgxVllmTranslateClient(_Cfg(), max_attempts=1).translate(
+            "Hola mundo, esto es una frase larga.", source_language="es"
+        )
+        assert got.ok is False
+        assert got.error and "truncated" in got.error
+
+    def test_a_normally_finished_completion_records_its_finish_reason(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The other direction — `stop` must not be mistaken for truncation."""
+        _install(monkeypatch, completion="Hello world.", finish_reason="stop")
+        got = DgxVllmTranslateClient(_Cfg()).translate("Hola mundo.", source_language="es")
+        assert got.ok and got.finish_reason == "stop"
 
     def test_an_empty_completion_is_a_failure_not_a_translation(
         self, monkeypatch: pytest.MonkeyPatch
