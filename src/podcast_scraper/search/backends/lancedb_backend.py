@@ -452,8 +452,18 @@ class LanceDBBackend:
         self._upsert_many(tier, [data])
 
     def upsert_segment(self, doc: SegmentDocument) -> None:
-        """Insert or update a Tier-1 segment document."""
-        self._upsert("segment", dataclasses.asdict(doc))
+        """Insert or update a Tier-1 segment document.
+
+        Routes through the SAME splitter the batch path uses. Writing
+        ``dataclasses.asdict(doc)`` straight to the `segment` tier was a real failure: the
+        English schema has no `language` column, so every caller of this method broke the
+        moment the field was added. One router, both paths.
+        """
+        english, non_english = self._split_segments_by_language([doc])
+        if english:
+            self._upsert("segment", english[0])
+        if non_english:
+            self._upsert("segment_nonen", non_english[0])
 
     def upsert_insight(self, doc: InsightDocument) -> None:
         """Insert or update a Tier-2 insight document."""
@@ -463,9 +473,45 @@ class LanceDBBackend:
         """Insert or update an aux document (kg_entity / kg_topic / quote / summary)."""
         self._upsert("aux", dataclasses.asdict(doc))
 
+    @staticmethod
+    def _split_segments_by_language(
+        docs: List[SegmentDocument],
+    ) -> "tuple[List[Dict[str, Any]], List[Dict[str, Any]]]":
+        """``(english_rows, non_english_rows)`` — the router, in one place (S2.9).
+
+        English rows keep the `segments` schema exactly (no `language` field, so the stored
+        schema does not move). Non-English rows drop `embedding` and gain `language`: there is
+        no column to hold a vector, which is what makes "cannot appear in a semantic result" a
+        property of the storage rather than of every query path remembering a filter.
+
+        A row with no language routes ENGLISH, because most of the corpus predates language
+        resolution and sending those to a keyword-only tier would silently remove them from
+        semantic search — a large, invisible regression for the corpus that works today.
+        """
+        english: List[Dict[str, Any]] = []
+        non_english: List[Dict[str, Any]] = []
+        for doc in docs:
+            row = dataclasses.asdict(doc)
+            language = (row.pop("language", None) or "").strip().lower()
+            if not language or language.split("-")[0] == "en":
+                english.append(row)
+                continue
+            row.pop("embedding", None)
+            row["language"] = language.split("-")[0]
+            non_english.append(row)
+        return english, non_english
+
     def upsert_segments(self, docs: List[SegmentDocument]) -> None:
-        """Batch-upsert Tier-1 segments in one transaction (see ``_upsert_many``)."""
-        self._upsert_many("segment", [dataclasses.asdict(d) for d in docs])
+        """Batch-upsert Tier-1 segments in one transaction (see ``_upsert_many``).
+
+        Routes by language: English rows to `segments`, everything else to the vector-less
+        `segments_nonen` tier (S2.9 / D-14 option B).
+        """
+        english, non_english = self._split_segments_by_language(docs)
+        if english:
+            self._upsert_many("segment", english)
+        if non_english:
+            self._upsert_many("segment_nonen", non_english)
 
     def upsert_insights(self, docs: List[InsightDocument]) -> None:
         """Batch-upsert Tier-2 insights in one transaction."""
@@ -497,12 +543,32 @@ class LanceDBBackend:
         """
         if not rows:
             return
-        schema = self._SCHEMAS[tier](self.embed_dim)
+        schema = self._schema_for(tier)
         self.db.create_table(self.TABLES[tier], data=rows, schema=schema, mode="overwrite")
 
+    def _schema_for(self, tier: str) -> "pa.Schema":
+        """The tier's Arrow schema — vector-less tiers take no dimension (S2.9)."""
+        if tier in self._VECTORLESS_SCHEMAS:
+            return self._VECTORLESS_SCHEMAS[tier]()
+        return self._SCHEMAS[tier](self.embed_dim)
+
     def replace_segments(self, docs: List[SegmentDocument]) -> None:
-        """MVCC-replace the segment table with exactly *docs* (full-reindex first flush)."""
-        self._replace_many("segment", [dataclasses.asdict(d) for d in docs])
+        """MVCC-replace the segment tables with exactly *docs* (full-reindex first flush).
+
+        BOTH tiers are replaced, and the non-English one is replaced even when *docs* contains
+        no non-English rows. A full reindex that replaced only `segments` would leave the old
+        `segments_nonen` rows serving alongside fresh English ones — stale content from a
+        previous build, which is exactly what "replace" exists to prevent.
+        """
+        english, non_english = self._split_segments_by_language(docs)
+        self._replace_many("segment", english)
+        if non_english:
+            self._replace_many("segment_nonen", non_english)
+        elif self.has_tier("segment_nonen"):
+            # `_replace_many` no-ops on an empty batch, which for a normal tier is right. Here
+            # it would leave a PREVIOUS build's non-English rows serving beside fresh English
+            # ones — an English-only reindex silently inheriting stale Spanish. Clear instead.
+            self.clear_tier_mvcc("segment_nonen")
 
     def replace_insights(self, docs: List[InsightDocument]) -> None:
         """MVCC-replace the insight table with exactly *docs* (full-reindex first flush)."""

@@ -37,6 +37,11 @@ class SegmentDocument:
     publish_date: Optional[str] = (
         None  # episode publish date (carried so date/`since` filters work)
     )
+    #: Normalized language of ``text`` (S2.9). ``None``/``"en"`` routes to the English
+    #: ``segments`` table; anything else routes to the vector-less ``segments_nonen`` tier, where
+    #: the row cannot reach a semantic result. The field is on the SHARED document so the router
+    #: reads one attribute rather than inferring a language per call site.
+    language: Optional[str] = None
 
 
 @dataclass

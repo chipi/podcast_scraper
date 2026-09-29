@@ -714,6 +714,11 @@ def build_two_tier_index(
                         start_time=float(meta.get("timestamp_start_ms") or 0.0) / 1000.0,
                         end_time=float(meta.get("timestamp_end_ms") or 0.0) / 1000.0,
                         publish_date=meta.get("publish_date"),
+                        # S2.9: routes this chunk to `segments` or the vector-less
+                        # `segments_nonen` tier. The embedding is still computed — it is simply
+                        # dropped by the router for a non-English row, which keeps the embed
+                        # path free of a language branch.
+                        language=meta.get("language"),
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )

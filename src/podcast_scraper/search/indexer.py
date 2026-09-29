@@ -257,6 +257,39 @@ def _scope_display_titles(
     return episode_title, feed_title
 
 
+def _indexed_text_language(
+    episode_root: Path, metadata_path: Path, doc: Dict[str, Any]
+) -> Optional[str]:
+    """The language of the transcript text this episode will be INDEXED from (S2.9).
+
+    Not simply the episode's language: what matters is the language of the body the chunker
+    read. A translated episode's transcript resolves to `.en.*` (D-38), so its chunks are
+    English and belong in the vector-bearing tier — routing them by the episode's SOURCE
+    language would exile a perfectly good English translation from semantic search, which is
+    the opposite of what the arc is for.
+
+    So: English whenever an English rendering exists, otherwise the episode's own language.
+    """
+    from ..workflow.transcript_resolution import english_transcript_relpath
+
+    ep = doc.get("episode") or {}
+    feed = doc.get("feed") or {}
+    language = ep.get("language") or feed.get("language")
+    normalized = str(language or "").strip().lower().split("-")[0] or None
+    if not normalized or normalized == "en":
+        return normalized
+
+    tpath = _transcript_path(episode_root, doc)
+    if tpath is not None:
+        try:
+            rel = str(tpath.relative_to(episode_root))
+        except ValueError:
+            rel = tpath.name
+        if (episode_root / english_transcript_relpath(rel)).is_file():
+            return "en"
+    return normalized
+
+
 def _collect_docs_for_episode(  # noqa: C901
     episode_root: Path,
     metadata_path: Path,
@@ -273,6 +306,12 @@ def _collect_docs_for_episode(  # noqa: C901
     raw_feed_id = feed.get("feed_id")
     feed_norm = normalize_feed_id(raw_feed_id)
     published = ep.get("published_date")
+    # S2.9: the language of the TEXT being indexed. A translated episode's transcript rows are
+    # the ENGLISH render (the resolver serves `.en.*` first by D-38), so they index as English
+    # and keep their vector; only an episode whose served text is still its source language
+    # routes to the vector-less tier. Falls back to the feed's declared language for artifacts
+    # written before per-episode language existed, which is the same fallback the API uses.
+    chunk_language = _indexed_text_language(episode_root, metadata_path, doc)
     if not isinstance(episode_id, str) or not episode_id:
         return _rows_with_text_metadata(rows)
 
@@ -453,6 +492,7 @@ def _collect_docs_for_episode(  # noqa: C901
                             "episode_id": episode_id,
                             "feed_id": raw_feed_id,
                             "publish_date": published,
+                            "language": chunk_language,
                             "source_id": str(ch.chunk_index),
                             "char_start": ch.char_start,
                             "char_end": ch.char_end,
