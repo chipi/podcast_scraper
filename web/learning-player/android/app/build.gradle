@@ -124,11 +124,45 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
+/**
+ * Firebase config — and a loud failure when a RELEASE build lacks it (#2157).
+ *
+ * `google-services.json` is gitignored by design (it is per-project config, supplied at build
+ * time), and Capacitor's generated block below applies the plugin only when the file is present.
+ * That keeps a debug build working on a machine that has never seen it — which is right — but it
+ * also means the failure is INVISIBLE until runtime, where it is not a nice error: without
+ * Firebase, `FirebaseMessaging.getInstance()` inside the push plugin throws
+ * `IllegalStateException: Default FirebaseApp is not initialized` on a native handler thread.
+ * JS cannot catch that. It kills the process.
+ *
+ * `logger.info` is the wrong volume for "this artifact cannot do push": it is below Gradle's
+ * default output, so the build looks completely clean.
+ *
+ * It WARNS by default and only FAILS when `-PandroidPushRequired=true`. Not the other way round,
+ * because today Android push is deliberately switched off in the client
+ * (`ANDROID_PUSH_NATIVE_READY = false`), so a release build with no Firebase config is the correct
+ * and expected state — failing on it would block the Play upload path for a feature nobody has
+ * turned on. Flip this property in the same change that flips that client guard: at that moment a
+ * missing config stops being expected and becomes an artifact that crashes on first use.
+ */
+def servicesJSON = file('google-services.json')
+def hasFirebaseConfig = servicesJSON.exists() && servicesJSON.length() > 0
+if (hasFirebaseConfig) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    def pushRequired = project.hasProperty('androidPushRequired') &&
+                       project.property('androidPushRequired').toString().toBoolean()
+    def msg = "google-services.json is missing, so this build CANNOT do push notifications " +
+              "(#2157). Enabling push on a build without it crashes the app natively — " +
+              "FirebaseMessaging throws on a handler thread and JS cannot catch it."
+    if (pushRequired) {
+        throw new GradleException(
+            "$msg\n" +
+            "  -PandroidPushRequired=true was set, so this is fatal rather than a warning.\n" +
+            "  Put the file at app/google-services.json (Firebase console -> project settings ->\n" +
+            "  your Android app). It is gitignored on purpose — supply it from a CI secret or a\n" +
+            "  local copy."
+        )
     }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    logger.warn("WARNING: $msg")
 }

@@ -54,6 +54,12 @@ export function nativePushKind(): 'apns' | 'fcm' {
  *
  * Flip to true once #2157 lands the Firebase config AND an FCM sender server-side; delete the
  * constant once delivery is verified on a real device.
+ *
+ * FLIP `-PandroidPushRequired=true` IN THE SAME CHANGE (see android/app/build.gradle). Until then
+ * a release build with no `google-services.json` only warns, because a push-less Android build is
+ * the expected state while this is false. The moment it is true, that same missing file becomes an
+ * artifact that crashes the first time a tester touches the notifications toggle — and the gradle
+ * gate is what stops it reaching them.
  */
 const ANDROID_PUSH_NATIVE_READY = false
 
