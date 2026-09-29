@@ -392,7 +392,6 @@ enum AppSession {
   @discardableResult
   static func ensureSignedIn(_ app: XCUIApplication, as identity: String) -> Bool {
     if isSignedIn(app, as: identity) { return true }
-    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     // DELEGATE to `signOut`, do not re-implement it here.
     //
     // This carried its own copy of the scroll-and-tap dance — the second copy that `signOut`'s
@@ -418,6 +417,90 @@ enum AppSession {
     // negatives on healthy sessions. That tolerance is right inside `signIn` and wrong as this
     // function's contract: `ensureSignedIn(as:)` promises an account, so it checks for one.
     // Same fix as the Android twin.
-    return signIn(app, springboard, as: identity) && isSignedIn(app, as: identity)
+    // THE CALLBACK PATH, not the dev picker — and no fallback to it. Same as the Android twin
+    // (`AppSession.java` `ensureSignedIn`: callback-only, because a fallback "converted a precise
+    // failure into a confusing one"). `signIn` still exists for a test that means to drive the UI.
+    return signInViaCallback(app, as: identity) && isSignedIn(app, as: identity)
+  }
+
+  /// The origin the fixture api is reached through — the Makefile's `IOS_ORIGIN_PORT`, also baked
+  /// into the app bundle as its API base. Overridable via `LP_ORIGIN_PORT`
+  /// (`TEST_RUNNER_LP_ORIGIN_PORT` on the xcodebuild line). A wrong port does NOT degrade quietly:
+  /// there is no UI fallback, so the mint fails and names the URL it tried.
+  private static var originPort: String {
+    ProcessInfo.processInfo.environment["LP_ORIGIN_PORT"] ?? "4174"
+  }
+
+  /// Stop at every redirect so each `Location` can be read — the last is a `closelistening://`
+  /// URL, which URLSession cannot follow and which carries the token.
+  private final class StopAtRedirect: NSObject, URLSessionTaskDelegate {
+    func urlSession(
+      _ session: URLSession, task: URLSessionTask,
+      willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+      completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+      completionHandler(nil)
+    }
+  }
+
+  /// Mint a real native session through the mock provider — the same HTTP hops the dev picker
+  /// drives, ending at `closelistening://auth#token=<signed>`. Returns nil so the caller reports.
+  private static func mintNativeToken(_ identity: String) -> String? {
+    let session = URLSession(
+      configuration: .ephemeral, delegate: StopAtRedirect(), delegateQueue: nil)
+    guard
+      let encoded = identity.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+      var url = URL(
+        string: "http://127.0.0.1:\(originPort)/api/app/auth/login?as=\(encoded)&platform=native")
+    else { return nil }
+    for _ in 0..<6 {
+      var location: String?
+      let done = DispatchSemaphore(value: 0)
+      session.dataTask(with: url) { _, response, _ in
+        location = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Location")
+        done.signal()
+      }.resume()
+      guard done.wait(timeout: .now() + 20) == .success, let loc = location else {
+        print("=====CALLBACK mint stopped at \(url) — no redirect=====")
+        return nil
+      }
+      if loc.hasPrefix("closelistening://") {
+        return loc.components(separatedBy: "#token=").dropFirst().first
+      }
+      guard let next = URL(string: loc, relativeTo: url)?.absoluteURL else { return nil }
+      url = next
+    }
+    return nil
+  }
+
+  /// Sign in by delivering the OAuth callback as a deep link — no dev picker, no text field.
+  ///
+  /// WHY (2026-09-29): the dev picker's "or a custom name…" field is where XCUITest's wait-for-idle
+  /// stalls — after tapping it iOS never reports the app idle, and every following interaction
+  /// waits its full 60 s: seven in one run, 420 s of 537. The wait itself is NOT the problem and
+  /// must stay: it is what lets a page finish scrolling before the next tap (~3 s after a swipe on
+  /// Settings). Disabling it was measured and broke the Offline mode tap
+  /// (`OFFLINE_TOGGLE before=0 after=0`). So the fix is not to touch that field.
+  ///
+  /// Android has signed in this way since 2026-09-28; this is the port. The link is delivered the
+  /// way `openEpisode` delivers links, including SpringBoard's "Open in…?" confirmation.
+  static func signInViaCallback(_ app: XCUIApplication, as identity: String) -> Bool {
+    let started = Date()
+    guard let token = mintNativeToken(identity), !token.isEmpty else {
+      XCTFail(
+        "could not mint a native session for \(identity) via http://127.0.0.1:\(originPort) — "
+          + "is the origin up, and is LP_ORIGIN_PORT the Makefile's IOS_ORIGIN_PORT?")
+      return false
+    }
+    guard let url = URL(string: "closelistening://auth#token=\(token)") else { return false }
+    XCUIDevice.shared.system.open(url)
+    let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+    let confirm = springboard.buttons["Open"]
+    if confirm.waitForExistence(timeout: 5) { confirm.tap() }
+    _ = app.wait(for: .runningForeground, timeout: 15)
+    let ok = isSignedIn(app, as: identity)
+    let ms = Int(Date().timeIntervalSince(started) * 1000)
+    print("=====CALLBACK \(ok ? "signed in" : "FAILED") as \(identity) in \(ms)ms, no dev picker=====")
+    return ok
   }
 }

@@ -129,6 +129,26 @@ class UITestCase: XCTestCase {
     // simulator the app is signed out, Settings is unreachable, and the control the existence check
     // saw belonged to a page the app was already leaving (2026-09-24)." That is this bug, worked
     // around from the inside rather than fixed here.
+    //
+    // EXCEPT WHEN THE APP IS ALREADY FORCED OFFLINE — then the order above cannot work at all.
+    // Forced-offline blocks `/me`, so sign-in can never complete, so the normalisation below it is
+    // never reached: the one guarantee this method exists to give fails in exactly the state it
+    // exists to repair. Any run interrupted while a suite had the switch ON (a kill, a crash, a
+    // timeout mid-`NativeOnlySurfacesTests`) poisons every later run on that simulator, and only a
+    // full `make test-ios` — which uninstalls — cleared it.
+    //
+    // MEASURED 2026-09-29: phase 1's `DownloadThroughUITests`, green in every earlier tier, failed
+    // "neither Sign in nor Sign out present" over an inventory reading
+    //     Offline mode is on — showing saved | … | Your profile | …
+    // after I killed a phase-5 run mid-`NativeOnlySurfacesTests`, before its restore ran.
+    //
+    // Settings is a client-side page, reachable through the stale "Your profile" link even with no
+    // server, so the switch CAN be turned off before signing in. Gated on the banner so the common
+    // case (online) pays one short lookup, not a trip to Settings.
+    if Journey.find(app, labels: ["Offline mode is on"], contains: true, timeout: 3) != nil {
+      _ = Journey.setOfflineMode(app, on: false, labels: profileLabels)
+      _ = Journey.openTab(app, "Home")
+    }
     guard AppSession.ensureSignedIn(app, as: accountIdentity) else { return false }
     // Forced-offline OFF: device-local, so it survives a relaunch AND an account change, and left
     // ON every later network assertion fails for a reason that has nothing to do with the suite
