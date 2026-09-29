@@ -141,6 +141,16 @@ class UITestCase: XCTestCase {
     // still right (a suite that starts online must not be blocked by a switch that is already off)
     // but it is only safe once the call can actually succeed.
     _ = Journey.setOfflineMode(app, on: false, labels: profileLabels)
+    // END ON HOME. `setOfflineMode` reaches the switch through Profile ▸ Settings and leaves the
+    // app there, so "bring the app to a known state" was handing back an app parked on Settings —
+    // and every caller then navigates as if it were on Home.
+    //
+    // MEASURED 2026-09-28: `test03TopicAndStoryline` failed "no topic row was tappable from the
+    // Home rail" while its own inventory was plainly the SETTINGS page:
+    //     Clear cache | Remove downloads | Wi-Fi only | Offline mode | ‹ Your profile
+    // Only reachable once `startClean` was actually being called — before tonight no phase-4 test
+    // called it at all, so nothing ever observed where it left the app.
+    _ = Journey.openTab(app, "Home")
     return true
   }
 }
