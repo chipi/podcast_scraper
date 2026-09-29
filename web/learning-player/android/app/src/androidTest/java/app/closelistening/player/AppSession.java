@@ -661,6 +661,16 @@ final class AppSession {
         Journey.device().wait(Until.hasObject(By.pkg(Journey.PKG).depth(0)), 15_000);
     }
 
+    /** True as soon as the WebView's accessibility tree holds anything labelled; false at the deadline. */
+    private static boolean awaitPainted(long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            if (!Journey.labelledInventory(1).startsWith("<nothing labelled")) return true;
+            Journey.sleep(500);
+        } while (System.currentTimeMillis() < deadline);
+        return false;
+    }
+
     /** Cold start — relaunch so what is on disk is re-read, not just re-activated. */
     static void relaunch() {
         Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
@@ -682,11 +692,7 @@ final class AppSession {
         // A fixed sleep was what stood here, and a fixed sleep is a guess about the slowest machine
         // anyone will ever run this on. Poll for real content instead, and keep a ceiling so a
         // genuinely blank app still fails rather than hanging.
-        long deadline = System.currentTimeMillis() + 30_000;
-        while (System.currentTimeMillis() < deadline) {
-            if (!Journey.labelledInventory(1).startsWith("<nothing labelled")) break;
-            Journey.sleep(500);
-        }
+        boolean painted = awaitPainted(30_000);
 
         // ONE RELAUNCH IF THE WEBVIEW NEVER PAINTED (2026-09-27).
         //
@@ -705,9 +711,7 @@ final class AppSession {
         // DISTINCT from the OAuth-tab freeze fixed in the Makefile (the cached-app freezer
         // suspending com.android.chrome mid-consent): there the browser was in front and stalled,
         // here the app's own WebView is foregrounded and empty.
-        for (int attempt = 1;
-                attempt <= 2 && Journey.labelledInventory(1).startsWith("<nothing labelled");
-                attempt++) {
+        for (int attempt = 1; attempt <= 2 && !painted; attempt++) {
             // NO FORCE-STOP. It used to run `am force-stop app.closelistening.player` here, and
             // that cannot work: Android instrumentation runs INSIDE THE TARGET APP'S PROCESS, so
             // the command kills the app and the test issuing it in the same breath.
@@ -729,11 +733,7 @@ final class AppSession {
             Journey.sleep(2_000);
             ctx.startActivity(launch);
             Journey.device().wait(Until.hasObject(By.pkg(Journey.PKG).depth(0)), 30_000);
-            long retry = System.currentTimeMillis() + 30_000;
-            while (System.currentTimeMillis() < retry) {
-                if (!Journey.labelledInventory(1).startsWith("<nothing labelled")) break;
-                Journey.sleep(500);
-            }
+            painted = awaitPainted(30_000);
         }
 
         // STILL BLANK AFTER TWO TRIES: say so, here, in the words of the thing that is wrong.
@@ -743,7 +743,13 @@ final class AppSession {
         // how this defect cost two full tier runs on 2026-09-27 and got recorded as a sign-in
         // problem. The WebView never painted; nothing after this point can succeed, and the first
         // assertion to notice will be about something else entirely.
-        if (Journey.labelledInventory(1).startsWith("<nothing labelled")) {
+        //
+        // WAITED, NOT SAMPLED (2026-09-29). This was one read, and so were the loop conditions
+        // above, so a tree that had painted and was empty for an instant at this line failed as
+        // "never painted" — measured: `ConfigOfflineToggleTests` died here in 9.9s with NO
+        // `RELAUNCH` marker, i.e. the loop saw content and this line saw none. Every check now
+        // waits for content, so only a tree that stays empty fails.
+        if (!painted && !awaitPainted(5_000)) {
             throw new AssertionError(
                     "the app's WebView never painted after two launches — the accessibility tree is "
                             + "empty while `" + Journey.PKG + "` is foregrounded. This is a "
