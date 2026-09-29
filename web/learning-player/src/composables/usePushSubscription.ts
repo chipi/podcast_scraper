@@ -43,25 +43,32 @@ export function nativePushKind(): 'apns' | 'fcm' {
 }
 
 /**
- * Android push is not stood up yet (#2157), so we must not talk to the plugin there.
+ * Android push, now stood up (#2157) — both halves of this guard's condition are met.
  *
- * Android push means FCM, and `google-services.json` is gitignored by design, so no build carries
- * Firebase config. Calling into the plugin without it raises `IllegalStateException: Default
- * FirebaseApp is not initialized` on a native handler thread — which JS cannot catch, so it kills
- * the process rather than rejecting a promise. Gating here rather than at the `register()` call is
- * deliberate: it also covers `requestPermissions()` and `unregister()`, so the guard does not
- * depend on knowing which plugin method throws first.
+ * It was false because Android push means FCM, `google-services.json` is gitignored by design, and
+ * calling the plugin without Firebase config raises `IllegalStateException: Default FirebaseApp is
+ * not initialized` on a native handler thread — which JS cannot catch, so it kills the process
+ * rather than rejecting a promise. Gating here rather than at `register()` was deliberate: it also
+ * covered `requestPermissions()` and `unregister()`, so it did not depend on knowing which plugin
+ * method throws first.
  *
- * Flip to true once #2157 lands the Firebase config AND an FCM sender server-side; delete the
- * constant once delivery is verified on a real device.
+ * What changed, 2026-09-29:
+ *  - Firebase project `closelistening-39437` exists and its `google-services.json` is in the
+ *    Android build. Verified on the artifact, not assumed: `processDebugGoogleServices` emits
+ *    `google_app_id`/`project_id`, and `firebase-messaging:25.0.1` is on the runtime classpath.
+ *    With a default FirebaseApp present, the crash above cannot occur.
+ *  - An FCM sender exists in the delivery worker and its service account is ACCEPTED by Google —
+ *    a live token exchange returned an access token.
  *
- * FLIP `-PandroidPushRequired=true` IN THE SAME CHANGE (see android/app/build.gradle). Until then
- * a release build with no `google-services.json` only warns, because a push-less Android build is
- * the expected state while this is false. The moment it is true, that same missing file becomes an
- * artifact that crashes the first time a tester touches the notifications toggle — and the gradle
- * gate is what stops it reaching them.
+ * Still not proven: an actual notification arriving on an actual Android phone. Until that
+ * happens, treat Android push as plausible rather than working — the same caution #2068 earned on
+ * iOS, where every piece looked right and three real sends failed.
+ *
+ * `-PandroidPushRequired=true` belongs with this (see android/app/build.gradle): a release build
+ * missing `google-services.json` is no longer an expected state, it is an artifact that crashes
+ * the first time a tester touches the notifications toggle.
  */
-const ANDROID_PUSH_NATIVE_READY = false
+const ANDROID_PUSH_NATIVE_READY = true
 
 /** Whether this platform can do push at all. Native owns it via the OS; web needs the APIs. */
 export function pushSupported(): boolean {

@@ -87,17 +87,22 @@ describe('native push registration', () => {
     expect(nativePushKind()).toBe('apns')
   })
 
-  it('refuses on Android entirely — the guard is what stops the native crash', async () => {
+  it('registers on Android now that Firebase and a sender exist (#2157)', async () => {
+    // ANDROID_PUSH_NATIVE_READY was false while a missing google-services.json would make the
+    // plugin throw `IllegalStateException` on a native handler thread — uncatchable from JS, so it
+    // killed the process. Firebase config now ships in the Android build, so the path is open and
+    // this is the end-to-end assertion the guard previously made impossible.
     platform = 'android'
     vi.resetModules()
     const mod = await import('./usePushSubscription')
 
-    // ANDROID_PUSH_NATIVE_READY === false until #2157 stands up Firebase and a sender. Without
-    // Firebase config the plugin throws `IllegalStateException` on a native handler thread, which
-    // JS cannot catch — it kills the process. So "enablePush returns false" is not a nicety here.
-    expect(mod.pushSupported()).toBe(false)
-    await expect(mod.enablePush()).resolves.toBe(false)
-    expect(subscribePush).not.toHaveBeenCalled()
+    expect(mod.pushSupported()).toBe(true)
+    await expect(mod.enablePush()).resolves.toBe(true)
+
+    const sent = subscribePush.mock.calls[0][0] as unknown as Record<string, unknown>
+    expect(sent.kind).toBe('fcm')
+    expect(sent.endpoint).toBe('fcm://TOKEN123')
+    expect(sent.platform).toBe('android')
   })
 
   it('iOS is supported natively without any guard', async () => {

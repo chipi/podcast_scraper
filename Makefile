@@ -3385,8 +3385,12 @@ android-bundle:
 			echo "      BACK IT UP. Losing it means losing the ability to update the listing."; \
 			exit 1; }
 	@rm -f $(ANDROID_AAB)
+	@# -PandroidPushRequired=true pairs with ANDROID_PUSH_NATIVE_READY in usePushSubscription.ts
+	@# (#2157). Now that the client will register for push on Android, an artifact built without
+	@# google-services.json would crash the first time a tester touches the notifications toggle —
+	@# so a missing config is fatal here rather than a warning.
 	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
-		./gradlew bundleRelease --console=plain \
+		./gradlew bundleRelease -PandroidPushRequired=true --console=plain \
 		|| { echo "FAIL: gradle bundleRelease failed. No AAB was produced."; exit 1; }
 	@[ -f $(ANDROID_AAB) ] || { echo "FAIL: gradle reported success but there is no AAB at"; \
 		echo "      $(ANDROID_AAB)"; exit 1; }
