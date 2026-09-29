@@ -141,8 +141,10 @@ CAPABILITIES: list[Capability] = [
     ),
     Capability(
         name="a stale session (no account name, no Sign out) relaunches instead of retrying",
-        android=("AppSession.java", r"nothing to sign out of"),
-        ios=("AppSession.swift", r"nothing to sign out of"),
+        # The mark string AND the relaunch after it: matching the string alone would stay green if
+        # the relaunch were deleted and only the log line kept.
+        android=("AppSession.java", r"nothing to sign out of[\s\S]{0,300}?relaunch\(\)"),
+        ios=("AppSession.swift", r"nothing to sign out of[\s\S]{0,300}?app\.terminate\(\)"),
         status=BOTH,
         why=(
             "The bell renders under `auth.hasSession`, the Sign-out button under "
@@ -180,7 +182,6 @@ CAPABILITIES: list[Capability] = [
             "there, and every caller navigates as if it were on Home."
         ),
     ),
-    # ---------------------------------------------------------------- declared gaps
     Capability(
         name="sign-in by delivering the OAuth callback directly (no Custom Tab)",
         android=("AppSession.java", r"static boolean signInViaCallback\(String identity\)"),
@@ -195,6 +196,19 @@ CAPABILITIES: list[Capability] = [
             "`defaults write` token seeding that bypassed the app."
         ),
     ),
+    Capability(
+        name="callback sign-in refuses to fire unless the app shows 'Sign in'",
+        android=("AppSession.java", r"if \(Journey\.find\(Arrays\.asList\(\"Sign in\"\), false"),
+        ios=("AppSession.swift", r"guard app\.links\[\"Sign in\"\]\.firstMatch\.waitForExistence"),
+        status=BOTH,
+        why=(
+            "Without the precondition, called on an app already signed in as the identity, the "
+            "success check is satisfied before anything was delivered and the call 'succeeds' "
+            "having proved nothing. Requiring the signed-out masthead link also proves web content "
+            "is painted, which the deep link needs to be heard."
+        ),
+    ),
+    # ---------------------------------------------------------------- declared gaps
     Capability(
         name="startClean cold-relaunches the app first",
         android=("UITestCase.java", r"AppSession\.relaunch\(\)"),
@@ -273,6 +287,18 @@ CAPABILITIES: list[Capability] = [
             "box, and failed four steps later as 'sign-in did not complete' — converting a precise "
             "failure into a confusing one. The UI flow keeps its coverage in one dedicated "
             "HarnessSmokeTests test. iOS went callback-only on 2026-09-29."
+        ),
+    ),
+    Capability(
+        name="a run-level override puts several suites on one account (LP_FORCE_IDENTITY)",
+        android=("UITestCase.java", r"LP_FORCE_IDENTITY"),
+        ios=("UITestCase.swift", r"environment\[\"LP_FORCE_IDENTITY\"\]"),
+        status=IOS_ONLY,
+        why=(
+            "Only `ios-contact-sheet` needs it: it runs the journey and personalisation suites "
+            "first so the screenshot tour photographs a populated app, and per-suite identities "
+            "would put the seeders and the tour on different accounts. Android has no "
+            "contact-sheet target, so nothing on that tier needs suites to share an account."
         ),
     ),
 ]

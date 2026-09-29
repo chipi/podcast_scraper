@@ -73,7 +73,30 @@ final class NativeCapabilityTests: UITestCase {
     }
     let wasOn = String(describing: toggle.value).contains("1")
     if !wasOn { toggle.tap(); sleep(2) }
-    defer { if !wasOn { _ = Journey.tap(app, labels: ["Voice input"], contains: true, timeout: 6) } }
+    // RESTORE THROUGH SETTINGS, and say so when it fails. This was a bare `tap(["Voice input"])` with
+    // its result discarded — but by the end of the test the app is on an entity card scrolled to the
+    // note composer, where no such control exists, so the restore was a TAP_MISS every time and the
+    // switch stayed ON for the rest of the run. The Android twin restores through Settings in a
+    // `finally`; this now does the same.
+    defer {
+      if !wasOn {
+        _ = Journey.dismissSheets(app)
+        if Journey.openSettings(app, labels: profileLabels) {
+          _ = Journey.scrollTo(app, labels: ["Voice input for notes"])
+          var restore = app.checkBoxes.matching(predicate).firstMatch
+          if !restore.waitForExistence(timeout: 8) { restore = app.switches.matching(predicate).firstMatch }
+          if restore.waitForExistence(timeout: 8), String(describing: restore.value).contains("1") {
+            restore.tap()
+            sleep(2)
+          }
+          if restore.exists, String(describing: restore.value).contains("1") {
+            XCTFail("left 'Voice input for notes' ON — the restore did not take")
+          }
+        } else {
+          XCTFail("could not reach Settings to switch 'Voice input for notes' back off")
+        }
+      }
+    }
 
     // A PERSON card, not a topic one. Both carry a note composer, but the topic card ends with a
     // long annotated episode list, so notes sit far below the fold — sixteen swipes inside the

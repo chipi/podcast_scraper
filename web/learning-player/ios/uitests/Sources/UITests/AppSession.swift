@@ -14,20 +14,6 @@ import XCTest
  * "sign-in did not complete" when no sign-in had been attempted at all.
  */
 enum AppSession {
-  /// Whether the app is STILL signed in once the boot revalidation has landed.
-  ///
-  /// "Sign out" lives on the PROFILE page and nowhere else, but the app cold-boots to Home — so
-  /// this asked a Home screen whether it had a Profile-only control and was answered "no" every
-  /// time, whatever the session actually was. The offline suite reported that as "the app fell
-  /// back to signed-out" on a device whose stored token was valid, and the download suite re-ran
-  /// a sign-in it did not need. Go to Profile first, then read the answer.
-  ///
-  /// Opening Profile DELEGATES to `Journey.openProfile` rather than keeping a second copy of the
-  /// selector. The header entry point is labelled with the signed-in DISPLAY NAME (`simtest`), not
-  /// the static "Your profile" this used to hard-code — so once that label changed, this helper
-  /// reported signed-out for every session and `signIn` then failed looking for a "Sign in" link
-  /// that was correctly absent on a signed-in app. `Journey` already carried the fallback list;
-  /// only this copy was stale. Two helpers knowing the same UI differently is the actual defect.
   /// How long the answer has to HOLD before it is believed. See `settles`.
   private static let stableForSeconds: TimeInterval = 6
 
@@ -134,7 +120,7 @@ enum AppSession {
   /// mechanism; nothing server-side had to change.
   @discardableResult
   static func signIn(
-    _ app: XCUIApplication, _ springboard: XCUIApplication, as identity: String = "uitest"
+    _ app: XCUIApplication, _ springboard: XCUIApplication, as identity: String
   ) -> Bool {
     let signIn = app.links["Sign in"].firstMatch
     guard signIn.waitForExistence(timeout: 20) else {
@@ -486,6 +472,16 @@ enum AppSession {
   /// way `openEpisode` delivers links, including SpringBoard's "Open in…?" confirmation.
   static func signInViaCallback(_ app: XCUIApplication, as identity: String) -> Bool {
     let started = Date()
+    // "Sign in" PRESENT first, as the Android twin requires. Without it, called on an app already
+    // signed in as `identity`, the postcondition below is satisfied by the precondition and this
+    // "succeeds" having delivered nothing. It also proves web content is painted, which the deep
+    // link needs to be heard at all. A LINK, so `/login`'s own "Sign in" submit button cannot pass.
+    guard app.links["Sign in"].firstMatch.waitForExistence(timeout: 20) else {
+      Journey.inventory(app, "callback-no-sign-in")
+      print("=====CALLBACK no signed-out 'Sign in' on screen: no web content yet, or a session "
+        + "already exists — neither is a state this path can act on=====")
+      return false
+    }
     guard let token = mintNativeToken(identity), !token.isEmpty else {
       XCTFail(
         "could not mint a native session for \(identity) via http://127.0.0.1:\(originPort) — "
