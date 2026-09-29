@@ -218,6 +218,7 @@ def episode_detail(
         slug=slug,
         title=row.episode_title,
         feed_id=row.feed_id,
+        language=row.episode_language,
         podcast_title=row.feed_title,
         publish_date=row.publish_date,
         duration_seconds=row.duration_seconds,

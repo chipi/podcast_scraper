@@ -279,6 +279,7 @@ def corpus_feeds(
             feed_id=str(f["feed_id"]),
             display_title=f["display_title"],
             episode_count=int(f["episode_count"]),
+            language=f.get("language"),
             image_url=f.get("image_url"),
             image_local_relpath=f.get("image_local_relpath"),
             rss_url=f.get("rss_url"),

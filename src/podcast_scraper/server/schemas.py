@@ -67,6 +67,14 @@ class AppEpisodeDetail(BaseModel):
     slug: str = Field(description="Stable episode slug.")
     title: str = Field(description="Episode title.")
     feed_id: str = Field(description="Owning feed id.")
+    language: str | None = Field(
+        default=None,
+        description=(
+            "Episode language as a normalized primary subtag ('en', 'es'); null when unknown "
+            "(#2176). Additive. Falls back to the feed's declared language for artifacts "
+            "written before per-episode language existed."
+        ),
+    )
     podcast_title: str | None = Field(default=None, description="Feed/show display title.")
     publish_date: str | None = Field(
         default=None, description="Publish date (YYYY-MM-DD) when known."
@@ -110,6 +118,14 @@ class AppEpisodeSummary(BaseModel):
     slug: str = Field(description="Stable episode slug.")
     title: str = Field(description="Episode title.")
     feed_id: str = Field(description="Owning feed id.")
+    language: str | None = Field(
+        default=None,
+        description=(
+            "Episode language as a normalized primary subtag ('en', 'es'); null when unknown "
+            "(#2176). Additive. Falls back to the feed's declared language for artifacts "
+            "written before per-episode language existed."
+        ),
+    )
     podcast_title: str | None = Field(default=None, description="Feed/show display title.")
     publish_date: str | None = Field(
         default=None, description="Publish date (YYYY-MM-DD) when known."
@@ -1785,7 +1801,12 @@ class AppPodcastItem(BaseModel):
         description="Feed-level author/host names from the RSS channel (#2043); empty when absent.",
     )
     language: str | None = Field(
-        default=None, description="Feed language tag (e.g. 'en') if known."
+        default=None,
+        description=(
+            "Feed language as a normalized primary subtag ('en'), or null. VALUE CHANGE in "
+            "#2176: this previously served the stored tag verbatim, which is 'en-us' for every "
+            "episode in app-validation-corpus/v3."
+        ),
     )
     last_updated: str | None = Field(
         default=None, description="Feed lastBuildDate / Atom updated (ISO) if known."
@@ -2759,6 +2780,13 @@ class CorpusFeedItem(BaseModel):
         description="Feed title from metadata when present.",
     )
     episode_count: int = Field(ge=0, description="Episodes under this feed id in the catalog scan.")
+    language: str | None = Field(
+        default=None,
+        description=(
+            "Feed language as a normalized primary subtag ('en'), or null (#2176). The operator "
+            "viewer's shows library consumes this row and had no language data at all before."
+        ),
+    )
     image_url: str | None = Field(
         default=None,
         description="Feed artwork URL from metadata when present (first non-empty seen).",
