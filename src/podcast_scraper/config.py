@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from . import config_constants
+from .languages import normalize_language_tag
 from .rss.feeds_spec import append_normalized_feed_items, RssFeedEntry
 
 logger = logging.getLogger(__name__)
@@ -5631,13 +5632,27 @@ class Config(BaseModel):
             raise ValueError("workers must be at least 1")
         return workers
 
+    #: Per-feed operator language override (#2174), set by ``merge_feed_entry_into_config``.
+    #: Separate from ``language`` so the artifact can record WHICH source a language came from,
+    #: and so the override outranks a feed's own (routinely wrong) declared tag. Already
+    #: normalized by ``RssFeedEntry._normalize_language_override`` -- ``model_copy(update=...)``
+    #: does not run the validators here.
+    language_override: Optional[str] = None
+
     @field_validator("language", mode="after")
     @classmethod
     def _normalize_language(cls, value: str) -> str:
-        """Normalize language code to lowercase."""
+        """Normalize to the primary subtag, not merely lowercase (#2174).
+
+        THE BUG THIS FIXES. This used to return ``value.lower()``, so a profile carrying
+        ``language: en-US`` produced ``"en-us"`` — and ``whisper_utils.py:50`` checks
+        ``language.lower() in ("en", "english")``, which ``"en-us"`` fails. An English episode
+        therefore read as NOT English and got a non-``.en`` Whisper model chosen for it. All 40
+        episodes in ``app-validation-corpus/v3`` carry exactly that value.
+        """
         if not value:
             return DEFAULT_LANGUAGE
-        return value.lower().strip() or DEFAULT_LANGUAGE
+        return normalize_language_tag(value) or DEFAULT_LANGUAGE
 
     @field_validator("ner_model", mode="before")
     @classmethod

@@ -50,7 +50,7 @@ from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
 from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
-from ..languages import resolve_language
+from ..languages import resolve_episode_language
 from ..speaker_detectors.hosts import looks_like_publisher
 
 if TYPE_CHECKING:
@@ -927,8 +927,10 @@ def _build_feed_metadata(
     The language is the FEED's declared tag, normalized, with the profile default only as a
     fallback — and ``language_source`` records which of the two it was (#2172).
     """
-    language_raw, language, language_source = resolve_language(
-        getattr(feed, "language", None), cfg.language
+    language_raw, language, language_source = resolve_episode_language(
+        override=getattr(cfg, "language_override", None),
+        feed_declared=getattr(feed, "language", None),
+        profile_default=cfg.language,
     )
     return FeedMetadata(
         title=feed.title,

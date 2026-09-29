@@ -101,3 +101,173 @@ class TestResolveLanguage:
         for raw, default in (("es", "en"), (None, "en"), ("und", "en"), (None, None)):
             _raw, _norm, src = resolve_language(raw, default)
             assert src in (SOURCE_RSS, SOURCE_PROFILE_DEFAULT)
+
+
+class TestRegistry:
+    """``config/languages.yaml`` — the gate on which languages we ingest (#2174)."""
+
+    def test_only_english_is_enabled_today(self) -> None:
+        from podcast_scraper.languages import is_language_enabled, language_registry
+
+        reg = language_registry()
+        assert reg, "registry failed to load — every language would read as not-enabled"
+        assert [c for c, e in reg.items() if e.enabled] == ["en"]
+        assert is_language_enabled("en") is True
+        for code in ("es", "de", "ru", "ja", "ar"):
+            assert is_language_enabled(code) is False, code
+
+    def test_all_three_tiers_are_described(self) -> None:
+        """Present-but-disabled is the point: a language we have described, not one we ingest."""
+        from podcast_scraper.languages import language_registry
+
+        tiers = {e.tier for e in language_registry().values()}
+        assert {0, 1, 2, 3} <= tiers
+
+    def test_an_unknown_language_is_not_enabled(self) -> None:
+        """Absent → not enabled. Never a lenient default; that is the hazard being removed."""
+        from podcast_scraper.languages import is_language_enabled
+
+        for code in ("xx", "klingon", "", None):
+            assert is_language_enabled(code) is False  # type: ignore[arg-type]
+
+    def test_the_two_copies_do_not_drift(self) -> None:
+        """The bundled fallback is the container's only copy; the known_models pair had already
+        drifted silently once, which is why this is asserted rather than assumed."""
+        import pathlib
+
+        repo = pathlib.Path(__file__).resolve().parents[3]
+        configured = repo / "config" / "languages.yaml"
+        bundled = repo / "src" / "podcast_scraper" / "data" / "languages.yaml"
+        assert configured.read_bytes() == bundled.read_bytes(), (
+            "config/languages.yaml and src/podcast_scraper/data/languages.yaml have drifted; "
+            "copy one over the other"
+        )
+
+
+class TestResolveEpisodeLanguage:
+    def test_override_beats_the_feed(self) -> None:
+        from podcast_scraper.languages import resolve_episode_language, SOURCE_OVERRIDE
+
+        assert resolve_episode_language(
+            override="es", feed_declared="de-DE", profile_default="en"
+        ) == ("es", "es", SOURCE_OVERRIDE)
+
+    def test_the_feed_beats_the_profile(self) -> None:
+        from podcast_scraper.languages import resolve_episode_language
+
+        assert resolve_episode_language(feed_declared="de-DE", profile_default="en") == (
+            "de-DE",
+            "de",
+            SOURCE_RSS,
+        )
+
+    def test_the_profile_is_the_last_resort(self) -> None:
+        from podcast_scraper.languages import resolve_episode_language
+
+        assert resolve_episode_language(profile_default="en-US") == (
+            None,
+            "en",
+            SOURCE_PROFILE_DEFAULT,
+        )
+
+    def test_the_mis_tagged_english_feed_can_be_rescued(self) -> None:
+        """The case S0.8's ordering depends on: an English show tagged `de` would otherwise be
+        skipped on every run — including relabels — with no remedy until the override exists."""
+        from podcast_scraper.languages import resolve_episode_language, SOURCE_OVERRIDE
+
+        _raw, lang, src = resolve_episode_language(
+            override="en", feed_declared="de", profile_default="en"
+        )
+        assert (lang, src) == ("en", SOURCE_OVERRIDE)
+
+    def test_resolution_does_not_consult_the_registry(self) -> None:
+        """ "What language is this" and "do we ingest it" are separate questions.
+
+        Folding them together would mean an unsupported language silently resolving to
+        something else instead of being skipped with a reason.
+        """
+        from podcast_scraper.languages import is_language_enabled, resolve_episode_language
+
+        _raw, lang, src = resolve_episode_language(feed_declared="ja", profile_default="en")
+        assert (lang, src) == ("ja", SOURCE_RSS), "resolution reports what it found"
+        assert is_language_enabled(lang) is False, "enablement is the separate answer"
+
+
+class TestTheTwoLiveBugsThisSliceFixes:
+    def test_config_language_en_US_now_passes_is_english(self) -> None:
+        """``Config._normalize_language`` only lowercased, so ``en-US`` became ``en-us`` — which
+        ``whisper_utils.py:50`` reads as NOT English, picking a non-``.en`` model."""
+        from podcast_scraper import config as config_mod
+
+        cfg = config_mod.Config(rss="https://example.com/f.xml", language="en-US")
+        assert cfg.language == "en"
+
+        from podcast_scraper.providers.ml.whisper_utils import normalize_whisper_model_name
+
+        name, chain = normalize_whisper_model_name("base.en", cfg.language)
+        assert name == "base.en", "an English episode must keep the .en model"
+        # The chain carries a smaller fallback too (`tiny.en`); what matters is that EVERY
+        # entry stays an English variant. Under the old `"en-us"` the `.en` suffix was stripped
+        # and the chain became the multilingual ["base", "tiny"].
+        assert chain and all(m.endswith(".en") for m in chain), chain
+
+        stripped_name, stripped_chain = normalize_whisper_model_name("base.en", "en-us")
+        assert not all(m.endswith(".en") for m in stripped_chain), (
+            f"the merely-lowercased tag should lose the English path: "
+            f"{stripped_name} {stripped_chain}"
+        )
+
+    def test_the_per_feed_override_needs_both_the_field_and_the_allowlist(self) -> None:
+        """``extra="forbid"`` rejects the key without the field; Config's coercion silently
+        DROPS it without the allowlist entry. Both, or the override does nothing."""
+        from podcast_scraper.rss.feeds_spec import (
+            RSS_FEED_ENTRY_OVERRIDE_KEYS,
+            RssFeedEntry,
+        )
+
+        assert "language" in RSS_FEED_ENTRY_OVERRIDE_KEYS, "the YAML key must survive coercion"
+        entry = RssFeedEntry.model_validate({"url": "https://example.com/f.xml", "language": "es"})
+        assert entry.language_override == "es"
+
+    def test_the_override_is_normalized_at_the_model_boundary(self) -> None:
+        """``model_copy(update=...)`` skips Config's validators, so ``language: es-ES`` would
+        otherwise reach the Config raw — the ``en-US`` bug arriving by a different door."""
+        from podcast_scraper.rss.feeds_spec import RssFeedEntry
+
+        assert (
+            RssFeedEntry.model_validate(
+                {"url": "https://example.com/f.xml", "language": "es-ES"}
+            ).language_override
+            == "es"
+        )
+
+    def test_a_typo_in_the_override_stops_the_run(self) -> None:
+        """A hand-edited override is the one place a typo should be loud: silently falling back
+        would leave the operator believing they had corrected a feed they had not."""
+        import pydantic
+
+        from podcast_scraper.rss.feeds_spec import RssFeedEntry
+
+        with pytest.raises(pydantic.ValidationError):
+            RssFeedEntry.model_validate({"url": "https://example.com/f.xml", "language": "123"})
+
+    def test_the_override_lands_somewhere_it_can_outrank_the_feed(self) -> None:
+        """It must NOT land on ``cfg.language``.
+
+        There it would be indistinguishable from the profile default, so the artifact could not
+        record which source won — and ``_build_feed_metadata`` prefers the feed's own tag over
+        the profile default, so the override would lose to the wrong tag it exists to correct.
+        """
+        from podcast_scraper import config as config_mod
+        from podcast_scraper.rss.feeds_spec import (
+            merge_feed_entry_into_config,
+            RssFeedEntry,
+        )
+
+        cfg = config_mod.Config(rss="https://example.com/a.xml", language="en")
+        merged = merge_feed_entry_into_config(
+            cfg,
+            RssFeedEntry.model_validate({"url": "https://example.com/f.xml", "language": "es"}),
+        )
+        assert merged.language_override == "es"
+        assert merged.language == "en", "the profile default must stay distinguishable"

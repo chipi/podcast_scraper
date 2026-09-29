@@ -327,7 +327,17 @@ human-shaped item and has the longest lead time; nothing blocks on it, so start 
 
 ### 5.2 The silent hazards for non-English audio
 
-Five. Each fails quietly rather than erroring.
+Five. Each fails quietly rather than erroring. Hazards 4 and 5 were measured on the Spanish
+fixture on 2026-09-29 (V.6a, #2186) — **4 confirmed, 5 falsified and rewritten below.** 1, 2 and 3
+are transcription-tier and need audio (V.6b, #2187); they are closed by construction in S0.6/S0.7
+rather than by observation.
+
+**The speaker-naming collapse (§5.4, and the make-or-break for non-English) is UNVERIFIED.**
+`extract_self_introduced_host` and `distinct_self_introductions` both returned `None` / `[]` on the
+Spanish fixture — but they return the same on the **English control**, because they look for a
+self-introduction (`"I'm <Name>"`) and `p01_e01`'s opening is `"I'm joined by Liam Verbeek"`, a host
+introducing a guest. That fixture never exercises those matchers in either language, so nothing can
+be attributed to language. Two matching `None`s is not a confirmation.
 
 1. **A tier that cannot transcribe the language is in the chain.** The local `whisper` tier's chain runs
    down to `tiny` for non-English and prod's default is `base.en`. Removed from the DGX profiles
@@ -339,13 +349,37 @@ Five. Each fails quietly rather than erroring.
    dict**; the request at `:429-430` *omits* `language` when it is `None`, so the server auto-detects
    and returns the detected value — which the client discards and overwrites with `"en"`. A provenance
    lie, not a forced English transcription. → **S0.6**
-4. **Ad excision silently no-ops on non-English text.** `_AD_PATTERNS` all require an English token, so
-   a Spanish transcript yields no ranges and the ad-free base is an **identity** copy with
-   `is_adfree: True` and the sponsor reads intact. Not absolute — a host reading an English URL would
-   match. → **S2.5**, measured by **V.3**
-5. **The sniff gate keeps the cheap transcript on non-English audio.** It judges the small-model
-   transcript by counting entities with spaCy `en_core_web_sm`; on non-English that count is ~0. Off in
-   every profile today, one config line from live. → **S0.6**
+4. **Ad excision silently no-ops on non-English text. MEASURED 2026-09-29 — confirmed.** On the
+   Spanish fixture (V.6a, #2186), paired against English `p01_e01` through the same functions:
+
+   | | patterns firing | cut ranges | chars cut | identity copy |
+   | --- | --- | --- | --- | --- |
+   | English (control) | 6 | 3 | 999 (12.5%) | No |
+   | **Spanish** | **0** | 0 | 0 | **Yes** |
+
+   The mechanism is specific: `PREROLL_THRESHOLD = 3`, and every domain pattern needs an English verb
+   before the URL (`visit` / `go to` / `check out` / `learn more at`) or ` slash ` after it. There is
+   **no bare-domain pattern**, so `strava.com/podcast`, `stripe.com/podcast` and `linear.com` all
+   appear verbatim in the Spanish text and nothing fires — `Visita stripe.com` does not even match
+   `\bvisit\s+`, because after `visit` comes `a`, not whitespace. Ad-free base is an identity copy
+   marked `is_adfree: True` with all three sponsor reads intact. → **S2.5**
+5. **The sniff gate's entity count becomes meaningless on non-English — NOT zero. CORRECTED
+   2026-09-29; the original claim here was wrong.** This said "on non-English that count is ~0".
+   Measured, Spanish scores **higher** than English:
+
+   | | entities counted | distinct |
+   | --- | --- | --- |
+   | English (control) | 65 | 10 |
+   | **Spanish** | **98** | **54** |
+
+   So the gate would keep the cheap transcript *more* readily, not less. The real defect is worse
+   than the predicted one: English NER on Spanish hallucinates entities out of ordinary capitalised
+   words and sentence fragments — `'Claro'`, `'Cuestiona'`, `'El marco'`, `'Las'`, `'Qué'`,
+   `'Nos vemos'`, `'aplícala durante'`, `'Cambié de opinión sobre los senderos hechos'` — against
+   English's 10 real ones (`Maya`, `Liam Verbeek`, `Cascadia Alliance`, `Strava`, `Shimano`,
+   `Linear`). It also counted the diarization label `SPEAKER_01` as an entity. The gate is not
+   blind, it is **confidently wrong**, and a threshold tuned on real English counts is being
+   compared against inflated noise. Still off in every profile, one config line from live. → **S0.6**
 
 ### 5.3 Surfaces the arc touches
 

@@ -1,0 +1,139 @@
+# Which languages the pipeline will ingest, and what we know about each. (D-29, #2174)
+#
+# TWO COPIES, deliberately identical: this one and src/podcast_scraper/data/languages.yaml, the
+# wheel-bundled fallback for containers. If you edit one, copy it to the other — they are the
+# same document. tests/unit/podcast_scraper/test_packaged_data_files_present.py enforces it,
+# because the known_models pair had already drifted silently once.
+#
+# `enabled` is the gate. A language that is present here but not enabled is a language we have
+# described, not one we ingest: an episode resolving to it is SKIPPED with a reason (S0.8),
+# never transcribed as English. A language absent entirely is the same outcome by a different
+# route. Only `en` is enabled today.
+#
+# `wer` is Whisper large-v3 FLEURS word error rate, %, from the published table (§6.2). It is
+# recorded to inform sequencing, NOT as a gate — the tiers below are ordered by editorial
+# intent, not by WER. Serbian at 33.9 sits in tier 2 because that is where it belongs
+# editorially; the number says it will need more care, not that it comes later.
+
+version: 1
+
+languages:
+  # --- enabled ---------------------------------------------------------------------------
+  en:
+    name: English
+    tier: 0
+    enabled: true
+    script: latin
+    wer: 4.2
+
+  # --- tier 1: the initial set. All Latin script, all under 10% WER. ----------------------
+  es:
+    name: Spanish
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 3.0
+    # The exercise language for local fixtures (D-30). Enabling it is a separate decision
+    # from using it to build them.
+  it:
+    name: Italian
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 4.0
+  pt:
+    name: Portuguese
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 4.3
+  de:
+    name: German
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 4.5
+  nl:
+    name: Dutch
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 6.7
+  ca:
+    name: Catalan
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 7.3
+    # The one tier-1 language the chosen translator may not cover — see §6.1. Confirm before
+    # enabling, or pick the alternative model.
+  fr:
+    name: French
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 8.3
+  sv:
+    name: Swedish
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 8.5
+  nb:
+    name: Norwegian
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 9.5
+
+  # --- tier 2: Eastern Europe. Introduces Cyrillic. --------------------------------------
+  ru:
+    name: Russian
+    tier: 2
+    enabled: false
+    script: cyrillic
+    wer: 5.6
+  ro:
+    name: Romanian
+    tier: 2
+    enabled: false
+    script: latin
+    wer: 14.4
+  bg:
+    name: Bulgarian
+    tier: 2
+    enabled: false
+    script: cyrillic
+    wer: 14.6
+  sr:
+    name: Serbian
+    tier: 2
+    enabled: false
+    script: cyrillic
+    wer: 33.9
+
+  # --- tier 3: Asia + Middle East. Needs the CJK prerequisites first. --------------------
+  ja:
+    name: Japanese
+    tier: 3
+    enabled: false
+    script: japanese
+    wer: 5.3
+  ko:
+    name: Korean
+    tier: 3
+    enabled: false
+    script: hangul
+    wer: 14.3
+  zh:
+    name: Chinese
+    tier: 3
+    enabled: false
+    script: han
+    wer: 14.7
+  ar:
+    name: Arabic
+    tier: 3
+    enabled: false
+    script: arabic
+    wer: 16.0
