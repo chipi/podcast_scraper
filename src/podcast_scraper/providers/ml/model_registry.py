@@ -1966,6 +1966,11 @@ class ProfilePreset:
     # reprocess_dgx_* profiles declare reprocess/hold directly (they have no preset here).
     resilience_run_context: str = "serve"
     resilience_failure_strategy: str = "failover"
+    # Translation endpoint (#2169, Gate V). Governed because it is ROUTING -- which model answers
+    # a translation request -- and the registry owns routing. A second live vLLM, co-resident with
+    # the summary one on a different port, so it cannot share vllm_api_base.
+    translate_api_base: str = ""
+    translate_model: str = ""
     # ADR-123 (#1258) quality-gate transcription failover. Governed so a profile's coverage gate is
     # explicit + drift-checked. Any profile whose transcription primary is turbo turns the gate ON
     # (0.85 -> large-v3), because turbo silently drops speech on long episodes: the DGX serving
@@ -2191,6 +2196,11 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "resilience_run_context",
     "llm_pipeline_mode",
     "resilience_failure_strategy",
+    # Gate V (#2169): the translation endpoint + model. Governed for the same reason as every
+    # other *_model / *_api_base -- a profile that silently diverges here sends translation
+    # somewhere the registry did not sanction.
+    "translate_api_base",
+    "translate_model",
     # ADR-123 (#1258): quality-gate transcription failover — coverage floor + failover model.
     "transcription_coverage_min",
     "transcription_speech_coverage_min",
@@ -2435,6 +2445,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # transcripts is not. The chain stays populated to satisfy ADR-096's non-DGX-escape-hatch
         # validator; with `hold` it is inert.
         resilience_failure_strategy="hold",
+        # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
+        translate_api_base="http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1",
+        translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         # No coverage-gated ASR failover (2026-08-04): this is the Qwen / model-bake-off profile, so
         # ASR must be CONSTANT (always DGX whisper). A MOSS re-transcribe on a low-coverage episode
@@ -2507,6 +2520,9 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         # transcripts is not. The chain stays populated to satisfy ADR-096's non-DGX-escape-hatch
         # validator; with `hold` it is inert.
         resilience_failure_strategy="hold",
+        # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
+        translate_api_base="http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1",
+        translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)
         summary="vllm_qwen3_30b_a3b_nvfp4",

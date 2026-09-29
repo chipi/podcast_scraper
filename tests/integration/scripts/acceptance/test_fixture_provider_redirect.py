@@ -53,7 +53,11 @@ _ENV_FALLBACK_API_BASES = frozenset(
 
 # Provider ``*_api_base`` fields with NO env fallback — the harness MUST rewrite the config field.
 # Keep in lockstep with the config_dict[...] overrides in modify_config_for_fixtures.
-_CONFIG_ONLY_API_BASES = frozenset({"litellm_api_base", "qwen_api_base", "vllm_api_base"})
+_CONFIG_ONLY_API_BASES = frozenset(
+    # translate_api_base (#2169) is the translation vLLM -- a SECOND live endpoint on its own
+    # port, so vllm_api_base does not cover it and it needs its own redirect.
+    {"litellm_api_base", "qwen_api_base", "vllm_api_base", "translate_api_base"}
+)
 
 
 class _FakeURLs:
@@ -80,7 +84,7 @@ class _FakeURLs:
         return self._BASE
 
     # config-only providers — the ones this test exists to guard
-    litellm_api_base = qwen_api_base = vllm_api_base = _v1
+    litellm_api_base = qwen_api_base = vllm_api_base = translate_api_base = _v1
 
 
 class _FakeE2EServer:

@@ -828,6 +828,9 @@ def modify_config_for_fixtures(
         config_dict["litellm_api_base"] = e2e_server.urls.litellm_api_base()
         config_dict["qwen_api_base"] = e2e_server.urls.qwen_api_base()
         config_dict["vllm_api_base"] = e2e_server.urls.vllm_api_base()
+        # Gate V (#2169): the translation vLLM is a SECOND live endpoint on its own port, so it
+        # needs its own redirect -- vllm_api_base does not cover it.
+        config_dict["translate_api_base"] = e2e_server.urls.translate_api_base()
 
         # Set dummy API keys (required for config validation, but won't be used with mocks)
         if "OPENAI_API_KEY" not in os.environ:

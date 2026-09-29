@@ -498,6 +498,15 @@ class E2EServerURLs:
         """
         return f"{self.base_url}/v1"
 
+    def translate_api_base(self) -> str:
+        """Translation vLLM base URL, pointed at the E2E server (#2169).
+
+        The translation endpoint has NO env fallback, so a fixture run that does not rewrite the
+        CONFIG field dials the real DGX -- the #1527 class of bug. OpenAI-compatible like the
+        other vLLM slots, so the same mock serves it.
+        """
+        return f"{self.base_url}/v1"
+
     def vllm_api_base(self) -> str:
         """Get native vLLM provider base URL (points to E2E server).
 
