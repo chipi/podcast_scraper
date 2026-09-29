@@ -111,7 +111,21 @@ gil_evidence_match_summary_provider: true
 transcription_fallback_providers: [tailnet_dgx_whisper, whisper]
 diarization_fallback_providers: [local]
 resilience_run_context: serve
-resilience_failure_strategy: failover
+# S0.7 (#2178): HOLD, not failover, for transcription. The local `whisper` tier below cannot
+# transcribe a non-English episode -- `normalize_whisper_model_name` strips `.en` and the chain runs
+# ["base", "tiny"] -- so as a fallback it converts a DGX outage into a SILENTLY BAD transcript: a
+# plausible transcript of the wrong words that summary, GI, KG and search all then trust.
+#
+# `hold` (ADR-122) backoff-retries the chosen model, trips after N, pauses and probes the endpoint,
+# then raises ResilienceFuseOpenError and HALTS the batch. It never switches backends, so the chain
+# is never traversed. ADR-122's 2026-07-21 update makes this explicitly supported for a serve
+# deployment: "an explicit strategy in any profile/registry layer overrides [the context default]".
+#
+# THE TRADE, stated: a sustained DGX outage now STOPS ingest instead of degrading to local Whisper.
+# That is deliberate -- a halted run is recoverable, a corpus of confidently wrong transcripts is
+# not. The chain below stays populated to satisfy ADR-096's non-DGX-escape-hatch validator; with
+# `hold` it is inert.
+resilience_failure_strategy: hold
 transcription_coverage_min: 0.0
 enforce_model_governance: false
 transcription_coverage_failover_model: null

@@ -33,6 +33,7 @@ from functools import lru_cache
 from typing import Any, Optional
 
 from .. import config as _config_mod
+from ..languages import transcription_language  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ def transcribe_with_sniff_gate(
     def _deep_only(decision_tag: str, extra: dict[str, Any]) -> tuple[dict[str, Any], float]:
         result, elapsed = provider.transcribe_with_segments(
             media_path,
-            language=cfg.language,
+            language=transcription_language(cfg),
             pipeline_metrics=pipeline_metrics,
             episode_duration_seconds=episode_duration_seconds,
             call_metrics=call_metrics,
@@ -127,7 +128,7 @@ def transcribe_with_sniff_gate(
 
     sniff_result, sniff_elapsed = provider.transcribe_with_segments(
         media_path,
-        language=cfg.language,
+        language=transcription_language(cfg),
         pipeline_metrics=pipeline_metrics,
         episode_duration_seconds=episode_duration_seconds,
         call_metrics=call_metrics,
@@ -141,7 +142,7 @@ def transcribe_with_sniff_gate(
         # silently degraded transcription, which is worse than slow.
         deep_result, deep_elapsed = provider.transcribe_with_segments(
             media_path,
-            language=cfg.language,
+            language=transcription_language(cfg),
             pipeline_metrics=pipeline_metrics,
             episode_duration_seconds=episode_duration_seconds,
             call_metrics=call_metrics,
@@ -174,7 +175,7 @@ def transcribe_with_sniff_gate(
 
     deep_result, deep_elapsed = provider.transcribe_with_segments(
         media_path,
-        language=cfg.language,
+        language=transcription_language(cfg),
         pipeline_metrics=pipeline_metrics,
         episode_duration_seconds=episode_duration_seconds,
         call_metrics=call_metrics,

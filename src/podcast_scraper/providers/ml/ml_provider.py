@@ -129,6 +129,27 @@ def _import_third_party_whisper() -> ModuleType:
         ) from exc
 
 
+def _guard_english_only(language: object) -> None:
+    """Refuse a non-English language rather than transcribing it badly (S0.7, #2178).
+
+    ``None`` PROCEEDS: nobody resolved a language, the engine decides, and that is the honest
+    pre-#2172 state of most of the corpus. Only an explicit non-English request is refused.
+    """
+    from ...languages import normalize_language_tag
+
+    if not isinstance(language, str):
+        return
+    normalized = normalize_language_tag(language)
+    if normalized is None or normalized == "en":
+        return
+    raise ValueError(
+        f"the local whisper provider is English-only and was asked for {normalized!r}: its model "
+        "default is base.en, and a non-English request falls back to the small multilingual "
+        '["base", "tiny"] models, whose output is confident and wrong. Route this episode to a '
+        "multilingual transcriber (tailnet_dgx_whisper) or leave the language unset."
+    )
+
+
 class MLProvider:
     """Unified ML provider implementing TranscriptionProvider, SpeakerDetector, and SummarizationProvider.
 
@@ -823,8 +844,22 @@ class MLProvider:
                 capability="transcription",
             )
 
-        # Use provided language or fall back to config
-        effective_language = language if language is not None else (self.cfg.language or "en")
+        # S0.6 (#2177): the caller's language, else the run config -- but NEVER a fabricated
+        # "en". This used to end `or "en"`, so an episode whose language nobody resolved was
+        # transcribed as English by a model chain whose local default is `base.en`. The result is
+        # a plausible transcript of the wrong words, which every downstream stage then trusts.
+        # None means "let the engine decide", which is honest; "en" was an assertion.
+        effective_language = language if language is not None else self.cfg.language
+
+        # S0.7 (#2178): this provider is ENGLISH-ONLY, and says so rather than producing a
+        # plausible transcript of the wrong words. Its Whisper default is `base.en`, and for a
+        # non-English language `normalize_whisper_model_name` strips the `.en` and runs
+        # ["base", "tiny"] -- small multilingual models whose output is confident and wrong.
+        #
+        # The provider STAYS: it is the PRIMARY transcriber in eight local / dev / airgapped
+        # profiles. What changed is that it refuses work it cannot do, so the hazard cannot come
+        # back through a dev profile even though the DGX profiles now hold rather than fail over.
+        _guard_english_only(effective_language)
 
         logger.debug("Transcribing audio file: %s (language: %s)", audio_path, effective_language)
 
@@ -881,8 +916,22 @@ class MLProvider:
                 capability="transcription",
             )
 
-        # Use provided language or fall back to config
-        effective_language = language if language is not None else (self.cfg.language or "en")
+        # S0.6 (#2177): the caller's language, else the run config -- but NEVER a fabricated
+        # "en". This used to end `or "en"`, so an episode whose language nobody resolved was
+        # transcribed as English by a model chain whose local default is `base.en`. The result is
+        # a plausible transcript of the wrong words, which every downstream stage then trusts.
+        # None means "let the engine decide", which is honest; "en" was an assertion.
+        effective_language = language if language is not None else self.cfg.language
+
+        # S0.7 (#2178): this provider is ENGLISH-ONLY, and says so rather than producing a
+        # plausible transcript of the wrong words. Its Whisper default is `base.en`, and for a
+        # non-English language `normalize_whisper_model_name` strips the `.en` and runs
+        # ["base", "tiny"] -- small multilingual models whose output is confident and wrong.
+        #
+        # The provider STAYS: it is the PRIMARY transcriber in eight local / dev / airgapped
+        # profiles. What changed is that it refuses work it cannot do, so the hazard cannot come
+        # back through a dev profile even though the DGX profiles now hold rather than fail over.
+        _guard_english_only(effective_language)
 
         logger.debug(
             "Transcribing audio file with segments: %s (language: %s)",

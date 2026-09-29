@@ -66,7 +66,10 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from build_synthetic_validation_corpus import (  # noqa: E402; Re-exported from the sibling rather than imported through a second sys.path dance. Both; generators normalize exactly as the pipeline does, so a fixture cannot disagree with; production about what a language tag means (#2185).
+# normalize_language_tag is re-exported from the sibling rather than imported through a
+# second sys.path dance. Both generators normalize exactly as the pipeline does, so a
+# fixture cannot disagree with production about what a language tag means (#2185).
+from build_synthetic_validation_corpus import (  # noqa: E402
     build_gi,
     build_kg,
     episode_topics_for,

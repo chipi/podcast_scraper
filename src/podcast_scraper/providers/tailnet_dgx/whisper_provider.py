@@ -92,6 +92,10 @@ class TailnetDgxWhisperTranscriptionProvider:
         # is a different service on a different port.
         self._port = int(getattr(cfg, "dgx_whisper_port", None) or 8000)
         self._model = (cfg.dgx_whisper_model or "Systran/faster-whisper-large-v3").strip()
+        #: The language the SERVER reported on the most recent transcribe call (S0.6, #2177).
+        #: Initialized here so a call that fails before reaching the transport leaves an honest
+        #: None rather than raising AttributeError on the result-dict read.
+        self._last_detected_language: str | None = None
         self._timeout_sec = float(cfg.dgx_request_timeout_sec or 600.0)
         self._timeout_per_audio_min = float(getattr(cfg, "dgx_timeout_per_audio_minute_sec", 20.0))
         self._max_attempts = max(1, int(getattr(cfg, "dgx_max_attempts", 3)))
@@ -194,7 +198,13 @@ class TailnetDgxWhisperTranscriptionProvider:
             {
                 "text": text,
                 "segments": segments,
-                "language": language or "en",
+                # THE PROVENANCE FIX (S0.6, #2177). This was `language or "en"`, which is a
+                # LIE whenever the caller passed None: the request omits `language`, the server
+                # auto-detects, and the artifact then recorded "en" for a Spanish episode.
+                # Precedence: what we ASKED for, else what the server DETECTED, else None --
+                # never a fabricated default. `None` is an honest "nobody said", which the
+                # metadata layer can normalize or report; "en" is an assertion we cannot make.
+                "language": language or self._last_detected_language,
                 "model_requested": (model_override or self._model),
                 "model_used": actual_model,
             },
@@ -448,4 +458,14 @@ class TailnetDgxWhisperTranscriptionProvider:
         if isinstance(payload.get("segments"), list):
             segments = [s for s in payload["segments"] if isinstance(s, dict)]
             segments = _refine_segment_times(segments, payload.get("words"))
+        # S0.6 (#2177): keep the language the SERVER reports. When `language` was None the
+        # request above omitted it, so the server auto-detected and told us the answer -- and
+        # this provider used to throw that away and claim "en" in its result dict. Recorded on
+        # the instance rather than threaded through four return signatures as a fifth tuple
+        # element; each provider instance serves one call at a time, and the reader is the very
+        # next statement after the call.
+        detected = payload.get("language")
+        self._last_detected_language = (
+            str(detected).strip() or None if isinstance(detected, str) else None
+        )
         return text, segments, duration

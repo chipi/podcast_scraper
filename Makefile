@@ -369,6 +369,11 @@ lint:
 	$(PYTHON) -m flake8 --config .flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 	@# Full flake8 (E501 etc.): must fail on violations so ci-fast catches them before pre-commit
 	$(PYTHON) -m flake8 --config .flake8 . --count --show-source --statistics
+	@# ONE reader for the run-global language (#2177). INSIDE `lint` deliberately, not a
+	@# standalone target: `lint-search-v3` is the cited precedent and it runs in NO workflow, so
+	@# the guard it provides has never gated a PR. `lint` runs in python-app.yml, nightly.yml and
+	@# ci-fast, so this one actually does.
+	$(PYTHON) scripts/check/lint_language_readers.py
 
 # Search v3 forbidden-imports guard (RFC-107 §S, PRD-045 FR12; #1205 SIGSEGV).
 # Rules: .github/lint/search-v3-forbidden-imports.txt.

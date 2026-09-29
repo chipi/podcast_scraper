@@ -226,3 +226,29 @@ def resolve_episode_language(
             # than inventing a reading of it.
             return declared, normalize_language_tag(profile_default), SOURCE_PROFILE_DEFAULT
     return None, normalize_language_tag(profile_default), SOURCE_PROFILE_DEFAULT
+
+
+def transcription_language(cfg: Any) -> Optional[str]:
+    """The language to transcribe this episode in — THE ONE READER (#2177).
+
+    Every stage that needs a language for a provider call asks here, and this is the only place
+    outside :func:`resolve_episode_language` that may consult the run-global ``cfg.language``.
+    ``scripts/check/lint_language_readers.py`` enforces that, with an explicit whitelist for the
+    handful of legitimate exceptions.
+
+    WHY A FUNCTION RATHER THAN A THREADED ARGUMENT. The alternative was a new parameter through
+    ``transcribe_media_to_text`` -> ``_transcribe_with_segments_maybe_chunked`` ->
+    ``transcribe_with_sniff_gate`` -> two inner closures, five signatures deep, where the failure
+    mode is one path that keeps reading the global and nobody notices. One function, one call per
+    site, and the lint proves there is no second reader.
+
+    Returns ``None`` when nothing resolved, which is an honest "let the engine decide". It is NOT
+    ``"en"``: that substitution is what made a non-English episode come back as a plausible
+    English transcript of the wrong words.
+    """
+    _raw, language, _source = resolve_episode_language(
+        override=getattr(cfg, "language_override", None),
+        feed_declared=None,  # the feed's declared tag arrives via the per-feed Config copy
+        profile_default=getattr(cfg, "language", None),
+    )
+    return language

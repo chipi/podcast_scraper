@@ -22,6 +22,7 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
+from ..languages import transcription_language
 from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
@@ -2202,18 +2203,18 @@ def _unsupported_language_skip_reason(cfg: config.Config) -> Optional[str]:
     corpus, and refusing those would stop ingesting the English corpus that works today. The
     profile default answers for them, and the audit is what reports how many.
     """
-    from ..languages import is_language_enabled, resolve_episode_language, SOURCE_PROFILE_DEFAULT
+    from ..languages import is_language_enabled, transcription_language
 
-    _raw, language, source = resolve_episode_language(
-        override=getattr(cfg, "language_override", None),
-        feed_declared=None,  # the feed's tag reaches cfg.language via the run config
-        profile_default=cfg.language,
-    )
+    # The SAME resolver the provider call sites use. It was a second `resolve_episode_language`
+    # call here until the S0.6 lint flagged it — two resolutions of one question is exactly how
+    # the gate and the transcription drift apart, so the gate must refuse the language the
+    # provider would actually have been given.
+    language = transcription_language(cfg)
     if language is None:
         return None
     if is_language_enabled(language):
         return None
-    where = "the profile default" if source == SOURCE_PROFILE_DEFAULT else f"the {source}"
+    where = "the override" if getattr(cfg, "language_override", None) else "the profile default"
     return (
         f"language {language!r} (from {where}) is not enabled in config/languages.yaml, so this "
         "episode was NOT transcribed. Enable the language there, or set a per-feed "
@@ -2364,7 +2365,7 @@ def _transcribe_with_segments_maybe_chunked(
                 else:
                     result, elapsed = transcription_provider.transcribe_with_segments(
                         path,
-                        language=cfg.language,
+                        language=transcription_language(cfg),
                         pipeline_metrics=pipeline_metrics,
                         episode_duration_seconds=episode_duration_seconds,
                         call_metrics=call_metrics,

@@ -338,11 +338,19 @@ class TestTheTranscriptionPathKeepsFinishedWork:
 
         from podcast_scraper.workflow import episode_processor
 
+        # Sliced to the function's OWN extent, not a fixed character count. It was
+        # `src[start : start + 2200]` and the function measured 2208 chars, so it was 8
+        # characters from breaking on any edit inside it -- which is what happened when S0.6
+        # (#2177) added a comment nearby. A window that has to be re-tuned whenever the code it
+        # inspects grows is not measuring the invariant it claims to.
         src = inspect.getsource(episode_processor)
         start = src.index("def _transcribe_one(")
-        body = src[start : start + 2200]
+        body = src[start : src.index("\n    def ", start + 1)]
         assert 'done["r"]' in body, "the completed transcript is still discarded on overrun"
-        assert "return done[" in body
+        assert "return done[" in body, (
+            "the stashed result is no longer RETURNED from outside the with-block; "
+            "timeout_context raises from __exit__, so a return inside the block is discarded"
+        )
 
     def test_it_still_raises_when_nothing_was_produced(self) -> None:
         """The fix must not swallow a real failure — no result means the caller's failure
