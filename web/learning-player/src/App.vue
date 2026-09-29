@@ -9,7 +9,6 @@ import NavIconLink from './components/NavIconLink.vue'
 import NotificationsBell from './components/NotificationsBell.vue'
 import PwaUpdateToast from './components/PwaUpdateToast.vue'
 import AppUpdateBanner from './components/AppUpdateBanner.vue'
-import TierSwitch from './components/TierSwitch.vue'
 import BrandGlyph from './components/BrandGlyph.vue'
 import AppSplash from './components/AppSplash.vue'
 import OfflineBanner from './components/OfflineBanner.vue'
@@ -511,7 +510,6 @@ const mainBottomPadding = computed(() =>
         </span>
       </RouterLink>
       <nav class="text-sm flex items-center gap-1.5">
-        <TierSwitch />
         <!--
           Icon links are DESKTOP-only (#1594 follow-up).
 

@@ -3098,9 +3098,16 @@ mobile-build-internal:
 mobile-build-release:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
 	@echo "Learning Player mobile build (RELEASE, prod-locked) from $(LP_ENV)..."
+	@# `export MOBILE_RELEASE=1 && npm install && npm run build`, not `MOBILE_RELEASE=1 npm install
+	@# && npm run build` (operator 2026-09-29). A var prefix binds to ONE command, so the original
+	@# set it for `npm install` — which does not read it — and `npm run build`, the only command
+	@# that does, ran without it. `__MOBILE_INTERNAL__` therefore stayed TRUE and every "release"
+	@# build was an internal build wearing a release label: the dev/prod tier switch and the build
+	@# host's private tailnet hostname were in every one of them. The three artifact assertions
+	@# below were written to catch exactly this, and did.
 	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
-		MOBILE_RELEASE=1 npm install && npm run build && npx cap sync
+		export MOBILE_RELEASE=1 && npm install && npm run build && npx cap sync
 	@# The gate credential must not reach a SHIPPED app. `.env.mobile.example` states this as a
 	@# fact ("never baked into a shipped app"), but it is not one: `VITE_PREVIEW_BASIC_AUTH` is a
 	@# build-time substitution, so the literal lands in the bundle and only disappears if the
@@ -3117,6 +3124,31 @@ mobile-build-release:
 			exit 1; \
 		fi; \
 		echo "OK: preview gate credential absent from the release bundle"
+	@# The dev↔prod TIER SWITCH must not reach a shipped app either, for the same reason and with
+	@# the same proof. `tierSwitchEnabled()` folds to false in a release build and the component
+	@# should vanish with it — "should" being the operative word, which is why this is checked
+	@# rather than assumed (operator 2026-09-29: "double check we don't ship that button").
+	@cd $(APP_DIR) && if grep -qF 'tier-switch' dist/assets/*.js 2>/dev/null; then \
+		echo ""; \
+		echo "FAIL: the dev/prod tier switch is present in the RELEASE bundle (dist/)."; \
+		echo "      A tester must not be able to point the app at a private dev API."; \
+		echo "      Expected it to be tree-shaken once __MOBILE_INTERNAL__ folded to false."; \
+		exit 1; \
+	fi; \
+	echo "OK: tier switch absent from the release bundle"
+	@# And the DEV API BASE, which is worse than the button: `resolveDevApiBase` derives it from the
+	@# BUILD HOST's own tailnet name when VITE_DEV_API_BASE is unset, so building on a homelab
+	@# machine bakes a PRIVATE hostname into an artifact bound for a public store. #2009 hit this
+	@# class of problem once already ("baked a private hostname into every bundle").
+	@cd $(APP_DIR) && found=$$(grep -hoE 'https://[a-z0-9.-]+\.ts\.net' dist/assets/*.js 2>/dev/null | sort -u); \
+	if [ -n "$$found" ]; then \
+		echo ""; \
+		echo "FAIL: a private tailnet hostname is present in the RELEASE bundle:"; \
+		echo "      $$found"; \
+		echo "      That address would ship to every tester and into the store listing."; \
+		exit 1; \
+	fi; \
+	echo "OK: no private tailnet hostname in the release bundle"
 
 # --- TestFlight (iOS) -------------------------------------------------------------------
 # Requires App Store Connect credentials in web/learning-player/ios/fastlane/.env — copy
@@ -3331,7 +3363,10 @@ android-bundle:
 	@test -f $(ANDROID_LP_ENV) || { echo "FAIL: missing $(ANDROID_LP_ENV)."; \
 		echo "      This is the SAME tester-tier env the iOS TestFlight build uses."; \
 		echo "      Copy $(APP_DIR)/.env.mobile.example and fill it (see #2189)."; exit 1; }
-	@$(MAKE) mobile-build-internal LP_ENV=$(ANDROID_LP_ENV)
+	@# RELEASE, not internal — same reason as ios-testflight, and verified the same way. An
+	@# internal build leaves the tier switch and the build host's tailnet hostname in the bundle,
+	@# and this artifact is bound for Google Play.
+	@$(MAKE) mobile-build-release LP_ENV=$(ANDROID_LP_ENV)
 	@[ -d "$(ANDROID_SDK_DIR)" ] || { echo "FAIL: no Android SDK at $(ANDROID_SDK_DIR)."; exit 1; }
 	@[ -x "$(ANDROID_JAVA_HOME)/bin/java" ] || { echo "FAIL: no JDK at $(ANDROID_JAVA_HOME)."; \
 		echo "      Gradle needs JDK 21 (a Capacitor plugin pins toolchain 21; 17 is NOT enough)."; exit 1; }
@@ -3388,10 +3423,17 @@ IOS_DEVICE_UDID ?=
 # Internal build (dev/prod tier switch still available) -> TestFlight. This is the one to use for
 # testing the app on your own device against either tier.
 ios-testflight:
-	@# RFC-120 (#2009): build the internal tier from .env.mobile.testflight (no personal gate
-	@# cred baked) so a TestFlight build never ships your own credential to testers. The gate is
-	@# opened by the shared cl_preview cookie; falls back with a clear error if the file is missing.
-	@$(MAKE) mobile-build-internal LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@# RFC-120 (#2009): build from .env.mobile.testflight (no personal gate cred baked) so a
+	@# TestFlight build never ships your own credential to testers. The gate is opened by the
+	@# shared cl_preview cookie; falls back with a clear error if the file is missing.
+	@#
+	@# RELEASE, not internal (operator 2026-09-29). This used to run `mobile-build-internal`, which
+	@# leaves MOBILE_RELEASE unset — so `__MOBILE_INTERNAL__` stayed TRUE and a TestFlight build
+	@# shipped the dev↔prod tier switch AND the build host's private tailnet hostname. Verified on
+	@# a real artifact: `tier-switch` and `https://homelab.<tailnet>.ts.net` were both present.
+	@# TestFlight is a shipped app in every sense that matters here — it goes to other people's
+	@# phones — so it gets the prod-locked build and its artifact assertions.
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
 	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Prod-locked build (tier toggle tree-shaken out, GlitchTip DSN required) -> TestFlight. Use for
