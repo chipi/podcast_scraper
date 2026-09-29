@@ -329,7 +329,7 @@ component — a name is the contract "this exists and here is where it is exerci
 | `ShowTile` | Square-artwork show tile with follow overlay; Home/Library/Browse | `home-rails.spec.ts`, `follow-show.spec.ts` |
 | `SkipLink` | Keyboard skip-to-`#main` (UXS-011 a11y); App shell | keyboard a11y — exercised by the axe sweeps |
 | `StorylineCard` | Teleported overlay wrapping `StorylineView` (embedded) — opens the storyline ON TOP from a topic card's link (`storyline-card`, `storyline-card-close`, `?storyline=` history); focus trap + Back-to-close via `useModalSheet` | `entity-and-rails-invariants.spec.ts` |
-| `TierSwitch` | Dev↔prod target pill, internal build only (`tierSwitchEnabled()`) | internal build only — never rendered on web |
+| `TierSwitch` | Dev↔prod target pill, internal build only. Lives in **Settings › About** beside the build identity it changes (moved off the masthead 2026-09-29); imported dynamically behind `__MOBILE_INTERNAL__` so a release bundle does not carry it at all | internal build only — never rendered on web; absence from a release bundle is asserted by `make mobile-build-release` |
 | `TopicConversationArc` | Weekly stacked-bar conversation shape (`tca-bar-*`); Entity card | `knowledge-bands.spec.ts` |
 | `TranscriptList` | Synced, paragraph-grouped transcript with tap-to-seek; Player | `transcript.spec.ts`, `transcript-paragraphs.spec.ts`, `capture.spec.ts` |
 | `TrendWindowTabs` | 1M·3M·6M·1Y window control (RFC-103); trending rails/browse | `trending.spec.ts`, `browse-and-topic-pages.spec.ts` |
