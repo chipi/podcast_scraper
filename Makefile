@@ -2189,6 +2189,8 @@ app-e2e-api-down:
 #
 # Prerequisites, installed by the machine owner (Homebrew's prefix is not writable by every user):
 #   brew install cocoapods xcodegen      # plus Xcode with an iOS simulator runtime
+# CocoaPods 1.17.0 is the reference: `pod install` (run by `cap sync`) stamps its own version
+# into ios/App/Podfile.lock (`COCOAPODS:`), so any other version dirties that file on every run.
 #
 # The UI-test project lives in $(APP_DIR)/ios/uitests and is DELIBERATELY separate from
 # ios/App.xcodeproj: it drives the installed app by bundle id, so ``npx cap add ios`` (which
