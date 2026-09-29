@@ -2185,6 +2185,77 @@ def _mark_episode_skipped_existing(
         logger.debug("failed to record skip-existing status", exc_info=True)
 
 
+def _unsupported_language_skip_reason(cfg: config.Config) -> Optional[str]:
+    """Why this episode must not be transcribed, or ``None`` to proceed (#2179).
+
+    Returns a human-readable reason rather than a bool so the log line, the incident record and
+    the metric all carry the SAME sentence -- an operator reading any one of the three learns the
+    language and where it came from, not just that something was skipped.
+
+    THE ORDERING THIS DEPENDS ON. It must not land before the per-feed override (S0.2) and the
+    corpus audit (S0.4) exist. Publisher language tags are routinely wrong, and an English show
+    mis-tagged `de` would otherwise stop ingesting on every run -- including relabels and
+    rederives -- with no remedy available. The override is that remedy, and it wins here because
+    `resolve_episode_language` puts it first.
+
+    Absent language: PROCEED. A feed that declares nothing is the pre-#2172 state of most of the
+    corpus, and refusing those would stop ingesting the English corpus that works today. The
+    profile default answers for them, and the audit is what reports how many.
+    """
+    from ..languages import is_language_enabled, resolve_episode_language, SOURCE_PROFILE_DEFAULT
+
+    _raw, language, source = resolve_episode_language(
+        override=getattr(cfg, "language_override", None),
+        feed_declared=None,  # the feed's tag reaches cfg.language via the run config
+        profile_default=cfg.language,
+    )
+    if language is None:
+        return None
+    if is_language_enabled(language):
+        return None
+    where = "the profile default" if source == SOURCE_PROFILE_DEFAULT else f"the {source}"
+    return (
+        f"language {language!r} (from {where}) is not enabled in config/languages.yaml, so this "
+        "episode was NOT transcribed. Enable the language there, or set a per-feed "
+        "`language:` override if the feed's declared tag is wrong."
+    )
+
+
+def _finish_download_only(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    temp_media: Optional[str],
+) -> tuple[bool, Optional[str], int]:
+    """#947 phase 1: the media is downloaded + cached; stop before transcribe/diarize.
+
+    Extracted from ``transcribe_media_to_text`` because that function sat at exactly the
+    max-complexity limit (25), so S0.8's single language guard pushed it to 26. This block is the
+    most self-contained of its early returns, and the branch it carries (does the temp file still
+    exist and is it sizeable) is genuinely about download-only, not about transcription.
+    """
+    bytes_dl = 0
+    if temp_media and os.path.exists(temp_media):
+        try:
+            bytes_dl = os.path.getsize(temp_media)
+        except OSError:
+            bytes_dl = 0
+    logger.info(
+        "[%s] [#947] download-only: audio downloaded + cached, skipping transcription (%s)",
+        job.idx,
+        job.ep_title_safe,
+    )
+    # Guarded rather than widening _cleanup_temp_media: its os.remove(None) raises TypeError,
+    # which its `except OSError` does not catch.
+    #
+    # The inline version this was extracted from called it UNCONDITIONALLY, so a download_only
+    # episode with no temp media would have raised TypeError out of the pipeline. Untyped local
+    # code hid it; extracting the block gave mypy a signature to check, and it found it. The
+    # guard is a fix, not a translation of the old behaviour.
+    if temp_media:
+        _cleanup_temp_media(temp_media, cfg)
+    return True, None, bytes_dl
+
+
 def _mark_episode_skipped_policy(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -3600,6 +3671,33 @@ def transcribe_media_to_text(
     # incidents, cost events, and Langfuse spans carry it (see helper).
     _bind_episode_correlation(job, cfg)
 
+    # S0.8 (#2179): an episode in a language we do not ingest is REFUSED here, loudly, before any
+    # provider is called. Ahead of the dry-run guard on purpose -- a dry run should report the skip
+    # it would make, not a transcription it would never attempt.
+    #
+    # The hazard this closes is the opposite of a crash: without it, a non-English episode is
+    # transcribed as English by a chain whose default is `base.en`, and the result is a plausible
+    # transcript of the wrong words that every downstream stage then trusts.
+    unsupported_language = _unsupported_language_skip_reason(cfg)
+    if unsupported_language is not None:
+        logger.warning("[%s] SKIPPING episode: %s", job.idx, unsupported_language)
+        _append_transcription_incident(
+            cfg,
+            job,
+            category="policy",
+            message=unsupported_language,
+            exception_type="UnsupportedLanguage",
+        )
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "transcription",
+            error_type="UnsupportedLanguage",
+            detail=unsupported_language,
+        )
+        return False, None, 0
+
     if cfg.dry_run:
         final_path = filesystem.build_whisper_output_path(
             job.idx, job.ep_title_safe, run_suffix, effective_output_dir
@@ -3610,23 +3708,8 @@ def transcribe_media_to_text(
 
     temp_media = job.temp_media
 
-    # #947 phase 1: download_only. The media has already been downloaded + cached by
-    # download_media_for_transcription (via _download_or_reuse_media). Stop here — do NOT
-    # transcribe/diarize. This is the "get the audio down first, reprocess later" stage.
     if cfg.pipeline_stage == "download_only":
-        bytes_dl = 0
-        if temp_media and os.path.exists(temp_media):
-            try:
-                bytes_dl = os.path.getsize(temp_media)
-            except OSError:
-                bytes_dl = 0
-        logger.info(
-            "[%s] [#947] download-only: audio downloaded + cached, skipping transcription (%s)",
-            job.idx,
-            job.ep_title_safe,
-        )
-        _cleanup_temp_media(temp_media, cfg)
-        return True, None, bytes_dl
+        return _finish_download_only(job, cfg, temp_media)
 
     # relabel_only: re-resolve speaker NAMES on the existing on-disk transcript + frozen
     # SPEAKER_NN diarization, then re-render + re-save in place. No audio, no re-ASR, no
