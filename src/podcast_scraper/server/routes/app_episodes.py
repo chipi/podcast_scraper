@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -214,11 +215,21 @@ def episode_detail(
     has_transcript = transcript_rel is not None
     has_summary = bool(row.summary_title or row.summary_bullets or row.summary_text)
     local_art = row.episode_image_local_relpath or row.feed_image_local_relpath
+    # S2.8: why a non-English episode has no insights, stated rather than inferred from their
+    # absence. `None` for every English episode and every artifact written before the stage.
+    _translation_status = (
+        _translation_view(
+            root, transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
+        ).get("status")
+        if transcript_rel
+        else None
+    )
     return AppEpisodeDetail(
         slug=slug,
         title=row.episode_title,
         feed_id=row.feed_id,
         language=row.episode_language,
+        translation_status=_translation_status,
         podcast_title=row.feed_title,
         publish_date=row.publish_date,
         duration_seconds=row.duration_seconds,
@@ -478,7 +489,18 @@ def episode_entities(
 
 @router.get("/episodes/{slug}/segments", response_model=SegmentsResponse)
 def episode_segments(
-    request: Request, slug: str, _user: User = Depends(get_current_user)
+    request: Request,
+    slug: str,
+    lang: str | None = Query(
+        default=None,
+        description=(
+            "Which language to serve. Omitted serves the DEFAULT, which is English whenever an "
+            "English rendering exists (D-38). Pass the episode's source tag (e.g. `es`) to get "
+            "the original instead. `lang` does not decide the default — S2.1b's resolver "
+            "precedence does; this selects the alternative."
+        ),
+    ),
+    _user: User = Depends(get_current_user),
 ) -> SegmentsResponse:
     """Serve the transcript ``segments.json`` contract for one episode (by slug)."""
     root, row = _resolve(request, slug)
@@ -489,7 +511,17 @@ def episode_segments(
     # transcript_file_path is relative to the run dir (parent of the metadata dir); resolve it
     # to a corpus-root-relative path before deriving the adjacent segments file.
     transcript_corpus_rel = transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
-    for candidate in segments_relpaths_for_transcript(transcript_corpus_rel):
+    translation = _translation_view(root, transcript_corpus_rel)
+    source_language = translation.get("source_language")
+
+    candidates = segments_relpaths_for_transcript(transcript_corpus_rel)
+    want_source = bool(lang) and _normalized(lang) != "en"
+    if want_source:
+        # The explicit alternative: drop every English candidate so the source is served even
+        # though D-38 puts English first.
+        candidates = [c for c in candidates if ".en." not in c]
+
+    for candidate in candidates:
         safe = safe_relpath_under_corpus_root(root, candidate)
         if not safe:
             continue
@@ -500,11 +532,53 @@ def episode_segments(
             except (OSError, ValueError) as exc:
                 logger.warning("Unreadable segments file %s: %s", seg_path, exc)
                 raise HTTPException(status_code=500, detail="Segments file unreadable.") from exc
-            return SegmentsResponse(episode_slug=slug, segments=to_contract_segments(raw))
+            served_english = ".en." in candidate
+            return SegmentsResponse(
+                episode_slug=slug,
+                segments=to_contract_segments(raw),
+                # The language ACTUALLY SERVED, not the one requested: if English was asked for
+                # and does not exist, this reports the source rather than claiming `en`.
+                language="en" if served_english else source_language,
+                machine_translated=served_english and bool(translation.get("model")),
+                translation_model=translation.get("model") if served_english else None,
+                source_language=source_language,
+            )
 
     raise HTTPException(
         status_code=404, detail="Transcript segments not available for this episode."
     )
+
+
+def _normalized(tag: str | None) -> str | None:
+    from ...languages import normalize_language_tag
+
+    return normalize_language_tag(tag)
+
+
+def _translation_view(root: Path, transcript_corpus_rel: str) -> dict:
+    """``{status, model, source_language}`` from the episode's translation ledger, if any.
+
+    Reads `translation.json` rather than inferring from which files exist: the ledger is the
+    only artifact that can distinguish `failed` (units did not translate, so analysis was
+    skipped) from `skipped` (nothing to translate). A client needs that to explain why a
+    non-English episode has no insights, instead of inferring it from their absence.
+    """
+    safe = safe_relpath_under_corpus_root(root, transcript_corpus_rel)
+    if not safe:
+        return {}
+    base, _ = os.path.splitext(str(safe))
+    path = root / f"{base}.translation.json"
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        "status": raw.get("status"),
+        "model": raw.get("model"),
+        "source_language": raw.get("source_language"),
+    }
 
 
 @router.get("/episodes/{slug}/audio-source", response_model=AudioSourceResponse)
