@@ -78,7 +78,12 @@ def format_diarized_screenplay_with_offsets(
         # Carry the per-segment role/type truth through to the ad-free sidecar too — the metadata
         # reader prefers the ad-free segments, so dropping these here would resurrect the
         # guest-as-host bug (roster role lost). Passthrough only when present (unnamed voices).
-        for key in ("speaker", "speaker_role", "voice_type"):
+        #
+        # `unit_id` / `sent_id` join the list for the ENGLISH render (RFC-124 §5.1): the English
+        # pseudo-segments are what `resolve_units_for_span` reads to map an English char span
+        # back to the translation units that produced it, which is how provenance lands on every
+        # claim (S2.11). Dropped here, an English span could not be traced to its source at all.
+        for key in ("speaker", "speaker_role", "voice_type", "unit_id", "sent_id"):
             val = segment.get(key)
             if val is not None:
                 emitted[key] = val

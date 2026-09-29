@@ -24,7 +24,7 @@ from podcast_scraper.workflow.translation_stage import (
     REASON_ALREADY_ENGLISH,
     REASON_FLAG_OFF,
     REASON_NO_TRANSCRIPT,
-    REASON_NOT_IMPLEMENTED,
+    REASON_TRANSLATOR_READY,
     run_translation_stage,
     STATUS_PENDING,
     STATUS_SKIPPED,
@@ -62,17 +62,18 @@ class TestTheDecision:
         assert got.source_language == "es", "the language must survive the flag being off"
 
     def test_a_non_english_episode_with_the_flag_on_is_pending_not_translated(self) -> None:
-        """`pending` is an unpaid debt, not a failure and not a success.
+        """`decide_translation` is PURE — it reports that translation is owed, nothing more.
 
-        S2.2 is the stage slot; the translator arrives in S2.3/S2.4. Reporting `skipped` here
-        would say there was nothing to do, and `translated` would be a lie.
+        `pending` here means "ready to translate, not yet attempted". The work happens in
+        `run_translation_stage`, which is what turns this into `translated` or `failed`. Keeping
+        the decision free of side effects is what lets it be tested exhaustively.
         """
         got = decide_translation(
             _cfg(language="es", multilingual_ingest=True), transcript_relpath=REL
         )
         assert got.status == STATUS_PENDING
-        assert got.reason == REASON_NOT_IMPLEMENTED
-        assert got.ran is False, "a stage that produced nothing did not run"
+        assert got.reason == REASON_TRANSLATOR_READY
+        assert got.ran is False, "deciding is not doing"
 
     def test_the_feeds_declared_language_beats_the_profile_default_and_says_so(self) -> None:
         """Provenance, not just a value: `rss` means measured, `profile_default` means assumed."""
@@ -160,17 +161,21 @@ class TestTheLedgerEntry:
         assert block["metrics"]["source_language"] == "es"
         assert data["episode_id"] == "ep1"
 
-    def test_a_pending_episode_is_visible_in_the_ledger(self, tmp_path: Path) -> None:
+    def test_an_unconfigured_translator_is_recorded_as_skipped_not_pending(
+        self, tmp_path: Path
+    ) -> None:
+        """A non-English episode with the flag ON but no endpoint is a DEFECT, and the ledger
+        has to distinguish it from `flag_off`, which is a decision."""
         (tmp_path / "transcripts").mkdir()
-        run_translation_stage(
+        got = run_translation_stage(
             _cfg(language="es", multilingual_ingest=True),
             transcript_relpath=REL,
             effective_output_dir=str(tmp_path),
         )
+        assert got.status == STATUS_SKIPPED
+        assert got.reason == "translator_not_configured"
         data = json.loads((tmp_path / "transcripts" / "01 - ep.manifest.json").read_text())
-        metrics = data["stages"]["translation"]["metrics"]
-        assert metrics["status"] == STATUS_PENDING
-        assert metrics["source_language"] == "es"
+        assert data["stages"]["translation"]["metrics"]["source_language"] == "es"
 
     def test_the_block_has_the_SAME_SHAPE_in_every_language(self, tmp_path: Path) -> None:
         """The invariant the per-language record broke, asserted at the stage that writes it.

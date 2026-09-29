@@ -44,9 +44,11 @@ prevent, one slice after Phase 0 built the machinery to prevent it.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from ..languages import resolve_config_language
@@ -62,6 +64,13 @@ STATUS_PENDING = "pending"
 STATUS_TRANSLATED = "translated"
 #: A translation was attempted and did not produce a usable English artifact set.
 STATUS_FAILED = "failed"
+
+#: Retired: the translator IS wired now. Kept only so an older manifest's reason still parses.
+REASON_NOT_IMPLEMENTED = "translator_not_wired"
+
+#: The decision said "translate this" and the work has not been attempted yet in THIS call.
+#: `decide_translation` is pure, so it reports readiness; `run_translation_stage` does the work.
+REASON_TRANSLATOR_READY = "ready"
 
 #: Why a translation was skipped. A closed vocabulary so the corpus ledger can GROUP BY it.
 REASON_ALREADY_ENGLISH = "already_english"
@@ -80,6 +89,12 @@ class TranslationOutcome:
     language_source: Optional[str] = None
     reason: Optional[str] = None
     duration_s: float = 0.0
+    #: Set once translation actually ran. ``None`` for every skip.
+    units: int = 0
+    units_failed: int = 0
+    #: True only when the complete English artifact set is on disk. THE gate condition.
+    english_ready: bool = False
+    metrics: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def ran(self) -> bool:
@@ -92,12 +107,14 @@ class TranslationOutcome:
         return self.status in (STATUS_TRANSLATED, STATUS_FAILED)
 
     def to_metrics(self) -> Dict[str, Any]:
-        return {
+        out: Dict[str, Any] = {
             "status": self.status,
             "source_language": self.source_language,
             "language_source": self.language_source,
             "reason": self.reason,
         }
+        out.update(self.metrics)
+        return out
 
 
 def decide_translation(
@@ -152,12 +169,11 @@ def decide_translation(
             reason=REASON_NO_TRANSCRIPT,
         )
 
-    # S2.3/S2.4 replace this branch with the real thing.
     return TranslationOutcome(
         status=STATUS_PENDING,
         source_language=language,
         language_source=language_source,
-        reason=REASON_NOT_IMPLEMENTED,
+        reason=REASON_TRANSLATOR_READY,
     )
 
 
@@ -194,11 +210,12 @@ def run_translation_stage(
     if outcome.duration_s > 0:
         deadline_credit(outcome.duration_s, reason="translation stage")
 
-    if outcome.status == STATUS_PENDING:
-        logger.info(
-            "    translation PENDING for a %s episode: the translator is not wired yet (%s)",
-            outcome.source_language,
-            outcome.reason,
+    if outcome.status == STATUS_PENDING and effective_output_dir and transcript_relpath:
+        outcome = _translate_episode(
+            cfg,
+            outcome,
+            transcript_relpath=transcript_relpath,
+            effective_output_dir=effective_output_dir,
         )
 
     if effective_output_dir and transcript_relpath:
@@ -210,6 +227,182 @@ def run_translation_stage(
             feed_id=feed_id,
             run_id=run_id,
         )
+    return outcome
+
+
+def _load_source_transcript(effective_output_dir: str, transcript_relpath: str) -> tuple[str, list]:
+    """The SOURCE body and its own sidecar, by exact path. No precedence, by design.
+
+    Paired deliberately: the sidecar is derived from the body's own base rather than resolved
+    separately, which is the same rule :func:`transcript_resolution.load_transcript` follows —
+    mixing a body with another variant's segments is the displacement bug this arc keeps meeting.
+    """
+    base, _ = os.path.splitext(transcript_relpath)
+    text_path = os.path.join(effective_output_dir, transcript_relpath)
+    seg_path = os.path.join(effective_output_dir, base + ".segments.json")
+    try:
+        with open(text_path, "r", encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return "", []
+    try:
+        with open(seg_path, "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except (OSError, ValueError):
+        return text, []
+    return text, raw if isinstance(raw, list) else []
+
+
+def _translate_episode(
+    cfg: Any,
+    outcome: TranslationOutcome,
+    *,
+    transcript_relpath: str,
+    effective_output_dir: str,
+) -> TranslationOutcome:
+    """Pack, translate, write the ledger, and write the English render only when complete.
+
+    THE GATE IS THE ABSENCE OF `.en.txt`, not a flag anyone has to remember to check. RFC-124
+    §5.3: an episode without a complete English set skips summary, GI and KG. Because the
+    resolver keys on file presence, not writing the render IS the gate — a partial render would
+    be consumed as though it were whole by every stage and by the listener (D-36/D-38).
+    """
+    from ..providers.ml.diarization.turns import build_turns
+    from ..translation.artifacts import (
+        load_translation_json,
+        translation_metrics,
+        TranslationDocument,
+        UNIT_FAILED,
+        UNIT_OK,
+        UnitRecord,
+        unresolved_units,
+        write_english_artifacts,
+        write_translation_json,
+    )
+    from ..translation.factory import create_translation_provider, is_translation_configured
+    from ..translation.units import pack_units
+
+    language = outcome.source_language or ""
+    if not is_translation_configured(cfg):
+        outcome.status = STATUS_SKIPPED
+        outcome.reason = "translator_not_configured"
+        return outcome
+
+    # TRANSLATION'S INPUT IS DEFINED, NOT RESOLVED. It reads the SOURCE body at the exact path
+    # it was given, never through a purpose precedence.
+    #
+    # This was a bug first, and a dangerous one. `TranscriptPurpose.TIMELINE` prefers `.en.txt`
+    # by D-38, so once an episode had been translated a second run resolved the ENGLISH body,
+    # packed units from it, found no matching content keys (English text hashes differently
+    # from Spanish), and re-translated English into English — overwriting the ledger with
+    # garbage and calling the model for every unit. The resolver is for CONSUMERS choosing which
+    # rendering to read; the producer of a rendering must never ask it what to read.
+    source_text, source_segments = _load_source_transcript(effective_output_dir, transcript_relpath)
+    if not source_text or not source_segments:
+        outcome.status = STATUS_SKIPPED
+        outcome.reason = REASON_NO_TRANSCRIPT
+        return outcome
+
+    # Turns are rebuilt rather than read from `turns.json`: the artifact stores no sentence text,
+    # and rebuilding from the segments we just resolved guarantees the offsets index the body
+    # we hold rather than a body written at some other time.
+    from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
+
+    rebuilt, offset_segments = format_diarized_screenplay_with_offsets(list(source_segments))
+    if rebuilt != source_text:
+        outcome.status = STATUS_SKIPPED
+        outcome.reason = "not_a_diarized_screenplay"
+        return outcome
+    turns = build_turns(offset_segments, screenplay_text=rebuilt)
+    turn_dicts = [t.to_dict() for t in turns.turns]
+
+    provider = create_translation_provider(cfg)
+    units = pack_units(
+        turn_dicts,
+        screenplay_text=rebuilt,
+        source_language=language,
+        max_input_tokens=(
+            getattr(provider, "MODEL_INPUT_TOKEN_LIMIT", 2048)
+            if hasattr(provider, "MODEL_INPUT_TOKEN_LIMIT")
+            else 2048
+        ),
+        count_tokens=getattr(provider, "count_tokens", None),
+    )
+    if not units:
+        outcome.status = STATUS_SKIPPED
+        outcome.reason = "nothing_to_translate"
+        return outcome
+
+    previous = load_translation_json(transcript_relpath, effective_output_dir)
+    todo = unresolved_units(units, previous)
+    reused = {r.content_key: r for r in (previous.units if previous else []) if r.ok}
+    if previous and len(todo) < len(units):
+        logger.info(
+            "    translation: reusing %d of %d units from the existing ledger (content-keyed)",
+            len(units) - len(todo),
+            len(units),
+        )
+
+    base, _ = os.path.splitext(transcript_relpath)
+    doc = TranslationDocument(
+        episode_slug=os.path.basename(base),
+        source_language=language,
+        model=getattr(cfg, "translate_model", None),
+        source={"transcript_ref": transcript_relpath, "turns": len(turn_dicts)},
+    )
+
+    todo_ids = {u.unit_id for u in todo}
+    for unit in units:
+        if unit.unit_id not in todo_ids:
+            cached = reused.get(unit.content_key)
+            if cached is not None:
+                doc.units.append(
+                    UnitRecord(
+                        unit_id=unit.unit_id,
+                        turn_id=unit.turn_id,
+                        content_key=unit.content_key,
+                        status=UNIT_OK,
+                        alignment=cached.alignment,
+                        # Re-key the cached sentences onto THIS packing's sent_ids: the text is
+                        # identical by content key, but the ids are turn-ordinal and may have
+                        # been renumbered by a relabel.
+                        sentences=[
+                            {"sent_id": s.sent_id, "en_text": e.get("en_text", "")}
+                            for s, e in zip(unit.sentences, cached.sentences)
+                        ],
+                        attempts=0,
+                    )
+                )
+                continue
+        result = provider.translate_unit(unit, source_language=language)
+        meta = result.get("metadata") or {}
+        if doc.prompt is None and meta.get("prompt"):
+            doc.prompt = meta["prompt"]
+        ok = result.get("alignment") in ("sentence", "unit") and result.get("sentences")
+        doc.units.append(
+            UnitRecord(
+                unit_id=unit.unit_id,
+                turn_id=unit.turn_id,
+                content_key=unit.content_key,
+                status=UNIT_OK if ok else UNIT_FAILED,
+                alignment=str(result.get("alignment") or "failed"),
+                sentences=list(result.get("sentences") or []),
+                error=meta.get("error"),
+                attempts=int(meta.get("attempts") or 0),
+            )
+        )
+
+    write_translation_json(doc, transcript_relpath, effective_output_dir)
+    en_rel = write_english_artifacts(
+        doc, turn_dicts, units, transcript_relpath, effective_output_dir
+    )
+
+    outcome.units = len(doc.units)
+    outcome.units_failed = len(doc.failed_units)
+    outcome.english_ready = en_rel is not None
+    outcome.metrics = translation_metrics(doc, units)
+    outcome.status = STATUS_TRANSLATED if en_rel else STATUS_FAILED
+    outcome.reason = None if en_rel else "incomplete_translation"
     return outcome
 
 
