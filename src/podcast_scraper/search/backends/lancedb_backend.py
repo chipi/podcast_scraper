@@ -51,6 +51,16 @@ _SEGMENT_TABLE = "segments"
 _INSIGHT_TABLE = "insights"
 _AUX_TABLE = "aux"
 
+#: Non-English transcript chunks (D-14 option B / S2.9). A SEPARATE TABLE WITH NO EMBEDDING
+#: COLUMN, which is the whole point: a row with no vector CANNOT appear in a semantic result,
+#: whereas a language tag plus a filter is a guarantee only for as long as every query path
+#: remembers the filter. There are several query paths and they are not all in one file.
+#:
+#: It also leaves the three existing schemas untouched, so `LANCE_SCHEMA_VERSION` does NOT move
+#: and no corpus is forced to rebuild — the claim D-14 asked to be confirmed in this slice, and
+#: the reason the table is added rather than a column.
+_SEGMENT_NONEN_TABLE = "segments_nonen"
+
 # How long compaction keeps superseded versions before reclaiming their files. This is a READER
 # grace window: a concurrent process (the api) may be mid-read on a version the moment compaction
 # supersedes it, and deleting that version's fragments out from under the in-flight read strands it
@@ -70,6 +80,34 @@ def _segment_schema(dim: int) -> "pa.Schema":
             ("id", pa.string()),
             ("text", pa.string()),
             ("embedding", pa.list_(pa.float32(), dim)),
+            ("show_id", pa.string()),
+            ("episode_id", pa.string()),
+            ("speaker_id", pa.string()),
+            ("start_time", pa.float64()),
+            ("end_time", pa.float64()),
+            ("linked_insight_ids", pa.list_(pa.string())),
+            ("source_tier", pa.string()),
+            ("publish_date", pa.string()),
+        ]
+    )
+
+
+def _segment_nonen_schema() -> "pa.Schema":
+    """The non-English segment tier: the English segment schema MINUS ``embedding``, PLUS
+    ``language``.
+
+    Takes no ``dim`` argument, and that absence is the design. There is nowhere to put a vector,
+    so no code path — present or future — can accidentally include these rows in a dense
+    search. A zero vector would have been worse than useless: it would have out-ranked most
+    real results.
+    """
+    import pyarrow as pa
+
+    return pa.schema(
+        [
+            ("id", pa.string()),
+            ("text", pa.string()),
+            ("language", pa.string()),
             ("show_id", pa.string()),
             ("episode_id", pa.string()),
             ("speaker_id", pa.string()),
@@ -126,7 +164,19 @@ def _aux_schema(dim: int) -> "pa.Schema":
 class LanceDBBackend:
     """Embedded LanceDB backend (segments + insights + aux), BM25 + vector per tier."""
 
-    TABLES = {"segment": _SEGMENT_TABLE, "insight": _INSIGHT_TABLE, "aux": _AUX_TABLE}
+    TABLES = {
+        "segment": _SEGMENT_TABLE,
+        "insight": _INSIGHT_TABLE,
+        "aux": _AUX_TABLE,
+        "segment_nonen": _SEGMENT_NONEN_TABLE,
+    }
+
+    #: Tiers that carry vectors. `segment_nonen` is deliberately absent, so every dense path
+    #: derives its tier list from here rather than from ``TABLES``.
+    DENSE_TIERS = ("segment", "insight", "aux")
+
+    #: Tiers consulted for the KEYWORD leg only.
+    KEYWORD_ONLY_TIERS = ("segment_nonen",)
 
     # Minimum rows before building the IVF vector ANN index. Below this the native
     # index build can SIGSEGV (too few rows to train IVF centroids) and LanceDB
@@ -235,12 +285,27 @@ class LanceDBBackend:
 
     _SCHEMAS = {"segment": _segment_schema, "insight": _insight_schema, "aux": _aux_schema}
 
+    #: Schemas that take no embedding dimension, because they carry no vector (S2.9).
+    _VECTORLESS_SCHEMAS = {"segment_nonen": _segment_nonen_schema}
+
     def _ensure_table(self, tier: str):
         table = self._open_if_exists(tier)
         if table is not None:
             return table
+        if tier in self._VECTORLESS_SCHEMAS:
+            return self.db.create_table(self.TABLES[tier], schema=self._VECTORLESS_SCHEMAS[tier]())
         schema = self._SCHEMAS[tier](self.embed_dim)
         return self.db.create_table(self.TABLES[tier], schema=schema)
+
+    def has_tier(self, tier: str) -> bool:
+        """Whether this index has the tier's table at all.
+
+        The read path needs this because `segments_nonen` is ABSENT on every index built before
+        S2.9 — which is all of them — and a missing table must read as "no non-English content"
+        rather than as an error. That tolerance is what lets the table be added without forcing
+        a rebuild (D-14).
+        """
+        return self._open_if_exists(tier) is not None
 
     def create_indices(self) -> None:
         """Create FTS (required for BM25) + vector indices on all tables that exist.
@@ -253,7 +318,9 @@ class LanceDBBackend:
         search anyway, so the ANN index is unnecessary. An empty table is skipped
         entirely.
         """
-        for tier in ("segment", "insight", "aux"):
+        # The non-English tier is included for FTS and EXCLUDED from the vector index below —
+        # it has no `embedding` column to index, which is the point of the separate table (S2.9).
+        for tier in (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS):
             table = self._open_if_exists(tier)
             if table is None:
                 continue  # tier never populated (e.g. a corpus with no kg/quote rows)
@@ -264,6 +331,8 @@ class LanceDBBackend:
             if n_rows <= 0:
                 continue  # nothing to index; a native build on 0 rows can SIGSEGV
             table.create_fts_index("text", replace=True)
+            if tier in self.KEYWORD_ONLY_TIERS:
+                continue  # no vector column: BM25 is the only retrieval this tier supports
             if n_rows < self._MIN_VECTOR_INDEX_ROWS:
                 continue  # brute-force search below the ANN training floor
             try:
@@ -283,7 +352,7 @@ class LanceDBBackend:
         on the just-superseded version (see the constant). Best-effort: a compaction
         failure must never fail the build.
         """
-        for tier in ("segment", "insight", "aux"):
+        for tier in (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS):
             table = self._open_if_exists(tier)
             if table is None:
                 continue
@@ -557,7 +626,7 @@ class LanceDBBackend:
 
     def delete(self, doc_id: str, tier: Tier) -> None:
         """Delete a document by id; ``tier="all"`` removes from every table."""
-        tiers = ("segment", "insight", "aux") if tier == "all" else (tier,)
+        tiers = self.DENSE_TIERS if tier == "all" else (tier,)
         for t in tiers:
             table = self._open_if_exists(t)
             if table is not None:
