@@ -3463,6 +3463,17 @@ ios-testflight:
 	@# TestFlight is a shipped app in every sense that matters here — it goes to other people's
 	@# phones — so it gets the prod-locked build and its artifact assertions.
 	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@# Unlock the signing keychain first (#2189). The build account has no login keychain, so
+	@# signing uses a dedicated one created by scripts/tools/setup_signing_keychain.sh. A locked
+	@# keychain fails codesign with "User interaction is not allowed" — which on a headless account
+	@# is unrecoverable without this, and is exactly what would break an unattended release after a
+	@# reboot. Silent no-op when the keychain has not been set up, so the failure stays the clearer
+	@# "no identity found" from xcodebuild rather than a confusing unlock error.
+	@if [ -r "$(HOME)/.appstoreconnect/keychain-password" ]; then \
+		security unlock-keychain -p "$$(cat $(HOME)/.appstoreconnect/keychain-password)" \
+			"$(HOME)/Library/Keychains/ios-signing.keychain-db" 2>/dev/null \
+			&& echo "OK: signing keychain unlocked" || true; \
+	fi
 	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Prod-locked build (tier toggle tree-shaken out, GlitchTip DSN required) -> TestFlight. Use for

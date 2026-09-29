@@ -35,10 +35,23 @@ PW_FILE="${2:?usage: $0 <signing.p12> <p12-password-file>}"
 
 KEYCHAIN="${SIGNING_KEYCHAIN:-$HOME/Library/Keychains/ios-signing.keychain-db}"
 KEYCHAIN_NAME="$(basename "$KEYCHAIN")"
-# The keychain's own password. Not a secret in any meaningful sense — it protects a keychain that
-# exists only on this machine, holding a certificate that is useless without Apple's account. It is
-# generated rather than hardcoded so it is at least not a published constant.
-KC_PW="${SIGNING_KEYCHAIN_PASSWORD:-$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)}"
+# Where the keychain's own password is kept, so an unattended build can re-unlock after a reboot.
+#
+# The goal this serves (operator 2026-09-29): releases must not need a human at a terminal — the
+# operator drives this machine remotely, from a phone if necessary. A keychain that can only be
+# unlocked by someone typing a password defeats that on the first reboot.
+#
+# What this is worth protecting against is therefore limited and worth stating plainly: the file is
+# 0600 in this account's home, and it guards a keychain that holds a certificate which is useless
+# without Apple's account anyway. Anyone who can read this file already has the account it belongs
+# to.
+KC_PW_FILE="${SIGNING_KEYCHAIN_PASSWORD_FILE:-$HOME/.appstoreconnect/keychain-password}"
+# Reuse the existing password when re-running, so a re-import does not orphan the stored one.
+if [ -r "$KC_PW_FILE" ]; then
+    KC_PW="$(tr -d '\r\n' < "$KC_PW_FILE")"
+else
+    KC_PW="${SIGNING_KEYCHAIN_PASSWORD:-$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)}"
+fi
 
 [ -r "$P12" ] || { echo "FAIL: cannot read $P12"; exit 1; }
 [ -r "$PW_FILE" ] || { echo "FAIL: cannot read $PW_FILE"; exit 1; }
@@ -47,10 +60,18 @@ P12_PW="$(tr -d '\r\n' < "$PW_FILE")"
 echo "--> recreating $KEYCHAIN_NAME"
 security delete-keychain "$KEYCHAIN" 2>/dev/null || true
 security create-keychain -p "$KC_PW" "$KEYCHAIN"
-# No auto-lock. A keychain that re-locks mid-archive fails the build halfway through, which is a
-# far more confusing failure than not being set up at all.
-security set-keychain-settings -lut 21600 "$KEYCHAIN"
+# NO auto-lock and NO lock-on-sleep: `set-keychain-settings` with neither -l nor -u and no -t.
+#
+# A keychain that re-locks mid-archive fails the build halfway through — a far more confusing
+# failure than not being set up at all — and one that locks on sleep makes every build after the
+# machine idles fail until someone intervenes. Both defeat unattended releases.
+security set-keychain-settings "$KEYCHAIN"
 security unlock-keychain -p "$KC_PW" "$KEYCHAIN"
+
+# Persist the password so `make ios-testflight` can unlock after a reboot without a human.
+mkdir -p "$(dirname "$KC_PW_FILE")"
+printf '%s' "$KC_PW" > "$KC_PW_FILE"
+chmod 600 "$KC_PW_FILE"
 
 echo "--> importing the signing identity"
 # -A would let ANY application use the key without prompting. Scoped to the tools that actually
@@ -76,11 +97,13 @@ security find-identity -v -p codesigning "$KEYCHAIN"
 
 cat <<EOF
 
-Keychain password (needed to re-unlock after a reboot — store it or re-run this script):
+Keychain password stored at $KC_PW_FILE (0600), so builds can unlock it unattended.
+"make ios-testflight" unlocks before archiving; nothing needs a human at a terminal.
 
-    $KC_PW
+If a build ever fails with "User interaction is not allowed", the keychain locked anyway. Unlock:
 
-If a build later fails with "User interaction is not allowed", the keychain has locked. Unlock it:
+    security unlock-keychain -p "\$(cat $KC_PW_FILE)" "$KEYCHAIN"
 
-    security unlock-keychain -p '$KC_PW' "$KEYCHAIN"
+Certificates expire — an Apple Distribution cert is good for a year. When it does, every build
+fails at signing with the same "no identity" shape as an empty keychain. Re-export and re-run this.
 EOF
