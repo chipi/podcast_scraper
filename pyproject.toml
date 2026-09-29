@@ -193,7 +193,18 @@ ml = [
   # torchcodec is transitive (torchaudio 4.x / pyannote 4.x). Cap <0.15: 0.15.0
   # is part of the 2026-07-17 native teardown SIGSEGV drift (see transformers
   # note above). Explicit line so the cap survives transitive re-resolution.
-  "torchcodec<0.15",
+  #
+  # SPLIT BY PLATFORM (2026-09-29). torchcodec dlopens the SYSTEM FFmpeg, and each
+  # release only ships cores for the FFmpeg majors it knows: <=0.15 stops at
+  # FFmpeg 8 (libavutil.60). Homebrew moved macOS to FFmpeg 9 (libavutil.61), and
+  # 0.16.0 is the first release with a core for it — measured on the macOS arm64
+  # wheels: 0.14/0.15 ship cores 4-8, 0.16 ships 4-9. Without it every macOS
+  # import of sentence-transformers raised "Could not load libtorchcodec", which
+  # took down local test collection and the pre-commit hook.
+  # Linux keeps the <0.15 cap: CI and the prod images bring their own FFmpeg (<=8),
+  # and the teardown crash above is Linux-only, so CI stays on the proven build.
+  "torchcodec<0.15; sys_platform != 'darwin'",
+  "torchcodec>=0.16,<0.17; sys_platform == 'darwin'",
 ]
 # Streamlit run comparison UI (RFC-047, Issue #373)
 compare = [
