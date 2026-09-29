@@ -196,7 +196,7 @@ class TestBothWritePathsRoute:
                 self.writes: List[tuple] = []
                 self.cleared: List[str] = []
 
-            # type: ignore[override] on both — the fakes narrow the base signatures.
+            # The fakes narrow the base signatures, hence the ignores.
             def _upsert_many(  # type: ignore[override]
                 self, tier: str, rows: List[Dict[str, Any]]
             ) -> None:
@@ -246,3 +246,92 @@ class TestBothWritePathsRoute:
         )
         assert [tier for tier, _ in b.writes] == ["segment", "segment_nonen"]
         assert b.cleared == []
+
+
+class TestTheQueryPath:
+    """The keyword leg reads the tier; the dense leg cannot.
+
+    Not because a filter excludes it — because the table has no vector column, so a dense query
+    has nothing to match. The read path just declines to open a table that cannot answer the
+    question asked.
+    """
+
+    def test_a_keyword_query_over_all_tiers_includes_the_non_english_one(self) -> None:
+        class _B(LanceDBBackend):
+            def __init__(self) -> None:
+                pass
+
+        assert _B()._tables_for_tier("all", keyword=True) == [
+            "segment",
+            "insight",
+            "aux",
+            "segment_nonen",
+        ]
+
+    def test_a_DENSE_query_over_all_tiers_excludes_it(self) -> None:
+        class _B(LanceDBBackend):
+            def __init__(self) -> None:
+                pass
+
+        assert _B()._tables_for_tier("all", keyword=False) == ["segment", "insight", "aux"]
+
+    def test_the_default_is_dense_safe(self) -> None:
+        """A caller that forgets the flag must not accidentally enrol the tier in a vector
+        search — the safe default is the one that omits it."""
+
+        class _B(LanceDBBackend):
+            def __init__(self) -> None:
+                pass
+
+        assert "segment_nonen" not in _B()._tables_for_tier("all")
+
+    def test_an_explicit_tier_request_is_honoured_unchanged(self) -> None:
+        class _B(LanceDBBackend):
+            def __init__(self) -> None:
+                pass
+
+        assert _B()._tables_for_tier("segment", keyword=True) == ["segment"]
+
+    def test_bm25_asks_for_the_keyword_tiers_and_vector_does_not(self) -> None:
+        """Driven through `_run`, so the wiring between query type and tier list is what is
+        tested rather than the helper in isolation."""
+        from podcast_scraper.search.backend import SearchQuery
+
+        asked: List[str] = []
+
+        class _B(LanceDBBackend):
+            def __init__(self) -> None:
+                pass
+
+            def _fresh_read(self, tier: str, run: Any) -> Any:  # type: ignore[override]
+                asked.append(tier)
+                return None
+
+        b = _B()
+        b.search_bm25(SearchQuery(text="hola", embedding=[], tier="all", k=5))
+        assert "segment_nonen" in asked
+
+        asked.clear()
+        b.search_vector(SearchQuery(text="hola", embedding=[0.1], tier="all", k=5))
+        assert "segment_nonen" not in asked
+
+    def test_a_failing_keyword_tier_read_returns_NOTHING_rather_than_unfiltered_rows(
+        self,
+    ) -> None:
+        """If a filter names a column the tier lacks, the read is skipped. Retrying without the
+        filter would LEAK rows past it, which is worse than returning none."""
+        from podcast_scraper.search.backend import SearchQuery
+
+        class _Table:
+            def search(self, *_a: Any, **_k: Any) -> Any:
+                raise RuntimeError("no such column")
+
+        class _B(LanceDBBackend):
+            def __init__(self) -> None:
+                pass
+
+            def _fresh_read(self, tier: str, run: Any) -> Any:  # type: ignore[override]
+                return run(_Table()) if tier == "segment_nonen" else None
+
+        got = _B().search_bm25(SearchQuery(text="hola", embedding=[], tier="all", k=5))
+        assert got == []

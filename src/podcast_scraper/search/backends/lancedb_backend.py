@@ -361,9 +361,19 @@ class LanceDBBackend:
             except Exception as exc:  # noqa: BLE001 - optimize is best-effort
                 logger.warning("LanceDB compaction skipped for %s table: %s", tier, exc)
 
-    def _tables_for_tier(self, tier: Tier) -> List[str]:
+    def _tables_for_tier(self, tier: Tier, *, keyword: bool = False) -> List[str]:
+        """The tiers to read for this request.
+
+        ``keyword=True`` adds the vector-less tiers (S2.9). They are consulted for BM25 ONLY —
+        not because a filter excludes them from dense search, but because they have no vector
+        column at all, so a dense query has nothing to match against. The separation is in the
+        storage; this just declines to open a table that cannot answer the question asked.
+        """
         if tier == "all":
-            return ["segment", "insight", "aux"]
+            tiers = list(self.DENSE_TIERS)
+            if keyword:
+                tiers.extend(self.KEYWORD_ONLY_TIERS)
+            return tiers
         return [tier]
 
     # --- retrieval -------------------------------------------------------------
@@ -392,8 +402,23 @@ class LanceDBBackend:
                 req = req.where(where)
             return list(req.limit(query.k).to_list())
 
-        for tier in self._tables_for_tier(query.tier):
-            rows_list = self._fresh_read(tier, _run_tier)  # fresh open per read (#1205)
+        def _run_keyword_only_tier(table: Any) -> List[Dict[str, Any]]:
+            """Same query, minus any filter naming a column this tier does not have.
+
+            The non-English tier mirrors the English segment schema, so the shared filters
+            apply — but it is a different table and a filter referencing a column it lacks
+            would raise rather than return nothing. Falling back to the unfiltered query would
+            LEAK rows past a filter, so the read is skipped instead.
+            """
+            try:
+                return _run_tier(table)
+            except Exception as exc:  # noqa: BLE001 — a tier that cannot answer returns nothing
+                logger.debug("keyword-only tier read skipped: %s", exc)
+                return []
+
+        for tier in self._tables_for_tier(query.tier, keyword=query_type == "fts"):
+            runner = _run_keyword_only_tier if tier in self.KEYWORD_ONLY_TIERS else _run_tier
+            rows_list = self._fresh_read(tier, runner)  # fresh open per read (#1205)
             if rows_list is None:
                 continue
             for row in rows_list:
