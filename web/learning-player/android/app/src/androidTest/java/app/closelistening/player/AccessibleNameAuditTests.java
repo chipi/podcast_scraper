@@ -205,6 +205,22 @@ public class AccessibleNameAuditTests extends UITestCase {
      * The inventory goes into the message because "would not open" needs the screen it was on: the
      * usual cause is that the label moved, not that the surface is gone.
      */
+    /**
+     * Tap a Profile tab and wait until it has ARRIVED: its own heading is on screen and the Account
+     * panel's "Sign out" is not. Both, because Android's tree holds only on-screen nodes, so an
+     * absent "Sign out" alone is also what a scrolled Account panel looks like.
+     */
+    private static boolean openProfileTab(String name, String heading) {
+        if (!Journey.tap(name, false, 8_000)) return false;
+        long deadline = System.currentTimeMillis() + 15_000;
+        while (System.currentTimeMillis() < deadline) {
+            if (Journey.find(heading, false, 500) != null
+                    && Journey.find("Sign out", false, 500) == null) return true;
+            Journey.sleep(500);
+        }
+        return false;
+    }
+
     private void audit(String surface, boolean opened, List<String> findings) {
         String slug = surface.replace(' ', '-').replace("▸", "in");
         if (!opened) {
@@ -299,7 +315,14 @@ public class AccessibleNameAuditTests extends UITestCase {
         // second `load()` while the walk is in progress, and the Topics tab's own content
         // re-rendering. Restore this line once the churn is settled — the surface has never been
         // audited, so whatever names it holds are still unknown.
-        audit("Profile ▸ Stats", Journey.tap("Stats", false, 8_000), findings);
+        //
+        // UPDATE 2026-09-29 — the "15 of 29" is NOT app churn, on either tab. Profile ▸ Account has
+        // exactly 29 clickable nodes, and exactly 15 of them live only in the Account panel (Compact,
+        // Full, the twelve delivery checkboxes, Sign out). A diagnostic pre-pass recorded that. The
+        // walk was reading ACCOUNT, because "opened" was only the tap returning true; the tab switch
+        // landed mid-walk, `v-show` hid those 15, and they went stale. Measured on Stats, which
+        // failed the same way. So arrival is now verified: the Account panel has to be gone.
+        audit("Profile ▸ Stats", openProfileTab("Stats", "Your activity"), findings);
 
         // Settings verifies by ARRIVING (Journey.openSettings), not by the tap returning true.
         // This is where both findings were, and where the fix for them has to be proven.

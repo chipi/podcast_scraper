@@ -326,8 +326,15 @@ final class AppSession {
             // belongs to SOMEONE ELSE, so the account name the masthead link carries is the one
             // thing it cannot be told. The label-less `openProfile()` answered with a hardcoded
             // ["Your profile", "simtest", "uitest"], right only while every suite shared `simtest`.
-            // The masthead band holds fixed chrome plus exactly one variable link: the account.
-            List<String> candidates = mastheadAccountCandidates();
+            // Read the name off the link NEXT TO THE BELL. The bell and the profile link render
+            // together under `auth.hasSession` (`App.vue:622`, `:627`), so the nearest clickable to
+            // the bell's right in its row is the account, whatever it is called. A name-based scan
+            // of the top band — the iOS approach — does not port: Android's tree carries buttons
+            // too ("Backend target DEV"), and page content scrolls into the band. Measured
+            // 2026-09-29, three attempts tapping the wrong control.
+            List<String> candidates = new ArrayList<>();
+            String account = accountNextToBell();
+            if (!account.isEmpty()) candidates.add(account);
             Journey.mark("=====SIGNOUT profile candidates " + candidates + "=====");
             List<String> labels = new ArrayList<>(candidates);
             labels.add("Your profile");
@@ -383,30 +390,28 @@ final class AppSession {
         return false;
     }
 
-    /**
-     * Names of the clickable masthead entries that are not fixed chrome — in practice the account
-     * link, whatever it is called. Top 15% of the display only: below that are episode cards, which
-     * `openProfile` would OR into the same match and navigate to instead (measured on iOS).
-     */
-    private static List<String> mastheadAccountCandidates() {
-        List<String> chrome = Arrays.asList(
-                "Skip to content", "Settings", "Search", "Queue", "Home", "Discover", "Library");
-        List<String> out = new ArrayList<>();
+    /** Name of the nearest clickable to the right of the notifications bell, in its row. */
+    private static String accountNextToBell() {
+        UiObject2 bell = Journey.find(Arrays.asList("Notifications"), true, 3_000);
+        if (bell == null) return "";
         try {
-            int band = (int) (Journey.device().getDisplayHeight() * 0.15);
+            Rect bb = Journey.attr(bell, UiObject2::getVisibleBounds);
+            if (bb == null) return "";
+            UiObject2 best = null;
+            int bestLeft = Integer.MAX_VALUE;
             for (UiObject2 o : Journey.device().findObjects(By.pkg(Journey.PKG).clickable(true))) {
                 Rect b = Journey.attr(o, UiObject2::getVisibleBounds);
-                if (b == null || b.top < 0 || b.top >= band) continue;
-                String name = Journey.nameOf(o);
-                if (name.isEmpty() || chrome.contains(name) || out.contains(name)) continue;
-                if (name.startsWith("Close Listening") || name.startsWith("Queue (")) continue;
-                if (name.startsWith("Notifications")) continue;
-                out.add(name);
+                if (b == null || b.left <= bb.left) continue;
+                if (b.centerY() < bb.top || b.centerY() > bb.bottom) continue;
+                if (b.left < bestLeft) {
+                    bestLeft = b.left;
+                    best = o;
+                }
             }
+            return best == null ? "" : Journey.nameOf(best);
         } catch (Throwable ignored) {
-            // Tree mutated mid-walk; an empty list falls back to "Your profile" + positional.
+            return ""; // tree mutated mid-walk; "Your profile" + openProfile's fallback cover it
         }
-        return out;
     }
 
     /**
