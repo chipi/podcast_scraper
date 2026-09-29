@@ -282,6 +282,42 @@ class TestTheOperation:
         with pytest.raises(TranslationUnavailable):
             p.translate("Hola.", source_language="es")
 
+    def test_an_oversized_unit_is_REFUSED_rather_than_mistranslated(self) -> None:
+        """The worst failure shape there is, caught before the request.
+
+        The served container's window is larger than the model's documented 2K input context, so
+        the server ACCEPTS an oversized unit and the model answers with a translation of its
+        first sentence and `finish_reason: stop`. Measured on the real service: 4,800 prompt
+        tokens in, 32 out — non-empty, "successful", 99% of the content gone. Nothing downstream
+        could tell. So the provider refuses it here, where it becomes an ordinary failed unit.
+        """
+        p = _provider()
+        huge = "Hola mundo. " * 3000
+        got = p.translate(huge, source_language="es")
+        assert got["text"] is None
+        assert "input context" in got["metadata"]["error"]
+        assert p.client.completions.calls == [], "nothing should have been sent"
+
+    def test_the_fallback_estimate_is_pessimistic(self) -> None:
+        """With no tokenizer reachable, the estimate must OVER-count so the guard errs toward
+        refusing. Every context-overflow bug in this repo came from an optimistic constant."""
+        p = _provider()
+        text = "a" * 2200
+        tokens, how = p.estimate_prompt_tokens(text)
+        assert how == "estimate", "the fake client has no /tokenize"
+        # 2.2 chars/token is the FEWEST measured over 141 real Spanish units, so the estimate is
+        # at least as large as the real count.
+        assert tokens >= len(text) / 4.06, "must not use the median ratio"
+        assert tokens == int(len(text) / 2.2) + 1
+
+    def test_a_normal_unit_passes_the_budget_check(self) -> None:
+        """The guard must not refuse ordinary work — the real transcript's longest turn was 41
+        words."""
+        p = _provider()
+        got = p.translate("Hola mundo, esto es una frase de longitud normal.", source_language="es")
+        assert got["text"] == "Hello world."
+        assert got["metadata"]["prompt_tokens_precheck_source"] == "estimate"
+
     def test_the_documented_2k_input_limit_is_exposed_for_unit_packing(self) -> None:
         """Measured: a 4,800-prompt-token unit returned a translation of its FIRST SENTENCE with
         `finish_reason: stop` — silent 99% content loss. The model card documents 2K, and the

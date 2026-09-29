@@ -25,10 +25,12 @@ TWO THINGS DIVERGE FROM EVERY OTHER PROVIDER IN THIS TREE, both forced by the mo
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
-from typing import Any, Dict, Optional, Set
+import urllib.request
+from typing import Any, Dict, Optional, Set, Tuple
 
 from ... import config
 from ...languages import language_registry, normalize_language_tag
@@ -52,8 +54,16 @@ _STOP = ["<end_of_turn>"]
 #: The model card documents a **2K token** total input context. The served container is
 #: configured with a larger window, which is not the same as the model supporting it: a unit
 #: measured at 4,800 prompt tokens came back as a translation of its FIRST SENTENCE with
-#: ``finish_reason: stop`` — a silent 99% content loss. Unit packing budgets against THIS.
+#: ``finish_reason: stop`` — a silent 99% content loss, reported as success. Unit packing budgets
+#: against THIS, and :meth:`GemmaTranslateProvider.translate` refuses anything over it.
 MODEL_INPUT_TOKEN_LIMIT = 2048
+
+#: Fallback when the tokenizer is unreachable: the FEWEST characters per token measured over 141
+#: real Spanish units (min 2.20, p05 2.88, median 4.06). Using the minimum makes the estimate
+#: pessimistic — it over-counts tokens, so the guard refuses too eagerly rather than letting an
+#: oversized unit through. Every context-overflow bug in this repo came from a chars-per-token
+#: constant that was fractionally optimistic.
+_PESSIMISTIC_CHARS_PER_TOKEN = 2.2
 
 _VLLM_DUMMY_BEARER = "EMPTY"
 
@@ -82,6 +92,9 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         # Open models do not reject a non-default temperature the way some OpenAI models do.
         self._temp_fixed_at_default = set()
         self._served_verified = False
+        # (model, hash, len) -> exact token count. The same unit is budgeted then sent, and the
+        # answer cannot change between them.
+        self._token_count_cache: Dict[Tuple[str, int, int], int] = {}
 
     # -- identity / auth -------------------------------------------------------------------
     def _authenticate(self, cfg: "config.Config") -> None:
@@ -138,6 +151,54 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                 "distinguished from a correct one after the fact (ADR-143/144)."
             )
         self._served_verified = True
+
+    # -- token budgeting -------------------------------------------------------------------
+    def count_tokens(self, text: str) -> Optional[int]:
+        """Exact token count from vLLM's own ``POST /tokenize`` (the same override VLLMProvider
+        has, against this provider's endpoint and model).
+
+        This is the number the SERVER will use, so budgeting against it removes the guess.
+        ``None`` on any failure — a tokenizer outage must degrade to the pessimistic estimate,
+        never take down the stage it protects.
+        """
+        base = getattr(self.cfg, "translate_api_base", None)
+        model = self.translate_model
+        if not base or not model or not text:
+            return None
+        key = (str(model), hash(text), len(text))
+        cached = self._token_count_cache.get(key)
+        if cached is not None:
+            return cached
+        # /tokenize is a vLLM extension at the server ROOT, not under /v1.
+        root = str(base).rstrip("/")
+        if root.endswith("/v1"):
+            root = root[: -len("/v1")]
+        payload = json.dumps({"model": model, "prompt": text}).encode("utf-8")
+        try:
+            req = urllib.request.Request(
+                f"{root}/tokenize",
+                data=payload,
+                headers={
+                    "Authorization": f"Bearer {self._resolve_api_key(self.cfg)}",
+                    "Content-Type": "application/json",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 — profile URL
+                count = json.loads(resp.read().decode("utf-8")).get("count")
+        except Exception as exc:  # noqa: BLE001 — never fail a unit over a token count
+            logger.debug("translate: /tokenize unavailable (%s)", type(exc).__name__)
+            return None
+        if not isinstance(count, int) or count <= 0:
+            return None
+        self._token_count_cache[key] = count
+        return count
+
+    def estimate_prompt_tokens(self, prompt: str) -> Tuple[int, str]:
+        """``(tokens, how)`` — the server's exact count, or a pessimistic character estimate."""
+        exact = self.count_tokens(prompt)
+        if exact is not None:
+            return exact, "tokenizer"
+        return int(len(prompt) / _PESSIMISTIC_CHARS_PER_TOKEN) + 1, "estimate"
 
     # -- the prompt ------------------------------------------------------------------------
     def _language_name(self, code: Optional[str]) -> str:
@@ -213,6 +274,24 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         prompt = self.build_prompt(
             text, source_language=source_language, target_language=target_language
         )
+        # REFUSE AN OVERSIZED UNIT RATHER THAN MISTRANSLATING IT. The model card documents a 2K
+        # input context; the served container's window is larger, so the server accepts a unit the
+        # model cannot actually read and the model answers with a translation of the first
+        # sentence and `finish_reason: stop`. Measured: 4,800 prompt tokens in, 32 out. That is
+        # the worst failure shape available — non-empty, "successful", and 99% gone — so it is
+        # caught here, before the request, where it can still be reported as a failed unit.
+        prompt_tokens, how = self.estimate_prompt_tokens(prompt)
+        meta["prompt_tokens_precheck"] = prompt_tokens
+        meta["prompt_tokens_precheck_source"] = how
+        if prompt_tokens > MODEL_INPUT_TOKEN_LIMIT:
+            meta["error"] = (
+                f"unit is {prompt_tokens} prompt tokens ({how}), over the model's documented "
+                f"{MODEL_INPUT_TOKEN_LIMIT}-token input context; refusing to send it because the "
+                "server would accept it and return a translation of the first sentence only"
+            )
+            logger.warning("translate: %s", meta["error"])
+            return {"text": None, "metadata": meta}
+
         overrides = params or {}
         # Generous by default: a translation's length is bounded by its input's, and a cap that
         # truncates produces a silently short translation rather than an error.
