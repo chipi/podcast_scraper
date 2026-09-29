@@ -23,12 +23,22 @@ test('the masthead reaches the queue, and the destination carries both halves', 
   // Start playback so the mini-player is present, then leave the player in-app.
   await page.goto('/podcast/p05')
   await page.getByText('Index Investing Without the Myths').first().click()
+  // WAIT FOR THE FIRST POSITION SAVE TO LAND. "Recently played" is fetched once, when /queue mounts,
+  // and this episode is only in it once its `PUT /playback` has been accepted. The first save leaves
+  // on the first `timeupdate`, so navigating as soon as audio moves raced it: the list painted the
+  // empty state and never refreshed (flaked 2026-09-29, `queue-panel-recent` not found in 15s while
+  // the "Recently played" heading was on screen).
+  const firstSave = page.waitForResponse(
+    (r) => r.request().method() === 'PUT' && /\/playback\//.test(r.url()) && r.ok(),
+    { timeout: 20_000 },
+  )
   await page.getByRole('button', { name: 'Play', exact: true }).first().click()
   await expect
     .poll(async () => page.evaluate(() => document.querySelector('audio')?.currentTime ?? 0), {
       timeout: 15_000,
     })
     .toBeGreaterThan(0.2)
+  await firstSave
 
   await navTo(page, 'search')
   await expect(page.getByTestId('mini-player')).toBeVisible()
@@ -73,6 +83,15 @@ test('the full player queues THIS episode instead of opening a panel', async ({
 
   await expect(page.getByTestId('player-queue')).toHaveCount(0)
   await expect(page.getByTestId('queue-panel')).toHaveCount(0)
+
+  // START FROM "NOT QUEUED". The account is per spec+project, not per attempt, so a retry — or any
+  // second run against the same api — finds this episode already queued from the first, and "Add to
+  // queue" is not there to press. Measured with --repeat-each=5: every run after the first failed.
+  const already = page.getByRole('button', { name: 'Remove from queue' })
+  if (await already.isVisible().catch(() => false)) {
+    await already.click()
+    await expect(page.getByRole('button', { name: 'Add to queue' })).toBeVisible()
+  }
 
   // The heart's row owns it now. Named by its action, and the name flips once the write lands.
   const add = page.getByRole('button', { name: 'Add to queue' })

@@ -57,9 +57,14 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   await page.getByRole('button', { name: 'Insights' }).first().click()
   const kp = page.getByTestId('kp-insights')
   await expect(kp).toBeVisible()
-  const insightSave = kp.getByRole('button', { name: 'Save to favorites' }).first()
+  //
+  // The insight save is no longer the heart (56a64d34c): it is `HighlightToggle`, a bookmark, named
+  // "Save this insight to highlights — <text>" and "Saved to highlights — tap to remove — <text>".
+  // This spec still asked for the heart's wording, so the guarded click matched nothing, skipped,
+  // and the outcome assertion failed on an insight that had never been saved.
+  const insightSave = kp.getByRole('button', { name: /^Save this insight to highlights/ }).first()
   if (await insightSave.isVisible().catch(() => false)) await insightSave.click()
-  await expect(kp.getByRole('button', { name: 'Remove from favorites' }).first()).toBeVisible()
+  await expect(kp.getByRole('button', { name: /^Saved to highlights/ }).first()).toBeVisible()
 
   // Saved (default tab) holds the favourited EPISODE in its "Episodes" section; the insight went to
   // the Highlights section (also inside Saved now), so the Highlights empty state is gone. Both live
