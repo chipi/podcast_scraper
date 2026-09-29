@@ -66,12 +66,13 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from build_synthetic_validation_corpus import (  # noqa: E402
+from build_synthetic_validation_corpus import (  # noqa: E402; Re-exported from the sibling rather than imported through a second sys.path dance. Both; generators normalize exactly as the pipeline does, so a fixture cannot disagree with; production about what a language tag means (#2185).
     build_gi,
     build_kg,
     episode_topics_for,
     format_screenplay_with_offsets,
     is_greeting_or_filler,
+    normalize_language_tag,
     parse_diarized_segments,
     parse_rss_feed_metadata,
     slug,
@@ -1586,7 +1587,12 @@ def main() -> int:
                     # show page. Authors + language come from the RSS channel; last_updated is the
                     # show's newest episode date (see above).
                     "authors": list(feed_meta.get("authors") or []),
-                    "language": feed_meta.get("language") or None,
+                    # #2185: this carried the raw tag ("en-us"), so the corpus disagreed with the
+                    # pipeline about what the language IS. Normalized now, with the publisher's
+                    # original kept beside it and the provenance recorded.
+                    "language": normalize_language_tag(feed_meta.get("language")),
+                    "language_raw": feed_meta.get("language") or None,
+                    "language_source": "rss" if feed_meta.get("language") else None,
                     "last_updated": show_last_updated,
                 },
                 "episode": {
@@ -1596,6 +1602,11 @@ def main() -> int:
                     # Measured off the audio by the pipeline when available. The old hardcoded
                     # 1800 was wrong for every episode — the fixtures run from 82s to ~32min.
                     "duration_seconds": duration_seconds,
+                    # Per-episode language (#2185), inherited from the feed: these fixtures have
+                    # no per-feed override, and an episode differing from its show is a Phase 2
+                    # shape. No episode-level language existed anywhere before #2172.
+                    "language": normalize_language_tag(feed_meta.get("language")),
+                    "language_source": "rss" if feed_meta.get("language") else None,
                 },
                 "summary": {
                     "title": summary_title,

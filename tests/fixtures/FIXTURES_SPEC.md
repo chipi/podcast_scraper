@@ -504,6 +504,47 @@ Every path that degrades quality in `build_app_validation_corpus.py` still retur
 content half; the remaining half is failing — or requiring an explicit `--allow-fallback ep1,ep2`
 list — when `summaries_synthesized` is non-empty under `--pipeline-run`.
 
+### 17. The corpora carried no usable language, and the generators are fixed ahead of the data
+
+Found while building Phase 0's language plumbing (#2185), and the two corpora were wrong in
+different ways:
+
+- `viewer-validation-corpus/v3` had **no `feed.language` on any of its 40 episodes**. The RSS
+  parser in `build_synthetic_validation_corpus.py` had been extracting `<language>` all along —
+  it was simply never written into the metadata. The S0.4 corpus language audit consequently
+  reported the entire corpus as "not enabled in the registry", which is the correct reading: a
+  corpus with no language is not a corpus known to be English.
+- `app-validation-corpus/v3` stored the **raw** tag `"en-us"` on all 40, so the fixture corpus
+  disagreed with the pipeline about what the language IS. `whisper_utils.py:50` checks
+  `language.lower() in ("en", "english")`, which `"en-us"` fails.
+- **No RSS fixture declared a non-English language**, which made S0.1a's own stated acceptance
+  (a feed declaring `es-ES` persists `language: "es"`) impossible to test. `p10_spanish.xml` now
+  exists for exactly that. It is a fixture, not a rollout: `es` stays `enabled: false` in
+  `config/languages.yaml`, so an episode resolving to it is skipped with a reason, and a test
+  asserts that so nobody quietly enables it.
+
+Both generators now write `language` (normalized), `language_raw` (the publisher's original) and
+`language_source` — the third being what lets an audit tell a measured corpus from one that
+defaulted every episode. Both import the pipeline's own `normalize_language_tag`, so a fixture
+cannot disagree with production about what a tag means.
+
+**THE COMMITTED CORPORA STILL CARRY THE OLD SHAPE.** Generator changes do not alter committed
+artifacts. The decision, recorded rather than assumed:
+
+- **Do not regenerate for this alone.** Regeneration needs an LLM for summaries and rebuilds the
+  search index (defect 11), so it is not a cheap step, and nothing in Phase 0 depends on the
+  fixture corpora carrying real languages — S0.5's contract tests deliberately cover both the
+  raw-tag and absent states because both are real.
+- **The existing corpora are the pre-migration test cases**, and they are more valuable as that
+  than as corrected data: they are exactly what a production corpus looks like before m0011 runs.
+- **Regenerate with v4**, when summaries and the index are being rebuilt anyway.
+- Until then, `tests/unit/podcast_scraper/test_fixture_languages.py` asserts the *current* state
+  in a class named `TestTheCommittedCorporaStillNeedRegenerating`. Those tests FAIL on
+  regeneration, which is the signal to delete them and tighten the assertions above them.
+
+**v4 requirement:** regenerate both corpora so `language`, `language_raw` and `language_source`
+are present and normalized, and delete that holding class.
+
 ---
 
 ## Podcasts (v3)

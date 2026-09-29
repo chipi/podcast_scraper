@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A feed declaring a NON-ENGLISH language (#2185 / S0.9).
+
+  Every other RSS fixture in this directory declares <language>en-us</language>, so nothing in
+  the tree could exercise the case S0.1a (#2172) states as its own acceptance: "a feed declaring
+  <language>es-ES</language> persists language_raw: 'es-ES', language: 'es'". That acceptance was
+  unmeetable until this file existed.
+
+  It is a FIXTURE, not a language rollout: `es` stays enabled: false in config/languages.yaml, so
+  an episode resolving to it is skipped with a reason (S0.8) rather than ingested. The point is
+  that the language is PARSED, NORMALIZED and RECORDED correctly — es-ES -> es, with the raw tag
+  preserved — not that we process Spanish yet.
+
+  The regional subtag is deliberate. A bare `es` would pass a normalizer that only lowercases,
+  which is the exact bug S0.2 fixed in Config._normalize_language: "en-US" -> "en-us" reads as
+  NOT English at whisper_utils.py:50. es-ES makes the primary-subtag step load-bearing.
+-->
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Sesiones de Sendero</title>
+    <link>http://localhost/</link>
+    <description>Conversaciones sobre construcción de senderos: drenaje, trazado, y las personas que construyen la ruta. Contraparte en español de Singletrack Sessions.</description>
+    <language>es-ES</language>
+
+    <itunes:author>Maya Koster</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p01_cover.svg"/>
+
+    <item>
+      <title>Episodio 1: Construir senderos que duran</title>
+      <guid isPermaLink="false">p10_e01</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Maya habla con el constructor de senderos Liam Verbeek sobre drenaje, elección de trazado, y cómo mantener los senderos utilizables durante el invierno.</description>
+      <enclosure url="/audio/p10_e01.mp3" length="500000" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:01:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

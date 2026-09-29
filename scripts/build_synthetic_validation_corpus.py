@@ -93,6 +93,11 @@ def stable_feed_id(rss_basename: str) -> str:
     return "sha256:" + hashlib.sha256(rss_basename.encode("utf-8")).hexdigest()
 
 
+# The fixture generators normalize exactly as the pipeline does, so a fixture cannot
+# disagree with production about what a tag means (#2185).
+from podcast_scraper.languages import normalize_language_tag  # noqa: E402
+
+
 def parse_rss_feed_metadata(rss_path: Path) -> dict[str, Any]:
     """Extract feed-level metadata from an RSS XML fixture."""
     _ITUNES = "{http://www.itunes.com/dtds/podcast-1.0.dtd}"
@@ -975,12 +980,27 @@ def main() -> int:
                             "episode_id": ep_uuid,
                             "title": title,
                             "published_date": publish,
+                            # Per-episode language (#2185). Inherited from the feed here: these
+                            # fixtures have no per-feed override, and an episode in a different
+                            # language from its show is a Phase 2 shape, not a Phase 0 one.
+                            "language": normalize_language_tag(feed_meta.get("language")),
+                            "language_source": "rss" if feed_meta.get("language") else None,
                         },
                         "feed": {
                             "feed_id": podcast_id,
                             "title": feed_meta["display_title"],
                             "url": feed_meta["rss_url"],
                             "description": feed_meta["description"],
+                            # Language (#2185). The RSS parser above already extracted it; it
+                            # was simply never written, which is why every episode in this corpus
+                            # had NO feed.language at all and the S0.4 audit reported it as
+                            # "not enabled in the registry". `language` is the normalized primary
+                            # subtag, `language_raw` the publisher's original, and
+                            # `language_source` says which precedence level answered -- the field
+                            # that lets an audit tell a measured corpus from a defaulted one.
+                            "language": normalize_language_tag(feed_meta.get("language")),
+                            "language_raw": feed_meta.get("language") or None,
+                            "language_source": "rss" if feed_meta.get("language") else None,
                         },
                         # #876/#974 — content block carrying the diarized two-artifact
                         # transcript pointer + speaker roster, as a real corpus has.
