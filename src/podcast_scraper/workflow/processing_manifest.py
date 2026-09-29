@@ -48,6 +48,9 @@ METHOD_VERSIONS: Dict[str, str] = {
     # episode's pipeline_composition_version and invalidate existing reprocess queries for a
     # sidecar that no consumer reads yet.
     "turns": "turns-1",
+    # RFC-124. This one IS in CANONICAL_STAGE_ORDER — see the note there for why the two
+    # decisions differ.
+    "translation": "translation-1",
     "summary": "summary-1",
     "gi": "gi-1",
     "kg": "kg-1",
@@ -55,7 +58,16 @@ METHOD_VERSIONS: Dict[str, str] = {
 
 # Canonical stage order for the composition hash — the order stages run in the pipeline. The
 # composition version is derived from the SUBSET that actually ran, in this order.
-CANONICAL_STAGE_ORDER = ("asr", "diarization", "naming", "summary", "gi", "kg")
+# `translation` sits between naming and summary: naming runs on the SOURCE text (§5.4 C-6) and
+# every downstream stage reads English.
+#
+# UNLIKE `turns`, THIS ONE IS IN THE ORDER, AND THAT MOVES EVERY EPISODE'S COMPOSITION HASH ONCE.
+# The difference is that turns is a structural view of an artifact while translation is a stage in
+# the graph — a pipeline with a translation step is genuinely not the pipeline without one, which
+# is exactly what this hash exists to say. The cost is real and one-time: "reprocess everything
+# below composition version X" stops matching pre-S2.2 episodes, so a query written against the
+# old hash has to be reissued against the new one.
+CANONICAL_STAGE_ORDER = ("asr", "diarization", "naming", "translation", "summary", "gi", "kg")
 
 # Closed vocabulary of rework signals so the corpus ledger can GROUP BY them (ADR-132).
 QUALITY_FLAGS = frozenset(

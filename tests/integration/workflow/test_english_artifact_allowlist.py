@@ -89,6 +89,11 @@ ALLOWLIST: frozenset[str] = frozenset(
 #: by a reprocessing decision — `pipeline_composition_version` is what "reprocess below version
 #: X" and the prod-state pin key on.
 #:
+#: ``translation`` is deliberately ABSENT: an English episode records no translation block, which
+#: is what keeps its composition hash where it was (see ``TestCompositionVersion``). A non-English
+#: episode does get one, and that episode's hash differs — correctly, because its pipeline ran a
+#: different set of stages.
+#:
 #: ``turns`` (RFC-123 / S1.2) is here because an English episode records it, but it is
 #: deliberately NOT in ``CANONICAL_STAGE_ORDER`` — so the composition hash below is unchanged by
 #: its presence, which is the whole point and is asserted directly in
@@ -339,25 +344,82 @@ class TestCompositionVersion:
         )
 
     def test_a_stage_outside_the_canonical_order_cannot_move_the_hash(self) -> None:
-        """Gate one. Recording `translation` changes nothing while it is not in the tuple."""
+        """Gate one. Recording a stage changes nothing while it is not in the tuple.
+
+        The example used to be ``translation``. S2.2 put translation IN the tuple deliberately
+        (a pipeline with a translation step is not the pipeline without one), so the example is
+        now ``turns`` — which is outside the tuple, also deliberately, for the opposite reason:
+        it is a structural view of an artifact rather than a stage in the graph.
+        """
+        assert "turns" not in pm.CANONICAL_STAGE_ORDER
         assert pm.pipeline_composition_version(
-            [*_ENGLISH_STAGES, "translation"]
+            [*_ENGLISH_STAGES, "turns"]
         ) == pm.pipeline_composition_version(_ENGLISH_STAGES)
 
-    def test_declaring_the_stage_but_never_recording_it_is_the_safe_shape(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Gate two, and the shape Phase 2 must adopt.
+    def test_declaring_the_stage_but_never_recording_it_is_the_safe_shape(self) -> None:
+        """Gate two, and the shape Phase 2 DID adopt — no longer a recommendation.
 
-        Adding `"translation"` to `CANONICAL_STAGE_ORDER` is harmless on its own. The hash for
-        an English episode only moves if the stage is RECORDED for it — including recorded as
-        skipped. So: do not call `update_stage` for a skipped translation.
+        ``translation`` is declared in ``CANONICAL_STAGE_ORDER`` as of S2.2, and that alone is
+        harmless: the hash for an English episode only moves if the stage is RECORDED for it,
+        including recorded as skipped. So ``translation_stage`` does not write a block when the
+        reason is ``already_english``, and the arc's S2.2 text ("every English episode's ledger
+        gains translation: skipped") was corrected to match this measurement.
+
+        The monkeypatch is gone because the stage is really in the tuple now — the assertion is
+        against the shipped order, not a simulated one.
         """
-        monkeypatch.setattr(pm, "CANONICAL_STAGE_ORDER", (*pm.CANONICAL_STAGE_ORDER, "translation"))
+        assert "translation" in pm.CANONICAL_STAGE_ORDER
         assert (
             pm.pipeline_composition_version(_ENGLISH_STAGES)
             == _baseline()["pipeline_composition_version"]
         )
+
+    def test_the_english_episode_really_gets_no_translation_block(self) -> None:
+        """The decision above, asserted through the stage itself rather than about it.
+
+        Gate two is only safe while the writer actually declines to write. This drives the real
+        ``run_translation_stage`` for an English episode and requires the manifest to come back
+        with no ``translation`` key and the pinned English hash intact.
+        """
+        from podcast_scraper import config
+        from podcast_scraper.workflow.translation_stage import run_translation_stage
+
+        with tempfile.TemporaryDirectory() as d:
+            rel = "transcripts/01 - ep.txt"
+            (Path(d) / "transcripts").mkdir(parents=True)
+            for stage in _ENGLISH_STAGES:
+                pm.update_stage(d, rel, stage, pm.stage_block(ran=True, method_version="x"))
+
+            run_translation_stage(
+                config.Config(rss="https://e.com/f.xml", language="en"),
+                transcript_relpath=rel,
+                effective_output_dir=d,
+            )
+            data = json.loads(Path(pm.manifest_path(d, rel)).read_text(encoding="utf-8"))
+
+        assert "translation" not in data["stages"]
+        assert data["pipeline_composition_version"] == _baseline()["pipeline_composition_version"]
+
+    def test_a_non_english_episode_does_get_one(self) -> None:
+        """The inverse, so the decision above is a choice and not an inability to write.
+
+        A stage that never records anything would pass the test above for the wrong reason.
+        """
+        from podcast_scraper import config
+        from podcast_scraper.workflow.translation_stage import run_translation_stage
+
+        with tempfile.TemporaryDirectory() as d:
+            rel = "transcripts/01 - ep.txt"
+            (Path(d) / "transcripts").mkdir(parents=True)
+            run_translation_stage(
+                config.Config(rss="https://e.com/f.xml", language="es"),
+                transcript_relpath=rel,
+                effective_output_dir=d,
+            )
+            data = json.loads(Path(pm.manifest_path(d, rel)).read_text(encoding="utf-8"))
+
+        assert data["stages"]["translation"]["metrics"]["source_language"] == "es"
+        assert data["stages"]["translation"]["metrics"]["reason"] == "flag_off"
 
     def test_recording_the_stage_does_move_the_hash(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The inverse, so the pin above means something.

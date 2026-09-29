@@ -228,6 +228,30 @@ def resolve_episode_language(
     return None, normalize_language_tag(profile_default), SOURCE_PROFILE_DEFAULT
 
 
+def resolve_config_language(
+    cfg: Any, *, feed_language: Any = None
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """``(language_raw, language, language_source)`` for a run config — provenance included.
+
+    The same resolution :func:`transcription_language` performs, but returning the SOURCE as
+    well, for the callers that have to record where the value came from rather than merely act
+    on it. Lives here, beside the other one, because this is the only module permitted to read
+    ``cfg.language`` (S0.6, enforced by ``scripts/check/lint_language_readers.py``) — a caller
+    that wanted the provenance would otherwise have had to read the global itself and earn a
+    whitelist entry, which would have made the lint's "one reader" claim a little less true
+    every time someone needed it.
+
+    Pass ``feed_language`` when the feed object is in hand: it is what makes the difference
+    between a language measured from the feed (``rss``) and one defaulted from the profile
+    (``profile_default``), and that distinction is the whole point of recording the source.
+    """
+    return resolve_episode_language(
+        override=getattr(cfg, "language_override", None),
+        feed_declared=feed_language,
+        profile_default=getattr(cfg, "language", None),
+    )
+
+
 def transcription_language(cfg: Any) -> Optional[str]:
     """The language to transcribe this episode in — THE ONE READER (#2177).
 
@@ -246,9 +270,7 @@ def transcription_language(cfg: Any) -> Optional[str]:
     ``"en"``: that substitution is what made a non-English episode come back as a plausible
     English transcript of the wrong words.
     """
-    _raw, language, _source = resolve_episode_language(
-        override=getattr(cfg, "language_override", None),
-        feed_declared=None,  # the feed's declared tag arrives via the per-feed Config copy
-        profile_default=getattr(cfg, "language", None),
-    )
+    # `feed_declared` is left unset: the feed's declared tag arrives via the per-feed Config
+    # copy, so it is already in `cfg.language` by the time a provider call site asks.
+    _raw, language, _source = resolve_config_language(cfg)
     return language

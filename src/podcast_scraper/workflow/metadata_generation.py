@@ -52,6 +52,7 @@ from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
 from ..languages import resolve_episode_language
 from ..speaker_detectors.hosts import looks_like_publisher
+from .translation_stage import run_translation_stage
 
 if TYPE_CHECKING:
     from ..models import Episode, RssFeed
@@ -4616,6 +4617,22 @@ def artwork_store_root(cfg: config.Config, output_dir: str) -> Path:
     return Path(run_index.corpus_root_from_cfg(cfg) or output_dir).expanduser().resolve()
 
 
+def _resolved_run_id(cfg: config.Config) -> Optional[str]:
+    """The run id from the correlation global, falling back to the (frozen, usually None) cfg.
+
+    Its own function because the nearest existing binding of ``correlation`` in
+    ``generate_episode_metadata`` happens inside a ``try/except`` that swallows everything — so
+    the name is not guaranteed to be bound further down, and relying on it would turn a
+    correlation hiccup into a ``NameError`` in the middle of metadata generation.
+    """
+    try:
+        from ..utils import correlation
+
+        return correlation.get_run_id() or getattr(cfg, "run_id", None)
+    except Exception:  # noqa: BLE001 - a run id is provenance, never a reason to fail
+        return getattr(cfg, "run_id", None)
+
+
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -4766,6 +4783,25 @@ def generate_episode_metadata(  # noqa: C901
             )
             if erel:
                 episode_metadata = episode_metadata.model_copy(update={"image_local_relpath": erel})
+
+    # RFC-124 / S2.2: THE translation seam. It is here and nowhere else because every path that
+    # produces a transcript ends in this function — ASR, a cache hit, a direct download, a
+    # publisher file, and every relabel/rediarize/retranscript cascade — so this is the one place
+    # where "has this episode been translated yet" can be asked once. It runs BEFORE the summary
+    # and everything after it, because every stage from here on reads English.
+    #
+    # It performs no translation in this slice; it decides, records the manifest block, and
+    # credits its own wall time back to the deadline `processing.py` observes around this whole
+    # call, so a future overrun alert keeps meaning "summary + GI + KG were slow".
+    _translation = run_translation_stage(
+        cfg,
+        feed_language=getattr(feed, "language", None),
+        transcript_relpath=transcript_file_path,
+        effective_output_dir=output_dir,
+        episode_id=episode_id,
+        feed_id=feed_id,
+        run_id=_resolved_run_id(cfg),
+    )
 
     # Get NLP model for entity reconciliation if needed
     nlp = _get_nlp_model_for_reconciliation(
