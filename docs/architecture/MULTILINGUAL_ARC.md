@@ -332,12 +332,43 @@ fixture on 2026-09-29 (V.6a, #2186) — **4 confirmed, 5 falsified and rewritten
 are transcription-tier and need audio (V.6b, #2187); they are closed by construction in S0.6/S0.7
 rather than by observation.
 
-**The speaker-naming collapse (§5.4, and the make-or-break for non-English) is UNVERIFIED.**
-`extract_self_introduced_host` and `distinct_self_introductions` both returned `None` / `[]` on the
-Spanish fixture — but they return the same on the **English control**, because they look for a
-self-introduction (`"I'm <Name>"`) and `p01_e01`'s opening is `"I'm joined by Liam Verbeek"`, a host
-introducing a guest. That fixture never exercises those matchers in either language, so nothing can
-be attributed to language. Two matching `None`s is not a confirmation.
+**The speaker-naming claim was WRONG, and the truth is worse. MEASURED 2026-09-29 (V.6a).**
+
+§5.4 says non-English naming *fails*: voices stay `SPEAKER_NN`, no `SPOKEN_BY` edge, zero
+position-bearing insights. Measured through `detect_hosts_from_transcript_intro` with a real
+spaCy pipeline, against corpus-shaped transcripts in both languages:
+
+| | candidates | real people found | precision | noise surviving the filters |
+| --- | --- | --- | --- | --- |
+| English (control) | 3 | **2/2** | 67% | **none** |
+| Spanish | 11 | **2/2** | **18%** | **4** |
+
+**Recall is perfect in both.** `Maya` and `Liam Verbeek` are proper nouns, and a proper noun does
+not change across Latin-script languages — the same reason D-24 skips transliteration. The names
+are found.
+
+**Precision collapses, and the downstream filters make it worse rather than better.**
+`gi/speakers._looks_like_person` requires ≥2 tokens, which is exactly what Spanish function-word
+phrases satisfy. On English it cleans perfectly (`Strava` dropped). On Spanish **four noise phrases
+survive it**:
+
+```text
+'banco en'   'de la'   'la construcción de senderos'   'más impacto en'
+```
+
+So the failure mode is not an absent name — it is a **phantom person**.
+`la construcción de senderos` would be minted as a person node, carry a `SPOKEN_BY` edge, and
+attach position claims. That is strictly harder to detect than silence, because every stage
+reports success.
+
+This is the third §5.2 prediction that measurement corrected rather than confirmed, and all three
+failed the same way: **English NLP on non-English text is confidently wrong, not blind.** Hazard 5
+(the sniff gate) over-counts 98 vs 65 rather than reading ~0; naming over-produces 11 vs 3. A
+threshold or filter tuned on English behaviour is being fed inflated noise in both cases.
+
+It also makes the naming-symmetry decision load-bearing rather than an optimisation: naming must
+run on the **English** text after translation, because that is what stops a
+`la construcción de senderos` person node from existing at all.
 
 1. **A tier that cannot transcribe the language is in the chain.** The local `whisper` tier's chain runs
    down to `tiny` for non-English and prod's default is `base.en`. Removed from the DGX profiles
