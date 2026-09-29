@@ -339,6 +339,95 @@ def write_english_artifacts(
     return text_rel
 
 
+def write_english_adfree(
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    extra_cue_patterns: Optional[List[str]] = None,
+) -> Optional[str]:
+    """Build ``<base>.en.adfree.*`` from the English render, with the EXISTING machinery (S2.5).
+
+    AD EXCISION HAS TO RUN ON THE ENGLISH, and this is the slice where that becomes true rather
+    than asserted. ``_AD_PATTERNS`` are English regexes: measured on the V.6a fixture, the
+    Spanish source matched **zero** patterns while its English render matched **two**
+    ("sponsored by", "visit strava.com"). A source-language ad-free artifact for a non-English
+    episode is therefore an IDENTITY artifact — a file claiming ads were removed when the
+    patterns simply could not see them — which is what S2.7 removes from the save sites.
+
+    Called only after the English render exists, so it cannot produce an ad-free base for a
+    translation that was withheld.
+    """
+    from ..workflow.adfree_transcript import produce_adfree_artifacts
+
+    en_rel = english_text_relpath(rel_transcript_path)
+    en_path = os.path.join(effective_output_dir, en_rel)
+    seg_path = os.path.join(effective_output_dir, english_segments_relpath(rel_transcript_path))
+    try:
+        with open(en_path, "r", encoding="utf-8") as fh:
+            en_text = fh.read()
+        with open(seg_path, "r", encoding="utf-8") as fh:
+            en_segments = json.load(fh)
+    except (OSError, ValueError) as exc:
+        logger.warning("translation: cannot read the English render for ad-free: %s", exc)
+        return None
+    if not isinstance(en_segments, list) or not en_segments:
+        return None
+
+    produced = produce_adfree_artifacts(
+        en_text, en_segments, en_rel, effective_output_dir, extra_cue_patterns=extra_cue_patterns
+    )
+    if produced is None:
+        return None
+    rel, artifacts = produced
+    logger.info(
+        "    saved English ad-free base: %s (%d ad chars removed)", rel, artifacts.chars_removed
+    )
+    return rel
+
+
+def resolve_units_for_span(
+    segments: Sequence[Dict[str, Any]], char_start: int, char_end: int
+) -> List[str]:
+    """The ``unit_id``s an English char span touches — provenance for every claim (S2.11).
+
+    RESOLVED THROUGH THE SEGMENTS AND ``unit_id``, NOT THROUGH THE AD-MAP. The ad-map records
+    which ranges were excised in the raw coordinate space; it cannot INVERT the ad-free
+    transform, so it cannot answer "which unit produced this ad-free offset" (§5.4 C-5,
+    measured). The English pseudo-segments carry ``unit_id`` through the render precisely so
+    this is a lookup rather than a reconstruction.
+
+    OVERLAP, NOT CONTAINMENT. A quote span routinely touches a ``Label: `` prefix or the
+    whitespace between turns, neither of which belongs to any segment — under containment those
+    spans would resolve to nothing and the claim would silently carry no provenance. Overlap
+    returns every unit the span reaches, which is the honest answer for a span that crosses a
+    turn boundary too.
+    """
+    if char_end <= char_start:
+        return []
+    out: List[str] = []
+    for seg in segments:
+        unit_id = seg.get("unit_id")
+        if not unit_id:
+            continue
+        s = int(seg.get("char_start") or 0)
+        e = int(seg.get("char_end") or 0)
+        if s < char_end and char_start < e:  # half-open overlap
+            if unit_id not in out:
+                out.append(str(unit_id))
+    return out
+
+
+def verify_span_excerpt(text: str, char_start: int, char_end: int, excerpt: str) -> bool:
+    """Whether ``text[char_start:char_end]`` really is ``excerpt`` (S2.5's provenance check).
+
+    Catches a RE-TRANSLATION, which a file hash alone would not: the offsets still look
+    plausible and the file still exists, but the text at them has changed. Compared on stripped
+    text because the renderer strips each cue.
+    """
+    if char_end <= char_start or char_end > len(text):
+        return False
+    return text[char_start:char_end].strip() == (excerpt or "").strip()
+
+
 def english_artifacts_present(rel_transcript_path: str, effective_output_dir: str) -> bool:
     """Both halves on disk. The completeness signal every consumer keys on."""
     return os.path.isfile(

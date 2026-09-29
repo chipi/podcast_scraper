@@ -276,6 +276,7 @@ def _translate_episode(
         UNIT_OK,
         UnitRecord,
         unresolved_units,
+        write_english_adfree,
         write_english_artifacts,
         write_translation_json,
     )
@@ -396,6 +397,15 @@ def _translate_episode(
     en_rel = write_english_artifacts(
         doc, turn_dicts, units, transcript_relpath, effective_output_dir
     )
+    if en_rel and getattr(cfg, "save_adfree_transcript", True):
+        # The ad-free base for a translated episode is built on the ENGLISH, because that is the
+        # only text the English `_AD_PATTERNS` can see (S2.5). Only after the render exists, so a
+        # withheld translation cannot acquire an ad-free base.
+        write_english_adfree(
+            transcript_relpath,
+            effective_output_dir,
+            extra_cue_patterns=getattr(cfg, "crosspromo_cue_patterns", None),
+        )
 
     outcome.units = len(doc.units)
     outcome.units_failed = len(doc.failed_units)

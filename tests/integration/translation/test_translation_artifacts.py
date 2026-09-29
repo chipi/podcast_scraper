@@ -302,3 +302,146 @@ class TestTranslationReadsTheSourceNotItsOwnOutput:
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
         en = (tmp_path / "transcripts" / "p10_e01.en.txt").read_text(encoding="utf-8")
         assert "EN[EN[" not in en
+
+
+class TestAdFreeOnEnglish:
+    """S2.5: ad excision runs on the ENGLISH, and this is where that stops being an assertion.
+
+    Measured on the V.6a fixture: the Spanish source matched ZERO `_AD_PATTERNS` while its
+    English render matched TWO ("sponsored by", "visit strava.com"). So a source-language
+    ad-free artifact for a non-English episode is an IDENTITY artifact — a file claiming ads
+    were removed when the patterns could not see them.
+    """
+
+    #: A pre-roll dense enough for the detector, in SPANISH — invisible to English regexes.
+    _ES_AD = (
+        "Este episodio es patrocinado por Ramp. Ramp ahorra a las empresas un cinco por ciento. "
+        "Visita ramp punto com barra invest. Todos usan WorkOS para SSO y SCIM y RBAC. "
+        "Visita WorkOS punto com para empezar. Mas informacion en rogo punto ai barra Felix. "
+    )
+
+    @staticmethod
+    def _episode_with_ad(root: Path) -> None:
+        body = (
+            "El drenaje es la decision de diseno con mas impacto en cualquier sendero. "
+            "Lo hemos visto en equipos distintos a lo largo de los anos. "
+        ) * 12
+        segments = [
+            {
+                "start": 0.0,
+                "end": 6.0,
+                "text": TestAdFreeOnEnglish._ES_AD,
+                "speaker_label": "Announcer",
+            }
+        ]
+        clock = 6.0
+        for i, sentence in enumerate(body.split(". ")):
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+            segments.append(
+                {
+                    "start": clock,
+                    "end": clock + 2.0,
+                    "text": sentence if sentence.endswith(".") else sentence + ".",
+                    "speaker_label": "Maya" if (i // 2) % 2 == 0 else "Liam",
+                }
+            )
+            clock += 2.0
+        text, _ = format_diarized_screenplay_with_offsets(segments)
+        (root / "transcripts").mkdir(parents=True, exist_ok=True)
+        (root / REL).write_text(text, encoding="utf-8")
+        with (root / "transcripts" / "p10_e01.segments.json").open("w", encoding="utf-8") as fh:
+            json.dump(segments, fh, indent=0)
+
+    class _AdAwareStub(_StubProvider):
+        """Turns the Spanish ad copy into English the detector CAN see.
+
+        Not a trick: it is what the real model does. ADR-156's evidence is exactly this —
+        "Este episodio es patrocinado por Strava" came back as "This episode is sponsored by
+        Strava", which is two `_AD_PATTERNS` hits where the Spanish was zero.
+        """
+
+        def translate_unit(self, unit: Any, *, source_language: str, target_language: str = "en"):
+            out = []
+            for s in unit.sentences:
+                txt = s.text
+                if "patrocinado por" in txt:
+                    txt = "This episode is sponsored by Ramp. Ramp saves companies five percent."
+                elif "Visita ramp" in txt or "ramp punto com" in txt:
+                    txt = "Check out ramp dot com slash invest."
+                elif "WorkOS" in txt and "Visita" in txt:
+                    txt = "Visit WorkOS dot com to get started."
+                elif "rogo" in txt:
+                    txt = "Learn more at rogo dot ai slash Felix."
+                elif "WorkOS" in txt:
+                    txt = "They all use WorkOS for SSO and SCIM and RBAC."
+                else:
+                    txt = f"EN[{txt}]"
+                out.append({"sent_id": s.sent_id, "en_text": txt})
+            return {
+                "sentences": out,
+                "alignment": "sentence",
+                "metadata": {"prompt": {"name": "stub", "sha256": "0" * 64}, "attempts": 1},
+            }
+
+    def test_the_english_adfree_base_is_built_and_actually_removes_ads(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._episode_with_ad(tmp_path)
+        cfg = cfg.model_copy(update={"save_adfree_transcript": True})
+        _run(monkeypatch, tmp_path, cfg, self._AdAwareStub())
+
+        adfree = tmp_path / "transcripts" / "p10_e01.en.adfree.txt"
+        assert adfree.is_file(), "the English ad-free base must exist"
+        cleaned = adfree.read_text(encoding="utf-8")
+        assert "sponsored by Ramp" not in cleaned
+        assert "ramp dot com" not in cleaned
+        assert "EN[" in cleaned, "real content survives"
+
+    def test_the_SPANISH_source_gets_no_adfree_base(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The identity artifact this design says never exists. Building one on the Spanish
+        would produce a file asserting ads were removed when the English patterns matched
+        nothing — the translation stage does not write it, and S2.7 removes it from the save
+        sites so no other path does either."""
+        self._episode_with_ad(tmp_path)
+        cfg = cfg.model_copy(update={"save_adfree_transcript": True})
+        _run(monkeypatch, tmp_path, cfg, self._AdAwareStub())
+        assert not (tmp_path / "transcripts" / "p10_e01.adfree.txt").exists()
+
+    def test_a_withheld_translation_gets_no_english_adfree_either(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The ad-free base is downstream of the render, so the gate covers it too."""
+        self._episode_with_ad(tmp_path)
+        cfg = cfg.model_copy(update={"save_adfree_transcript": True})
+
+        class _Broken(TestAdFreeOnEnglish._AdAwareStub):
+            def translate_unit(self, unit: Any, **kw: Any):
+                return {"sentences": [], "alignment": "failed", "metadata": {"attempts": 1}}
+
+        _run(monkeypatch, tmp_path, cfg, _Broken())
+        assert not (tmp_path / "transcripts" / "p10_e01.en.adfree.txt").exists()
+        assert not english_artifacts_present(REL, str(tmp_path))
+
+    def test_spans_in_the_english_adfree_text_resolve_to_units(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The chain S2.11 depends on: `unit_id` has to survive the ad-free re-render, not just
+        the first render."""
+        from podcast_scraper.translation.artifacts import resolve_units_for_span
+
+        self._episode_with_ad(tmp_path)
+        cfg = cfg.model_copy(update={"save_adfree_transcript": True})
+        _run(monkeypatch, tmp_path, cfg, self._AdAwareStub())
+
+        segs = json.loads(
+            (tmp_path / "transcripts" / "p10_e01.en.adfree.segments.json").read_text("utf-8")
+        )
+        assert segs and all(s.get("unit_id") for s in segs), "unit_id survived the re-render"
+        first = segs[0]
+        assert resolve_units_for_span(segs, first["char_start"], first["char_end"]) == [
+            first["unit_id"]
+        ]
