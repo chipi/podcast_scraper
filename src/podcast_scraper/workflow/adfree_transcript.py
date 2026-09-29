@@ -27,7 +27,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..cleaning.commercial.crosspromo import crosspromo_char_end
 from ..gi.ad_regions import (
@@ -201,6 +201,30 @@ def save_adfree_artifacts(
     return os.path.relpath(adfree_txt, effective_output_dir)
 
 
+def produce_adfree_artifacts(
+    text: str,
+    segments: Optional[List[Dict[str, Any]]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    *,
+    extra_cue_patterns: Optional[List[str]] = None,
+) -> Optional[Tuple[str, AdfreeArtifacts]]:
+    """Build + save, returning BOTH the ``.adfree.txt`` relpath and the artifacts themselves.
+
+    The caller needs the artifacts, not just the path: the ad-free variant's ``turns.json``
+    (RFC-123 §3) must be built from the exact segment list the ad-free text was rendered from.
+    Re-reading the text back off disk and re-deriving offsets would reintroduce the very
+    two-sources problem the ad-free coordinate space exists to remove.
+    """
+    artifacts = build_adfree_artifacts(text, segments, extra_cue_patterns=extra_cue_patterns)
+    if artifacts is None:
+        return None
+    rel = save_adfree_artifacts(rel_transcript_path, effective_output_dir, artifacts)
+    if rel is None:
+        return None
+    return rel, artifacts
+
+
 def produce_adfree_transcript(
     text: str,
     segments: Optional[List[Dict[str, Any]]],
@@ -210,7 +234,11 @@ def produce_adfree_transcript(
     extra_cue_patterns: Optional[List[str]] = None,
 ) -> Optional[str]:
     """Convenience: build + save the ad-free artifacts. Returns the ``.adfree.txt`` relpath."""
-    artifacts = build_adfree_artifacts(text, segments, extra_cue_patterns=extra_cue_patterns)
-    if artifacts is None:
-        return None
-    return save_adfree_artifacts(rel_transcript_path, effective_output_dir, artifacts)
+    produced = produce_adfree_artifacts(
+        text,
+        segments,
+        rel_transcript_path,
+        effective_output_dir,
+        extra_cue_patterns=extra_cue_patterns,
+    )
+    return None if produced is None else produced[0]

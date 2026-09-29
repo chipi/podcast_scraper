@@ -99,10 +99,15 @@ def test_produce_writes_three_sidecars(tmp_path: Path):
         assert adfree_text[s["char_start"] : s["char_end"]] == s["text"]
 
 
-def test_maybe_produce_adfree_gate(tmp_path: Path):
-    """The save-path wrapper honours the config flag and the no-segments guard."""
+def test_produce_transcript_sidecars_gate(tmp_path: Path):
+    """The save-path wrapper honours the config flag and the no-segments guard.
+
+    The ad-free flag gates ONLY the ad-free base. Turns (RFC-123) are a description of the text
+    that is already on disk, not a processing base whose absence changes which text NLP reads, so
+    they are written either way — asserted here so the two gates cannot silently merge.
+    """
     from podcast_scraper import config
-    from podcast_scraper.workflow.episode_processor import _maybe_produce_adfree
+    from podcast_scraper.workflow.episode_processor import _produce_transcript_sidecars
 
     segs = _content_segments()
     text, _ = format_diarized_screenplay_with_offsets(segs)
@@ -110,21 +115,26 @@ def test_maybe_produce_adfree_gate(tmp_path: Path):
     (tmp_path / "transcripts").mkdir()
     (tmp_path / rel).write_text(text, encoding="utf-8")
 
-    # Disabled → no ad-free sidecars written.
+    # Disabled → no ad-free sidecars written, but the turns artifact still is.
     cfg_off = config.Config(rss="https://e.com/f.xml", save_adfree_transcript=False)
-    _maybe_produce_adfree(cfg_off, text, segs, rel, str(tmp_path))
+    _produce_transcript_sidecars(cfg_off, text, segs, rel, str(tmp_path))
     assert not (tmp_path / "transcripts" / "01 - ep.adfree.txt").exists()
+    assert (tmp_path / "transcripts" / "01 - ep.turns.json").exists()
+    assert not (tmp_path / "transcripts" / "01 - ep.adfree.turns.json").exists()
 
-    # Enabled → sidecars written.
+    # Enabled → sidecars written, and a turns artifact for EACH variant.
     cfg_on = config.Config(rss="https://e.com/f.xml", save_adfree_transcript=True)
-    _maybe_produce_adfree(cfg_on, text, segs, rel, str(tmp_path))
+    _produce_transcript_sidecars(cfg_on, text, segs, rel, str(tmp_path))
     assert (tmp_path / "transcripts" / "01 - ep.adfree.txt").exists()
+    assert (tmp_path / "transcripts" / "01 - ep.turns.json").exists()
+    assert (tmp_path / "transcripts" / "01 - ep.adfree.turns.json").exists()
 
-    # No-segments guard → no crash, no file.
+    # No-segments guard → no crash, no file of either kind.
     rel2 = "transcripts/02 - ep.txt"
     (tmp_path / rel2).write_text(text, encoding="utf-8")
-    _maybe_produce_adfree(cfg_on, text, None, rel2, str(tmp_path))
+    _produce_transcript_sidecars(cfg_on, text, None, rel2, str(tmp_path))
     assert not (tmp_path / "transcripts" / "02 - ep.adfree.txt").exists()
+    assert not (tmp_path / "transcripts" / "02 - ep.turns.json").exists()
 
 
 def _crosspromo_segments():

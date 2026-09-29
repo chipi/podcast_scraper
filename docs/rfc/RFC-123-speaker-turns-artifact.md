@@ -178,10 +178,24 @@ The episode is flagged `turns: unavailable` and consumers fall back to current b
 ### 3. Where it runs
 
 It runs immediately after each segments sidecar is written — once for the raw variant and once for
-the ad-free variant, inside `workflow/adfree_transcript` where the ad-free segments are produced, so
-both are built from the exact list the matching text was rendered from. It is cheap (pure Python,
-milliseconds per episode) and belongs on the core path, not in an enricher. Turns are a structural
-view of core artifacts, not derived intelligence, so they do not carry `derived: true`.
+the ad-free variant — so both are built from the exact list the matching text was rendered from. It
+is cheap (pure Python, milliseconds per episode) and belongs on the core path, not in an enricher.
+Turns are a structural view of core artifacts, not derived intelligence, so they do not carry
+`derived: true`.
+
+**As built (S1.2)** the write site is `episode_processor._produce_transcript_sidecars`, not
+`workflow/adfree_transcript` as this section originally said. The reason is that the two artifacts
+are **independently gated**: the ad-free base is off unless `save_adfree_transcript`, while the
+source variant's `turns.json` is written unconditionally — it is not a processing base whose absence
+changes which text NLP reads, it is a description of text that is already there. Putting the turns
+write inside the ad-free producer would have made an unrelated flag silently decide whether turns
+exist. `adfree_transcript` gained `produce_adfree_artifacts`, which returns the artifacts rather
+than just the path, so the ad-free variant's turns are still built from its in-memory segments and
+never from a re-read of the text.
+
+The artifact carries **no transcript text** — only ids, char offsets, times and speaker labels. So
+it needs no place in `scripts/tools/scrub_segments.py` and duplicates nothing that would have to be
+redacted twice.
 
 **Which variant a consumer reads** is decided by `workflow/adfree_transcript.load_processing_transcript`
 for the two consumers that call it (GI and KG). Several others resolve the transcript independently —
@@ -288,8 +302,9 @@ and RFC-123/124/125, and all of this work sits inside the arc's **Phase 1**. Sli
 
 **v1** — the artifact exists, because translation units are defined as sentence groups inside a turn:
 
-- **Step 1 (S1.1–S1.2)**: build `turns.json` and write it in the pipeline for both variants. Nothing
-  reads it yet.
+- **Step 1 (S1.1–S1.2)**: ~~build `turns.json` and write it in the pipeline for both variants~~
+  **DONE 2026-09-29.** `providers/ml/diarization/turns.py` (the pure builder) and
+  `workflow/turns_artifact.py` (the writer). Nothing reads it yet, by design.
 - **Step 2 (S1.3)**: run the backfill over the existing corpus.
 
 **v2** — the consumers. Each is an independent English-corpus improvement with standalone value, and
@@ -302,8 +317,20 @@ none of them is needed for multilingual ingest to work (operator decision, 2026-
 Because steps 3–5 stand on their own, any of them can be pulled forward independently of the
 multilingual arc if English-corpus quality becomes the priority.
 
-**Monitoring:** the per-episode manifest (RFC-109) gains `turns: {count, backchannels,
-median_turn_s, invariant_failures}`. Any invariant failure fails the build for that episode.
+**Monitoring:** the per-episode manifest (RFC-109) gains `stages.turns` with metrics
+`{count, backchannels, median_turn_s, invariant_failures}` for the source variant plus a nested
+`adfree` block with the same four. `turns` is deliberately **not** in `CANONICAL_STAGE_ORDER`:
+adding it there would rewrite `pipeline_composition_version` for every episode in the corpus —
+invalidating existing "reprocess below version X" queries — for a sidecar no consumer reads yet.
+A test asserts the hash is unchanged.
+
+**An invariant failure does not fail the episode in v1.** This is a deliberate deviation from the
+sentence this paragraph used to end with, and it holds only while the artifact has no consumers:
+nothing reads these turns, so a builder bug can corrupt nothing downstream, and aborting would turn
+a cosmetic defect in a brand-new sidecar into lost ASR and a lost GPU hour. The failure is counted
+in `invariant_failures` and logged at ERROR with the episode, and no partial file is left behind —
+recorded, not suppressed. **Step 3 (S1.4) must harden this**: once GI attribution reads turns, a
+silent invariant failure mis-attributes quotes, and failing the episode becomes the right call.
 
 **Success criteria:**
 

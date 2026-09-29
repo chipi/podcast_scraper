@@ -68,6 +68,13 @@ _WRITER_SOURCE = _REPO / "src" / "podcast_scraper" / "workflow" / "metadata_gene
 #: The ONLY key paths Phase 0 is permitted to add. `feed.language` is deliberately absent — the
 #: model already declares it (and the fixtures carry `"en-us"`, the value that trips `is_english`
 #: today, see #2174).
+#:
+#: ALL FOUR ARE NOW IN THE BASELINE TOO, as of the S1.2 regeneration: Phase 0 shipped, so its
+#: additions are the English shape rather than a pending exception. That makes this list
+#: currently redundant and the guard strictly stronger — a path in the baseline may not vanish,
+#: while an allowlist-only path could have disappeared without complaint. The list stays because
+#: Phase 2 adds fields to the same documents and will need it again; it is kept rather than
+#: emptied so the next addition is declared here instead of regenerated in silently.
 ALLOWLIST: frozenset[str] = frozenset(
     {
         "feed.language_raw",
@@ -81,7 +88,26 @@ ALLOWLIST: frozenset[str] = frozenset(
 #: literally so a change to the graph has to be acknowledged here rather than discovered later
 #: by a reprocessing decision — `pipeline_composition_version` is what "reprocess below version
 #: X" and the prod-state pin key on.
-_ENGLISH_STAGES: tuple[str, ...] = ("asr", "diarization", "naming", "summary", "gi", "kg")
+#:
+#: ``turns`` (RFC-123 / S1.2) is here because an English episode records it, but it is
+#: deliberately NOT in ``CANONICAL_STAGE_ORDER`` — so the composition hash below is unchanged by
+#: its presence, which is the whole point and is asserted directly in
+#: ``test_the_turns_block_does_not_move_the_composition_hash``.
+#:
+#: WHAT THIS LIST CANNOT DO. It is pinned literally, so it pins the shape of the stages it is
+#: TOLD about — it does not discover the pipeline's actual stage set. When S1.2 started writing a
+#: `turns` block this guard stayed green until the list was edited by hand. That is a real limit
+#: of the instrument, recorded here rather than left to be rediscovered: adding a stage requires
+#: editing this line, and nothing fails if you forget.
+_ENGLISH_STAGES: tuple[str, ...] = (
+    "asr",
+    "diarization",
+    "naming",
+    "turns",
+    "summary",
+    "gi",
+    "kg",
+)
 
 
 def _key_paths(obj: Any, prefix: str = "") -> Iterator[str]:
@@ -149,6 +175,28 @@ def _metadata_key_paths(
     return out
 
 
+def _turns_metrics() -> Dict[str, Any]:
+    """The real ``turns`` metrics shape, from the reporter the pipeline uses (RFC-123 §Monitoring).
+
+    Both variants present and both available, because that is the shape an English diarized
+    episode produces; the ``unavailable_reason`` key is conditional and therefore deliberately
+    absent from the pinned shape.
+    """
+    from podcast_scraper.workflow.turns_artifact import turns_manifest_metrics, TurnsOutcome
+
+    return turns_manifest_metrics(
+        TurnsOutcome(
+            relpath="transcripts/01 - ep.turns.json", count=42, backchannels=3, median_turn_s=8.4
+        ),
+        TurnsOutcome(
+            relpath="transcripts/01 - ep.adfree.turns.json",
+            count=38,
+            backchannels=3,
+            median_turn_s=8.1,
+        ),
+    )
+
+
 def _generated_manifest(stages: tuple[str, ...] = _ENGLISH_STAGES) -> Dict[str, Any]:
     """A manifest built the way the pipeline builds one, in a throwaway directory."""
     with tempfile.TemporaryDirectory() as d:
@@ -159,7 +207,13 @@ def _generated_manifest(stages: tuple[str, ...] = _ENGLISH_STAGES) -> Dict[str, 
                 d,
                 rel,
                 stage,
-                pm.stage_block(ran=True, method_version=f"{stage}-1"),
+                pm.stage_block(
+                    ran=True,
+                    method_version=f"{stage}-1",
+                    # The turns block carries metrics, and a block whose metrics are absent pins
+                    # three key paths instead of ten — so it is built from the real reporter.
+                    metrics=_turns_metrics() if stage == "turns" else None,
+                ),
                 episode_id="ep1",
                 feed_id="f1",
                 run_id="r1",
@@ -224,6 +278,20 @@ class TestArtifactShape:
         vanished, undeclared = _verdict(_manifest_key_paths(), _baseline()["manifest_key_paths"])
         assert not vanished, f"manifest LOST key paths: {sorted(vanished)}"
         assert not undeclared, f"manifest gained undeclared key paths: {sorted(undeclared)}"
+
+    def test_the_turns_block_does_not_move_the_composition_hash(self) -> None:
+        """RFC-123's block is recorded without disturbing the reprocess query key.
+
+        ``pipeline_composition_version`` is what "reprocess everything below version X" and the
+        prod-state pin key on. Putting ``turns`` in ``CANONICAL_STAGE_ORDER`` would rewrite it for
+        every episode in the corpus — invalidating those queries for a sidecar no consumer reads
+        yet — so it is excluded there, and this is the assertion that keeps it excluded.
+        """
+        core = tuple(s for s in _ENGLISH_STAGES if s != "turns")
+        assert pm.pipeline_composition_version(_ENGLISH_STAGES) == (
+            pm.pipeline_composition_version(core)
+        )
+        assert "turns" not in pm.CANONICAL_STAGE_ORDER
 
     def test_the_writer_still_emits_none_fields(self) -> None:
         """The assumption the whole metadata half rests on.

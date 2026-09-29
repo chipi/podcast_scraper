@@ -1110,33 +1110,123 @@ def _write_processing_manifest(
         )
 
 
-def _maybe_produce_adfree(
+def _produce_transcript_sidecars(
     cfg: config.Config,
     text: str,
     segments: Optional[List[Dict[str, Any]]],
     rel_transcript_path: str,
     effective_output_dir: str,
+    *,
+    episode: Any = None,
 ) -> None:
-    """Derive + save the ad-free processing-base sidecars (#974), if enabled.
+    """Derive the ad-free processing base (#974) and the turns artifacts (RFC-123), in that order.
 
-    No-op when ``save_adfree_transcript`` is off or there are no segments. Keeps the
-    raw ``.txt`` untouched; writes ``<base>.adfree.{txt,segments.json,admap.json}``.
+    Both are structural views of the transcript we just saved, and both must be built from the
+    exact segment list the matching text was rendered from — so they belong at the one site that
+    holds both, immediately after the segments sidecar is written.
+
+    THE TWO ARE INDEPENDENTLY GATED. The ad-free base is off unless ``save_adfree_transcript``;
+    the SOURCE variant's turns are written unconditionally, because ``turns.json`` is not a
+    processing base whose absence changes which text NLP reads — it is a description of the text
+    that is already there. The ad-free variant's turns are written only when the ad-free text
+    exists, and from its in-memory segments, because its char offsets live in that text's
+    coordinate space and nowhere else.
     """
-    if not cfg.save_adfree_transcript or not rel_transcript_path:
+    if not rel_transcript_path:
         return
     if not isinstance(segments, list) or not segments:
         return
-    from .adfree_transcript import produce_adfree_transcript
 
-    adfree_rel = produce_adfree_transcript(
+    adfree_artifacts = None
+    if cfg.save_adfree_transcript:
+        from .adfree_transcript import produce_adfree_artifacts
+
+        produced = produce_adfree_artifacts(
+            text,
+            segments,
+            rel_transcript_path,
+            effective_output_dir,
+            extra_cue_patterns=cfg.crosspromo_cue_patterns,
+        )
+        if produced is not None:
+            adfree_rel, adfree_artifacts = produced
+            logger.info("    saved ad-free transcript base: %s", adfree_rel)
+
+    _write_turns_artifacts(
+        cfg,
         text,
         segments,
         rel_transcript_path,
         effective_output_dir,
-        extra_cue_patterns=cfg.crosspromo_cue_patterns,
+        adfree=adfree_artifacts,
+        episode=episode,
     )
-    if adfree_rel:
-        logger.info("    saved ad-free transcript base: %s", adfree_rel)
+
+
+def _write_turns_artifacts(
+    cfg: config.Config,
+    text: str,
+    segments: List[Dict[str, Any]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    *,
+    adfree: Any = None,
+    episode: Any = None,
+) -> None:
+    """Write ``turns.json`` for each variant and record the manifest ``turns`` block (RFC-123 §3).
+
+    Best-effort as a whole: turns have no consumers in v1, so nothing here may cost an episode.
+    """
+    from . import processing_manifest as pm
+    from .adfree_transcript import adfree_transcript_relpath
+    from .turns_artifact import turns_manifest_metrics, write_turns_artifact
+
+    language = transcription_language(cfg)
+    try:
+        raw_outcome = write_turns_artifact(
+            text, segments, rel_transcript_path, effective_output_dir, language=language
+        )
+        adfree_outcome = None
+        if adfree is not None:
+            adfree_rel = adfree_transcript_relpath(rel_transcript_path)
+            adfree_outcome = write_turns_artifact(
+                adfree.text,
+                adfree.segments,
+                adfree_rel,
+                effective_output_dir,
+                language=language,
+            )
+    except Exception:  # noqa: BLE001 - a sidecar with no readers must never lose an episode
+        logger.warning("turns: could not build turns for %s", rel_transcript_path, exc_info=True)
+        return
+
+    if raw_outcome.relpath:
+        logger.info(
+            "    saved turns artifact: %s (%d turns)", raw_outcome.relpath, raw_outcome.count
+        )
+    episode_id = None
+    if episode is not None:
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    from ..utils import correlation
+
+    pm.update_stage(
+        effective_output_dir,
+        rel_transcript_path,
+        "turns",
+        pm.stage_block(
+            ran=True,
+            method_version=pm.METHOD_VERSIONS["turns"],
+            # Measured and genuinely free: pure Python, milliseconds per episode. Not ``None``,
+            # which would mean nobody measured it.
+            cost_usd=0.0,
+            metrics=turns_manifest_metrics(raw_outcome, adfree_outcome),
+        ),
+        episode_id=episode_id,
+        feed_id=getattr(cfg, "rss_url", None),
+        run_id=correlation.get_run_id() or getattr(cfg, "run_id", None),
+    )
 
 
 def _cleanup_temp_media(temp_media: str, cfg: Optional[config.Config] = None) -> None:
@@ -1308,8 +1398,13 @@ def _check_transcript_cache(
         )
         if isinstance(cached_segments, list) and len(cached_segments) > 0:
             _save_transcript_segments_file(cached_segments, rel_path, effective_output_dir)
-            _maybe_produce_adfree(
-                cfg, cached_transcript, cached_segments, rel_path, effective_output_dir
+            _produce_transcript_sidecars(
+                cfg,
+                cached_transcript,
+                cached_segments,
+                rel_path,
+                effective_output_dir,
+                episode=job.episode,
             )
         _maybe_persist_episode_media(
             cfg, temp_media, effective_output_dir, rel_path, episode=job.episode
@@ -2951,7 +3046,9 @@ def _relabel_existing_transcript(
             rel_path,
             effective_output_dir,
         )
-        _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+        _produce_transcript_sidecars(
+            cfg, new_text, new_segs, rel_path, effective_output_dir, episode=job.episode
+        )
         _relabel_cleaned_transcript(txt_path, segs, new_segs, job.idx)
         # The record follows the labels, or the two describe different episodes (#2075).
         _rewrite_speaker_record_in_place(
@@ -3273,7 +3370,9 @@ def _rediarize_existing_transcript(
             rel_path,
             effective_output_dir,
         )
-        _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+        _produce_transcript_sidecars(
+            cfg, new_text, new_segs, rel_path, effective_output_dir, episode=job.episode
+        )
         # Fresh voices AND fresh names: the record must describe the diarization that now exists.
         _rewrite_speaker_record_in_place(
             txt_path, job, effective_output_dir, rel_path, "rediarize_only", feed_hosts
@@ -3886,7 +3985,10 @@ def transcribe_media_to_text(
                 effective_output_dir,
             )
             # #974: derive the ad-free processing-base sibling. Raw .txt left untouched.
-            _maybe_produce_adfree(cfg, text, segments, rel_path, effective_output_dir)
+            # RFC-123: and the turns artifact for each variant that exists.
+            _produce_transcript_sidecars(
+                cfg, text, segments, rel_path, effective_output_dir, episode=job.episode
+            )
 
         _maybe_persist_episode_media(
             cfg, temp_media, effective_output_dir, rel_path, episode=job.episode
@@ -4601,8 +4703,13 @@ def process_transcript_download(
             # the pre-screenplay plain text — `build_adfree_artifacts` branches on
             # `rebuilt == text` to pick its exact-offset path, and feeding it a different
             # string would silently desynchronise every quote span.
-            _maybe_produce_adfree(
-                cfg, text_to_store, segments, rel_path_result, effective_output_dir
+            _produce_transcript_sidecars(
+                cfg,
+                text_to_store,
+                segments,
+                rel_path_result,
+                effective_output_dir,
+                episode=episode,
             )
             logger.info(
                 "[%s] normalized %s to .txt with %d segment(s) for GI timing",

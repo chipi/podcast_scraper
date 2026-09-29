@@ -44,6 +44,10 @@ METHOD_VERSIONS: Dict[str, str] = {
     "naming": "naming-4",  # ADR-139 text-normalization contract: narrated-desk cue vocab +
     # case-blind metadata-anchored self-intro + nickname/ASR-fuzzy binding + org-form reject + "my
     # name is" discovery + Pattern-B (bounded unknown-vs-tape classification, defect-share alarm)
+    # RFC-123. Not in CANONICAL_STAGE_ORDER on purpose: adding it there would change every
+    # episode's pipeline_composition_version and invalidate existing reprocess queries for a
+    # sidecar that no consumer reads yet.
+    "turns": "turns-1",
     "summary": "summary-1",
     "gi": "gi-1",
     "kg": "kg-1",
