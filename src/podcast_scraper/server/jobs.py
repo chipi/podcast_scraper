@@ -638,30 +638,32 @@ def build_pipeline_argv(
 def normalize_reprocess_episode_ids(raw: Sequence[str] | str | None) -> list[str]:
     """Validated, de-duplicated episode ids for a scoped reprocess — order preserved.
 
-    Accepts a sequence or one comma-separated string. Anything that could change the MEANING of
-    the work-list file is rejected rather than cleaned: an id containing a newline would become
-    two ids, which would silently widen a repair — the failure mode this whole parameter exists to
-    remove. Length and count are bounded so a request cannot write an unbounded file.
+    Each element is exactly ONE id. There is no separator: a comma is part of an id, never a
+    delimiter (#50). RFC-4151 ``tag:`` URIs — ``tag:soundcloud,2010:tracks/2135080263`` — carry a
+    comma by construction in both their episode_id and guid, and splitting on it turned a real
+    repair into fragments that matched nothing, which then exited green. A bare ``str`` is ONE
+    id — never a list, and never its characters.
+
+    Anything that could change the MEANING of the work-list file is rejected rather than cleaned: an
+    id containing a newline would become two ids, which would silently widen a repair. Length and
+    count are bounded so a request cannot write an unbounded file.
     """
     if raw is None:
         return []
     parts: list[str] = []
     items = [raw] if isinstance(raw, str) else list(raw)
     for item in items:
-        for piece in str(item).split(","):
-            token = piece.strip()
-            if not token:
-                continue
-            if any(ch in token for ch in "\r\n#"):
-                raise ValueError(
-                    f"reprocess_episode_ids: illegal character in {token!r} — an id may not "
-                    "contain a newline or '#', which would split or comment out the work-list"
-                )
-            if len(token) > _MAX_EPISODE_ID_LEN:
-                raise ValueError(
-                    f"reprocess_episode_ids: id longer than {_MAX_EPISODE_ID_LEN} chars"
-                )
-            parts.append(token)
+        token = str(item).strip()
+        if not token:
+            continue
+        if any(ch in token for ch in "\r\n#"):
+            raise ValueError(
+                f"reprocess_episode_ids: illegal character in {token!r} — an id may not "
+                "contain a newline or '#', which would split or comment out the work-list"
+            )
+        if len(token) > _MAX_EPISODE_ID_LEN:
+            raise ValueError(f"reprocess_episode_ids: id longer than {_MAX_EPISODE_ID_LEN} chars")
+        parts.append(token)
     seen: set[str] = set()
     out: list[str] = []
     for token in parts:

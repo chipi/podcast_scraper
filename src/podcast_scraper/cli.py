@@ -5632,9 +5632,14 @@ def main(  # noqa: C901 - main function handles multiple command paths
                 # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? A run given a work-list now says so
                 # against its own denominator instead of leaving it to a later audit. No-op when
                 # no work-list was given.
-                from .workflow.worklist_report import log_worklist_outcome
+                from .workflow.worklist_report import get_worklist_report, log_worklist_outcome
 
                 log_worklist_outcome()
+                if get_worklist_report().matched_nothing:
+                    # Logged at ERROR above, and until #50 that was all — the batch still exited 0.
+                    # A repair that found none of what it was asked for is a failed run, whether or
+                    # not any feed failed. (Some-matched stays a WARNING + success: #1855.)
+                    return 1
 
                 has_feed_failure = any(not fr.ok for fr in batch_results)
                 strict = bool(getattr(base_cfg, "multi_feed_strict", False))
@@ -5718,6 +5723,17 @@ def main(  # noqa: C901 - main function handles multiple command paths
         return 1
 
     log.info(summary)
+
+    # DID THE REPAIR REPAIR WHAT IT WAS ASKED TO? This used to exist only on the multi-feed path,
+    # and every API-dispatched job is single-feed — so for exactly the way repairs are run in prod
+    # the outcome line never appeared (0 occurrences across all three repair logs on 2026-09-29).
+    # A job whose work-list matched nothing then returned 0 and the registry recorded `succeeded`
+    # (#50: `tag:soundcloud,2010:...` ids split on the comma into fragments that match no episode).
+    from .workflow.worklist_report import get_worklist_report, log_worklist_outcome
+
+    log_worklist_outcome()
+    worklist_did_nothing = get_worklist_report().matched_nothing
+
     feed_url = (cfg.rss_url or "").strip()
     stamp_parent = single_feed_corpus_parent_for_manifest_stamp(cfg, args)
     if stamp_parent and feed_url:
@@ -5740,9 +5756,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
         # written only for --feeds-spec batches) so incremental adds have run-level cost/episode
         # monitoring parity. cost_rollup is corpus-wide (aggregated from all run metrics on disk).
         try:
-            write_corpus_run_summary(stamp_parent, [fr], overall_ok=True)
+            write_corpus_run_summary(stamp_parent, [fr], overall_ok=not worklist_did_nothing)
         except Exception as exc:  # noqa: BLE001 — best-effort summary; never fail a done ingest
             log.warning("Failed to write corpus_run_summary.json for single-feed run: %s", exc)
+    if worklist_did_nothing:
+        # The pipeline itself ran cleanly; what failed is the REQUEST. Exit nonzero so the job
+        # registry records `failed` rather than a green no-op. The ERROR line above says why.
+        return 1
     return 0
 
 

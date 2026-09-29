@@ -109,6 +109,17 @@ class WorklistReport:
             return sorted(self.requested - self.matched)
 
     @property
+    def matched_nothing(self) -> bool:
+        """Given a work-list, and selection found NONE of it — the run did no requested work.
+
+        This is the case that must FAIL the run, not merely log (#50). It is deliberately narrower
+        than "anything unmatched": a few stale ids beside real repairs is #1855's WARNING case and
+        stays a success. Only the total miss turns into a nonzero exit.
+        """
+        with self._lock:
+            return bool(self.requested) and not self.matched
+
+    @property
     def incomplete(self) -> List[str]:
         """Selected but never finished: started and then failed, rather than never started."""
         with self._lock:

@@ -27,6 +27,10 @@ pytestmark = [pytest.mark.integration]
 
 _FEED = "https://example.com/podcast.xml"
 
+#: Verbatim ids from the #50 incident — both carry a comma, in episode_id AND guid.
+_TAG_ID = "tag:soundcloud,2010:tracks/2135080263"
+_BLOGGER_ID = "tag:blogger.com,1999:blog-1793063735579568706.post-7556576044575364143"
+
 
 def _corpus(tmp_path: Path) -> tuple[Path, Path]:
     corpus = tmp_path / "corpus"
@@ -114,17 +118,27 @@ class TestTheWorkListReachesTheRun:
         assert "--reprocess-existing-only" in argv
         assert "--reprocess-episode-ids" in argv
 
-    def test_a_comma_separated_string_is_accepted(self, tmp_path: Path) -> None:
-        """Convenience for a query parameter — one string, many ids."""
+    def test_a_comma_is_part_of_an_id_never_a_separator(self, tmp_path: Path) -> None:
+        """THE INVERSION of the old ``test_a_comma_separated_string_is_accepted`` (#50).
+
+        That test asserted one string ``"ep-1,ep-2,ep-3"`` became three ids — a convenience for the
+        query parameter. RFC-4151 ``tag:`` URIs carry a comma by construction, and both their
+        ``episode_id`` and ``guid`` do, so there is no comma-free handle to fall back on. The
+        convenience turned ``tag:soundcloud,2010:tracks/2135080263`` into fragments that matched
+        nothing, and the repair exited green having done nothing.
+        """
         corpus, op = _corpus(tmp_path)
         argv = build_pipeline_argv(
             corpus,
             op,
             run_id="job-3",
             pipeline_stage="rederive_only",
-            reprocess_episode_ids="ep-1,ep-2,ep-3",
+            reprocess_episode_ids=[_TAG_ID, _BLOGGER_ID],
         )
-        assert _worklist_path(argv).read_text(encoding="utf-8").split() == ["ep-1", "ep-2", "ep-3"]
+        assert _worklist_path(argv).read_text(encoding="utf-8").splitlines() == [
+            _TAG_ID,
+            _BLOGGER_ID,
+        ]
 
     def test_fifty_ids_survive_intact(self, tmp_path: Path) -> None:
         """The real repair size. Nothing may be truncated on the way through."""
@@ -175,6 +189,14 @@ class TestIdsThatWouldWIDENTheRepairAreRejected:
     def test_a_request_cannot_write_an_unbounded_worklist(self) -> None:
         with pytest.raises(ValueError, match="exceeds the"):
             normalize_reprocess_episode_ids([f"ep-{i}" for i in range(501)])
+
+    def test_a_tag_uri_survives_whole(self) -> None:
+        """#50: the comma inside an RFC-4151 id must not be read as a separator."""
+        assert normalize_reprocess_episode_ids([_TAG_ID]) == [_TAG_ID]
+
+    def test_a_bare_string_is_ONE_id_not_a_list_and_not_its_characters(self) -> None:
+        """No separator exists any more — and a str must not be iterated as characters either."""
+        assert normalize_reprocess_episode_ids(_TAG_ID) == [_TAG_ID]
 
     def test_duplicates_collapse_but_order_is_kept(self) -> None:
         assert normalize_reprocess_episode_ids(["b", "a", "b", "c", "a"]) == ["b", "a", "c"]
@@ -242,6 +264,29 @@ class TestTheRouteRefusesAWorkListItCannotHonour:
         )
         assert r.status_code == 400
         assert "illegal character" in r.json()["detail"]
+
+    def test_repeated_params_carry_ids_that_CONTAIN_commas(self, tmp_path: Path) -> None:
+        """THE #50 SEAM: this exact request shattered both ids into four fragments in prod.
+
+        Each repeated ``reprocess_episode_ids`` value is one id, byte for byte, into the work-list.
+        """
+        captured: list[list[str]] = []
+        client = self._client(tmp_path, captured)
+        r = client.post(
+            "/api/jobs",
+            params=[
+                ("path", str(tmp_path)),
+                ("pipeline_stage", "rederive_only"),
+                ("reprocess_episode_ids", _TAG_ID),
+                ("reprocess_episode_ids", _BLOGGER_ID),
+            ],
+        )
+        assert r.status_code == 202, r.text
+        client.get("/api/jobs", params={"path": str(tmp_path)})  # drain the kickoff
+        assert captured, "subprocess factory was never invoked"
+        argv = captured[0]
+        wl = Path(argv[argv.index("--reprocess-episode-ids") + 1])
+        assert wl.read_text(encoding="utf-8").splitlines() == [_TAG_ID, _BLOGGER_ID]
 
     def test_a_scoped_reprocess_is_accepted_and_the_ids_reach_the_argv(
         self, tmp_path: Path

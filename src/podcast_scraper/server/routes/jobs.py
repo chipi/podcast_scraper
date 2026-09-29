@@ -310,11 +310,15 @@ async def submit_pipeline_job(
             "ingest. 'enrich_only' is accepted as a deprecated alias of 'rederive_only'."
         ),
     ),
-    reprocess_episode_ids: str | None = Query(
+    reprocess_episode_ids: list[str] | None = Query(
         default=None,
         description=(
-            "Scope a REPROCESS to exactly these episodes — comma-separated episode_ids or RSS "
-            "guids. Requires a reprocess pipeline_stage. This is the ONLY way to reprocess fewer "
+            "Scope a REPROCESS to exactly these episodes. REPEAT the parameter once per id "
+            "(`?reprocess_episode_ids=a&reprocess_episode_ids=b`); each value is one episode_id or "
+            "RSS guid, byte for byte. There is NO comma separator — RFC-4151 `tag:` ids contain "
+            "commas, and splitting on them matched nothing (#50). A work-list that matches no "
+            "episode fails the job rather than succeeding empty. Requires a reprocess "
+            "pipeline_stage. This is the ONLY way to reprocess fewer "
             "than a whole feed: max_episodes / episode_offset / episode_selection are all ignored "
             "in reprocess mode, where the episode set is every episode already on disk for the "
             "feed. Matched against both episode_id and guid, and each listed episode is forced "
@@ -366,7 +370,9 @@ async def submit_pipeline_job(
     # A work-list without a reprocess stage is REFUSED, not ignored. Accepting it would start a
     # full ingest for a caller who named specific episodes to repair — and the ids would be
     # silently dropped, which is the same shape as the defect this parameter exists to close.
-    if reprocess_episode_ids is not None and str(reprocess_episode_ids).strip():
+    # Blank values (`?reprocess_episode_ids=`) read as absent, as the single-string form did.
+    reprocess_episode_ids = [x for x in (reprocess_episode_ids or []) if str(x).strip()] or None
+    if reprocess_episode_ids:
         try:
             wanted = normalize_reprocess_episode_ids(reprocess_episode_ids)
         except ValueError as exc:
