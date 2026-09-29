@@ -4,7 +4,8 @@
  *  - **Native (iOS/Android Capacitor app):** APNs/FCM via `@capacitor/push-notifications`. The
  *    WKWebView has no Service Worker / `PushManager`, so Web Push cannot work in the app — the plugin
  *    registers with the OS, hands back a device token, and we store it server-side as an `apns`
- *    subscription. Android is gated off here entirely; see `ANDROID_PUSH_NATIVE_READY` (#2157).
+ *    (iOS) or `fcm` (Android) subscription; see `nativePushKind`. Android is gated off here
+ *    entirely; see `ANDROID_PUSH_NATIVE_READY` (#2157).
  *  - **Web (PWA / browser):** the W3C Push API + VAPID, as before.
  *
  * `enablePush` returns false when push can't be enabled (permission denied / plugin error / platform
@@ -20,10 +21,26 @@ import { Preferences } from '@capacitor/preferences'
 import { getVapidKey, subscribePush, unsubscribePush } from '../services/api'
 import { isNative } from '../services/native'
 
-// Where we remember THIS device's APNs endpoint, so a later "disable" can deregister it server-side
-// (the token is not otherwise recoverable without re-registering).
-const APNS_ENDPOINT_KEY = 'push.apnsEndpoint'
+// Where we remember THIS device's native push endpoint, so a later "disable" can deregister it
+// server-side (the token is not otherwise recoverable without re-registering).
+//
+// The key still says "apns" although it now holds an FCM endpoint on Android too. Renaming it
+// would strand every endpoint an already-installed iOS app has stored — that device could never
+// deregister itself again — which is a real cost for a cosmetic gain.
+const NATIVE_ENDPOINT_KEY = 'push.apnsEndpoint'
 const REGISTER_TIMEOUT_MS = 15_000
+
+/**
+ * What transport this platform's device token belongs to.
+ *
+ * Android device tokens are **FCM** tokens, and were being sent as `kind: 'apns'` with an
+ * `apns://` endpoint (#2157). Nothing reads `kind` server-side yet, so this was inert rather than
+ * broken — but it is the field the dispatcher must route on, and a store full of FCM tokens
+ * labelled `apns` would send every Android push to Apple the moment routing lands.
+ */
+export function nativePushKind(): 'apns' | 'fcm' {
+  return Capacitor.getPlatform() === 'android' ? 'fcm' : 'apns'
+}
 
 /**
  * Android push is not stood up yet (#2157), so we must not talk to the plugin there.
@@ -65,9 +82,9 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
 }
 
 /**
- * Native: ask the OS, register for a device token, store it server-side as an `apns` subscription.
- * The token arrives asynchronously on the `registration` event; resolve false on error/timeout so
- * the toggle reverts rather than hanging.
+ * Native: ask the OS, register for a device token, store it server-side under the platform's own
+ * transport (`apns` on iOS, `fcm` on Android). The token arrives asynchronously on the
+ * `registration` event; resolve false on error/timeout so the toggle reverts rather than hanging.
  */
 async function enablePushNative(): Promise<boolean> {
   const perm = await PushNotifications.requestPermissions()
@@ -86,10 +103,13 @@ async function enablePushNative(): Promise<boolean> {
     }
     void PushNotifications.addListener('registration', async (t) => {
       const token = t.value
-      const endpoint = `apns://${token}`
+      const kind = nativePushKind()
+      // The scheme matches the kind, so an endpoint is self-describing in the store and in a log
+      // line — `apns://…` for Apple, `fcm://…` for Google.
+      const endpoint = `${kind}://${token}`
       try {
-        await subscribePush({ endpoint, kind: 'apns', platform: Capacitor.getPlatform(), token })
-        await Preferences.set({ key: APNS_ENDPOINT_KEY, value: endpoint })
+        await subscribePush({ endpoint, kind, platform: Capacitor.getPlatform(), token })
+        await Preferences.set({ key: NATIVE_ENDPOINT_KEY, value: endpoint })
         finish(true)
       } catch {
         finish(false)
@@ -107,10 +127,10 @@ async function enablePushNative(): Promise<boolean> {
 
 async function disablePushNative(): Promise<void> {
   await PushNotifications.unregister().catch(() => undefined)
-  const { value } = await Preferences.get({ key: APNS_ENDPOINT_KEY })
+  const { value } = await Preferences.get({ key: NATIVE_ENDPOINT_KEY })
   if (value) {
     await unsubscribePush(value).catch(() => undefined)
-    await Preferences.remove({ key: APNS_ENDPOINT_KEY })
+    await Preferences.remove({ key: NATIVE_ENDPOINT_KEY })
   }
 }
 
