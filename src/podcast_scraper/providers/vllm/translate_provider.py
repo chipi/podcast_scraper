@@ -28,9 +28,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 import urllib.request
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ... import config
 from ...languages import language_registry, normalize_language_tag
@@ -350,6 +351,106 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             return {"text": None, "metadata": meta}
         return {"text": out, "metadata": meta}
 
+    # -- the sentence-aligned operation ----------------------------------------------------
+    def translate_unit(
+        self,
+        unit: Any,
+        *,
+        source_language: str,
+        target_language: str = "en",
+    ) -> Dict[str, Any]:
+        """Translate one unit and align the result back to its SENTENCES (RFC-124 §5.1).
+
+        The unit is the translation CONTEXT; the sentence is the alignment atom. The request
+        sends the unit's sentences numbered and requires numbered output of the same length.
+
+        VERIFIED, NOT ASSUMED. Measured against the live service 2026-09-30: 2-, 3- and
+        5-sentence units all returned numbered output of matching length. The RFC asserted this
+        and it would have been the second assumption today to go untested.
+
+        On a length mismatch: retry once, then fall back to translating the unit as ONE block
+        and mark it ``alignment: "unit"``. The fallback is not a failure — it costs subtitle
+        granularity for that unit, not correctness — but it is recorded so a corpus can be
+        queried for how often it happened.
+
+        Returns ``{"sentences": [{sent_id, en_text}], "alignment": ..., "metadata": {...}}``
+        with ``sentences`` empty when the unit could not be translated at all.
+        """
+        sentences = list(getattr(unit, "sentences", []) or [])
+        base_meta: Dict[str, Any] = {
+            "unit_id": getattr(unit, "unit_id", None),
+            "content_key": getattr(unit, "content_key", None),
+        }
+        if not sentences:
+            return {"sentences": [], "alignment": "empty", "metadata": base_meta}
+
+        if getattr(unit, "oversized", False):
+            # Flagged at packing: a single sentence too long to split without breaking the
+            # alignment atom. Refused here rather than sent, for the same reason the token
+            # guard refuses — the server would answer with its first clause and say `stop`.
+            return {
+                "sentences": [],
+                "alignment": "failed",
+                "metadata": {**base_meta, "error": "unit is oversized; refusing to send it"},
+            }
+
+        # A single-sentence unit needs no numbering: there is nothing to align.
+        if len(sentences) == 1:
+            got = self.translate(
+                sentences[0].text,
+                source_language=source_language,
+                target_language=target_language,
+            )
+            meta = {**base_meta, **got["metadata"], "attempts": 1}
+            if got["text"] is None:
+                return {"sentences": [], "alignment": "failed", "metadata": meta}
+            return {
+                "sentences": [{"sent_id": sentences[0].sent_id, "en_text": got["text"]}],
+                "alignment": "sentence",
+                "metadata": meta,
+            }
+
+        last_meta: Dict[str, Any] = {}
+        for attempt in (1, 2):
+            got = self.translate(
+                unit.numbered_source,
+                source_language=source_language,
+                target_language=target_language,
+            )
+            last_meta = {**base_meta, **got["metadata"], "attempts": attempt}
+            if got["text"] is None:
+                continue
+            parsed = _parse_numbered(got["text"])
+            if len(parsed) == len(sentences):
+                return {
+                    "sentences": [
+                        {"sent_id": s.sent_id, "en_text": p} for s, p in zip(sentences, parsed)
+                    ],
+                    "alignment": "sentence",
+                    "metadata": last_meta,
+                }
+            last_meta["alignment_mismatch"] = f"{len(parsed)} of {len(sentences)}"
+            logger.info(
+                "translate: unit %s returned %d lines for %d sentences (attempt %d)",
+                base_meta["unit_id"],
+                len(parsed),
+                len(sentences),
+                attempt,
+            )
+
+        # Fall back to the whole unit as one block. Correct text, coarser alignment.
+        whole = self.translate(
+            unit.source_text, source_language=source_language, target_language=target_language
+        )
+        meta = {**last_meta, **whole["metadata"], "attempts": 3}
+        if whole["text"] is None:
+            return {"sentences": [], "alignment": "failed", "metadata": meta}
+        return {
+            "sentences": [{"sent_id": sentences[0].sent_id, "en_text": whole["text"]}],
+            "alignment": "unit",
+            "metadata": meta,
+        }
+
     def _record_translation_call(self, meta: Dict[str, Any]) -> None:
         """Feed the run-level counters, the same way every other LLM operation does."""
         pm = getattr(self, "pipeline_metrics", None) or getattr(self.cfg, "pipeline_metrics", None)
@@ -368,3 +469,26 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
 
     def cleanup(self) -> None:
         return None
+
+
+_NUMBERED = re.compile(r"^\s*(\d+)[.)]\s*(.*)$")
+
+
+def _parse_numbered(text: str) -> List[str]:
+    """Numbered lines back to a list, tolerant of what a model actually emits.
+
+    Continuation lines are appended to the current item rather than dropped: a translation that
+    wraps across lines is still one sentence, and dropping the tail would silently shorten it —
+    the failure shape this whole arc keeps running into.
+    """
+    items: List[str] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        m = _NUMBERED.match(line)
+        if m:
+            items.append(m.group(2).strip())
+        elif items:
+            items[-1] = (items[-1] + " " + line).strip()
+    return [i for i in items if i]

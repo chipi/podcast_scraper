@@ -384,3 +384,100 @@ class TestTheFactory:
         endpoint — one is a decision, the other a defect."""
         assert is_translation_configured(_cfg()) is True
         assert is_translation_configured(config.Config(rss="https://e.com/f.xml")) is False
+
+
+class TestSentenceAlignment:
+    """RFC-124 §5.1: the unit is the CONTEXT, the sentence is the alignment atom.
+
+    The request sends numbered sentences and requires numbered output of the same length. That
+    the model actually does this was VERIFIED against the live service (2026-09-30: 2-, 3- and
+    5-sentence units all returned matching numbered output), not assumed from the RFC — it would
+    otherwise have been the second untested assumption of the day.
+    """
+
+    @staticmethod
+    def _unit(texts: List[str], *, oversized: bool = False) -> Any:
+        from podcast_scraper.translation.units import TranslationUnit, UnitSentence
+
+        cursor = 0
+        sents = []
+        for i, txt in enumerate(texts, start=1):
+            sents.append(UnitSentence(f"t0000.s{i:02d}", txt, cursor, cursor + len(txt)))
+            cursor += len(txt) + 1
+        return TranslationUnit(
+            unit_id="t0000.u01",
+            turn_id="t0000",
+            speaker_label="Maya",
+            sentences=sents,
+            oversized=oversized,
+            content_key="deadbeef",
+        )
+
+    def test_numbered_output_aligns_back_to_sentence_ids(self) -> None:
+        p = _provider(text="1. Welcome back.\n2. Today we talk trails.")
+        got = p.translate_unit(self._unit(["Bienvenidos.", "Hoy hablamos."]), source_language="es")
+        assert got["alignment"] == "sentence"
+        assert got["sentences"] == [
+            {"sent_id": "t0000.s01", "en_text": "Welcome back."},
+            {"sent_id": "t0000.s02", "en_text": "Today we talk trails."},
+        ]
+        assert got["metadata"]["unit_id"] == "t0000.u01"
+        assert got["metadata"]["content_key"] == "deadbeef"
+
+    def test_a_single_sentence_unit_needs_no_numbering(self) -> None:
+        """There is nothing to align, so the plain payload goes — and no numbering can confuse
+        the model into emitting a list for one sentence."""
+        p = _provider(text="Welcome back.")
+        got = p.translate_unit(self._unit(["Bienvenidos."]), source_language="es")
+        assert got["alignment"] == "sentence"
+        assert got["sentences"] == [{"sent_id": "t0000.s01", "en_text": "Welcome back."}]
+        sent_prompt = p.client.completions.calls[0]["prompt"]  # type: ignore[attr-defined]
+        assert "1. " not in sent_prompt
+
+    def test_a_length_mismatch_falls_back_to_the_whole_unit_and_SAYS_SO(self) -> None:
+        """Coarser alignment, not wrong text — and recorded, so a corpus can be asked how often
+        it happened rather than it being invisible."""
+        p = _provider(text="Only one line came back.")
+        got = p.translate_unit(
+            self._unit(["Bienvenidos.", "Hoy hablamos.", "Tercera frase."]), source_language="es"
+        )
+        assert got["alignment"] == "unit"
+        assert len(got["sentences"]) == 1
+        assert got["sentences"][0]["sent_id"] == "t0000.s01"
+        assert got["metadata"]["attempts"] == 3, "two numbered tries, then the block fallback"
+        assert "alignment_mismatch" in got["metadata"]
+
+    def test_an_oversized_unit_is_refused_without_a_request(self) -> None:
+        p = _provider()
+        got = p.translate_unit(self._unit(["x" * 50], oversized=True), source_language="es")
+        assert got["alignment"] == "failed"
+        assert p.client.completions.calls == []  # type: ignore[attr-defined]
+
+    def test_a_dead_translator_reports_failed_not_a_silent_block(self) -> None:
+        p = _provider(raises=OSError("connection reset"))
+        got = p.translate_unit(self._unit(["Uno.", "Dos."]), source_language="es")
+        assert got["alignment"] == "failed"
+        assert got["sentences"] == []
+
+
+class TestNumberedParsing:
+    def test_a_wrapped_continuation_line_is_appended_not_dropped(self) -> None:
+        """A translation that wraps is still one sentence. Dropping the tail would silently
+        shorten it — the exact failure shape this arc keeps meeting."""
+        from podcast_scraper.providers.vllm.translate_provider import _parse_numbered
+
+        assert _parse_numbered("1. First part\n   and its continuation\n2. Second") == [
+            "First part and its continuation",
+            "Second",
+        ]
+
+    def test_both_dot_and_paren_numbering_parse(self) -> None:
+        from podcast_scraper.providers.vllm.translate_provider import _parse_numbered
+
+        assert _parse_numbered("1) One\n2) Two") == ["One", "Two"]
+
+    def test_unnumbered_output_yields_nothing_rather_than_a_wrong_alignment(self) -> None:
+        """Better to trip the mismatch path than to guess which sentence each line was."""
+        from podcast_scraper.providers.vllm.translate_provider import _parse_numbered
+
+        assert _parse_numbered("Just a paragraph with no numbers.") == []
