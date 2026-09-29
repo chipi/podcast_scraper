@@ -116,20 +116,83 @@ CAPABILITIES: list[Capability] = [
             "control at all and spends a minute of swipes discovering that on every test."
         ),
     ),
+    # ---------------------------------------------------------------- parity won on 2026-09-29
+    Capability(
+        name="signOut starts from Home and discovers the account instead of a hardcoded list",
+        android=(
+            "AppSession.java",
+            r"static boolean signOut\(\)[\s\S]*?Journey\.openTab\(\"Home\"\)"
+            r"[\s\S]*?Journey\.openProfile\(labels\)",
+        ),
+        ios=(
+            "AppSession.swift",
+            r"static func signOut\([\s\S]*?Journey\.openTab\(app, \"Home\"\)"
+            r"[\s\S]*?Journey\.openProfile\(app, labels:",
+        ),
+        status=BOTH,
+        why=(
+            "signOut runs when the session belongs to SOMEONE ELSE, so it cannot be told the "
+            "account name, and the label-less ['Your profile','simtest','uitest'] overload was "
+            "right only while every suite shared simtest. It also started wherever setOfflineMode "
+            "left the app — Settings, where 'Sign out' does not exist. iOS reads the masthead "
+            "band; Android reads the link next to the bell, because its tree carries masthead "
+            "buttons too."
+        ),
+    ),
+    Capability(
+        name="a stale session (no account name, no Sign out) relaunches instead of retrying",
+        android=("AppSession.java", r"nothing to sign out of"),
+        ios=("AppSession.swift", r"nothing to sign out of"),
+        status=BOTH,
+        why=(
+            "The bell renders under `auth.hasSession`, the Sign-out button under "
+            "`auth.isAuthenticated`. A stale local session has the first without the second, so "
+            "three sign-out attempts had nothing to act on. A relaunch re-runs boot revalidation "
+            "and the app settles into a real signed-out state."
+        ),
+    ),
+    Capability(
+        name="startClean turns forced-offline off BEFORE signing in when the banner is up",
+        android=("UITestCase.java", r"\"Offline mode is on\"[\s\S]*ensureSignedIn"),
+        ios=("UITestCase.swift", r"\"Offline mode is on\"[\s\S]*ensureSignedIn"),
+        status=BOTH,
+        why=(
+            "Forced-offline blocks /me, so sign-in can never complete and the normalisation after "
+            "it is never reached. Any run interrupted with the switch ON poisoned every later run "
+            "on that device."
+        ),
+    ),
+    Capability(
+        name="startClean hands back an app on Home",
+        android=(
+            "UITestCase.java",
+            r"setOfflineMode\(false, profileLabels\(\)\);\s*Journey\.openTab\(\"Home\"\);"
+            r"\s*return true;",
+        ),
+        ios=(
+            "UITestCase.swift",
+            r"setOfflineMode\(app, on: false, labels: profileLabels\)\s*"
+            r"_ = Journey\.openTab\(app, \"Home\"\)\s*return true",
+        ),
+        status=BOTH,
+        why=(
+            "setOfflineMode reaches its switch through Profile ▸ Settings and leaves the app "
+            "there, and every caller navigates as if it were on Home."
+        ),
+    ),
     # ---------------------------------------------------------------- declared gaps
     Capability(
         name="sign-in by delivering the OAuth callback directly (no Custom Tab)",
         android=("AppSession.java", r"static boolean signInViaCallback\(String identity\)"),
         ios=("AppSession.swift", r"func signInViaCallback\("),
-        status=ANDROID_ONLY,
+        status=BOTH,
         why=(
-            "Android mints a token over HTTP and delivers it as an ACTION_VIEW on "
-            "closelistening://auth#token=, which lands in the same appUrlOpen listener production "
-            "uses. It removed a sign-in flake measured at 2 failures in 9 runs. iOS cannot fire an "
-            "intent; its equivalent would go through ASWebAuthenticationSession or a Safari "
-            "hand-off, so it is a separate design rather than a port. iOS meanwhile still seeds a "
-            "token by writing CapacitorStorage with `defaults write` (ios-journey-signin), which "
-            "bypasses the app entirely — strictly worse than what Android now does."
+            "Both mint a token over HTTP (`/api/app/auth/login?as=<id>&platform=native`, following "
+            "the redirects to `closelistening://auth#token=`) and deliver it as a deep link into "
+            "the same appUrlOpen listener production uses. Android fires an ACTION_VIEW intent; "
+            "iOS opens the URL through `XCUIDevice.shared.system.open` and confirms SpringBoard's "
+            "prompt. CLOSED 2026-09-29 on iOS, replacing the dev-picker UI flow and the "
+            "`defaults write` token seeding that bypassed the app."
         ),
     ),
     Capability(
@@ -201,17 +264,15 @@ CAPABILITIES: list[Capability] = [
     Capability(
         name="suites sign in through the callback path ONLY, with no silent UI fallback",
         android=("AppSession.java", r"there is no fallback"),
-        ios=("AppSession.swift", r"there is no fallback"),
-        status=ANDROID_ONLY,
+        ios=("AppSession.swift", r"return signInViaCallback\(app, as: identity\) && isSignedIn"),
+        status=BOTH,
         why=(
-            "Android's `ensureSignedIn` uses the OAuth-callback intent and FAILS if it does not "
-            "land. It used to fall back to the UI flow, defended as insurance; when the callback "
-            "actually broke on 2026-09-28 the fallback ran `signIn` against an already-signed-in "
-            "app, typed the identity into Home's search box, and failed four steps later as "
-            "'sign-in did not complete' — converting a precise failure into a confusing one. The "
-            "real UI flow keeps its coverage in one dedicated HarnessSmokeTests test, pinned to a "
-            "single caller by a guard. iOS has no callback path at all yet (it cannot fire an "
-            "intent), so it necessarily still drives the UI flow everywhere."
+            "`ensureSignedIn` uses the OAuth-callback path and FAILS if it does not land. Android "
+            "used to fall back to the UI flow; when the callback broke on 2026-09-28 the fallback "
+            "ran `signIn` against an already-signed-in app, typed the identity into Home's search "
+            "box, and failed four steps later as 'sign-in did not complete' — converting a precise "
+            "failure into a confusing one. The UI flow keeps its coverage in one dedicated "
+            "HarnessSmokeTests test. iOS went callback-only on 2026-09-29."
         ),
     ),
 ]
