@@ -230,6 +230,54 @@ def run_translation_stage(
     return outcome
 
 
+def analysis_blocked_reason(
+    cfg: Any,
+    *,
+    transcript_relpath: Optional[str],
+    effective_output_dir: Optional[str],
+    feed_language: Optional[str] = None,
+) -> Optional[str]:
+    """Why summary/GI/KG must NOT run for this episode, or ``None`` to proceed (RFC-124 §5.3).
+
+    THE GATE, AS THE CONSUMERS SEE IT. The producer side withholds `.en.*` when a translation is
+    incomplete; this is the half that stops the English stages reading the source anyway. Both
+    halves are needed: without the check, a pending or failed translation falls straight through
+    the resolver's precedence to `.adfree.txt` or `.txt` and runs English prompts over Spanish
+    text — which §5.2 measured as confidently wrong rather than blind.
+
+    ENGLISH EPISODES ARE NEVER BLOCKED, and the ordering here says so first: the check resolves
+    the language before anything else, so the 678 English episodes in the corpus take one
+    comparison and return. A gate that could stall the English pipeline in exchange for
+    protecting the Spanish one would not be worth having.
+
+    Returns a human-readable sentence, so the log line, the manifest and the metric all carry
+    the same words — the same rule ``_unsupported_language_skip_reason`` follows.
+    """
+    from ..translation.artifacts import english_artifacts_present, load_translation_json
+
+    _raw, language, _source = resolve_config_language(cfg, feed_language=feed_language)
+    if not language or language == "en":
+        return None
+    if not transcript_relpath or not effective_output_dir:
+        return None
+    if english_artifacts_present(transcript_relpath, effective_output_dir):
+        return None
+
+    doc = load_translation_json(transcript_relpath, effective_output_dir)
+    if doc is None:
+        detail = "no translation was attempted"
+    elif doc.failed_units:
+        detail = f"{len(doc.failed_units)} of {len(doc.units)} units failed to translate"
+    else:
+        detail = "the English artifacts are missing"
+    return (
+        f"episode language is {language!r} and there is no complete English artifact set "
+        f"({detail}), so summary, GI and KG were SKIPPED rather than run over "
+        f"{language!r} text with English prompts (RFC-124 §5.3). Repair the translation and "
+        "reprocess; the source transcript and every successful unit are on disk."
+    )
+
+
 def _load_source_transcript(effective_output_dir: str, transcript_relpath: str) -> tuple[str, list]:
     """The SOURCE body and its own sidecar, by exact path. No precedence, by design.
 

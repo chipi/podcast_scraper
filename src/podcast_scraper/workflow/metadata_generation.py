@@ -52,7 +52,7 @@ from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
 from ..languages import resolve_episode_language
 from ..speaker_detectors.hosts import looks_like_publisher
-from .translation_stage import run_translation_stage
+from .translation_stage import analysis_blocked_reason, run_translation_stage
 
 if TYPE_CHECKING:
     from ..models import Episode, RssFeed
@@ -4633,6 +4633,43 @@ def _resolved_run_id(cfg: config.Config) -> Optional[str]:
         return getattr(cfg, "run_id", None)
 
 
+def _record_analysis_skipped(
+    cfg: config.Config,
+    output_dir: str,
+    transcript_relpath: Optional[str],
+    reason: str,
+    episode_id: Optional[str],
+) -> None:
+    """Record summary/GI/KG as `ran: false` with a reason, rather than as absence (D-39).
+
+    One pipeline: a stage that was skipped says it was skipped. Absence would be
+    indistinguishable from an episode that predates these stages, which is the measured-vs-
+    defaulted confusion the whole arc is built to avoid.
+    """
+    if not transcript_relpath:
+        return
+    from . import processing_manifest as pm
+
+    for stage in ("summary", "gi", "kg"):
+        try:
+            pm.update_stage(
+                output_dir,
+                transcript_relpath,
+                stage,
+                pm.stage_block(
+                    ran=False,
+                    method_version=pm.METHOD_VERSIONS.get(stage),
+                    cost_usd=0.0,
+                    metrics={"skipped_reason": "translation_incomplete", "detail": reason},
+                ),
+                episode_id=episode_id,
+                feed_id=getattr(cfg, "rss_url", None),
+                run_id=_resolved_run_id(cfg),
+            )
+        except Exception:  # noqa: BLE001 — the manifest never fails the episode
+            logger.debug("could not record %s as skipped", stage, exc_info=True)
+
+
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -4803,22 +4840,45 @@ def generate_episode_metadata(  # noqa: C901
         run_id=_resolved_run_id(cfg),
     )
 
+    # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds `.en.*`
+    # when a translation is incomplete; this is what stops the English stages reading the SOURCE
+    # anyway. Without it a pending translation falls through the resolver's precedence to
+    # `.adfree.txt`/`.txt` and runs English prompts over Spanish — which §5.2 measured as
+    # confidently wrong, not blind. English episodes cost one language comparison here.
+    _blocked = analysis_blocked_reason(
+        cfg,
+        transcript_relpath=transcript_file_path,
+        effective_output_dir=output_dir,
+        feed_language=getattr(feed, "language", None),
+    )
+    if _blocked:
+        logger.warning("[%s] %s", getattr(episode, "idx", "?"), _blocked)
+        _record_analysis_skipped(cfg, output_dir, transcript_file_path, _blocked, episode_id)
+
     # Get NLP model for entity reconciliation if needed
     nlp = _get_nlp_model_for_reconciliation(
         cfg, episode, transcript_file_path, summary_provider, nlp
     )
 
     # Generate summary if enabled and transcript is available
-    summary_metadata, summary_elapsed, summary_call_metrics = _generate_and_validate_summary(
-        episode,
-        feed_url,
-        transcript_file_path,
-        output_dir,
-        cfg,
-        summary_provider,
-        whisper_model,
-        pipeline_metrics,
-    )
+    if _blocked:
+        # Skipped, not failed. `metadata.json` is still written below, so the episode EXISTS —
+        # the player serves its source text through the resolver's tail, S2.8's
+        # `translation_status` reports it, and the backlog is queryable. Raising here instead
+        # would land in processing.py's generic handler, count the episode as an error and write
+        # no metadata at all, which would make the backlog invisible.
+        summary_metadata, summary_elapsed, summary_call_metrics = None, None, None
+    else:
+        summary_metadata, summary_elapsed, summary_call_metrics = _generate_and_validate_summary(
+            episode,
+            feed_url,
+            transcript_file_path,
+            output_dir,
+            cfg,
+            summary_provider,
+            whisper_model,
+            pipeline_metrics,
+        )
 
     processing_metadata = _build_processing_metadata(
         cfg, output_dir, episode_idx=episode.idx, pipeline_metrics=pipeline_metrics
@@ -4918,7 +4978,12 @@ def generate_episode_metadata(  # noqa: C901
     gi_meta: Optional[GroundedInsightsMetadata] = None
     gi_elapsed: Optional[float] = None  # captured for the processing manifest (RFC-109)
     gi_cost: Optional[float] = None  # per-episode GI cost for the processing manifest (RFC-109)
-    if getattr(cfg, "generate_gi", False):
+    # `not _blocked` is the GI half of RFC-124 §5.3's gate. GI is where the cost of getting this
+    # wrong is highest: it mints claims and attaches them to people via SPOKEN_BY, so a claim
+    # extracted from untranslated Spanish by English prompts becomes a durable corpus fact
+    # nobody can later distinguish from a correct one. KG runs inside this block, so gating here
+    # gates both.
+    if getattr(cfg, "generate_gi", False) and not _blocked:
         from .helpers import get_episode_id_from_episode
 
         episode_id_for_status, _ = get_episode_id_from_episode(episode, feed_url)
