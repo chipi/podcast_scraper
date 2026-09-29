@@ -80,6 +80,17 @@ public abstract class UITestCase {
         // avatar, and the avatar only exists when there IS a session. So a signed-out app cannot
         // reach the switch at all, and putting it first spends about a minute of swipes and
         // timeouts discovering that on every single test.
+        //
+        // EXCEPT WHEN THE APP IS ALREADY FORCED OFFLINE. Forced-offline blocks `/me`, so sign-in
+        // can never complete and the normalisation below is never reached — any run interrupted
+        // while a suite had the switch ON poisons every later run until `pm clear`. Measured on the
+        // iOS twin 2026-09-29. Settings is client-side and reachable through the stale "Your
+        // profile" link, so the switch can be turned off first. Gated on the banner so the online
+        // case pays one short lookup.
+        if (Journey.find(java.util.Arrays.asList("Offline mode is on"), true, 3_000) != null) {
+            Journey.setOfflineMode(false, profileLabels());
+            Journey.openTab("Home");
+        }
         boolean signedIn = AppSession.ensureSignedIn(accountIdentity());
         if (!signedIn) return false;
         // Forced-offline OFF: it is device-local, so it survives a relaunch AND an account change,
@@ -87,6 +98,9 @@ public abstract class UITestCase {
         // the suite reporting it. That was every native failure on 2026-09-16 on iOS — one suite
         // left it on, three later ones failed naming themselves.
         Journey.setOfflineMode(false, profileLabels());
+        // END ON HOME. `setOfflineMode` leaves the app on Settings, and every caller navigates as
+        // if it were on Home. Measured on the iOS twin 2026-09-28 (`test03TopicAndStoryline`).
+        Journey.openTab("Home");
         return true;
     }
 }

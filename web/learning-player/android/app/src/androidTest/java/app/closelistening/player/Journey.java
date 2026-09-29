@@ -610,11 +610,6 @@ final class Journey {
         return tapRightmostInMasthead();
     }
 
-    /** The seeded accounts plus the generic label — for callers with no identity of their own. */
-    static boolean openProfile() {
-        return openProfile(Arrays.asList("Your profile", "simtest", "uitest"));
-    }
-
     private static boolean tapRightmostInMasthead() {
         UiObject2 best = null;
         int bestLeft = -1;

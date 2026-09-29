@@ -1,6 +1,7 @@
 package app.closelistening.player;
 
 import android.content.Context;
+import android.graphics.Rect;
 import android.content.Intent;
 import android.net.Uri;
 
@@ -9,7 +10,9 @@ import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Session helpers for the Android device tier (#2139) — the sibling of `AppSession.swift`.
@@ -315,7 +318,20 @@ final class AppSession {
         // The app is not the suspect: `auth.logout()` drops the local identity in a `finally`
         // precisely so a sign-out with no network still works.
         for (int attempt = 1; attempt <= 3; attempt++) {
-            Journey.openProfile();
+            // HOME FIRST. `setOfflineMode` leaves the app on Settings, where "Sign out" does not
+            // exist, and `signOut` runs inside `ensureSignedIn` — before `startClean` gets the app
+            // back to Home. Measured on the iOS twin 2026-09-29 (all four NativeOnlySurfacesTests).
+            Journey.openTab("Home");
+            // OPEN PROFILE WITHOUT KNOWING WHOSE IT IS. `signOut` runs precisely when the session
+            // belongs to SOMEONE ELSE, so the account name the masthead link carries is the one
+            // thing it cannot be told. The label-less `openProfile()` answered with a hardcoded
+            // ["Your profile", "simtest", "uitest"], right only while every suite shared `simtest`.
+            // The masthead band holds fixed chrome plus exactly one variable link: the account.
+            List<String> candidates = mastheadAccountCandidates();
+            Journey.mark("=====SIGNOUT profile candidates " + candidates + "=====");
+            List<String> labels = new ArrayList<>(candidates);
+            labels.add("Your profile");
+            Journey.openProfile(labels);
             // SELECT THE ACCOUNT TAB. Profile is tabbed (Account / Topics / Stats) and "Sign out"
             // lives in the Account panel (`ProfileView.vue:803`), so on any other tab it is not
             // below the fold — it is NOT RENDERED, and scrolling cannot produce it.
@@ -332,6 +348,18 @@ final class AppSession {
             // ledger; the alternative is finding it here in six weeks and calling it new.
             Journey.tap(Arrays.asList("Account"), false, 5_000);
             UiObject2 out = Journey.scrollTo("Sign out", false);
+            // NOTHING TO SIGN OUT OF: the masthead shows only the GENERIC "Your profile" AND there
+            // is no "Sign out" — both say `auth.isAuthenticated` is false (`v-if` on the button,
+            // `auth.user?.name || 'Your profile'` on the link), while `hasAnySession` still answers
+            // yes off the bell, which renders under `auth.hasSession`. A stale local session.
+            // Retrying the tap cannot help; a relaunch re-runs the boot revalidation, `/me` refuses
+            // the token, and the app settles into a real signed-out state with a Sign in link.
+            // Measured on the iOS twin 2026-09-29. `ensureSignedIn` verifies the identity after.
+            if (out == null && candidates.equals(Arrays.asList("Your profile"))) {
+                Journey.mark("=====SIGNOUT nothing to sign out of — no account name, no Sign out=====");
+                relaunch();
+                return true;
+            }
             if (out == null) {
                 Journey.mark("=====SIGNOUT attempt " + attempt
                         + ": no 'Sign out' control on Profile :: " + Journey.labelledInventory(80)
@@ -353,6 +381,32 @@ final class AppSession {
                     + " but a session is still present :: " + Journey.labelledInventory(80) + "=====");
         }
         return false;
+    }
+
+    /**
+     * Names of the clickable masthead entries that are not fixed chrome — in practice the account
+     * link, whatever it is called. Top 15% of the display only: below that are episode cards, which
+     * `openProfile` would OR into the same match and navigate to instead (measured on iOS).
+     */
+    private static List<String> mastheadAccountCandidates() {
+        List<String> chrome = Arrays.asList(
+                "Skip to content", "Settings", "Search", "Queue", "Home", "Discover", "Library");
+        List<String> out = new ArrayList<>();
+        try {
+            int band = (int) (Journey.device().getDisplayHeight() * 0.15);
+            for (UiObject2 o : Journey.device().findObjects(By.pkg(Journey.PKG).clickable(true))) {
+                Rect b = Journey.attr(o, UiObject2::getVisibleBounds);
+                if (b == null || b.top < 0 || b.top >= band) continue;
+                String name = Journey.nameOf(o);
+                if (name.isEmpty() || chrome.contains(name) || out.contains(name)) continue;
+                if (name.startsWith("Close Listening") || name.startsWith("Queue (")) continue;
+                if (name.startsWith("Notifications")) continue;
+                out.add(name);
+            }
+        } catch (Throwable ignored) {
+            // Tree mutated mid-walk; an empty list falls back to "Your profile" + positional.
+        }
+        return out;
     }
 
     /**
