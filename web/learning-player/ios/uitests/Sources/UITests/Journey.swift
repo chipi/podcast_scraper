@@ -352,7 +352,26 @@ enum Journey {
       // true on these surfaces today (only "Skip to content" is fixed chrome) but nowhere written
       // down, so a sticky header would silently make every page look stalled after two swipes.
       // Frames move whenever the page does, which is the thing actually being detected.
+      // BELOW THE STICKY CHROME (ported from Android's `Journey.signature()`, 2026-09-29).
+      //
+      // This took the first twelve staticTexts in TREE order, which on every page in this app is
+      // the masthead — and the masthead is FIXED. The signature therefore never changed, every
+      // surface read as stalled after two swipes, and this gave up long before reaching anything
+      // below the fold. The comment directly above warns about "a sticky header" doing exactly
+      // this; the warning was written and the bug was left in.
+      //
+      // Android met it (Settings reporting "no Offline mode row" while sitting on Settings with the
+      // row three sections down, 2026-09-24), fixed it there, and its comment records that the iOS
+      // twin still had it. Measured here: `signOut` on a Profile page — inventory `Change photo |
+      // Account | Topics | Stats` — could not reach "Sign out", which is deliberately the LAST
+      // control on that page (#1962) and so always just below the fold.
+      //
+      // 12%-88% excludes the masthead and the tab bar, leaving only nodes that move when the page
+      // does.
+      let top = app.frame.height * 0.12
+      let bottom = app.frame.height * 0.88
       let signature = app.staticTexts.allElementsBoundByIndex
+        .filter { $0.frame.midY > top && $0.frame.midY < bottom && !$0.label.isEmpty }
         .prefix(12).map { "\($0.label)@\(Int($0.frame.origin.y))" }.joined(separator: "|")
       if signature == lastSignature {
         stalled += 1

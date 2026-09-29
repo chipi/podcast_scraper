@@ -273,6 +273,17 @@ enum AppSession {
   static func signOut(_ app: XCUIApplication) -> Bool {
     guard isSignedIn(app) else { return true } // already out; the caller's precondition holds
     for attempt in 1...3 {
+      // HOME FIRST. Whatever ran before may have left the app anywhere, and the masthead avatar is
+      // the entry point everything below depends on.
+      //
+      // MEASURED 2026-09-29: all four `NativeOnlySurfacesTests` failed "could not sign out after 3
+      // attempts" with the inventory showing the SETTINGS page, not Profile —
+      //     Clear cache | Remove downloads | Support | Third-party software | Privacy policy
+      // `setOfflineMode` reaches its switch through Settings and leaves the app there, so the NEXT
+      // test's sign-out starts on Settings, where "Sign out" does not exist. `startClean` returns
+      // to Home at its END, but `signOut` runs inside `ensureSignedIn`, which is earlier — so that
+      // fix could never cover this call.
+      _ = Journey.openTab(app, "Home")
       // OPEN PROFILE WITHOUT KNOWING WHOSE IT IS.
       //
       // `signOut` runs precisely when the session belongs to SOMEONE ELSE, so the account name —
@@ -337,6 +348,36 @@ enum AppSession {
       // stalled after two swipes". Profile has a sticky Account/Topics/Stats tab bar, so it reports
       // "no 'Sign out' on Profile" about a page that has one, just below the fold.
       _ = Journey.scrollTo(app, labels: ["Sign out"], contains: false)
+      // NOTHING TO SIGN OUT OF. Measured 2026-09-29: `TAP_MISS ["Sign out"]` — the control is not
+      // in the tree AT ALL, not merely below the fold — while the only non-chrome masthead link is
+      // the GENERIC "Your profile". Both facts say the same thing: `auth.isAuthenticated` is false,
+      // because the button is `v-if="auth.isAuthenticated"` and the masthead label is
+      // `auth.user?.name || 'Your profile'`.
+      //
+      // `isSignedIn` still answers yes there, because it reads the notifications bell, which renders
+      // under `auth.hasSession` — a stale local session survives where an authenticated one does
+      // not. So this loop was retrying a sign-out that had nothing to act on, three times, and then
+      // failing the suite.
+      //
+      // Requires BOTH signals, deliberately: a signed-in Profile shows the account name AND the
+      // button, so neither alone would be safe. `ensureSignedIn` then verifies the identity anyway,
+      // which is the backstop if this is ever wrong.
+      if candidates == ["Your profile"],
+        Journey.find(app, labels: ["Sign out"], contains: false, timeout: 2) == nil
+      {
+        // RELAUNCH, don't just navigate. This state is a stale local session — `hasSession` true,
+        // `isAuthenticated` false — and returning from it with the app untouched leaves the caller
+        // unable to do anything: `signIn` then hunts a "Sign in" link that the masthead does not
+        // show either, and fails "neither Sign in nor Sign out present" (measured 2026-09-29).
+        // A relaunch re-runs the boot revalidation, `/me` refuses the token, and the app settles
+        // into a REAL signed-out state where the Sign in link exists.
+        print("=====SIGNOUT nothing to sign out of — no account name, no Sign out control=====")
+        app.terminate()
+        app.launch()
+        _ = app.wait(for: .runningForeground, timeout: 30)
+        sleep(7)  // boot paints the device snapshot, then revalidates; same wait as Journey.launch
+        return true
+      }
       let tapped = Journey.tap(app, labels: ["Sign out"], contains: false, timeout: 10)
       sleep(3)
       if !isSignedIn(app) { return true }

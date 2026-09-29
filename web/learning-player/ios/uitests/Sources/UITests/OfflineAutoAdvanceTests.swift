@@ -46,7 +46,7 @@ final class OfflineAutoAdvanceTests: UITestCase {
     // weaker — a code path that ignored the flag and hit the network would still pass.
     //
     // `lp.forceOffline` is device-local, so it survives the relaunch below.
-    _ = Journey.setOfflineMode(app, on: true)
+    _ = Journey.setOfflineMode(app, on: true, labels: profileLabels)
 
     // A COLD start is the point: launch() on an already-running app only activates it, so what is
     // on disk is never re-read.
@@ -159,6 +159,6 @@ final class OfflineAutoAdvanceTests: UITestCase {
 
     // Device-local and survives a relaunch AND an account change — left on, it breaks every later
     // suite's network assertions for the wrong reason (the 2026-09-16 cross-suite leak).
-    _ = Journey.setOfflineMode(app, on: false)
+    _ = Journey.setOfflineMode(app, on: false, labels: profileLabels)
   }
 }

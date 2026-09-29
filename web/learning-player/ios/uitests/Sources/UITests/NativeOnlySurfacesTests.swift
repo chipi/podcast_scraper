@@ -203,11 +203,11 @@ final class NativeOnlySurfacesTests: UITestCase {
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
     guard startClean(app) else { XCTFail("sign-in did not complete as \(accountIdentity)"); return }
 
-    XCTAssertTrue(Journey.setOfflineMode(app, on: true), "could not force offline mode")
+    XCTAssertTrue(Journey.setOfflineMode(app, on: true, labels: profileLabels), "could not force offline mode")
     defer {
       // Device-local and survives a relaunch AND an account change — left on, it breaks every
       // later suite's network assertions for the wrong reason (the 2026-09-16 cross-suite leak).
-      _ = Journey.setOfflineMode(app, on: false)
+      _ = Journey.setOfflineMode(app, on: false, labels: profileLabels)
     }
 
     guard AppSession.signOut(app) else { XCTFail("could not sign out"); return }
@@ -244,7 +244,7 @@ final class NativeOnlySurfacesTests: UITestCase {
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
     guard startClean(app) else { XCTFail("sign-in did not complete as \(accountIdentity)"); return }
-    _ = Journey.setOfflineMode(app, on: false)
+    _ = Journey.setOfflineMode(app, on: false, labels: profileLabels)
     guard AppSession.signOut(app) else { XCTFail("could not sign out"); return }
 
     // Signed out but ONLINE: the landing must not advertise the offline list at all.
