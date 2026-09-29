@@ -228,6 +228,56 @@ class TestTheEnglishBranch:
         assert loaded.segments is not None
         assert loaded.segments[0]["text"] == "Hello."
 
+    def test_english_is_the_default_for_BOTH_purposes(self, tmp_path: Path) -> None:
+        """D-38, pinned as one assertion so the decision has a single place to fail.
+
+        The individual purpose tests above each check their own precedence. This one exists
+        because the DECISION is about both at once: when a translation exists, every surface
+        shows English unless it asks otherwise — the analysis space because the intelligence
+        layer is single-path (D-1), the timeline space because a translated episode has full
+        standing on every surface (D-37) and a source-language player default would be a
+        per-surface split in everything but name.
+
+        Reversing it is a one-line change to the precedence. This test is what makes that line
+        announce itself instead of drifting.
+        """
+        for rel in (
+            _REL,
+            "transcripts/01 - ep.adfree.txt",
+            "transcripts/01 - ep.en.txt",
+            "transcripts/01 - ep.en.adfree.txt",
+        ):
+            _write(tmp_path, rel, rel)
+
+        analysis = resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.ANALYSIS)
+        timeline = resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.TIMELINE)
+        assert analysis is not None and timeline is not None
+        assert ".en." in analysis.name, "analysis must read English when it exists"
+        assert ".en." in timeline.name, "the player must read English when it exists"
+
+    def test_the_source_language_is_never_destroyed(self, tmp_path: Path) -> None:
+        """What makes D-38 reversible and makes S2.8's `?lang=` possible without a reprocess.
+
+        The English default is a PRECEDENCE, not a replacement. Both source bodies stay on disk
+        and stay resolvable by name, so exposing the source language later is a read, not a
+        rebuild.
+        """
+        for rel in (
+            _REL,
+            "transcripts/01 - ep.adfree.txt",
+            "transcripts/01 - ep.en.txt",
+            "transcripts/01 - ep.en.adfree.txt",
+        ):
+            _write(tmp_path, rel, rel)
+
+        assert (tmp_path / _REL).is_file()
+        assert (tmp_path / "transcripts/01 - ep.adfree.txt").is_file()
+        # And they are still reachable through the candidate list, not merely present on disk.
+        for purpose in (TranscriptPurpose.ANALYSIS, TranscriptPurpose.TIMELINE):
+            candidates = text_relpath_candidates(_REL, purpose=purpose)
+            assert _REL in candidates
+            assert "transcripts/01 - ep.adfree.txt" in candidates
+
     def test_english_relpath_helpers(self) -> None:
         assert english_transcript_relpath(_REL) == "transcripts/01 - ep.en.txt"
         assert english_adfree_transcript_relpath(_REL) == "transcripts/01 - ep.en.adfree.txt"

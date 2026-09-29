@@ -131,6 +131,18 @@ def text_relpath_candidates(
     purpose: the cleaned body is the summariser's byproduct and only one reader wants it
     (the recurrent-host scan, which will take any rendering with the ads gone).
 
+    ENGLISH IS THE DEFAULT, FOR BOTH PURPOSES — a decision (D-38), not a side effect of the
+    order these lines happen to be written in. When an episode has been translated, every
+    surface shows English unless it asks otherwise: ``analysis`` because the intelligence layer
+    is single-path by construction (D-1), and ``timeline`` — the player's own precedence —
+    because a translated episode has full standing (D-37) and serving its source language by
+    default would be a per-surface split in everything but name.
+
+    The source language is never destroyed: ``.txt`` and ``.segments.json`` stay canonical, so
+    S2.8's ``?lang=`` exposes the source as an explicit choice rather than needing a reprocess.
+    To reverse the default, move the English candidate off the front of the relevant list here —
+    one line, and the tests that pin it will say so.
+
     THE ENGLISH HEAD IS A PURE PREPEND (S2.1b). Each list gains one English candidate at the
     front and its existing tail is untouched, so for an episode with no ``.en.*`` on disk the
     resolved path is exactly what it was before this branch existed. That is why the resolver

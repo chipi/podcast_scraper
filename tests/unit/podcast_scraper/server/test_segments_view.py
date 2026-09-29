@@ -20,11 +20,16 @@ class TestSegmentsRelpaths:
         render carries the source segments' times — so for a translated episode this serves
         English text against the source audio, i.e. subtitles.
 
-        **The player's DEFAULT language is S2.8's decision, not this ordering's.** S2.8 adds
-        `?lang=` and the `machine_translated` / `translation_model` fields; if the default for a
-        non-English episode should be its own language, that is the slice that has to say so and
-        this list is where it changes. Recorded here so the default is chosen rather than
-        inherited from a precedence written for a different purpose.
+        **The player's default is DECIDED: English (D-38, 2026-09-29.)** It was settled here
+        rather than deferred to S2.8, which now only adds `?lang=` to select the source language
+        as an explicit alternative. The reasoning: a translated episode has full standing on
+        every surface (D-37), so defaulting the player to the source language would be a
+        per-surface split in everything but name.
+
+        The consequence is worth keeping in view rather than burying: with no "translated from X"
+        marker in v1 (D-36), the default view of a Spanish episode is English text a listener
+        cannot tell is translated. The source is never destroyed — `.segments.json` stays
+        canonical — so reversing this is a one-line change to the precedence, not a reprocess.
         """
         assert segments_relpaths_for_transcript("transcripts/ep1.txt") == [
             "transcripts/ep1.en.segments.json",
