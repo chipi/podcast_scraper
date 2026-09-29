@@ -147,7 +147,7 @@ class ObservabilityConfig:
         _load_obs_dev_env()  # zero-config: pick up the worktree's .env.obs.dev if present
         name = os.environ.get(f"{ENV_PREFIX}TARGET", "default")
         projects = _split_csv(_env("SENTRY_PROJECTS"))
-        _dsn = _bare("PODCAST_SENTRY_DSN_PIPELINE") or _bare("PODCAST_SENTRY_DSN_API")
+        platform = _platform_read_urls()
         target = TargetConfig(
             name=name,
             api_base=_env("API_BASE"),
@@ -160,16 +160,12 @@ class ObservabilityConfig:
             # GlitchTip issue-link (permalink) pivot works from the same env, no PODCAST_OBS_ dup.
             sentry_token=_env("SENTRY_TOKEN") or _bare("SENTRY_AUTH_TOKEN"),
             sentry_environment=_env("SENTRY_ENV") or "prod",
-            sentry_url=_env("SENTRY_URL") or _origin(_dsn),
-            grafana_url=_env("GRAFANA_URL"),
+            sentry_url=platform["sentry_url"],
+            grafana_url=platform["grafana_url"],
             grafana_token=_env("GRAFANA_TOKEN"),
-            victorialogs_url=_env("VICTORIALOGS_URL") or _origin(_bare("PODCAST_LOGS_PUSH_URL")),
-            victoriametrics_url=(
-                _env("VICTORIAMETRICS_URL") or _origin(_bare("PODCAST_METRICS_PUSH_URL"))
-            ),
-            victoriatraces_url=(
-                _env("VICTORIATRACES_URL") or _origin(_bare("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"))
-            ),
+            victorialogs_url=platform["victorialogs_url"],
+            victoriametrics_url=platform["victoriametrics_url"],
+            victoriatraces_url=platform["victoriatraces_url"],
             victoria_token=_env("VICTORIA_TOKEN"),
             # Langfuse uses its SDK-native bare names (not the PODCAST_OBS_ prefix) so the
             # same keys the pipeline traces with drive the probe — no duplicate config.
@@ -309,7 +305,30 @@ def _secret(spec: dict, key: str) -> Optional[str]:
     return os.environ.get(env_name) if env_name else None
 
 
+def _platform_read_urls() -> dict[str, Optional[str]]:
+    """Backend read URLs derived from the settings the platform already RENDERS at deploy time.
+
+    One derivation for both config paths. Each backend is reached through the same variable the
+    platform ships telemetry with, so obs observes exactly what the apps write to and there are no
+    separate URLs to keep in sync: logs / metrics from the Alloy push URLs, traces from the OTLP
+    endpoint the APIs export to, errors from the GlitchTip DSN. ``PODCAST_OBS_*`` overrides each.
+    """
+    dsn = _bare("PODCAST_SENTRY_DSN_PIPELINE") or _bare("PODCAST_SENTRY_DSN_API")
+    return {
+        "sentry_url": _env("SENTRY_URL") or _origin(dsn),
+        "grafana_url": _env("GRAFANA_URL"),
+        "victorialogs_url": _env("VICTORIALOGS_URL") or _origin(_bare("PODCAST_LOGS_PUSH_URL")),
+        "victoriametrics_url": (
+            _env("VICTORIAMETRICS_URL") or _origin(_bare("PODCAST_METRICS_PUSH_URL"))
+        ),
+        "victoriatraces_url": (
+            _env("VICTORIATRACES_URL") or _origin(_bare("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"))
+        ),
+    }
+
+
 def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
+    platform = _platform_read_urls()
     github = spec.get("github") or {}
     sentry = spec.get("sentry") or {}
     grafana = spec.get("grafana") or {}
@@ -340,12 +359,20 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         sentry_projects=tuple(projects),
         sentry_token=_secret(sentry, "token"),
         sentry_environment=sentry.get("environment") or "prod",
-        sentry_url=sentry.get("url"),
-        grafana_url=grafana.get("url"),
+        # Backend READ URLs: a literal in the YAML wins, otherwise the SAME platform-rendered
+        # settings ``from_env`` uses (see ``_platform_read_urls``). Before #2188 this branch read
+        # the YAML literal ONLY, and ``load()`` takes this branch whenever ``PODCAST_OBS_CONFIG``
+        # is set — which on prod it always is. So prod obs never saw the URLs the deploy renders
+        # for every other container, and read static ``homelab:<port>`` values instead. Measured
+        # 2026-09-29 inside ``player-obs-1``: the tailnet ACL drops prod -> ``homelab:9428`` (logs)
+        # and ``homelab:3000`` (grafana) while allowing 8428 / 10428, and metrics / traces had no
+        # URL at all — all four sources dead while the backends held live data.
+        sentry_url=sentry.get("url") or platform["sentry_url"],
+        grafana_url=grafana.get("url") or platform["grafana_url"],
         grafana_token=_secret(grafana, "token"),
-        victorialogs_url=victoria.get("logs_url"),
-        victoriametrics_url=victoria.get("metrics_url"),
-        victoriatraces_url=victoria.get("traces_url"),
+        victorialogs_url=victoria.get("logs_url") or platform["victorialogs_url"],
+        victoriametrics_url=victoria.get("metrics_url") or platform["victoriametrics_url"],
+        victoriatraces_url=victoria.get("traces_url") or platform["victoriatraces_url"],
         victoria_token=_secret(victoria, "token"),
         # Fall back to the langfuse SDK-native env vars (the keys the pipeline traces with) when the
         # YAML omits them — secrets never live in the config file, so a config-target probe still

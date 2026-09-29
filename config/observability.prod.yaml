@@ -1,14 +1,27 @@
 # Prod observability config for the on-VPS obs MCP (#56).
 #
 # Mounted read-only into the `obs` service (compose/docker-compose.player-public.yml) at
-# /config/observability.yaml; deploy stages it to the box. Backends are the SELF-HOSTED homelab
-# stack over Tailscale — Grafana Cloud is retired (ADR-117/119). The obs reads are all on the
-# `homelab` host, which the container reaches via the `homelab` extra_host (IP staged at deploy).
+# /config/observability.yaml; deploy-player.yml stages it to the box. Backends are the self-hosted
+# homelab stack over Tailscale — Grafana Cloud is retired (ADR-117/119).
 #
-# Secrets NEVER live here — `<field>_env: ENV_VAR_NAME` indirection resolves them from the
-# service env (deploy stages the tokens). MagicDNS short names only (never the tailnet FQDN —
-# deny-list gate). Every source degrades to "not configured" when its token/slug is absent, so
-# this ships with the reachable sources and gains the rest incrementally.
+# NO BACKEND URLS LIVE IN THIS FILE — on purpose (#2188). The obs container gets them the way every
+# other prod container gets its observability endpoints: as environment variables RENDERED AT
+# DEPLOY TIME by deploy-player.yml:
+#
+#     logs     PODCAST_OBS_VICTORIALOGS_URL        the LOGS_NODE Alloy writes to (shared node file)
+#     metrics  PODCAST_OBS_VICTORIAMETRICS_URL     the METRICS_NODE Alloy writes to (shared node file)
+#     traces   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT  the same value player-api exports spans to
+#     errors   PODCAST_OBS_SENTRY_URL              the glitchtip tailnet node
+#     alerts   PODCAST_OBS_GRAFANA_URL             the grafana tailnet node
+#
+# `podcast_obs.config._platform_read_urls` turns those into read bases, and a target here that
+# omits a URL falls back to them. A literal URL written here would WIN over the rendered one — which
+# is exactly how this broke: the file used to say `logs_url: http://homelab:9428` and
+# `grafana.url: http://homelab:3000`, the tailnet ACL drops prod -> homelab on both ports (while
+# allowing 8428 / 10428), and metrics / traces had no URL at all. All four sources were dead while
+# the backends held live data (measured 2026-09-29, inside `player-obs-1`). Do not add URLs back.
+#
+# Secrets never live here either — `<field>_env: ENV_VAR_NAME` names the variable the deploy stages.
 
 default_target: prod
 
@@ -30,28 +43,21 @@ targets:
     # the gated sources keep degrading to "failed" exactly as they do today.
     operator_key_env: APP_OPERATOR_API_KEY
 
-    # Deploy history (recent deploy-prod runs). Needs an Actions:read PAT — operator provides;
-    # until then this source reports "not configured".
+    # Deploy history (recent deploy-prod runs). Needs an Actions:read PAT — deliberately not
+    # provisioned; this source reports "not configured".
     github:
       repo: chipi/podcast_scraper
       token_env: PODCAST_OBS_GITHUB_TOKEN
 
-    # Errors — homelab GlitchTip (Sentry-API-compatible). Reuses the existing platform secret.
-    # org + projects (GlitchTip org slug + project slugs) are filled at deploy; without them the
-    # errors source degrades cleanly.
+    # Errors — homelab GlitchTip (Sentry-API-compatible). The token is a dedicated GlitchTip API
+    # token, NOT the platform's SENTRY_AUTH_TOKEN: that one returns HTTP 401 against the GlitchTip
+    # API (measured 2026-09-29), so it cannot back this source.
     sentry:
       environment: prod
-      token_env: SENTRY_AUTH_TOKEN
-      # org: <glitchtip-org-slug>
-      # projects: [api, pipeline, viewer, player-api]
+      token_env: PODCAST_OBS_SENTRY_TOKEN
+      org: homelab
+      projects: [podcast-api, podcast-pipeline, player, gi-kg-viewer]
 
-    # Alerts — self-hosted homelab Grafana. Needs a read-scoped service-account token (minted on
-    # the homelab Grafana at deploy).
+    # Alerts — Grafana. Read-only (Viewer) service-account token.
     grafana:
-      url: http://homelab:3000
       token_env: PODCAST_OBS_GRAFANA_TOKEN
-
-    # Logs — homelab VictoriaLogs (Loki-compatible read), tailnet-gated so no token.
-    victoria:
-      logs_url: http://homelab:9428
-      # metrics_url: http://homelab:<vm-read-port>   # confirm the VictoriaMetrics read port at deploy

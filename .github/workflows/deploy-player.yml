@@ -269,8 +269,51 @@ jobs:
           PODCAST_OBS_GRAFANA_TOKEN: ${{ secrets.PODCAST_OBS_GRAFANA_TOKEN }}
           PODCAST_OBS_GITHUB_TOKEN: ${{ secrets.PODCAST_OBS_GITHUB_TOKEN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Dedicated read-only GlitchTip API token for the obs `errors` source (#2188).
+          # SENTRY_AUTH_TOKEN above returns HTTP 401 against the GlitchTip API, so it cannot back
+          # that source. Empty -> `errors` reports "not configured"; nothing else is affected.
+          PODCAST_OBS_SENTRY_TOKEN: ${{ secrets.PODCAST_OBS_SENTRY_TOKEN }}
+          # The tailnet suffix for the obs read URLs below — derived, never committed
+          # (identifier-denylist). Already a required var of this workflow (preflight checks it).
+          PROD_TAILNET_FQDN: ${{ vars.PROD_TAILNET_FQDN }}
         run: |
           set -euo pipefail
+          # OBS READ URLS (#2188) — rendered here, the way every other prod container gets its
+          # observability endpoints, instead of hardcoded in config/observability.prod.yaml. Built
+          # exactly as deploy-vps-observability-endpoints.yml builds Alloy's write URLs: node names
+          # from the committed node file, tailnet suffix from PROD_TAILNET_FQDN. So obs reads from
+          # the SAME nodes Alloy writes to.
+          #
+          # Why not homelab:<port>: the tailnet ACL DROPS prod -> homelab:9428 (logs) and :3000
+          # (grafana) while allowing :8428 / :10428, and GlitchTip listens on the homelab loopback
+          # only. Measured 2026-09-29 from inside player-obs-1; that is what left obs blind.
+          #
+          # Deliberately NOT the PODCAST_{LOGS,METRICS}_PUSH_URL names: the app's dev_push.py treats
+          # those as "push directly from this process" (jsonline format). PODCAST_OBS_* is the
+          # obs-only override, the same name deploy-prod.yml already renders for compose-api.
+          # LOGS_NODE / METRICS_NODE come from the node file Alloy's deploy uses, so obs reads from
+          # exactly the nodes Alloy writes to. Grafana and GlitchTip have no write side, so their
+          # nodes are declared here (the node file is a *.env and the pre-commit .env guard
+          # blocks edits to it).
+          . infra/observability/vps-observability.endpoints.env
+          GRAFANA_NODE=grafana
+          GLITCHTIP_NODE=glitchtip
+          TAILNET_DOMAIN="${PROD_TAILNET_FQDN#*.}"
+          if [ -z "${LOGS_NODE:-}" ] || [ -z "${METRICS_NODE:-}" ] || [ -z "${GRAFANA_NODE:-}" ] \
+            || [ -z "${GLITCHTIP_NODE:-}" ] || [ -z "${TAILNET_DOMAIN}" ] \
+            || [ "${TAILNET_DOMAIN}" = "${PROD_TAILNET_FQDN}" ]; then
+            echo "::error::cannot build obs read URLs (node names missing, or PROD_TAILNET_FQDN has no domain part)"
+            exit 1
+          fi
+          OBS_LOGS_URL="https://${LOGS_NODE}.${TAILNET_DOMAIN}"
+          OBS_METRICS_URL="https://${METRICS_NODE}.${TAILNET_DOMAIN}"
+          OBS_GRAFANA_URL="https://${GRAFANA_NODE}.${TAILNET_DOMAIN}"
+          OBS_SENTRY_URL="https://${GLITCHTIP_NODE}.${TAILNET_DOMAIN}"
+          # Fail loud on a malformed URL BEFORE it reaches the box — a bad value otherwise lands
+          # silently and that obs source just reads "failed".
+          for u in "$OBS_LOGS_URL" "$OBS_METRICS_URL" "$OBS_GRAFANA_URL" "$OBS_SENTRY_URL"; do
+            case "$u" in https://*.*.*) : ;; *) echo "::error::malformed obs URL: $u"; exit 1 ;; esac
+          done
           ENVTMP="$(mktemp -p /dev/shm)"
           {
             echo "PLAYER_DOMAIN=${PLAYER_DOMAIN}"
@@ -365,6 +408,14 @@ jobs:
             echo "PODCAST_OBS_GRAFANA_TOKEN=${PODCAST_OBS_GRAFANA_TOKEN}"
             echo "PODCAST_OBS_GITHUB_TOKEN=${PODCAST_OBS_GITHUB_TOKEN}"
             echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
+            echo "PODCAST_OBS_SENTRY_TOKEN=${PODCAST_OBS_SENTRY_TOKEN}"
+            # Obs read URLs, built and validated at the top of this step (#2188). Traces need no
+            # line here: obs reuses OTEL_EXPORTER_OTLP_TRACES_ENDPOINT above, the same value the
+            # player api exports spans to.
+            echo "PODCAST_OBS_VICTORIALOGS_URL=${OBS_LOGS_URL}"
+            echo "PODCAST_OBS_VICTORIAMETRICS_URL=${OBS_METRICS_URL}"
+            echo "PODCAST_OBS_GRAFANA_URL=${OBS_GRAFANA_URL}"
+            echo "PODCAST_OBS_SENTRY_URL=${OBS_SENTRY_URL}"
           } > "$ENVTMP"
           scp -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \

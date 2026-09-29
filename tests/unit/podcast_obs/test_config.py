@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -297,3 +298,183 @@ def test_operator_key_from_yaml_falls_back_to_bare_name(tmp_path, monkeypatch) -
         "default_target: prod\ntargets:\n  prod:\n    api_base: http://x\n", encoding="utf-8"
     )
     assert ObservabilityConfig.load(cfg_path).target("prod").operator_key == "platform-key"
+
+
+# -- backend read URLs come from deploy-rendered env, not the YAML (#2188) -----------------------
+#
+# Measured 2026-09-29 inside prod `player-obs-1`: metrics, logs, traces and errors all failed while
+# the backends held live data. The YAML path — the one `load()` takes whenever PODCAST_OBS_CONFIG is
+# set, i.e. always on prod — read backend URLs from YAML literals ONLY, so the settings the deploy
+# renders for every other container never reached obs; the literals it did carry pointed at
+# `homelab:9428` / `homelab:3000`, which the tailnet ACL drops for prod.
+
+_PLATFORM_VARS = (
+    "PODCAST_OBS_VICTORIALOGS_URL",
+    "PODCAST_OBS_VICTORIAMETRICS_URL",
+    "PODCAST_OBS_VICTORIATRACES_URL",
+    "PODCAST_OBS_GRAFANA_URL",
+    "PODCAST_OBS_SENTRY_URL",
+    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+    "PODCAST_LOGS_PUSH_URL",
+    "PODCAST_METRICS_PUSH_URL",
+    "PODCAST_SENTRY_DSN_PIPELINE",
+    "PODCAST_SENTRY_DSN_API",
+)
+
+_NO_URL_YAML = (
+    "default_target: prod\ntargets:\n  prod:\n    api_base: http://api:8000\n"
+    "    grafana:\n      token_env: PODCAST_OBS_GRAFANA_TOKEN\n"
+    "    sentry:\n      org: homelab\n"
+)
+
+
+def _clean_platform_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for k in _PLATFORM_VARS:
+        monkeypatch.delenv(k, raising=False)
+
+
+def _render_like_the_prod_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The values deploy-player.yml renders (tailnet suffix replaced by example.ts.net)."""
+    monkeypatch.setenv("PODCAST_OBS_VICTORIALOGS_URL", "https://vlogs.example.ts.net")
+    monkeypatch.setenv("PODCAST_OBS_VICTORIAMETRICS_URL", "https://vm.example.ts.net")
+    monkeypatch.setenv("PODCAST_OBS_GRAFANA_URL", "https://grafana.example.ts.net")
+    monkeypatch.setenv("PODCAST_OBS_SENTRY_URL", "https://glitchtip.example.ts.net")
+    monkeypatch.setenv(
+        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://homelab:10428/insert/opentelemetry/v1/traces"
+    )
+
+
+def test_a_yaml_target_without_urls_takes_the_deploy_rendered_ones(tmp_path, monkeypatch) -> None:
+    """THE REGRESSION: every one of these came back None, so every source was dead."""
+    _clean_platform_env(monkeypatch)
+    _render_like_the_prod_deploy(monkeypatch)
+    cfg_path = tmp_path / "obs.yaml"
+    cfg_path.write_text(_NO_URL_YAML, encoding="utf-8")
+    t = ObservabilityConfig.load(cfg_path).target("prod")
+    assert t.victorialogs_url == "https://vlogs.example.ts.net"
+    assert t.victoriametrics_url == "https://vm.example.ts.net"
+    assert t.grafana_url == "https://grafana.example.ts.net"
+    assert t.sentry_url == "https://glitchtip.example.ts.net"
+    # traces: the SAME endpoint the api exports to, reduced to its origin for reading
+    assert t.victoriatraces_url == "http://homelab:10428"
+
+
+def test_both_config_paths_derive_urls_identically(tmp_path, monkeypatch) -> None:
+    """One derivation. If the YAML path ever drifts from from_env, this catches it."""
+    _clean_platform_env(monkeypatch)
+    _render_like_the_prod_deploy(monkeypatch)
+    monkeypatch.setattr(obs_config, "_load_obs_dev_env", lambda: None)
+    cfg_path = tmp_path / "obs.yaml"
+    cfg_path.write_text(_NO_URL_YAML, encoding="utf-8")
+    y = ObservabilityConfig.load(cfg_path).target("prod")
+    e = ObservabilityConfig.from_env().target()
+    for field in (
+        "victorialogs_url",
+        "victoriametrics_url",
+        "victoriatraces_url",
+        "grafana_url",
+        "sentry_url",
+    ):
+        assert getattr(y, field) == getattr(e, field), field
+
+
+def test_a_literal_url_in_the_yaml_still_wins(tmp_path, monkeypatch) -> None:
+    """observability.local.yaml hardcodes localhost / homelab URLs; they must keep working."""
+    _clean_platform_env(monkeypatch)
+    _render_like_the_prod_deploy(monkeypatch)
+    cfg_path = tmp_path / "obs.yaml"
+    cfg_path.write_text(
+        "default_target: local\ntargets:\n  local:\n    api_base: http://localhost:8000\n"
+        "    victoria:\n      logs_url: http://homelab:9428\n",
+        encoding="utf-8",
+    )
+    t = ObservabilityConfig.load(cfg_path).target("local")
+    assert t.victorialogs_url == "http://homelab:9428"
+    assert t.victoriametrics_url == "https://vm.example.ts.net"  # the omitted one still falls back
+
+
+def test_nothing_rendered_degrades_to_not_configured_not_a_crash(tmp_path, monkeypatch) -> None:
+    _clean_platform_env(monkeypatch)
+    cfg_path = tmp_path / "obs.yaml"
+    cfg_path.write_text(_NO_URL_YAML, encoding="utf-8")
+    t = ObservabilityConfig.load(cfg_path).target("prod")
+    assert t.victorialogs_url is None
+    assert t.victoriametrics_url is None
+    assert t.victoriatraces_url is None
+
+
+# -- the shipped files that must agree with each other -------------------------------------------
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _read(rel: str) -> str:
+    return (_repo_root() / rel).read_text(encoding="utf-8")
+
+
+#: Every variable the prod obs container needs from the deploy for its read URLs.
+_PROD_URL_VARS = (
+    "PODCAST_OBS_VICTORIALOGS_URL",
+    "PODCAST_OBS_VICTORIAMETRICS_URL",
+    "PODCAST_OBS_GRAFANA_URL",
+    "PODCAST_OBS_SENTRY_URL",
+    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+)
+
+
+def _prod_token_vars() -> set[str]:
+    import yaml
+
+    spec = yaml.safe_load(_read("config/observability.prod.yaml"))["targets"]["prod"]
+    out = set()
+    for block in ("github", "sentry", "grafana", "victoria"):
+        name = (spec.get(block) or {}).get("token_env")
+        if name:
+            out.add(name)
+    return out
+
+
+def test_the_prod_yaml_carries_no_backend_url() -> None:
+    """A literal here WINS over the rendered value — which is exactly how obs went blind."""
+    import yaml
+
+    spec = yaml.safe_load(_read("config/observability.prod.yaml"))["targets"]["prod"]
+    leaked = [
+        f"{block}.{key}"
+        for block in ("victoria", "grafana", "sentry")
+        for key in (spec.get(block) or {})
+        if key.endswith("url") or key.endswith("url_env")
+    ]
+    assert not leaked, f"backend URLs must come from the deploy, not the YAML: {leaked}"
+
+
+def test_every_prod_obs_var_is_declared_on_the_obs_service() -> None:
+    """THE SILENT SEAM: compose passes a container only what its `environment:` block names."""
+    import yaml
+
+    svc = yaml.safe_load(_read("compose/docker-compose.player-public.yml"))["services"]["obs"]
+    declared = set(svc.get("environment") or {})
+    missing = sorted(set(_PROD_URL_VARS) | _prod_token_vars() - {"PODCAST_OBS_GITHUB_TOKEN"})
+    missing = [n for n in missing if n not in declared]
+    assert not missing, f"needed by prod obs, not passed to the obs service: {missing}"
+
+
+def test_every_prod_obs_url_var_is_rendered_by_the_player_deploy() -> None:
+    workflow = _read(".github/workflows/deploy-player.yml")
+    missing = [n for n in _PROD_URL_VARS if f'echo "{n}=' not in workflow]
+    assert not missing, f"needed by prod obs, never rendered by deploy-player: {missing}"
+
+
+def test_obs_reads_logs_and_metrics_from_the_nodes_alloy_writes_to() -> None:
+    """Logs / metrics nodes come from the SAME file Alloy's write URLs are built from, so obs can
+    never drift onto a different node than the one the telemetry actually lands on."""
+    nodes = _read("infra/observability/vps-observability.endpoints.env")
+    for key in ("LOGS_NODE=", "METRICS_NODE="):
+        assert key in nodes, key
+    workflow = _read(".github/workflows/deploy-player.yml")
+    assert ". infra/observability/vps-observability.endpoints.env" in workflow
+    # grafana / glitchtip have no write side; the obs deploy declares them itself
+    for key in ("GRAFANA_NODE=", "GLITCHTIP_NODE="):
+        assert key in workflow, key

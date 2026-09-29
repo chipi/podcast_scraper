@@ -267,18 +267,30 @@ services:
       APP_MCP_ISSUER_URL: ${APP_MCP_ISSUER_URL:-}
       APP_MCP_ALLOWED_ORIGINS: ${APP_MCP_ALLOWED_ORIGINS:-}
       PODCAST_ENV: ${PODCAST_ENV:-dev}
-      # What obs reads. The YAML uses `<field>_env:` indirection so tokens stay out of the file;
-      # deploy stages the config + these tokens. Backends are homelab (over Tailscale MagicDNS
-      # `homelab`) — VictoriaMetrics/VictoriaLogs are tailnet-open; GlitchTip reuses the existing
-      # SENTRY_AUTH_TOKEN; Grafana needs its own SA read token; GitHub is optional. Each source
-      # degrades to "not configured" when its token is absent (config/observability.example.yaml).
+      # What obs reads. Tokens come by NAME from the YAML (`<field>_env:`); each source degrades to
+      # "not configured" when its token is absent. Grafana: Viewer SA token. Errors: a dedicated
+      # GlitchTip API token (SENTRY_AUTH_TOKEN returns 401 on that API). GitHub: not provisioned.
       PODCAST_OBS_CONFIG: /config/observability.yaml
       PODCAST_OBS_GRAFANA_TOKEN: ${PODCAST_OBS_GRAFANA_TOKEN:-}
       PODCAST_OBS_GITHUB_TOKEN: ${PODCAST_OBS_GITHUB_TOKEN:-}
+      PODCAST_OBS_SENTRY_TOKEN: ${PODCAST_OBS_SENTRY_TOKEN:-}
       SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
+      # Backend READ URLs — rendered at deploy time by deploy-player.yml, like every other prod
+      # container's observability endpoints (#2188). The YAML carries none; the loader falls back to
+      # these. They MUST be declared here: compose passes a container only what this block names,
+      # so a var that merely exists in .env.player would never reach obs and that source would
+      # silently read "not configured".
+      PODCAST_OBS_VICTORIALOGS_URL: ${PODCAST_OBS_VICTORIALOGS_URL:-}
+      PODCAST_OBS_VICTORIAMETRICS_URL: ${PODCAST_OBS_VICTORIAMETRICS_URL:-}
+      PODCAST_OBS_GRAFANA_URL: ${PODCAST_OBS_GRAFANA_URL:-}
+      PODCAST_OBS_SENTRY_URL: ${PODCAST_OBS_SENTRY_URL:-}
+      # Traces: the SAME endpoint the player api exports spans to (its origin is the read base).
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
     extra_hosts:
-      # Reach the homelab observability backends (Grafana/VM/VLogs/GlitchTip) via Tailscale
-      # MagicDNS `homelab`; Docker DNS can't resolve it, so a static entry, IP staged at deploy.
+      # Needed for traces: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is http://homelab:10428/..., and
+      # Docker DNS cannot resolve `homelab`. The tailnet ACL allows prod -> homelab:10428 (and
+      # :8428) but DROPS :9428 and :3000 — which is why logs and grafana go through their tailnet
+      # nodes above instead (#2188, measured 2026-09-29).
       - "homelab:${HOMELAB_TAILNET_IP:-127.0.0.1}"
     ports:
       # Loopback only — the Caddy edge (obs.caddy) is the public front (ADR-114).
