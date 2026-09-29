@@ -1,5 +1,69 @@
 apply plugin: 'com.android.application'
 
+/**
+ * Release signing + mechanical versioning (#2191).
+ *
+ * Play rejects a duplicate versionCode AFTER the upload completes, and an unsigned AAB is not
+ * uploadable at all — so both of these have to be mechanical rather than hand-edited, or every
+ * release becomes a chance to forget one.
+ *
+ * Credentials come from the environment first (what CI can supply) and fall back to a gitignored
+ * `android/keystore.properties` (what a laptop can supply). Nothing secret is ever committed:
+ * `*.jks`, `*.keystore` and `keystore.properties` are all in android/.gitignore.
+ *
+ * When NOTHING is configured the release signing config is simply not created. That is deliberate:
+ * a debug build must keep working on a machine that has never seen the keystore, and a release
+ * build that silently self-signed with the debug key would be worse than one that fails.
+ */
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file("keystore.properties")
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def ksPath = System.getenv("ANDROID_KEYSTORE_FILE") ?: keystoreProps.getProperty("storeFile")
+def ksStorePass = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: keystoreProps.getProperty("storePassword")
+def ksAlias = System.getenv("ANDROID_KEY_ALIAS") ?: keystoreProps.getProperty("keyAlias")
+def ksKeyPass = System.getenv("ANDROID_KEY_PASSWORD") ?: keystoreProps.getProperty("keyPassword")
+def hasReleaseSigning = ksPath && ksStorePass && ksAlias && ksKeyPass && file(ksPath).exists()
+
+/**
+ * versionCode: strictly increasing, derived, never typed by hand.
+ *
+ * `ANDROID_VERSION_CODE` wins when set — that is the hook for "ask Play what the last one was and
+ * add one", the same trick the iOS lane plays with `latest_testflight_build_number`. Without it,
+ * the commit count on the current branch is a monotonic stand-in that needs no network and no
+ * Play account, which is what makes a release buildable before #2192 exists.
+ */
+def resolvedVersionCode = {
+    def fromEnv = System.getenv("ANDROID_VERSION_CODE")
+    if (fromEnv) return fromEnv.toInteger()
+    def out = new ByteArrayOutputStream()
+    try {
+        exec {
+            commandLine "git", "rev-list", "--count", "HEAD"
+            standardOutput = out
+            workingDir = rootProject.projectDir
+        }
+        return out.toString().trim().toInteger()
+    } catch (Exception ignored) {
+        // No git (a source tarball, a stripped CI checkout). 1 keeps a debug build working; a
+        // release still needs ANDROID_VERSION_CODE, and `make android-bundle` enforces that.
+        return 1
+    }
+}()
+
+/** versionName: the app version, single-sourced from package.json so the two cannot drift. */
+def resolvedVersionName = {
+    def fromEnv = System.getenv("ANDROID_VERSION_NAME")
+    if (fromEnv) return fromEnv
+    try {
+        def pkg = new groovy.json.JsonSlurper().parse(rootProject.file("../package.json"))
+        return pkg.version ?: "1.0"
+    } catch (Exception ignored) {
+        return "1.0"
+    }
+}()
+
 android {
     namespace = "app.closelistening.player"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +71,8 @@ android {
         applicationId "app.closelistening.player"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode resolvedVersionCode
+        versionName resolvedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +80,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(ksPath)
+                storePassword ksStorePass
+                keyAlias ksAlias
+                keyPassword ksKeyPass
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Only when it exists — see the note above on why an unsigned failure beats a
+            // debug-signed "success".
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

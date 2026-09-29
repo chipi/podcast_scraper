@@ -79,7 +79,7 @@ PYTEST_WORKERS ?= 2
 
 .PHONY: ios-origin-up ios-origin-down ios-origin-check app-e2e-users-reset test-app-ios-sim-download
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
-.PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
+.PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
 .PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
@@ -3277,13 +3277,30 @@ ios-device-install:
 ANDROID_SDK_DIR ?= $(HOME)/Library/Android/sdk
 ADB ?= $(ANDROID_SDK_DIR)/platform-tools/adb
 ANDROID_APK = $(APP_DIR)/android/app/build/outputs/apk/debug/app-debug.apk
+ANDROID_AAB = $(APP_DIR)/android/app/build/outputs/bundle/release/app-release.aab
+
+# The JDK Gradle runs on (#2191). Pinned HERE rather than inherited from whatever shell invoked
+# make: a build that works only for the person who happened to export JAVA_HOME is a build that
+# fails confusingly for everyone else, CI included.
+#
+# It must be 21, not 17. AGP 8.13's own floor is 17, but a Capacitor plugin pins a toolchain 21
+# requirement — with 17 the build resolves every dependency and THEN dies in
+# `:capacitor-filesystem:compileDebugJavaWithJavac` with "Cannot find a Java installation ...
+# matching {languageVersion=21}", which reads like a missing dependency rather than a wrong JDK.
+#
+# Homebrew is not an option on this box: it dropped Intel x86_64 support in September 2026 and no
+# longer builds bottles for it. The working route is a Temurin tarball unpacked anywhere readable.
+ANDROID_JAVA_HOME ?= $(HOME)/tools/jdk-21.0.12.1+1/Contents/Home
 
 android-build:
 	@$(MAKE) mobile-build-internal
 	@[ -d "$(ANDROID_SDK_DIR)" ] || { echo "FAIL: no Android SDK at $(ANDROID_SDK_DIR)."; \
 		echo "      Install it (Android Studio, or sdkmanager) or set ANDROID_SDK_DIR."; exit 1; }
+	@[ -x "$(ANDROID_JAVA_HOME)/bin/java" ] || { echo "FAIL: no JDK at $(ANDROID_JAVA_HOME)."; \
+		echo "      Gradle needs JDK 21 (a Capacitor plugin pins toolchain 21; 17 is NOT enough)."; \
+		echo "      Unpack a Temurin 21 tarball and set ANDROID_JAVA_HOME."; exit 1; }
 	@rm -f $(ANDROID_APK)
-	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) \
+	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
 		./gradlew assembleDebug --console=plain \
 		|| { echo "FAIL: gradle assembleDebug failed. No APK was produced."; exit 1; }
 	@[ -f $(ANDROID_APK) ] || { echo "FAIL: gradle reported success but there is no APK at"; \
@@ -3298,6 +3315,58 @@ android-build:
 			echo "      Check VITE_API_BASE_URL in $(APP_DIR)/.env.mobile."; exit 1; }
 	@echo "OK: PROD tier targets a hosted api"
 	@echo "OK: $(ANDROID_APK) ($$(du -h $(ANDROID_APK) | cut -f1))"
+
+# The uploadable artifact for Play (#2191 / #2192) — a SIGNED release AAB.
+#
+# Mirrors `ios-testflight`: builds the tester web tier from `.env.mobile.testflight` so an Android
+# beta ships exactly what a TestFlight beta does, and carries no personal gate credential (#2009).
+# Override LP_ENV to build a different tier.
+#
+# Play rejects an unsigned bundle and rejects a duplicate versionCode, so both are checked HERE
+# rather than discovered after a multi-minute upload. versionCode is derived in app/build.gradle
+# (ANDROID_VERSION_CODE, else the git commit count); pass ANDROID_VERSION_CODE to pin it.
+ANDROID_LP_ENV ?= $(APP_DIR)/.env.mobile.testflight
+
+android-bundle:
+	@test -f $(ANDROID_LP_ENV) || { echo "FAIL: missing $(ANDROID_LP_ENV)."; \
+		echo "      This is the SAME tester-tier env the iOS TestFlight build uses."; \
+		echo "      Copy $(APP_DIR)/.env.mobile.example and fill it (see #2189)."; exit 1; }
+	@$(MAKE) mobile-build-internal LP_ENV=$(ANDROID_LP_ENV)
+	@[ -d "$(ANDROID_SDK_DIR)" ] || { echo "FAIL: no Android SDK at $(ANDROID_SDK_DIR)."; exit 1; }
+	@[ -x "$(ANDROID_JAVA_HOME)/bin/java" ] || { echo "FAIL: no JDK at $(ANDROID_JAVA_HOME)."; \
+		echo "      Gradle needs JDK 21 (a Capacitor plugin pins toolchain 21; 17 is NOT enough)."; exit 1; }
+	@# Signing is checked BEFORE the build. app/build.gradle deliberately omits the release signing
+	@# config when the credentials are absent rather than falling back to the debug key — so without
+	@# this check the build "succeeds" and produces an artifact Play will not take.
+	@cd $(APP_DIR)/android && { [ -n "$$ANDROID_KEYSTORE_FILE" ] || [ -f keystore.properties ]; } \
+		|| { echo "FAIL: no release signing configured, so the AAB would be unsigned."; \
+			echo "      Provide either the four ANDROID_KEYSTORE_* / ANDROID_KEY_* env vars, or"; \
+			echo "      $(APP_DIR)/android/keystore.properties (gitignored) with:"; \
+			echo "        storeFile=/absolute/path/to/upload-keystore.jks"; \
+			echo "        storePassword=…  keyAlias=…  keyPassword=…"; \
+			echo "      Create the keystore with:"; \
+			echo "        keytool -genkeypair -v -keystore upload-keystore.jks -alias upload \\"; \
+			echo "          -keyalg RSA -keysize 2048 -validity 10000"; \
+			echo "      BACK IT UP. Losing it means losing the ability to update the listing."; \
+			exit 1; }
+	@rm -f $(ANDROID_AAB)
+	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
+		./gradlew bundleRelease --console=plain \
+		|| { echo "FAIL: gradle bundleRelease failed. No AAB was produced."; exit 1; }
+	@[ -f $(ANDROID_AAB) ] || { echo "FAIL: gradle reported success but there is no AAB at"; \
+		echo "      $(ANDROID_AAB)"; exit 1; }
+	@# Same content proof the APK target makes: the bundle must carry THIS web build, not an empty
+	@# assets dir from a sync that never ran. Paths inside an .aab are module-scoped (`base/`).
+	@n=$$(unzip -l $(ANDROID_AAB) 'base/assets/public/assets/*.js' 2>/dev/null | grep -c '\.js$$'); \
+	[ "$$n" -gt 0 ] || { echo "FAIL: the AAB carries no web assets — cap sync did not run."; exit 1; }; \
+	echo "OK: $$n JS chunks packaged"
+	@unzip -p $(ANDROID_AAB) 'base/assets/public/assets/*.js' 2>/dev/null \
+		| grep -qE 'https://[a-z.]+/api/app' \
+		|| { echo "FAIL: the AAB has no https api base — the app would open with no data."; \
+			echo "      Check VITE_API_BASE_URL in $(ANDROID_LP_ENV)."; exit 1; }
+	@echo "OK: targets a hosted api"
+	@echo "OK: $(ANDROID_AAB) ($$(du -h $(ANDROID_AAB) | cut -f1))"
+	@echo "    Upload to the Play internal testing track (#2192)."
 
 android-device-install: android-build
 	@[ -x "$(ADB)" ] || { echo "FAIL: no adb at $(ADB). Install platform-tools."; exit 1; }
