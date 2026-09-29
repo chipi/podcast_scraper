@@ -1,0 +1,9 @@
+# fastlane for the Learning Player Android app (#2192).
+#
+# Pinned to the same major as ios/Gemfile so a `bundle install` months from now does not silently
+# pick up a fastlane with different lane semantics, and so the two platforms cannot drift onto
+# different tooling. Run everything through `bundle exec fastlane ...` so the pinned version is
+# the one that executes, never whatever happens to be on the PATH.
+source "https://rubygems.org"
+
+gem "fastlane", "~> 2.230"
