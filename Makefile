@@ -1256,7 +1256,7 @@ corpus-snapshot-manifest-validate:
 
 corpus-snapshot-select-tag:
 	@BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	TAG_REGEX="$${TAG_REGEX:-^snapshot-[0-9]{8}$$}"; \
+	if [ -z "$${TAG_REGEX:-}" ]; then TAG_REGEX='^snapshot-[0-9]{8}$$'; fi; \
 	export BACKUP_REPO TAG_REGEX PODCAST_BACKUP_TAG; \
 	bash scripts/ops/corpus_snapshot/select_release_tag.sh
 
@@ -1276,8 +1276,14 @@ corpus-snapshot-integration:
 #     WORKSPACE_DIR (default: current dir).
 #
 corpus-snapshot-select-tag-prod:
+	@# The default is assigned with an `if`, NOT `$${TAG_REGEX:-...}`. Inside a brace default the
+	@# shell parses the ERE's own `{8}` as brace syntax and transposes the tail, yielding
+	@# `^snapshot-prod-[0-9]{8$}` — which matches no tag, so selecting the latest snapshot failed
+	@# with "no releases matching" while real snapshots existed. Reproduced before fixing; quoting
+	@# the default leaves literal quotes in the value and escaping the brace leaves a backslash,
+	@# so neither works. This also affects the DR restore path, not just a manual run.
 	@BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	TAG_REGEX="$${TAG_REGEX:-^snapshot-prod-[0-9]{8}$$}"; \
+	if [ -z "$${TAG_REGEX:-}" ]; then TAG_REGEX='^snapshot-prod-[0-9]{8}$$'; fi; \
 	export BACKUP_REPO TAG_REGEX PODCAST_BACKUP_TAG; \
 	bash scripts/ops/corpus_snapshot/select_release_tag.sh
 
