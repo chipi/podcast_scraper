@@ -4633,6 +4633,26 @@ def _resolved_run_id(cfg: config.Config) -> Optional[str]:
         return getattr(cfg, "run_id", None)
 
 
+def _publish_translation_for_provenance(output_dir: str, transcript_relpath: Optional[str]) -> None:
+    """Make this episode's translation ambient for the artifact writers (S2.11)."""
+    from ..translation.provenance import load_for_provenance, publish_episode_translation
+
+    try:
+        loaded = load_for_provenance(transcript_relpath, output_dir) if transcript_relpath else None
+    except Exception:  # noqa: BLE001 — provenance never blocks metadata generation
+        loaded = None
+    if loaded is None:
+        publish_episode_translation(None, None)
+        return
+    doc, segments = loaded
+    publish_episode_translation(doc, segments)
+    logger.info(
+        "    translation provenance armed: %d units, %d English cues",
+        len(doc.units),
+        len(segments),
+    )
+
+
 def _record_analysis_skipped(
     cfg: config.Config,
     output_dir: str,
@@ -4854,6 +4874,12 @@ def generate_episode_metadata(  # noqa: C901
     if _blocked:
         logger.warning("[%s] %s", getattr(episode, "idx", "?"), _blocked)
         _record_analysis_skipped(cfg, output_dir, transcript_file_path, _blocked, episode_id)
+
+    # S2.11: publish this episode's translation so EVERY `gi.json` written below carries
+    # provenance, without ten call sites each having to remember. Called unconditionally — with
+    # this episode's translation or with None for an English one — so a reused worker thread
+    # cannot decorate one episode with another's units.
+    _publish_translation_for_provenance(output_dir, transcript_file_path)
 
     # Get NLP model for entity reconciliation if needed
     nlp = _get_nlp_model_for_reconciliation(
