@@ -24,6 +24,7 @@ from .migrations.m0011_shared_artwork_store import SharedArtworkStoreMigration
 from .migrations.m0012_org_speakers_removed import OrgSpeakersRemovedMigration
 from .migrations.m0013_artwork_thumbnails import ArtworkThumbnailsMigration
 from .migrations.m0014_eponymous_hosts_restored import EponymousHostsRestoredMigration
+from .migrations.m0015_backfill_feed_language import BackfillFeedLanguageMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -51,6 +52,15 @@ _MIGRATIONS: List[Migration] = [
     OrgSpeakersRemovedMigration(),
     ArtworkThumbnailsMigration(),
     EponymousHostsRestoredMigration(),
+    # 0015 backfills each show's declared RSS <language> onto its episodes (#2173).
+    # It FETCHES -- the first migration here that does. Every pre-#2172 artifact
+    # carries the run config in feed.language, and skip_existing is GUID-keyed, so a
+    # normal pipeline run never rewrites them: this is the only path.
+    #
+    # Numbered 0015, not 0011: `main` landed its own m0011 (shared artwork store) while this
+    # branch was open. Two migrations cannot share an id — the ledger records the id as applied,
+    # so a duplicate makes a corpus's migration history ambiguous about which one ran.
+    BackfillFeedLanguageMigration(),
 ]
 
 
