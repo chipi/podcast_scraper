@@ -58,6 +58,16 @@ The tailnet ACL grants `:8005` to the same three sources that reach `:8003` — 
 admin/gha-deployer, and `tag:homelab-host` for metrics — but **not** `tag:dr-drill`, whose grant
 stops at `:8002` and which does not translate.
 
+> **NOT YET APPLIED (2026-09-29).** That grant is authored in
+> `podcast_scraper-infra/tailscale/policy.hujson` and **committed but unpushed**, so the LIVE
+> policy does not carry `:8005`. Measured from the laptop: `:8003` completes a TCP connect in
+> 17 ms while `:8005` times out, with the translator listening on `0.0.0.0:8005` and healthy on
+> the box the whole time. The ADR previously stated the grant as fact because the Gate V access
+> check was run ON the DGX against `127.0.0.1` — which proves the service works and proves
+> nothing about the tailnet. Until the infra commit is pushed and the deployer applies it, the
+> translator is reachable only from the box itself, which is where the S2.3 measurement rig was
+> run for exactly this reason.
+
 ### 3. Called through `/v1/completions`, NOT the chat route
 
 `/v1/chat/completions` is unusable. It rejects even the exact structured content the model's own
