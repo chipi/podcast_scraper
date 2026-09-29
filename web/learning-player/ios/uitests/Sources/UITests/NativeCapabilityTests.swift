@@ -59,7 +59,7 @@ final class NativeCapabilityTests: UITestCase {
     // Dictation is OFF by default and lives behind a Settings opt-in, so the mic cannot appear
     // until that switch is on — which is itself worth asserting, since a mic that showed up
     // unbidden would be a privacy surprise.
-    guard Journey.openSettings(app) else { XCTFail("could not reach Settings"); return }
+    guard Journey.openSettings(app, labels: profileLabels) else { XCTFail("could not reach Settings"); return }
     _ = Journey.scrollTo(app, labels: ["Voice input for notes"])
     Journey.shot(self, "n1-a-settings-voice")
 

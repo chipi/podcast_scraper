@@ -446,15 +446,15 @@ enum Journey {
     return tap(app, labels: labels, timeout: 25)
   }
 
-  /// Masthead avatar → Profile, for a caller with no idea which account is signed in.
-  ///
-  /// `signOut` is the honest case: it runs precisely when the session belongs to someone else, so
-  /// the account name is the one thing it cannot know. `simtest` stays because the shared seeded
-  /// account is still real; `uitest` is kept for the same reason it was there.
-  @discardableResult
-  static func openProfile(_ app: XCUIApplication) -> Bool {
-    openProfile(app, labels: ["Your profile", "simtest", "uitest"])
-  }
+
+  // NO LABEL-LESS OVERLOADS (2026-09-29). `openProfile`, `openSettings` and `setOfflineMode`
+  // each had one, and each hardcoded ["Your profile", "simtest", "uitest"] — right only while every
+  // suite silently shared `simtest`. Once suites got their own accounts, every caller of those
+  // overloads failed "could not reach Settings" on a Home screen showing the avatar. They were
+  // found one tier run at a time (plus a FOURTH private copy in ConfigOfflineToggleTests); removing
+  // the overloads makes the compiler find the rest. Pass `profileLabels` from the suite. The one
+  // caller that genuinely cannot know the account, `AppSession.signOut`, discovers it from the
+  // masthead instead.
 
   /// Bottom tab bar.
   @discardableResult
@@ -579,11 +579,6 @@ enum Journey {
     return true
   }
 
-  /// Profile → gear → Settings, for a caller with no idea which account is signed in.
-  @discardableResult
-  static func openSettings(_ app: XCUIApplication) -> Bool {
-    openSettings(app, labels: ["Your profile", "simtest", "uitest"])
-  }
 
   /// Drive Settings → Config → "Offline mode" to an ABSOLUTE state (idempotent: a no-op when it
   /// already matches). The switch persists to `localStorage`, which the host cannot reach, so this
@@ -628,10 +623,4 @@ enum Journey {
     return String(describing: control.value).contains("1") == wanted
   }
 
-  /// `setOfflineMode` for a caller with no identity to offer — the standalone toggle suites, which
-  /// sign in themselves and then drive the switch.
-  @discardableResult
-  static func setOfflineMode(_ app: XCUIApplication, on wanted: Bool) -> Bool {
-    setOfflineMode(app, on: wanted, labels: ["Your profile", "simtest", "uitest"])
-  }
 }
