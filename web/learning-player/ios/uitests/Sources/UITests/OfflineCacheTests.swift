@@ -40,11 +40,11 @@ final class OfflineCacheTests: UITestCase {
     sleep(5)
 
     // --- 2. GO OFFLINE via the real Config switch.
-    guard Journey.setOfflineMode(app, on: true) else {
+    guard Journey.setOfflineMode(app, on: true, labels: profileLabels) else {
       XCTFail("could not turn Offline mode ON")
       return
     }
-    defer { _ = Journey.setOfflineMode(app, on: false) }
+    defer { _ = Journey.setOfflineMode(app, on: false, labels: profileLabels) }
 
     // --- 3. OBSERVE: cached content should be presented, not a wall of retry prompts.
     Journey.openTab(app, "Home")

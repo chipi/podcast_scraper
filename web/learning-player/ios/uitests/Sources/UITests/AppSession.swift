@@ -273,7 +273,40 @@ enum AppSession {
   static func signOut(_ app: XCUIApplication) -> Bool {
     guard isSignedIn(app) else { return true } // already out; the caller's precondition holds
     for attempt in 1...3 {
-      _ = Journey.openProfile(app)
+      // OPEN PROFILE WITHOUT KNOWING WHOSE IT IS.
+      //
+      // `signOut` runs precisely when the session belongs to SOMEONE ELSE, so the account name —
+      // which is what the masthead entry is labelled with once `/me` resolves — is the one thing it
+      // cannot be told. The label-less `openProfile` overload answers that with a hardcoded
+      // ["Your profile", "simtest", "uitest"], and that list is only ever right by accident: it
+      // worked while every suite shared `simtest`, and stopped the moment suites got their own
+      // accounts (#2091).
+      //
+      // MEASURED 2026-09-28: with the previous suite signed in as `appjourneytests`, all three
+      // attempts reported the app on HOME — `Choose interests | Not now | Sort: Rising | …` — never
+      // Profile, because no label in that list was on screen.
+      //
+      // Discover it instead. The masthead's links are FIXED chrome plus exactly one variable entry:
+      // the account. Whatever link is not chrome IS the profile entry, whatever it is called today.
+      let chrome: Set<String> = [
+        "Skip to content", "Settings", "Search", "Queue", "Home", "Discover", "Library",
+      ]
+      // MASTHEAD BAND ONLY. The first cut took every non-chrome link on the page and handed the
+      // list to `openProfile`, which ORs them into ONE predicate — so `firstMatch` picked an
+      // episode card and navigated there instead. Measured: the candidates were
+      //     ["CROSS-SHOW Risk Is a Systems Property 4 min ● insights", "1 Cross-Show",
+      //      "2 The Drift", "appjourneytests"]
+      // with the account LAST. The masthead entry measures at y≈64 (`PROFILE_CTL … frame=(349.0,
+      // 64.0, …)`), so the top band is what separates chrome from content.
+      let band = app.frame.height * 0.15
+      let candidates =
+        app.links.allElementsBoundByIndex
+        .filter { $0.frame.minY >= 0 && $0.frame.minY < band }
+        .map { $0.label.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty && !$0.hasPrefix("Close Listening") && !$0.hasPrefix("Queue (") }
+        .filter { !chrome.contains($0) }
+      print("=====SIGNOUT profile candidates \(candidates.prefix(4))=====")
+      _ = Journey.openProfile(app, labels: candidates + ["Your profile"])
       // SELECT THE ACCOUNT TAB. Profile is tabbed (Account / Topics / Stats) and "Sign out" is in
       // the Account panel (`ProfileView.vue:803`) — so on any other tab it is not below the fold,
       // it is NOT RENDERED, and no amount of scrolling will produce it.
