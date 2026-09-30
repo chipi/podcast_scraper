@@ -120,6 +120,22 @@ class WorklistReport:
             return bool(self.requested) and not self.matched
 
     @property
+    def repaired_nothing(self) -> bool:
+        """Given a work-list, and NOT ONE requested episode finished — whatever the reason.
+
+        ``matched_nothing`` is one way to get here; the other is selection finding every episode and
+        each of them then refusing or failing. Prod, 2026-09-29: a ``rederive_only`` for two
+        omnycontent episodes matched both, refused both ("found metadata but no transcript"), and
+        exited 0 — a repair of 0/2 recorded as ``succeeded``. The run-level outcome is the same as
+        the total miss, so the exit code is too.
+
+        A PARTIAL repair still succeeds (and logs the unfinished ids at ERROR): failing a batch that
+        repaired 19 of 20 would bury the 19 behind a red status.
+        """
+        with self._lock:
+            return bool(self.requested) and not self.completed
+
+    @property
     def incomplete(self) -> List[str]:
         """Selected but never finished: started and then failed, rather than never started."""
         with self._lock:

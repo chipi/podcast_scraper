@@ -5635,10 +5635,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
                 from .workflow.worklist_report import get_worklist_report, log_worklist_outcome
 
                 log_worklist_outcome()
-                if get_worklist_report().matched_nothing:
+                if get_worklist_report().repaired_nothing:
                     # Logged at ERROR above, and until #50 that was all — the batch still exited 0.
-                    # A repair that found none of what it was asked for is a failed run, whether or
-                    # not any feed failed. (Some-matched stays a WARNING + success: #1855.)
+                    # A repair that repaired none of what it was asked for is a failed run, whether
+                    # nothing matched or everything matched and then refused. (Partial repairs stay
+                    # a success with the rest logged: #1855.)
                     return 1
 
                 has_feed_failure = any(not fr.ok for fr in batch_results)
@@ -5732,7 +5733,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
     from .workflow.worklist_report import get_worklist_report, log_worklist_outcome
 
     log_worklist_outcome()
-    worklist_did_nothing = get_worklist_report().matched_nothing
+    worklist_did_nothing = get_worklist_report().repaired_nothing
 
     feed_url = (cfg.rss_url or "").strip()
     stamp_parent = single_feed_corpus_parent_for_manifest_stamp(cfg, args)

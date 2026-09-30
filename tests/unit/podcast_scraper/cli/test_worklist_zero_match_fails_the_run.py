@@ -119,6 +119,40 @@ class TestZeroMatchedIsAFailedRun:
         assert "NOT FOUND" in caplog.text
 
 
+class TestMatchedButNothingFinishedIsAFailedRun:
+    """Prod, 2026-09-29, job 7b4465dd: a ``rederive_only`` for two omnycontent episodes MATCHED
+    both, then refused both ("found metadata but no transcript") — and exited 0, ``succeeded``.
+    Everything was found and nothing was repaired: the same outcome as the total miss above."""
+
+    _OMNY = ["52b31e33-08b2-4ea7-a5d0-b4b9014b34d9", "6ea24954-06b5-4daa-a250-b4980120947f"]
+
+    def test_single_feed_run_that_finished_nothing_exits_nonzero(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp, caplog.at_level("ERROR"):
+            code = _run(tmp, _selection(self._OMNY, matched=self._OMNY, completed=[]))
+        assert code != 0, "a repair of 0/2 with both episodes selected exited 0 — job 7b4465dd"
+        assert "repaired 0/2" in caplog.text
+        assert "did NOT finish" in caplog.text
+
+    def test_multi_feed_run_that_finished_nothing_exits_nonzero(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            code = _run(
+                tmp,
+                _selection(self._OMNY, matched=self._OMNY, completed=[]),
+                "https://a.example/feed.xml",
+                "https://b.example/feed.xml",
+            )
+        assert code != 0
+
+    def test_a_partial_repair_still_succeeds(self, caplog: pytest.LogCaptureFixture) -> None:
+        """One of two finished: a red status would hide the one that worked. Logged at ERROR."""
+        with tempfile.TemporaryDirectory() as tmp, caplog.at_level("ERROR"):
+            code = _run(tmp, _selection(self._OMNY, matched=self._OMNY, completed=self._OMNY[:1]))
+        assert code == 0
+        assert "repaired 1/2" in caplog.text and "did NOT finish" in caplog.text
+
+
 class TestWhatMustStillSucceed:
     def test_a_repair_that_matched_and_finished_exits_zero(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
