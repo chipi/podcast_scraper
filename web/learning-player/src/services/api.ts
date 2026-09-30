@@ -292,8 +292,8 @@ export function getEpisodeRecap(slug: string, limit = 3): Promise<EpisodeRecap> 
 }
 
 /** KG entities (persons/orgs/topics) for an episode (empty when no KG artifact).
- *  Person photos absolutised like every people-carrying fetcher: the server does not attach one
- *  here today, but `Entity` allows it, and a relative one would fail on device in silence
+ *  Person photos absolutised like every people-carrying fetcher: the Episode notes panel shows the
+ *  host and guests with their photos, and a relative route would fail on device in silence
  *  (see __checks__/person-photo-absolutised.test.ts). */
 export async function getEntities(slug: string): Promise<EntitiesResponse> {
   const resp = await getJSON<EntitiesResponse>(`/episodes/${encodeURIComponent(slug)}/entities`)

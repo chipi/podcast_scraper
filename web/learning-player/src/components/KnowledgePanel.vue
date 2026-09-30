@@ -36,6 +36,7 @@ import HighlightToggle from "./HighlightToggle.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
+import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
 import { isNative, openExternal, saveAndShareText } from "../services/native"
@@ -622,13 +623,30 @@ watch(() => auth.isAuthenticated, loadCaptures)
             {{ episode.title }}
           </h2>
           <!-- Host + guest only. "Mentioned" people are already in the Topics & People chips and
-               would turn a two-name line into a crowd. -->
-          <p v-if="dossierPeople.length" class="mt-1 text-sm text-muted">
-            <span v-for="(p, i) in dossierPeople" :key="p.id">
-              <span v-if="i > 0"> · </span>{{ p.name }}
-              <span class="lp-kicker">{{ roleLabel(p.role ?? undefined) }}</span>
-            </span>
-          </p>
+               would turn the room into a crowd.
+
+               Each with their photo (operator 2026-09-30) — the same ProfileAvatar, and so the same
+               crop, as Top voices; initials when the enricher has no photo. A tap opens the person
+               exactly as their chip below does (replace-in-panel, ‹ Back), so the two ways in stack
+               identically. An episode-scoped person has no corpus-wide card: shown, not tappable. -->
+          <ul v-if="dossierPeople.length" class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+            <li v-for="p in dossierPeople" :key="p.id">
+              <component
+                :is="p.episode_scoped ? 'span' : 'button'"
+                :type="p.episode_scoped ? undefined : 'button'"
+                class="flex items-center gap-2 text-left"
+                :aria-label="p.episode_scoped ? undefined : t('kp.openEntity', { term: p.name })"
+                data-testid="kp-dossier-person"
+                @click="p.episode_scoped ? undefined : (cardTarget = { kind: 'person', id: p.id })"
+              >
+                <ProfileAvatar :name="p.name" :src="p.image_url" :size="32" />
+                <span class="flex flex-col leading-tight">
+                  <span class="text-sm font-medium text-canvas-foreground">{{ p.name }}</span>
+                  <span class="lp-kicker text-muted">{{ roleLabel(p.role ?? undefined) }}</span>
+                </span>
+              </component>
+            </li>
+          </ul>
         </section>
 
         <!--

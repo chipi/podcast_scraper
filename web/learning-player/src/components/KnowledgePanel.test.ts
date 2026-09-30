@@ -667,6 +667,55 @@ describe("insight types are distinguishable (#2004 item 8)", () => {
   })
 })
 
+describe("the people in the room, at the top of the panel", () => {
+  const host = {
+    id: "person:jane",
+    name: "Jane Host",
+    kind: "person",
+    role: "host",
+    image_url: "https://api.example/api/app/persons/person%3Ajane/photo",
+  } as Entity
+  const guest = { id: "person:bob", name: "Bob Guest", kind: "person", role: "guest" } as Entity
+  const mentioned = { id: "person:ann", name: "Ann Mentioned", kind: "person", role: "mentioned" } as Entity
+
+  it("shows host then guest, each with an avatar and a role, and leaves mentioned people out", () => {
+    const w = mountPanel({ persons: [guest, mentioned, host] })
+    const rows = w.findAll('[data-testid="kp-dossier-person"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).toContain("Jane Host")
+    expect(rows[0].get(".lp-kicker").text()).toBe("Host")
+    expect(rows[1].text()).toContain("Bob Guest")
+    expect(rows[1].get(".lp-kicker").text()).toBe("Guest")
+    // The photo when the enricher has one; initials otherwise (ProfileAvatar's own fallback).
+    expect(rows[0].find("img").attributes("src")).toBe(host.image_url)
+    expect(rows[1].find("img").exists()).toBe(false)
+    expect(rows[1].text()).toContain("BG")
+  })
+
+  it("opens the person in the panel with a Back, the same way the person chip does", async () => {
+    const getPerson = vi.spyOn(api, "getPersonCard").mockResolvedValue({
+      id: "person:jane",
+      label: "Jane Host",
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+      related_topics: [],
+    })
+    const w = mountPanel({ persons: [host] })
+    await w.get('[data-testid="kp-dossier-person"]').trigger("click")
+    await flushPromises()
+    expect(getPerson).toHaveBeenCalledWith("person:jane")
+    expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
+    expect(w.find('[data-testid="kp-episode-dossier"]').exists()).toBe(false)
+  })
+
+  it("does not make an episode-scoped guest tappable", () => {
+    const scoped = { ...guest, id: "person:unresolved-bob-ep1", episode_scoped: true } as Entity
+    const w = mountPanel({ persons: [scoped] })
+    expect(w.get('[data-testid="kp-dossier-person"]').element.tagName).toBe("SPAN")
+  })
+})
+
 describe("episode-scoped people (#1685 / #2062)", () => {
   /**
    * A guest identified only within this episode — a single-token name like "Twiggy" — used to be

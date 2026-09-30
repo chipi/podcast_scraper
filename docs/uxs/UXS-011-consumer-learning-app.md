@@ -258,7 +258,11 @@ start. (A serif was tried and rejected during the earlier design phase.)
 - **Insights dock:** two cells — "N insights" (`--accent`) + "Ask this episode" — that open the
   **Episode notes** panel (shipped #1091 as "Insights"; renamed 2026-09-30 — the panel is the
   episode's notes as a whole, and plain "Notes" already means the user's own notes, so the opener
-  pill and the panel title read "Episode notes" while the grounded items inside stay "insights"). The panel is a single
+  pill and the panel title read "Episode notes" while the grounded items inside stay "insights").
+  It opens on the episode: show kicker, title, then the people in the room, host first and then
+  guests (mentioned people stay in the chips), each with a 32px `ProfileAvatar` photo and a role
+  label. Initials show when there is no photo. Tapping a person opens them in the panel with
+  ‹ Back, the same as their chip does. The panel is a single
   vertical column: Ask · Summary · **Topics & People (one merged, expandable row; chips → corpus
   search)** · Insights (grounded cards, `●` grounded marker) · More like this.
 - **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
