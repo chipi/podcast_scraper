@@ -247,7 +247,11 @@ def resolve_config_language(
     """
     return resolve_episode_language(
         override=getattr(cfg, "language_override", None),
-        feed_declared=feed_language,
+        # An explicit `feed_language=` wins (the seam has the feed object in hand); otherwise
+        # fall back to the tag the scraping stage recorded on the per-feed Config. Without this
+        # fallback the ONE reader could not see the feed's declared language at all, and
+        # answered from the profile default — the split this field exists to close.
+        feed_declared=feed_language or getattr(cfg, "feed_declared_language", None),
         profile_default=getattr(cfg, "language", None),
     )
 
@@ -270,7 +274,10 @@ def transcription_language(cfg: Any) -> Optional[str]:
     ``"en"``: that substitution is what made a non-English episode come back as a plausible
     English transcript of the wrong words.
     """
-    # `feed_declared` is left unset: the feed's declared tag arrives via the per-feed Config
-    # copy, so it is already in `cfg.language` by the time a provider call site asks.
+    # `feed_declared` is left unset here on purpose: `resolve_config_language` falls back to
+    # `cfg.feed_declared_language`, which the scraping stage sets from the channel tag. An
+    # earlier version of this comment claimed the tag "is already in `cfg.language`" — nothing
+    # put it there, so this reader answered from the profile default and disagreed with the
+    # metadata writer about the same feed.
     _raw, language, _source = resolve_config_language(cfg)
     return language

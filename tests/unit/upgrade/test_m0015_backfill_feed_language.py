@@ -280,4 +280,114 @@ class TestRegistration:
         ids = [m.id for m in get_migrations()]
         assert "0015_backfill_feed_language" in ids
         assert ids == sorted(ids), "registry order is lexicographic by id"
+<<<<<<< HEAD:tests/unit/upgrade/test_m0015_backfill_feed_language.py
         assert ids[-1] == "0015_backfill_feed_language"
+=======
+        assert ids[-1] == "0011_backfill_feed_language"
+
+
+class TestItNeverClobbersAnOperatorOverride:
+    """An episode whose language came from `language_override` is OFF LIMITS to this migration.
+
+    Found in the whole-branch review, and it only became reachable once S0.2 shipped the override:
+    the migration was written when `rss` and `profile_default` were the only two sources there
+    were, so `_plan_for_episode` wants `language_source == "rss"` unconditionally.
+
+    Two distinct failures came out of that, both against the SAME corpus shape — a feed whose
+    publisher declares the wrong tag and an operator who corrected it, which is the entire reason
+    the override exists:
+
+    * `apply` would overwrite `override` back to `rss` and the corrected language back to the
+      publisher's wrong one. The migration would undo the correction, on its own, at deploy time.
+    * `verify` would count every such episode as "a partial backfill" — a red verify describing
+      a corpus that is exactly right.
+
+    The precedence in `resolve_episode_language` already says the override outranks the feed tag.
+    A backfill that reverses that precedence is not a backfill.
+    """
+
+    def _overridden(self, root: Path, feed_id: str, episode_id: str) -> Path:
+        """An episode as the pipeline writes it under a per-feed override.
+
+        `language_raw` is the OVERRIDE's value, not the publisher's — that is what
+        `resolve_episode_language` returns as the raw when the override wins, and it is why
+        `verify`'s "did this show get backfilled" test (`language_raw` is set) sees these
+        episodes at all.
+        """
+        path = _episode(root, feed_id, episode_id)
+        payload = _load(path)
+        payload["feed"].update(
+            {"language": "pt", "language_raw": "pt", "language_source": "override"}
+        )
+        payload["episode"].update({"language": "pt", "language_source": "override"})
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        return path
+
+    def test_apply_leaves_the_override_alone(self, tmp_path: Path, monkeypatch) -> None:
+        path = self._overridden(tmp_path, "f1", "e1")
+        _stub_fetch(monkeypatch, {"https://example.com/f1.xml": "es-ES"})
+
+        BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
+
+        payload = _load(path)
+        assert payload["feed"]["language"] == "pt", "the operator's correction must survive"
+        assert payload["feed"]["language_source"] == "override"
+        assert payload["episode"]["language"] == "pt"
+        assert payload["episode"]["language_source"] == "override"
+
+    def test_apply_counts_it_as_skipped_not_as_already_correct(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Reported distinctly, because "I did not touch these" and "these were already right"
+        are different facts about the corpus and an operator reads the difference."""
+        self._overridden(tmp_path, "f1", "e1")
+        _episode(tmp_path, "f1", "e2")
+        _stub_fetch(monkeypatch, {"https://example.com/f1.xml": "es-ES"})
+
+        result = BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
+
+        assert result.details["overridden"] == 1
+        assert result.details["updated"] == 1
+        assert result.details["already_correct"] == 0
+        assert "1 override" in result.message
+
+    def test_apply_still_completes(self, tmp_path: Path, monkeypatch) -> None:
+        """An override is a final answer, so it must not hold the migration pending for ever."""
+        self._overridden(tmp_path, "f1", "e1")
+        _stub_fetch(monkeypatch, {"https://example.com/f1.xml": "es-ES"})
+
+        result = BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
+
+        assert result.applied is True
+        assert result.details["complete"] is True
+
+    def test_verify_does_not_call_it_a_partial_backfill(self, tmp_path: Path, monkeypatch) -> None:
+        self._overridden(tmp_path, "f1", "e1")
+        _stub_fetch(monkeypatch, {"https://example.com/f1.xml": "es-ES"})
+        mig = BackfillFeedLanguageMigration()
+        mig.apply(_ctx(tmp_path))
+
+        ok, msg = mig.verify(_ctx(tmp_path))
+        assert ok, msg
+
+    def test_verify_is_clean_on_an_override_that_was_NEVER_applied(self, tmp_path: Path) -> None:
+        """The same corpus with no migration run at all — the state a fresh deploy inherits."""
+        self._overridden(tmp_path, "f1", "e1")
+        ok, msg = BackfillFeedLanguageMigration().verify(_ctx(tmp_path))
+        assert ok, msg
+
+    def test_a_non_overridden_episode_under_the_SAME_show_is_still_backfilled(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """The skip is per EPISODE, not per show: the override is recorded on the artifact, and
+        skipping the whole show would strand every episode processed before it was set."""
+        overridden = self._overridden(tmp_path, "f1", "e1")
+        plain = _episode(tmp_path, "f1", "e2")
+        _stub_fetch(monkeypatch, {"https://example.com/f1.xml": "es-ES"})
+
+        BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
+
+        assert _load(overridden)["feed"]["language"] == "pt"
+        assert _load(plain)["feed"]["language"] == "es"
+        assert _load(plain)["feed"]["language_source"] == "rss"
+>>>>>>> f3cacd167 (The RSS <language> never reached the pipeline, and Phase 0's headline rested on it):tests/unit/upgrade/test_m0011_backfill_feed_language.py

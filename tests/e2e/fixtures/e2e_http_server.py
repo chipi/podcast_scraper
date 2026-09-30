@@ -786,6 +786,17 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             cls._use_fast_fixtures = use_fast
 
     @classmethod
+    def get_use_fast_fixtures(cls) -> bool:
+        """Whether fast fixtures are currently selected.
+
+        The read side of :meth:`set_use_fast_fixtures`, so a fixture can RESTORE this
+        class-level flag at teardown instead of guessing a default. Reading
+        ``cls._use_fast_fixtures`` directly would take the value without the lock.
+        """
+        with cls._use_fast_fixtures_lock:
+            return cls._use_fast_fixtures
+
+    @classmethod
     def get_allowed_podcasts(cls) -> Optional[set[str]]:
         """Get currently allowed podcasts.
 

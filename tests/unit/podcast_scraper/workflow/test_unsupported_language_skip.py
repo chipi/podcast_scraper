@@ -18,11 +18,19 @@ from podcast_scraper.workflow.episode_processor import _unsupported_language_ski
 pytestmark = pytest.mark.unit
 
 
-def _cfg(*, language: str = "en", override: Optional[str] = None) -> Any:
+def _cfg(
+    *, language: str = "en", override: Optional[str] = None, feed: Optional[str] = None
+) -> Any:
     cfg = config_mod.Config(rss="https://example.com/f.xml", language=language)
+    update: dict[str, Any] = {}
     if override is not None:
-        cfg = cfg.model_copy(update={"language_override": override})
-    return cfg
+        update["language_override"] = override
+    if feed is not None:
+        # The channel tag as `run_pipeline` records it. Reachable only since #2172 wired the
+        # pipeline's own `RssFeed`; before that this source could not be produced at all, which
+        # is why every test here used to exercise only two of the three.
+        update["feed_declared_language"] = feed
+    return cfg.model_copy(update=update) if update else cfg
 
 
 class TestWhatIsRefused:
@@ -73,18 +81,50 @@ class TestTheOverrideIsTheRemedy:
 class TestTheReasonIsUsable:
     def test_it_names_the_language_and_where_it_came_from(self) -> None:
         """One sentence carries the log line, the incident and the ledger row, so an operator
-        reading any one of the three learns the same thing."""
+        reading any one of the three learns the same thing.
+
+        All THREE sources, because the source used to be derived from `language_override` alone:
+        a language that came from the feed's declared tag was reported as "the profile default",
+        pointing an operator at the wrong thing to change.
+        """
         from_profile = _unsupported_language_skip_reason(_cfg(language="es"))
         assert from_profile is not None and "the profile default" in from_profile
 
         from_override = _unsupported_language_skip_reason(_cfg(language="en", override="es"))
-        assert from_override is not None and "the override" in from_override
+        assert from_override is not None and "the per-feed override" in from_override
+
+        from_feed = _unsupported_language_skip_reason(_cfg(language="en", feed="es"))
+        assert from_feed is not None and "the feed's declared <language> tag" in from_feed
+
+    def test_the_remedy_is_PER_SOURCE(self) -> None:
+        """A single remedy sentence was wrong in two of the three cases: it advised setting a
+        per-feed override when the override was already the cause, and blamed a wrong publisher
+        tag when no tag was involved at all. An operator acts on this sentence."""
+        override = _unsupported_language_skip_reason(_cfg(language="en", override="es")) or ""
+        assert "correct the per-feed `language:` override that set it" in override
+
+        feed = _unsupported_language_skip_reason(_cfg(language="en", feed="es")) or ""
+        assert "if the publisher's tag is wrong" in feed
+
+        profile = _unsupported_language_skip_reason(_cfg(language="es")) or ""
+        assert "point this feed at a profile" in profile
+        assert "publisher" not in profile, "no publisher tag was involved"
 
     def test_it_says_what_to_do_about_it(self) -> None:
         reason = _unsupported_language_skip_reason(_cfg(language="es"))
         assert reason is not None
-        assert "Enable the language" in reason
-        assert "override" in reason
+        assert "Enable it there" in reason
+
+    def test_a_tag_that_is_not_a_usable_LANGUAGE_is_reported_as_such(self) -> None:
+        """`profile_default` covers two corpus states — no tag, and a tag resolution could not
+        read. Saying "the feed declared no <language>" for the second is a false statement about
+        the feed, and it hides the one fact that explains the skip."""
+        junk = _unsupported_language_skip_reason(_cfg(language="es", feed="?")) or ""
+        assert "declared '?'" in junk
+        assert "not a usable language tag" in junk
+
+        silent = _unsupported_language_skip_reason(_cfg(language="es")) or ""
+        assert "declared no <language>" in silent
 
 
 class TestTheRefusalIsCountable:

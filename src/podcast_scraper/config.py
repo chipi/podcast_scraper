@@ -4049,6 +4049,38 @@ class Config(BaseModel):
     save_adfree_transcript: bool = Field(
         default=True, alias="save_adfree_transcript"
     )  # Save ad-free processing-base transcript (.adfree.txt) + segments + ad-map (#974)
+    feed_declared_language: Optional[str] = Field(
+        default=None,
+        alias="feed_declared_language",
+        description=(
+            "The language the CURRENT feed's RSS channel declared, carried on the per-feed "
+            "Config so `languages.resolve_config_language` can use it as the `feed_declared` "
+            "layer (#2172 precedence: override > feed > profile default).\n\n"
+            "WHY A FIELD AND NOT A THREADED ARGUMENT. `transcription_language(cfg)` is THE one "
+            "reader (S0.6), and the alternative was a new parameter through "
+            "`transcribe_media_to_text` -> `_transcribe_with_segments_maybe_chunked` -> "
+            "`transcribe_with_sniff_gate` -> two inner closures, five signatures deep — which "
+            "S0.6 rejected for the reason that one path keeps reading the global and nobody "
+            "notices. That is exactly what happened anyway: the reader's docstring claimed the "
+            "feed tag 'arrives via the per-feed Config copy' and NOTHING put it there, so the "
+            "transcriber answered `en` for a feed declaring `es-ES` while the metadata writer "
+            "answered `es / rss`.\n\n"
+            "DELIBERATELY NOT `language`. Writing the feed's tag into the profile-default field "
+            "would erase the distinction between a MEASURED tag and a DEFAULTED one, which is "
+            "the whole point of `language_source` — the same reasoning the per-feed "
+            "`language:` override is kept in `language_override` rather than `language`.\n\n"
+            "RUNTIME-POPULATED, NOT AN OPERATOR KNOB. `run_pipeline` sets it from the parsed "
+            "channel tag; no profile YAML or feeds.spec entry sets it (a feeds.spec `language:` "
+            "is aliased to `language_override`). To assert a language, use that override — it "
+            "records `language_source: override`, whereas a value placed here would be reported "
+            "as `rss`, i.e. measured from the feed, which it would not have been.\n\n"
+            "WHY NO VALIDATOR ENFORCES THAT: `transcription/factory.py` and "
+            "`providers/ml/diarization/factory.py` build chain tiers by "
+            "`Config.model_validate(cfg.model_dump())` — a round trip that runs AFTER the "
+            "orchestrator has set this field, so a validator rejecting a set value would fail "
+            "provider construction on exactly the non-English episodes this exists to serve."
+        ),
+    )
     multilingual_ingest: bool = Field(
         default=False,
         alias="multilingual_ingest",

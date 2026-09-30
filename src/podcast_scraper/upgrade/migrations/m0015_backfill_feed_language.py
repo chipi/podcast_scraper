@@ -30,6 +30,12 @@ must not block completion for ever:
 
 Both are reported and skipped. Nothing is ever guessed: an episode whose show could not be
 resolved is left exactly as it was.
+
+ONE THING IT MUST NOT TOUCH: an episode whose ``language_source`` is already ``override``. The
+per-feed override is the remedy for a publisher declaring the wrong tag, so those are the exact
+episodes where the ``<language>`` this migration fetches is known to be worse than what is on
+disk. Overwriting them would invert the precedence ``resolve_episode_language`` defines and undo
+an operator's correction at deploy time. See :func:`_is_operator_override`.
 """
 
 from __future__ import annotations
@@ -38,7 +44,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from ...languages import normalize_language_tag, SOURCE_RSS
+from ...languages import normalize_language_tag, SOURCE_OVERRIDE, SOURCE_RSS
 from ...rss.parser import _channel_language
 from ..corpus_selection import select_served_artifacts
 from ..migration import Migration, MigrationContext, MigrationResult
@@ -107,6 +113,24 @@ def _fetch_language(url: str, timeout: float) -> Tuple[Optional[str], str]:
     return _channel_language(body), ""
 
 
+def _is_operator_override(payload: Dict[str, Any]) -> bool:
+    """True when this episode's language was set by the per-feed operator override.
+
+    OFF LIMITS TO THIS MIGRATION. The override exists precisely for the case where a publisher
+    declares the wrong tag, so an episode carrying it is the one place where the feed's
+    ``<language>`` is known to be WORSE than what is already on disk.
+    ``resolve_episode_language`` ranks override above the feed tag; a backfill that overwrote it
+    would invert that precedence and silently undo the correction at deploy time.
+
+    Either block is enough. The pipeline writes both, but a hand-repaired artifact may carry only
+    one, and the safe reading of a half-marked override is to leave it alone.
+    """
+    return SOURCE_OVERRIDE in {
+        _block(payload, "feed").get("language_source"),
+        _block(payload, "episode").get("language_source"),
+    }
+
+
 def _plan_for_episode(payload: Dict[str, Any], raw: str, normalized: str) -> Dict[Any, Any]:
     """The field writes this episode needs, or ``{}`` when it is already correct.
 
@@ -144,7 +168,8 @@ class BackfillFeedLanguageMigration(Migration):
     to_version = "2.7.9"
     description = (
         "Fetch each show's declared RSS <language> and backfill it onto the show and every "
-        "episode under it, replacing the run-config value every pre-#2172 artifact carries."
+        "episode under it, replacing the run-config value every pre-#2172 artifact carries. "
+        "Episodes carrying a per-feed operator override are left untouched."
     )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
@@ -158,6 +183,7 @@ class BackfillFeedLanguageMigration(Migration):
         fetch_failed: Dict[str, str] = {}
         updated = 0
         already = 0
+        overridden = 0
 
         for feed_id in sorted(episodes):
             url = urls.get(feed_id)
@@ -182,11 +208,18 @@ class BackfillFeedLanguageMigration(Migration):
                 ctx.log(f"  {feed_id}: declares {raw!r}, which is not a usable tag — left as it is")
                 continue
 
-            counts: Dict[str, int] = {"updated": 0, "already": 0}
+            counts: Dict[str, int] = {"updated": 0, "already": 0, "overridden": 0}
             for path in episodes[feed_id]:
                 payload, err2 = _load_json(path)
                 if payload is None:
                     unparsable.append(f"{path.name}: {err2}")
+                    continue
+                if _is_operator_override(payload):
+                    # Per EPISODE, not per show: the override is recorded on the artifact, so
+                    # skipping the whole show would strand every episode processed before the
+                    # operator set it.
+                    counts["overridden"] += 1
+                    overridden += 1
                     continue
                 plan = _plan_for_episode(payload, raw, normalized)
                 if not plan:
@@ -204,7 +237,8 @@ class BackfillFeedLanguageMigration(Migration):
             per_feed[feed_id] = {**counts, "language": normalized, "raw": raw}
             ctx.log(
                 f"  {feed_id}: {raw!r} -> {normalized!r} — {counts['updated']} updated, "
-                f"{counts['already']} already correct"
+                f"{counts['already']} already correct, "
+                f"{counts['overridden']} left to the operator override"
             )
 
         # Only a fetch failure is retryable. A missing url and a feed that declares nothing are
@@ -212,7 +246,8 @@ class BackfillFeedLanguageMigration(Migration):
         complete = not fetch_failed
         message = (
             f"{len(served)} episode(s) across {len(episodes)} show(s): "
-            f"{updated} updated, {already} already correct; "
+            f"{updated} updated, {already} already correct, "
+            f"{overridden} override(s) left alone; "
             f"{len(no_url)} show(s) with no url, {len(no_language)} declaring no language, "
             f"{len(fetch_failed)} fetch failure(s), {len(unparsable)} unparsable"
         )
@@ -233,6 +268,7 @@ class BackfillFeedLanguageMigration(Migration):
                 "shows": len(episodes),
                 "updated": updated,
                 "already_correct": already,
+                "overridden": overridden,
                 "per_feed": per_feed,
                 "shows_without_url": sorted(no_url),
                 "shows_declaring_no_language": sorted(no_language),
@@ -254,6 +290,12 @@ class BackfillFeedLanguageMigration(Migration):
         for path in served:
             payload, _err = _load_json(path)
             if payload is None:
+                continue
+            if _is_operator_override(payload):
+                # `apply` never touches these, so measuring them against the feed tag would
+                # report a correct corpus as a partial backfill. Note they DO reach here: the
+                # raw recorded beside an override is the override's own value, so the
+                # "was this show backfilled" test below is satisfied by them.
                 continue
             raw = _block(payload, "feed").get("language_raw")
             if not isinstance(raw, str) or not raw.strip():

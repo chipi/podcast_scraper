@@ -2349,22 +2349,55 @@ def _unsupported_language_skip_reason(cfg: config.Config) -> Optional[str]:
     corpus, and refusing those would stop ingesting the English corpus that works today. The
     profile default answers for them, and the audit is what reports how many.
     """
-    from ..languages import is_language_enabled, transcription_language
-
     # The SAME resolver the provider call sites use. It was a second `resolve_episode_language`
     # call here until the S0.6 lint flagged it — two resolutions of one question is exactly how
     # the gate and the transcription drift apart, so the gate must refuse the language the
     # provider would actually have been given.
-    language = transcription_language(cfg)
+    from ..languages import is_language_enabled, resolve_config_language
+
+    # Resolve ONCE and report the real source. This used to derive `where` from
+    # `language_override` alone, so a language that came from the FEED's declared tag was
+    # reported as "the profile default" — misattributing provenance in the one sentence an
+    # operator reads, and pointing them at the wrong thing to change.
+    raw, language, source = resolve_config_language(cfg)
     if language is None:
         return None
     if is_language_enabled(language):
         return None
-    where = "the override" if getattr(cfg, "language_override", None) else "the profile default"
+    # The remedy is per-SOURCE. A single sentence advising "set a per-feed `language:` override"
+    # is wrong in two of the three cases: useless when the override is already what produced the
+    # refused language, and misleading when nothing but the profile default was involved — there
+    # is no wrong publisher tag to correct there. The whole point of this function returning a
+    # sentence instead of a bool is that an operator can act on it.
+    where, remedy = {
+        "override": (
+            "the per-feed override",
+            "Enable it there, or correct the per-feed `language:` override that set it.",
+        ),
+        "rss": (
+            "the feed's declared <language> tag",
+            "Enable it there, or — if the publisher's tag is wrong — set a per-feed "
+            "`language:` override, which outranks the tag.",
+        ),
+        "profile_default": (
+            "the profile default",
+            "Enable it there, or point this feed at a profile whose default language is " "enabled."
+            # `profile_default` covers TWO corpus states and they need different handling:
+            # the feed declared nothing, or it declared something unusable ("und", "?") and
+            # resolution fell through. The raw value is the only thing that tells them apart,
+            # and an unconditional "the feed declared no <language>" would be a false
+            # statement in the second one.
+            + (
+                f" The feed declared {raw!r}, which is not a usable language tag — a per-feed "
+                "`language:` override is how to say what it actually is."
+                if raw
+                else " The feed itself declared no <language>."
+            ),
+        ),
+    }.get(str(source), (str(source), "Enable it in config/languages.yaml."))
     return (
         f"language {language!r} (from {where}) is not enabled in config/languages.yaml, so this "
-        "episode was NOT transcribed. Enable the language there, or set a per-feed "
-        "`language:` override if the feed's declared tag is wrong."
+        f"episode was NOT transcribed. {remedy}"
     )
 
 
