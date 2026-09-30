@@ -87,4 +87,32 @@ describe('replaceAll — the picker PUTs an absolute set (iOS-F1)', () => {
     expect(spy).not.toHaveBeenCalled()
     expect(s.ids).toEqual(['tc:ai'])
   })
+
+  it('a quick follow-then-unfollow ends unfollowed, on the screen AND in request order', async () => {
+    // The flaky trending.spec toggle-and-back (2026-09-30): the add's response arrived after the
+    // remove's and re-lit the button. The add is held back here to force that ordering.
+    let releaseAdd!: () => void
+    const order: string[] = []
+    vi.spyOn(api, 'addInterest').mockImplementation(async () => {
+      order.push('add:start')
+      await new Promise<void>((r) => (releaseAdd = r))
+      order.push('add:end')
+      return ['topic:ai']
+    })
+    vi.spyOn(api, 'removeInterest').mockImplementation(async () => {
+      order.push('remove:start')
+      return []
+    })
+    const s = useInterestsStore()
+    const first = s.toggle('topic:ai')
+    expect(s.has('topic:ai')).toBe(true) // optimistic
+    const second = s.toggle('topic:ai')
+    expect(s.has('topic:ai')).toBe(false) // optimistic, second tap
+    await Promise.resolve()
+    releaseAdd()
+    await Promise.all([first, second])
+    expect(s.has('topic:ai'), 'the earlier add response re-lit a follow the user undid').toBe(false)
+    // The server sees the user's order: the remove is not sent until the add has finished.
+    expect(order).toEqual(['add:start', 'add:end', 'remove:start'])
+  })
 })

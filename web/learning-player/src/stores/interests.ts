@@ -9,6 +9,20 @@ import { addInterest, getUserInterests, removeInterest } from '../services/api'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
 
+/**
+ * Writes go out ONE AT A TIME, and only the newest toggle's answer is adopted (2026-09-30).
+ *
+ * Each toggle used to fire its own request and adopt whichever response came back. A quick follow
+ * then unfollow ("+" then "✓" again) sent add and remove in parallel: when the add's response landed
+ * last, it re-lit the button the user had just turned off — and the server, taking them in either
+ * order, could keep the follow too. Caught as a flaky `trending.spec` toggle-and-back on 2026-09-30.
+ *
+ * Serialising keeps the server's order equal to the user's; the sequence number stops an earlier
+ * (now superseded) response from overwriting the optimistic state of a later tap.
+ */
+let writeChain: Promise<unknown> = Promise.resolve()
+let latestWrite = 0
+
 interface InterestsState {
   ids: string[]
   loaded: boolean
@@ -74,20 +88,29 @@ export const useInterestsStore = defineStore('interests', {
       const generation = identityEpoch()
       // Optimistic flip so the tap is never swallowed.
       this.ids = wasFollowing ? this.ids.filter((t) => t !== token) : [...this.ids, token]
-      try {
-        const ids = wasFollowing ? await removeInterest(token) : await addInterest(token)
-        if (identityChangedSince(generation)) return
-        this.ids = ids
-        this.loaded = true
-      } catch (err: unknown) {
-        if (identityChangedSince(generation)) return
-        if (isPermanent(err)) {
-          // A refusal is an answer: undo the optimistic flip.
-          this.ids = wasFollowing ? [...this.ids, token] : this.ids.filter((t) => t !== token)
-          return
+      const seq = ++latestWrite
+      const write = async (): Promise<void> => {
+        try {
+          const ids = wasFollowing ? await removeInterest(token) : await addInterest(token)
+          if (identityChangedSince(generation)) return
+          // A later tap is already showing its own optimistic state; its response will settle it.
+          if (seq !== latestWrite) return
+          this.ids = ids
+          this.loaded = true
+        } catch (err: unknown) {
+          if (identityChangedSince(generation)) return
+          if (isPermanent(err)) {
+            // A refusal is an answer: undo the optimistic flip — unless a later tap superseded it.
+            if (seq !== latestWrite) return
+            this.ids = wasFollowing ? [...this.ids, token] : this.ids.filter((t) => t !== token)
+            return
+          }
+          enqueue(wasFollowing ? { op: 'interest.remove', token } : { op: 'interest.add', token })
         }
-        enqueue(wasFollowing ? { op: 'interest.remove', token } : { op: 'interest.add', token })
       }
+      const run = writeChain.then(write, write)
+      writeChain = run.catch(() => {})
+      await run
     },
   },
 })
