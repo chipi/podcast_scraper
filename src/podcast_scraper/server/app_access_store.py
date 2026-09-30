@@ -21,10 +21,13 @@ by a self-lockout guard, mirroring the one in ``routes/app_admin.py``.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.atomic_write import atomic_write_text
+
+logger = logging.getLogger(__name__)
 
 _FILE_NAME = "access_policy.json"
 
@@ -76,12 +79,32 @@ def load_policy(data_dir: Path | None) -> AccessPolicy | None:
         return None
     path = _policy_path(Path(data_dir))
     if not path.is_file():
-        return None
+        return None  # the normal state for an instance that never used the endpoint — silent
+    # A PRESENT but unreadable file is different, and it is loud.
+    #
+    # Falling back to env here re-admits anyone the operator revoked through the endpoint, because
+    # env still lists them. That is fail-open relative to their last expressed intent, so it must
+    # never happen quietly. It is still the right fallback rather than denying everyone: writes go
+    # through `atomic_write_text`, so this file cannot be torn by us — a corrupt one means external
+    # tampering or a hand-edit, and answering that by locking every admin out of the surface that
+    # repairs it trades a stale allowlist for a self-inflicted outage with no way back in.
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        logger.error(
+            "access policy at %s is unreadable (%s) — FALLING BACK TO THE ENV POLICY, which may "
+            "re-admit addresses revoked through the admin endpoint. Fix or delete the file.",
+            path,
+            exc,
+        )
         return None
     if not isinstance(data, dict):
+        logger.error(
+            "access policy at %s is %s, expected an object — FALLING BACK TO THE ENV POLICY, "
+            "which may re-admit revoked addresses. Fix or delete the file.",
+            path,
+            type(data).__name__,
+        )
         return None
     return policy_from_dict(data)
 

@@ -103,6 +103,36 @@ android {
     }
 }
 
+// FAIL a release build that has no signing config, rather than emitting an unsigned artifact.
+//
+// Without this the failure is silent and travels a long way: `bundleRelease` succeeds, every
+// assertion in `make android-bundle` passes (it only checks that a keystore was NAMED, which is a
+// weaker condition than the one above — a wrong `storeFile` path, or an env var set with
+// ANDROID_KEY_PASSWORD missing, satisfies the Makefile and not `hasReleaseSigning`), fastlane
+// uploads it, and Play rejects it after the whole AAB has gone over the wire.
+//
+// The check lives here because this is where the truth is. The Makefile cannot reproduce
+// `hasReleaseSigning` without duplicating its four-value-plus-file-exists logic, and a duplicated
+// gate is one that drifts.
+gradle.taskGraph.whenReady { graph ->
+    def needsSigning = graph.allTasks.any {
+        it.project == project && it.name in ['bundleRelease', 'assembleRelease']
+    }
+    if (needsSigning && !hasReleaseSigning) {
+        throw new GradleException(
+            "Release signing is not configured, so this build would produce an UNSIGNED artifact " +
+            "that Play rejects on upload.\n" +
+            "  keystore file : ${ksPath ?: '(unset)'}" +
+                (ksPath && !file(ksPath).exists() ? '  <- does not exist' : '') + "\n" +
+            "  store password: ${ksStorePass ? 'set' : '(unset)'}\n" +
+            "  key alias     : ${ksAlias ?: '(unset)'}\n" +
+            "  key password  : ${ksKeyPass ? 'set' : '(unset)'}\n" +
+            "Set all four via android/keystore.properties or the ANDROID_KEYSTORE_FILE / " +
+            "ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD env vars."
+        )
+    }
+}
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'

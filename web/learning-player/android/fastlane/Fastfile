@@ -63,6 +63,31 @@ platform :android do
 
   # --- lanes -----------------------------------------------------------------
 
+  desc "Print the next free versionCode for the internal track, and nothing else."
+  desc "Consumed by `make android-play`, which exports it into the gradle build."
+  lane :next_version_code do
+    # WHY THIS EXISTS
+    #
+    # `build.gradle` derives versionCode from `git rev-list --count HEAD` when the env var is
+    # absent. That is monotonic on ONE branch and nowhere else. Measured 2026-09-30: `beta-users`
+    # was 1484 while `origin/main` was 1468, because recent main history is squash merges. So an
+    # upload from a feature branch burns 1484, the squash-merge makes main 1469, and the next
+    # release from main is REJECTED for going backwards — after the whole AAB has uploaded. Two
+    # worktrees collide the same way.
+    #
+    # Play itself is the only authority on "what have we already used", exactly as
+    # `latest_testflight_build_number` is on iOS. Printed bare on stdout so the Makefile can
+    # capture it; every other line fastlane writes goes to stderr.
+    codes = google_play_track_version_codes(
+      package_name: PACKAGE,
+      track: "internal",
+      json_key: json_key,
+    )
+    next_code = (codes.max || 0) + 1
+    UI.message("internal track has #{codes.inspect}; next is #{next_code}")
+    puts next_code
+  end
+
   desc "Verify the Play credentials + that the app record exists (no build, no upload)."
   desc "Run this first on a new machine — it fails in seconds instead of after a build."
   lane :preflight do

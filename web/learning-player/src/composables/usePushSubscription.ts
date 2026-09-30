@@ -34,9 +34,14 @@ const REGISTER_TIMEOUT_MS = 15_000
  * What transport this platform's device token belongs to.
  *
  * Android device tokens are **FCM** tokens, and were being sent as `kind: 'apns'` with an
- * `apns://` endpoint (#2157). Nothing reads `kind` server-side yet, so this was inert rather than
- * broken — but it is the field the dispatcher must route on, and a store full of FCM tokens
- * labelled `apns` would send every Android push to Apple the moment routing lands.
+ * `apns://` endpoint (#2157).
+ *
+ * This was never inert: the delivery worker's `DispatchingPushSender` routes on `kind`, so the old
+ * label handed Google's tokens to Apple, which rejects them — and `apns.py` reads that rejection as
+ * a dead token and BOUNCES the subscription, so the device would have been suppressed rather than
+ * retried. Verified in production on 2026-09-30: the operator's stored subscriptions are
+ * 2 x `fcm://` (Android) and 1 x `apns://` (iPhone), and a real notification has now been
+ * delivered on each platform.
  */
 export function nativePushKind(): 'apns' | 'fcm' {
   return Capacitor.getPlatform() === 'android' ? 'fcm' : 'apns'

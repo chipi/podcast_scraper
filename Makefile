@@ -3259,10 +3259,28 @@ ios-device-install:
 		echo "      show it as 'available (paired)'."; exit 1; }; \
 	app="$(IOS_DEVICE_DD)/Build/Products/Debug-iphoneos/App.app"; \
 	echo "--> building for device $$udid"; \
+	: "Pass the App Store Connect key to xcodebuild when it is configured."; \
+	: "-allowProvisioningUpdates lets Xcode create the profile it needs, but creating one is a"; \
+	: "PORTAL WRITE and this account has no signed-in Xcode — without the credential the build"; \
+	: "fails with 'No profiles for app.closelistening.player.dev were found'. Debug now uses its"; \
+	: "own bundle id, so the very first run here has to REGISTER that App ID, which is exactly"; \
+	: "the case that needs the key. The fastlane device lane already passes these; this path did"; \
+	: "not. Silently absent when unset, so a developer's own signed-in Xcode still works."; \
+	ASC_AUTH=""; \
+	if [ -n "$$ASC_KEY_ID" ] && [ -n "$$ASC_ISSUER_ID" ] && [ -r "$$ASC_KEY_PATH" ]; then \
+		ASC_AUTH="-authenticationKeyID $$ASC_KEY_ID -authenticationKeyIssuerID $$ASC_ISSUER_ID -authenticationKeyPath $$ASC_KEY_PATH"; \
+	elif [ -f "$(IOS_DIR)/fastlane/.env" ]; then \
+		set -a; . "$(IOS_DIR)/fastlane/.env"; set +a; \
+		if [ -n "$$ASC_KEY_ID" ] && [ -r "$$ASC_KEY_PATH" ]; then \
+			ASC_AUTH="-authenticationKeyID $$ASC_KEY_ID -authenticationKeyIssuerID $$ASC_ISSUER_ID -authenticationKeyPath $$ASC_KEY_PATH"; \
+			echo "    (using the App Store Connect key from ios/fastlane/.env)"; \
+		fi; \
+	fi; \
 	build_once() { \
 		xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 			-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
-			-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
+			-allowProvisioningUpdates $$ASC_AUTH \
+			DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
 			build; \
 	}; \
 	if ! build_once; then \
@@ -3375,6 +3393,7 @@ android-build:
 # Play rejects an unsigned bundle and rejects a duplicate versionCode, so both are checked HERE
 # rather than discovered after a multi-minute upload. versionCode is derived in app/build.gradle
 # (ANDROID_VERSION_CODE, else the git commit count); pass ANDROID_VERSION_CODE to pin it.
+ANDROID_VERSION_CODE ?=
 ANDROID_LP_ENV ?= $(APP_DIR)/.env.mobile.testflight
 
 android-bundle:
@@ -3407,7 +3426,12 @@ android-bundle:
 	@# (#2157). Now that the client will register for push on Android, an artifact built without
 	@# google-services.json would crash the first time a tester touches the notifications toggle —
 	@# so a missing config is fatal here rather than a warning.
+	@# ANDROID_VERSION_CODE is forwarded EXPLICITLY rather than relying on make exporting a
+	@# command-line variable into a recipe's environment. `android-play` derives it from the Play
+	@# track; empty here means build.gradle falls back to the git commit count, which is the
+	@# pre-#2192 behaviour and still correct for a local build.
 	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
+		ANDROID_VERSION_CODE="$(ANDROID_VERSION_CODE)" \
 		./gradlew bundleRelease -PandroidPushRequired=true --console=plain \
 		|| { echo "FAIL: gradle bundleRelease failed. No AAB was produced."; exit 1; }
 	@[ -f $(ANDROID_AAB) ] || { echo "FAIL: gradle reported success but there is no AAB at"; \
@@ -3447,7 +3471,29 @@ android-fastlane-install:
 android-play-preflight:
 	@cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane preflight
 
-android-play: android-bundle
+android-play:
+	@# Ask PLAY for the next free versionCode BEFORE building, instead of letting build.gradle fall
+	@# back to `git rev-list --count HEAD`.
+	@#
+	@# That fallback is monotonic on one branch and nowhere else. Measured 2026-09-30: beta-users
+	@# was 1484 while origin/main was 1468, because main's recent history is squash merges. Upload
+	@# 1484 from a branch, squash-merge it, and main's next release computes 1469 — REJECTED for
+	@# going backwards, after the entire AAB has uploaded. Two worktrees collide the same way.
+	@# Play is the only authority on what has been used, exactly as latest_testflight_build_number
+	@# is on iOS.
+	@#
+	@# Non-fatal when Play cannot be reached (no credential yet, offline): fall through to the git
+	@# count, which is what made a release buildable before the Play account existed. The build is
+	@# then exactly as safe as it was yesterday, and the reason is printed.
+	@code=$$(cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane next_version_code 2>/dev/null | tail -1 | tr -dc '0-9'); \
+	if [ -n "$$code" ]; then \
+		echo "--> Play says the next free versionCode is $$code"; \
+		$(MAKE) android-bundle ANDROID_VERSION_CODE=$$code; \
+	else \
+		echo "WARN: could not read the internal track — falling back to the git commit count."; \
+		echo "      Safe for a first upload; on a branch it can collide with main after a squash."; \
+		$(MAKE) android-bundle; \
+	fi
 	@cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane internal
 
 android-device-install: android-build

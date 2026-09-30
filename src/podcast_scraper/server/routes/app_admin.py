@@ -12,7 +12,9 @@ the shared ``lp_session`` cookie. Mounted at the ``/api/app`` prefix alongside `
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -32,6 +34,8 @@ from podcast_scraper.server.app_user_store import (
     user_id_for,
 )
 from podcast_scraper.server.routes.app_auth import get_admin_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["app-admin"])
 
@@ -203,7 +207,10 @@ class AccessPolicyOut(BaseModel):
 class AccessPolicyBody(BaseModel):
     """A replacement access policy. Absent lists are treated as empty, not as "leave unchanged"."""
 
-    mode: str = Field(default="allowlist")
+    #: Literal, so a typo 422s instead of being silently coerced. A misspelled mode used to
+    #: return 200 with mode `allowlist` — fail-closed, but the caller was told nothing and would
+    #: reasonably believe they had opened signup.
+    mode: Literal["allowlist", "open"] = "allowlist"
     allowed_emails: list[str] = Field(default_factory=list)
     allowed_domains: list[str] = Field(default_factory=list)
 
@@ -245,6 +252,19 @@ async def admin_put_access_policy(
     able to lock itself out of its own administration.
     """
     policy = app_access_store.policy_from_dict(body.model_dump())
+    # RFC-108: on the operator-public deployment the allowlist is the ONLY authZ boundary — any
+    # signed-in account self-grants `creator` over the operator-read corpus via `?grant=creator`
+    # (`app_roles.resolve_login_role`). `app.py` refuses to BOOT that surface under open signup for
+    # exactly this reason; without this check the same surface could be opened at runtime through
+    # an endpoint, and would then boot again clean because the guard used to read only env.
+    if policy.mode == "open" and getattr(request.app.state, "operator_public", False):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Open signup is refused on the operator-public surface: it would expose the "
+                "operator-read corpus to any authenticated Google account. Use an allowlist."
+            ),
+        )
     if not policy.is_allowed(admin.email):
         raise HTTPException(
             status_code=400,
@@ -253,14 +273,38 @@ async def admin_put_access_policy(
                 f"{admin.email} is not permitted by it. Add your own address, or use mode 'open'."
             ),
         )
+    # The guard above only protects the CALLER. Another bootstrap admin can still be excluded, and
+    # being on APP_ADMIN_EMAILS does not get you past the sign-in gate — the policy is checked
+    # first. Refusing would make one admin unable to manage the list without the others, so this
+    # warns rather than blocks, and the audit entry below names who was dropped.
+    shut_out = sorted(
+        e
+        for e in getattr(request.app.state, "admin_emails", frozenset())
+        if not policy.is_allowed(e)
+    )
+    if shut_out:
+        logger.warning(
+            "access policy written by %s excludes bootstrap admin(s) %s — they will not be able "
+            "to sign in again once their current session expires",
+            admin.email,
+            ", ".join(shut_out),
+        )
     data_dir = _data_dir(request)
+    before = app_access_store.effective_policy(
+        data_dir, getattr(request.app.state, "access_policy", None)
+    )
     saved = app_access_store.save_policy(data_dir, policy)
+    # The ADDRESSES, not counts. "3 emails -> 2 emails" cannot answer "who did we just cut off",
+    # which is the only question anyone asks this log after an access incident.
     _audit(
         request,
         action="admin.access_policy.replace",
         by=admin.user_id,
         mode=saved.mode,
-        emails=len(saved.allowed_emails),
-        domains=len(saved.allowed_domains),
+        was_mode=before.mode if before is not None else None,
+        allowed_emails=sorted(saved.allowed_emails),
+        allowed_domains=sorted(saved.allowed_domains),
+        removed_emails=sorted(before.allowed_emails - saved.allowed_emails) if before else [],
+        added_emails=sorted(saved.allowed_emails - before.allowed_emails) if before else [],
     )
     return _policy_out(saved, persisted=True)

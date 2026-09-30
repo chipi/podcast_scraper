@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from podcast_scraper import __version__
-from podcast_scraper.server import app_roles
+from podcast_scraper.server import app_access_store, app_roles
 from podcast_scraper.server.app_access import policy_from_env
 from podcast_scraper.server.app_oauth import provider_from_env
 from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
@@ -356,18 +356,36 @@ def _start_dev_metrics_pusher() -> None:
         logger.debug("dev metrics pusher not started", exc_info=True)
 
 
-def _guard_operator_public_open_signup(operator_public: bool) -> None:
+def _guard_operator_public_open_signup(operator_public: bool, data_dir: Path | None = None) -> None:
     """RFC-108 hardening: the operator-public viewer self-grants ``creator`` via its
     ``?grant=creator`` login hint, so the email allowlist is the ONLY authZ boundary on
     the operator-read corpus. ``APP_SIGNUP_MODE=open`` drops that boundary and would expose
     the corpus to any authenticated Google account — refuse to boot rather than silently
-    serve it wide open (one env flip should not open the whole surface)."""
-    if operator_public and policy_from_env().mode == "open":
-        raise RuntimeError(
-            "PODCAST_SERVE_OPERATOR_PUBLIC=1 with APP_SIGNUP_MODE=open would expose the "
-            "operator-read corpus to any authenticated Google account. Set "
-            "APP_SIGNUP_MODE=allowlist with APP_ALLOWED_EMAILS."
-        )
+    serve it wide open (one env flip should not open the whole surface).
+
+    Checks the EFFECTIVE policy, not just env (#2190). The runtime policy file overrides env at
+    sign-in, so a persisted ``mode: open`` opens this surface exactly as the env flag would — and
+    would survive a restart unnoticed if this guard only ever read the environment.
+    """
+    if not operator_public:
+        return
+    persisted = app_access_store.load_policy(data_dir)
+    policy = persisted if persisted is not None else policy_from_env()
+    if policy is None or policy.mode != "open":
+        return
+    # Name the SOURCE. The two have different fixes, and "set APP_SIGNUP_MODE=allowlist" sends
+    # someone on a long detour when the env var already says allowlist and a persisted policy
+    # file is overriding it.
+    if persisted is not None:
+        source = f"the persisted access policy at {data_dir}/access_policy.json"
+        fix = "Delete that file, or PUT an allowlist policy to /api/app/admin/access-policy."
+    else:
+        source = "APP_SIGNUP_MODE=open"
+        fix = "Set APP_SIGNUP_MODE=allowlist with APP_ALLOWED_EMAILS."
+    raise RuntimeError(
+        f"PODCAST_SERVE_OPERATOR_PUBLIC=1 with open signup, from {source}, would expose the "
+        f"operator-read corpus to any authenticated Google account. {fix}"
+    )
 
 
 def _init_api_otel() -> None:
@@ -781,14 +799,21 @@ def create_app(
         enable_operator_config_api = False
         enable_jobs_api = False
 
-    # RFC-108 hardening — refuse operator-public boot under open signup (see helper).
-    _guard_operator_public_open_signup(operator_public)
+    # Carried on state so the admin access-policy endpoint can refuse to open THIS deployment
+    # at runtime — the boot guard below cannot help once the process is already up (#2190).
+    app.state.operator_public = operator_public
 
     _mount_api_routers(app, app_only=app_only, operator_public=operator_public)
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output
     _configure_platform_auth(app, resolved_output)
+
+    # RFC-108 hardening — refuse operator-public boot under open signup (see the helper). AFTER
+    # _configure_platform_auth because it now inspects the PERSISTED policy too, which needs
+    # app_data_dir resolved; a persisted `mode: open` opens this surface exactly as the env flag
+    # would, and used to boot clean because the guard read only the environment (#2190).
+    _guard_operator_public_open_signup(operator_public, app.state.app_data_dir)
 
     # MUST stay below _configure_platform_auth — see the function's docstring for why.
     _install_digest_health_metrics(app)

@@ -5,10 +5,14 @@ isn't open to the whole internet once deployed. ``open`` mode disables the gate 
 OAuth login is allowed). Configured from env.
 
 **The gate applies to EVERY sign-in, not only to account creation.** The check runs in the OAuth
-callback *before* ``get_or_create_user`` (``routes/app_auth.py``), so removing an address from
-``APP_ALLOWED_EMAILS`` locks out the existing account too — it does not merely stop new ones. Edit
-that variable by APPENDING; replacing it with a fresh list of testers would sign the operator out
-of their own app.
+callback *before* ``get_or_create_user`` (``routes/app_auth.py``), so removing an address stops that
+existing account signing in again — it does not merely stop new ones. Edit the list by APPENDING;
+replacing it with a fresh list of testers would lock the operator out of their own app.
+
+It does **not** end sessions that are already live. ``get_current_user`` checks ``disabled``, not
+the policy, and a session cookie lasts 30 days — so a removed address keeps working until its
+session expires. To cut someone off NOW, ``PATCH /api/app/admin/users/{id}`` with
+``disabled: true``; the policy is what stops them coming back.
 
 The policy is read ONCE at startup (``app.state.access_policy``), so a change to the variable takes
 effect only after a redeploy — the value is baked into ``.env.player`` by ``deploy-player.yml``.

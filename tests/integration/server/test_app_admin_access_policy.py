@@ -160,3 +160,81 @@ def test_a_written_policy_revokes_an_address_the_env_allowed(tmp_path: Path) -> 
         .status_code
         == 403
     )
+
+
+# --- RFC-108: the operator-public surface must not be openable at runtime ------------------------
+
+
+def test_put_open_is_refused_on_the_operator_public_surface(tmp_path: Path) -> None:
+    """`app.py` refuses to BOOT operator-public under open signup, because any signed-in account
+    self-grants `creator` over the operator-read corpus. An endpoint that could set the same mode
+    at runtime would walk straight past that guard."""
+    app = _app(tmp_path)
+    app.state.operator_public = True
+    admin = _admin(app)
+
+    resp = admin.put(POLICY, json={"mode": "open"})
+    assert resp.status_code == 400, resp.text
+    assert "operator-read corpus" in resp.json()["detail"]
+    assert admin.get(POLICY).json()["persisted"] is False  # nothing written
+
+
+def test_put_allowlist_is_still_fine_on_the_operator_public_surface(tmp_path: Path) -> None:
+    """The refusal is about `open` only — managing the allowlist is the point of the endpoint."""
+    app = _app(tmp_path)
+    app.state.operator_public = True
+    resp = _admin(app).put(POLICY, json={"mode": "allowlist", "allowed_emails": [ADMIN]})
+    assert resp.status_code == 200, resp.text
+
+
+def test_a_persisted_open_policy_blocks_an_operator_public_BOOT(tmp_path: Path) -> None:
+    """The other half: the file must not survive a restart unnoticed. The boot guard used to read
+    only env, so a persisted `open` would have booted clean and served the corpus wide."""
+    from podcast_scraper.server.app import _guard_operator_public_open_signup
+    from podcast_scraper.server.app_access_store import save_policy
+
+    data_dir = tmp_path / "appdata"
+    save_policy(data_dir, AccessPolicy("open", frozenset(), frozenset()))
+
+    with pytest.raises(RuntimeError, match="operator-read corpus"):
+        _guard_operator_public_open_signup(True, data_dir)
+
+    # ... and a persisted ALLOWLIST policy boots fine even when env says open.
+    save_policy(data_dir, AccessPolicy("allowlist", frozenset({ADMIN}), frozenset()))
+    _guard_operator_public_open_signup(True, data_dir)
+
+
+# --- input validation ---------------------------------------------------------------------------
+
+
+def test_a_misspelled_mode_is_rejected_rather_than_silently_coerced(tmp_path: Path) -> None:
+    """It used to return 200 with mode `allowlist` — fail-closed, but the caller was told nothing
+    and would reasonably believe they had opened signup."""
+    app = _app(tmp_path)
+    assert _admin(app).put(POLICY, json={"mode": "opeen"}).status_code == 422
+
+
+# --- the audit record has to be able to answer "who did we cut off" -----------------------------
+
+
+def test_the_audit_record_names_the_addresses(tmp_path: Path) -> None:
+    import json as _json
+
+    app = _app(tmp_path)
+    audit = tmp_path / "audit.jsonl"
+    app.state.audit_path = audit
+    admin = _admin(app)
+
+    admin.put(POLICY, json={"mode": "allowlist", "allowed_emails": [ADMIN, "keep@e2e.local"]})
+    admin.put(POLICY, json={"mode": "allowlist", "allowed_emails": [ADMIN, "new@e2e.local"]})
+
+    records = [
+        _json.loads(line)
+        for line in audit.read_text(encoding="utf-8").splitlines()
+        if "access_policy" in line
+    ]
+    assert records, "no access-policy audit records were written"
+    last = records[-1]
+    assert last["removed_emails"] == ["keep@e2e.local"]
+    assert last["added_emails"] == ["new@e2e.local"]
+    assert last["was_mode"] == "allowlist"

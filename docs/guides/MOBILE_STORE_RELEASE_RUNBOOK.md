@@ -164,30 +164,86 @@ Internal builds carry a **muted** app icon — same artwork, drained saturation.
 python scripts/tools/make_internal_icon.py
 ```
 
-Android picks it up from the `debug` build type's resources; iOS names it in the `device` lane via
-`ASSETCATALOG_COMPILER_APPICON_NAME`, because both iOS lanes build the *Release* configuration and
-the Xcode configuration therefore cannot be the discriminator.
+Android picks it up from the `debug` build type's resources. iOS sets it in the **Debug** build
+configuration (`ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon-Internal`), alongside that build's own
+bundle id and display name — see below.
 
 ## Push
 
-Native push is **unverified end to end on both platforms**. Do not read a shipped build as
-evidence it works.
+**Working on both platforms since 2026-09-30** — a real notification has been delivered to a real
+handset on each. What is NOT proven is the nudge path: every send so far called the transport
+directly with the outbox empty, so `resurface-nudge.v1` -> outbox -> worker -> APNs/FCM has never
+run.
 
-**iOS** has a complete path — client, entitlement, and an APNs transport in the homelab delivery
-worker — and it fails at authentication: three real sends, three `403 InvalidProviderToken`, zero
-successes. `InvalidProviderToken` rejects the provider JWT, not the device token. Check the `.p8`
-is an **APNs** key rather than the App Store Connect one, and that the key id and team id match it.
+**iOS.** The long-running failure was the credential, not the code: `apns_key_id` held an **App
+Store Connect API key**, not an APNs key. Both are ES256 `.p8` files with a 10-character id and
+they are indistinguishable by inspection — the ASC key even returns HTTP 201 to App Store Connect
+while returning `403 InvalidProviderToken` to APNs. Three real sends failed that way before anyone
+looked. The two live in different halves of Apple's site:
 
-**Android** has an FCM transport in the worker but no Firebase project, so there is no
-`google-services.json` and push is switched off in the client
-(`ANDROID_PUSH_NATIVE_READY = false`). A release build without that file only **warns**; set
-`-PandroidPushRequired=true` to make it fatal, in the same change that flips the client guard.
+| | Where | Used for |
+| --- | --- | --- |
+| APNs key | developer.apple.com -> **Keys** | sending notifications |
+| ASC API key | App Store Connect -> Users and Access -> **Integrations** | uploading builds |
+
+To tell a key apart without a device, send to APNs with an all-zeros token: `403
+InvalidProviderToken` means the key is wrong, `400 BadDeviceToken` means the key is **right** and
+only the dummy token was rejected.
+
+`apns_sandbox: false` is correct for TestFlight/App Store builds — their tokens are production
+tokens. Dev-signed builds are sandbox and route through the `podcast-dev` tenant, whose
+`apns_bundle_id` must be the **`.dev`** id (see below), because `apns-topic` has to equal the
+bundle id the token belongs to.
+
+**Android.** FCM, via a service account in the delivery worker. `google-services.json` is
+gitignored and keyed by package name, so a build for a different applicationId needs its own client
+added in the Firebase console. A release build without the file is fatal under
+`-PandroidPushRequired=true` (which `make android-bundle` sets).
 
 Confirm the `aps-environment` entitlement is `production` for Release, or push silently fails on a
 TestFlight build regardless of everything else.
 
+## The debug build has its own identity
+
+iOS identifies an app by **bundle id alone**, so a local build sharing the shipped id replaces the
+TestFlight app on the home screen rather than sitting beside it. The Debug configuration therefore
+ships:
+
+| | Release | Debug |
+| --- | --- | --- |
+| bundle id | `app.closelistening.player` | `app.closelistening.player.dev` |
+| display name | Close Listening | CL Dev |
+| icon | `AppIcon` | `AppIcon-Internal` (muted) |
+| APNs environment | production | development |
+
+Consequences worth knowing: the two apps have **separate storage**, so the dev build starts signed
+out with no downloads; `IOS_BUNDLE_ID` and the UI-test suite default to the `.dev` id (override with
+`LP_UITEST_BUNDLE_ID`); and the `podcast-dev` delivery tenant's `apns_bundle_id` must match it.
+
+**Android has no equivalent split yet** — debug and release share `app.closelistening.player`, and
+because they are signed by different keys `adb install -r` fails with
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The only way forward is uninstalling the Play build, which
+takes its data with it. Fixing it needs an `applicationIdSuffix ".dev"` plus a matching Firebase
+client, since `google-services.json` is keyed by package name.
+
 ## Beta testers need accounts
 
-RFC-120 made the app login-first, and signup defaults to an allowlist
-(`APP_SIGNUP_MODE`, fed from the `PLAYER_ALLOWED_EMAILS` repo variable). A tester who is not on it
-cannot create an account, and a build nobody can sign into is not a beta. See #2190.
+RFC-120 made the app login-first and the allowlist gates **every sign-in**, not just account
+creation — so a tester who is not on it cannot get in, and a build nobody can sign into is not a
+beta.
+
+Add one **without a deploy** (#2190):
+
+```bash
+curl -X PUT https://closelistening.app/api/app/admin/access-policy \
+  -H 'content-type: application/json' -b "$SESSION_COOKIE" \
+  -d '{"mode":"allowlist","allowed_emails":["you@example.com","tester@example.com"]}'
+```
+
+It is a **full replacement**, so include every address that should keep working — including your
+own. The endpoint refuses a policy that would lock the caller out, and warns when it excludes
+another bootstrap admin. `PLAYER_ALLOWED_EMAILS` remains the bootstrap seed, used only when no
+policy file exists.
+
+Removing an address stops the **next** sign-in; it does not end a live session (30-day cookie). To
+cut someone off immediately, `PATCH /api/app/admin/users/{id}` with `disabled: true`.
