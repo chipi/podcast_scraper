@@ -11,13 +11,22 @@ keeps it that way: a new `cfg.language` read added tomorrow fails CI rather than
 reintroducing the substitution.
 
 "EXACTLY ONE READER" IS FALSE AS AN ABSOLUTE, so the whitelist is part of the design rather than
-an escape hatch. Four kinds of read are legitimate:
+an escape hatch. Five kinds of read are legitimate:
 
 * the cloud transcription providers, which receive an already-resolved `language` argument and
   read `self.cfg.language` only as a fallback when the caller passed nothing;
 * `speaker_detectors/ner.py`, choosing which spaCy model to load;
 * `cli.py`, printing the configuration to an operator;
-* the config snapshot in `metadata_generation.py`, whose whole job is recording the run config.
+* the config snapshot in `metadata_generation.py`, whose whole job is recording the run config;
+* the bundled-prompt builders in the cloud LLM providers, which pass the language the model
+  should ANSWER IN — a different question from what language the episode is in.
+
+THIS LINT WAS ITSELF WRONG UNTIL 2026-09-30. Its pattern matched only the dotted form, so 11
+reads written as `getattr(self.cfg, "language", "en")` were invisible and two of their files
+were not whitelisted. The output was quoted in a review as proof there was one reader. A guard
+is only as true as the shapes it can see, so the pattern now covers both forms — and a third
+spelling would make it wrong again, which is why the test suite asserts on the shapes rather
+than on the count.
 
 Anything else is a finding. Adding a line here is a decision, which is the point: it has to be
 argued for in review rather than slipped in.
@@ -40,7 +49,25 @@ SRC = REPO / "src" / "podcast_scraper"
 
 #: `cfg.language` / `self.cfg.language` / `config.language`, but NOT `language_override`,
 #: `languages`, or a longer attribute that merely starts with "language".
-PATTERN = re.compile(r"\b(?:self\.)?(?:cfg|config)\.language\b(?!_)")
+_DOTTED = re.compile(r"\b(?:self\.)?_?(?:cfg|config)\.language\b(?!_)")
+
+#: `getattr(cfg, "language", ...)` and its `self.cfg` / `self._cfg` / `config` variants.
+#:
+#: WHY THIS HALF EXISTS. The dotted pattern alone made this lint's own claim FALSE. A
+#: whole-branch review in 2026-09-30 cited its "cfg.language is read only by languages.py and 7
+#: whitelisted files" output as evidence, and the lint was blind to **11 further reads** — every
+#: one of them written as `getattr(self.cfg, "language", "en")`, in gemini, grok, anthropic,
+#: mistral and openai. Two of those files were not whitelisted at all. A guard that overstates
+#: its coverage is worse than no guard, because its output gets quoted.
+_GETATTR = re.compile(r"""getattr\(\s*(?:self\.)?_?(?:cfg|config)\s*,\s*['"]language['"]""")
+
+
+def _is_read(line: str) -> bool:
+    return bool(_DOTTED.search(line) or _GETATTR.search(line))
+
+
+#: Kept as a module-level name because the tests and the --list output reference it.
+PATTERN = _DOTTED
 
 #: relpath -> the reason this file may read it. A set of line numbers would rot on every edit, so
 #: the grain is the FILE plus a stated reason.
@@ -53,6 +80,18 @@ WHITELIST: Dict[str, str] = {
     "providers/gemini/gemini_provider.py": "fallback when the caller passes no language",
     "providers/mistral/mistral_provider.py": "fallback when the caller passes no language",
     "providers/deepgram/deepgram_provider.py": "fallback when the caller passes no language",
+    # A FIFTH legitimate kind, invisible until the getattr half of the pattern existed: the
+    # bundled-prompt builders pass `language=` as the language the MODEL SHOULD ANSWER IN, which
+    # is a different question from "what language is this episode". The analysis text is English
+    # by construction once translation has run (D-1/D-39), and where it has not, an English
+    # answer about non-English text is the intended behaviour rather than a substitution. These
+    # are not the S0.6 defect — that was transcription being TOLD the wrong input language — but
+    # they are reads, so they are named here rather than hidden by a pattern that cannot see
+    # `getattr`.
+    "providers/grok/grok_provider.py": "output language for the bundled prompt, not the input",
+    "providers/anthropic/anthropic_provider.py": (
+        "output language for the bundled prompt, not the input"
+    ),
     # Local Whisper: same fallback shape, plus the init-time model-name resolution. S0.7 removes
     # this provider from the DGX profiles' chains and guards it against non-`en`.
     "providers/ml/ml_provider.py": "fallback + init-time whisper model-name resolution",
@@ -87,7 +126,7 @@ def _reads(path: Path) -> List[Tuple[int, str]]:
             continue
         if in_docstring or _is_comment_or_doc(line):
             continue
-        if PATTERN.search(line):
+        if _is_read(line):
             out.append((n, line.strip()))
     return out
 

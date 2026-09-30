@@ -23,6 +23,7 @@ else:
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..languages import transcription_language
+from ..languages_guard import is_english_text_language
 from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
@@ -1145,7 +1146,10 @@ def _produce_transcript_sidecars(
     # built by the translation stage after the render exists (S2.5).
     language = transcription_language(cfg)
     adfree_artifacts = None
-    if cfg.save_adfree_transcript and (language is None or language == "en"):
+    # The same predicate the sniff gate and the host-intro detector use (S2.14). Three copies of
+    # `language is None or language == "en"` had drifted into three slightly different
+    # conditions; this is the one that also treats a whitespace-only tag as unknown.
+    if cfg.save_adfree_transcript and is_english_text_language(language):
         from .adfree_transcript import produce_adfree_artifacts
 
         produced = produce_adfree_artifacts(

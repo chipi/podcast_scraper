@@ -39,8 +39,24 @@ def detect_speaker_names(
     cached_hosts: Optional[Set[str]] = None,
     heuristics: Optional[Dict[str, Any]] = None,
     transcript_text: Optional[str] = None,
+    text_language: Optional[str] = None,
 ) -> Tuple[List[str], Set[str], bool, bool]:
-    """Detect guest names from episode title and description using NER."""
+    """Detect guest names from episode title and description using NER.
+
+    ``text_language`` is the S2.14 guard, and it is the language of ``transcript_text`` — not
+    the episode's source language. For a translated episode the analysis body is English, so
+    the correct value is ``"en"``; the distinction matters because the caller is the only place
+    that knows which body it read.
+
+    It was missing until 2026-09-30, which made the guard inside
+    :func:`~.hosts.detect_hosts_from_transcript_intro` unreachable: its one caller was this
+    function, and this function had no language to pass. §5.2 measured what English NER does to
+    Spanish prose — recall held at 2/2 while precision fell 67% → 18% — so the failure is
+    phantom people, not missing ones.
+
+    ``None`` still proceeds. Most of the corpus predates language resolution, and refusing
+    those would stop naming for the English corpus that works today.
+    """
     _ = heuristics
 
     if cfg and not cfg.auto_speakers:
@@ -56,10 +72,23 @@ def detect_speaker_names(
         hosts.update(cached_hosts)
 
     if not hosts and transcript_text and nlp:
-        transcript_hosts = detect_hosts_from_transcript_intro(transcript_text, nlp)
+        transcript_hosts = detect_hosts_from_transcript_intro(
+            transcript_text, nlp, text_language=text_language
+        )
         if transcript_hosts:
             hosts.update(transcript_hosts)
             logger.info("  → Hosts from transcript intro: %s", sorted(transcript_hosts))
+
+    # The SAME guard applies to the title/description/intro NER below, not only to the host
+    # intro: `_extract_person_entities` loads `en_core_web_sm` wherever it is called from, and
+    # a phantom guest is exactly as durable as a phantom host — both become people in the
+    # roster. Refusing here returns the defaults rather than raising, per the module's
+    # "refuse, do not raise" rule: a mis-ordered stage costs an episode's names, which a
+    # relabel recovers, while invented people propagate into the KG.
+    from ..languages_guard import refuse_non_english
+
+    if refuse_non_english("speaker-name detection", text_language):
+        return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
     title_persons = _extract_person_entities(episode_title, nlp)
 

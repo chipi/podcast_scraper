@@ -145,10 +145,48 @@ def _key_paths(obj: Any, prefix: str = "") -> Iterator[str]:
         yield prefix or "<root>"
 
 
-def _model_of(annotation: Any) -> Union[Type[BaseModel], tuple, None]:
-    """Peel ``Optional`` / ``Union`` / ``list`` down to a ``BaseModel``, if there is one.
+#: Fields typed ``Dict[str, Any]``, whose CONTENTS this instrument cannot see.
+#:
+#: The walker derives the on-disk shape from the model's declared fields, and a
+#: ``Dict[str, Any]`` declares no shape at all — so every key inside one is invisible and could
+#: appear, change or vanish without failing this test. Found by a whole-branch review on
+#: 2026-09-30, along with the more serious case below.
+#:
+#: They are ENUMERATED rather than silently skipped: a new dict-typed field fails
+#: ``test_no_undeclared_opaque_fields`` until someone states why its contents are unmeasurable
+#: here. The blindness is then a recorded limitation instead of an accident of the walker.
+OPAQUE_DICT_FIELDS: Dict[str, str] = {
+    "processing.config_snapshot{}": (
+        "records the run Config verbatim, so its keys ARE the Config's fields — pinning them "
+        "here would make this test fail on every unrelated config addition, which is what the "
+        "config-snapshot tests cover instead"
+    ),
+    "summary.prefilled_extraction{}": (
+        "a provider's raw bundled-extraction payload, whose shape belongs to the provider "
+        "response schema rather than to this artifact"
+    ),
+    "summary.timestamps[]{}": (
+        "Whisper segment dicts passed through unchanged; their shape is the ASR provider's"
+    ),
+    "processing.stage_ledger{}.detail{}": (
+        "per-stage free-form detail; each stage chooses its own keys, and the translation "
+        "stage's are asserted directly in the translation tests rather than by shape here"
+    ),
+}
 
-    Returns the model, or ``("[]", inner)`` for a list, or ``None`` for a leaf.
+
+def _model_of(annotation: Any) -> Union[Type[BaseModel], tuple, None]:
+    """Peel ``Optional`` / ``Union`` / ``list`` / ``Dict`` down to a ``BaseModel``, if any.
+
+    Returns the model, ``("[]", inner)`` for a list, ``("{}", inner)`` for a dict, or ``None``
+    for a leaf.
+
+    THE DICT BRANCH IS THE POINT. It did not exist until 2026-09-30, and without it
+    ``Dict[str, StageOutcome]`` peeled to ``None`` — a LEAF. So ``processing.stage_ledger`` was
+    a single key path and every field of ``StageOutcome`` was invisible to the instrument that
+    Phase 0's acceptance is judged by. The stage ledger is where the translation stage records
+    its outcome, so the one artifact subtree this arc adds most to was the one subtree not
+    being measured.
     """
     origin = get_origin(annotation)
     if origin is Union:
@@ -162,6 +200,11 @@ def _model_of(annotation: Any) -> Union[Type[BaseModel], tuple, None]:
     if origin in (list, set, tuple):
         args = get_args(annotation)
         return ("[]", _model_of(args[0])) if args else None
+    if origin is dict:
+        # Keys are arbitrary (a stage name, an episode id), so the KEY is collapsed to `{}` the
+        # way list indices collapse to `[]`. The VALUE's shape is what matters and is walked.
+        args = get_args(annotation)
+        return ("{}", _model_of(args[1])) if len(args) == 2 else ("{}", None)
     if isinstance(annotation, type) and issubclass(annotation, BaseModel):
         return annotation
     return None
@@ -182,11 +225,21 @@ def _metadata_key_paths(
         here = f"{prefix}.{name}" if prefix else name
         got = _model_of(field.annotation)
         if isinstance(got, tuple):
-            _, inner = got
-            if inner is not None and not isinstance(inner, tuple):
-                out |= _metadata_key_paths(inner, f"{here}[]", depth + 1)
+            # Containers NEST — `List[Dict[str, Any]]` is `("[]", ("{}", None))` — so the
+            # markers are composed rather than only the outermost one taken. Without this,
+            # `summary.timestamps` emitted `summary.timestamps[]` and lost the `{}` that says
+            # its contents are unmeasurable, which put it outside the opaque-field audit below
+            # while still being just as opaque.
+            marker, inner = got
+            while isinstance(inner, tuple):
+                marker += inner[0]
+                inner = inner[1]
+            if inner is not None:
+                out |= _metadata_key_paths(inner, f"{here}{marker}", depth + 1)
             else:
-                out.add(f"{here}[]")
+                # A container of leaves. `Dict[str, Any]` lands here and its contents are
+                # unmeasurable by construction; declared in `OPAQUE_DICT_FIELDS`.
+                out.add(f"{here}{marker}")
         elif got is not None:
             out |= _metadata_key_paths(got, here, depth + 1)
         else:
@@ -527,3 +580,95 @@ class TestTheCheckFires:
         vanished, undeclared = _verdict(observed, base)
         assert vanished == {"feed.language"}
         assert not undeclared, "the addition is declared; the REMOVAL is what must fail this"
+
+
+class TestTheInstrumentCanSeeWhatItClaims:
+    """The instrument's own blind spots, made explicit rather than left to be rediscovered.
+
+    Found by a whole-branch review on 2026-09-30. `_model_of` peeled `Optional`, `Union` and
+    `list` but not `Dict`, so any dict-typed field became a LEAF and everything inside it was
+    invisible to the check that Phase 0's acceptance is judged by.
+
+    For `Dict[str, Any]` that is unavoidable — there is no declared shape to walk — but it was
+    silent. For `Dict[str, SomeModel]` it was simply wrong, and that is the case that mattered:
+    `processing.stage_ledger` is `Dict[str, StageOutcome]`, so the entire stage-ledger shape
+    (`outcome`, `reason`, `duration_seconds`, `detail`) was unmeasured — the one subtree this
+    arc writes most to. Those four paths appear in the baseline for the first time here; they
+    were always written, never watched.
+    """
+
+    def test_no_undeclared_opaque_fields(self) -> None:
+        """A new `Dict[str, Any]` field must state why its contents cannot be measured here.
+
+        This is what turns the blindness from an accident of the walker into a recorded
+        limitation: the field still is not checked, but nobody can add one without saying so.
+        """
+        opaque = {p for p in _metadata_key_paths() if p.endswith("{}")}
+        undeclared = opaque - set(OPAQUE_DICT_FIELDS)
+        assert undeclared == set(), (
+            f"dict-typed field(s) whose contents this test cannot see: {sorted(undeclared)}. "
+            "Add each to OPAQUE_DICT_FIELDS with the reason its shape is unmeasurable here, or "
+            "type it as a model so the walker can check it."
+        )
+
+    def test_no_stale_opaque_declarations(self) -> None:
+        """A declaration for a field that is no longer opaque is a standing excuse; it would let
+        a real dict field slip in later under an existing line."""
+        opaque = {p for p in _metadata_key_paths() if p.endswith("{}")}
+        assert sorted(set(OPAQUE_DICT_FIELDS) - opaque) == []
+
+    def test_every_opaque_field_states_a_reason(self) -> None:
+        for path, reason in OPAQUE_DICT_FIELDS.items():
+            assert reason.strip(), f"{path} has no stated reason"
+            assert len(reason.split()) >= 6, f"{path}: {reason!r} is not a reason"
+
+    def test_the_stage_ledger_shape_is_now_MEASURED(self) -> None:
+        """The regression that motivated the fix. `Dict[str, StageOutcome]` peeled to a leaf, so
+        a field added to or removed from `StageOutcome` changed nothing here."""
+        paths = _metadata_key_paths()
+        for field in ("outcome", "reason", "duration_seconds"):
+            assert f"processing.stage_ledger{{}}.{field}" in paths
+
+    def test_a_dict_of_models_is_walked_not_treated_as_a_leaf(self) -> None:
+        """Directly, on a throwaway model, so the property holds independently of whatever the
+        real document happens to declare today."""
+
+        class Inner(BaseModel):
+            a: int
+            b: Optional[str] = None
+
+        class Outer(BaseModel):
+            rows: Dict[str, Inner]
+
+        assert _metadata_key_paths(Outer) == {"rows{}.a", "rows{}.b"}
+
+    def test_nested_containers_keep_every_marker(self) -> None:
+        """`List[Dict[str, Any]]` must not lose its `{}`. It did, which put
+        `summary.timestamps` outside the opaque audit while being exactly as opaque."""
+
+        class Outer(BaseModel):
+            rows: List[Dict[str, Any]]
+
+        assert _metadata_key_paths(Outer) == {"rows[]{}"}
+
+    def test_a_list_of_models_is_still_walked(self) -> None:
+        """The pre-existing behaviour, pinned so the dict branch did not disturb it."""
+
+        class Inner(BaseModel):
+            a: int
+
+        class Outer(BaseModel):
+            rows: List[Inner]
+
+        assert _metadata_key_paths(Outer) == {"rows[].a"}
+
+    def test_an_optional_dict_of_models_is_also_walked(self) -> None:
+        """`Optional[Dict[str, Model]]` is the shape most of these fields actually have."""
+
+        class Inner(BaseModel):
+            a: int
+
+        class Outer(BaseModel):
+            rows: Optional[Dict[str, Inner]] = None
+
+        assert _metadata_key_paths(Outer) == {"rows{}.a"}

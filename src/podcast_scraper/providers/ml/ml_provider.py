@@ -36,6 +36,7 @@ from ...exceptions import (
     ProviderNotInitializedError,
     ProviderRuntimeError,
 )
+from ...languages import transcription_language
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ..capabilities import ProviderCapabilities
 from . import speaker_detection, summarizer
@@ -1113,6 +1114,14 @@ class MLProvider:
                 nlp=self._spacy_nlp,
                 cfg=self.cfg,
                 cached_hosts=known_hosts,
+                # S2.14. The EPISODE's language, not "en", and the difference is the whole
+                # point: the inputs here are the feed's title and description, which stay in
+                # the source language even after the TRANSCRIPT has been translated — nothing
+                # translates feed metadata. So English NER over a Spanish title is a live
+                # hazard for a translated episode too, and §5.2 measured what it produces:
+                # recall 2/2 with precision falling 67% -> 18%. Phantom people, not missing
+                # ones, and a phantom name becomes a person in the roster and then the KG.
+                text_language=transcription_language(self.cfg),
             )
         )
 

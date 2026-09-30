@@ -156,3 +156,103 @@ class TestTheSniffGateHonoursIt:
         assert result["sniff_gate"]["language"] == "es"
         assert len(calls) == 1, "exactly one transcription — the deep one, no sniff pass"
         assert "model_override" not in calls[0]
+
+
+class TestTheGuardIsActuallyREACHABLE:
+    """The finding this class exists for: every one of these paths was dead.
+
+    A whole-branch review on 2026-09-30 found S2.14 unreachable, and verifying it turned up
+    something larger. Two separate failures were stacked:
+
+    1. `refuse_non_english` had exactly ONE caller —
+       `detect_hosts_from_transcript_intro` — whose own caller, `detect_speaker_names`, had no
+       `text_language` parameter to pass. So the guard could not fire from anywhere in `src/`.
+    2. The three §5.2 hazards each carried their OWN inline check against
+       `transcription_language(cfg)` — and that function answered `en` for a feed declaring
+       `es-ES`, because the channel tag never reached the config (#2172). Measured:
+
+           BEFORE the fix   transcription_language -> 'en'
+             S2.7 ad-free base skipped?   False
+             sniff gate goes deep-only?   False
+             .en.* invalidation fires?    False
+           AFTER the fix    transcription_language -> 'es'   (all three True)
+
+       So all three guards were inert for exactly the corpus they were written for. They fired
+       only when an operator set `language_override` or pointed a feed at a non-English profile
+       default — never from a publisher's own tag, which is how a non-English feed actually
+       arrives.
+
+    Both are fixed, and these tests exist because neither failure was visible from any test
+    that checked the guard in isolation: the predicate was always correct. What was missing was
+    a caller.
+    """
+
+    def test_detect_speaker_names_ACCEPTS_a_language(self) -> None:
+        """The parameter whose absence made the guard unreachable."""
+        import inspect
+
+        from podcast_scraper.speaker_detectors.detection import detect_speaker_names
+
+        assert "text_language" in inspect.signature(detect_speaker_names).parameters
+
+    def test_it_refuses_spanish_and_returns_the_defaults(self) -> None:
+        """Refuses rather than raising: a mis-ordered stage costs an episode's names, which a
+        relabel recovers, while invented people propagate into the roster and then the KG."""
+        from podcast_scraper.speaker_detectors.constants import DEFAULT_SPEAKER_NAMES
+        from podcast_scraper.speaker_detectors.detection import detect_speaker_names
+
+        names, hosts, succeeded, used_defaults = detect_speaker_names(
+            episode_title="Entrevista con María González sobre la inflación",
+            episode_description="Hablamos con María González y Juan Pérez.",
+            nlp=object(),  # never reached — the guard returns first
+            text_language="es",
+        )
+        assert names == DEFAULT_SPEAKER_NAMES
+        assert hosts == set()
+        assert succeeded is False
+        assert used_defaults is True
+
+    def test_english_is_unaffected(self) -> None:
+        """The guard must not touch the 678-episode English corpus. `nlp=None` short-circuits
+        before any NER, so this asserts the guard did NOT fire rather than what NER found."""
+        from podcast_scraper.speaker_detectors.detection import detect_speaker_names
+
+        _names, _hosts, succeeded, _used = detect_speaker_names(
+            episode_title="Interview with Maria Gonzalez",
+            episode_description=None,
+            nlp=None,
+            text_language="en",
+        )
+        # nlp=None returns the defaults too, so this only proves no exception and no refusal
+        # path divergence; the real English behaviour is covered by TestTheNerEntryPointHonoursIt.
+        assert succeeded is False
+
+    def test_no_language_still_proceeds(self) -> None:
+        """Most of the corpus predates language resolution. Refusing those would stop naming
+        for the corpus that works today."""
+        from podcast_scraper.languages_guard import refuse_non_english
+
+        assert refuse_non_english("speaker-name detection", None) is None
+
+    def test_the_ml_provider_PASSES_the_episode_language(self) -> None:
+        """Not `"en"`, and the difference is load-bearing: the inputs are the feed's title and
+        description, which stay in the source language even after the TRANSCRIPT is translated.
+        Nothing translates feed metadata, so English NER over a Spanish title is a live hazard
+        for a translated episode too.
+        """
+        from pathlib import Path
+
+        source = (
+            Path(__file__).resolve().parents[3] / "src/podcast_scraper/providers/ml/ml_provider.py"
+        ).read_text(encoding="utf-8")
+        assert "text_language=transcription_language(self.cfg)" in source
+
+    def test_the_three_hazard_sites_share_ONE_predicate(self) -> None:
+        """Three copies of `language is None or language == "en"` had drifted into three
+        slightly different conditions. One predicate, one answer, one place to change it."""
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parents[3] / "src" / "podcast_scraper"
+        for rel in ("workflow/sniff_gate.py", "workflow/episode_processor.py"):
+            text = (root / rel).read_text(encoding="utf-8")
+            assert "is_english_text_language" in text, f"{rel} rolls its own check"

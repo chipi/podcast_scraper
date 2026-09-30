@@ -21,7 +21,7 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-_SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "tools" / "check_doc_structure.py"
+_SCRIPT = Path(__file__).resolve().parents[4] / "scripts" / "tools" / "check_doc_structure.py"
 
 
 def _load() -> Any:
@@ -66,7 +66,7 @@ class TestTheRealRepoIsClean:
     def test_the_translation_adr_is_157_not_156(self, mod: Any) -> None:
         """Pinned by name because the rename is the fix, and a revert is silent otherwise:
         `main` owns ADR-156 for the topics extractor."""
-        adr = Path(__file__).resolve().parents[3] / "docs" / "adr"
+        adr = Path(__file__).resolve().parents[4] / "docs" / "adr"
         assert (adr / "ADR-157-translation-model-and-serving.md").is_file()
         assert not (adr / "ADR-156-translation-model-and-serving.md").exists()
 
