@@ -404,6 +404,14 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             meta = {**base_meta, **got["metadata"], "attempts": 1}
             if got["text"] is None:
                 return {"sentences": [], "alignment": "failed", "metadata": meta}
+            rejected = reject_translation_output(sentences[0].text, got["text"])
+            if rejected:
+                logger.warning("translate: REFUSING unit %s — %s", base_meta["unit_id"], rejected)
+                return {
+                    "sentences": [],
+                    "alignment": "failed",
+                    "metadata": {**meta, "error": f"output refused: {rejected}"},
+                }
             return {
                 "sentences": [{"sent_id": sentences[0].sent_id, "en_text": got["text"]}],
                 "alignment": "sentence",
@@ -422,6 +430,26 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                 continue
             parsed = _parse_numbered(got["text"])
             if len(parsed) == len(sentences):
+                # A commentary response CAN come back with the right number of numbered lines,
+                # in which case the alignment contract passes it. Validated per sentence, so one
+                # bad line cannot ride along with good ones.
+                refused = next(
+                    (
+                        r
+                        for s, pp in zip(sentences, parsed)
+                        if (r := reject_translation_output(s.text, pp))
+                    ),
+                    None,
+                )
+                if refused:
+                    logger.warning(
+                        "translate: REFUSING unit %s — %s", base_meta["unit_id"], refused
+                    )
+                    return {
+                        "sentences": [],
+                        "alignment": "failed",
+                        "metadata": {**last_meta, "error": f"output refused: {refused}"},
+                    }
                 return {
                     "sentences": [
                         {"sent_id": s.sent_id, "en_text": p} for s, p in zip(sentences, parsed)
@@ -445,6 +473,22 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         meta = {**last_meta, **whole["metadata"], "attempts": 3}
         if whole["text"] is None:
             return {"sentences": [], "alignment": "failed", "metadata": meta}
+        # THIS PATH WAS COMPLETELY UNVALIDATED, and it is where the measured commentary landed.
+        # The two numbered attempts mismatch precisely when the model is not following the
+        # instruction, and this fallback then accepted whatever the plain request returned as
+        # that turn's speech, marked `ok`.
+        rejected = reject_translation_output(unit.source_text, whole["text"])
+        if rejected:
+            logger.warning(
+                "translate: REFUSING unit %s on the whole-unit fallback — %s",
+                base_meta["unit_id"],
+                rejected,
+            )
+            return {
+                "sentences": [],
+                "alignment": "failed",
+                "metadata": {**meta, "error": f"output refused: {rejected}"},
+            }
         return {
             "sentences": [{"sent_id": sentences[0].sent_id, "en_text": whole["text"]}],
             "alignment": "unit",
@@ -472,6 +516,100 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
 
 
 _NUMBERED = re.compile(r"^\s*(\d+)[.)]\s*(.*)$")
+
+
+#: Markers of the model answering the INSTRUCTION instead of translating, or narrating its own
+#: work. Every one of these is a string the model actually produced, recorded in the arc notes
+#: §9 from 174 real requests — not a guess at what it might say.
+#:
+#: WHY THIS HAS TO BE A GUARD RATHER THAN A PROMPT FIX. The prompt already says "Produce only the
+#: English translation, without any additional explanations or commentary", and adding that line
+#: is what stopped most of it. But measured after that: **1 of 47 real units (2.1%)** still came
+#: back as `Here are a few options for translating the Spanish text, depending on the specific
+#: context and desired emphasis: Option 1...` — 366 tokens, identical across three passes. That
+#: text would land in `.en.txt` as though somebody had spoken it, and every stage downstream
+#: would treat it as speech: the summariser, GI's claims, KG's entities, the subtitle cues a
+#: listener reads.
+#:
+#: The numbered-alignment contract catches it ONLY when the line count mismatches. The `unit`
+#: fallback then accepts whatever the plain request returns, unvalidated — which is precisely
+#: where commentary lands, marked `ok`.
+_COMMENTARY_MARKERS: Tuple[str, ...] = (
+    "here are a few options",
+    "here are several options",
+    "here's a translation",
+    "here is a translation",
+    "here's the translation",
+    "depending on the specific context",
+    "depending on the context",
+    "i'm ready to translate",
+    "i am ready to translate",
+    "okay, i understand",
+    "please provide the text",
+    "please provide the spanish",
+    "as an ai",
+    "i cannot translate",
+    "note that this translation",
+    "translation note",
+)
+
+#: A numbered "Option 1:" / "Option 2:" list is the shape the commentary case took, and the
+#: option text itself can read like a plausible translation — so the enumeration is the tell.
+_OPTION_LIST = re.compile(r"^\s*option\s*\d+\s*[:.\)]", re.IGNORECASE | re.MULTILINE)
+
+#: Below this ratio of output to input characters, treat the result as truncated.
+#:
+#: Measured: a 4,060-word unit (4,800 prompt tokens) returned **32 completion tokens** —
+#: `finish_reason: stop`, HTTP 200, non-empty, its first sentence only, 99.3% of the content
+#: silently gone, identical across three passes. `finish_reason == "length"` does not catch it
+#: because the model said `stop`.
+#:
+#: 0.25, and the floor is measured rather than guessed. Over the 103 sentences of the first real
+#: translation run (Pass A, 2026-09-30) the output/input character ratio was:
+#:
+#:     min 0.72   p05 0.81   p50 1.00   max 1.55
+#:
+#: So the tightest real sentence sits **2.9x above** this floor, and zero of the 103 would have
+#: been refused. That margin is the point: a false refusal costs the whole episode its English
+#: set (§5.3 withholds the set when any unit fails), so the floor has to sit well below anything
+#: a legitimate translation produces. English renders of Spanish are roughly the same length —
+#: the p50 is 1.00 — so a fifth of the input is not a terse translation, it is a truncated one.
+_MIN_OUTPUT_RATIO = 0.25
+
+
+def reject_translation_output(source: str, translated: Optional[str]) -> Optional[str]:
+    """Why this output must not be accepted as speech, or ``None`` to accept it.
+
+    The three shapes measured in this arc that come back HTTP 200, non-empty, `finish_reason:
+    stop` — and wrong. What they have in common is that nothing downstream can tell them from
+    success, which is what makes them worth a guard rather than a metric.
+
+    Returning a reason rather than raising: a refused unit is an ordinary failed unit, and the
+    §5.3 completeness gate then withholds the whole English set for the episode. That is the
+    intended outcome — an episode absent from the English surfaces is recoverable, a corpus with
+    fabricated speech in it is not (#876's asymmetry, applied to text instead of names).
+    """
+    if translated is None:
+        return None  # the caller already treats a None as a failure
+    body = translated.strip()
+    if not body:
+        return "empty output"
+
+    low = body.lower()
+    for marker in _COMMENTARY_MARKERS:
+        if marker in low:
+            return f"model commentary, not a translation (matched {marker!r})"
+    if _OPTION_LIST.search(body):
+        return "model offered numbered options instead of a translation"
+
+    src = (source or "").strip()
+    if src and len(body) < len(src) * _MIN_OUTPUT_RATIO:
+        return (
+            f"output is {len(body)} chars for {len(src)} of input "
+            f"({len(body)/len(src):.0%}) — below the {_MIN_OUTPUT_RATIO:.0%} floor, so it is "
+            "truncated rather than terse"
+        )
+    return None
 
 
 def _parse_numbered(text: str) -> List[str]:
