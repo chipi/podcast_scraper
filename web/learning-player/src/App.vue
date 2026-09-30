@@ -623,7 +623,7 @@ const mainBottomPadding = computed(() =>
         <RouterLink
           v-if="auth.hasSession"
           :to="{ name: 'profile' }"
-          class="relative shrink-0 rounded-full no-underline transition hover:opacity-80"
+          class="relative ml-[8.5px] shrink-0 rounded-full no-underline transition hover:opacity-80 sm:ml-0"
           :aria-label="auth.user?.name || t('profile.title')"
           :title="auth.user?.name || t('profile.title')"
           data-testid="header-profile"

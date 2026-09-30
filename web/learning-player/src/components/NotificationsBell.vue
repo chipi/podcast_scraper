@@ -68,7 +68,7 @@ function ago(createdAt: number, now = Math.floor(Date.now() / 1000)): string {
   <div ref="root" class="relative">
     <button
       type="button"
-      class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
+      class="group relative inline-flex h-9 w-8 sm:w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
       :aria-label="store.unread ? t('notifications.bellCounted', { n: store.unread }) : t('notifications.bell')"
       :aria-expanded="open"
       aria-haspopup="true"

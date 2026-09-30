@@ -54,7 +54,7 @@ const active = computed(() =>
     :to="to"
     :aria-label="ariaLabel"
     :aria-current="active ? 'page' : undefined"
-    class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
+    class="group relative inline-flex h-9 w-8 sm:w-9 items-center justify-center rounded-full transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
     :class="active ? 'text-accent' : 'text-muted'"
   >
     <slot />
