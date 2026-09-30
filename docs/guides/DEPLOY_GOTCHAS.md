@@ -30,6 +30,16 @@ is deliberate and good. Its **cost** is the thing that bites:
 **The directory is not durable.** It is reaped when the SSH session that staged it ends (the box's
 `systemd-logind` reaps a uid≥1000 user's `/dev/shm` on logout). So:
 
+> **Fixed at the cause 2026-09-30 — read this before trusting the rest of §1.** The reap is logind's
+> default `RemoveIPC=yes`, and it took **all three** secret dirs, not only `podcast-secrets`: at
+> 06:14:54 that day the last `deploy` session closed and `operator-secrets` / `player-secrets`,
+> staged four minutes earlier, went with it. Running containers keep their copies, so nothing looked
+> wrong — but any **restart** (crash, OOM, `docker restart`) then fails exactly like a reboot does
+> (§1b). `/etc/systemd/logind.conf.d/10-keep-deploy-shm.conf` now sets `RemoveIPC=no` (live on prod
+> and in `infra/cloud-init/prod.user-data`), so the dirs last until the next **reboot**. The re-stage
+> rule below still holds for boxes built before that and costs nothing; after a reboot everything in
+> §1b still applies.
+
 - Docker copies each secret **into a container at CREATE time**. Containers made *during* a deploy
   keep their keys — which is why `compose-api-1` stays healthy and **everything looks fine**.
 - Any container created **later** — a fresh `docker compose run pipeline-llm`, the D5 probe, a
@@ -93,16 +103,27 @@ dead. Public visitors saw the coming-soon page the whole time, so nothing alerte
 **THE RULE after any reboot:** run **`restage-prod-secrets.yml`** (`surfaces: all`,
 `recreate: true`). It stages all three dirs — control plane via the canonical action, the two
 surfaces via `scripts/ops/restage_prod_secrets.sh` — and recreates only containers that are
-actually down, **at the image tag already on the box**. It never resolves "newest from main",
-because shipping untested code during an incident is its own outage.
+actually down, **each at the image tag that container was already on**. It never resolves "newest
+from main", because shipping untested code during an incident is its own outage.
 
 Before that workflow existed, recovery meant two full public-surface deploys, each with its own
 typed confirm and prod gate, and remembering to pin `override_image_sha`.
 
-**The trap that is still live:** `compose-api-1` survives a reboot on its *create-time copy* of the
-secrets. A `docker restart` is therefore safe while a `--force-recreate` is **not** — it will fail
-exactly like the others until `podcast-secrets` is restaged. The stack can look entirely healthy
-while being one recreate away from the same outage.
+**The control plane after a reboot is UP, healthy, and has no keys.** The earlier claim here — that
+`compose-api-1` survives a reboot on its create-time copy — was false (2026-09-30).
+`podcast-scraper.service` runs `docker compose up` at boot **without**
+`docker-compose.secrets.yml`, so it RECREATES `compose-api-1` with no `/run/secrets` at all. It
+passes its health check. `scripts/ops/restage_prod_recreate.sh` therefore treats an `api` container
+with no `/run/secrets/*` mounts as down. Do not check keys with `docker exec … env`: the secrets shim
+exports them inside the server process only, so `exec` shows them empty even when they are there —
+list `/run/secrets` instead.
+
+**Three bugs the first real run of this workflow hit (2026-09-30), all fixed:** `printf %q` passed the
+surface list with escaped spaces, so `podcast` and `operator` were skipped as unknown while the run
+went green; the tag was read off the project's first running container, which moved `player-api` to
+an untested image because an obs-only deploy had left `player-obs` newer; and the control plane was
+never recreated because it looked healthy. `tests/unit/scripts/ops/test_restage_prod_recreate.py`
+covers each.
 
 ## 2. A gateway 401 = missing secret, not a bad key — re-stage, NEVER re-mint
 

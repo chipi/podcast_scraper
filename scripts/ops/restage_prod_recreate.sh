@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Recreate prod containers that are DOWN, at the image tag they are already on.
+# Recreate prod containers that are DOWN, each at the image tag it is already on.
 #
 # Runs ON prod, invoked by .github/workflows/restage-prod-secrets.yml after the tmpfs
 # secrets have been restaged. Separate from the workflow so it is shellcheckable and can be
@@ -7,71 +7,67 @@
 #
 #   SELECTED="operator player" bash scripts/ops/restage_prod_recreate.sh
 #
-# Two invariants, both learned the hard way:
+# Invariants, all learned the hard way:
 #
-#   1. NEVER move the image. Recovery must be code-neutral — resolving "newest from main"
-#      here would ship an untested image in the middle of an incident. The tag is read off
-#      the container that is already there.
-#   2. NEVER blanket-recreate. Only containers actually Exited/Restarting/Created are
-#      touched; healthy siblings are left alone (--no-deps).
+#   1. NEVER move the image. Recovery must be code-neutral. The tag is read off the broken
+#      CONTAINER ITSELF, never off a sibling: a project can hold several tags at once (an
+#      obs-only deploy left player-obs on a newer sha than player-api), and on 2026-09-30 reading
+#      "the project's first running container" silently moved player-api and learning-app to an
+#      untested image in the middle of an incident.
+#   2. NEVER blanket-recreate. Only broken containers are touched (--no-deps).
+#   3. "Up" is not "healthy" for the control plane. After a reboot, podcast-scraper.service
+#      recreates compose-api-1 WITHOUT the secrets overlay: it runs, it passes its health check,
+#      and it has no provider keys. An api container with no /run/secrets mounts is broken.
+#   4. An unknown surface is an error, not a skip. On 2026-09-30 a quoting bug turned
+#      "podcast operator player" into "podcast\" "operator\" "player"; the first two were skipped
+#      as unknown and the run reported success with operator-api still down.
 #
 # See #2080.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/podcast-scraper}"
 SELECTED="${SELECTED:-podcast operator player}"
+SHM="${SHM_DIR:-/dev/shm}"
 cd "$REPO_DIR"
 
-# The deployed tag of a project, read from a container that already exists. Prefers a
-# running one, falls back to any (including the Exited container we are about to replace —
-# which is exactly the tag we want to put back).
-running_tag() {
-    local proj="$1" t
-    t=$(docker ps --filter "label=com.docker.compose.project=${proj}" \
-          --format '{{.Image}}' 2>/dev/null | grep -oE 'sha-[0-9a-f]{7}' | head -1 || true)
-    if [ -z "$t" ]; then
-        t=$(docker ps -a --filter "label=com.docker.compose.project=${proj}" \
-              --format '{{.Image}}' 2>/dev/null | grep -oE 'sha-[0-9a-f]{7}' | head -1 || true)
-    fi
-    printf '%s' "$t"
+container_tag() {
+    docker inspect --format '{{.Config.Image}}' "$1" 2>/dev/null \
+        | grep -oE 'sha-[0-9a-f]{7}' | head -1 || true
 }
 
-# Services of a project that are not running. Status strings look like
+has_secret_mounts() {
+    docker inspect --format '{{range .Mounts}}{{.Destination}} {{end}}' "$1" 2>/dev/null \
+        | grep -q '/run/secrets/'
+}
+
+# "name|service" for each container of a project that needs recreating. Status strings look like
 # "Exited (127) 9 hours ago" / "Restarting (1) 3 seconds ago" / "Up 2 minutes (healthy)".
-broken_services() {
-    docker ps -a --filter "label=com.docker.compose.project=$1" \
-        --format '{{.Label "com.docker.compose.service"}}|{{.Status}}' 2>/dev/null \
-        | grep -E '\|(Exited|Restarting|Created)' \
-        | cut -d'|' -f1 | sort -u
+broken_containers() {
+    local proj="$1" name svc status
+    docker ps -a --filter "label=com.docker.compose.project=${proj}" \
+        --format '{{.Names}}|{{.Label "com.docker.compose.service"}}|{{.Status}}' 2>/dev/null \
+        | while IFS='|' read -r name svc status; do
+            case "$status" in
+                Exited*|Restarting*|Created*) echo "${name}|${svc}" ;;
+                *)
+                    if [ "$proj" = compose ] && [ "$svc" = api ] && ! has_secret_mounts "$name"; then
+                        echo "${name}|${svc}"
+                    fi
+                    ;;
+            esac
+        done
 }
 
 rc=0
 for s in $SELECTED; do
     case "$s" in
-        podcast)  proj=compose  ;;
-        operator) proj=operator ;;
-        player)   proj=player   ;;
-        *) echo "  skipping unknown surface '$s'"; continue ;;
-    esac
-
-    svcs="$(broken_services "$proj" || true)"
-    if [ -z "$svcs" ]; then
-        echo "  ${proj}: nothing down — skipping"
-        continue
-    fi
-
-    tag="$(running_tag "$proj")"
-    if [ -z "$tag" ]; then
-        echo "::warning::${proj}: no deployed sha- tag found; skipping rather than guessing an image"
-        rc=1
-        continue
-    fi
-
-    # shellcheck disable=SC2086
-    echo "  ${proj}: recreating [$(echo $svcs | tr '\n' ' ')] at PODCAST_IMAGE_TAG=${tag}"
-
-    case "$proj" in
-        compose)
+        podcast)
+            proj=compose
+            if [ ! -d "$SHM/podcast-secrets" ]; then
+                echo "::error::compose: /dev/shm/podcast-secrets is missing — restage it first; recreating now would start the control plane without keys"
+                rc=1
+                continue
+            fi
             C=(docker compose --env-file .env
                -f compose/docker-compose.stack.yml
                -f compose/docker-compose.prod.yml
@@ -79,23 +75,44 @@ for s in $SELECTED; do
                -f compose/docker-compose.secrets.yml)
             ;;
         operator)
+            proj=operator
             C=(docker compose -p operator --env-file .env.operator
                -f compose/docker-compose.operator-public.yml)
-            [ -d /dev/shm/operator-secrets ] && C+=(-f compose/docker-compose.operator-secrets.yml)
+            [ -d "$SHM/operator-secrets" ] && C+=(-f compose/docker-compose.operator-secrets.yml)
             ;;
         player)
+            proj=player
             C=(docker compose -p player --env-file .env.player
                -f compose/docker-compose.player-public.yml)
-            [ -d /dev/shm/player-secrets ] && C+=(-f compose/docker-compose.player-secrets.yml)
+            [ -d "$SHM/player-secrets" ] && C+=(-f compose/docker-compose.player-secrets.yml)
+            ;;
+        *)
+            echo "::error::unknown surface '${s}' (want: podcast|operator|player)"
+            rc=1
+            continue
             ;;
     esac
 
-    # --no-deps: leave healthy siblings alone. No --pull: the image must not move.
-    # shellcheck disable=SC2086
-    if ! PODCAST_IMAGE_TAG="$tag" "${C[@]}" up -d --no-deps --force-recreate $svcs; then
-        echo "::warning::${proj}: recreate reported a failure — see the AFTER state"
-        rc=1
+    broken="$(broken_containers "$proj" || true)"
+    if [ -z "$broken" ]; then
+        echo "  ${proj}: nothing down — skipping"
+        continue
     fi
+
+    while IFS='|' read -r name svc; do
+        tag="$(container_tag "$name")"
+        if [ -z "$tag" ]; then
+            echo "::warning::${name}: no sha- tag on the container; skipping rather than guessing an image"
+            rc=1
+            continue
+        fi
+        echo "  ${proj}: recreating ${svc} (${name}) at PODCAST_IMAGE_TAG=${tag}"
+        # --no-deps: leave healthy siblings alone. No --pull: the image must not move.
+        if ! PODCAST_IMAGE_TAG="$tag" "${C[@]}" up -d --no-deps --force-recreate "$svc" </dev/null; then
+            echo "::warning::${name}: recreate reported a failure — see the AFTER state"
+            rc=1
+        fi
+    done <<< "$broken"
 done
 
 exit "$rc"

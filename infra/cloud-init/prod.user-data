@@ -99,6 +99,17 @@ write_files:
     permissions: '0644'
     owner: root:root
 
+  # ADR-115 tmpfs secrets are staged into /dev/shm/*-secrets as ``deploy`` (uid 1000). logind's
+  # default RemoveIPC=yes deletes a user's /dev/shm files when their last session ends, i.e. at the
+  # end of every deploy SSH session. Running containers keep their copies, but any later restart
+  # fails the bind mount (Exited 127) — prod 2026-09-30. runcmd restarts logind to load it.
+  - path: /etc/systemd/logind.conf.d/10-keep-deploy-shm.conf
+    content: |
+      [Login]
+      RemoveIPC=no
+    permissions: '0644'
+    owner: root:root
+
   # === Security hardening (#1160 Phase 2 — host) ===  [note 5 — see prod.user-data.NOTES.md]
 
   # SSH: assert key-only auth explicitly (defends against image-default drift).
@@ -296,6 +307,8 @@ runcmd:
   # === Security hardening (#1160 Phase 2) ===
   # SSH drop-in: validate then reload (never reload a config that fails -t).
   - sshd -t && systemctl reload ssh || echo "sshd -t failed; not reloading ssh" >&2
+  # Load logind.conf.d/10-keep-deploy-shm.conf (RemoveIPC=no) before any deploy session exists.
+  - systemctl restart systemd-logind
   # fail2ban (installed via packages) — enable the sshd jail.
   - systemctl enable --now fail2ban
   # Metadata-egress SSRF guard — oneshot unit re-inserts the DOCKER-USER DROP.
