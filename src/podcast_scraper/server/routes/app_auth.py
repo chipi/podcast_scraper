@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 
-from podcast_scraper.server import app_roles, app_sessions
+from podcast_scraper.server import app_access_store, app_roles, app_sessions
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
 
@@ -275,7 +275,13 @@ async def app_auth_callback(
         identity = provider.exchange_code(code=code, redirect_uri=_callback_uri(request))
     except OAuthError as exc:
         raise HTTPException(status_code=502, detail="OAuth exchange failed.") from exc
-    policy = getattr(request.app.state, "access_policy", None)
+    # Resolved PER SIGN-IN, not once at startup: the persisted policy (admin endpoint, #2190) wins
+    # over the env one, so admitting a beta tester is an API call rather than a production
+    # redeploy. Absent file -> the env policy, i.e. exactly the previous behaviour.
+    policy = app_access_store.effective_policy(
+        getattr(request.app.state, "app_data_dir", None),
+        getattr(request.app.state, "access_policy", None),
+    )
     if policy is not None and not policy.is_allowed(identity.email):
         raise HTTPException(status_code=403, detail="This account is not allowed to sign in.")
     user = get_or_create_user(

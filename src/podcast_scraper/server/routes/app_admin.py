@@ -17,7 +17,8 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from podcast_scraper.server import app_roles
+from podcast_scraper.server import app_access_store, app_roles
+from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_user_store import (
     create_user,
@@ -186,3 +187,80 @@ async def admin_delete_user(
     if not delete_user(data_dir, user_id):
         raise HTTPException(status_code=404, detail="No such user.")
     _audit(request, action="admin.user.delete", by=admin.user_id, user=user_id)
+
+
+class AccessPolicyOut(BaseModel):
+    """The sign-in access policy as the admin surface sees it."""
+
+    mode: str
+    allowed_emails: list[str]
+    allowed_domains: list[str]
+    #: False when no policy file exists yet and the env policy is in force. Worth surfacing: it is
+    #: the difference between "nobody has set this" and "someone set exactly this".
+    persisted: bool
+
+
+class AccessPolicyBody(BaseModel):
+    """A replacement access policy. Absent lists are treated as empty, not as "leave unchanged"."""
+
+    mode: str = Field(default="allowlist")
+    allowed_emails: list[str] = Field(default_factory=list)
+    allowed_domains: list[str] = Field(default_factory=list)
+
+
+def _policy_out(policy: AccessPolicy | None, *, persisted: bool) -> AccessPolicyOut:
+    if policy is None:  # no env policy configured either
+        return AccessPolicyOut(
+            mode="allowlist", allowed_emails=[], allowed_domains=[], persisted=persisted
+        )
+    return AccessPolicyOut(
+        mode=policy.mode,
+        allowed_emails=sorted(policy.allowed_emails),
+        allowed_domains=sorted(policy.allowed_domains),
+        persisted=persisted,
+    )
+
+
+@router.get("/admin/access-policy", response_model=AccessPolicyOut)
+async def admin_get_access_policy(
+    request: Request, admin: User = Depends(get_admin_user)
+) -> AccessPolicyOut:
+    """Who may sign in — the persisted policy when there is one, else the startup env policy."""
+    data_dir = getattr(request.app.state, "app_data_dir", None)
+    persisted = app_access_store.load_policy(data_dir)
+    if persisted is not None:
+        return _policy_out(persisted, persisted=True)
+    return _policy_out(getattr(request.app.state, "access_policy", None), persisted=False)
+
+
+@router.put("/admin/access-policy", response_model=AccessPolicyOut)
+async def admin_put_access_policy(
+    body: AccessPolicyBody, request: Request, admin: User = Depends(get_admin_user)
+) -> AccessPolicyOut:
+    """Replace the sign-in access policy. Takes effect on the NEXT sign-in — no redeploy.
+
+    This is a full replacement, not a merge, so it can revoke as well as grant. That makes it
+    possible to lock everyone out with one bad call, which is why the guard below exists — the same
+    self-lockout protection the user routes have, for the same reason: the platform must not be
+    able to lock itself out of its own administration.
+    """
+    policy = app_access_store.policy_from_dict(body.model_dump())
+    if not policy.is_allowed(admin.email):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "That policy would lock you out: "
+                f"{admin.email} is not permitted by it. Add your own address, or use mode 'open'."
+            ),
+        )
+    data_dir = _data_dir(request)
+    saved = app_access_store.save_policy(data_dir, policy)
+    _audit(
+        request,
+        action="admin.access_policy.replace",
+        by=admin.user_id,
+        mode=saved.mode,
+        emails=len(saved.allowed_emails),
+        domains=len(saved.allowed_domains),
+    )
+    return _policy_out(saved, persisted=True)
