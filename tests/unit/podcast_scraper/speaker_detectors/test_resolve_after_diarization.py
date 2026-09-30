@@ -278,12 +278,11 @@ class TestTheRosterActuallyHonoursIt:
 
     def test_the_diarization_pipeline_actually_CALLS_the_resolver(self) -> None:
         """Otherwise this is another gate wired to nothing."""
-        import inspect
-
-        from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
-
-        src = inspect.getsource(diar_pipeline.apply_diarization_to_result)
+        src = _naming_source()
         assert "_resolve_voices_via_llm(" in src
+        # And the composed entry point must still REACH the naming half — without this, every
+        # assertion here could pass while `apply_diarization_to_result` returned after aligning.
+        assert "resolve_names_on_result(" in src
         # The resolver's answer must reach the roster. It is forwarded through the ``_run_roster``
         # closure — ``_run_roster(llm_voice_names, llm_voice_roles)`` — which passes them on as
         # ``llm_voice_names=names`` / ``llm_voice_roles=roles``. Assert the wiring, not one literal.
@@ -408,3 +407,21 @@ class TestHostGuestRoleDetermination:
 
         got = resolve_voices_and_roles([], {"SPEAKER_00": HOST_TEXT}, spy)
         assert got == {} and not calls, "no candidates AND no role context → do not call the model"
+
+
+def _naming_source() -> str:
+    """The source of the function that actually does the naming, plus its composed caller.
+
+    D-34 split `apply_diarization_to_result` into `diarize_and_align` (audio: who spoke when) and
+    `resolve_names_on_result` (words: who they are), so a naming assertion has to read the second
+    half. Both are returned concatenated, so a test can equally assert the composition — that
+    `apply_diarization_to_result` still reaches the naming half at all, which is the thing that
+    would make every assertion below vacuous if it were broken.
+    """
+    import inspect
+
+    from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
+
+    return inspect.getsource(diar_pipeline.resolve_names_on_result) + inspect.getsource(
+        diar_pipeline.apply_diarization_to_result
+    )

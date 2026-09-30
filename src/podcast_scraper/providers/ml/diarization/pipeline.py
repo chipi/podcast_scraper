@@ -454,44 +454,36 @@ def _resolve_voices_via_llm(
         return {}, {}
 
 
-def apply_diarization_to_result(
+def diarize_and_align(
     result: dict,
     audio_path: str,
     cfg: config.Config,
-    detected_speaker_names: Optional[List[str]],
     *,
-    metadata_named: Optional[List[str]] = None,
     cache_dir: Optional[str] = None,
     precomputed_diarization: Optional[DiarizationResult] = None,
-    stated_voice_names: Optional[Mapping[str, str]] = None,
-    feed_hosts: Optional[List[str]] = None,
     bypass_cache_read: bool = False,
-    episode_title: Optional[str] = None,
-    episode_description: Optional[str] = None,
-    detection_ran: Optional[bool] = None,
-) -> dict:
-    """Enrich transcription segments with diarized speaker labels.
+) -> Optional[Tuple[DiarizationResult, List[Tuple[dict, str]]]]:
+    """Diarization's first half: get the speaker turns, align the ASR segments to them.
 
-    ``metadata_named`` is every name the episode metadata stated, *before* corroboration filtered
-    it. It never names a voice — it only lets the roster tell our own failures apart from the
-    voices nobody could have named.
+    ``(diarization, aligned)``, or ``None`` when there is nothing to align — no ASR segments, or a
+    diarization with no speaker turns. ``None`` means the caller returns ``result`` unchanged:
+    segments without a ``speaker_label`` make the caller's ``has_diarized_labels`` gate fall back
+    to gap-based formatting, which is correct, while attributing the whole episode to a phantom
+    ``SPEAKER_00`` is not.
 
-    ``precomputed_diarization`` supplies the diarized voices directly, skipping the
-    cache/provider (audio) path — used by ``pipeline_stage=relabel_only`` to re-resolve
-    names on an existing corpus's frozen ``SPEAKER_NN`` diarization, no audio / re-diarize.
+    SPLIT OUT FOR D-34. Naming must run AFTER translation, because every cue matcher and the NER
+    are English: on a non-English transcript they do not find nothing, they mint phantom people
+    (§5.2 measured recall holding at 2/2 while precision fell 67% -> 18%). This half is
+    language-neutral — who spoke when, under anonymous voice ids — and
+    :func:`resolve_names_on_result` is the half that reads words, so it can be handed the ENGLISH
+    render instead of the source.
 
-    ``feed_hosts`` are the host names the feed's own blurb states (via
-    ``detect_hosts_from_feed``); merged with ``cfg.known_hosts`` to anchor the roster and
-    canonicalize ASR-garbled host surnames.
-
-    ``detection_ran`` reports whether the speaker-detection stage executed for this episode
-    (#1647). It is passed straight to the diagnostics: an unnamed voice reads as "nobody names
-    them" only if detection looked, and as an unmeasured gap if it did not. ``None`` = caller
-    did not say.
+    The boundary is the one the original function's own comment already marked ("align first so
+    the roster can name a voice from its own turns' self-introduction"), so nothing crossed it.
     """
     segments = result.get("segments")
     if not isinstance(segments, list) or not segments:
-        return result
+        return None
 
     resolved_cache_dir = _resolve_diarization_cache_dir(cfg, cache_dir)
     diarization = precomputed_diarization
@@ -528,15 +520,55 @@ def apply_diarization_to_result(
             "skipping speaker labels (gap-based formatting will be used).",
             os.path.basename(audio_path),
         )
-        return result
+        return None
+    # Aligned HERE, not in the naming half: the alignment is a property of the AUDIO (who spoke
+    # when), while naming is a property of the WORDS — and after D-34 those words may be a
+    # translation this aligner never saw.
+    aligned = align_segments_to_speakers(segments, diarization)
+    return diarization, aligned
 
-    # Resolve every diarized voice once via the unified roster (#876): host = the opening
-    # voice (#1169), named by transcript self-intro ("I'm Patrick O'Shaughnessy") → config
-    # known_hosts; guests by talk-time; leftovers kept raw; a guest's name never lands on a
-    # host. For network-published feeds the host name isn't in the metadata (the author tag is
-    # the network), so the transcript self-intro the roster reads is the only reliable source.
-    transcript_text = result.get("text") or " ".join(
-        str(seg.get("text", "")) for seg in segments if isinstance(seg, dict)
+
+def resolve_names_on_result(
+    result: dict,
+    cfg: config.Config,
+    diarization: DiarizationResult,
+    aligned: List[Tuple[dict, str]],
+    detected_speaker_names: Optional[List[str]],
+    *,
+    metadata_named: Optional[List[str]] = None,
+    stated_voice_names: Optional[Mapping[str, str]] = None,
+    feed_hosts: Optional[List[str]] = None,
+    episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    detection_ran: Optional[bool] = None,
+    naming_text: Optional[str] = None,
+) -> dict:
+    """Diarization's second half: decide who each voice IS, and render the labels.
+
+    Everything here reads WORDS — self-introductions, interview cues, NER, ad patterns — and all
+    of it is English-only, which is exactly why D-34 moves it after translation. Given ``aligned``
+    built from an English render, this same code names a translated episode's voices; given the
+    source-language alignment, it is byte-for-byte today's behaviour, which the naming golden
+    (`tests/integration/workflow/test_naming_golden.py`) is what proves.
+
+    ``naming_text`` overrides the flat transcript body the roster reads. It exists because the
+    per-voice samples come from ``aligned`` while the roster additionally wants one whole-episode
+    string, and on the translated path both have to be English — defaulting to ``result["text"]``
+    would hand the roster the SOURCE language while every per-voice sample was English, which
+    fails silently: both are strings, and the roster would just resolve fewer voices.
+
+    Never raises. A voice we cannot name costs an unnamed voice; a voice we name WRONGLY puts
+    words in a real person's mouth (#876), and those are not symmetric.
+    """
+    segments = result.get("segments") or []
+    # `naming_text` FIRST. On the translated path this is the ENGLISH body, and the
+    # roster must not read the source language for its flat text while every
+    # per-voice sample it is shown is English — that mismatch is silent, because both
+    # are strings and the roster would simply resolve fewer voices.
+    transcript_text = (
+        naming_text
+        or result.get("text")
+        or " ".join(str(seg.get("text", "")) for seg in segments if isinstance(seg, dict))
     )
     # Align first so the roster can name a voice from its *own* turns' self-introduction (#876),
     # not only the episode-opening host intro.
@@ -735,3 +767,69 @@ def apply_diarization_to_result(
         diarization, cfg, audio_seconds=(max(_audio_ends) if _audio_ends else None)
     )
     return enriched_result
+
+
+def apply_diarization_to_result(
+    result: dict,
+    audio_path: str,
+    cfg: config.Config,
+    detected_speaker_names: Optional[List[str]],
+    *,
+    metadata_named: Optional[List[str]] = None,
+    cache_dir: Optional[str] = None,
+    precomputed_diarization: Optional[DiarizationResult] = None,
+    stated_voice_names: Optional[Mapping[str, str]] = None,
+    feed_hosts: Optional[List[str]] = None,
+    bypass_cache_read: bool = False,
+    episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    detection_ran: Optional[bool] = None,
+) -> dict:
+    """Diarize and name, in one call — the signature every existing caller already uses.
+
+    Both halves back to back, which is the pre-D-34 order and stays the right order for an
+    English episode: there is no translation to wait for. A TRANSLATED episode calls the two
+    halves separately, with the naming half given the English render (D-34); see
+    ``workflow/naming_stage.py``.
+
+    ``metadata_named`` is every name the episode metadata stated, *before* corroboration filtered
+    it. It never names a voice — it only lets the roster tell our own failures apart from the
+    voices nobody could have named.
+
+    ``precomputed_diarization`` supplies the diarized voices directly, skipping the
+    cache/provider (audio) path — used by ``pipeline_stage=relabel_only`` to re-resolve names on
+    an existing corpus's frozen ``SPEAKER_NN`` diarization, no audio / re-diarize.
+
+    ``feed_hosts`` are the host names the feed's own blurb states (via ``detect_hosts_from_feed``);
+    merged with ``cfg.known_hosts`` to anchor the roster and canonicalize ASR-garbled host
+    surnames.
+
+    ``detection_ran`` reports whether the speaker-detection stage executed for this episode
+    (#1647). It is passed straight to the diagnostics: an unnamed voice reads as "nobody names
+    them" only if detection looked, and as an unmeasured gap if it did not. ``None`` = caller did
+    not say.
+    """
+    got = diarize_and_align(
+        result,
+        audio_path,
+        cfg,
+        cache_dir=cache_dir,
+        precomputed_diarization=precomputed_diarization,
+        bypass_cache_read=bypass_cache_read,
+    )
+    if got is None:
+        return result
+    diarization, aligned = got
+    return resolve_names_on_result(
+        result,
+        cfg,
+        diarization,
+        aligned,
+        detected_speaker_names,
+        metadata_named=metadata_named,
+        stated_voice_names=stated_voice_names,
+        feed_hosts=feed_hosts,
+        episode_title=episode_title,
+        episode_description=episode_description,
+        detection_ran=detection_ran,
+    )
