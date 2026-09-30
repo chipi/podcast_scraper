@@ -83,6 +83,38 @@ def english_adfree_transcript_relpath(transcript_relpath: str) -> str:
     return adfree_transcript_relpath(english_transcript_relpath(transcript_relpath))
 
 
+def is_english_render_relpath(transcript_relpath: str) -> Optional[bool]:
+    """Is this relpath one of the derived ENGLISH bodies? ``None`` when there is nothing to read.
+
+    Answers a question about the path in hand, which is the opposite of what the callers that
+    needed it were doing: building ``english_transcript_relpath(rel)`` and testing whether THAT
+    exists. The suffixes stack, so that construction is only correct when ``rel`` is canonical —
+    and the one caller that mattered passed a path that had already been resolved to
+    ``ep1.en.adfree.txt``, producing ``ep1.en.adfree.en.txt``, which never exists.
+
+    Measured 2026-09-30, before this existed: for a successfully translated Spanish episode the
+    indexer chunked ``transcripts/ep1.en.adfree.txt`` — English text — and labelled the chunks
+    ``es``, so the router dropped their embeddings and filed them in the vector-less
+    ``segments_nonen`` tier. The episode was findable by neither semantic search nor its own
+    language, which is the exact outcome `_indexed_text_language` was written to prevent.
+
+    Matches on the suffix STACK, not on the outermost suffix, because ``.en`` may sit under
+    ``.adfree`` (``ep1.en.adfree.txt``) or be outermost (``ep1.en.txt``).
+    """
+    rel = (transcript_relpath or "").strip().replace("\\", "/")
+    if not rel:
+        return None
+    base = os.path.splitext(rel)[0].lower()
+    while True:
+        for suffix in (ADFREE_SUFFIX, CLEANED_SUFFIX):
+            if base.endswith(suffix):
+                base = base[: -len(suffix)]
+                break
+        else:
+            break
+    return base.endswith(EN_SUFFIX)
+
+
 def _cleaned_transcript_relpath(transcript_relpath: str) -> str:
     """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.cleaned.txt``."""
     base, ext = os.path.splitext(transcript_relpath)

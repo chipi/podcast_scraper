@@ -268,9 +268,20 @@ def _indexed_text_language(
     language would exile a perfectly good English translation from semantic search, which is
     the opposite of what the arc is for.
 
-    So: English whenever an English rendering exists, otherwise the episode's own language.
+    So: English when the body the chunker RESOLVED TO is an English render, otherwise the
+    episode's own language.
+
+    That phrasing is load-bearing. This asked a different question until 2026-09-30 — it built
+    `english_transcript_relpath(resolved)` and tested whether that existed — and the resolved
+    path for a translated episode is ALREADY `ep1.en.adfree.txt`, so the construction produced
+    `ep1.en.adfree.en.txt`, which never exists. Measured: a successfully translated Spanish
+    episode's chunks came from the English render and were labelled `es`, so
+    `_split_segments_by_language` dropped their embeddings and filed them in the vector-less
+    `segments_nonen` tier. The episode was findable by neither semantic search nor its own
+    language — the exact outcome the paragraph above says this function exists to prevent, and
+    invisible because both the chunking and the upsert "succeeded".
     """
-    from ..workflow.transcript_resolution import english_transcript_relpath
+    from ..workflow.transcript_resolution import is_english_render_relpath
 
     ep = doc.get("episode") or {}
     feed = doc.get("feed") or {}
@@ -284,8 +295,10 @@ def _indexed_text_language(
         try:
             rel = str(tpath.relative_to(episode_root))
         except ValueError:
+            # A resolved path outside the episode root should not happen; the basename still
+            # carries the suffix stack, which is all the predicate reads.
             rel = tpath.name
-        if (episode_root / english_transcript_relpath(rel)).is_file():
+        if is_english_render_relpath(rel):
             return "en"
     return normalized
 

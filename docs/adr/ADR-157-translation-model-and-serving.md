@@ -67,7 +67,13 @@ The tailnet ACL grants `:8005` to the same three sources that reach `:8003` — 
 admin/gha-deployer, and `tag:homelab-host` for metrics — but **not** `tag:dr-drill`, whose grant
 stops at `:8002` and which does not translate.
 
-> **SOURCE OF TRUTH FIXED, APPLY IS MANUAL (2026-09-29).** The grant is merged to
+> **LIVE ON THE TAILNET (2026-09-30).** Applied by the operator. Measured from the laptop against
+> the unauthenticated `/health`: `:8003` → `200` in 8.4 ms, `:8005` → `200` in **7.4 ms**. Both
+> return `401` on `/v1/models` — the same shape on both ports, so that is the bearer, not the ACL.
+> The two notes below are kept for how the earlier claim came to be wrong, not because they still
+> describe the state.
+>
+> **SOURCE OF TRUTH FIXED, APPLY WAS MANUAL (2026-09-29).** The grant is merged to
 > `podcast_scraper-infra` main (PR #3), so the repo is now correct. **It is still not live on
 > the tailnet**: every workflow in that repo lives in `.github/workflows-staged/` — a deliberate
 > production-safety decision, 46 files, 8 of them with `schedule:` triggers that would fire
@@ -83,9 +89,9 @@ stops at `:8002` and which does not translate.
 > 17 ms while `:8005` times out, with the translator listening on `0.0.0.0:8005` and healthy on
 > the box the whole time. The ADR previously stated the grant as fact because the Gate V access
 > check was run ON the DGX against `127.0.0.1` — which proves the service works and proves
-> nothing about the tailnet. Until the infra commit is pushed and the deployer applies it, the
-> translator is reachable only from the box itself, which is where the S2.3 measurement rig was
-> run for exactly this reason.
+> nothing about the tailnet. **The lesson, which outlives the fix: a loopback probe is not an
+> access check.** Until the apply happened the translator was reachable only from the box, which
+> is where the S2.3 measurement rig was run for exactly that reason.
 
 ### 3. Called through `/v1/completions`, NOT the chat route
 
