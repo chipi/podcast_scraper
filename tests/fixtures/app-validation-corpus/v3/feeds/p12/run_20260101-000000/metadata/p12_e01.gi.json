@@ -1,0 +1,326 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "insight:1376546e9d50ed64",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "insight:6640cfc2afd75fd9",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-8dce4ec000757097",
+      "to": "insight:9764097ba6ef170e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:d7a1d1b303a0daa0",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1376546e9d50ed64",
+      "to": "quote:d7a1d1b303a0daa0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d680fdc98554f50d",
+      "to": "person:julien-mercier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6640cfc2afd75fd9",
+      "to": "quote:d680fdc98554f50d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:49ac0159c6b333f2",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9764097ba6ef170e",
+      "to": "quote:49ac0159c6b333f2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:2772f696ac1ed6a5",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:1376546e9d50ed64",
+      "to": "quote:2772f696ac1ed6a5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1888bdb1bd495f0d",
+      "to": "person:julien-mercier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:6640cfc2afd75fd9",
+      "to": "quote:1888bdb1bd495f0d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f19127993bab1db2",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9764097ba6ef170e",
+      "to": "quote:f19127993bab1db2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:1376546e9d50ed64",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:6640cfc2afd75fd9",
+      "to": "person:julien-mercier",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:9764097ba6ef170e",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-8dce4ec000757097",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-8dce4ec000757097",
+      "properties": {
+        "duration_ms": 1800000,
+        "feed_id": "p12",
+        "podcast_id": "p12",
+        "publish_date": "2025-11-01T00:00:00",
+        "title": "Construire Des Sentiers Qui Durent"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:trail-building",
+      "properties": {
+        "label": "trail building"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-stewardship",
+      "properties": {
+        "label": "land stewardship"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:1376546e9d50ed64",
+      "properties": {
+        "episode_id": "ep-8dce4ec000757097",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui nous parlons de construction de sentiers, et je re\u00e7ois Julien Mercier, constructeur de sentiers de l'Alliance Cascadia. Julien Mercier, merci\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:6640cfc2afd75fd9",
+      "properties": {
+        "episode_id": "ep-8dce4ec000757097",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Merci, Camille. Avec grand plaisir \u2014 la construction de sentiers est un sujet auquel j'ai beaucoup r\u00e9fl\u00e9chi."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9764097ba6ef170e",
+      "properties": {
+        "episode_id": "ep-8dce4ec000757097",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Cet \u00e9pisode vous est propos\u00e9 par Strava. Strava est la maison des athl\u00e8tes. Commencez sur strava.com/podcast."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:camille-dubois",
+      "properties": {
+        "name": "Camille Dubois"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d7a1d1b303a0daa0",
+      "properties": {
+        "char_end": 223,
+        "char_start": 16,
+        "episode_id": "ep-8dce4ec000757097",
+        "speaker_id": "person:speaker-01",
+        "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui nous parlons de construction de sentiers, et je re\u00e7ois Julien Mercier, constructeur de sentiers de l'Alliance Cascadia. Julien Mercier, merci d'\u00eatre l\u00e0.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p12_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:julien-mercier",
+      "properties": {
+        "name": "Julien Mercier"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d680fdc98554f50d",
+      "properties": {
+        "char_end": 348,
+        "char_start": 240,
+        "episode_id": "ep-8dce4ec000757097",
+        "speaker_id": "person:speaker-02",
+        "text": "Merci, Camille. Avec grand plaisir \u2014 la construction de sentiers est un sujet auquel j'ai beaucoup r\u00e9fl\u00e9chi.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p12_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:49ac0159c6b333f2",
+      "properties": {
+        "char_end": 474,
+        "char_start": 365,
+        "episode_id": "ep-8dce4ec000757097",
+        "speaker_id": "person:speaker-01",
+        "text": "Cet \u00e9pisode vous est propos\u00e9 par Strava. Strava est la maison des athl\u00e8tes. Commencez sur strava.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p12_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:2772f696ac1ed6a5",
+      "properties": {
+        "char_end": 565,
+        "char_start": 474,
+        "episode_id": "ep-8dce4ec000757097",
+        "speaker_id": "person:speaker-01",
+        "text": "Raconte-moi comment tu as pris la d\u00e9cision. Comment RockShox s'inscrit-il dans ce tableau ?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p12_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1888bdb1bd495f0d",
+      "properties": {
+        "char_end": 808,
+        "char_start": 582,
+        "episode_id": "ep-8dce4ec000757097",
+        "speaker_id": "person:speaker-02",
+        "text": "Honn\u00eatement, le drainage est la d\u00e9cision de conception la plus d\u00e9terminante sur n'importe quel sentier. On l'a vu dans des \u00e9quipes qui utilisent l'Alliance Cascadia. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p12_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f19127993bab1db2",
+      "properties": {
+        "char_end": 927,
+        "char_start": 825,
+        "episode_id": "ep-8dce4ec000757097",
+        "speaker_id": "person:speaker-01",
+        "text": "Raconte-moi comment tu as pris la d\u00e9cision. Quelle est la version de la question qui compte vraiment ?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p12_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

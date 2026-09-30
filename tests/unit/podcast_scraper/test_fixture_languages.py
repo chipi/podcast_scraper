@@ -20,7 +20,11 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.languages import is_language_enabled, normalize_language_tag
+from podcast_scraper.languages import (
+    is_language_enabled,
+    language_registry,
+    normalize_language_tag,
+)
 from podcast_scraper.rss.parser import _channel_language
 
 pytestmark = pytest.mark.unit
@@ -76,9 +80,16 @@ class TestTheRssFixtures:
         covered, by a language that IS still disabled.
         """
         assert is_language_enabled("es") is True
-        assert is_language_enabled("de") is False, (
+        # DERIVED, not named. This asserted `de` was disabled — true when written, false the
+        # moment German was enabled alongside it/fr/pt, and the failure then read as "the
+        # refusal path is untestable" when the property it guards was perfectly intact. What
+        # the test actually needs is that SOME described language is still disabled; which one
+        # is not its business.
+        described = set(language_registry())
+        still_disabled = sorted(c for c in described if not is_language_enabled(c))
+        assert still_disabled, (
             "the S0.8 refusal path needs at least one described-but-disabled language to be "
-            "testable at all"
+            "testable at all — every described language is now enabled"
         )
 
 
@@ -158,7 +169,25 @@ class TestTheCommittedCorporaStillNeedRegenerating:
             (json.loads(m.read_text(encoding="utf-8")).get("feed") or {}).get("language")
             for m in metas
         }
-        assert stored == {"en", "es"}, f"the app corpus's stored languages are {stored}"
+        # Five non-English shows since 2026-10-01 (es, it, fr, de, pt), each a counterpart of
+        # p01 carrying the same conversation in its own language. Derived from the registry
+        # rather than listed, so enabling a sixth is a fixture change and not a test edit.
+        assert "en" in stored, f"the app corpus lost its English shows: {stored}"
+        assert stored >= {
+            "en",
+            "es",
+            "it",
+            "fr",
+            "de",
+            "pt",
+        }, f"the app corpus's stored languages are {stored}"
+        # `stored` comes from `.get("language")`, so its members are Optional as far as the type
+        # checker is concerned; narrow before comparing or sorting.
+        codes = sorted(str(c) for c in stored if c)
+        assert all(is_language_enabled(c) for c in codes), (
+            "the corpus stores a language that is not enabled: "
+            f"{[c for c in codes if not is_language_enabled(c)]}"
+        )
         assert not any(
             s and "-" in s for s in stored
         ), f"a raw regional subtag survived normalisation: {stored}"

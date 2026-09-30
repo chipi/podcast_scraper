@@ -60,6 +60,16 @@ PODCAST_HOSTS: dict[str, str] = {
     # Sesiones de Sendero — the SPANISH counterpart of p01 (#2169 / V.6b). Same show, same
     # people; only the language differs, which is the entire point of the fixture.
     "p10": "Maya",
+    # it / fr / de / pt, 2026-10-01. The CONTENT is parallel to p01 and p10 — the same
+    # trail-building conversation — so a translation can be compared across five languages
+    # against one known meaning. The PEOPLE are not: reusing Maya and Liam would have put one
+    # host on seven feeds, and `person:maya` spanning shows is a precision-failure signal the
+    # capability audit measures. At three feeds it reads as a finding; at seven it is just noise,
+    # and the fixture would be asserting something nobody believes about real podcasts.
+    "p11": "Giulia Ferrara",
+    "p12": "Camille Dubois",
+    "p13": "Katrin Vogel",
+    "p14": "Beatriz Antunes",
 }
 
 # Per-speaker voice mapping (#1170): ONE voice per PERSON across the whole corpus.
@@ -213,9 +223,48 @@ SPANISH_SPEAKER_VOICE_MAP: dict[str, str] = {
     "Liam Verbeek": "Paulina",
 }
 
+#: it / fr / de / pt, 2026-10-01. Measured median F0 for every voice below, each reading its own
+#: language, by the same autocorrelation proxy used for Spanish:
+#:
+#:     it  Alice    181.8 Hz      (the ONLY Italian voice macOS ships)
+#:     fr  Amelie   228.6 Hz      fr_CA        fr  Thomas   137.9 Hz   fr_FR
+#:     de  Anna     164.9 Hz      (the ONLY German voice)
+#:     pt  Luciana  186.0 Hz      pt_BR        pt  Joana    164.9 Hz   pt_PT
+#:     (controls: Samantha 177.8, Ralph 85.1, Zarvox 89.9 — the ad voice in every language)
+#:
+#: FRENCH IS THE ONLY ONE THAT NEEDS NOTHING. Amelie and Thomas are genuinely different voices
+#: 90.7 Hz apart, with Thomas a further 48 Hz clear of Zarvox — the English fixture's geometry,
+#: for free.
+#:
+#: Portuguese has two voices but they are 21 Hz apart and both female, so the guest is shifted.
+#: Italian and German ship ONE voice each, so host and guest are the same synthesis and the pitch
+#: shift is the entire separation — see `VOICE_PITCH_SHIFT`.
+ITALIAN_SPEAKER_VOICE_MAP: dict[str, str] = {
+    "Giulia Ferrara": "Alice",  # host
+    "Marco Bellini": "Alice",  # guest — separated by pitch alone; see VOICE_PITCH_SHIFT
+}
+FRENCH_SPEAKER_VOICE_MAP: dict[str, str] = {
+    "Camille Dubois": "Amelie",  # host, fr_CA
+    "Julien Mercier": "Thomas",  # guest, fr_FR — a real second voice, no shift needed
+}
+GERMAN_SPEAKER_VOICE_MAP: dict[str, str] = {
+    "Katrin Vogel": "Anna",  # host
+    "Stefan Brandt": "Anna",  # guest — separated by pitch alone; see VOICE_PITCH_SHIFT
+}
+PORTUGUESE_SPEAKER_VOICE_MAP: dict[str, str] = {
+    "Beatriz Antunes": "Luciana",  # host, pt_BR
+    "Rafael Vasconcelos": "Joana",  # guest, pt_PT — female too, so also shifted
+}
+
 #: Per-language voice maps, keyed by the primary language subtag. `en` is the default and uses
 #: the canonical map above.
-VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {"es": SPANISH_SPEAKER_VOICE_MAP}
+VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {
+    "es": SPANISH_SPEAKER_VOICE_MAP,
+    "it": ITALIAN_SPEAKER_VOICE_MAP,
+    "fr": FRENCH_SPEAKER_VOICE_MAP,
+    "de": GERMAN_SPEAKER_VOICE_MAP,
+    "pt": PORTUGUESE_SPEAKER_VOICE_MAP,
+}
 
 #: Post-synthesis pitch shift, per ``(language, speaker)``. A factor below 1.0 lowers the voice.
 #:
@@ -257,7 +306,34 @@ VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {"es": SPANISH_SPEAKER_VOICE
 #:
 #: If a real Spanish male voice is ever installed, delete the entry and point
 #: ``SPANISH_SPEAKER_VOICE_MAP["Liam Verbeek"]`` at it — one line, then regenerate.
-VOICE_PITCH_SHIFT: dict[tuple[str, str], float] = {("es", "Liam Verbeek"): 0.45}
+#: it / de / pt use 0.40, chosen the same way and from a measured sweep rather than by copying
+#: the Spanish 0.45. Each guest, and where it lands against its host and against Zarvox (89.9 Hz,
+#: the ad voice in every language):
+#:
+#:                   base     0.40      0.45      host      -> chosen  gap to host  gap to ad
+#:     it Alice     181.8     77.3      86.5     181.8         0.40       104.5        12.6
+#:     de Anna      164.9     79.2      84.2     164.9         0.40        85.7        10.7
+#:     pt Joana     164.9     78.0      81.4     186.0         0.40       108.0        11.9
+#:
+#: 0.45 — the Spanish value — is WRONG for all three: it lands them 3.4, 5.7 and 8.5 Hz from
+#: Zarvox, reproducing exactly the collision the Spanish comment above records rejecting 0.55
+#: for. The right factor is the one that fits the voice, not the one that worked last time.
+#:
+#: FRENCH IS DELIBERATELY ABSENT. Amelie and Thomas are 90.7 Hz apart on their own, so shifting
+#: would be decoration — and a shift that is not needed is a difference between the fixture and
+#: real audio for no measured reason.
+#:
+#: Italian and German are the WEAKEST case in the corpus and worth stating plainly: macOS ships
+#: one voice per language, so host and guest are the same synthesis at two pitches, not two
+#: voices. Spanish at least had Monica and Paulina. Whether a diarizer separates them is a
+#: question for the diarizer, not for this table — measured against the real pyannote service,
+#: not assumed.
+VOICE_PITCH_SHIFT: dict[tuple[str, str], float] = {
+    ("es", "Liam Verbeek"): 0.45,
+    ("it", "Marco Bellini"): 0.40,
+    ("de", "Stefan Brandt"): 0.40,
+    ("pt", "Rafael Vasconcelos"): 0.40,
+}
 
 
 def pitch_shift_for(speaker: str, language: str) -> float | None:
@@ -689,12 +765,33 @@ def aiff_duration(path: Path) -> float:
     return float(out.stdout.strip())
 
 
+def voice_identity(voice: str, pitch: float | None) -> str:
+    """The ACOUSTIC identity of a rendered turn: the voice, plus the shift when there is one.
+
+    The RTTM used to record the bare ``say`` voice, on the stated grounds that
+    one-voice-per-person made it a faithful person identity. That stopped being true the moment
+    a language shipped only ONE voice: Italian has just Alice and German just Anna, so host and
+    guest are the same synthesis at two pitches, and an RTTM saying `Alice` for both described a
+    two-speaker episode that does not exist. A diarization reference that merges two speakers
+    would score a correct diarizer as wrong — and the real pyannote service does separate them,
+    finding three voices in exactly these files.
+
+    `make_groundtruth.py` already draws this distinction in its own sidecar: "a shifted voice is
+    not the voice it came from, and this field is what stops the voice_map from implying it is".
+    This is the same statement, made where the diarization reference is written.
+
+    DER solves the optimal label mapping, so the string only has to be DISTINCT per distinct
+    acoustic identity — it does not have to be pretty.
+    """
+    return voice if pitch is None else f"{voice}@{pitch:g}"
+
+
 def write_rttm(file_id: str, turns: list[tuple[str, float]], out_rttm: Path) -> None:
     """Write a NIST RTTM from ``(speaker_label, duration_s)`` turns in speaking order.
 
-    Onset is the cumulative sum of prior turn durations. The speaker label is the
-    ``say`` voice (one-voice-per-person makes it a faithful person identity, and DER
-    solves the optimal label mapping so the string itself is irrelevant)."""
+    Onset is the cumulative sum of prior turn durations. The speaker label is the acoustic
+    identity from :func:`voice_identity` — the say voice, plus its pitch shift where one was
+    applied."""
     lines: list[str] = []
     onset = 0.0
     for label, dur in turns:
@@ -734,13 +831,29 @@ def concat_aiff_to_mp3(aiffs: list[Path], out_mp3: Path, bitrate: str) -> None:
 
 
 def transcript_language(raw: str) -> str:
-    """The primary language subtag from a transcript's ``#fixture-v3: voice=`` annotation.
+    """The primary language subtag of the EPISODE, from its ``#fixture-v3:`` annotation.
 
-    The transcript declares its own language, so nothing has to be threaded from the caller and
-    a fixture cannot be rendered in a language its text disagrees with. Defaults to ``en``,
-    which is every fixture that predates the annotation.
+    Read from ``host_voice``, falling back to ``voice``. The two are not the same question:
+    ``voice`` is the GUEST's accent, and several English episodes carry a guest with a
+    non-English one —
+
+        p07_e01  #fixture-v3: voice=de-DE host_voice=en-AU
+        p09_e01  #fixture-v3: voice=de-DE host_voice=en-US
+
+    — which are English episodes with a German-accented guest, not German episodes. Reading
+    ``voice`` alone called them German, and that was invisible while no German voice map existed.
+    Adding one surfaced it as a false collision: `Dr. Elena Fischer` (Anna, her established
+    accent-matched voice in an English show) against `Katrin Vogel` (Anna, host of the actual
+    German show), reported as two people sharing a voice inside one language when they have
+    never been in the same language at all.
+
+    The host's accent is the show's language, because a show is conducted in its host's language
+    and guests are the ones who vary. Defaults to ``en``, which is every fixture predating the
+    annotation.
     """
-    m = re.search(r"^#fixture-v3:\s*voice=([A-Za-z]{2})", raw, re.MULTILINE)
+    m = re.search(r"^#fixture-v3:.*\bhost_voice=([A-Za-z]{2})", raw, re.MULTILINE)
+    if m is None:
+        m = re.search(r"^#fixture-v3:\s*voice=([A-Za-z]{2})", raw, re.MULTILINE)
     return (m.group(1) if m else "en").lower()
 
 
@@ -769,7 +882,7 @@ def render_say_fixture(
             out_aiff = td_path / f"{stem}_{i:03d}_{safe_speaker}.aiff"
             say_to_aiff(text.strip(), out_aiff, voice=voice, rate=rate, pitch=pitch)
             aiffs.append(out_aiff)
-            turns.append((voice, aiff_duration(out_aiff)))
+            turns.append((voice_identity(voice, pitch), aiff_duration(out_aiff)))
         write_rttm(stem, turns, rttm_path)
         if not rttm_only:
             concat_aiff_to_mp3(aiffs, out_mp3, bitrate=bitrate)

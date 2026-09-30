@@ -28,6 +28,26 @@ from podcast_scraper.workflow.episode_processor import _unsupported_language_ski
 pytestmark = pytest.mark.unit
 
 
+#: A language the registry DESCRIBES but does not enable — the subject of every refusal below.
+#:
+#: Derived, not named. This module used `de` throughout, which was a described-but-disabled
+#: language when it was written and became an ENABLED one the day German joined it/fr/pt. Eight
+#: tests then failed saying the refusal path was broken, when what had actually happened is that
+#: their example stopped being an example. The refusal path does not care which language it is.
+def _a_disabled_language() -> str:
+    from podcast_scraper.languages import is_language_enabled, language_registry
+
+    for code in sorted(language_registry()):
+        if not is_language_enabled(code):
+            return code
+    raise AssertionError(
+        "every described language is enabled, so the refusal path has no subject to test"
+    )
+
+
+DISABLED = _a_disabled_language()
+
+
 def _cfg(
     *, language: str = "en", override: Optional[str] = None, feed: Optional[str] = None
 ) -> Any:
@@ -45,9 +65,9 @@ def _cfg(
 
 class TestWhatIsRefused:
     def test_a_language_the_registry_does_not_enable_is_refused(self) -> None:
-        reason = _unsupported_language_skip_reason(_cfg(language="de"))
+        reason = _unsupported_language_skip_reason(_cfg(language=DISABLED))
         assert reason is not None
-        assert "'de'" in reason
+        assert f"'{DISABLED}'" in reason
         assert "not enabled in config/languages.yaml" in reason
 
     def test_english_proceeds(self) -> None:
@@ -61,7 +81,14 @@ class TestWhatIsRefused:
         """
         assert _unsupported_language_skip_reason(_cfg(language="en-US")) is None
 
-    @pytest.mark.parametrize("code", ["de", "ja", "ar", "ru", "ca"])
+    @pytest.mark.parametrize(
+        "code",
+        sorted(
+            c
+            for c in __import__("podcast_scraper.languages", fromlist=["x"]).language_registry()
+            if not __import__("podcast_scraper.languages", fromlist=["x"]).is_language_enabled(c)
+        ),
+    )
     def test_every_described_but_disabled_language_is_refused(self, code: str) -> None:
         """Present-in-the-registry but ``enabled: false`` must refuse, not proceed. Being
         described is not being ingested."""
@@ -80,12 +107,12 @@ class TestTheOverrideIsTheRemedy:
         ingesting on every run — including relabels and rederives — with no remedy at all. The
         override is that remedy, which is why S0.8 must not land before S0.2.
         """
-        assert _unsupported_language_skip_reason(_cfg(language="de")) is not None
-        assert _unsupported_language_skip_reason(_cfg(language="de", override="en")) is None
+        assert _unsupported_language_skip_reason(_cfg(language=DISABLED)) is not None
+        assert _unsupported_language_skip_reason(_cfg(language=DISABLED, override="en")) is None
 
     def test_an_override_can_also_refuse(self) -> None:
         """It is a correction, not a bypass: pointing a feed at a disabled language still skips."""
-        assert _unsupported_language_skip_reason(_cfg(language="en", override="de")) is not None
+        assert _unsupported_language_skip_reason(_cfg(language="en", override=DISABLED)) is not None
 
 
 class TestTheReasonIsUsable:
@@ -97,31 +124,31 @@ class TestTheReasonIsUsable:
         a language that came from the feed's declared tag was reported as "the profile default",
         pointing an operator at the wrong thing to change.
         """
-        from_profile = _unsupported_language_skip_reason(_cfg(language="de"))
+        from_profile = _unsupported_language_skip_reason(_cfg(language=DISABLED))
         assert from_profile is not None and "the profile default" in from_profile
 
-        from_override = _unsupported_language_skip_reason(_cfg(language="en", override="de"))
+        from_override = _unsupported_language_skip_reason(_cfg(language="en", override=DISABLED))
         assert from_override is not None and "the per-feed override" in from_override
 
-        from_feed = _unsupported_language_skip_reason(_cfg(language="en", feed="de"))
+        from_feed = _unsupported_language_skip_reason(_cfg(language="en", feed=DISABLED))
         assert from_feed is not None and "the feed's declared <language> tag" in from_feed
 
     def test_the_remedy_is_PER_SOURCE(self) -> None:
         """A single remedy sentence was wrong in two of the three cases: it advised setting a
         per-feed override when the override was already the cause, and blamed a wrong publisher
         tag when no tag was involved at all. An operator acts on this sentence."""
-        override = _unsupported_language_skip_reason(_cfg(language="en", override="de")) or ""
+        override = _unsupported_language_skip_reason(_cfg(language="en", override=DISABLED)) or ""
         assert "correct the per-feed `language:` override that set it" in override
 
-        feed = _unsupported_language_skip_reason(_cfg(language="en", feed="de")) or ""
+        feed = _unsupported_language_skip_reason(_cfg(language="en", feed=DISABLED)) or ""
         assert "if the publisher's tag is wrong" in feed
 
-        profile = _unsupported_language_skip_reason(_cfg(language="de")) or ""
+        profile = _unsupported_language_skip_reason(_cfg(language=DISABLED)) or ""
         assert "point this feed at a profile" in profile
         assert "publisher" not in profile, "no publisher tag was involved"
 
     def test_it_says_what_to_do_about_it(self) -> None:
-        reason = _unsupported_language_skip_reason(_cfg(language="de"))
+        reason = _unsupported_language_skip_reason(_cfg(language=DISABLED))
         assert reason is not None
         assert "Enable it there" in reason
 
@@ -129,11 +156,11 @@ class TestTheReasonIsUsable:
         """`profile_default` covers two corpus states — no tag, and a tag resolution could not
         read. Saying "the feed declared no <language>" for the second is a false statement about
         the feed, and it hides the one fact that explains the skip."""
-        junk = _unsupported_language_skip_reason(_cfg(language="de", feed="?")) or ""
+        junk = _unsupported_language_skip_reason(_cfg(language=DISABLED, feed="?")) or ""
         assert "declared '?'" in junk
         assert "not a usable language tag" in junk
 
-        silent = _unsupported_language_skip_reason(_cfg(language="de")) or ""
+        silent = _unsupported_language_skip_reason(_cfg(language=DISABLED)) or ""
         assert "declared no <language>" in silent
 
 
@@ -165,14 +192,14 @@ class TestTheRefusalIsCountable:
         job = MagicMock()
         job.idx = 1
         ok, path, downloaded = ep.transcribe_media_to_text(
-            job, _cfg(language="de"), None, None, "/tmp/out", None, None
+            job, _cfg(language=DISABLED), None, None, "/tmp/out", None, None
         )
 
         assert (ok, path, downloaded) == (False, None, 0), "a refusal, not a silent success"
         assert len(recorded) == 1
         assert recorded[0]["error_type"] == "UnsupportedLanguage"
         assert recorded[0]["stage"] == "transcription"
-        assert "'de'" in (recorded[0]["detail"] or "")
+        assert f"'{DISABLED}'" in (recorded[0]["detail"] or "")
         assert len(incidents) == 1
         assert incidents[0]["exception_type"] == "UnsupportedLanguage"
         assert incidents[0]["category"] == "policy"
@@ -205,7 +232,7 @@ class TestTheRefusalIsCountable:
         monkeypatch.setattr(ep, "_append_transcription_incident", lambda *a, **k: None)
         monkeypatch.setattr(ep, "_bind_episode_correlation", lambda job, cfg: None)
 
-        cfg = _cfg(language="de").model_copy(update={"dry_run": True})
+        cfg = _cfg(language=DISABLED).model_copy(update={"dry_run": True})
         job = MagicMock()
         job.idx = 1
         assert ep.transcribe_media_to_text(job, cfg, None, None, "/tmp/out", None, None) == (

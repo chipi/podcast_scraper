@@ -48,19 +48,19 @@ languages:
   it:
     name: Italian
     tier: 1
-    enabled: false
+    enabled: true
     script: latin
     wer: 4.0
   pt:
     name: Portuguese
     tier: 1
-    enabled: false
+    enabled: true
     script: latin
     wer: 4.3
   de:
     name: German
     tier: 1
-    enabled: false
+    enabled: true
     script: latin
     wer: 4.5
   nl:
@@ -80,7 +80,7 @@ languages:
   fr:
     name: French
     tier: 1
-    enabled: false
+    enabled: true
     script: latin
     wer: 8.3
   sv:

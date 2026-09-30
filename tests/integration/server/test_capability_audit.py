@@ -146,12 +146,20 @@ class TestPickerDiscrimination:
         # unlike the size counts above, because this one is a claim about the corpus's
         # DISCRIMINATING POWER — the thing the band exists to measure — not about how many files
         # are on disk. A drop here is a real regression and must not be absorbed by a formula.
-        assert picker["band_candidates"] == 45
+        #
+        # 46 with it/fr/de/pt: `trail-building` joined the band. The four counterparts
+        # carry the same three authored topics as p10, which pushed `soil-erosion` and
+        # `land-stewardship` well clear of the floor and lifted trail-building over it.
+        assert picker["band_candidates"] == 46
         # 10, not the 8 quoted before 2026-08-19 — see the module docstring. The old figure came
         # from a hash-dependent top-12, so it was never reproducible. 11 since p10: this
         # counts DISTINCT FEED SETS, not feeds, so a show whose topics overlap p01's while
         # its episode does not can add a set without adding a feed.
-        assert picker["band_distinct_feeds"] == 11
+        # DOWN to 10 at 14 shows, which is the interesting direction: the band's top 12
+        # now contains more tokens that several shows share (the five trail-building
+        # counterparts), so its members discriminate BETWEEN FEEDS slightly less even as
+        # the band itself grows. Worth watching rather than smoothing over.
+        assert picker["band_distinct_feeds"] == 10
 
     def test_no_band_token_covers_more_than_the_ceiling(self, report) -> None:
         """The band is only meaningful if its own bound holds."""
@@ -225,10 +233,28 @@ class TestTheBandIsNotAutomaticallyOfferable:
     """
 
     def test_the_band_contents_reach_the_report(self, report) -> None:
+        """The band's unofferable entries must be VISIBLE, not inferable from a count.
+
+        This named `person:a-correspondent` — the band's most embarrassing member, whose KG name
+        is literally "A. correspondent". At 45 episodes it has ranked out of the top 12 entirely,
+        and asserting the example rather than the property made a corpus change look like a
+        regression. What the report has to show is that the band is full of PEOPLE — first-name
+        tokens like `person:maya`, `person:ethan`, `person:nora` — because "follow Maya" is not
+        an interest anyone would offer, and a bare "46 discriminating tokens" reads like a
+        recommendation to offer them.
+        """
+        picker = report.sections["picker_discrimination"]
         text = format_report(report)
-        assert (
-            "person:a-correspondent" in text
-        ), "the band's actual contents must be visible; a bare count reads as 'offer these'"
+        people = [e["token"] for e in picker["band_top"] if e["token"].startswith("person:")]
+        assert people, (
+            "the band holds no person tokens, so this corpus can no longer demonstrate that "
+            "discriminating power is not sufficient — re-check the fixture before relaxing this"
+        )
+        for token in people:
+            assert f"`{token}`" in text, (
+                f"{token} is in the band the report counts but is not printed; a bare count "
+                "reads as 'offer these'"
+            )
 
     def test_the_report_lists_every_token_it_claims_a_feed_count_for(self, report) -> None:
         """The listing must cover the whole set the distinct-feed count is computed over.
@@ -268,12 +294,17 @@ class TestCorpusShape:
         minimum drops from 4 to 1 and 7 of 10 feeds are now sparse. That is the honest shape of
         a corpus gaining a language — the first show in a new language arrives with one episode —
         and it sharpens the finding rather than diluting it.
+
+        11 of 14 since it/fr/de/pt. Four more one-episode shows make the per-feed mean less
+        measurable, not more, and that IS the finding: a corpus that grows by adding languages
+        grows in shows faster than in episodes, so per-feed normalisation gets harder exactly
+        as the catalogue gets more interesting.
         """
         shape = report.sections["corpus_shape"]
         assert shape["feeds"] == _corpus_feeds_on_disk()
         assert shape["episodes_per_feed_min"] == 1
         assert shape["episodes_per_feed_max"] == 6
-        assert shape["feeds_with_fewer_than_5"] == 7
+        assert shape["feeds_with_fewer_than_5"] == 11
 
     def test_every_episode_has_a_publish_date(self, report) -> None:
         """Recency decays from publish dates; an undated episode would silently skew the spread."""
@@ -430,7 +461,12 @@ class TestEntityIdentity:
         ident = report.sections["entity_identity"]
         # 29/9, not 26/7: the four episodes the per-feed cap used to drop are in the corpus now,
         # and they bring their own speakers (p06_e05/e06 are hosted by Maya, p02_e05 has a caller).
-        assert ident["person_entities"] == 29
+        #
+        # 37 since it/fr/de/pt: eight new people, two per show. `single_word_names` stays at 9
+        # because every one of them has a surname — which is the point of giving those shows
+        # their own cast rather than reusing Maya and Liam. Had they been reused, this number
+        # would not have moved and `person:maya` would span seven feeds instead of three.
+        assert ident["person_entities"] == 37
         assert ident["single_word_names"] == 9
         assert "person:sam" in ident["single_word_examples"]
 
@@ -591,9 +627,13 @@ class TestTopicMomentum:
             "topic:systems-thinking" in rows
         ), f"the fixture's most-discussed topic is hidden again; visible: {sorted(rows)}"
         assert rows["topic:systems-thinking"]["total"] == 27
+        # 1.0 exactly since the four new shows landed. They carry no systems-thinking, so this
+        # moved for a WINDOW reason, not a topic one: four episodes published Oct 2025-Jan 2026
+        # shift where the recent window falls, and the topic's own mentions redistribute across
+        # it. Still not acceleration — 1.0 is exactly par, and the rail's point stands.
         assert rows["topic:systems-thinking"]["velocity"] == pytest.approx(
-            0.857, abs=0.01
-        ), "still below 1.0 — it is not accelerating, and that was never the point"
+            1.0, abs=0.01
+        ), "at or below par — it is not accelerating, and that was never the point"
 
     def test_the_headroom_is_reported_not_just_the_verdict(self, report) -> None:
         """Headroom stays in the report so a future re-tune can be argued from data, not vibes.
@@ -605,9 +645,11 @@ class TestTopicMomentum:
         """
         mom = report.sections["topic_momentum"]
         # The fastest mover is now `topic:reliability` at 1.5, not systems-thinking at 0.857 —
-        # episode-specific topics gave the window something that actually accelerates.
-        assert mom["max_velocity"] == pytest.approx(1.5, abs=0.01)
-        assert mom["headroom_to_gate"] == pytest.approx(-1.5, abs=0.01)
+        # episode-specific topics gave the window something that actually accelerates. It is
+        # 3.0 since it/fr/de/pt widened the date axis by four months; same topic, same reason,
+        # more headroom.
+        assert mom["max_velocity"] == pytest.approx(3.0, abs=0.01)
+        assert mom["headroom_to_gate"] == pytest.approx(-3.0, abs=0.01)
         assert "short by" not in format_report(report)
 
     def test_the_gate_matches_the_component(self, report) -> None:
@@ -1191,8 +1233,8 @@ class TestRankingCalibration:
         # disagreeing about how many feeds are sparse.
         assert sig["sparse_feeds"] == report.sections["corpus_shape"]["feeds_with_fewer_than_5"]
         assert (
-            sig["sparse_feeds"] == 7
-        ), "7 of 10 feeds hold fewer than 5 episodes — a mean over 4 is still noise"
+            sig["sparse_feeds"] == 11
+        ), "11 of 14 feeds hold fewer than 5 episodes — a mean over 4 is still noise"
         assert sig["feed_mean_min"] <= sig["feed_mean_median"] <= sig["feed_mean_max"]
         # The over-reward question is answered by comparing where sparse feeds land vs their size.
         assert 0.0 <= sig["sparse_top_share"] <= 1.0

@@ -105,6 +105,13 @@ APP_SHOWS: list[tuple[str, str]] = [
     # declares <language>es-ES</language> and `es` is enabled as of 2026-09-30, so this is a
     # show the pipeline processes rather than a metadata fixture.
     ("p10_spanish", "p10"),  # Sesiones de Sendero — Spanish
+    # Four more, 2026-10-01, on the shape `es` proved. Parallel CONTENT (so a translation can be
+    # compared against one known meaning across five languages) and their OWN people (so one host
+    # does not end up spanning seven feeds and drowning the entity-identity signal).
+    ("p11_italian", "p11"),  # Sentieri d'Autore — Italian
+    ("p12_french", "p12"),  # Sessions Sentier — French
+    ("p13_german", "p13"),  # Pfadgespräche — German
+    ("p14_portuguese", "p14"),  # Sessões de Trilha — Portuguese
 ]
 
 # p06/p08/p09 RSS fixtures are themed for other shows (edge_cases / solar /
@@ -628,6 +635,12 @@ CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
     # its corpus-wide coverage — the interests picker went from two offerable options
     # to one. Silently, because a `.get(show, [])` has no opinion about a missing show.
     "p10": ["endurance sport", "risk management"],
+    # The it/fr/de/pt counterparts, same reasoning: same conversation, same umbrellas.
+    # The guard below is what makes forgetting one of these impossible now.
+    "p11": ["endurance sport", "risk management"],
+    "p12": ["endurance sport", "risk management"],
+    "p13": ["endurance sport", "risk management"],
+    "p14": ["endurance sport", "risk management"],
 }
 # Shared umbrellas injected into every show so clusters are genuinely multi-member.
 SHARED_UMBRELLAS: list[str] = ["lifelong learning", "expert interviews"]

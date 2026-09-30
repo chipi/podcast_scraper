@@ -83,14 +83,14 @@ CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-valid
 # show" — when what had actually happened was that the interest correctly routed to BOTH shows
 # carrying it. A topic shared by two shows is a normal corpus, not a ranking regression, so the
 # expectation is a set.
-NICHE_TOPIC_TO_SHOWS: dict[str, tuple[str, ...]] = {
-    "topic:personal-finance": ("p05",),
-    "topic:safety-practices": ("p03",),
-    "topic:visual-craft": ("p04",),
-    "topic:endurance-sport": ("p01", "p10"),
-    "topic:public-radio": ("p08",),
-    "topic:long-form": ("p06",),
-}
+NICHE_TOPICS: tuple[str, ...] = (
+    "topic:personal-finance",
+    "topic:safety-practices",
+    "topic:visual-craft",
+    "topic:endurance-sport",
+    "topic:public-radio",
+    "topic:long-form",
+)
 
 
 @pytest.fixture(scope="module")
@@ -120,24 +120,45 @@ def coverage(rows) -> dict[str, int]:
     return counts
 
 
+def shows_carrying(rows, token: str) -> set[str]:
+    """Which feeds actually carry this token, read from the corpus the ranker reads."""
+    cluster_map = theme_map_by_topic(CORPUS)
+    storyline_map = storyline_map_by_topic(CORPUS)
+    out: set[str] = set()
+    for row in rows:
+        clusters, topics, persons = _episode_features(CORPUS, row, cluster_map, storyline_map)
+        if token in (*clusters, *topics, *persons):
+            out.add(str(row.feed_id))
+    return out
+
+
 class TestRankerDiscriminates:
     """The engine itself — these pass today and must keep passing."""
 
-    @pytest.mark.parametrize(("topic", "shows"), sorted(NICHE_TOPIC_TO_SHOWS.items()))
-    def test_following_a_niche_topic_surfaces_its_show(
-        self, rows, topic: str, shows: tuple[str, ...]
-    ) -> None:
+    @pytest.mark.parametrize("topic", sorted(NICHE_TOPICS))
+    def test_following_a_niche_topic_surfaces_its_show(self, rows, topic: str) -> None:
+        """Following a niche interest must surface the shows that CARRY it, and only those.
+
+        The expected shows are MEASURED from the corpus, not written down. They were a literal
+        map — `endurance-sport -> p01` — which broke first when p10 (Spanish) took the same
+        umbrella and again when p11..p14 did, each time reporting "personalisation no longer
+        routes a specific interest" about a ranker that had routed it perfectly to all six shows
+        carrying it. The claim worth pinning is the RANKER's, so the carriers are derived and
+        only the routing is asserted.
+        """
+        carriers = shows_carrying(rows, topic)
+        assert carriers, f"no show carries {topic}; the fixture cannot answer this"
         top3 = feed(rows, [topic], limit=3)
         assert top3, f"no results for {topic}"
-        wrong = [s for s in top3 if not s.startswith(tuple(shows))]
+        wrong = [s for s in top3 if not s.startswith(tuple(carriers))]
         assert not wrong, (
-            f"following {topic} should surface {'/'.join(shows)} episodes first; got {top3}. "
-            "Personalisation no longer routes a specific interest to the shows carrying it."
+            f"following {topic} should surface {'/'.join(sorted(carriers))} episodes first; "
+            f"got {top3}. Personalisation no longer routes an interest to the shows carrying it."
         )
 
     def test_distinct_interests_give_distinct_feeds(self, rows) -> None:
-        feeds = {t: tuple(feed(rows, [t])) for t in NICHE_TOPIC_TO_SHOWS}
-        assert len(set(feeds.values())) == len(NICHE_TOPIC_TO_SHOWS), (
+        feeds = {t: tuple(feed(rows, [t])) for t in NICHE_TOPICS}
+        assert len(set(feeds.values())) == len(NICHE_TOPICS), (
             "different niche interests produced the same feed — personalisation is not "
             # noqa: E201,E202 — the spaces inside `{ {` are load-bearing: without them the
             # f-string reads `{{` as an escaped literal brace, not a nested comprehension.
@@ -279,8 +300,14 @@ class TestPoolIsInterestAware:
         # Same id space as interests, and coverage matches an independent count.
         # p05 carries five episodes since the per-feed cap lost its default, and
         # expert-interviews is a SHARED_UMBRELLA so it is on every episode in the corpus.
+        #
+        # That last one is counted from disk, not written down. It was a literal 40 and went
+        # stale the moment the corpus gained its tenth show — but the claim being made is
+        # "a shared umbrella reaches EVERY episode", and a literal cannot say that. Derived,
+        # the assertion fails only when an umbrella actually stops being universal.
+        every_episode = len(list(CORPUS.glob("feeds/*/run_*/metadata/*.metadata.json")))
         assert len(index["topic:personal-finance"]) == 5
-        assert len(index["topic:expert-interviews"]) == 40
+        assert len(index["topic:expert-interviews"]) == every_episode
         assert all(t.startswith(("topic:", "person:")) for t in index)
 
     def test_a_matching_episode_outside_the_window_joins_the_pool(

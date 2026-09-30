@@ -98,15 +98,26 @@ class TestOverTheRealFixtureCorpora:
             (json.loads(m.read_text(encoding="utf-8")).get("feed") or {}).get("language")
             for m in metas
         }
-        assert stored == {"en", "es"}, f"the fixture's premise changed: {stored}"
+        # es, it, fr, de, pt — five non-English counterparts of p01, each in its own language.
+        assert stored >= {
+            "en",
+            "es",
+            "it",
+            "fr",
+            "de",
+            "pt",
+        }, f"the fixture's premise changed: {stored}"
 
         rows = build_catalog_rows(root)
         assert rows, "catalog scan found nothing"
-        assert {r.feed_language for r in rows} == {"en", "es"}
-        assert {r.episode_language for r in rows} == {"en", "es"}
+        # What is SERVED must equal what is STORED — that is the whole contract. Comparing to
+        # `stored` rather than to a written-down set means adding a language cannot make these
+        # pass for the wrong reason, and cannot fail for a reason that is only bookkeeping.
+        assert {r.feed_language for r in rows} == stored
+        assert {r.episode_language for r in rows} == stored
 
         feeds = aggregate_feeds(rows)
-        assert {f["language"] for f in feeds} == {"en", "es"}
+        assert {f["language"] for f in feeds} == stored
 
     def test_the_spanish_feed_is_served_as_SPANISH_not_flattened(self) -> None:
         """One episode in one language, so the aggregate must not average it away. Serving a

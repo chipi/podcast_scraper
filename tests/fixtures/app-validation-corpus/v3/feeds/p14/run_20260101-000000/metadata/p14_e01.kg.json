@@ -1,0 +1,139 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "person:rafael-vasconcelos",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-28614332add8c2ae",
+  "extraction": {
+    "extracted_at": "2026-01-01T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p14_e01.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-28614332add8c2ae",
+      "properties": {
+        "podcast_id": "p14",
+        "publish_date": "2026-01-01T00:00:00",
+        "title": "Construir Trilhas Que Duram"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:trail-building",
+      "properties": {
+        "label": "trail building",
+        "slug": "trail-building"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion",
+        "slug": "soil-erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-stewardship",
+      "properties": {
+        "label": "land stewardship",
+        "slug": "land-stewardship"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:beatriz-antunes",
+      "properties": {
+        "name": "Beatriz Antunes",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:rafael-vasconcelos",
+      "properties": {
+        "name": "Rafael Vasconcelos",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

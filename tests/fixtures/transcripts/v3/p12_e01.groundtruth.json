@@ -1,0 +1,27 @@
+{
+  "fixture": "p12_e01",
+  "podcast": "Sessions Sentier — Épisode",
+  "episode": "Construire Des Sentiers Qui Durent",
+  "type": "interview",
+  "speakers": [
+    "Camille Dubois",
+    "Julien Mercier"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Camille Dubois": "Amelie",
+    "Julien Mercier": "Thomas",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {},
+  "cameo": null,
+  "transcript_sha256": "ba46ef427656e05fdabfab5e338c4f97e95327a0887d5c02943fb9b314206fdd",
+  "audio_sha256": "c9dd0c96d7807ae58b7995e419fe0f6011aa507da4d8400aff8211f8e1b41124",
+  "rttm_sha256": "5f9ecd1a3d2f9bc4eb6d8709f6bdc1f8e207dc097539a987de068feaf6f4c2b6"
+}

@@ -72,6 +72,18 @@ def surface_to_person():
         "Caller": "cameo:Caller",
         "Nadia Sereni": "cameo:Nadia Sereni",
         "Ad": "synthetic:Ad",
+        # Hand-made non-English shows. `build_v3_spec()` generates the p01-p09 roster only, so
+        # people who exist ONLY in a hand-written fixture have to be named here — the same
+        # reason the cameos above are. p10 needs no entry: it is p01's Spanish counterpart and
+        # reuses Maya and Liam Verbeek, who are already in the roster.
+        "Giulia Ferrara": "host:Giulia Ferrara",
+        "Marco Bellini": "guest:Marco Bellini",
+        "Camille Dubois": "host:Camille Dubois",
+        "Julien Mercier": "guest:Julien Mercier",
+        "Katrin Vogel": "host:Katrin Vogel",
+        "Stefan Brandt": "guest:Stefan Brandt",
+        "Beatriz Antunes": "host:Beatriz Antunes",
+        "Rafael Vasconcelos": "guest:Rafael Vasconcelos",
     }
     mapping.update(extra)
     return mapping
@@ -123,11 +135,21 @@ def transcript_labels():
 
 
 def test_every_label_is_mapped_no_hash_fallback(t2m, transcript_labels):
-    """Rule (3): every real fixture label is an exact SPEAKER_VOICE_MAP entry."""
-    unmapped = sorted(n for n in transcript_labels if n not in t2m.SPEAKER_VOICE_MAP)
+    """Rule (3): every real fixture label resolves from an EXPLICIT map, never the hash fallback.
+
+    Checked against the canonical map AND every per-language map, because that is what
+    `get_voice_for_speaker` actually does (language map -> canonical -> first word -> hash).
+    While every person appeared in an English show the canonical map alone was a faithful proxy;
+    p11..p14 introduced eight people who exist ONLY in a non-English fixture, and against the
+    old check they read as unmapped while in fact resolving perfectly.
+    """
+    explicit = set(t2m.SPEAKER_VOICE_MAP)
+    for lang_map in t2m.VOICE_MAPS_BY_LANGUAGE.values():
+        explicit |= set(lang_map)
+    unmapped = sorted(n for n in transcript_labels if n not in explicit)
     assert not unmapped, (
-        "these transcript speaker labels fall through to the hash fallback — add them "
-        f"to SPEAKER_VOICE_MAP pointing at their identity's voice: {unmapped}"
+        "these transcript speaker labels fall through to the hash fallback — add them to "
+        f"SPEAKER_VOICE_MAP, or to their language's map, pointing at their voice: {unmapped}"
     )
 
 
@@ -140,10 +162,17 @@ def test_name_resolves_to_single_voice(t2m, transcript_labels):
     assert all(len(v) == 1 for v in multi.values())
 
 
-def test_no_voice_shared_by_two_people(t2m, transcript_labels, surface_to_person):
-    """Rule (2): a voice belongs to exactly one person (garbles of one person are ok)."""
+def test_no_voice_shared_by_two_people(t2m, labels_by_language, surface_to_person):
+    """Rule (2): a voice belongs to exactly one person (garbles of one person are ok).
+
+    Scoped to ENGLISH labels. This check resolves with no language argument, which is the
+    canonical map's domain — and asking it about a person who only ever speaks Italian answers a
+    question nobody posed: it would report Giulia Ferrara's ENGLISH voice, which does not exist
+    and falls to the hash bucket. The non-English languages are covered, per language and
+    including the pitch dimension, by `TestTheRuleHoldsPerLANGUAGE` below.
+    """
     voice_people: dict[str, set[str]] = defaultdict(set)
-    for name in transcript_labels:
+    for name in labels_by_language.get("en", set()):
         person = surface_to_person.get(name)
         assert person is not None, (
             f"transcript label {name!r} is not attributed to any roster person — update "
@@ -174,7 +203,17 @@ class TestTheRuleHoldsPerLANGUAGE:
             for name in names:
                 person = surface_to_person.get(name)
                 assert person is not None, f"[{language}] unattributed label {name!r}"
-                voice_people[t2m.get_voice_for_speaker(name, language)].add(person)
+                # The ACOUSTIC identity, not the voice name. Italian and German ship exactly
+                # one macOS voice each, so host and guest are the same synthesis at two
+                # pitches — `Alice` for both would report a collision that the audio does not
+                # have, and a real pyannote run on these files finds three speakers. Same
+                # statement the RTTM makes; see `voice_identity` in transcripts_to_mp3.py.
+                voice_people[
+                    t2m.voice_identity(
+                        t2m.get_voice_for_speaker(name, language),
+                        t2m.pitch_shift_for(name, language),
+                    )
+                ].add(person)
             collisions = {v: sorted(p) for v, p in voice_people.items() if len(p) > 1}
             assert (
                 not collisions

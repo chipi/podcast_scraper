@@ -51,7 +51,7 @@ def _documented_counts() -> dict[int, str]:
 
 
 def test_spec_reconciles_exactly_three_counts() -> None:
-    """47 files / 41 episodes / 38 generated.
+    """51 files / 45 episodes / 38 generated.
 
     There used to be a fourth, 36, which was the built corpus under a default
     ``--max-episodes-per-feed 4``. Removing that default collapsed it into 40, so a
@@ -61,10 +61,13 @@ def test_spec_reconciles_exactly_three_counts() -> None:
     The **38 did not move**: that row counts what `build_v3_fixtures.py` generates, and p10's
     transcript is hand-written like `p06_e05` and `p06_e06`, so it subtracts from 41 rather than
     adding to 38.
+
+    47/41 became 51/45 on 2026-10-01 with `p11`..`p14` (it, fr, de, pt) — four more hand-written
+    counterparts of p01, so the 38 does not move for exactly the same reason.
     """
     counts = _documented_counts()
-    assert sorted(counts) == [38, 41, 47], (
-        "the spec's count table changed shape; it should reconcile 47/41/38 "
+    assert sorted(counts) == [38, 45, 51], (
+        "the spec's count table changed shape; it should reconcile 51/45/38 "
         f"and it now lists {sorted(counts)}"
     )
 

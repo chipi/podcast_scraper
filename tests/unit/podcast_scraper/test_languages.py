@@ -106,23 +106,45 @@ class TestResolveLanguage:
 class TestRegistry:
     """``config/languages.yaml`` — the gate on which languages we ingest (#2174)."""
 
-    def test_exactly_english_and_spanish_are_enabled_today(self) -> None:
-        """`es` was enabled 2026-09-30, the first language after English.
+    def test_exactly_the_six_western_european_languages_are_enabled_today(self) -> None:
+        """`es` was enabled 2026-09-30; `it`, `fr`, `de` and `pt` followed on 2026-10-01.
 
         Pinned as an EXACT set rather than "at least these", because `enabled` is the only gate
         there is (D-41: there is no feature flag) — so a language appearing here is a language
         the pipeline will ingest, translate and publish. That must be a deliberate edit with the
         arc's safety conditions met, never a side effect of touching the registry.
+
+        This test did its job: enabling the four broke it, and that is the tripwire firing rather
+        than a number going stale. What was met for each of the four before the edit —
+
+          * a hand-authored transcript, parallel in content to `p01_e01` so a translation can be
+            compared against one known meaning;
+          * synthesized audio whose speakers a REAL pyannote run separates into three, which is
+            what the transcript declares — including Italian and German, where macOS ships one
+            voice and host and guest are the same synthesis at two pitches;
+          * an authored ground-truth sidecar, so the corpus builder reads real topics and a real
+            summary instead of falling into the stand-in path;
+          * an RSS fixture declaring the regional tag, so normalisation stays load-bearing.
+
+        Quality of the translations themselves is NOT among those conditions and is not claimed
+        here — that is the V2 quality gate's job.
         """
         from podcast_scraper.languages import is_language_enabled, language_registry
 
         reg = language_registry()
         assert reg, "registry failed to load — every language would read as not-enabled"
-        assert sorted(c for c, e in reg.items() if e.enabled) == ["en", "es"]
-        assert is_language_enabled("en") is True
-        assert is_language_enabled("es") is True
+        assert sorted(c for c, e in reg.items() if e.enabled) == [
+            "de",
+            "en",
+            "es",
+            "fr",
+            "it",
+            "pt",
+        ]
+        for code in ("en", "es", "it", "fr", "de", "pt"):
+            assert is_language_enabled(code) is True, code
         # Still described, still not ingested — the distinction the registry exists to carry.
-        for code in ("de", "ru", "ja", "ar"):
+        for code in ("ru", "ja", "ar"):
             assert is_language_enabled(code) is False, code
 
     def test_all_three_tiers_are_described(self) -> None:

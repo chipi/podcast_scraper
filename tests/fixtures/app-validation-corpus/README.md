@@ -15,15 +15,16 @@ Learning Player e2e fixture and was realigned (RFC-097) so every read surface �
 > summary/GI/KG) and are committed as data. Consumers are unaffected: still no pipeline, no ML, no
 > network. See `--pipeline-run` in `scripts/build_app_validation_corpus.py`.
 
-- **What it is:** 10 shows (`p01`–`p10`), 1-6 episodes each, every one `ready` with a transcript, GI
+- **What it is:** 14 shows (`p01`–`p14`), 1-6 episodes each, every one `ready` with a transcript, GI
   insights, KG topics/people, **diarization diagnostics**, and per-episode + corpus-scope
   enrichments. Sorted keys, stable content-hash episode ids and fixed dates, so a rebuild from the
   same inputs yields the same tree.
-- **Why 41 and not 36:** it used to be 36. `--max-episodes-per-feed` defaulted to 4 and took the
+- **Why 45 and not 36:** it used to be 36. `--max-episodes-per-feed` defaulted to 4 and took the
   first four of each show, so `p02_e05`, `p05_e05`, `p06_e05` and `p06_e06` had transcript, audio
   and ground truth and were in no build — including the corpus's only single-speaker episode and
   its only code-switching one. The default is gone; the flag remains for building something
-  smaller on purpose. The 41st is `p10_e01`: `p10` is p01's Spanish counterpart — the
+  smaller on purpose. The last five are p01's counterparts in other languages: `p10`
+  (es), `p11` (it), `p12` (fr), `p13` (de) and `p14` (pt). Taking `p10` as the example —
   same trail-building show, same host, one episode — added so the corpus carries a
   non-English feed. Its analysis layer is ENGLISH like every other episode's (D-38), so
   its topics and summary sit in the same token space; only the transcript, title and
@@ -32,7 +33,7 @@ Learning Player e2e fixture and was realigned (RFC-097) so every read surface �
   real summaries and measured durations. Rebuilding without it silently substitutes the synthesized
   stand-in: summaries revert to the transcript's opening line and every duration becomes 1800s —
   the two defects `FIXTURES_SPEC.md` §3 and §9 record as fixed.
-- **Summaries:** **38 of 41 are real pipeline output**; the other three are AUTHORED ground truth.
+- **Summaries:** **38 of 45 are real pipeline output**; the other seven are AUTHORED ground truth.
   `p06_e05` and `p06_e06` are 44 and 46 words, so their only sentence long enough to survive
   excerpt filtering is also the transcript's opening — an echo is structurally guaranteed and no
   model can do better. `p10_e01` is authored for a different reason: it is hand-made, so no
