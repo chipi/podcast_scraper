@@ -152,6 +152,8 @@
     //   :8003  = vLLM autoresearch slot (ADR-147: naming/summary/GI/KG/grounding
     //            + the in-pipeline value gate; the fully-airgapped DGX profiles).
     //   :8004  = MOSS transcribe-diarize (ASR coverage failover; #1273 / ADR-123).
+    //   :8005  = vllm-translate, a second vLLM (translation). Same reach as :8003: every
+    //            src that can reach the autoresearch vLLM can reach this one.
     // #943 observability sidecars:
     //   :8080  = cAdvisor (per-container resource use).
     //   :9100  = node-exporter (host CPU/mem/disk/net).
@@ -160,7 +162,7 @@
     {
       "action": "accept",
       "src":    ["autogroup:admin", "tag:gha-deployer"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8005", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
     {
       "action": "accept",
@@ -170,7 +172,7 @@
     {
       "action": "accept",
       "src":    ["tag:prod"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8005", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
     {
       // homelab Mac mini (tag:homelab-host) scrapes DGX telemetry over the TAILNET
@@ -192,7 +194,7 @@
       // actual use. Both times the symptom was "some ports work, one times out".
       "action": "accept",
       "src":    ["tag:homelab-host"],
-      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
+      "dst":    ["tag:dgx-llm-host:11434", "tag:dgx-llm-host:8000", "tag:dgx-llm-host:8001", "tag:dgx-llm-host:8002", "tag:dgx-llm-host:8003", "tag:dgx-llm-host:8004", "tag:dgx-llm-host:8005", "tag:dgx-llm-host:8080", "tag:dgx-llm-host:9100", "tag:dgx-llm-host:9400"]
     },
     {
       // Operator (laptop/phone via autogroup:admin) + homelab mini reach the DGX
