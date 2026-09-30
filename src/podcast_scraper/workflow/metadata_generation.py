@@ -5111,7 +5111,26 @@ def generate_episode_metadata(  # noqa: C901
                 )
                 if _kg_probe is not None:
                     kg_cost = _kg_probe.kg_cost_usd
-                kg_write_artifact(Path(kg_path), kg_payload, validate=True)
+                from ..kg.io import previous_artifact_to_keep as _kg_previous_to_keep
+
+                _kg_kept = _kg_previous_to_keep(Path(kg_path), kg_payload)
+                if _kg_kept is not None:
+                    # A failed extraction must not overwrite a working graph. Counted as a KG
+                    # failure so the stage summary shows it; the old graph keeps serving.
+                    logger.warning(
+                        "[%s] kg: extraction failed for episode_id=%s — KEPT the existing %s "
+                        "(model_version=%s) instead of replacing it with an empty graph; "
+                        "re-run extraction to refresh it.",
+                        episode.idx,
+                        episode_id,
+                        os.path.basename(kg_path),
+                        (_kg_kept.get("extraction") or {}).get("model_version"),
+                    )
+                    if pipeline_metrics is not None:
+                        pipeline_metrics.kg_failures += 1
+                    kg_payload = _kg_kept
+                else:
+                    kg_write_artifact(Path(kg_path), kg_payload, validate=True)
                 bridge_kg_payload = kg_payload
                 kg_elapsed = time.time() - kg_start
                 logger.debug("[%s] Generated KG artifact: %s", episode.idx, kg_path)
@@ -5125,11 +5144,13 @@ def generate_episode_metadata(  # noqa: C901
                     schema_version=str(kg_payload.get("schema_version", "1.0")),
                 )
                 if pipeline_metrics is not None:
-                    pipeline_metrics.kg_artifacts_generated += 1
-                    pipeline_metrics.record_kg_artifact_stats(kg_payload)
+                    if _kg_kept is None:
+                        pipeline_metrics.kg_artifacts_generated += 1
+                        pipeline_metrics.record_kg_artifact_stats(kg_payload)
                     pipeline_metrics.record_kg_time(kg_elapsed)
                     pipeline_metrics.update_episode_status(
-                        episode_id=episode_id_for_kg, stage="kg_written"
+                        episode_id=episode_id_for_kg,
+                        stage="kg_written" if _kg_kept is None else "kg_failed",
                     )
                     pipeline_metrics.update_episode_metrics(
                         episode_id=episode_id_for_kg, kg_sec=kg_elapsed
