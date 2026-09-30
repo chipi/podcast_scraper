@@ -446,8 +446,11 @@ A storyline (topics discussed together — co-occurrence) is a full **page** (`/
 keyed by the anchor topic id), not a sheet: same detail template as the topic/person page — back on
 its own row, title + follow-storyline on one row, then the member topics (ordered), top episodes,
 the people involved — as **Top voices**, the topic card's own avatar grid (`TopVoices`, UXS-013),
-not chips — and notes. There is no storyline endpoint; the anchor topic's card carries it,
-so the route param is the anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
+not chips — and notes. **All three pages share ONE page gutter** (16px, `px-4`): the topic and
+person pages get theirs from the card they host (`EntityCardBody` pads its own header and body), so
+their page wrapper adds none — adding one too gave them a doubled 32px gutter until 2026-09-30.
+There is no storyline endpoint; the anchor topic's card carries it, so the route param is the
+anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
 "theme cluster", which is the opposite of what a reader means by theme.
 
 ## Insight type marks (#2004 item 8)
