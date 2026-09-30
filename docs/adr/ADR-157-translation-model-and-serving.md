@@ -35,8 +35,18 @@ model revealed.
 
 The 12B over the 27B on measured WMT24++ numbers: MetricX **3.60** / Comet22 **83.5** against the
 27B's 3.09 / 84.4 — and it beats *base* Gemma-3-27B (4.04), so the fine-tune is worth more than the
-size step. Decisively, the 12B **co-resides with the 30B summary model** at bf16 and the 27B would
-not.
+size step. The step up to the 27B buys 0.51 / 0.9 where the 4B→12B step bought 1.72 / 3.4: steep
+diminishing returns.
+
+> **CORRECTED 2026-09-30.** This paragraph read "Decisively, the 12B **co-resides with the 30B
+> summary model** at bf16 and the 27B would not." That is a claim D-31 had already **retracted as
+> wrong** two days earlier: 74.6 GiB was measured available on the DGX with everything loaded, and
+> the served LLM is FP4 at ~15–18 GB rather than bf16, so a 27B would co-reside. Writing this ADR
+> from the shortlist reintroduced a claim the arc notes had withdrawn — and "decisively" did the
+> damage, promoting a memory constraint that does not exist to the deciding factor. The real
+> reason is quality-per-throughput plus leaving ~50 GB of headroom for D-31's shared-service
+> ambition; the 27B upgrade path stays open, and an FP8 27B sits at roughly a bf16 12B's
+> footprint.
 
 Revision pinned per [ADR-155](ADR-155-pin-every-model-checkpoint.md).
 
@@ -204,13 +214,14 @@ calling it internally and publishing its output is covered by §4.3.
   > the check's success message names a count of profiles rather than of fields. The resolver now
   > emits them, and `check_every_governed_field_is_emitted` fails any governed field the resolver
   > produces for no preset — these three were the only ones.
-- The 27B stays available if quality proves insufficient, but it would force a swap-based serving
-  model rather than co-residency.
+- The 27B stays available if quality proves insufficient. It would **not** force a swap-based
+  serving model — see the correction in §1; the memory claim behind that was retracted in D-31.
 
 ## Alternatives considered
 
-- **TranslateGemma-27B** — better on paper (MetricX 3.09) but does not co-reside with the 30B at
-  bf16, which would cost a mode swap per episode.
+- **TranslateGemma-27B** — better on paper (MetricX 3.09). It WOULD co-reside (§1's correction;
+  the contrary claim was retracted in D-31), so the reason it is not the pick is
+  quality-per-throughput and D-31's shared-service headroom, not memory.
 - **MiLMMT-46-12B / LMT-60-8B** — eligible licences; kept as fallbacks. LMT-60 is apache-2.0,
   which would remove the Gemma-terms question entirely if it ever became load-bearing.
 - **Qwen3-30B (already served)** — no second model to deploy, but it is a general instruct model

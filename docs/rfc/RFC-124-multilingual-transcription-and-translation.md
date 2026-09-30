@@ -325,7 +325,17 @@ publisher-supplied transcripts, and every `relabel_only` / `rediarize_only` / `r
   English `metadata.json`, which is exactly why S0.10's allow-list test exists.
 
 Retries use a `translate_only` reprocess mode rather than a new per-episode pending queue: the pipeline
-has no asynchronous per-episode state machine, and inventing one is larger than this feature needs. The
+has no asynchronous per-episode state machine, and inventing one is larger than this feature needs.
+
+> **`translate_only` DOES NOT EXIST (2026-09-30).** The reprocess modes that exist are
+> `relabel_only`, `rediarize_only` and `retranscript_only` (`config.py:381`). Nothing in `src/`
+> implements this one, so every retry path this RFC attributes to it is currently unactionable —
+> the three places below that name it, the `translation_pending` recovery in §5.2, and the
+> rejected-alternative argument in §8 that rests on it covering retries. It is also the explicit
+> re-translation path D-33 now depends on: because the translation memory is content-keyed and
+> deliberately NOT model-keyed, an upgraded translator only takes effect through an explicit
+> re-translation, and there is no command for one. Until it is built, recovery means deleting the
+> English artifact set by hand. The
 honest cost of that choice is that a translation-service outage needs an operator-run reprocess, so the
 "95% reach English analysis without manual retry" metric holds only when the service is up — state it
 that way rather than claiming otherwise.
@@ -650,7 +660,21 @@ alternative was considered and rejected:
   link a Greek chunk.
 - **A non-English query must drop the dense leg.** Otherwise MiniLM embeds it into a meaningless vector,
   the dense leg returns English neighbours, and RRF fuses that noise 1:1 with the real keyword hits.
-  Script detection on the query string is enough — one regex, no model.
+  ~~Script detection on the query string is enough — one regex, no model.~~
+
+  > **THE MECHANISM NAMED HERE CANNOT WORK, and the conclusion is deferred (2026-09-30).** Every
+  > tier-1 language is **Latin script** — Spanish, Portuguese, German, French, Italian, Dutch,
+  > Catalan, Swedish, Norwegian — so a script regex cannot separate a Spanish query from an
+  > English one. `inflación` and `inflation` differ by one diacritic, and plenty of Spanish is
+  > written without them. D-14 recorded this; this bullet predates it.
+  >
+  > `search/query_language.py` therefore records the signal and does **not** drop the leg in v1
+  > (`drop_dense_leg` is always False), on an asymmetry: wrongly dropping the dense leg on an
+  > ENGLISH query is a regression for the 678 English episodes that are the corpus today, while
+  > wrongly keeping it on a Spanish query is dilution — the keyword leg still reaches the Spanish
+  > text through `segments_nonen`, so the dense leg adds noise rather than causing absence. A
+  > stop-word heuristic is least reliable on short queries, which are most queries. The signal is
+  > recorded so the decision can be revisited with data.
 - **The transcript-lift path matches by char-range overlap** (`search/transcript_chunk_lift.py:268-320`)
   with no coordinate-space check, so a source-language chunk could be "lifted" as evidence under an
   English insight. Lift only where the chunk's language matches the analysis language.
@@ -867,8 +891,12 @@ Phase names match PRD-047 and the arc notes; slice ids (S0.x, S2.x) refer to the
   `config/languages.yaml`, per language, on one operator-chosen feed. (This said "behind
   `multilingual_ingest`" until 2026-09-30; that flag was removed as redundant with the per-language
   gate — see the arc notes, D-41.)
-- **Phase 3**: source verification and the operator worklist. (The read-time Positions gate ships in
-  Phase 2 with the markers.)
+- **Phase 3**: source verification and the operator worklist. (~~The read-time Positions gate ships in
+  Phase 2 with the markers.~~ **It did not, and no Phase 2 slice owns it — 2026-09-30.** There is no
+  such gate in `src/`; a translated claim reaches Position surfaces like any other, carrying S2.11's
+  provenance block with nothing acting on it. Whether to gate is an open product decision: hiding
+  costs a translated episode its whole Position contribution, showing ships unverified
+  cross-language claims. See MULTILINGUAL_ARC_V2 §2.)
 - **Phase 4**: language toggle, original-text reveal, language filters, flag lifecycle and rollback.
 
 **Success criteria:**

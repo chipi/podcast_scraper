@@ -34,7 +34,7 @@ source of truth per design.
 
 | Theme | Slices | Why it is not v1 |
 | --- | --- | --- |
-| [Claim verification](#3-claim-verification) | V2-A.1, V2-A.2 | v1 ships with translated claims simply absent from Position surfaces. The machinery that lets them *in* is what makes the product better, not what makes it work |
+| [Claim verification](#3-claim-verification) | V2-A.1, V2-A.2 | ~~v1 ships with translated claims simply absent from Position surfaces.~~ **NOT TRUE AS BUILT (2026-09-30).** Nothing removes them: there is no read-time Positions gate anywhere in `src/`, and a translated claim would appear on a Position surface exactly like an English one, carrying S2.11's provenance block but with nothing acting on it. RFC-124 §8 says "the read-time Positions gate ships in Phase 2 with the markers" and no Phase 2 slice owns it. Nothing is affected today — no episode has been translated — but **this is an open product decision, not a documentation fix**: hiding translated claims costs a translated episode its entire Position contribution, and showing them ships unverified cross-language claims. The machinery that lets them in *with verification* is still what v2 is for |
 | [Quality estimation](#4-quality-estimation-and-calibrated-bands) | V2-B.1 | Needs a translated corpus to calibrate against, which does not exist until v1 has run |
 | [Language visibility](#5-language-visibility-badge-and-filter) | V2-C.1, V2-C.2 | A badge and a filter over a single-language corpus are dead controls. A language chip was **deliberately deleted** for exactly that reason in #2115 |
 | [Turns consumers](#6-turns-consumers) | V2-D.1, V2-D.2, V2-D.3 | Independent English-corpus improvements. v1 needs `turns.json` to *exist*, not to be consumed |
