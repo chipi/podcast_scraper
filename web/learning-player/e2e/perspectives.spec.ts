@@ -29,7 +29,7 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   await page.goto('/')
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
-  await page.getByRole('button', { name: 'Insights' }).first().click()
+  await page.getByTestId('player-open-insights').click()
   await page.getByTestId('kp-topic-chip').filter({ hasText: 'risk management' }).first().click()
 
   // The Perspectives section renders the real, corpus-derived speakers.
@@ -103,7 +103,7 @@ test('per-speaker show-more toggle reveals insights past the preview cap', async
   await page.goto('/')
   await page.goto('/podcast/p05')
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
-  await page.getByRole('button', { name: 'Insights' }).first().click()
+  await page.getByTestId('player-open-insights').click()
   await page.getByTestId('kp-topic-chip').filter({ hasText: 'risk management' }).first().click()
 
   const section = page.getByTestId('topic-perspectives')

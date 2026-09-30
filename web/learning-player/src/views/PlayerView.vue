@@ -1467,7 +1467,7 @@ onBeforeUnmount(() => {
                 class="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
                 @click="panelOpen = true"
               >
-                <!-- No count on the opener pill (operator PL.5): the number reads as noise here; the
+                <!-- Labelled "Episode notes" (UXS-011). No count on the opener pill (operator PL.5): the number reads as noise here; the
                      Insights section header inside the panel still carries the count (UXS-014). -->
                 ✦ {{ t('kp.title') }}
               </button>

@@ -41,7 +41,7 @@ test('home → player renders the transcript + insights (no mocks)', async ({ pa
 
   // Knowledge Panel: open it (the insights pull-out) and confirm a grounded insight from the GI
   // artifact (the first insight is drawn from the episode's opening turn about index investing).
-  await page.getByRole('button', { name: 'Insights' }).first().click()
+  await page.getByTestId('player-open-insights').click()
   await expect(page.getByText(/talking about index investing/).first()).toBeVisible()
 
   const playerAxe = await new AxeBuilder({ page }).analyze()

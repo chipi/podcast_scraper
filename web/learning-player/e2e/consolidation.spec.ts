@@ -32,7 +32,7 @@ test('enrichment read surface + recall toggle + your-corpus lens + Revisit inbox
   // "your listening" scope toggle was removed in player review round 1 (commit 0ee5ffda9) — it
   // re-scoped the card to the heard set but changed nothing visible in practice; scope=mine now
   // lives on Search, exercised below.
-  await page.getByRole('button', { name: 'Insights' }).first().click()
+  await page.getByTestId('player-open-insights').click()
   await expect(page.getByTestId('episode-density')).toBeVisible()
 
   // #1124: Recall — switch the scope to "My listening". This isolated user has captured nothing, so the

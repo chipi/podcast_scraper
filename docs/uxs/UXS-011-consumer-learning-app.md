@@ -256,7 +256,9 @@ start. (A serif was tried and rejected during the earlier design phase.)
 - **Scrubber:** a 2px editorial rule (not a fat bar); progress in `--accent`; a small round thumb.
 - **Chips:** topic (`topic`), person (`person`), grounding (`grounded`) — `xs`, rounded, low-fill.
 - **Insights dock:** two cells — "N insights" (`--accent`) + "Ask this episode" — that open the
-  **Insights** panel (titled "Insights" in the UI; shipped #1091). The panel is a single
+  **Episode notes** panel (shipped #1091 as "Insights"; renamed 2026-09-30 — the panel is the
+  episode's notes as a whole, and plain "Notes" already means the user's own notes, so the opener
+  pill and the panel title read "Episode notes" while the grounded items inside stay "insights"). The panel is a single
   vertical column: Ask · Summary · **Topics & People (one merged, expandable row; chips → corpus
   search)** · Insights (grounded cards, `●` grounded marker) · More like this.
 - **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
@@ -445,8 +447,8 @@ already travelled; **search** and the **muted** toggle did not, so narrowing the
 Export handed back a file that disagreed with the screen that produced it. All three are query
 parameters on `/highlights/export.md` now.
 
-**Episode notes (operator 2026-09-18).** The insights panel carries its own export — Markdown and
-PDF — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
+**Episode notes (operator 2026-09-18).** The Episode notes panel carries its own export — a
+"Download notes" row with Markdown and PDF chips — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
 said with a jump link on every supporting quote, then the user's own captures and notes on it. It
 is deliberately a different artifact from the Library export: that one answers "what did I save,
 across everything", this one answers "what was this episode, and what did I take from it". Printed

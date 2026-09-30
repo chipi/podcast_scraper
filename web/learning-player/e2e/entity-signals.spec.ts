@@ -44,7 +44,7 @@ test("topic entity card leads with the rising-momentum badge", async ({ page }, 
   await page.goto("/")
   await page.goto("/podcast/p05") // #1148: reach the episode via its show page (date-independent)
   await page.getByText("Index Investing Without the Myths").first().click()
-  await page.getByRole("button", { name: "Insights" }).first().click()
+  await page.getByTestId('player-open-insights').click()
   await page.getByTestId("kp-topic-chip").first().click()
 
   // The rising-momentum badge leads the card, rendered from the mocked trending row.

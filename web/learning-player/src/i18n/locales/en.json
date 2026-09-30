@@ -424,7 +424,7 @@
     "recapRegion": "Episode recap"
   },
   "kp": {
-    "exportKicker": "Episode notes",
+    "exportKicker": "Download notes",
     "exportMarkdownShort": "Markdown",
     "exportPdfShort": "PDF",
     "exportNotesMarkdown": "Download these episode notes as Markdown",
@@ -432,7 +432,7 @@
     "exportClose": "Close notes",
     "exportShare": "Print or share",
     "exportFailed": "Couldn't open the notes.",
-    "title": "Insights",
+    "title": "Episode notes",
     "searchAction": "Search",
     "searchPlaceholder": "Search this episode…",
     "searching": "Searching…",

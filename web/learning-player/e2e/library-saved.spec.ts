@@ -54,7 +54,7 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   // user, so on a second run against the same api container the insight is ALREADY saved and the
   // heart reads "Remove from favorites". The contract is "the insight ends up in Highlights", so
   // only ever ADD and assert the outcome.
-  await page.getByRole('button', { name: 'Insights' }).first().click()
+  await page.getByTestId('player-open-insights').click()
   const kp = page.getByTestId('kp-insights')
   await expect(kp).toBeVisible()
   //
