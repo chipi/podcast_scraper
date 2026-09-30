@@ -60,7 +60,11 @@ function onScrub(ev: Event): void {
   <!-- `px-2 py-3` on phones: the transport row inside is WIDTH-BOUND there (see the row comment).
        12px of side padding was 8px the controls could not spare at 390px; 8px keeps the row off the
        card edge without clipping the speed pill. Tablet+ keeps `p-4`. -->
-  <div class="rounded-2xl border border-border bg-surface px-2 py-3 sm:p-4">
+  <!-- `pt-2` on phones (not `py-3`), and the transport row below carries no top margin (operator
+       2026-09-30): the empty band above the buttons was 24px, and on an iPhone the scrubber and
+       timestamps fell under the tab bar. Every point saved above them is a point of timeline on
+       screen. -->
+  <div class="rounded-2xl border border-border bg-surface px-2 pb-3 pt-2 sm:p-4">
     <!--
       Play is DEAD-CENTRE, and the row FITS a phone without shrinking any 44px target (operator
       2026-09-13; #2004 item 9). Three groups: an equal-width `flex-1 min-w-0` side, the centre
@@ -80,7 +84,7 @@ function onScrub(ev: Event): void {
       (overflow <= 0), the 44px floor, and >44px pitch so a future edit cannot silently re-clip it.
       `lg:` collapses to a simple centred flow since the corner slot is `lg:hidden` there.
     -->
-    <div class="mt-3 flex items-center gap-1 sm:gap-2 lg:justify-center lg:gap-6">
+    <div class="flex items-center gap-1 sm:gap-2 lg:justify-center lg:gap-6">
       <div class="flex min-w-0 flex-1 items-center justify-start gap-1 sm:gap-2 lg:hidden lg:flex-none">
         <slot name="corner" />
       </div>
@@ -148,8 +152,11 @@ function onScrub(ev: Event): void {
         </button>
       </div>
     </div>
-    <!-- Position bar UNDER the play buttons (operator): the transport leads, then the scrubber +
-         time readout, then the insight-density strip that annotates the same timeline. -->
+    <!-- Position bar UNDER the play buttons (operator): the transport leads, then the TIMELINE —
+         the scrubber with the insight-density strip directly beneath it, annotating the same span —
+         and the time readout LAST (operator 2026-09-30). It was scrubber / times / density, which
+         read as line, two numbers, line again; the two timeline strips belong together and the
+         numbers label their ends. -->
     <input
       type="range"
       min="0"
@@ -157,21 +164,15 @@ function onScrub(ev: Event): void {
       step="1"
       :value="currentTime"
       :aria-label="t('player.scrubber')"
-      class="mt-3 w-full accent-accent"
+      class="mt-2 w-full accent-accent"
       @input="onScrub"
     />
-    <div class="mt-1 flex justify-between font-mono text-xs text-muted tabular-nums">
-      <span>{{ formatTime(currentTime) }}</span>
-      <span>{{ formatTime(duration) }}</span>
-    </div>
     <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show where
-         the substance is. Sits BELOW the transport now — the play/scrub controls are what has to be
-         reachable without scrolling, so the density strip (a reference, not a control) reads under
-         them instead of pushing them down the viewport. Data-viz, not a control, so it stays off the
-         accent (#2013): grounded ticks read foreground, opacity = confidence (the "weight"). -->
+         the substance is. Data-viz, not a control, so it stays off the accent (#2013): grounded
+         ticks read foreground, opacity = confidence (the "weight"). -->
     <div
       v-if="(markers?.length ?? 0) > 0"
-      class="relative mt-3 h-2.5 w-full"
+      class="relative mt-2 h-2.5 w-full"
       role="img"
       data-testid="player-insight-density"
       :aria-label="t('player.insightDensity', { count: markers?.length ?? 0 })"
@@ -194,6 +195,10 @@ function onScrub(ev: Event): void {
         :style="{ left: m.pct + '%', opacity: m.weight }"
         data-testid="player-density-tick"
       />
+    </div>
+    <div class="mt-1 flex justify-between font-mono text-xs text-muted tabular-nums" data-testid="player-times">
+      <span>{{ formatTime(currentTime) }}</span>
+      <span>{{ formatTime(duration) }}</span>
     </div>
     <span class="sr-only">{{ PLAYBACK_RATES.join(", ") }}</span>
   </div>

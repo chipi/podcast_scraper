@@ -16,6 +16,23 @@ function mountPC(props: Record<string, unknown> = {}) {
 }
 
 describe('PlayerControls insight-density strip (#1140)', () => {
+  it('orders the timeline scrubber → density strip → timestamps (operator 2026-09-30)', () => {
+    // The two timeline strips sit together and the time readout labels their ends at the bottom.
+    // It was scrubber / times / density, which read as "line, two numbers, line again".
+    const markers: InsightMarker[] = [{ id: 'a', timeSec: 25, pct: 25, grounded: true, weight: 1 }]
+    const root = mountPC({ markers }).element as HTMLElement
+    const order = [
+      root.querySelector('input[type="range"]'),
+      root.querySelector('[data-testid="player-insight-density"]'),
+      root.querySelector('[data-testid="player-times"]'),
+    ]
+    expect(order.every(Boolean)).toBe(true)
+    for (let i = 1; i < order.length; i++) {
+      // DOCUMENT_POSITION_FOLLOWING = 4: each comes after the previous one.
+      expect(order[i - 1]!.compareDocumentPosition(order[i]!) & 4).toBe(4)
+    }
+  })
+
   it('renders no density strip without markers', () => {
     expect(mountPC().find('[data-testid="player-insight-density"]').exists()).toBe(false)
   })

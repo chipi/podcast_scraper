@@ -273,7 +273,9 @@ describe('PlayerView', () => {
       const el = w.find('[data-testid="player-controls-sticky"]')
       expect(el.exists()).toBe(true)
       expect(el.attributes('data-stuck')).toBe('false')
-      expect(el.classes()).toContain('pt-2')
+      // At rest: no top padding (2026-09-30) — the artwork→panel gap is `mt-2` alone, so the
+      // scrubber and timestamps sit higher on a phone. The inset below still applies once pinned.
+      expect(el.classes()).toContain('pt-0')
       expect(el.classes().join(' ')).not.toContain('safe-area-inset-top')
     })
 
@@ -297,7 +299,7 @@ describe('PlayerView', () => {
 
       const el = () => w.find('[data-testid="player-controls-sticky"]')
       expect(el().attributes('data-stuck')).toBe('false')
-      expect(el().classes()).toContain('pt-2')
+      expect(el().classes()).toContain('pt-0')
 
       // sentinel leaves the viewport → the transport is pinned
       callbacks.at(-1)?.([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver)

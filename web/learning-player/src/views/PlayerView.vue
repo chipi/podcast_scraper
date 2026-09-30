@@ -1634,7 +1634,7 @@ onBeforeUnmount(() => {
           data-testid="player-controls-sticky"
           :data-stuck="transportStuck ? 'true' : 'false'"
           class="sticky top-0 z-20 mt-2 bg-canvas pb-2 lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
-          :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-2 lg:pt-0'"
+          :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-0'"
         >
           <!-- Post-episode recap (RFC-122 #2038): replaces the transport in place the moment this
                episode finishes, until dismissed back to the player. -->
