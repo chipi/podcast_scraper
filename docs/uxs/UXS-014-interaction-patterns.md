@@ -717,6 +717,25 @@ rendered piece to its design home:
 - **`FollowedInterests`** — the Library section listing followed topics, people and storylines
   grouped by type, each unfollowable inline (the "following" pattern applied to non-show entities).
 
+### Every on/off control behaves the same way (2026-09-30)
+
+Follow (topics, people, storylines), the heart, follow-show, played, queue, and save-insight /
+save-line all follow ONE contract:
+
+1. **It flips on the tap.** No control waits for the server before it changes; the heart used to,
+   and on a slow connection it read as a dead button.
+2. **Writes reach the server one at a time, in the order the user tapped** (the shared
+   `services/serialWrites`). A quick on-then-off sends ON, then OFF, never both at once.
+3. **Only the newest tap's answer counts.** The response to a superseded tap is not adopted, so it
+   cannot re-light a control the user has since turned off. The newest answer is the server's whole
+   list and settles everything before it.
+4. **A refusal reverts, a lost request queues** — the outbox rule every per-user write already had.
+
+Before this, five of the six ended a fast tap-tap in the wrong state, and save-insight tried to
+delete a highlight by the id the phone had made up before the server named it. Guarded by
+`src/stores/tapTap.test.ts` (per store, and each fails on the pre-fix code) and
+`src/__checks__/toggle-consistency.test.ts` (any store toggle must write through the serializer).
+
 ## Post-episode recap
 
 When an episode finishes, the player must not just stop. **`EpisodeRecapPanel`** (#2038 / RFC-122)

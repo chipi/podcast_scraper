@@ -9,6 +9,7 @@ import { addFavorite, getFavorites, removeFavorite, setFavoriteColor } from '../
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
+import { serialWrites } from '../services/serialWrites'
 import type { EpisodeSummary, FavoriteAdd, FavoriteEntity, FavoriteKind } from '../services/types'
 
 interface FavoritesState {
@@ -19,7 +20,8 @@ interface FavoritesState {
   /** Showing a cached copy not yet revalidated (#1909). */
   stale: boolean
   /**
-   * Offline toggles the server has not confirmed, keyed `kind:ref` → the state the user asked for.
+   * Toggles the server has not confirmed, keyed `kind:ref` → the state the user asked for. Set on
+   * EVERY tap since 2026-09-30 (it used to be offline taps only), cleared by the server's answer.
    *
    * The heart used to sit unchanged after an offline tap: the write went to the outbox and local
    * state was left alone, so the control read as a dead button while the app had in fact recorded
@@ -29,6 +31,15 @@ interface FavoritesState {
    */
   pendingFlips: Record<string, boolean>
 }
+
+/** Every toggle write goes through the shared serializer (see `services/serialWrites`). */
+const writes = serialWrites()
+/**
+ * Flips whose write is sitting in the OFFLINE outbox. The newest successful answer is the server's
+ * whole list, so it retires every other flip — including one whose write was refused while a later
+ * tap was in flight — but these must survive until the outbox has replayed them.
+ */
+const queuedFlips = new Set<string>()
 
 function flipKey(kind: string, ref: string): string {
   return `${kind}:${ref}`
@@ -70,6 +81,7 @@ export const useFavoritesStore = defineStore('favorites', {
         // A successful read is the server's answer, and the outbox is flushed BEFORE the reconnect
         // revalidation (App.vue), so anything still pending here has already been applied.
         this.pendingFlips = {}
+        queuedFlips.clear()
         void writeCached('favorites', { episodes: f.episodes, entities: this.entities })
       } catch {
         const cached = await readCached<Pick<FavoritesState, 'episodes' | 'entities'>>(
@@ -87,40 +99,61 @@ export const useFavoritesStore = defineStore('favorites', {
     async ensureLoaded(): Promise<void> {
       if (!this.loaded) await this.load()
     },
-    /** Toggle a favorite; the server response is authoritative (no optimistic drift). */
+    /**
+     * Toggle a favorite. The heart flips on the tap (`pendingFlips`, the newer truth `has` reads
+     * first); the LIST waits for the server, whose answer is authoritative and clears the flip.
+     * Writes are serialised and only the newest tap's answer is applied (`services/serialWrites`).
+     */
     async toggle(item: FavoriteAdd): Promise<void> {
+      const key = flipKey(item.kind, item.ref)
       const wasFavorite = this.has(item.kind, item.ref)
       const generation = identityEpoch()
-      try {
-        const f = wasFavorite
-          ? await removeFavorite(item.kind, item.ref)
-          : await addFavorite(item)
-        // A response that lands after an account switch belongs to nobody now (advisor 1.4).
-        if (identityChangedSince(generation)) return
-        this.episodes = f.episodes
-        this.entities = f.entities ?? []
-        this.loaded = true
-        delete this.pendingFlips[flipKey(item.kind, item.ref)]
-      } catch (err: unknown) {
-        if (identityChangedSince(generation)) return
-        // Only a request that never LANDED is queued. A server REFUSAL is an answer, and
-        // replaying it would just fail again — but a 502/408/429 is not a refusal, so it queues
-        // like any other unanswered write (#1925).
-        if (isPermanent(err)) return
-        // Add/remove of one favourite is item-level and idempotent, so a replay lands on the same
-        // state (#1910). The heart flips now so the tap is not silently swallowed; the LIST waits
-        // for the server, except for a removal, which we can represent exactly.
-        this.pendingFlips[flipKey(item.kind, item.ref)] = !wasFavorite
-        if (wasFavorite) {
-          this.episodes = this.episodes.filter((e) => e.slug !== item.ref)
-          this.entities = this.entities.filter((e) => !(e.kind === item.kind && e.ref === item.ref))
+      this.pendingFlips[key] = !wasFavorite
+      await writes.run(async (isLatest) => {
+        try {
+          const f = wasFavorite
+            ? await removeFavorite(item.kind, item.ref)
+            : await addFavorite(item)
+          // A response that lands after an account switch belongs to nobody now (advisor 1.4).
+          if (identityChangedSince(generation)) return
+          // A later tap is already showing its own state; its answer will settle it.
+          if (!isLatest()) return
+          this.episodes = f.episodes
+          this.entities = f.entities ?? []
+          this.loaded = true
+          // Every earlier write has finished (they are serialised), so this list reflects them all;
+          // only flips still waiting in the outbox say more than it does.
+          this.pendingFlips = Object.fromEntries(
+            Object.entries(this.pendingFlips).filter(([k]) => queuedFlips.has(k)),
+          )
+        } catch (err: unknown) {
+          if (identityChangedSince(generation)) return
+          // Only a request that never LANDED is queued. A server REFUSAL is an answer, and
+          // replaying it would just fail again — but a 502/408/429 is not a refusal, so it queues
+          // like any other unanswered write (#1925).
+          if (isPermanent(err)) {
+            // The refusal stands: drop the flip so the heart shows the server's state again —
+            // unless a later tap has superseded this one.
+            if (isLatest()) delete this.pendingFlips[key]
+            return
+          }
+          // Add/remove of one favourite is item-level and idempotent, so a replay lands on the same
+          // state (#1910). The flip stays; the LIST waits for the server, except for a removal,
+          // which we can represent exactly.
+          if (wasFavorite) {
+            this.episodes = this.episodes.filter((e) => e.slug !== item.ref)
+            this.entities = this.entities.filter(
+              (e) => !(e.kind === item.kind && e.ref === item.ref),
+            )
+          }
+          queuedFlips.add(key)
+          enqueue(
+            wasFavorite
+              ? { op: 'favorite.remove', kind: item.kind, ref: item.ref }
+              : { op: 'favorite.add', kind: item.kind, ref: item.ref },
+          )
         }
-        enqueue(
-          wasFavorite
-            ? { op: 'favorite.remove', kind: item.kind, ref: item.ref }
-            : { op: 'favorite.add', kind: item.kind, ref: item.ref },
-        )
-      }
+      })
     },
     /** Paint a colour onto the matching in-memory row (optimistic; server response reconciles). */
     _paintColor(kind: FavoriteKind, ref: string, color: string | null): void {

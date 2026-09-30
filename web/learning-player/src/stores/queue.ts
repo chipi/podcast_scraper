@@ -10,6 +10,7 @@ import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
 import type { OutboxOp } from '../services/outbox'
+import { serialWrites } from '../services/serialWrites'
 
 interface QueueState {
   items: string[]
@@ -23,6 +24,9 @@ interface QueueState {
 // ensureLoaded(). Without it a late-resolving load() overwrites `items` with stale server data
 // and silently drops an optimistic add ("queue empty" after add; RFC-099 §4).
 let inflightLoad: Promise<boolean> | null = null
+
+/** Every toggle write goes through the shared serializer (see `services/serialWrites`). */
+const writes = serialWrites()
 
 export const useQueueStore = defineStore('queue', {
   state: (): QueueState => ({ items: [], loaded: false, stale: false }),
@@ -98,13 +102,17 @@ export const useQueueStore = defineStore('queue', {
         this.items = prev
         return false
       }
-      try {
-        await putQueue(this.items)
-        return true
-      } catch {
-        this.items = prev
-        return false
-      }
+      // Serialised with the item writes, and it sends the list as it stands WHEN IT RUNS, so an
+      // add tapped just before a reorder is not overwritten by a PUT built from an older list.
+      return writes.run(async (isLatest) => {
+        try {
+          await putQueue(this.items)
+          return true
+        } catch {
+          if (isLatest()) this.items = prev
+          return false
+        }
+      })
     },
     /**
      * Send ONE item-level intent, keeping the optimistic list on a transport failure and queuing
@@ -120,31 +128,36 @@ export const useQueueStore = defineStore('queue', {
       // writes A's server list into B's freshly-reset store and persists it under B's cache
       // namespace — and the catch path queues A's intent in B's outbox (advisor 1.4).
       const generation = identityEpoch()
-      try {
-        const items = await send()
-        if (identityChangedSince(generation)) return false
-        // The server's answer is the truth, and it may differ from our optimistic guess (another
-        // device reordered, the anchor moved).
-        this.items = items
-        this.stale = false
-        void writeCached('queue', this.items)
-        return true
-      } catch (err: unknown) {
-        // Nothing to revert or queue INTO — this store now belongs to someone else.
-        if (identityChangedSince(generation)) return false
-        // A server REFUSAL is an answer — a 404 for a removed episode. Replaying it would only
-        // fail again, so revert and report it. A 502/408/429 is NOT a refusal, and neither is a
-        // 401: a dead session is repaired by signing in, so the write is queued (advisor 1.1).
-        if (isPermanent(err)) {
-          this.items = prev
-          return false
+      return writes.run(async (isLatest) => {
+        try {
+          const items = await send()
+          if (identityChangedSince(generation)) return false
+          // A later tap is already showing its own list; its response will settle it.
+          if (!isLatest()) return true
+          // The server's answer is the truth, and it may differ from our optimistic guess (another
+          // device reordered, the anchor moved).
+          this.items = items
+          this.stale = false
+          void writeCached('queue', this.items)
+          return true
+        } catch (err: unknown) {
+          // Nothing to revert or queue INTO — this store now belongs to someone else.
+          if (identityChangedSince(generation)) return false
+          // A server REFUSAL is an answer — a 404 for a removed episode. Replaying it would only
+          // fail again, so revert and report it. A 502/408/429 is NOT a refusal, and neither is a
+          // 401: a dead session is repaired by signing in, so the write is queued (advisor 1.1).
+          // Superseded by a later tap: that write's response (the server's list) settles it.
+          if (isPermanent(err)) {
+            if (isLatest()) this.items = prev
+            return false
+          }
+          // The request never landed. The optimistic list STAYS — the user's tap was real and the
+          // write is queued — which is the whole difference from the old whole-list write.
+          enqueue(op)
+          void writeCached('queue', this.items)
+          return true
         }
-        // The request never landed. The optimistic list STAYS — the user's tap was real and the
-        // write is queued — which is the whole difference from the old whole-list write.
-        enqueue(op)
-        void writeCached('queue', this.items)
-        return true
-      }
+      })
     },
     /** Append to the end if not already queued. */
     async add(slug: string): Promise<boolean> {

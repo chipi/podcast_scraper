@@ -10,6 +10,7 @@ import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
 import type { OutboxOp } from '../services/outbox'
+import { serialWrites } from '../services/serialWrites'
 
 interface CompletedState {
   slugs: string[]
@@ -20,6 +21,9 @@ interface CompletedState {
 
 // One in-flight load (module singleton), so a mutation's ensureLoaded() can't race the mount load().
 let inflightLoad: Promise<boolean> | null = null
+
+/** Every toggle write goes through the shared serializer (see `services/serialWrites`). */
+const writes = serialWrites()
 
 export const useCompletedStore = defineStore('completed', {
   state: (): CompletedState => ({ slugs: [], loaded: false, stale: false }),
@@ -67,23 +71,28 @@ export const useCompletedStore = defineStore('completed', {
      */
     async _sendItem(op: OutboxOp, send: () => Promise<string[]>, prev: string[]): Promise<boolean> {
       const generation = identityEpoch()
-      try {
-        const slugs = await send()
-        if (identityChangedSince(generation)) return false
-        this.slugs = slugs
-        this.stale = false
-        void writeCached('completed', this.slugs)
-        return true
-      } catch (err: unknown) {
-        if (identityChangedSince(generation)) return false
-        if (isPermanent(err)) {
-          this.slugs = prev
-          return false
+      return writes.run(async (isLatest) => {
+        try {
+          const slugs = await send()
+          if (identityChangedSince(generation)) return false
+          // A later tap is already showing its own state; its response will settle it.
+          if (!isLatest()) return true
+          this.slugs = slugs
+          this.stale = false
+          void writeCached('completed', this.slugs)
+          return true
+        } catch (err: unknown) {
+          if (identityChangedSince(generation)) return false
+          if (isPermanent(err)) {
+            // Superseded by a later tap: that write's response (the server's set) settles it.
+            if (isLatest()) this.slugs = prev
+            return false
+          }
+          enqueue(op)
+          void writeCached('completed', this.slugs)
+          return true
         }
-        enqueue(op)
-        void writeCached('completed', this.slugs)
-        return true
-      }
+      })
     },
     async mark(slug: string): Promise<boolean> {
       // Guard the whole op, not just the send: identity can switch during the async ensureLoaded(),
