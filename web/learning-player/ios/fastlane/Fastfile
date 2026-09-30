@@ -131,6 +131,68 @@ platform :ios do
     )
   end
 
+  # Manual signing for release archives (2026-09-30).
+  #
+  # Automatic signing cannot archive on this machine: it wants a DEVELOPMENT certificate for the
+  # team, this account has none, and Xcode's offer is to create one "after revoking your existing
+  # certificate" — which would break the operator's laptop. Manual signing with the distribution
+  # certificate and an explicit profile sidesteps that, and is what fastlane `match` does for the
+  # same reason.
+  #
+  # The profile is created + installed by scripts/tools (ASC API); the key has permission to manage
+  # signing assets, verified by creating one.
+  PROFILE_NAME = "Close Listening Player AppStore"
+
+  def signing_xcargs(team)
+    "-allowProvisioningUpdates " \
+    "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
+    "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
+    "-authenticationKeyPath \"#{File.expand_path(ENV['ASC_KEY_PATH'])}\" " \
+    "DEVELOPMENT_TEAM=#{team}"
+    # Manual signing lives in the APP TARGET's Release config, not here. Passed as xcargs it
+    # applies to EVERY target including the Pods frameworks, which reject it outright:
+    # "CapacitorApp does not support provisioning profiles". Frameworks are signed by the app that
+    # embeds them, so only the app target may name a profile.
+  end
+
+  def signing_export_options(team)
+    {
+      teamID: team,
+      signingStyle: "manual",
+      provisioningProfiles: { "app.closelistening.player" => PROFILE_NAME },
+    }
+  end
+
+  desc "Everything `beta` does EXCEPT the upload — archive, export a signed app-store .ipa, stop."
+  desc "Use this to prove the pipeline works without putting a build in front of testers."
+  lane :validate do
+    api_key = asc_key
+    team = team_id
+
+    # No build-number bump. `beta` derives the next number from TestFlight and INCREMENTS the
+    # project file; doing that for a dry run would burn a number and leave the project dirty on a
+    # lane that ships nothing.
+    build_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: File.join(APP_DIR, "build"),
+      output_name: "App-validate.ipa",
+      clean: true,
+      xcargs: signing_xcargs(team),
+      export_options: signing_export_options(team),
+    )
+
+    ipa = File.join(APP_DIR, "build", "App-validate.ipa")
+    UI.success("Signed app-store IPA: #{ipa} (#{(File.size(ipa) / 1_048_576.0).round(1)} MB)")
+    UI.important("NOT uploaded. `fastlane beta` is the lane that ships.")
+    # Prove WHICH identity signed it. A dev-signed archive exports with confusing 403s rather than
+    # an obvious error, which cost a debugging cycle on 2026-09-30 — so this says it out loud.
+    sh("unzip -p '#{ipa}' 'Payload/*.app/embedded.mobileprovision' | " \
+       "security cms -D 2>/dev/null | plutil -extract Name raw - || true")
+  end
+
   desc "Build a signed release archive and upload it to TestFlight."
   lane :beta do
     api_key = asc_key
@@ -163,12 +225,8 @@ platform :ios do
       # update via the ASC API key — Xcode has no signed-in account on this machine, so without
       # them xcodebuild errors "No Accounts" and falls back to a wildcard profile. gym itself has
       # no api_key option, hence passing the credential through to xcodebuild directly here.
-      xcargs: "-allowProvisioningUpdates " \
-              "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
-              "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
-              "-authenticationKeyPath \"#{File.expand_path(ENV['ASC_KEY_PATH'])}\" " \
-              "DEVELOPMENT_TEAM=#{team}",
-      export_options: { teamID: team },
+      xcargs: signing_xcargs(team),
+      export_options: signing_export_options(team),
     )
 
     upload_to_testflight(

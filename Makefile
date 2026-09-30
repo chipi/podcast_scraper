@@ -3157,7 +3157,7 @@ mobile-build-release:
 # which is the one mistake that produces a "working" TestFlight build of yesterday's code.
 IOS_DIR := $(APP_DIR)/ios
 
-.PHONY: ios-fastlane-install ios-testflight-preflight ios-testflight ios-testflight-release
+.PHONY: ios-fastlane-install ios-testflight-preflight ios-testflight-validate ios-testflight ios-testflight-release
 ios-fastlane-install:
 	@command -v bundle >/dev/null || { echo "FAIL: bundler missing — gem install bundler"; exit 1; }
 	@# Install into the project, not the system gem dir. A bare `bundle install` targets
@@ -3170,6 +3170,19 @@ ios-fastlane-install:
 # seconds instead of after a ten-minute archive.
 ios-testflight-preflight:
 	@cd $(IOS_DIR) && bundle exec fastlane preflight
+
+# A DRY RUN of the whole release path (operator 2026-09-30: "do a test to validate all and
+# not push an actual version to TestFlight"). Same release web build, same artifact
+# assertions, same archive + signed app-store export — and it stops there. Nothing leaves the
+# machine, no build number is consumed.
+ios-testflight-validate:
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@if [ -r "$(HOME)/.appstoreconnect/keychain-password" ]; then \
+		security unlock-keychain -p "$$(cat $(HOME)/.appstoreconnect/keychain-password)" \
+			"$(HOME)/Library/Keychains/ios-signing.keychain-db" 2>/dev/null \
+			&& echo "OK: signing keychain unlocked" || true; \
+	fi
+	@cd $(IOS_DIR) && bundle exec fastlane validate
 
 # Build the player and install it straight onto a PAIRED iPhone (operator 2026-09-18).
 #

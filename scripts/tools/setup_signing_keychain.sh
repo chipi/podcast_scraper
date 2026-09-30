@@ -50,7 +50,10 @@ KC_PW_FILE="${SIGNING_KEYCHAIN_PASSWORD_FILE:-$HOME/.appstoreconnect/keychain-pa
 if [ -r "$KC_PW_FILE" ]; then
     KC_PW="$(tr -d '\r\n' < "$KC_PW_FILE")"
 else
-    KC_PW="${SIGNING_KEYCHAIN_PASSWORD:-$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)}"
+    # `openssl rand`, NOT `tr -dc ... < /dev/urandom | head -c 32`. Under `set -o pipefail` the
+    # latter is fatal: `head` exits after 32 bytes, `tr` takes SIGPIPE (141), and pipefail
+    # propagates it — so the script died before printing anything at all.
+    KC_PW="${SIGNING_KEYCHAIN_PASSWORD:-$(openssl rand -hex 24)}"
 fi
 
 [ -r "$P12" ] || { echo "FAIL: cannot read $P12"; exit 1; }
@@ -78,6 +81,30 @@ echo "--> importing the signing identity"
 # sign instead, which is the same posture a developer's own keychain takes.
 security import "$P12" -k "$KEYCHAIN" -P "$P12_PW" \
     -T /usr/bin/codesign -T /usr/bin/security -T /usr/bin/productsign
+
+echo "--> importing the Apple WWDR intermediate"
+# WITHOUT THIS the import "succeeds" and the identity is still unusable:
+#
+#     security find-identity      -> 1) ... (CSSMERR_TP_NOT_TRUSTED)
+#     security find-identity -v   -> 0 valid identities found
+#
+# A .p12 exported from Keychain Access carries the leaf certificate and its private key, but not
+# the intermediate that signed it. A developer's own Mac already has that intermediate (Xcode put
+# it there years ago), so the export looks complete on the machine it came from and is not on a
+# fresh one. The Apple root is already in the System keychain, which is why only this middle link
+# is missing.
+#
+# G3 covers Apple Distribution/Development certs issued in recent years; fetched rather than
+# vendored so it cannot rot in-tree. Non-fatal on failure: the import below will simply report an
+# untrusted identity, which is a legible symptom with this comment next to it.
+WWDR_URL="${WWDR_URL:-https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer}"
+WWDR_TMP="$(mktemp -t wwdr)"
+if curl -sfL --max-time 60 -o "$WWDR_TMP" "$WWDR_URL"; then
+    security import "$WWDR_TMP" -k "$KEYCHAIN" -T /usr/bin/codesign 2>&1 | tail -1
+else
+    echo "WARN: could not fetch $WWDR_URL — the identity may import as CSSMERR_TP_NOT_TRUSTED"
+fi
+rm -f "$WWDR_TMP"
 
 echo "--> setting the partition list"
 # WITHOUT THIS, codesign blocks on a GUI dialog asking permission to use the key — on an account
