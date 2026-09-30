@@ -201,6 +201,14 @@ jobs:
           #             metadata and GI/KG artifacts WITHOUT audio; re-obtaining audio is the
           #             archive's job. That is the operator's explicit call, 2026-08-18.
           #   search/ — the LanceDB index, regenerable with `make index-two-tier`.
+          #   corpus-art/ — episode/podcast artwork. Excluded 2026-09-30 (operator decision): it
+          #             is 1.49 GB of already-compressed images — stored once PER RUN, so half of
+          #             it is duplicates (#2204) — and it pushed the snapshot past the 2 GB asset
+          #             cap (2,275 MB; the backup failed 2026-09-28..30). It is re-fetchable: every
+          #             record keeps episode.image_url / feed.image_url (2,317 of 2,317 checked),
+          #             and the server falls back to those when the local file is missing
+          #             (cil_queries._verified_artwork_relpath). Revisit once #2204 stores each
+          #             image once (~0.78 GB). The rest of .podcast_scraper/ (provenance) is kept.
           #
           # Keeping -z: what remains is transcripts and JSON, which compress well. (Gzipping
           # 30 GB of mp3 was pure CPU burn for ~0 gain, which is part of why it was so slow.)
@@ -211,7 +219,7 @@ jobs:
           # shorter window for a concurrent write to break the stream.
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
-            'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search -o -name audio-cache -o -name .tmp_media \) -prune \) -o -print0 | tar --null --no-recursion -czf - -T -' \
+            'cd /srv/podcast-scraper && find corpus \( -type d \( -name media -o -name search -o -name audio-cache -o -name .tmp_media -o -name corpus-art \) -prune \) -o -print0 | tar --null --no-recursion -czf - -T -' \
             > snapshot.tgz
 
           # GitHub release assets are capped at 2 GB. Nothing checked this, so a 16 GB
