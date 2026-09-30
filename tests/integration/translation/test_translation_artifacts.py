@@ -492,7 +492,7 @@ class TestAdFreeOnEnglish:
     class _AdAwareStub(_StubProvider):
         """Turns the Spanish ad copy into English the detector CAN see.
 
-        Not a trick: it is what the real model does. ADR-156's evidence is exactly this —
+        Not a trick: it is what the real model does. ADR-157's evidence is exactly this —
         "Este episodio es patrocinado por Strava" came back as "This episode is sponsored by
         Strava", which is two `_AD_PATTERNS` hits where the Spanish was zero.
         """

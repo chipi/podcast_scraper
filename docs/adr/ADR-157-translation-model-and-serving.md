@@ -1,4 +1,4 @@
-# ADR-156: TranslateGemma-12B, served co-resident, called through the completions route
+# ADR-157: TranslateGemma-12B, served co-resident, called through the completions route
 
 - **Status**: Accepted
 - **Date**: 2026-09-29
@@ -9,6 +9,15 @@
   [ADR-122](ADR-122-self-hosted-model-resilience-policy.md),
   [ADR-155](ADR-155-pin-every-model-checkpoint.md),
   [MULTILINGUAL_ARC](../architecture/MULTILINGUAL_ARC.md) §6.1
+
+> **RENUMBERED 156 → 157 (2026-09-30).** This was authored as ADR-156 while `main` independently
+> took that number for `ADR-156-topics-come-only-from-the-extractor.md`. Because the two
+> filenames differ, git merges them with **zero conflict markers** and the repo ends up with two
+> ADR-156s, each cited by different code. Commit messages in `podcast_scraper-infra` (`077f5cd`,
+> the `:8005` tailnet grant) and `agentic-ai-homelab` (`e80c61e`, `e889b65`, `afb6a23`, the
+> co-resident vLLM stack) still say "ADR-156" and cannot be rewritten — they mean this document.
+> `scripts/tools/check_doc_structure.py` now compares numbered docs against `origin/main`, which
+> is the only place the collision is visible: every same-branch check passed on both sides.
 
 ## Context & Problem Statement
 

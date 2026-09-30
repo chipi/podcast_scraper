@@ -4,7 +4,7 @@ Mirrors :mod:`podcast_scraper.summarization.factory`, minus its two extra modes:
 experiment-params path and no provider-type-override path, because there is exactly one
 translation provider today. The factory exists anyway so the call site depends on the
 OPERATION rather than on ``GemmaTranslateProvider``, which is what makes a second provider
-(the 27B, or an apache-2.0 fallback per ADR-156's alternatives) a config change rather than a
+(the 27B, or an apache-2.0 fallback per ADR-157's alternatives) a config change rather than a
 code change.
 """
 

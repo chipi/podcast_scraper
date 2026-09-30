@@ -2194,7 +2194,7 @@ class Config(BaseModel):
         alias="vllm_speaker_user_prompt",
         description="User prompt name for vLLM speaker detection/NER (shared template).",
     )
-    # --- translation namespace (RFC-124 / ADR-156) --------------------------------------------
+    # --- translation namespace (RFC-124 / ADR-157) --------------------------------------------
     # `translate_api_base` / `translate_api_key` / `translate_model` are declared above with the
     # other API namespaces and are REGISTRY-GOVERNED, so a profile cannot route translation at an
     # unsanctioned endpoint. These three complete the namespace the provider reads through the
@@ -2204,7 +2204,7 @@ class Config(BaseModel):
         alias="translate_provider",
         description="Which translation provider to build. One today (`gemma_translate`, "
         "TranslateGemma over vLLM); the field exists so a second — the 27B, or the apache-2.0 "
-        "fallback in ADR-156's alternatives — is a profile change rather than a code change.",
+        "fallback in ADR-157's alternatives — is a profile change rather than a code change.",
     )
     translate_api_key_env: Optional[str] = Field(
         default="TRANSLATE_API_KEY",

@@ -1,4 +1,4 @@
-"""GemmaTranslateProvider — TranslateGemma served on the DGX (ADR-156 / RFC-124 S2.3).
+"""GemmaTranslateProvider — TranslateGemma served on the DGX (ADR-157 / RFC-124 S2.3).
 
 A SIBLING of :class:`VLLMProvider`, not a subclass. Both talk to a vLLM endpoint through the
 shared :class:`OpenAICompatibleProvider` transport — so retries, the temperature/context
