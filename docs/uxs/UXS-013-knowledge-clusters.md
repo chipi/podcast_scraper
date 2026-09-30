@@ -9,13 +9,13 @@
 
 ## Scope
 
-The knowledge-navigation UX of Epic 3: cluster-first topics in the Insights panel (3.1, shipped),
+The knowledge-navigation UX of Epic 3: cluster-first topics in the Episode notes panel (named "Insights" until 2026-09-30; 3.1, shipped),
 and the person/topic **entity cards** + entity search results (3.2–3.4, design). Mobile-first;
 WCAG 2.1 AA; i18n (no hard-coded strings).
 
 ## Cluster-first "Topics & People" (3.1 — shipped)
 
-Within the Insights panel's compact, expandable **Topics & People** row:
+Within the Episode notes panel's compact, expandable **Topics & People** row:
 
 - **Order:** the **dominant cluster** (most of this episode's topics, ≥2) leads; its chips get a
   1px **`ring-topic`** outline to stand out. Other clustered topics follow (larger intra-episode

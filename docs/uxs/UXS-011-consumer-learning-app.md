@@ -199,6 +199,14 @@ start. (A serif was tried and rejected during the earlier design phase.)
   use sparingly and consistently. (See Decision #2013 below.)
 - **Tabular numerics:** timestamps, durations, and the scrubber readout use `font-variant-numeric:
   tabular-nums` so digits don't jitter.
+- **Show names are capped, never shortened** (2026-09-30). An RSS show title can be a whole
+  paragraph, and no short name is precomputed or forced. Every place a show name renders carries
+  `.lp-show-name`, which holds it to TWO lines and breaks anywhere rather than overflowing: the
+  player kicker, episode rows and tiles, the Episode notes panel and the Home rails. Show tiles use
+  `--4` and show rows `--3`. The show page heading (`podcast-title`) caps at three lines, and its
+  "Show more" also appears whenever the heading is cut, lifting the cap. Guarded statically by
+  `src/__checks__/show-name-safety-net.test.ts` (no show-name interpolation without a cap) and on
+  rendered line counts by `e2e/long-show-title.spec.ts`.
 
 > **Amended #2013 — Kicker treatment and accent discipline.** This paragraph previously read
 > "kickers … in `--accent` or `muted`". The prior design shipped with the kicker as accent on 55
@@ -251,12 +259,29 @@ start. (A serif was tried and rejected during the earlier design phase.)
 
 - **Buttons:** primary (fill `--accent`, text `primary-foreground`), secondary (outline `border`,
   text `canvas-foreground`), ghost (text only). Pill radius for dock actions; circular for transport.
-- **Transport controls:** play/pause as a circular outline button (editorial), skip-back 15 /
-  skip-forward 30 as type-led glyphs, speed as a text pill in `--accent`.
+- **Transport controls — a mirror (2026-09-30).** Seven cells, three equal cells either side of
+  play: transcript · capture · ↺15 · **play** · 30↻ · output route · speed. Play is the only FILLED
+  circle (`--accent`). The six secondary controls are ghost circles of ONE size,
+  `TRANSPORT_BUTTON_SIZE` (`src/player/transportGeometry.ts`): 40px ink with a 44px `lp-tap` hit area
+  on phones, 44px from `sm`. Each control's twin sits the same distance from play. An absent
+  control (no transcript, no output route on this platform) leaves its cell EMPTY, so nothing slides
+  inward. On `lg` the left cells stay but are invisible, because the transcript is a side column
+  and capture sits in the masthead. Capture's outcome receipt ("Saved", or a failure) grows
+  LEFTWARD over the transcript toggle for its few seconds, never over ↺15. It had drifted to four
+  sizes (44/44/40/32px) and three gap widths. `e2e/design-invariants.spec.ts` measures the mirror
+  (equal sizes, twin distances within 1px), the fit, the 44px floor and the pitch.
 - **Scrubber:** a 2px editorial rule (not a fat bar); progress in `--accent`; a small round thumb.
+- **Insight density strip** (#1140, the "skip guide"): directly under the scrubber, annotating the
+  same span. A tick per insight at its moment (grounded ticks foreground, opacity = confidence)
+  over a heat-band of where they cluster. It stays off the accent: the scrubber is the accent
+  control. **It seeks** (2026-09-30): a tap jumps to that point, and press-and-drag scrubs. The hit
+  area is taller than the 10px band, and `touch-pan-y` keeps a vertical swipe scrolling the page.
+  Pointer only: the range input above stays the keyboard and screen-reader control for the same
+  timeline, and the strip stays `role="img"` rather than becoming a second, unlabelled slider.
+  Order: scrubber → density strip → the time readout, which labels the ends of both.
 - **Chips:** topic (`topic`), person (`person`), grounding (`grounded`) — `xs`, rounded, low-fill.
-- **Insights dock:** two cells — "N insights" (`--accent`) + "Ask this episode" — that open the
-  **Episode notes** panel (shipped #1091 as "Insights"; renamed 2026-09-30 — the panel is the
+- **Episode notes entry:** one labelled pill on the artwork, "✦ Episode notes" (`--accent`,
+  `player-open-insights`), that opens the **Episode notes** panel (shipped #1091 as "Insights"; renamed 2026-09-30 — the panel is the
   episode's notes as a whole, and plain "Notes" already means the user's own notes, so the opener
   pill and the panel title read "Episode notes" while the grounded items inside stay "insights").
   It opens on the episode: show kicker, title, then the people in the room, host first and then
@@ -1095,7 +1120,10 @@ design home:
   an unread badge, opening a right-anchored dropdown of recent in-app notifications newest-first.
   This is the **in-app** delivery channel (wave-I): what's waiting when you open the app, distinct
   from OS push (which reaches you while it's closed). Opening refreshes the list; tapping an item
-  follows its deep link and marks it read; "mark all read" clears the badge. The per-type ×
+  follows its deep link and marks it read; "mark all read" clears the badge AND every item's dot.
+  A list refresh already in flight when the user marks read must not re-light what they cleared
+  (2026-09-30: opening the bell starts a refresh, and "Mark all read" tapped before it landed was
+  undone by it). The store remembers reads made during a load and applies them over its result. The per-type ×
   per-channel matrix in Profile → Account decides which notification types reach this bell.
 - **`OfflineBanner`** — the slim app-level "Offline — showing saved" bar shown under the masthead
   whenever the device reports offline (F1.2); cached content still renders beneath it. Complements
