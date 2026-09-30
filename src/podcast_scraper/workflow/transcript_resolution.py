@@ -150,9 +150,15 @@ def text_relpath_candidates(
     PRODUCED, and a candidate that does not exist costs one ``is_file()``.
 
     ANALYSIS DOES NOT FALL BACK FROM ``.en.adfree.txt`` TO ``.en.txt``. Doing so would put an
-    ad-laden English body into the space GI's offsets index. The English artifact set is written
-    atomically (S2.5), so the intermediate state does not occur; if it somehow did, the honest
-    fallback is the source-language ad-free text, which is at least in the right coordinate space.
+    ad-laden English body into the space GI's offsets index.
+
+    This docstring used to add "the English artifact set is written atomically, so the
+    intermediate state does not occur" — and that sentence became the alibi for a real bug: the
+    English ad-free base was governed by ``save_adfree_transcript``, so with that flag off the
+    state occurred constantly and ANALYSIS fell through to the SOURCE language. The set is now
+    complete-or-withdrawn and ``english_artifacts_present`` names this file explicitly, so the
+    claim is enforced rather than asserted. If the state somehow arises anyway, the fallback to
+    source-language ad-free text is at least in the right coordinate space.
     """
     rel = _canonical_relpath(transcript_relpath)
     if not rel:

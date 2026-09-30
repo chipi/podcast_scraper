@@ -1165,6 +1165,14 @@ def _produce_transcript_sidecars(
             "render instead (S2.5).",
             language,
         )
+
+    # INVALIDATION IS NOT CONDITIONAL ON THE AD-FREE FLAG, and a review found it was. The
+    # trigger is "the SOURCE of a non-English episode was just rewritten", which has nothing to
+    # do with whether the source gets an ad-free derivative. With the flag off, a rewrite left
+    # stale `.en.*` behind: the gate passes on presence, TIMELINE serves the old English with
+    # old cue times, and provenance resolves new spans against old segments — while the ledger
+    # says the translation failed.
+    if language is not None and language != "en":
         _invalidate_english_artifacts(rel_transcript_path, effective_output_dir)
 
     _write_turns_artifacts(
@@ -1200,7 +1208,6 @@ def _invalidate_english_artifacts(rel_transcript_path: str, effective_output_dir
         f"{base}.en.adfree{ext or '.txt'}",
         f"{base}.en.adfree.segments.json",
         f"{base}.en.adfree.admap.json",
-        f"{base}.en.turns.json",
     ):
         path = _os.path.join(effective_output_dir, rel)
         try:

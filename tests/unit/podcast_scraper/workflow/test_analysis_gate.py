@@ -29,12 +29,22 @@ def _cfg(**kw: Any) -> config.Config:
     return config.Config(rss="https://example.com/f.xml", **kw)
 
 
-def _english_set(root: Path, *, present: bool = True) -> None:
+def _english_set(root: Path, *, present: bool = True, analysis_body: bool = True) -> None:
+    """Lay down the English set. `analysis_body` controls `.en.adfree.txt` specifically.
+
+    That file is part of the completeness predicate because it is the English body ANALYSIS
+    actually resolves — `.en.txt` is not even in that candidate list. An earlier version of this
+    helper omitted it, which is why the gate test passed while the gate had a hole.
+    """
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
     (root / REL).write_text("Maya: Hola.\n", encoding="utf-8")
     if present:
         (root / "transcripts" / "ep.en.txt").write_text("Maya: Hello.\n", encoding="utf-8")
         (root / "transcripts" / "ep.en.segments.json").write_text("[]", encoding="utf-8")
+        if analysis_body:
+            (root / "transcripts" / "ep.en.adfree.txt").write_text(
+                "Maya: Hello.\n", encoding="utf-8"
+            )
 
 
 def _ledger(root: Path, *, failed: int, total: int) -> None:
@@ -119,6 +129,30 @@ class TestNonEnglishIsBlockedUnlessComplete:
             _cfg(language="es"), transcript_relpath=REL, effective_output_dir=str(tmp_path)
         )
         assert reason and "2 of 7 units failed" in reason
+
+    def test_a_set_WITHOUT_the_analysis_body_still_blocks(self, tmp_path: Path) -> None:
+        """The hole a review found, now a test.
+
+        `.en.txt` and `.en.segments.json` existed, so the old predicate passed and
+        `translation_status` said `translated` — while ANALYSIS, whose first English candidate
+        is `.en.adfree.txt`, fell through it and the deliberately-absent source `.adfree.txt`
+        (S2.7) to the SPANISH `.txt`. English prompts over Spanish, behind a gate reporting
+        success. A completeness predicate has to name the files the consumers open.
+        """
+        from podcast_scraper.workflow.transcript_resolution import (
+            resolve_text_path,
+            TranscriptPurpose,
+        )
+
+        _english_set(tmp_path, present=True, analysis_body=False)
+        reason = analysis_blocked_reason(
+            _cfg(language="es"), transcript_relpath=REL, effective_output_dir=str(tmp_path)
+        )
+        assert reason is not None, "an English set without its ANALYSIS body is not complete"
+        # And this is what analysis WOULD have read if the gate had let it through.
+        assert resolve_text_path(tmp_path, REL, purpose=TranscriptPurpose.ANALYSIS) == (
+            tmp_path / REL
+        ), "the Spanish source — which is exactly the failure"
 
     def test_half_an_english_set_still_blocks(self, tmp_path: Path) -> None:
         """`.en.txt` without its sidecar would resolve English text against source-language

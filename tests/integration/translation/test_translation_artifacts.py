@@ -250,6 +250,55 @@ class TestResume:
         assert second.seen == [], "no unit should have been re-translated"
         assert got.english_ready is True
 
+    def test_a_full_cache_resume_KEEPS_the_prompt_hash_and_the_model(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The defect a review found in the path this design advertises.
+
+        On a relabel every unit hits the content-keyed memory, so NO unit is fresh — and nothing
+        set `doc.prompt`, which meant the ledger was rewritten with `prompt: null` while the
+        model was taken from the CURRENT config. Every claim decorated afterwards carried a null
+        prompt hash, and a model change between runs re-attributed units to a model that never
+        saw them. The units did not change, so neither may their provenance.
+        """
+        _lay_down_spanish_episode(tmp_path)
+        _run(monkeypatch, tmp_path, cfg, _StubProvider())
+        first = load_translation_json(REL, str(tmp_path))
+        assert first is not None and first.prompt is not None
+
+        # A second run where nothing needs translating, under a DIFFERENT configured model.
+        moved = cfg.model_copy(update={"translate_model": "google/translategemma-27b-it"})
+        second_stub = _StubProvider()
+        _run(monkeypatch, tmp_path, moved, second_stub)
+        assert second_stub.seen == [], "nothing was re-translated"
+
+        second = load_translation_json(REL, str(tmp_path))
+        assert second is not None
+        assert second.prompt == first.prompt, "the prompt that produced the text must survive"
+        assert second.model == first.model, (
+            "the units were produced by the ORIGINAL model; attributing them to the newly "
+            "configured one would make en_sha256 describe a model that never ran"
+        )
+
+    def test_a_partial_resume_attributes_to_the_model_that_ran(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When SOME units are fresh, the fresh prompt wins — it is the one that produced text
+        in this run, and a mixed ledger should say so."""
+        _lay_down_spanish_episode(tmp_path)
+        _run(monkeypatch, tmp_path, cfg, _StubProvider(fail_units=("t0003.u01",)))
+
+        class _DifferentPrompt(_StubProvider):
+            def translate_unit(self, unit: Any, **kw: Any):
+                got = super().translate_unit(unit, **kw)
+                got["metadata"]["prompt"] = {"name": "stub-v2", "sha256": "f" * 64}
+                return got
+
+        _run(monkeypatch, tmp_path, cfg, _DifferentPrompt())
+        doc = load_translation_json(REL, str(tmp_path))
+        assert doc is not None
+        assert doc.prompt == {"name": "stub-v2", "sha256": "f" * 64}
+
     def test_a_repair_run_retranslates_ONLY_the_failed_units(
         self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
     ) -> None:

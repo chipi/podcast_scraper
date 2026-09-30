@@ -219,7 +219,6 @@ def render_english(
     through the translator, which would have renamed the same person inconsistently between
     units.
     """
-    by_unit = {u.unit_id: u for u in units}
     records = {r.unit_id: r for r in doc.units}
     turn_label = {str(t.get("turn_id")): str(t.get("speaker_label") or "") for t in turns}
     # Source sentence times, so the English cues line up with the original audio.
@@ -273,12 +272,9 @@ def render_english(
                 }
             )
 
-    # The formatter sorts by start time. Source sentence times are monotonic within and across
-    # turns, so document order is preserved — but an interpolated tie would otherwise reorder
-    # two cues silently, so nudge equal starts by their document position.
-    for i, seg in enumerate(pseudo):
-        seg["start"] = float(seg["start"]) + i * 1e-6
-    _ = by_unit  # (kept for symmetry with resolve_units_for_span's index)
+    # No tie-breaking nudge. `sorted()` is stable, so cues with equal start times already keep
+    # document order — an earlier version added `i * 1e-6` to every start "to be safe", which
+    # persisted into the artifact and gave a zero-duration sentence `start > end`.
     return format_diarized_screenplay_with_offsets(pseudo)
 
 
@@ -428,13 +424,29 @@ def verify_span_excerpt(text: str, char_start: int, char_end: int, excerpt: str)
     return text[char_start:char_end].strip() == (excerpt or "").strip()
 
 
+def english_analysis_relpath(rel_transcript_path: str) -> str:
+    """``<base>.en.adfree.txt`` — the English body in the ANALYSIS coordinate space."""
+    base, ext = os.path.splitext(rel_transcript_path)
+    return f"{base}.en.adfree{ext or '.txt'}"
+
+
 def english_artifacts_present(rel_transcript_path: str, effective_output_dir: str) -> bool:
-    """Both halves on disk. The completeness signal every consumer keys on."""
-    return os.path.isfile(
-        os.path.join(effective_output_dir, english_text_relpath(rel_transcript_path))
-    ) and os.path.isfile(
-        os.path.join(effective_output_dir, english_segments_relpath(rel_transcript_path))
+    """Every English artifact a consumer will actually READ. The completeness signal.
+
+    THE AD-FREE BODY IS PART OF THE PREDICATE, and a review found why. GI and KG resolve
+    ``TranscriptPurpose.ANALYSIS``, whose first English candidate is ``.en.adfree.txt`` —
+    ``.en.txt`` is not in that list at all. A predicate checking only `.en.txt` +
+    `.en.segments.json` therefore passed while ANALYSIS fell through to the SPANISH source, so
+    the gate reported a complete translation and the English stages read Spanish.
+    A completeness predicate has to name the files the consumers open, not a set that merely
+    sounds like the whole thing.
+    """
+    names = (
+        english_text_relpath(rel_transcript_path),
+        english_segments_relpath(rel_transcript_path),
+        english_analysis_relpath(rel_transcript_path),
     )
+    return all(os.path.isfile(os.path.join(effective_output_dir, n)) for n in names)
 
 
 def translation_metrics(

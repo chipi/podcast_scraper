@@ -65,9 +65,6 @@ STATUS_TRANSLATED = "translated"
 #: A translation was attempted and did not produce a usable English artifact set.
 STATUS_FAILED = "failed"
 
-#: Retired: the translator IS wired now. Kept only so an older manifest's reason still parses.
-REASON_NOT_IMPLEMENTED = "translator_not_wired"
-
 #: The decision said "translate this" and the work has not been attempted yet in THIS call.
 #: `decide_translation` is pure, so it reports readiness; `run_translation_stage` does the work.
 REASON_TRANSLATOR_READY = "ready"
@@ -89,7 +86,7 @@ class TranslationOutcome:
     language_source: Optional[str] = None
     reason: Optional[str] = None
     duration_s: float = 0.0
-    #: Set once translation actually ran. ``None`` for every skip.
+    #: Units the episode packed to. ``0`` for every skip — translation did not run.
     units: int = 0
     units_failed: int = 0
     #: True only when the complete English artifact set is on disk. THE gate condition.
@@ -206,17 +203,39 @@ def run_translation_stage(
         logger.warning("translation: decision failed for %s", transcript_relpath, exc_info=True)
         outcome = TranslationOutcome(status=STATUS_SKIPPED, reason=REASON_NO_LANGUAGE)
 
+    # THE WORK HAPPENS BEFORE THE CLOCK IS READ. An earlier version measured `duration_s` and
+    # credited the deadline HERE, above the translation call — so it credited the decision's
+    # microseconds, the manifest recorded ~0 for an episode that took minutes, and the whole
+    # translation was charged to the `summarization_timeout` block it was supposed to be
+    # excluded from. Every long translated episode would have logged "METADATA GENERATION
+    # OVERRAN", bumped `summarization_deadline_overruns` and filed an incident — precisely the
+    # misattribution this seam exists to prevent, reintroduced by measuring in the wrong order.
+    if outcome.status == STATUS_PENDING and effective_output_dir and transcript_relpath:
+        try:
+            outcome = _translate_episode(
+                cfg,
+                outcome,
+                transcript_relpath=transcript_relpath,
+                effective_output_dir=effective_output_dir,
+            )
+        except Exception as exc:  # noqa: BLE001 - see the docstring: never raise into metadata
+            # "Never raises into metadata generation" was false: `create_translation_provider`
+            # raises on an unknown provider id and `initialize()` raises on a served-model
+            # mismatch, both of which escaped into processing.py's generic handler — episode
+            # counted as an error, NO `metadata.json` written, backlog invisible. A translation
+            # that cannot run is a recorded outcome, not a lost episode.
+            logger.error(
+                "translation: the stage failed for %s (%s): %s",
+                transcript_relpath,
+                type(exc).__name__,
+                exc,
+            )
+            outcome.status = STATUS_FAILED
+            outcome.reason = f"stage_error:{type(exc).__name__}"
+
     outcome.duration_s = time.monotonic() - started
     if outcome.duration_s > 0:
         deadline_credit(outcome.duration_s, reason="translation stage")
-
-    if outcome.status == STATUS_PENDING and effective_output_dir and transcript_relpath:
-        outcome = _translate_episode(
-            cfg,
-            outcome,
-            transcript_relpath=transcript_relpath,
-            effective_output_dir=effective_output_dir,
-        )
 
     if effective_output_dir and transcript_relpath:
         _record(
@@ -275,6 +294,28 @@ def analysis_blocked_reason(
         f"({detail}), so summary, GI and KG were SKIPPED rather than run over "
         f"{language!r} text with English prompts (RFC-124 §5.3). Repair the translation and "
         "reprocess; the source transcript and every successful unit are on disk."
+    )
+
+
+def _withdraw_english_render(transcript_relpath: str, effective_output_dir: str) -> None:
+    """Remove `.en.txt` + `.en.segments.json` when the analysis base could not be built.
+
+    The gate keys on the English set being present, and a set without its ANALYSIS body is not
+    complete — it would pass the gate and then serve the source language to GI and KG. So the
+    render is withdrawn and the episode records `failed`, which is recoverable; the alternative
+    is a corpus entry nobody can tell from a correct one.
+    """
+    base, ext = os.path.splitext(transcript_relpath)
+    for rel in (f"{base}.en{ext or '.txt'}", f"{base}.en.segments.json"):
+        try:
+            os.remove(os.path.join(effective_output_dir, rel))
+        except OSError:
+            continue
+    logger.warning(
+        "translation: the English ad-free base could not be built for %s, so the English render "
+        "was withdrawn — a set without its ANALYSIS body would pass the gate and then serve the "
+        "source language to GI and KG",
+        transcript_relpath,
     )
 
 
@@ -399,6 +440,18 @@ def _translate_episode(
         model=getattr(cfg, "translate_model", None),
         source={"transcript_ref": transcript_relpath, "turns": len(turn_dicts)},
     )
+    # CARRY THE PREVIOUS LEDGER'S PROVENANCE FORWARD. On the D-33 path this design advertises —
+    # a relabel where every unit hits the content-keyed memory — NO unit is fresh, so nothing
+    # would set `doc.prompt` and the ledger was rewritten with `prompt: null`. Worse, the model
+    # was taken from the CURRENT config, re-attributing cached units to a model that never saw
+    # them; every claim decorated afterwards then carried a null prompt hash and a wrong model.
+    # The units did not change, so neither may their provenance.
+    if previous is not None and todo:
+        doc.prompt = previous.prompt or doc.prompt
+    elif previous is not None:
+        # Nothing was re-translated at all: the ledger describes exactly the previous run's work.
+        doc.prompt = previous.prompt
+        doc.model = previous.model or doc.model
 
     todo_ids = {u.unit_id for u in todo}
     for unit in units:
@@ -425,7 +478,9 @@ def _translate_episode(
                 continue
         result = provider.translate_unit(unit, source_language=language)
         meta = result.get("metadata") or {}
-        if doc.prompt is None and meta.get("prompt"):
+        # A freshly translated unit's prompt wins: it is the one that actually produced text in
+        # THIS run, and it is what a mixed ledger should be attributed to.
+        if meta.get("prompt"):
             doc.prompt = meta["prompt"]
         ok = result.get("alignment") in ("sentence", "unit") and result.get("sentences")
         doc.units.append(
@@ -445,15 +500,27 @@ def _translate_episode(
     en_rel = write_english_artifacts(
         doc, turn_dicts, units, transcript_relpath, effective_output_dir
     )
-    if en_rel and getattr(cfg, "save_adfree_transcript", True):
-        # The ad-free base for a translated episode is built on the ENGLISH, because that is the
-        # only text the English `_AD_PATTERNS` can see (S2.5). Only after the render exists, so a
-        # withheld translation cannot acquire an ad-free base.
-        write_english_adfree(
+    adfree_rel = None
+    if en_rel:
+        # THE ENGLISH AD-FREE BASE IS NOT GOVERNED BY `save_adfree_transcript`, and a review
+        # found why that matters. `.en.adfree.txt` is the ONLY English body in the ANALYSIS
+        # coordinate space — the space GI's and KG's `char_start` live in. With the flag off,
+        # `.en.txt` + `.en.segments.json` existed, the gate passed, `translation_status` said
+        # `translated`, and then ANALYSIS fell through the absent `.en.adfree.txt` and the
+        # deliberately-absent source `.adfree.txt` (S2.7) to the SPANISH `.txt` — English
+        # prompts over Spanish, with provenance resolved against English segments. The flag
+        # governs whether the SOURCE gets an ad-free derivative; it has no business deciding
+        # whether the analysis base for a translated episode exists at all.
+        adfree_rel = write_english_adfree(
             transcript_relpath,
             effective_output_dir,
             extra_cue_patterns=getattr(cfg, "crosspromo_cue_patterns", None),
         )
+        if adfree_rel is None:
+            # No analysis base means the English set is NOT complete, whatever the render says.
+            # Withdraw the render rather than let the gate pass on a partial set.
+            _withdraw_english_render(transcript_relpath, effective_output_dir)
+            en_rel = None
 
     outcome.units = len(doc.units)
     outcome.units_failed = len(doc.failed_units)

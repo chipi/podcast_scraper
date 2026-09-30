@@ -5007,8 +5007,11 @@ def generate_episode_metadata(  # noqa: C901
     # `not _blocked` is the GI half of RFC-124 §5.3's gate. GI is where the cost of getting this
     # wrong is highest: it mints claims and attaches them to people via SPOKEN_BY, so a claim
     # extracted from untranslated Spanish by English prompts becomes a durable corpus fact
-    # nobody can later distinguish from a correct one. KG runs inside this block, so gating here
-    # gates both.
+    # nobody can later distinguish from a correct one.
+    #
+    # KG IS GATED SEPARATELY, at its own block below. This comment used to claim "KG runs inside
+    # this block, so gating here gates both" — it does not, and asserting it instead of checking
+    # left KG ungated behind a comment that said otherwise.
     if getattr(cfg, "generate_gi", False) and not _blocked:
         from .helpers import get_episode_id_from_episode
 
@@ -5252,7 +5255,14 @@ def generate_episode_metadata(  # noqa: C901
     kg_meta: Optional[KnowledgeGraphMetadata] = None
     kg_elapsed: Optional[float] = None  # captured for the processing manifest (RFC-109)
     kg_cost: Optional[float] = None  # per-episode KG cost for the processing manifest (RFC-109)
-    if getattr(cfg, "generate_kg", False):
+    # `not _blocked` — RFC-124 §5.3. KG is NOT inside the GI block, which an earlier comment
+    # here claimed it was; a review found this ungated. On a blocked Spanish episode the KG
+    # block resolves ANALYSIS, which falls through the absent `.en.adfree.txt` and the
+    # deliberately-absent source `.adfree.txt` (S2.7) to the Spanish `.txt`, and writes a
+    # `kg.json` extracted from Spanish by English prompts — while the manifest simultaneously
+    # recorded `kg: ran=false, skipped_reason=translation_incomplete`. Two artifacts
+    # contradicting each other, with the wrong one being the durable corpus fact.
+    if getattr(cfg, "generate_kg", False) and not _blocked:
         from .helpers import get_episode_id_from_episode
 
         episode_id_for_kg, _ = get_episode_id_from_episode(episode, feed_url)

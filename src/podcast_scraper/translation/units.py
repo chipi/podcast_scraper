@@ -36,9 +36,20 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
-#: What a unit's payload costs beyond its own text, in tokens: the prompt template's fixed
-#: instruction plus the per-sentence numbering. Measured at 74 tokens for the template
-#: (``translategemma_v1``); the rest is slack so a boundary unit cannot land one token over.
+#: The prompt template's fixed instruction, in tokens. Measured at 74 with the real tokenizer
+#: for ``translategemma_v1``.
+TEMPLATE_TOKENS = 74
+
+#: Per-sentence cost of the numbered request shape: ``"N. "`` plus the newline.
+PER_SENTENCE_NUMBERING_TOKENS = 4
+
+#: Legacy flat reserve. KEPT ONLY AS A FLOOR for callers that pass nothing, and it is NOT what
+#: the packer budgets against any more — a review found why. A flat 128 ignored the per-sentence
+#: numbering, so a unit packed to the flat budget could carry ~96 sentences whose numbering added
+#: ~290 tokens, and the provider's own precheck (which measures the RENDERED prompt) then refused
+#: it. The unit is not oversized by the packer's reckoning, so it is not flagged; it simply fails,
+#: withholds the whole episode's render, and fails identically on every retry. Latent only
+#: because the measured fixture's longest turn was 41 words.
 DEFAULT_OVERHEAD_TOKENS = 128
 
 #: Fallback when no tokenizer is available: the FEWEST chars per token measured over 141 real
@@ -168,7 +179,14 @@ def pack_units(
         Units in document order. ``unit_id`` is ``<turn_id>.uNN``, sentences keep their
         ``sent_id`` from the turns artifact.
     """
-    budget = max(1, int(max_input_tokens) - int(overhead_tokens))
+    # The budget shrinks as a unit gains sentences, because the numbered request shape costs
+    # per sentence. Budgeting against a FLAT reserve is what let the packer and the provider
+    # disagree about the same unit.
+    fixed_overhead = max(int(overhead_tokens), TEMPLATE_TOKENS)
+
+    def budget_for(sentence_count: int) -> int:
+        used = fixed_overhead + PER_SENTENCE_NUMBERING_TOKENS * max(1, sentence_count)
+        return max(1, int(max_input_tokens) - used)
 
     def tokens_of(text: str) -> int:
         if count_tokens is not None:
@@ -211,15 +229,18 @@ def pack_units(
             current_tokens = 0
             for sent in sentences:
                 cost = tokens_of(sent.text)
-                if cost > budget:
-                    # A single sentence over budget. It cannot be split without breaking the
-                    # alignment atom, so flush what we have and give it its own unit.
+                if cost > budget_for(1):
+                    # A single sentence over budget even alone. It cannot be split without
+                    # breaking the alignment atom, so flush what we have and give it its own
+                    # unit — where it is FLAGGED rather than silently sent.
                     if current:
                         groups.append(current)
                         current, current_tokens = [], 0
                     groups.append([sent])
                     continue
-                if current and current_tokens + cost > budget:
+                # The budget is evaluated for the unit this sentence would CREATE, numbering
+                # included, so a unit can never be packed past what the provider will accept.
+                if current and current_tokens + cost > budget_for(len(current) + 1):
                     groups.append(current)
                     current, current_tokens = [], 0
                 current.append(sent)
@@ -228,7 +249,7 @@ def pack_units(
                 groups.append(current)
 
         for idx, group in enumerate(groups, start=1):
-            oversized = len(group) == 1 and tokens_of(group[0].text) > budget
+            oversized = len(group) == 1 and tokens_of(group[0].text) > budget_for(1)
             units.append(
                 TranslationUnit(
                     unit_id=f"{turn_id}.u{idx:02d}",

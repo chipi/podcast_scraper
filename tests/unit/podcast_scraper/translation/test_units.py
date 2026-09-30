@@ -160,12 +160,77 @@ class TestTheBudget:
 
         units = _pack(
             [_turn("t0000", ["A.", "B.", "C."])],
-            max_input_tokens=20,
-            overhead_tokens=10,
+            max_input_tokens=100,
+            overhead_tokens=74,
             count_tokens=counter,
         )
         assert calls, "the exact counter must be consulted"
-        assert len(units) == 2, "10 budget / 5 per sentence = 2 per unit"
+        assert sum(len(u.sentences) for u in units) == 3, "no sentence lost"
+
+    def test_the_overhead_accounts_for_PER_SENTENCE_numbering(self) -> None:
+        """A flat reserve is what let the packer and the provider disagree.
+
+        The request sends sentences NUMBERED, so each one costs `"N. "` plus a newline on top of
+        the template. Budgeting against a flat number meant a unit packed to that budget could
+        carry ~96 sentences whose numbering added ~290 tokens — and the provider's precheck,
+        which measures the RENDERED prompt, then refused it. The unit was not oversized by the
+        packer's reckoning, so it was not flagged: it just failed, withheld the whole episode's
+        render, and failed identically on every retry.
+        """
+        from podcast_scraper.translation.units import (
+            PER_SENTENCE_NUMBERING_TOKENS,
+            TEMPLATE_TOKENS,
+        )
+
+        # One-token sentences, so the only thing limiting the unit is the numbering overhead.
+        many = [f"S{i}." for i in range(400)]
+        units = _pack([_turn("t0000", many)], max_input_tokens=500, count_tokens=lambda _t: 1)
+        biggest = max(len(u.sentences) for u in units)
+        # With a flat 74-token reserve this would have packed ~426 sentences into one unit.
+        ceiling = (500 - TEMPLATE_TOKENS) // (PER_SENTENCE_NUMBERING_TOKENS + 1)
+        assert biggest <= ceiling + 1, f"{biggest} sentences exceeds the numbering-aware ceiling"
+
+    def test_a_max_packed_unit_PASSES_the_providers_own_precheck(self) -> None:
+        """The property the two budgets exist to share, driven through BOTH of them.
+
+        A test on the constant (`DEFAULT_OVERHEAD_TOKENS > 74`) was green while this was broken,
+        because a constant is not the property. This packs real Spanish-length sentences to the
+        limit and asserts the provider accepts every unit the packer did not flag.
+        """
+        from podcast_scraper import config
+        from podcast_scraper.providers.vllm.translate_provider import (
+            GemmaTranslateProvider,
+            MODEL_INPUT_TOKEN_LIMIT,
+        )
+
+        cfg = config.Config(
+            rss="https://e.com/f.xml",
+            translate_api_base="http://x.invalid:8005/v1",
+            translate_model="google/translategemma-12b-it",
+            translate_verify_served_model=False,
+        )
+        provider = GemmaTranslateProvider(cfg)
+
+        sentences = [
+            "El drenaje es la decision de diseno con mas impacto en cualquier sendero."
+            for _ in range(400)
+        ]
+        units = _pack(
+            [_turn("t0000", sentences)],
+            max_input_tokens=MODEL_INPUT_TOKEN_LIMIT,
+            count_tokens=None,  # the pessimistic estimate, as in the no-tokenizer case
+        )
+        assert units, "the packer must produce something"
+        for unit in units:
+            if unit.oversized:
+                continue
+            prompt = provider.build_prompt(unit.numbered_source, source_language="es")
+            tokens, _how = provider.estimate_prompt_tokens(prompt)
+            assert tokens <= MODEL_INPUT_TOKEN_LIMIT, (
+                f"unit {unit.unit_id} packs to {tokens} prompt tokens, over the model's "
+                f"{MODEL_INPUT_TOKEN_LIMIT} limit — the provider would refuse it and the whole "
+                "episode's render would be withheld"
+            )
 
     def test_a_counter_returning_none_falls_back_to_the_estimate(self) -> None:
         units = _pack(
@@ -175,10 +240,14 @@ class TestTheBudget:
         )
         assert len(units) == 1
 
-    def test_the_overhead_default_is_bigger_than_the_measured_template(self) -> None:
-        """The prompt's fixed instruction measured 74 tokens; the default reserves more so a
-        boundary unit cannot land one token over — that failure is deterministic and silent."""
-        assert DEFAULT_OVERHEAD_TOKENS > 74
+    def test_the_template_reserve_is_never_below_the_measured_template(self) -> None:
+        """A floor, not the whole budget. This used to assert `DEFAULT_OVERHEAD_TOKENS > 74` and
+        was green while the packer and the provider disagreed — a constant is not the property.
+        The property is the test above; this only stops the floor being lowered below what the
+        template measurably costs."""
+        from podcast_scraper.translation.units import TEMPLATE_TOKENS
+
+        assert DEFAULT_OVERHEAD_TOKENS >= TEMPLATE_TOKENS == 74
 
 
 class TestTheModelNeverSeesALabel:

@@ -252,12 +252,37 @@ def repair_episode(
     if not isinstance(transcript_rel, str) or not transcript_rel:
         return _fail("metadata declares no content.transcript_file_path")
 
+    # RFC-124 §5.3, and a review found this missing. `repair` resolves ANALYSIS and rebuilds the
+    # artifact for ANY episode with metadata — so on a non-English episode whose translation is
+    # pending, failed or invalidated it would rebuild GI from the SOURCE text with English
+    # prompts, which is the exact thing the seam's gate refuses. A repair tool must not be the
+    # way around the gate.
+    from ..workflow.translation_stage import analysis_blocked_reason
+
+    blocked = analysis_blocked_reason(
+        cfg, transcript_relpath=transcript_rel, effective_output_dir=str(run_dir)
+    )
+    if blocked:
+        return _fail(f"translation incomplete: {blocked}")
+
     try:
         transcript_text, transcript_ref = _transcript_text_for(run_dir, transcript_rel)
     except OSError as exc:
         return _fail(f"transcript unreadable: {exc}")
     if not transcript_text.strip():
         return _fail("transcript is empty")
+
+    # And publish the episode's translation so the rebuilt artifact carries provenance (S2.11).
+    # Repair runs in the CLI main thread with no seam, so without this every Quote node it
+    # rebuilds silently loses its `translation` block — which the provenance module's own
+    # docstring claimed was covered.
+    from ..translation.provenance import load_for_provenance, publish_episode_translation
+
+    try:
+        _loaded = load_for_provenance(transcript_rel, str(run_dir))
+    except Exception:  # noqa: BLE001 - provenance never blocks a repair
+        _loaded = None
+    publish_episode_translation(*(_loaded if _loaded else (None, None)))
 
     episode_block = meta.get("episode") or {}
     feed_block = meta.get("feed") or {}
