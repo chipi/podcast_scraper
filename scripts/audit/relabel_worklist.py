@@ -87,6 +87,9 @@ def _rules() -> List[Tuple[str, Callable[..., List[str]]]]:
             "not_collapsed_one_spkr",
             lambda md, kg, gi: sc.check_not_collapsed_onto_one_speaker(md, gi),
         ),
+        # #2198. NOT in RELABEL_FIXABLE: the cause is speaker DETECTION missing names the
+        # transcript states, and a relabel reuses the frozen roster — untested as a repair.
+        ("some_speaker_named", lambda md, kg, gi: sc.check_some_speaker_is_named(gi)),
     ]
 
 

@@ -24,6 +24,7 @@ from podcast_scraper.kg.speaker_coherence import (
     check_one_quote_one_speaker,
     check_roles_are_known,
     check_roster_speakers_reach_the_graph,
+    check_some_speaker_is_named,
     check_speakers_actually_spoke,
     check_spoken_by_targets_exist,
     same_person,
@@ -444,3 +445,35 @@ class TestFoldingMustNotEraseANonLatinName:
 
     def test_two_different_cjk_names_are_not_the_same_person(self) -> None:
         assert same_person("张川红", "李明") is False
+
+
+def _gi_insights(*surfaceable) -> Dict[str, Any]:
+    nodes = []
+    for i, s in enumerate(surfaceable):
+        props: Dict[str, Any] = {"text": f"insight {i}"}
+        if s is not None:
+            props["surfaceable"] = s
+        nodes.append({"id": f"insight:{i}", "type": "Insight", "properties": props})
+    return {"nodes": nodes, "edges": []}
+
+
+class TestSomeSpeakerIsNamed:
+    """#2198: 111 prod episodes had insights and no named speaker, and no rule said so."""
+
+    def test_every_insight_unattributed_is_a_violation(self) -> None:
+        v = check_some_speaker_is_named(_gi_insights(False, False, False), label="ep: ")
+        assert v == ["ep: no named speaker: all 3 insights are unattributed"]
+
+    def test_one_named_insight_is_enough(self) -> None:
+        assert check_some_speaker_is_named(_gi_insights(False, True, False)) == []
+
+    def test_absent_flag_means_surfaceable(self) -> None:
+        """Pre-voice-typing artifacts carry no flag; absent means shown, never a violation."""
+        assert check_some_speaker_is_named(_gi_insights(None, None)) == []
+
+    def test_no_insights_is_not_this_rule(self) -> None:
+        assert check_some_speaker_is_named({"nodes": [], "edges": []}) == []
+
+    def test_it_is_part_of_check_episode(self) -> None:
+        v = check_episode(GOOD_META, GOOD_KG, _gi_insights(False, False))
+        assert any("no named speaker" in x for x in v)

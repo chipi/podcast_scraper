@@ -446,6 +446,25 @@ def check_no_show_as_speaker(
     return out
 
 
+def check_some_speaker_is_named(gi: Mapping[str, Any], *, label: str = "") -> List[str]:
+    """An episode with insights must have at least one insight a NAMED person said (#2198).
+
+    The rules above all judge the people the graph HAS. An episode where naming resolved nobody has
+    no people to judge, so every one of them passed: on 2026-09-30, 111 of 2,002 served episodes had
+    grounded insights, every one ``surfaceable: false`` (the speaker was never named), and an empty
+    insights panel — and none appeared in any coherence report. ChinaTalk ``0df8ed52``: 44 grounded
+    insights, 0 named, 0 shown.
+    """
+    insights = [
+        n for n in (gi.get("nodes") or []) if isinstance(n, dict) and n.get("type") == "Insight"
+    ]
+    if not insights:
+        return []
+    if any((n.get("properties") or {}).get("surfaceable") is not False for n in insights):
+        return []
+    return [f"{label}no named speaker: all {len(insights)} insights are unattributed"]
+
+
 def check_episode(
     metadata: Mapping[str, Any],
     kg: Mapping[str, Any],
@@ -467,6 +486,7 @@ def check_episode(
     out += check_spoken_by_targets_exist(gi, label=prefix)
     out += check_one_quote_one_speaker(gi, label=prefix)
     out += check_not_collapsed_onto_one_speaker(metadata, gi, label=prefix)
+    out += check_some_speaker_is_named(gi, label=prefix)
     return out
 
 
