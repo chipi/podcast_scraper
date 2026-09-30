@@ -1,20 +1,55 @@
 {
   "applied": [
     {
-      "at": "2026-07-22T12:20:27Z",
+      "at": "2026-09-30T06:30:47Z",
       "id": "0001_faiss_to_lance",
       "to_version": "2.7.0"
     },
     {
-      "at": "2026-07-22T12:20:27Z",
+      "at": "2026-09-30T06:30:47Z",
       "id": "0002_two_tier_native_reindex",
       "to_version": "2.7.0"
     },
     {
-      "at": "2026-07-22T12:20:27Z",
+      "at": "2026-09-30T06:30:47Z",
       "id": "0003_gi_v3_typed_mentions",
       "to_version": "2.7.1"
+    },
+    {
+      "at": "2026-09-30T06:30:47Z",
+      "id": "0004_insight_type_reindex",
+      "to_version": "2.7.1"
+    },
+    {
+      "at": "2026-09-30T06:30:47Z",
+      "id": "0005_gi_v3_1_route_and_tag",
+      "to_version": "2.7.1"
+    },
+    {
+      "at": "2026-09-30T06:30:47Z",
+      "id": "0006_kg_v2_typed_entities",
+      "to_version": "2.7.1"
+    },
+    {
+      "at": "2026-09-30T06:30:47Z",
+      "id": "0007_scope_bare_person_names",
+      "to_version": "2.7.1"
+    },
+    {
+      "at": "2026-09-30T06:30:47Z",
+      "id": "0008_object_entity_kind",
+      "to_version": "2.7.2"
+    },
+    {
+      "at": "2026-09-30T06:30:47Z",
+      "id": "0009_backfill_speaker_roles",
+      "to_version": "2.7.3"
+    },
+    {
+      "at": "2026-09-30T06:30:47Z",
+      "id": "0010_canonical_person_names",
+      "to_version": "2.7.4"
     }
   ],
-  "version": "2.7.1"
+  "version": "2.7.4"
 }

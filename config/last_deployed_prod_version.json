@@ -2,10 +2,17 @@
   "applied_migrations": [
     "0001_faiss_to_lance",
     "0002_two_tier_native_reindex",
-    "0003_gi_v3_typed_mentions"
+    "0003_gi_v3_typed_mentions",
+    "0004_insight_type_reindex",
+    "0005_gi_v3_1_route_and_tag",
+    "0006_kg_v2_typed_entities",
+    "0007_scope_bare_person_names",
+    "0008_object_entity_kind",
+    "0009_backfill_speaker_roles",
+    "0010_canonical_person_names"
   ],
   "code_version": "2.7.0.dev0",
-  "deployed_at": "2026-07-22",
+  "deployed_at": "2026-09-30",
   "note": "This marker tracks what is currently running on prod. Auto-updated by scripts/ops/bump_prod_marker.py (invoked by .github/workflows/deploy-prod.yml). See docs/guides/CORPUS_UPGRADE.md \u2192 'Prod-state fixture maintenance' (#1176).",
-  "sha": "d386c56"
+  "sha": "9949699"
 }
