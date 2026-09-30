@@ -78,6 +78,35 @@ def surface_to_person():
 
 
 @pytest.fixture(scope="module")
+def labels_by_language(t2m):
+    """``{language: {label}}`` — each transcript's labels under ITS OWN declared language.
+
+    The flat ``transcript_labels`` fixture below collapses every transcript together, which was
+    fine while every fixture was English. It cannot see the invariant that matters once a voice
+    map is per-language: that WITHIN one language no two distinct people share a voice. A
+    language-blind check passes trivially — Spanish Maya and English Maya resolve to the same
+    voice and are the same person — while saying nothing about whether Spanish Maya and Spanish
+    Liam Verbeek collide.
+    """
+    from collections import defaultdict
+
+    out: dict[str, set[str]] = defaultdict(set)
+    for txt in sorted(V3_TRANSCRIPTS.glob("*.txt")):
+        raw = txt.read_text(encoding="utf-8")
+        language = t2m.transcript_language(raw)
+        for line in raw.splitlines():
+            m = SPEAKER_RE.match(line.strip())
+            if not m:
+                continue
+            name = m.group(1).strip()
+            if name in ("Host", "Guest"):
+                continue
+            out[language].add(name)
+    assert out, "no speaker labels found in v3 transcripts"
+    return dict(out)
+
+
+@pytest.fixture(scope="module")
 def transcript_labels():
     labels: set[str] = set()
     for txt in sorted(V3_TRANSCRIPTS.glob("*.txt")):
@@ -126,3 +155,72 @@ def test_no_voice_shared_by_two_people(t2m, transcript_labels, surface_to_person
         "ONE VOICE PER PERSON violated — these voices are shared by distinct people: "
         f"{collisions}"
     )
+
+
+class TestTheRuleHoldsPerLANGUAGE:
+    """ONE VOICE PER PERSON, PER LANGUAGE (#2169 / V.6b).
+
+    The map is keyed by (person, language) since the Spanish counterpart fixture landed: the
+    canonical map holds each person's ENGLISH voice, and there is no Spanish `Samantha`. The
+    original rule's two failure modes are unchanged and both are re-asserted here per language —
+    two humans on one voice makes a speaker count unreachable, and one person drifting across
+    voices makes identity unstable.
+    """
+
+    def test_no_voice_is_shared_within_a_language(self, t2m, labels_by_language, surface_to_person):
+        """The invariant the language-blind check cannot see."""
+        for language, names in sorted(labels_by_language.items()):
+            voice_people: dict[str, set[str]] = defaultdict(set)
+            for name in names:
+                person = surface_to_person.get(name)
+                assert person is not None, f"[{language}] unattributed label {name!r}"
+                voice_people[t2m.get_voice_for_speaker(name, language)].add(person)
+            collisions = {v: sorted(p) for v, p in voice_people.items() if len(p) > 1}
+            assert (
+                not collisions
+            ), f"[{language}] ONE VOICE PER PERSON violated — shared voices: {collisions}"
+
+    def test_a_person_has_ONE_voice_per_language(self, t2m, labels_by_language):
+        """Resolution is a pure function of (name, language), so a person cannot drift between
+        episodes of the same language."""
+        for language, names in sorted(labels_by_language.items()):
+            for name in sorted(names):
+                voices = {t2m.get_voice_for_speaker(name, language) for _ in range(3)}
+                assert len(voices) == 1, f"[{language}] {name!r} resolved to {voices}"
+
+    def test_the_spanish_fixture_uses_SPANISH_voices(self, t2m, labels_by_language):
+        """The point of the whole extension. Reading Spanish with `Samantha` (en_US) produces
+        audio that is neither good Spanish nor good English, and this fixture exists to exercise
+        Spanish ASR — so it would test the wrong thing."""
+        if "es" not in labels_by_language:
+            pytest.skip("no Spanish fixture in this tree")
+        spanish_voices = set(t2m.SPANISH_SPEAKER_VOICE_MAP.values())
+        for name in sorted(labels_by_language["es"]):
+            voice = t2m.get_voice_for_speaker(name, "es")
+            if name == "Ad":
+                # Zarvox is robotic and locale-free; it is the ad voice in every language.
+                assert voice == "Zarvox"
+                continue
+            assert (
+                voice in spanish_voices
+            ), f"{name!r} renders Spanish with {voice!r}, which is not a Spanish voice"
+
+    def test_english_resolution_is_UNCHANGED(self, t2m, labels_by_language):
+        """The 40-episode English corpus must not have moved. Asserted on the canonical map
+        directly, so it fails if the language branch ever shadows the default."""
+        for name in sorted(labels_by_language.get("en", ())):
+            assert t2m.get_voice_for_speaker(name, "en") == t2m.SPEAKER_VOICE_MAP[name]
+            # And the default argument must still mean English.
+            assert t2m.get_voice_for_speaker(name) == t2m.SPEAKER_VOICE_MAP[name]
+
+    def test_the_groundtruth_records_the_voice_actually_USED(self, labels_by_language):
+        """The sidecar's stated job is to record exactly who sounds like what. It resolved
+        language-blind at first, so the Spanish sidecar claimed `Samantha`/`Ralph` while the
+        audio had been rendered with `Monica`/`Paulina` — a lie rather than a gap."""
+        import json
+
+        gt = V3_TRANSCRIPTS / "p10_e01.groundtruth.json"
+        if not gt.is_file():
+            pytest.skip("no Spanish fixture in this tree")
+        vm = json.loads(gt.read_text(encoding="utf-8"))["voice_map"]
+        assert vm == {"Maya": "Monica", "Liam Verbeek": "Paulina", "Ad": "Zarvox"}, vm

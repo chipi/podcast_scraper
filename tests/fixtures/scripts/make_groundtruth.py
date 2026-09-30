@@ -44,19 +44,21 @@ V3_DIR = os.path.join(os.path.dirname(__file__), "..", "transcripts", "v3")
 AUDIO_V3_DIR = os.path.join(os.path.dirname(__file__), "..", "audio", "v3")
 
 
-def _load_voice_resolver():
-    """Load ``get_voice_for_speaker`` from the sibling audio generator (single source
-    of truth for the ONE-VOICE-PER-PERSON map; see tests/fixtures/FIXTURES_SPEC.md)."""
+def _load_audio_generator():
+    """Load the sibling audio generator — the single source of truth for the
+    ONE-VOICE-PER-PERSON(-PER-LANGUAGE) map; see tests/fixtures/FIXTURES_SPEC.md."""
     path = os.path.join(os.path.dirname(__file__), "transcripts_to_mp3.py")
     spec = importlib.util.spec_from_file_location("transcripts_to_mp3", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    return module.get_voice_for_speaker
+    return module
 
 
-_voice_for = _load_voice_resolver()
+_t2m = _load_audio_generator()
+_voice_for = _t2m.get_voice_for_speaker
+_transcript_language = _t2m.transcript_language
 
 
 def _sha256(path: str) -> str | None:
@@ -136,7 +138,12 @@ def build_groundtruth(transcript_path: str) -> dict:
     # Voice per voiced speaker (humans + Ad), from the ONE-VOICE-PER-PERSON map — so the
     # sidecar records EXACTLY which say voice each person is rendered with (FIXTURES_SPEC).
     voiced = list(speakers) + (["Ad"] if has_ad else [])
-    voice_map = {spk: _voice_for(spk) for spk in voiced}
+    # THE TRANSCRIPT'S LANGUAGE DECIDES THE VOICE. Resolving without it recorded the ENGLISH
+    # voices for the Spanish fixture — `Samantha`/`Ralph` in the sidecar while the audio was
+    # actually rendered with `Monica`/`Paulina`. This field's whole job is to record exactly who
+    # sounds like what, so a language-blind lookup makes it a lie rather than a gap.
+    language = _transcript_language(open(transcript_path, "r", encoding="utf-8").read())
+    voice_map = {spk: _voice_for(spk, language) for spk in voiced}
     # Cameo detail: when tagged ``cameo``, the cameo is the briefest human voice (one
     # short turn) — record who + which voice so evals know the brief-3rd-voice target.
     cameo = None

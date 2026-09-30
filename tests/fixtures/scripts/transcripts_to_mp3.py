@@ -57,6 +57,9 @@ PODCAST_HOSTS: dict[str, str] = {
     "p07": "Alex Morgan",  # The Long View - Sustainability
     "p08": "Alex Morgan",  # The Long View - Solar Energy
     "p09": "Alex Morgan",  # The Long View - Biohacking
+    # Sesiones de Sendero — the SPANISH counterpart of p01 (#2169 / V.6b). Same show, same
+    # people; only the language differs, which is the entire point of the fixture.
+    "p10": "Maya",
 }
 
 # Per-speaker voice mapping (#1170): ONE voice per PERSON across the whole corpus.
@@ -176,6 +179,44 @@ SPEAKER_VOICE_MAP: dict[str, str] = {
     "Ad": "Zarvox",
 }
 
+# ONE VOICE PER PERSON, PER LANGUAGE (#2169 / V.6b). The map above is keyed by NAME alone, so
+# it cannot express the same person speaking a different language — and `p10` is the Spanish
+# counterpart of `p01`: the same show, the same Maya, the same Liam Verbeek.
+#
+# The original rule ("one voice per PERSON") exists to prevent two failures, both named in
+# FIXTURES_SPEC.md: two humans collapsing onto one voice inside an episode, which makes a
+# speaker count unreachable, and one person drifting across voices between episodes. Neither is
+# about language, and extending the key to (person, language) preserves both — within the
+# Spanish episode no two people share a voice, and Maya is Monica in every Spanish episode.
+#
+# THE ALTERNATIVE WAS WORSE. Reading Spanish text with `Samantha` (en_US) produces audio that is
+# neither good Spanish nor good English, and the entire purpose of this fixture is to exercise
+# SPANISH ASR — so it would test the wrong thing, and a failure could not be attributed to the
+# pipeline rather than to the synthesis.
+#
+# `Ad` is deliberately absent: `Zarvox` is a robotic mid-roll voice with no locale to match, and
+# it stays the ad voice in every language.
+#
+# LIAM VERBEEK'S VOICE HERE IS A PLACEHOLDER, and the audio is NOT generated from it yet.
+# Measured median F0 over the same sentence: Monica 175.8 Hz, Paulina 164.9 Hz — 11 Hz apart with
+# standard deviations of 27 and 21, so the distributions overlap almost entirely. The English
+# control pair is Samantha 177.8 / Ralph 79.8, i.e. 98 Hz apart. Both default macOS Spanish
+# voices are female, so a diarizer would very likely merge them, the episode would have no guest,
+# and D-34's payoff (position-bearing insights) would be unmeasurable — failing for a reason that
+# has nothing to do with the pipeline. See FIXTURES_SPEC.md; unblocking needs Jorge/Juan/Diego
+# installed through System Settings, which has no shell path.
+SPANISH_SPEAKER_VOICE_MAP: dict[str, str] = {
+    # Maya @es-ES (host) — the show declares <language>es-ES</language>, so the host takes the
+    # es_ES voice and the guest the es_MX one.
+    "Maya": "Monica",
+    # Liam Verbeek @es-MX (guest)
+    "Liam Verbeek": "Paulina",
+}
+
+#: Per-language voice maps, keyed by the primary language subtag. `en` is the default and uses
+#: the canonical map above.
+VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {"es": SPANISH_SPEAKER_VOICE_MAP}
+
 # Hash-based fallback for speakers not in SPEAKER_VOICE_MAP. Order matters
 # for stability — appending is safe; reordering or deleting changes
 # previously generated fallback assignments. Picked for clear distinction
@@ -244,15 +285,29 @@ FILE_PREFIX_RE = re.compile(r"^(p\d{2})_", re.IGNORECASE)
 VERSION_SEGMENT_RE = re.compile(r"^v\d+$")
 
 
-def get_voice_for_speaker(name: str) -> str:
+def get_voice_for_speaker(name: str, language: str = "en") -> str:
     """Resolve a speaker name to a macOS ``say`` voice.
 
-    Lookup precedence: exact -> first word -> stable hash fallback.
+    Lookup precedence: the language's own map -> exact -> first word -> stable hash fallback.
+
+    ``language`` is the primary subtag of the transcript's ``#fixture-v3: voice=`` annotation.
+    A person in a non-English episode resolves through that language's map first, because the
+    canonical map holds their ENGLISH voice and there is no Spanish `Samantha` — see
+    ``SPANISH_SPEAKER_VOICE_MAP`` for why the key had to become (person, language).
+
+    Falling THROUGH to the canonical map is deliberate rather than an error: ``Ad`` has no
+    Spanish entry and should not — ``Zarvox`` is robotic and locale-free, and it is the ad voice
+    in every language.
     """
     name = name.strip()
+    lang_map = VOICE_MAPS_BY_LANGUAGE.get((language or "en").split("-")[0].lower(), {})
+    if name in lang_map:
+        return lang_map[name]
     if name in SPEAKER_VOICE_MAP:
         return SPEAKER_VOICE_MAP[name]
     parts = name.split()
+    if parts and parts[0] in lang_map:
+        return lang_map[parts[0]]
     if parts and parts[0] in SPEAKER_VOICE_MAP:
         return SPEAKER_VOICE_MAP[parts[0]]
     # Stable hash (Python's built-in hash() varies across runs). Not a security
@@ -568,6 +623,17 @@ def concat_aiff_to_mp3(aiffs: list[Path], out_mp3: Path, bitrate: str) -> None:
         playlist.unlink(missing_ok=True)
 
 
+def transcript_language(raw: str) -> str:
+    """The primary language subtag from a transcript's ``#fixture-v3: voice=`` annotation.
+
+    The transcript declares its own language, so nothing has to be threaded from the caller and
+    a fixture cannot be rendered in a language its text disagrees with. Defaults to ``en``,
+    which is every fixture that predates the annotation.
+    """
+    m = re.search(r"^#fixture-v3:\s*voice=([A-Za-z]{2})", raw, re.MULTILINE)
+    return (m.group(1) if m else "en").lower()
+
+
 def render_say_fixture(
     segments: list[tuple[str, str]],
     *,
@@ -577,6 +643,7 @@ def render_say_fixture(
     rate: int | None,
     bitrate: str,
     rttm_only: bool,
+    language: str = "en",
 ) -> None:
     """Render one fixture with the ``say`` backend: one aiff per turn, an exact per-turn
     RTTM from the (deterministic) aiff durations, and — unless ``rttm_only`` — the
@@ -586,7 +653,7 @@ def render_say_fixture(
         aiffs: list[Path] = []
         turns: list[tuple[str, float]] = []
         for i, (speaker, text) in enumerate(segments, start=1):
-            voice = get_voice_for_speaker(speaker)
+            voice = get_voice_for_speaker(speaker, language)
             safe_speaker = re.sub(r"[^A-Za-z0-9_]", "_", speaker)[:24] or "spk"
             out_aiff = td_path / f"{stem}_{i:03d}_{safe_speaker}.aiff"
             say_to_aiff(text.strip(), out_aiff, voice=voice, rate=rate)
@@ -783,6 +850,9 @@ def main() -> int:
                 rate=args.rate,
                 bitrate=args.bitrate,
                 rttm_only=args.rttm_only,
+                # The transcript declares its own language, so a fixture cannot be rendered in
+                # one its text disagrees with.
+                language=transcript_language(raw),
             )
 
         print(f"Wrote {rttm_path if args.rttm_only else out_mp3}")

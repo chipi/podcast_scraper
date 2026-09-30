@@ -733,6 +733,60 @@ Concretely:
   (Nigerian/Italian/Brazilian) have no matching-locale voice and take the nearest
   distinct one.
 
+**ONE VOICE PER PERSON, PER LANGUAGE (extended 2026-09-30, #2169 / V.6b).** The map was
+keyed by NAME alone, which cannot express the same person speaking a different language —
+and `p10` is the SPANISH counterpart of `p01`: the same show, the same Maya, the same Liam
+Verbeek. The rule above exists to prevent two failures, neither of which is about language:
+two humans collapsing onto one voice inside an episode (making a speaker count
+unreachable), and one person drifting across voices between episodes. Keying on
+(person, language) preserves both — within the Spanish episode no two people share a voice,
+and Maya is `Monica` in every Spanish episode.
+
+The alternative was worse: reading Spanish text with `Samantha` (en_US) produces audio that
+is neither good Spanish nor good English, and the fixture exists to exercise SPANISH ASR, so
+it would test the wrong thing and a failure could not be attributed to the pipeline rather
+than to the synthesis.
+
+- `SPANISH_SPEAKER_VOICE_MAP`: Maya = `Monica` (es_ES, matching the show's declared
+  `<language>es-ES</language>`), Liam Verbeek = `Paulina` (es_MX).
+- `Ad` is deliberately ABSENT from it: `Zarvox` is a robotic mid-roll voice with no locale to
+  match, and it stays the ad voice in every language.
+- **Only TWO Spanish voices ship with macOS by default** (`Monica` es_ES, `Paulina` es_MX),
+  which is exactly enough for this episode's two human identities *by count* — but **not by
+  acoustic distance**, which is the property that actually matters.
+
+**AUDIO IS BLOCKED ON A SPANISH MALE VOICE (measured 2026-09-30).** Voices must be different
+enough that a diarizer can attribute each passage to the right speaker. Median F0 over the same
+sentence, autocorrelation on decoded 16 kHz mono:
+
+| pair | F0 | separation |
+| --- | --- | --- |
+| English control — `Samantha` / `Ralph` | 177.8 Hz / **79.8 Hz** | **98 Hz (2.2x)** |
+| Spanish available — `Monica` / `Paulina` | 175.8 Hz / **164.9 Hz** | **11 Hz (1.07x)**, sd 27 and 21 |
+| best male Romance installed — `Monica` / `Thomas` (fr_FR) | 175.8 / 134.5 | 41 Hz (1.3x) |
+
+Both default Spanish voices are FEMALE and their F0 distributions overlap almost entirely. A
+diarizer would very likely merge them into one voice, and the episode would then have no guest
+— no `SPOKEN_BY` edge, no position-bearing insights, so D-34's whole payoff would be
+unmeasurable, **failing for a reason that has nothing to do with the pipeline**. `Thomas` is
+closer but is already Marco Bianchi's voice and pronounces Spanish as French.
+
+So `p10_e01` ships **transcript-only** for now (`audio_sha256: null`), exactly as V.6a did.
+Unblocking it needs one of `Jorge` (es_ES), `Juan` (es_MX) or `Diego` (es_AR) — all male, all
+free — installed via **System Settings → Accessibility → Spoken Content → System Voice → Manage
+Voices**. There is no shell path: modern macOS ships voices through an on-demand asset system,
+and neither `/System/Library/Speech/Voices` nor `/Library/Speech/Voices` contains them. After
+installing, point `SPANISH_SPEAKER_VOICE_MAP["Liam Verbeek"]` at it and regenerate
+(`transcripts_to_mp3.py`, then `make_groundtruth.py`).
+
+- The language comes from the transcript's own `#fixture-v3: voice=` annotation, so a fixture
+  cannot be rendered in a language its text disagrees with, and nothing has to be threaded
+  from the caller.
+- `make_groundtruth.py` resolves with the same language. It did not at first, and the Spanish
+  sidecar recorded `Samantha`/`Ralph` while the audio had been rendered with
+  `Monica`/`Paulina` — that field's whole job is to record exactly who sounds like what, so a
+  language-blind lookup makes it a lie rather than a gap.
+
 `SPEAKER_VOICE_MAP` in `tests/fixtures/scripts/transcripts_to_mp3.py` is the single
 source of truth (one entry per surface form → the identity's voice). It is derived
 deterministically from the `scripts/build_v3_fixtures.py` roster (host + guest
@@ -742,10 +796,15 @@ canonical names + `garble_variants` + `nickname_variants`).
 surface forms (canonical + garbles + nicknames + any bare first name used in a
 transcript) pointing at it. Never reuse a voice already assigned to someone else.
 
-**Enforcement:** `tests/integration/eval/test_voice_assignment.py` asserts, over all
+**Enforcement:** `tests/integration/fixtures/test_voice_assignment.py` asserts, over all
 transcripts, that (1) no name resolves to >1 voice, (2) no voice is shared by >1
 distinct person, and (3) no transcript speaker label falls through to the hash
-fallback. A deviation fails CI. Run it after any roster or map change; regenerate
+fallback — and, per LANGUAGE, that (4) no voice is shared within a language, (5) the Spanish
+fixture renders with Spanish voices, (6) English resolution is byte-unchanged, and (7) the
+ground-truth sidecar records the voice actually used. (4) is the one the flat checks cannot
+see: language-blind, Spanish Maya and English Maya resolve to the same voice and are the same
+person, so a collision between Spanish Maya and Spanish Liam Verbeek would pass. A deviation
+fails CI. Run it after any roster or map change; regenerate
 the affected audio (`transcripts_to_mp3.py`).
 
 ### TTS parameters
