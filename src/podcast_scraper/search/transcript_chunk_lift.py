@@ -16,6 +16,8 @@ from podcast_scraper.search.cil_lift_overrides import (
 )
 from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
+from .indexer import is_source_layer_chunk
+
 logger = logging.getLogger(__name__)
 
 # Public alias (same name as historical API); canonical implementation in builders.
@@ -277,6 +279,13 @@ def lift_row_if_transcript(
     if not isinstance(meta, dict):
         return
     if meta.get("doc_type") != "transcript":
+        return
+    if is_source_layer_chunk(meta):
+        # RFC-124 §6.2: a translated episode carries a second, source-language chunk layer whose
+        # char offsets index the SOURCE text. The lift below matches by char-range overlap
+        # against the GI artifact, which is derived from the ENGLISH analysis body — so lifting
+        # one of these would attach Spanish text as the evidence under an English insight, with
+        # an overlap that looks perfectly valid because both ranges are just integers.
         return
     ep = meta.get("episode_id")
     if not isinstance(ep, str) or not ep.strip():

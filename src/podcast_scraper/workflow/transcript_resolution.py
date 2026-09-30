@@ -202,6 +202,36 @@ def text_relpath_candidates(
     return [english_transcript_relpath(rel), rel, *cleaned, adfree]
 
 
+def source_language_relpath_candidates(transcript_relpath: str) -> List[str]:
+    """The bodies to try for the SOURCE-language layer, in order. Pure — no disk access.
+
+    The complement of :func:`text_relpath_candidates`: every English candidate removed, so this
+    resolves the text the episode was actually spoken in even when a translation exists. Needed
+    by RFC-124 §6.2's "both layers are indexed" — the search index carries the source-language
+    chunks so a query in that language reaches the episode, which the English-first precedence
+    cannot provide by construction.
+
+    Ad-free first, matching ANALYSIS, because a source-language ad-free body is the better
+    retrieval target when one exists. It usually does NOT: ad excision runs on the English text
+    (D-19), so for a translated episode this normally lands on the canonical ``.txt``. Both are
+    in the same coordinate space as each other and NEITHER is in the analysis space once a
+    translation exists — which is why chunks built from this must be labelled with the source
+    language, never indexed as analysis text, and excluded from the quote-offset verifier and
+    the transcript lift.
+    """
+    rel = _canonical_relpath(transcript_relpath)
+    if not rel:
+        return []
+    return [adfree_transcript_relpath(rel), rel]
+
+
+def resolve_source_language_text_path(
+    output_dir: PathLike, transcript_relpath: str
+) -> Optional[Path]:
+    """The first existing source-language body, or ``None``."""
+    return _first_existing(output_dir, source_language_relpath_candidates(transcript_relpath))
+
+
 def segments_relpath_candidates(
     transcript_relpath: str,
     *,

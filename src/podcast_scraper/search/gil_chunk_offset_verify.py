@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, MutableMapping, Sequence, Tuple
 
+from .indexer import is_source_layer_chunk
+
 
 def half_open_ranges_overlap(a0: int, a1: int, b0: int, b1: int) -> bool:
     """Return True if ``[a0, a1)`` and ``[b0, b1)`` intersect with positive length."""
@@ -38,10 +40,21 @@ def load_index_metadata_map(index_dir: Path) -> Dict[str, Dict[str, Any]]:
 def transcript_chunk_spans_by_episode(
     metadata: Mapping[str, Mapping[str, Any]],
 ) -> Dict[str, List[Tuple[int, int]]]:
-    """Group transcript chunk ``(char_start, char_end)`` by ``episode_id``."""
+    """Group transcript chunk ``(char_start, char_end)`` by ``episode_id``.
+
+    SOURCE-LAYER CHUNKS ARE EXCLUDED (RFC-124 §6.2). A translated episode is indexed twice —
+    once from the English analysis body, once from the source-language body — and both layers
+    key on the same ``episode_id``. GI's Quote offsets index the ANALYSIS body only, so
+    including the source layer here would compare English quote spans against Spanish chunk
+    spans: it inflates ``transcript_chunks`` and manufactures overlaps between coordinate
+    spaces that share nothing but the audio timeline. That is the exact measurement #528 exists
+    to produce, so a spurious overlap reads as a passing check.
+    """
     out: Dict[str, List[Tuple[int, int]]] = {}
     for _doc_id, meta in metadata.items():
         if meta.get("doc_type") != "transcript":
+            continue
+        if is_source_layer_chunk(meta):
             continue
         ep = meta.get("episode_id")
         if not isinstance(ep, str) or not ep.strip():
