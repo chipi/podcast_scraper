@@ -44,13 +44,16 @@ def english_units_sha256(doc: TranslationDocument) -> str:
     """
     h = hashlib.sha256()
     h.update((doc.source_language or "").encode("utf-8"))
-    h.update(b"\x00")
-    h.update((doc.model or "").encode("utf-8"))
     for unit in doc.units:
         if not unit.ok:
             continue
         h.update(b"\x01")
         h.update(unit.unit_id.encode("utf-8"))
+        # The unit's OWN model, not the document's: on a partial resume the document's model
+        # describes only the units that were re-translated, so hashing it would compute the
+        # whole episode's identity under a model most of it never saw.
+        h.update(b"\x03")
+        h.update((unit.model or doc.model or "").encode("utf-8"))
         for sentence in unit.sentences:
             h.update(b"\x02")
             h.update(str(sentence.get("en_text") or "").encode("utf-8"))
@@ -60,16 +63,35 @@ def english_units_sha256(doc: TranslationDocument) -> str:
 def build_provenance_block(
     doc: TranslationDocument, unit_ids: Sequence[str], *, en_sha256: Optional[str] = None
 ) -> Dict[str, Any]:
-    """The ``translation`` block for one claim."""
+    """The ``translation`` block for one claim.
+
+    ``model`` and ``prompt_sha256`` are derived from the UNITS this claim resolves to, not from
+    the document. A partial resume mixes models — run 1 under A, one turn edited, run 2 under
+    B — and a document-level value would stamp B on every claim including those made of A's
+    output. When the resolved units disagree, BOTH are listed: a claim spanning two models is a
+    fact about that claim, and flattening it to one would be a guess.
+    """
+    by_id = {u.unit_id: u for u in doc.units}
+    resolved = [by_id[uid] for uid in unit_ids if uid in by_id]
+
+    def _spread(values: Sequence[Optional[str]], fallback: Optional[str]) -> Any:
+        present = [v for v in values if v]
+        distinct = sorted(set(present))
+        if not distinct:
+            return fallback
+        return distinct[0] if len(distinct) == 1 else distinct
+
     return {
         "translated": True,
         "source_language": doc.source_language,
-        "model": doc.model,
+        "model": _spread([u.model for u in resolved], doc.model),
         "unit_ids": list(unit_ids),
         "en_sha256": en_sha256 or english_units_sha256(doc),
         # The prompt's own hash, so a claim can be traced to the exact instruction that produced
         # its text — a changed prompt changes the translation without changing the model id.
-        "prompt_sha256": (doc.prompt or {}).get("sha256"),
+        "prompt_sha256": _spread(
+            [u.prompt_sha256 for u in resolved], (doc.prompt or {}).get("sha256")
+        ),
     }
 
 

@@ -259,11 +259,35 @@ def repair_episode(
     # way around the gate.
     from ..workflow.translation_stage import analysis_blocked_reason
 
-    blocked = analysis_blocked_reason(
-        cfg, transcript_relpath=transcript_rel, effective_output_dir=str(run_dir)
+    # THE LANGUAGE COMES FROM THE EPISODE'S METADATA, NOT FROM `cfg`. My first version of this
+    # gate passed cfg alone, which made it useless AND harmful: the repair CLI runs with
+    # `cfg=None` or a profile whose `language` defaults to `"en"`, so a Spanish episode was
+    # never blocked (the gate was inert) — and under a profile set to `es`, EVERY English
+    # episode was refused for having no `.en.*`, which is by design. The pipeline avoids both by
+    # passing the feed's declared language; repair has the persisted per-episode language in
+    # hand and must use it.
+    #
+    # A missing language still PROCEEDS, matching `analysis_blocked_reason`'s own rule: most of
+    # the corpus predates language resolution, and refusing those would make repair unusable on
+    # the English corpus it exists for.
+    _episode_language = (meta.get("episode") or {}).get("language") or (meta.get("feed") or {}).get(
+        "language"
     )
-    if blocked:
-        return _fail(f"translation incomplete: {blocked}")
+    if _episode_language:
+        # Only judged when the ARTIFACT records a language. `cfg` is deliberately not consulted
+        # as a fallback: repair operates on an episode that already exists, whose language is
+        # whatever it was recorded as — not whatever the current run happens to be configured
+        # for. Letting the profile decide is what made a Spanish profile refuse every English
+        # episode. `cfg` is still passed so an operator OVERRIDE is honoured, which is the one
+        # config value that legitimately outranks a recorded tag.
+        blocked = analysis_blocked_reason(
+            cfg,
+            transcript_relpath=transcript_rel,
+            effective_output_dir=str(run_dir),
+            feed_language=_episode_language,
+        )
+        if blocked:
+            return _fail(f"translation incomplete: {blocked}")
 
     try:
         transcript_text, transcript_ref = _transcript_text_for(run_dir, transcript_rel)
@@ -276,12 +300,19 @@ def repair_episode(
     # Repair runs in the CLI main thread with no seam, so without this every Quote node it
     # rebuilds silently loses its `translation` block — which the provenance module's own
     # docstring claimed was covered.
-    from ..translation.provenance import load_for_provenance, publish_episode_translation
+    from ..translation.provenance import publish_episode_translation
 
     try:
+        from ..translation.provenance import load_for_provenance
+
         _loaded = load_for_provenance(transcript_rel, str(run_dir))
     except Exception:  # noqa: BLE001 - provenance never blocks a repair
         _loaded = None
+    # Published rather than scoped with a context manager, for the same reason the seam does:
+    # every episode publishes before it writes, so the value is always the current episode's.
+    # Repair processes many episodes in one PROCESS, so this is set again on each — but it is
+    # left holding the last episode's doc after the loop, which is why nothing downstream may
+    # read it without publishing first.
     publish_episode_translation(*(_loaded if _loaded else (None, None)))
 
     episode_block = meta.get("episode") or {}

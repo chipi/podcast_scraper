@@ -280,13 +280,22 @@ class TestResume:
             "configured one would make en_sha256 describe a model that never ran"
         )
 
-    def test_a_partial_resume_attributes_to_the_model_that_ran(
+    def test_a_partial_resume_attributes_EACH_UNIT_to_the_model_that_made_it(
         self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """When SOME units are fresh, the fresh prompt wins — it is the one that produced text
-        in this run, and a mixed ledger should say so."""
+        """Per-unit, because a partial resume genuinely mixes two models.
+
+        The first version of this test asserted only `doc.prompt` and PASSED with the fix
+        reverted — `doc.prompt` starts None in run 2, so the first fresh unit set it either
+        way. Meanwhile every cached unit was stamped with the CURRENT config's model, so a
+        claim made of run-1 text carried run-2's model and a hash computed under it. The
+        attribution has to live on the unit.
+        """
         _lay_down_spanish_episode(tmp_path)
         _run(monkeypatch, tmp_path, cfg, _StubProvider(fail_units=("t0003.u01",)))
+        first = load_translation_json(REL, str(tmp_path))
+        assert first is not None
+        model_a = cfg.translate_model
 
         class _DifferentPrompt(_StubProvider):
             def translate_unit(self, unit: Any, **kw: Any):
@@ -294,10 +303,87 @@ class TestResume:
                 got["metadata"]["prompt"] = {"name": "stub-v2", "sha256": "f" * 64}
                 return got
 
-        _run(monkeypatch, tmp_path, cfg, _DifferentPrompt())
+        model_b = "google/translategemma-27b-it"
+        _run(
+            monkeypatch,
+            tmp_path,
+            cfg.model_copy(update={"translate_model": model_b}),
+            _DifferentPrompt(),
+        )
         doc = load_translation_json(REL, str(tmp_path))
         assert doc is not None
-        assert doc.prompt == {"name": "stub-v2", "sha256": "f" * 64}
+
+        cached = [u for u in doc.units if u.unit_id != "t0003.u01"]
+        fresh = [u for u in doc.units if u.unit_id == "t0003.u01"]
+        assert cached and fresh
+        assert all(
+            u.model == model_a for u in cached
+        ), "a unit produced by model A must not be attributed to model B"
+        assert all(u.model == model_b for u in fresh)
+        assert all(u.prompt_sha256 == "0" * 64 for u in cached)
+        assert all(u.prompt_sha256 == "f" * 64 for u in fresh)
+
+    def test_a_claim_spanning_two_models_records_BOTH(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Flattening a mixed claim to one model would be a guess. Listing both is the fact."""
+        from podcast_scraper.translation.provenance import build_provenance_block
+
+        _lay_down_spanish_episode(tmp_path)
+        _run(monkeypatch, tmp_path, cfg, _StubProvider(fail_units=("t0003.u01",)))
+        _run(
+            monkeypatch,
+            tmp_path,
+            cfg.model_copy(update={"translate_model": "google/translategemma-27b-it"}),
+            _StubProvider(),
+        )
+        doc = load_translation_json(REL, str(tmp_path))
+        assert doc is not None
+
+        block = build_provenance_block(doc, ["t0000.u01", "t0003.u01"])
+        assert isinstance(block["model"], list) and len(block["model"]) == 2
+
+
+class TestWithdrawal:
+    def test_a_failed_analysis_base_withdraws_the_render_and_says_so_in_the_ledger(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`status` is derived from unit outcomes, so with zero failures it reads `translated` —
+        and the API's `translation_status` reads exactly that field. Without the flag it would
+        report success for an episode with NO English artifacts at all.
+        """
+        _lay_down_spanish_episode(tmp_path)
+        monkeypatch.setattr(
+            "podcast_scraper.translation.artifacts.write_english_adfree", lambda *a, **k: None
+        )
+        got = _run(monkeypatch, tmp_path, cfg, _StubProvider())
+
+        assert got.english_ready is False
+        assert got.units_failed == 0, "every unit translated — the ad-free base is what failed"
+        assert got.reason == "adfree_base_failed", "not 'incomplete_translation'"
+        assert not english_artifacts_present(REL, str(tmp_path))
+
+        doc = load_translation_json(REL, str(tmp_path))
+        assert doc is not None
+        assert doc.english_withdrawn is True
+        assert doc.status == "failed", "the ledger must not claim `translated` with no English"
+
+    def test_withdrawal_removes_EVERY_english_file_not_just_the_gated_two(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """ANALYSIS readers OUTSIDE the gate — the indexer, `gi/load`, the processing stage —
+        resolve `.en.adfree.txt` FIRST, so an orphan left by a partial save would be read as
+        current."""
+        _lay_down_spanish_episode(tmp_path)
+        orphan = tmp_path / "transcripts" / "p10_e01.en.adfree.txt"
+
+        def _partial(*_a: Any, **_k: Any) -> None:
+            orphan.write_text("half-written", encoding="utf-8")
+            return None
+
+        monkeypatch.setattr("podcast_scraper.translation.artifacts.write_english_adfree", _partial)
+        _run(monkeypatch, tmp_path, cfg, _StubProvider())
+        assert not orphan.exists(), "the orphan would be resolved first by ANALYSIS readers"
 
     def test_a_repair_run_retranslates_ONLY_the_failed_units(
         self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch

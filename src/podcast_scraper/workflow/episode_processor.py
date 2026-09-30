@@ -1201,14 +1201,9 @@ def _invalidate_english_artifacts(rel_transcript_path: str, effective_output_dir
     """
     import os as _os
 
-    base, ext = _os.path.splitext(rel_transcript_path)
-    for rel in (
-        f"{base}.en{ext or '.txt'}",
-        f"{base}.en.segments.json",
-        f"{base}.en.adfree{ext or '.txt'}",
-        f"{base}.en.adfree.segments.json",
-        f"{base}.en.adfree.admap.json",
-    ):
+    from ..translation.artifacts import english_artifact_relpaths
+
+    for rel in english_artifact_relpaths(rel_transcript_path):
         path = _os.path.join(effective_output_dir, rel)
         try:
             _os.remove(path)

@@ -41,7 +41,19 @@ logger = logging.getLogger(__name__)
 TEMPLATE_TOKENS = 74
 
 #: Per-sentence cost of the numbered request shape: ``"N. "`` plus the newline.
+#:
+#: Measured 2 tokens per line with the pessimistic character estimator; 4 is the conservative
+#: bound, because Gemma tokenizes digits INDIVIDUALLY — ``"\n123. "`` is about 5 tokens at a
+#: three-digit index against 3 at one digit. A reserve that is right for two digits and wrong
+#: for three is the H1 failure in a narrower window, so the sentence count is capped below
+#: three digits rather than the reserve being grown to cover a case that should not arise.
 PER_SENTENCE_NUMBERING_TOKENS = 4
+
+#: Hard cap on sentences per unit, so every index stays two digits and the reserve above is
+#: provably sufficient. Also a sanity bound in its own right: the measured real transcript's
+#: longest TURN was 41 words, so a 100-sentence unit means diarization merged a rapid exchange
+#: into one turn — a shape worth splitting for the model's sake regardless of tokens.
+MAX_SENTENCES_PER_UNIT = 99
 
 #: Legacy flat reserve. KEPT ONLY AS A FLOOR for callers that pass nothing, and it is NOT what
 #: the packer budgets against any more — a review found why. A flat 128 ignored the per-sentence
@@ -240,7 +252,10 @@ def pack_units(
                     continue
                 # The budget is evaluated for the unit this sentence would CREATE, numbering
                 # included, so a unit can never be packed past what the provider will accept.
-                if current and current_tokens + cost > budget_for(len(current) + 1):
+                if current and (
+                    current_tokens + cost > budget_for(len(current) + 1)
+                    or len(current) >= MAX_SENTENCES_PER_UNIT
+                ):
                     groups.append(current)
                     current, current_tokens = [], 0
                 current.append(sent)

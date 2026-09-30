@@ -224,11 +224,14 @@ def run_translation_stage(
             # mismatch, both of which escaped into processing.py's generic handler — episode
             # counted as an error, NO `metadata.json` written, backlog invisible. A translation
             # that cannot run is a recorded outcome, not a lost episode.
+            # exc_info: without it a code bug (AttributeError, TypeError) becomes a one-line
+            # `stage_error:AttributeError` in the manifest with no stack to debug from.
             logger.error(
                 "translation: the stage failed for %s (%s): %s",
                 transcript_relpath,
                 type(exc).__name__,
                 exc,
+                exc_info=True,
             )
             outcome.status = STATUS_FAILED
             outcome.reason = f"stage_error:{type(exc).__name__}"
@@ -305,8 +308,12 @@ def _withdraw_english_render(transcript_relpath: str, effective_output_dir: str)
     render is withdrawn and the episode records `failed`, which is recoverable; the alternative
     is a corpus entry nobody can tell from a correct one.
     """
-    base, ext = os.path.splitext(transcript_relpath)
-    for rel in (f"{base}.en{ext or '.txt'}", f"{base}.en.segments.json"):
+    from ..translation.artifacts import english_artifact_relpaths
+
+    # EVERY `.en.*` file, not just the two the gate reads. A partial ad-free save leaves
+    # `.en.adfree.txt` behind, and ANALYSIS readers outside the gate — the indexer, `gi/load`,
+    # the processing stage — resolve that file FIRST.
+    for rel in english_artifact_relpaths(transcript_relpath):
         try:
             os.remove(os.path.join(effective_output_dir, rel))
         except OSError:
@@ -473,6 +480,12 @@ def _translate_episode(
                             for s, e in zip(unit.sentences, cached.sentences)
                         ],
                         attempts=0,
+                        # The CACHED unit keeps the model and prompt that produced its text.
+                        # Falling back to the previous document's values covers a ledger written
+                        # before these fields existed.
+                        model=cached.model or (previous.model if previous else None),
+                        prompt_sha256=cached.prompt_sha256
+                        or ((previous.prompt or {}).get("sha256") if previous else None),
                     )
                 )
                 continue
@@ -493,6 +506,9 @@ def _translate_episode(
                 sentences=list(result.get("sentences") or []),
                 error=meta.get("error"),
                 attempts=int(meta.get("attempts") or 0),
+                # A FRESH unit is attributed to this run's model and prompt.
+                model=meta.get("model") or getattr(cfg, "translate_model", None),
+                prompt_sha256=(meta.get("prompt") or {}).get("sha256"),
             )
         )
 
@@ -521,13 +537,28 @@ def _translate_episode(
             # Withdraw the render rather than let the gate pass on a partial set.
             _withdraw_english_render(transcript_relpath, effective_output_dir)
             en_rel = None
+            # And say so IN the ledger. `TranslationDocument.status` is derived from unit
+            # outcomes, so with zero failed units it reads `translated` — and the API's
+            # `translation_status` reads exactly that field, so it would report `translated` for
+            # an episode with no English at all. The flag is what stops the ledger contradicting
+            # the disk.
+            doc.english_withdrawn = True
+            write_translation_json(doc, transcript_relpath, effective_output_dir)
 
     outcome.units = len(doc.units)
     outcome.units_failed = len(doc.failed_units)
     outcome.english_ready = en_rel is not None
     outcome.metrics = translation_metrics(doc, units)
     outcome.status = STATUS_TRANSLATED if en_rel else STATUS_FAILED
-    outcome.reason = None if en_rel else "incomplete_translation"
+    if en_rel:
+        outcome.reason = None
+    elif adfree_rel is None and not doc.failed_units:
+        # Distinct from `incomplete_translation`: every unit translated, but the ANALYSIS body
+        # could not be written, so the render was withdrawn. Calling that "incomplete
+        # translation" would send an operator looking for failed units that do not exist.
+        outcome.reason = "adfree_base_failed"
+    else:
+        outcome.reason = "incomplete_translation"
     return outcome
 
 

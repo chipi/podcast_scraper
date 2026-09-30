@@ -63,6 +63,15 @@ class UnitRecord:
     sentences: List[Dict[str, str]] = field(default_factory=list)
     error: Optional[str] = None
     attempts: int = 0
+    #: The model and prompt that produced THIS unit's text (S2.11).
+    #:
+    #: Per-unit, not per-document, because a partial resume mixes them: run 1 under model A,
+    #: one turn edited, run 2 under model B leaves N-1 units of A's output in a ledger whose
+    #: document-level model says B. Every claim resolving to an A-unit would then carry
+    #: `model: B` and a hash computed under B — the misattribution the document-level carry was
+    #: meant to stop, narrowed to the partial case rather than removed.
+    model: Optional[str] = None
+    prompt_sha256: Optional[str] = None
 
     @property
     def ok(self) -> bool:
@@ -77,6 +86,8 @@ class UnitRecord:
             "alignment": self.alignment,
             "sentences": list(self.sentences),
             "attempts": self.attempts,
+            "model": self.model,
+            "prompt_sha256": self.prompt_sha256,
         }
         if self.error:
             out["error"] = self.error
@@ -93,6 +104,8 @@ class UnitRecord:
             sentences=list(raw.get("sentences") or []),
             error=raw.get("error"),
             attempts=int(raw.get("attempts") or 0),
+            model=raw.get("model"),
+            prompt_sha256=raw.get("prompt_sha256"),
         )
 
 
@@ -108,6 +121,11 @@ class TranslationDocument:
     prompt: Optional[Dict[str, Any]] = None
     source: Dict[str, Any] = field(default_factory=dict)
     units: List[UnitRecord] = field(default_factory=list)
+    #: True when the English render was WITHDRAWN after the fact — every unit translated, but
+    #: the ANALYSIS body could not be written, so the set is not consumable. Without it
+    #: ``status`` reads ``translated`` (it is derived from unit outcomes) while no `.en.*`
+    #: exists, and the API repeats that.
+    english_withdrawn: bool = False
 
     @property
     def failed_units(self) -> List[UnitRecord]:
@@ -122,6 +140,11 @@ class TranslationDocument:
     def status(self) -> str:
         if not self.units:
             return STATUS_PENDING
+        if self.english_withdrawn:
+            # Every unit translated, but the set on disk is not consumable. Reporting
+            # `translated` here is what let the API claim success for an episode with no
+            # English artifacts at all.
+            return STATUS_FAILED
         return STATUS_TRANSLATED if self.complete else STATUS_FAILED
 
     def by_content_key(self) -> Dict[str, UnitRecord]:
@@ -140,6 +163,7 @@ class TranslationDocument:
             "status": self.status,
             "units_total": len(self.units),
             "units_failed": len(self.failed_units),
+            "english_withdrawn": self.english_withdrawn,
             "units": [u.to_dict() for u in self.units],
         }
 
@@ -154,6 +178,7 @@ class TranslationDocument:
             prompt=raw.get("prompt"),
             source=dict(raw.get("source") or {}),
             units=[UnitRecord.from_dict(u) for u in (raw.get("units") or [])],
+            english_withdrawn=bool(raw.get("english_withdrawn")),
         )
 
 
@@ -428,6 +453,30 @@ def english_analysis_relpath(rel_transcript_path: str) -> str:
     """``<base>.en.adfree.txt`` — the English body in the ANALYSIS coordinate space."""
     base, ext = os.path.splitext(rel_transcript_path)
     return f"{base}.en.adfree{ext or '.txt'}"
+
+
+def english_artifact_relpaths(rel_transcript_path: str) -> List[str]:
+    """EVERY `.en.*` derivative, in one place.
+
+    Two callers needed this list and each had its own copy: `_withdraw_english_render` listed
+    two files and `_invalidate_english_artifacts` five. A withdrawal therefore left
+    `.en.adfree.txt` behind when the ad-free save failed part-way — and ANALYSIS readers
+    OUTSIDE the gate (the indexer, `gi/load`, the processing stage) resolve that file FIRST.
+    One list, both callers.
+
+    `translation.json` is deliberately absent: it is the content-keyed translation memory
+    (D-33), and deleting it turns the most common repair in this corpus into a full
+    re-translation.
+    """
+    base, ext = os.path.splitext(rel_transcript_path)
+    suffix = ext or ".txt"
+    return [
+        f"{base}.en{suffix}",
+        f"{base}.en.segments.json",
+        f"{base}.en.adfree{suffix}",
+        f"{base}.en.adfree.segments.json",
+        f"{base}.en.adfree.admap.json",
+    ]
 
 
 def english_artifacts_present(rel_transcript_path: str, effective_output_dir: str) -> bool:
