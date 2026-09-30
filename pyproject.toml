@@ -93,6 +93,7 @@ observability = [
   "httpx>=0.28.1,<1.0.0",
   "PyYAML>=6.0.3,<7.0.0",
   "mcp>=1.2.0,<2.0.0",  # FastMCP server for the agent-facing layer (stdio + sse/http)
+  "pyjwt>=2.14.0",  # via mcp; security floor, see the note in [dev]
 ]
 
 # ── Optional 3rd-party observability extensions ──────────────────────────────────
@@ -272,6 +273,11 @@ dev = [
   # direct dep raises them anyway.
   "gitpython>=3.1.59",
   "msgpack>=1.2.1",
+  # pyjwt (pulled by mcp, which sets no upper bound) had ten 2026 CVEs fixed in 2.14.0. There is no
+  # lock file, so a fresh CI/image resolve already lands past them — the floor is for every venv
+  # built before 2.14.0 existed, which kept 2.13.0 and failed pip-audit. Drop it once mcp requires
+  # >=2.14.0 itself.
+  "pyjwt>=2.14.0",
   # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.
