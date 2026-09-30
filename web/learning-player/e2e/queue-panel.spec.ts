@@ -84,20 +84,25 @@ test('the full player queues THIS episode instead of opening a panel', async ({
   await expect(page.getByTestId('player-queue')).toHaveCount(0)
   await expect(page.getByTestId('queue-panel')).toHaveCount(0)
 
-  // START FROM "NOT QUEUED". The account is per spec+project, not per attempt, so a retry — or any
-  // second run against the same api — finds this episode already queued from the first, and "Add to
-  // queue" is not there to press. Measured with --repeat-each=5: every run after the first failed.
-  const already = page.getByRole('button', { name: 'Remove from queue' })
-  if (await already.isVisible().catch(() => false)) {
-    await already.click()
-    await expect(page.getByRole('button', { name: 'Add to queue' })).toBeVisible()
-  }
+  // START FROM AN EMPTY QUEUE, set through the API before the assertions. The account is per
+  // spec+project, not per attempt, so a retry — or any second run against the same api — finds this
+  // episode already queued. Checking the button for that and un-queueing it was RACY (2026-09-30):
+  // the button renders "Add to queue" until the queue store hydrates, so the check read "not
+  // queued", then the store landed, the button flipped to "Remove", and "Add" never appeared.
+  const reset = await page.request.put('/api/app/queue', { data: { items: [] } })
+  expect(reset.ok(), `PUT /api/app/queue → ${reset.status()}`).toBe(true)
+  await page.reload()
+
+  // SCOPED to the player's own action row. The page also renders related-episode rows, each with
+  // its own queue toggle, and on desktop they load in while this runs — measured 2026-09-30 as 7
+  // "Add to queue" buttons, a strict-mode violation, on a run where the related rows won the race.
+  const actions = page.getByTestId('player-actions')
 
   // The heart's row owns it now. Named by its action, and the name flips once the write lands.
-  const add = page.getByRole('button', { name: 'Add to queue' })
+  const add = actions.getByRole('button', { name: 'Add to queue' })
   await expect(add).toBeVisible()
   await add.click()
-  await expect(page.getByRole('button', { name: 'Remove from queue' })).toBeVisible()
+  await expect(actions.getByRole('button', { name: 'Remove from queue' })).toBeVisible()
 
   // ...and the episode really is in the queue, not merely relabelled optimistically.
   await page.getByTestId('masthead-queue').click()

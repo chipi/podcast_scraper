@@ -1301,7 +1301,7 @@ onBeforeUnmount(() => {
             episode.podcast_title
           }}</span>
           <span v-else />
-          <div class="flex shrink-0 items-center gap-2">
+          <div class="flex shrink-0 items-center gap-2" data-testid="player-actions">
             <!-- Mark this moment (P2 capture). Auth-gated means deferred, not hidden (#1590):
                  this is the cheapest entry to the learning loop, so hiding it hid the loop.
 
