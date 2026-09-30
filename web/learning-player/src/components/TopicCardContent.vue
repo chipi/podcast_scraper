@@ -18,7 +18,7 @@ import { RouterLink, useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, TopicCard } from "../services/types"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { resolveMediaUrl } from "../services/tier"
-import ProfileAvatar from "./ProfileAvatar.vue"
+import TopVoices from "./TopVoices.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityEpisodeList from "./EntityEpisodeList.vue"
 import StorylineCard from "./StorylineCard.vue"
@@ -301,29 +301,8 @@ function searchLibrary(): void {
     </ul>
   </section>
 
-  <!-- Top voices (wave-G): the people who drive THIS topic, as prominent avatar chips. -->
-  <section v-if="topVoices.length" class="mb-4" data-testid="ec-top-voices">
-    <h3 class="lp-section mb-2">{{ t("ec.topVoices") }}</h3>
-    <!-- A 4-column grid that fills the row width (operator 2026-09-15): the old flex-wrap left a
-         dead gap on the right of each row; the grid spreads the avatars evenly and lets a partial
-         last row sit left with empty space below rather than an uneven ragged edge. -->
-    <div class="grid grid-cols-4 gap-3">
-      <button
-        v-for="p in topVoices"
-        :key="p.id"
-        type="button"
-        class="flex flex-col items-center gap-1"
-        :aria-label="p.name"
-        data-testid="ec-top-voice"
-        @click="openPerson(p.id)"
-      >
-        <ProfileAvatar :name="p.name" :src="p.image_url" :size="44" />
-        <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
-          {{ p.name }}
-        </span>
-      </button>
-    </div>
-  </section>
+  <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
+  <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
 
   <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
        Directly under Top voices (operator 2026-09-19) — it names the same people and says what they

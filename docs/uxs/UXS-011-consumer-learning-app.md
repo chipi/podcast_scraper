@@ -256,9 +256,17 @@ start. (A serif was tried and rejected during the earlier design phase.)
 - **Scrubber:** a 2px editorial rule (not a fat bar); progress in `--accent`; a small round thumb.
 - **Chips:** topic (`topic`), person (`person`), grounding (`grounded`) — `xs`, rounded, low-fill.
 - **Insights dock:** two cells — "N insights" (`--accent`) + "Ask this episode" — that open the
-  **Insights** panel (titled "Insights" in the UI; shipped #1091). The panel is a single
-  vertical column: Ask · Summary · **Topics & People (one merged, expandable row; chips → corpus
-  search)** · Insights (grounded cards, `●` grounded marker) · More like this.
+  **Episode notes** panel (shipped #1091 as "Insights"; renamed 2026-09-30 — the panel is the
+  episode's notes as a whole, and plain "Notes" already means the user's own notes, so the opener
+  pill and the panel title read "Episode notes" while the grounded items inside stay "insights").
+  It opens on the episode: show kicker, title, then the people in the room, host first and then
+  guests (mentioned people stay in the chips), each with a 32px `ProfileAvatar` photo and a role
+  label. Initials show when there is no photo. Tapping a person opens them in the panel with
+  ‹ Back, the same as their chip does. The panel is a single
+  vertical column: episode (title + people) · Summary · Download notes · Search this episode ·
+  Key points · **Topics & People (one merged, expandable row; chips → corpus search)** · Insights
+  (grounded cards, `●` grounded marker) · More like this. Search sits below the summary and the
+  download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
 - **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
   (summary title) + `date · duration` + a grounded **✦ insights icon** that reveals the full
   summary bullets on hover/tap. *No topic pills on the card.* (The oversized faint **numeral** is the
@@ -445,8 +453,8 @@ already travelled; **search** and the **muted** toggle did not, so narrowing the
 Export handed back a file that disagreed with the screen that produced it. All three are query
 parameters on `/highlights/export.md` now.
 
-**Episode notes (operator 2026-09-18).** The insights panel carries its own export — Markdown and
-PDF — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
+**Episode notes (operator 2026-09-18).** The Episode notes panel carries its own export — a
+"Download notes" row with Markdown and PDF chips — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
 said with a jump link on every supporting quote, then the user's own captures and notes on it. It
 is deliberately a different artifact from the Library export: that one answers "what did I save,
 across everything", this one answers "what was this episode, and what did I take from it". Printed
@@ -474,8 +482,8 @@ Each exported capture carries its **kind**, timestamp, speaker, colour, **captur
 people/topics it is about, the user's notes (each with the date it was written, and `edited` only
 when that actually differs), and an **absolute** player link on the timecode, so one click from any
 tool opens the player at that second. Every episode heading carries **date · length · link** and all
-**three** summary fields — headline, the prose the Summary button shows, and the bullets that open
-the insights panel — because the app treats those as three distinct things, not three renderings of
+**three** summary fields — headline, the prose of the panel's Summary section, and the Key points
+bullets — because the app treats those as three distinct things, not three renderings of
 one. Entities are plain names here, not `[[wikilinks]]`:
 this is one flat document, and `[[…]]` renders as broken links for anyone not in Obsidian — who are
 exactly the audience the other export exists for. What does NOT travel: the resurfacing schedule,
@@ -632,6 +640,12 @@ Renamed rather than re-pointed at played episodes, because the resurfacing loop 
 here and re-pointing it would have deleted that from Home to answer a different question. The
 "what did I play recently" question has its own answers — Browse's **Played** filter and the queue
 panel's Recently played — and Home deliberately did NOT gain a third (operator's call: rename only).
+
+**It is Home's ONLY revisit surface (2026-09-30).** Your Week used to render the digest's `revisit`
+section as a rail under "What's new" too, so the same due highlights appeared on Home twice — once as
+episode cards under a heading that promised new episodes, once here with the actions that belong to
+them. Home now drops that section from Your Week; the API still sends it, because the digest email
+and the push nudge are built from the same payload and keep their revisit content.
 
 Tapping goes to the **Revisit tab, scrolled to that capture** (`?focus=<id>`, briefly ringed), not
 to the player: from Home the user is deciding what to do with a capture, and the three outcomes
@@ -1064,8 +1078,15 @@ design home:
 - **`ProfileAvatar`** — the account's picture: initials on a name-derived hue until the server
   exposes an OAuth photo on `/me` (deferred). Used in the Profile identity header and the masthead
   top-right profile link. It also renders **person** photos (the web enricher's hosted portraits)
-  wherever a person is listed and the surface opts in — the key-voices rail and a topic's Top
-  voices today — falling back to the same initials mark when a person has no hosted photo.
+  wherever a person is listed and the surface opts in — the key-voices rail, Top voices (topic
+  card and storyline page), the Trends people list and the person card — falling back to the same
+  initials mark when a person has no hosted photo. **The crop is anchored near the top**
+  (`object-position: 50% 10%`, 2026-09-30), not centred: portraits are taller than wide, and a
+  centred square crop took the top of the head off in 35 of 43 real prod portraits. 10% was chosen
+  by measurement — face + eye detection over those photos, a sweep of 0–50%, and the rendered
+  circles checked by eye — leaving 4 marginal cuts (three under 8px; one source photo whose face
+  touches the top edge, which no position can frame). The loop is re-runnable:
+  `scripts/dev/avatar_crop_eval/`.
 - **`AvatarCropModal`** — square crop-on-upload for the account picture. A picked photo opens this
   modal to pan + zoom within a circular frame before upload (portraits/landscapes rarely fill a
   circle well); on save it renders the framed region to a 512×512 PNG and uploads that cropped

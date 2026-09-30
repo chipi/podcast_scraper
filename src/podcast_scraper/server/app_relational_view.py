@@ -104,7 +104,7 @@ def hosted_photo_urls(root: Path) -> dict[str, str]:
     return out
 
 
-def _with_photos(people: list[AppEntity], photos: dict[str, str]) -> list[AppEntity]:
+def with_photos(people: list[AppEntity], photos: dict[str, str]) -> list[AppEntity]:
     """Hydrate ``image_url`` on each person that has a hosted photo (leaves the data available to
     every people-list surface; whether the UI renders the avatar is a per-surface choice)."""
     if not photos:
@@ -409,7 +409,7 @@ def build_person_card(
     # collection site. `model_copy` rather than mutation: these entities come from the cached KG
     # index and are shared with every other card built in this process, so writing through them
     # would leak one card's aggregate into the next.
-    related_people = _with_photos(
+    related_people = with_photos(
         [
             people_by_id[i].model_copy(update={"role": _aggregate_role(related_roles.get(i, []))})
             for i, _ in person_counts.most_common(top_k)
@@ -463,7 +463,7 @@ def build_topic_card(
     if not about:
         return None
 
-    related_people = _with_photos(
+    related_people = with_photos(
         [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
     )
     info = cluster_map.get(topic_id) or {}
@@ -595,7 +595,7 @@ def build_org_card(
     if not appears_in:
         return None
 
-    related_people = _with_photos(
+    related_people = with_photos(
         [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
     )
     related_orgs = [orgs_by_id[i] for i, _ in org_counts.most_common(top_k)]

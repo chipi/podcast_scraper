@@ -75,7 +75,7 @@ const artwork = computed(
       :to="{ name: 'player', params: { slug: episode.slug } }"
       class="block no-underline"
     >
-      <span v-if="episode.podcast_title" class="lp-kicker block">{{ episode.podcast_title }}</span>
+      <span v-if="episode.podcast_title" class="lp-kicker lp-show-name" :title="episode.podcast_title">{{ episode.podcast_title }}</span>
       <!-- Above the title, not below it: the title is clamped to three lines and a marker after it
            would sit at a different height on every tile in the row. -->
       <PlayedBadge :slug="episode.slug" class="mt-1" />

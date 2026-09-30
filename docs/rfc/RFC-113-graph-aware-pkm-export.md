@@ -117,8 +117,9 @@ the link text did not already have.
 
 **All THREE summary fields travel, because the app treats them as three different things** (operator
 2026-09-18): `summary_title` is a headline and, per `KnowledgePanel`, "is not a short summary";
-`summary_text` is the prose the player's Summary button renders; `summary_bullets` is the digest
-that opens the insights panel. They are rendered in that order — the order the player presents them.
+`summary_text` is the prose the Episode notes panel's Summary section renders; `summary_bullets`
+are the digest under it (Key points). They are rendered in that order — the order the player
+presents them.
 
 **Entity note** is thin (id, label, source) — the graph emerges from backlinks, not duplicated body.
 

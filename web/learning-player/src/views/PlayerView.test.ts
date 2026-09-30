@@ -163,9 +163,11 @@ describe('PlayerView', () => {
     expect(w.text()).toContain('1.2k') // listeners
     expect(w.text()).toContain('3.4k') // opens
     // #1595 — insights moved OUT of the stats cluster into a labelled first-class control.
+    // "Episode notes", not "Insights": the panel is the episode's notes (summary, key points,
+    // downloads); "Notes" alone already means the user's own. The items inside stay insights.
     // PL.5: the opener pill carries the label only, no count (the count lives on the panel's
     // Insights section header, UXS-014).
-    expect(w.get('[data-testid="player-open-insights"]').text()).toContain('Insights')
+    expect(w.get('[data-testid="player-open-insights"]').text()).toContain('Episode notes')
     expect(w.get('[data-testid="player-open-insights"]').text()).not.toMatch(/\d/)
   })
 
@@ -176,10 +178,9 @@ describe('PlayerView', () => {
     expect(w.text()).toContain('50') // small listener count rendered as-is
   })
 
-  it('renders the episode summary as the artwork pull-quote', async () => {
+  it('renders the episode title masthead', async () => {
     const w = await mountPlayer('ep-1')
-    expect(w.text()).toContain('The pull-quote summary prose.')
-    expect(w.text()).toContain('The Episode') // title masthead
+    expect(w.text()).toContain('The Episode')
   })
 
   it('offers mark-moment to everyone as a teaser, and captures on tap once signed in (#1590)', async () => {
@@ -273,7 +274,9 @@ describe('PlayerView', () => {
       const el = w.find('[data-testid="player-controls-sticky"]')
       expect(el.exists()).toBe(true)
       expect(el.attributes('data-stuck')).toBe('false')
-      expect(el.classes()).toContain('pt-2')
+      // At rest: no top padding (2026-09-30) — the artwork→panel gap is `mt-2` alone, so the
+      // scrubber and timestamps sit higher on a phone. The inset below still applies once pinned.
+      expect(el.classes()).toContain('pt-0')
       expect(el.classes().join(' ')).not.toContain('safe-area-inset-top')
     })
 
@@ -297,7 +300,7 @@ describe('PlayerView', () => {
 
       const el = () => w.find('[data-testid="player-controls-sticky"]')
       expect(el().attributes('data-stuck')).toBe('false')
-      expect(el().classes()).toContain('pt-2')
+      expect(el().classes()).toContain('pt-0')
 
       // sentinel leaves the viewport → the transport is pinned
       callbacks.at(-1)?.([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver)
@@ -307,61 +310,6 @@ describe('PlayerView', () => {
       expect(el().classes()).not.toContain('pt-2')
 
       vi.unstubAllGlobals()
-    })
-  })
-
-  describe('the Summary panel shows the SUMMARY — the full prose, and nothing else', () => {
-    async function openSummary(over: Record<string, unknown>) {
-      vi.spyOn(api, 'getHighlights').mockResolvedValue([])
-      vi.spyOn(api, 'getNotes').mockResolvedValue([])
-      vi.spyOn(api, 'getEpisode').mockResolvedValue(detail(over as never))
-      const w = await mountPlayer('ep-1')
-      await w.get('[data-testid="player-open-summary"]').trigger('click')
-      await flushPromises()
-      return w
-    }
-
-    it('shows the prose ONLY — no bullets, no thematic headline', async () => {
-      // This test used to assert the opposite, and that is the whole story: a previous pass read
-      // "I click summary and get something else" as "it lacks structure" and ADDED the bullets,
-      // on the same day another instruction removed them from the browse card. A summary control
-      // must open the summary — `summary_title` is a headline and `summary_bullets` are a digest,
-      // and substituting either is what made this recur.
-      const w = await openSummary({
-        summary_title: 'A thematic headline',
-        summary_text: 'The prose body.',
-        summary_bullets: ['First point', 'Second point'],
-      })
-      const panel = w.get('[data-testid="episode-summary-dialog"]')
-      expect(panel.text()).toContain('The prose body.')
-      // Scoped to THIS panel: `summary-bullets` also exists in the Insights panel, which is the
-      // bullets' one legitimate home. An unscoped query finds that one and fails for the wrong
-      // reason — which it did, the moment they were given a home.
-      expect(
-        panel.find('[data-testid="summary-bullets"]').exists(),
-        'bullets are back in the summary panel',
-      ).toBe(false)
-      expect(panel.text(), 'the thematic headline is back').not.toContain('A thematic headline')
-      expect(panel.text(), 'a bullet leaked into the panel').not.toContain('First point')
-    })
-
-    it('labels the panel "Summary", so a thematic headline is not mistaken for an insight', async () => {
-      const w = await openSummary({
-        summary_title: 'A thematic headline',
-        summary_text: 'The prose body.',
-        summary_bullets: [],
-      })
-      expect(w.get('[data-testid="summary-label"]').text()).toBe(en.player.summaryOpen)
-    })
-
-    it('renders no bullet list when the episode has none, rather than an empty box', async () => {
-      const w = await openSummary({
-        summary_title: 'A thematic headline',
-        summary_text: 'The prose body.',
-        summary_bullets: [],
-      })
-      expect(w.find('[data-testid="summary-bullets"]').exists()).toBe(false)
-      expect(w.text()).toContain('The prose body.')
     })
   })
 
@@ -452,74 +400,6 @@ describe('PlayerView', () => {
   })
 })
 
-describe('PlayerView — the summary is opened, not laid over the artwork', () => {
-  it('shows a labelled control instead of the summary itself', async () => {
-    // The old overlay put the full prose over the hero: hover-revealed on desktop, permanently on
-    // for touch. So on a phone the artwork was covered by default, and the text was clipped to the
-    // hero's fixed square — a real summary ended in an ellipsis you could not read past.
-    const w = await mountPlayer()
-    const opener = w.find('[data-testid="player-open-summary"]')
-    expect(opener.exists()).toBe(true)
-    // The prose is not rendered until asked for. Scoped to the dialog deliberately: the Knowledge
-    // Panel has its own Summary section, so asserting the string is absent from the whole page
-    // would be asserting something this change never claimed.
-    expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
-  })
-
-  it('opens the full summary on demand', async () => {
-    const w = await mountPlayer()
-    await w.find('[data-testid="player-open-summary"]').trigger('click')
-    await flushPromises()
-
-    const body = w.find('[data-testid="episode-summary-text"]')
-    expect(body.exists()).toBe(true)
-    expect(body.text()).toContain('The pull-quote summary prose.')
-  })
-
-  it('renders a long summary in full — no truncation, no ellipsis', async () => {
-    // The point of the change: length must stop being a reason the reader cannot finish it.
-    const long = 'Sentence. '.repeat(400).trim()
-    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ summary_text: long }))
-    const w = await mountPlayer()
-    await w.find('[data-testid="player-open-summary"]').trigger('click')
-    await flushPromises()
-
-    const text = w.find('[data-testid="episode-summary-text"]').text()
-    expect(text.length).toBeGreaterThan(3000)
-    expect(text.endsWith('Sentence.')).toBe(true)
-    expect(text).not.toContain('…')
-  })
-
-  it('offers NO summary control when there is no prose — it does not fall back to the headline', async () => {
-    // The inverse of the rule above, and the reason it used to fall back: an episode with only a
-    // headline offered a "Summary" button that opened the headline. Showing a stand-in is worse
-    // than showing nothing, because the reader cannot tell one from the other.
-    vi.spyOn(api, 'getEpisode').mockResolvedValue(
-      detail({ summary_text: '', summary_title: 'Only a headline' }),
-    )
-    const w = await mountPlayer()
-    expect(
-      w.find('[data-testid="player-open-summary"]').exists(),
-      'a summary control was offered for an episode with no summary',
-    ).toBe(false)
-  })
-
-  it('offers no control at all when the episode has no summary', async () => {
-    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ summary_text: '', summary_title: '' }))
-    const w = await mountPlayer()
-    expect(w.find('[data-testid="player-open-summary"]').exists()).toBe(false)
-  })
-
-  it('closes again', async () => {
-    const w = await mountPlayer()
-    await w.find('[data-testid="player-open-summary"]').trigger('click')
-    await flushPromises()
-    await w.find('[data-testid="episode-summary-close"]').trigger('click')
-    await flushPromises()
-    expect(w.find('[data-testid="episode-summary-text"]').exists()).toBe(false)
-  })
-})
-
 describe('a failure must not be reported as an absence (Player #6)', () => {
   it('says "not found" only for an actual 404', async () => {
     vi.spyOn(api, 'getEpisode').mockRejectedValue(new api.ApiError(404, 'nope'))
@@ -578,10 +458,11 @@ describe('a failure must not be reported as an absence (Player #6)', () => {
 })
 
 describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
-  // Marking on ARRIVAL rather than on click is what lets one mechanism serve all three surfaces:
-  // the inbox jump link, the Your Week card and the digest email all just carry the marker. Before
-  // this the only advance path in the product was the inbox's dismiss button, so anyone who
-  // consumed revisit through Your Week or the email was re-sent the same five items every week.
+  // Marking on ARRIVAL rather than on click is what lets one mechanism serve every link that carries
+  // the marker — the inbox jump link and the digest email (Home's Your Week card did too until
+  // 2026-09-30, when Home stopped showing the digest's revisit section). Before this the only advance
+  // path in the product was the inbox's dismiss button, so anyone who consumed revisit through a
+  // link was re-sent the same five items every week.
 
   // Every mount is tracked and torn down. Not tidiness — the first version of these tests leaked
   // mounted PlayerViews, and a leaked instance still holds a `route.query.revisit` watcher plus

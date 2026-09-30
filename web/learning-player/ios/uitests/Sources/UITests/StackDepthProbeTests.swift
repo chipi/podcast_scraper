@@ -22,7 +22,7 @@ final class StackDepthProbeTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
 
-    guard Journey.tap(app, labels: ["Insights"], contains: true, timeout: 15) else {
+    guard Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15) else {
       XCTFail("could not open the knowledge panel"); return
     }
     sleep(3)
@@ -96,7 +96,7 @@ final class HostShowLinkTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
 
-    guard Journey.tap(app, labels: ["Insights"], contains: true, timeout: 15) else {
+    guard Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15) else {
       XCTFail("could not open the knowledge panel"); return
     }
     sleep(3)

@@ -57,6 +57,30 @@ test('the player insight density band shows where the insights sit', async ({ pa
   // this spec fail for a reason that has nothing to do with the player band.
 })
 
+test('tapping the density band seeks there, like the scrubber (operator 2026-09-30)', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'insight-density-seek', testInfo)
+  await page.goto('/podcast/p05')
+  await page.getByText('Index Investing Without the Myths').first().click()
+
+  // The scrubber carries the real position; wait for the audio's duration to reach it.
+  const scrubber = page.locator('input[type="range"]').first()
+  await expect.poll(async () => Number(await scrubber.getAttribute('max'))).toBeGreaterThan(0)
+  const max = Number(await scrubber.getAttribute('max'))
+
+  const band = page.getByTestId('player-density-seek')
+  // A raw mouse click at page coordinates hits nothing off-screen, and on desktop the band sits
+  // below the fold — bring it into view first, then measure.
+  await band.scrollIntoViewIfNeeded()
+  const box = (await band.boundingBox())!
+  await page.mouse.click(box.x + box.width * 0.6, box.y + box.height / 2)
+
+  // 60% along the band = 60% of the episode, within a second of rounding.
+  await expect
+    .poll(async () => Number(await scrubber.inputValue()))
+    .toBeGreaterThanOrEqual(Math.floor(max * 0.6) - 1)
+  expect(Number(await scrubber.inputValue())).toBeLessThanOrEqual(Math.ceil(max * 0.6) + 1)
+})
+
 test('the knowledge panel opens in place and closes with Escape', async ({ page }, testInfo) => {
   await signInIsolated(page, 'knowledge-panel', testInfo)
   await page.goto('/podcast/p05')

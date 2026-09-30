@@ -44,6 +44,7 @@ from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
 from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
+from podcast_scraper.server.app_relational_view import hosted_photo_urls, with_photos
 from podcast_scraper.server.app_search_view import build_search_response, filter_outcome_to_episode
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
@@ -447,6 +448,9 @@ def episode_entities(
     if not row.has_kg:
         return AppEntitiesResponse(episode_slug=slug)
     persons, orgs, topics = entities_from_kg(load_json_artifact(root, row.kg_relative_path))
+    # The Episode notes panel opens on the people in the room with their photos, so the episode's
+    # persons carry the same hosted-photo route as every other people-list surface.
+    persons = with_photos(persons, hosted_photo_urls(root))
     # Cluster-first grouping (RFC-102 / PRD-043 FR1): attach both cluster identities to each
     # topic — semantic (search/topic_clusters.json, "Similar") and theme
     # (enrichments/topic_theme_clusters.json, co-occurrence "Theme"). Each is a no-op when its

@@ -37,6 +37,11 @@ import { usePlayerStore } from '../stores/player'
 const { t } = useI18n()
 const player = usePlayerStore()
 const { routeAvailable, playingRemotely } = storeToRefs(player)
+
+// Size is the CALLER's: 32px in the mini-player, the shared transport size on the full player. A
+// size passed as a plain `class` lost to the `h-8 w-8` written here, which is how the full player
+// showed a 32px speaker between 44px buttons.
+withDefaults(defineProps<{ sizeClass?: string }>(), { sizeClass: 'lp-tap h-8 w-8' })
 </script>
 
 <template>
@@ -44,12 +49,13 @@ const { routeAvailable, playingRemotely } = storeToRefs(player)
     v-if="routeAvailable"
     type="button"
     data-testid="route-picker"
-    class="lp-tap z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition"
-    :class="
+    class="z-30 flex shrink-0 items-center justify-center rounded-full border transition"
+    :class="[
+      sizeClass,
       playingRemotely
         ? 'border-accent text-accent'
-        : 'border-border text-muted hover:text-canvas-foreground'
-    "
+        : 'border-border text-muted hover:text-canvas-foreground',
+    ]"
     :aria-label="playingRemotely ? t('route.playingElsewhere') : t('route.choose')"
     :title="playingRemotely ? t('route.playingElsewhere') : t('route.choose')"
     @click.stop.prevent="player.showRoutePicker()"

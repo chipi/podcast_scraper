@@ -55,11 +55,19 @@ const hue = computed(() => {
     data-testid="profile-avatar"
     aria-hidden="true"
   >
+    <!-- CROP ANCHORED NEAR THE TOP (`object-[50%_10%]`), not centred (operator 2026-09-30).
+         Person photos are portraits, taller than wide, and a centred square crop took the top of
+         the head off: measured on 45 real prod photos (43 portrait), a centred crop cut the head
+         in 35. The anchor was chosen by sweeping 0–50% with face + eye detection (Apple Vision)
+         and checking the rendered circles by eye: 10% leaves 4 cut, three of them by <8px, eyes at
+         ~40% of the circle's height. The fourth (a source photo whose face is at the very top
+         edge) cannot be framed by position at all. Re-runnable: scripts/dev/avatar_crop_eval/.
+         A square image — the user's own avatar, cropped square on upload — is unaffected. -->
     <img
       v-if="showImg"
       :src="src!"
       alt=""
-      class="h-full w-full object-cover"
+      class="h-full w-full object-cover object-[50%_10%]"
       @error="failed = true"
     />
     <span

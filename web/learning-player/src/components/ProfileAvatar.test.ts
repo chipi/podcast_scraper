@@ -11,6 +11,13 @@ describe('ProfileAvatar', () => {
     expect(w.text()).toBe('') // no initials fallback when a photo is shown
   })
 
+  it('anchors the photo crop near the top, so a portrait keeps its head (2026-09-30)', () => {
+    // Centred, a square crop of a portrait took the top of the head off (35 of 43 real prod
+    // portraits). 10% was chosen by measurement — see the comment on the <img>.
+    const w = mount(ProfileAvatar, { props: { name: 'A', src: 'https://x/p.jpg' } })
+    expect(w.get('img').classes()).toContain('object-[50%_10%]')
+  })
+
   it('falls back to initials when there is no src', () => {
     const w = mount(ProfileAvatar, { props: { name: 'Jane Doe', src: null } })
     expect(w.find('img').exists()).toBe(false)

@@ -20,8 +20,12 @@ function onClose(): void {
 </script>
 
 <template>
+  <!-- NO horizontal padding here (operator 2026-09-30). The card inside (EntityCardBody) pads its
+       own header and body with `px-4`, so a `px-4` on this wrapper too put 32px of gutter on each
+       side — visibly narrower than the storyline page, whose single `px-4` is the app's page gutter.
+       The card's padding IS the gutter; this wrapper only centres and caps the width. -->
   <section
-    class="mx-auto max-w-3xl px-4 pb-8 pt-4"
+    class="mx-auto max-w-3xl pb-8 pt-4"
     data-testid="person-view"
     :aria-label="t('browse.personPage')"
   >

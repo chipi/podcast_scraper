@@ -29,6 +29,19 @@ interface State {
   loaded: boolean
 }
 
+/**
+ * Reads the user made while a load() was in flight. That load's answer was computed BEFORE them,
+ * so applying it as-is un-reads what the user just read.
+ *
+ * MEASURED (operator 2026-09-30, on device): opening the bell reloads the inbox, and the server runs
+ * a corpus-wide new-episode sweep before it answers, so the GET can take seconds. Tapping "Mark all
+ * read" in that window cleared the dots, the GET then landed with every item still unread, and the
+ * POST's reply zeroed the count — so the badge said "nothing unread" over a list of unread dots.
+ */
+let loadSeq = 0
+let readDuringLoad = new Set<string>()
+let allReadDuringLoad = false
+
 export const useNotificationsStore = defineStore('notifications', {
   state: (): State => ({ items: [], unread: 0, loaded: false }),
 
@@ -38,20 +51,31 @@ export const useNotificationsStore = defineStore('notifications', {
      * any other error leaves nothing standing — a badge is a claim, so an unknown count shows none.
      */
     async load(): Promise<void> {
+      const seq = ++loadSeq
+      readDuringLoad = new Set()
+      allReadDuringLoad = false
       try {
         const resp = await getNotifications()
-        this.items = resp.items
-        this.unread = resp.unread
+        if (seq !== loadSeq) return // a newer load owns the list now
+        const items = resp.items.map((n) =>
+          allReadDuringLoad || readDuringLoad.has(n.id) ? { ...n, read: true } : n,
+        )
+        this.items = items
+        this.unread = allReadDuringLoad || readDuringLoad.size
+          ? items.filter((n) => !n.read).length
+          : resp.unread
       } catch {
+        if (seq !== loadSeq) return // a late failure must not wipe a newer load's list
         this.items = []
         this.unread = 0
       } finally {
-        this.loaded = true
+        if (seq === loadSeq) this.loaded = true
       }
     },
 
     /** Mark one read — update locally first for an instant badge, then persist. */
     async markRead(id: string): Promise<void> {
+      readDuringLoad.add(id)
       const item = this.items.find((n) => n.id === id)
       if (item && !item.read) {
         item.read = true
@@ -68,6 +92,7 @@ export const useNotificationsStore = defineStore('notifications', {
     /** Mark everything read — optimistic, then reconcile to the server's count (a concurrent
      *  sweep on GET /notifications could have added one between the optimistic zero and the write). */
     async markAllRead(): Promise<void> {
+      allReadDuringLoad = true
       this.items.forEach((n) => (n.read = true))
       this.unread = 0
       try {
@@ -80,6 +105,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     /** Drop everything on sign-out — one user's inbox must never show to the next. */
     reset(): void {
+      loadSeq++ // a load still in flight belongs to the previous user; never let it land
       this.items = []
       this.unread = 0
       this.loaded = false

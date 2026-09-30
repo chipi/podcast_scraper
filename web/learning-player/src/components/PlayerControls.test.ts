@@ -16,6 +16,23 @@ function mountPC(props: Record<string, unknown> = {}) {
 }
 
 describe('PlayerControls insight-density strip (#1140)', () => {
+  it('orders the timeline scrubber → density strip → timestamps (operator 2026-09-30)', () => {
+    // The two timeline strips sit together and the time readout labels their ends at the bottom.
+    // It was scrubber / times / density, which read as "line, two numbers, line again".
+    const markers: InsightMarker[] = [{ id: 'a', timeSec: 25, pct: 25, grounded: true, weight: 1 }]
+    const root = mountPC({ markers }).element as HTMLElement
+    const order = [
+      root.querySelector('input[type="range"]'),
+      root.querySelector('[data-testid="player-insight-density"]'),
+      root.querySelector('[data-testid="player-times"]'),
+    ]
+    expect(order.every(Boolean)).toBe(true)
+    for (let i = 1; i < order.length; i++) {
+      // DOCUMENT_POSITION_FOLLOWING = 4: each comes after the previous one.
+      expect(order[i - 1]!.compareDocumentPosition(order[i]!) & 4).toBe(4)
+    }
+  })
+
   it('renders no density strip without markers', () => {
     expect(mountPC().find('[data-testid="player-insight-density"]').exists()).toBe(false)
   })
@@ -51,57 +68,83 @@ describe('PlayerControls insight-density strip (#1140)', () => {
   })
 })
 
-describe('the transport row distributes instead of reserving (#2004 item 9)', () => {
-  // Comments stripped: the doc-comment explaining this fix quotes `px-14` and the old absolute
-  // classes as prose, and would otherwise fail the rule it documents. Third time this has bitten in
-  // this issue — the guards read source, and source includes the explanation of the guard.
+describe('the transport row is a mirror (#2004 item 9; operator 2026-09-30)', () => {
+  // Comments stripped: doc-comments here quote the old classes as prose, and the guards read source.
   const code = playerControlsSource.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
 
-  it('uses flex groups, not absolute clusters with a fixed width reservation', () => {
-    // `px-14` reserved 56px per side for two ABSOLUTELY positioned clusters. The reservation was
-    // symmetric; the content was not — the right cluster holds two 44px controls plus a gap (~96px),
-    // so it overhung by ~40px onto the forward-30 button. That is the "squeezed" report: arithmetic,
-    // not styling.
+  it('uses a grid, not absolute clusters with a fixed width reservation', () => {
+    // `px-14` once reserved 56px per side for two ABSOLUTELY positioned clusters that did not fit it.
     expect(code).not.toContain('px-14')
     expect(code).not.toMatch(/absolute[^"]*left-0/)
     expect(code).not.toMatch(/absolute[^"]*right-0[^"]*translate-y/)
-    expect(code).toContain('justify-between')
   })
 
-  it('keeps every secondary control at the 44px touch target', () => {
-    // The ask was "slightly smaller". h-11 is exactly 44px — the iOS minimum — so the crowding is
-    // fixed by layout instead, and the speed control loses its extra pill width rather than the row
-    // losing tappability.
-    expect(code).not.toContain('min-w-11')
+  it('lays out seven cells around a centred play button', () => {
+    const row = mountPC().get('[data-testid="player-transport"]')
+    expect(row.classes().join(' ')).toContain('grid-cols-[repeat(3,minmax(0,1fr))_auto_repeat(3,minmax(0,1fr))]')
+    expect(row.element.children).toHaveLength(7)
+  })
 
-    // Counting `h-11 w-11` was the original proxy and it is no longer the right one. The two skip
-    // buttons render 40px of INK on phones with a 44px hit box via `.lp-tap`, because seven 44px
-    // controls plus a 64px play button do not fit a 412px screen — measured, and the speed pill was
-    // being clipped off the right edge. The property that matters is the hit area, not the ink, so
-    // a smaller circle is only acceptable when it carries `lp-tap`.
-    const shrunk = code.match(/h-10 w-10/g) ?? []
-    for (const _ of shrunk) {
-      expect(code, 'a sub-44px control must carry lp-tap for its hit area').toContain('lp-tap')
+  it('gives every secondary control the one shared size, with a 44px hit area', () => {
+    // 40px of ink on phones is only acceptable because `lp-tap` keeps the HIT area at 44px.
+    const w = mountPC()
+    for (const label of ['Skip back 15 seconds', 'Skip forward 30 seconds', 'Playback speed']) {
+      const b = w.get(`button[aria-label="${label}"]`)
+      expect(b.classes(), label).toEqual(expect.arrayContaining(['lp-tap', 'h-10', 'w-10', 'sm:h-11', 'sm:w-11']))
     }
-    const full = code.match(/h-11 w-11/g) ?? []
-    expect(
-      full.length + shrunk.length,
-      'expected the row to still hold its secondary circles',
-    ).toBeGreaterThanOrEqual(3)
-
-    // Deliberately NOT asserting a floor on the ink size here. The obvious regex matches `h-7 w-7`
-    // on the SVG glyphs INSIDE the play button, and source text gives no way to tell an icon from
-    // a control. A check that cannot express the property it is named for is worse than no check —
-    // it passes for the wrong reason and reads as coverage. The real floor is measured in
-    // `e2e/design-invariants.spec.ts`, against elements the browser has already resolved.
+    // Slot content gets the same size from the row, so a caller cannot drift from it.
+    expect(code).toMatch(/<slot name="left-outer" :size="TRANSPORT_BUTTON_SIZE"/)
+    expect(code).toMatch(/<slot name="left-inner" :size="TRANSPORT_BUTTON_SIZE"/)
+    expect(code).toMatch(/<slot name="right-inner" :size="TRANSPORT_BUTTON_SIZE"/)
   })
 
   it('the geometry is verified where it can actually be measured', () => {
-    // This file reads source text; it cannot know whether the row FITS. Three separate crushes of
-    // this row were all invisible to class-level checks, so the binding constraint — fits, 44px
-    // hit areas, non-overlapping — is asserted against a real engine in
-    // `e2e/design-invariants.spec.ts`. Pinned here so the two are not maintained apart.
-    expect(code).toContain('sm:h-11 sm:w-11')
-    expect(code).toContain('lp-tap')
+    // Source text cannot know whether the row FITS or MIRRORS. `e2e/design-invariants.spec.ts`
+    // measures both against a real engine: fit, 44px hit areas, pitch, and equal twin distances.
+    expect(code).toContain('TRANSPORT_BUTTON_SIZE')
+  })
+})
+
+describe('the density strip seeks, like the scrubber (operator 2026-09-30)', () => {
+  const markers: InsightMarker[] = [{ id: 'a', timeSec: 300, pct: 50, weight: 1, grounded: true }]
+
+  function stripOf(w: ReturnType<typeof mountPC>) {
+    const el = w.get('[data-testid="player-density-seek"]')
+    // jsdom has no layout: give the strip a 200px box starting at x=100.
+    ;(el.element as HTMLElement).getBoundingClientRect = () =>
+      ({ left: 100, width: 200, top: 0, height: 26, right: 300, bottom: 26, x: 100, y: 0, toJSON: () => ({}) }) as DOMRect
+    return el
+  }
+
+  it('a tap jumps to that point of the episode', async () => {
+    const w = mountPC({ markers, duration: 600 })
+    await stripOf(w).trigger('pointerdown', { clientX: 150, pointerId: 1 })
+    // 50px into a 200px strip = 25% of 600s.
+    expect(w.emitted('seek')?.at(-1)).toEqual([150])
+  })
+
+  it('press and drag scrubs; moving without a press does nothing', async () => {
+    const w = mountPC({ markers, duration: 600 })
+    const strip = stripOf(w)
+    await strip.trigger('pointermove', { clientX: 250, pointerId: 1 })
+    expect(w.emitted('seek')).toBeUndefined()
+    await strip.trigger('pointerdown', { clientX: 100, pointerId: 1 })
+    await strip.trigger('pointermove', { clientX: 300, pointerId: 1 })
+    expect(w.emitted('seek')?.at(-1)).toEqual([600])
+    await strip.trigger('pointerup', { pointerId: 1 })
+    await strip.trigger('pointermove', { clientX: 200, pointerId: 1 })
+    expect(w.emitted('seek')?.at(-1)).toEqual([600])
+  })
+
+  it('clamps a press outside the strip to the start', async () => {
+    const w = mountPC({ markers, duration: 600 })
+    await stripOf(w).trigger('pointerdown', { clientX: 20, pointerId: 1 })
+    expect(w.emitted('seek')?.at(-1)).toEqual([0])
+  })
+
+  it('stays an image to assistive tech — the range input is the accessible control', () => {
+    const w = mountPC({ markers, duration: 600 })
+    expect(w.get('[data-testid="player-insight-density"]').attributes('role')).toBe('img')
+    expect(w.get('[data-testid="player-density-seek"]').attributes('tabindex')).toBeUndefined()
   })
 })

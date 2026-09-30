@@ -175,6 +175,16 @@ to wallpaper every show covers.
 > The momentum bubble cloud was **removed** from this band: its `velocity` is corpus-wide, not
 > show-scoped, so it sized topics by a number that did not answer the band's own question.
 
+### `TopVoices` — the people who drive a topic or storyline
+
+The top eight of the server-ranked `related_people` as a four-column grid, avatar over name (photo
+where one is hosted, initials otherwise). It is the SAME component on the topic card and the
+storyline page (2026-09-30): the storyline page used to list the same people as plain "Related
+people" chips — one dataset drawn two ways, which is how two surfaces drift. On the topic card each
+voice is a button (a tap layers the person over the card); on the storyline page it is a real link
+to the person, because a page is where navigation belongs. `TopicPerspectives` follows it on the
+topic card, naming the same people and what they argued.
+
 ### `TopicPerspectives` — who disagrees, and where
 
 On a topic page: the positions different people take on one topic, grounded in episodes. This is

@@ -445,8 +445,12 @@ listed alongside collections in the Library Collections tab.
 A storyline (topics discussed together — co-occurrence) is a full **page** (`/storyline/:id`,
 keyed by the anchor topic id), not a sheet: same detail template as the topic/person page — back on
 its own row, title + follow-storyline on one row, then the member topics (ordered), top episodes,
-the people involved, and notes. There is no storyline endpoint; the anchor topic's card carries it,
-so the route param is the anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
+the people involved — as **Top voices**, the topic card's own avatar grid (`TopVoices`, UXS-013),
+not chips — and notes. **All three pages share ONE page gutter** (16px, `px-4`): the topic and
+person pages get theirs from the card they host (`EntityCardBody` pads its own header and body), so
+their page wrapper adds none — adding one too gave them a doubled 32px gutter until 2026-09-30.
+There is no storyline endpoint; the anchor topic's card carries it, so the route param is the
+anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
 "theme cluster", which is the opposite of what a reader means by theme.
 
 ## Insight type marks (#2004 item 8)
@@ -547,13 +551,16 @@ Do not add a dialog to an action you could simply reverse.
 
 ## Player hero (artwork zone)
 
-The Player masthead is a **hero**: a fixed-square artwork carrying overlays, so layout height is
-constant regardless of content length.
+The Player masthead is a **hero**: a fixed-aspect artwork carrying overlays, so layout height is
+constant regardless of content length. **5:4 on phones, 1:1 from `lg`** (2026-09-30): at a
+full-width square the hero took ~360pt of an iPhone's ~600pt usable height, and the transport's
+scrubber and timestamps fell under the tab bar even after the gaps around them were tightened; 5:4
+gives back ~70pt and puts the whole transport on screen. Desktop has the height and keeps the square.
 
 - **Summary** is revealed on demand: hidden by default (clean artwork), it **slides up + fades in on
   hover/focus** over a darker legibility gradient (`from-black/95 via-black/85 to-black/40`, white
   text) so it stays readable even over bright artwork. Always shown on touch (no hover). Full text,
-  never clamped — the fixed-square hero stabilises height regardless.
+  never clamped — the fixed-aspect hero stabilises height regardless.
 - **Live intelligence** ("Insight now / Speaking now") sits top-left; the **per-episode reach**
   cluster (listeners · opens · Insights + a tiny opens-over-time `Sparkline`) sits top-right. The
   Insights score opens the panel — no duplicate "Ask" entry (Ask lives inside the panel).

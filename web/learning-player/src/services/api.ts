@@ -291,9 +291,18 @@ export function getEpisodeRecap(slug: string, limit = 3): Promise<EpisodeRecap> 
   return getJSON<EpisodeRecap>(`/episodes/${encodeURIComponent(slug)}/recap`, { limit })
 }
 
-/** KG entities (persons/orgs/topics) for an episode (empty when no KG artifact). */
-export function getEntities(slug: string): Promise<EntitiesResponse> {
-  return getJSON<EntitiesResponse>(`/episodes/${encodeURIComponent(slug)}/entities`)
+/** KG entities (persons/orgs/topics) for an episode (empty when no KG artifact).
+ *  Person photos absolutised like every people-carrying fetcher: the Episode notes panel shows the
+ *  host and guests with their photos, and a relative route would fail on device in silence
+ *  (see __checks__/person-photo-absolutised.test.ts). */
+export async function getEntities(slug: string): Promise<EntitiesResponse> {
+  const resp = await getJSON<EntitiesResponse>(`/episodes/${encodeURIComponent(slug)}/entities`)
+  return {
+    ...resp,
+    persons: (resp.persons ?? []).map((p) =>
+      p.image_url ? { ...p, image_url: resolveMediaUrl(p.image_url) ?? p.image_url } : p
+    ),
+  }
 }
 
 /** Episode-scoped grounded search — extractive passages, no request-time LLM (D6). */
@@ -562,8 +571,15 @@ export function getTrending(
   const key = `${kind}:${scope}:${limit}:${window}`
   let p = _trending.get(key)
   if (!p) {
+    // Person photos ABSOLUTISED (2026-09-30). `/trending` hydrates `image_url` for people as a
+    // RELATIVE route; left raw, it resolved against capacitor://localhost on device, 404'd, and
+    // every Trends → People row fell back to initials while the same person's card showed the photo.
     p = getJSON<{ items: TrendingEntity[] }>("/trending", { kind, scope, limit, window })
-      .then((r) => r.items)
+      .then((r) =>
+        r.items.map((e) =>
+          e.image_url ? { ...e, image_url: resolveMediaUrl(e.image_url) ?? e.image_url } : e
+        )
+      )
       .catch((err) => {
         _trending.delete(key)
         throw err

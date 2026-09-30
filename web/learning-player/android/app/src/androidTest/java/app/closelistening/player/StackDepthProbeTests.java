@@ -47,7 +47,7 @@ public class StackDepthProbeTests extends UITestCase {
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
 
-        boolean panelOpened = Journey.tap("Insights", true, 15_000);
+        boolean panelOpened = Journey.tap("Episode notes", true, 15_000);
         if (!panelOpened) {
             fail("could not open the knowledge panel. On screen: " + Journey.labelledInventory(80));
         }

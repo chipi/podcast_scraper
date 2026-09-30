@@ -426,6 +426,33 @@ def test_entities_endpoint_returns_persons_and_topics(tmp_path: Path) -> None:
     assert [t["id"] for t in body["topics"]] == ["topic:ai"]
 
 
+def test_entities_endpoint_attaches_hosted_person_photos(tmp_path: Path) -> None:
+    """A person the web enricher hosts a photo for carries the served photo route; others don't."""
+    _write_corpus(tmp_path)
+    (tmp_path / "enrichments").mkdir()
+    (tmp_path / "enrichments" / "person_web.json").write_text(
+        json.dumps(
+            {
+                "data": {
+                    "provider": "test",
+                    "persons": [{"person_id": "person:jane-doe", "image_hosted": True}],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
+    assert body["persons"][0]["image_url"] == "/api/app/persons/person%3Ajane-doe/photo"
+
+
+def test_entities_endpoint_no_photo_without_person_web(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
+    assert body["persons"][0].get("image_url") is None
+
+
 def test_insights_empty_when_no_gi(tmp_path: Path) -> None:
     _write_corpus(tmp_path, with_gi=False)
     slug = _only_slug(tmp_path)

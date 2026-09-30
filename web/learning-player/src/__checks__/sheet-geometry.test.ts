@@ -83,8 +83,8 @@ describe('sheet geometry is defined once', () => {
   })
 
   it('no SHEET hand-writes its own height', () => {
-    // Scoped to files that actually open a sheet. PlayerView's docked transcript pane and its
-    // summary dialog also use dvh and are neither bottom sheets nor drifting — a rule broad enough
+    // Scoped to files that actually open a sheet. PlayerView's docked transcript pane also
+    // uses dvh and is neither a bottom sheet nor drifting — a rule broad enough
     // to catch them would be policing layout in general, which is guesswork.
     const offenders = components
       .filter(([, src]) => src.includes('lp-sheet-scrim') && /max-h-\[\d+dvh\]/.test(src))

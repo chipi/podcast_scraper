@@ -45,7 +45,7 @@ const art = episodeArtwork
       <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
       <span class="min-w-0 flex-1">
         <span class="block text-sm font-semibold">{{ episode.title }}</span>
-        <span v-if="episode.podcast_title" class="lp-kicker block">{{
+        <span v-if="episode.podcast_title" class="lp-kicker lp-show-name" :title="episode.podcast_title">{{
           episode.podcast_title
         }}</span>
       </span>

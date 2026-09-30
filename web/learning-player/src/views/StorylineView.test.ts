@@ -92,6 +92,32 @@ describe('StorylineView', () => {
     expect(w.text()).toContain('Jane') // person involved
   })
 
+  it('shows the people as TOP VOICES — the topic card\'s grid, not "Related people" chips', async () => {
+    // Operator 2026-09-30: the topic card drew these people as an avatar grid, the storyline page
+    // as plain chips — same `related_people`, two treatments. Both now render TopVoices.
+    const people = Array.from({ length: 10 }, (_, i) => ({
+      id: `person:p${i}`,
+      name: `Person ${i}`,
+      kind: 'person' as const,
+      image_url: i === 0 ? 'https://img.example/p0.jpg' : null,
+    }))
+    vi.spyOn(api, 'getTopicCard').mockResolvedValue({
+      id: 'topic:energy', label: 'Energy', cluster_id: null, cluster_label: null, cluster_size: 0,
+      sibling_topics: [], storyline_id: 'thc:energy', storyline_label: 'Energy transition',
+      storyline_size: 1, storyline_sibling_topics: [], episode_count: 0, episodes: [],
+      related_people: people,
+    })
+    const w = await mountView()
+    const grid = w.get('[data-testid="ec-top-voices"]')
+    expect(grid.text()).toContain(en.ec.topVoices)
+    expect(w.text()).not.toContain(en.ec.relatedPeople)
+    const voices = grid.findAll('[data-testid="ec-top-voice"]')
+    expect(voices).toHaveLength(8) // ranked; the top 8, as on the topic card
+    // A page keeps real links: an address a long-press can open.
+    expect(voices[0].attributes('href')).toBe('/person/person:p0')
+    expect(voices[0].find('img').attributes('src')).toBe('https://img.example/p0.jpg')
+  })
+
   it('offers Share once the storyline has loaded (#2036)', async () => {
     mockCard('thc:energy')
     const w = await mountView()
@@ -107,8 +133,9 @@ describe('StorylineView', () => {
   })
 
   // Follow subscribes to the storyline's THEME CLUSTER (distinct from the heart, which favorites the
-  // storyline). The e2e always skips — the fixture corpus has no `thc:` cluster — so this unit test
-  // is the only guard on the toggle wiring.
+  // storyline). The e2e covers it too since the fixture corpus gained `thc:managing-risk`
+  // (storyline.spec.ts, 2026-09-25) — this comment used to say the e2e always skips, which stopped
+  // being true then; this unit test guards the toggle wiring without a server.
   function mockCard(storylineId: string | null) {
     vi.spyOn(api, 'getTopicCard').mockResolvedValue({
       id: 'topic:energy',

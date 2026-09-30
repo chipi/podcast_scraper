@@ -163,3 +163,32 @@ test('the storyline overlay can be followed, when it carries a theme cluster', a
   await follow.click()
   await expect(follow).not.toHaveAttribute('aria-pressed', before ?? 'false')
 })
+
+test('the storyline PAGE shows its people as Top voices — the topic card\'s grid, not chips', async ({
+  page,
+}, testInfo) => {
+  // Operator 2026-09-30: the topic card drew its people as an avatar grid ("Top voices") while the
+  // storyline page listed the same people as "Related people" chips. Both now render TopVoices.
+  // The people section is PAGE-only (the overlay stays a compact preview), so open the storyline
+  // from Home, take its anchor from `?storyline=`, and load the page itself.
+  await signInIsolated(page, 'storyline-voices', testInfo)
+  await page.goto('/')
+  await page.getByTestId('discovery-tab-storyline').click()
+  const row = await firstOpenableStorylineRow(page)
+  await row.click()
+  await expect(page).toHaveURL(/[?&]storyline=/)
+  const anchor = new URL(page.url()).searchParams.get('storyline')
+  expect(anchor, 'no ?storyline= anchor in the URL').toBeTruthy()
+
+  await page.goto(`/storyline/${encodeURIComponent(anchor!)}`)
+  const view = page.getByTestId('storyline-view')
+  await expect(view).toBeVisible()
+  const voices = view.getByTestId('ec-top-voices')
+  await expect(voices).toBeVisible()
+  await expect(voices.getByText('Top voices')).toBeVisible()
+  await expect(voices.getByTestId('ec-top-voice').first()).toBeVisible()
+  expect(await voices.getByTestId('ec-top-voice').count()).toBeLessThanOrEqual(8)
+  // On a page each voice is a real link to the person.
+  await expect(voices.getByTestId('ec-top-voice').first()).toHaveAttribute('href', /\/person\//)
+  await expect(view.getByText('Related people')).toHaveCount(0)
+})

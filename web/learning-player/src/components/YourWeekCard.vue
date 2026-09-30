@@ -3,9 +3,13 @@
  * One "Your Week" highlight card. When the item carries episode/show artwork it becomes the card's
  * backdrop under a dark gradient scrim (brings the corpus's colour into the home) with the content
  * — quote / title / graph chips — layered on top in legible white; without art it falls back to a
- * flat surface card. Quote-forward for revisits (the captured line is the hook, the episode title
- * the attribution); title-forward otherwise. The whole card links into the player — at the
- * captured timestamp when the item has one.
+ * flat surface card. The whole card links into the player.
+ *
+ * Title-forward only. It used to be quote-forward for REVISIT items and carried their timestamp and
+ * `?revisit=<highlight_id>` into the player — but Home stopped showing the digest's revisit section
+ * (2026-09-30; see YourWeek.vue `sections`), and revisit items were the only ones with a quote, a
+ * timestamp or a highlight id. Due highlights are revisited through RevisitRail / the Revisit tab,
+ * and the digest email's links still carry `?revisit=` straight to the player.
  */
 import { computed } from 'vue'
 import { resolveMediaUrl } from '../services/tier'
@@ -18,18 +22,7 @@ const hasImage = computed(() => !!props.item.image_url)
 // The digest payload carries the same relative artwork url the catalog does.
 const cardImage = computed(() => resolveMediaUrl(props.item.image_url))
 
-// `revisit` (when the item is one of the user's own captures) advances that highlight's spaced
-// ladder once the player is reached — see the player's onMounted. Auto-picks carry no
-// highlight_id: there is no ladder behind them. Without this, consuming revisit through Your Week
-// never progressed anything, so the same cards came back every week (#35).
-const to = computed(() => ({
-  name: 'player' as const,
-  params: { slug: props.item.episode_slug },
-  query: {
-    ...(props.item.t_ms ? { t: String(Math.floor(props.item.t_ms / 1000)) } : {}),
-    ...(props.item.highlight_id ? { revisit: props.item.highlight_id } : {}),
-  },
-}))
+const to = computed(() => ({ name: 'player' as const, params: { slug: props.item.episode_slug } }))
 
 const chips = computed(() => (props.item.graph_refs ?? []).slice(0, 2))
 
@@ -46,16 +39,13 @@ const title = computed(() => props.item.episode_title || props.item.graph_refs?.
   >
     <template v-if="hasImage">
       <img :src="cardImage!" alt="" class="absolute inset-0 h-full w-full object-cover" />
-      <!-- Scrim: darkest at the bottom (title) but keeping colour up top (quote). -->
+      <!-- Scrim: darkest at the bottom, where the title sits, keeping the artwork's colour up top. -->
       <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/40" />
     </template>
     <div
       class="relative flex h-full flex-col p-4"
       :class="hasImage ? '[text-shadow:0_1px_3px_rgba(0,0,0,0.65)]' : ''"
     >
-      <p v-if="item.quote" class="line-clamp-4 font-display text-sm font-semibold leading-snug">
-        “{{ item.quote }}”
-      </p>
       <!-- Title + chips sit at the BOTTOM of the artwork, always (operator 2026-09-19).
 
            `mt-auto` used to be conditional on there being a quote, so a card without one — the

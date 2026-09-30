@@ -10,7 +10,6 @@
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import CloseIcon from "../components/CloseIcon.vue"
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -250,40 +249,6 @@ const loadFailed = ref(false)
 const notDownloaded = ref(false)
 /** The transcript artifact is unreadable, as opposed to not written yet. */
 const transcriptBroken = ref(false)
-
-/**
-/**
- * The episode summary: `summary_text`, the full prose. That is the whole definition.
- *
- * NO FALLBACK to `summary_title`, and no bullets. A summary control that opens something other
- * than the summary is the complaint this panel has now generated three times: it showed a thematic
- * headline plus a bullet list, with the prose pushed below the fold, so tapping "Summary" produced
- * a screen that was not one. `summary_title` is a headline and `summary_bullets` are a structured
- * digest — both are different things, and substituting either is what made this hard to pin down.
- *
- * The control is gated on this being non-empty, so an episode with no prose summary offers no
- * summary rather than offering a stand-in.
- */
-const summaryText = computed(() => episode.value?.summary_text ?? '')
-const summaryOpen = ref(false)
-const summaryDialog = ref<HTMLDialogElement | null>(null)
-
-// Modal on every viewport: a summary is short-form reading the reader opted into, so trapping focus
-// and dimming the page is right here — unlike the Knowledge Panel, which is a docked rail on
-// desktop precisely because it is meant to sit alongside the transcript.
-watch(summaryOpen, (open) => {
-  void nextTick(() => {
-    const d = summaryDialog.value
-    if (!d) return
-    if (open && !d.open) d.showModal()
-    else if (!open && d.open) d.close()
-  })
-})
-
-/** A tap on the backdrop lands on the dialog element itself; the inner container stops the rest. */
-function onSummaryBackdropClick(e: MouseEvent): void {
-  if (e.target === summaryDialog.value) summaryOpen.value = false
-}
 
 // Per-episode reach (UXS-014): anonymous cross-user counts + a daily-opens sparkline.
 const stats = ref<EpisodeStats | null>(null)
@@ -1221,7 +1186,7 @@ watch(() => auth.isAuthenticated, () => {
   ensureCaptureLoaded()
   markRevisitFromQuery() // auth resolved after mount — the arrival still counts
 })
-// Navigating between revisit items without unmounting the player (Your Week → card → card) changes
+// Navigating between revisit items without unmounting the player (one ?revisit link → the next) changes
 // only the query, so the mount hook never re-runs. Each new id is its own arrival.
 watch(() => route.query.revisit, markRevisitFromQuery)
 /**
@@ -1290,17 +1255,18 @@ onBeforeUnmount(() => {
           <RouterLink
             v-if="episode.podcast_title && episode.feed_id"
             :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-            class="lp-kicker min-w-0 no-underline"
+            class="lp-kicker lp-show-name min-w-0 no-underline"
+            :title="episode.podcast_title"
           >
             {{ episode.podcast_title }}
           </RouterLink>
           <!-- Offline (or for an entry downloaded before feed_id was captured) there is no show
                page to link to — show the name unlinked rather than hiding it. -->
-          <span v-else-if="episode.podcast_title" class="lp-kicker min-w-0">{{
+          <span v-else-if="episode.podcast_title" class="lp-kicker lp-show-name min-w-0" :title="episode.podcast_title">{{
             episode.podcast_title
           }}</span>
           <span v-else />
-          <div class="flex shrink-0 items-center gap-2">
+          <div class="flex shrink-0 items-center gap-2" data-testid="player-actions">
             <!-- Mark this moment (P2 capture). Auth-gated means deferred, not hidden (#1590):
                  this is the cheapest entry to the learning loop, so hiding it hid the loop.
 
@@ -1372,13 +1338,17 @@ onBeforeUnmount(() => {
             class="inline-flex items-center gap-1 rounded-full bg-overlay px-2 py-0.5 text-xs font-bold text-grounded"
           >● {{ t('player.grounded') }}</span>
         </div>
-        <!-- Hero artwork (UXS-014/UXS-011 §43): the Ask/Insights actions + the summary sit over
-             the top of the image; a live-intelligence band ("Zone D") owns the bottom — see below
+        <!-- Hero artwork (UXS-014/UXS-011 §43): the Episode notes action sits over the top of
+             the image; a live-intelligence band ("Zone D") owns the bottom — see below
              for why that moved out of the top row entirely. -->
-        <!-- Hero stays 1:1 (operator). Pixels for the transport are saved from the masthead above
-             (smaller title, tighter margins), not by cropping the square. -->
+        <!-- Hero is 5:4 on PHONES, 1:1 from `lg` (operator 2026-09-30, superseding "hero stays 1:1").
+             The masthead and the gaps around the transport had already been tightened, and on an
+             iPhone the timestamps were still ~30pt under the tab bar: a full-width square is ~360pt
+             of a ~600pt usable screen. 5:4 gives back ~70pt, which puts the whole transport —
+             buttons, scrubber, density strip, timestamps — on screen. Desktop has the height, and
+             keeps the square. -->
         <div
-          class="group relative mt-2 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
+          class="group relative mt-2 aspect-[5/4] w-full overflow-hidden rounded-2xl border border-border bg-elevated lg:aspect-square"
         >
           <img
             v-if="artwork"
@@ -1439,21 +1409,6 @@ onBeforeUnmount(() => {
                    LABELLED control, not a 💡 emoji tucked into the stats cluster next to
                    listener/open counts (#1595). It used to read "💡 3" — the least legible control
                    on the page, styled like a statistic, for the product's central feature. -->
-              <!-- Summary — sits WITH the other controls now, not alone at the foot of the art. -->
-              <button
-                v-if="summaryText && !panelOpen"
-                type="button"
-                data-testid="player-open-summary"
-                :title="t('player.summaryOpenHint')"
-                :aria-label="t('player.summaryOpenHint')"
-                class="inline-flex shrink-0 items-center gap-1 rounded-full bg-canvas/95 px-2.5 py-1 text-[11px] font-bold text-canvas-foreground backdrop-blur transition hover:bg-canvas"
-                @click="summaryOpen = true"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3 w-3" aria-hidden="true">
-                  <path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" />
-                </svg>
-                {{ t('player.summaryOpen') }}
-              </button>
               <button
                 v-if="!panelOpen && insights.length"
                 ref="insightsOpener"
@@ -1462,7 +1417,7 @@ onBeforeUnmount(() => {
                 class="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
                 @click="panelOpen = true"
               >
-                <!-- No count on the opener pill (operator PL.5): the number reads as noise here; the
+                <!-- Labelled "Episode notes" (UXS-011). No count on the opener pill (operator PL.5): the number reads as noise here; the
                      Insights section header inside the panel still carries the count (UXS-014). -->
                 ✦ {{ t('kp.title') }}
               </button>
@@ -1633,7 +1588,7 @@ onBeforeUnmount(() => {
           data-testid="player-controls-sticky"
           :data-stuck="transportStuck ? 'true' : 'false'"
           class="sticky top-0 z-20 mt-2 bg-canvas pb-2 lg:static lg:z-auto lg:mt-4 lg:bg-transparent lg:p-0"
-          :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-2 lg:pt-0'"
+          :class="transportStuck ? 'pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-0' : 'pt-0'"
         >
           <!-- Post-episode recap (RFC-122 #2038): replaces the transport in place the moment this
                episode finishes, until dismissed back to the player. -->
@@ -1661,17 +1616,18 @@ onBeforeUnmount(() => {
             @skip="player.skip"
             @cycle-rate="player.cycleRate"
           >
-            <!-- Transcript toggle: a compact icon pill pinned to the LEFT of the controls row,
-                 mirroring the speed pill on the right. Adds zero height (absolute in the existing
-                 row). A CC-style transport affordance — accent when the transcript is open, plus a
-                 tooltip. Mobile only (desktop shows the transcript as the side column). -->
-            <template #corner>
-              <div class="flex items-center gap-1.5">
+            <!-- The transport is a mirror (PlayerControls): these fill the cells either side of the
+                 skips, at the size the row hands them, so every control matches its twin. Left =
+                 CONTENT actions (read it, keep it); right = PLAYBACK (output route, then speed). -->
+            <!-- Transcript toggle — a CC-style affordance, accent while the transcript is open.
+                 Mobile only in effect: on `lg` the transcript is the side column and this cell is
+                 kept but invisible. -->
+            <template #left-outer="{ size }">
               <button
                 v-if="segments.length"
                 type="button"
-                class="flex h-11 w-11 items-center justify-center rounded-full border border-border transition"
-                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'text-muted hover:bg-overlay'"
+                class="flex items-center justify-center rounded-full border border-border transition"
+                :class="[size, transcriptOpen ? 'bg-accent text-accent-foreground' : 'text-muted hover:bg-overlay']"
                 :aria-expanded="transcriptOpen"
                 :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
                 :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
@@ -1685,29 +1641,26 @@ onBeforeUnmount(() => {
                   <path d="M7 10.5h7M7 14h10" />
                 </svg>
               </button>
-              <!-- Capture, beside the transcript toggle. The grouping is the point: this corner is
-                   CONTENT actions (read it, keep it) and the right corner is PLAYBACK actions
-                   (speed, queue). Putting capture on the right would have been one free slot and no
-                   rule. -->
-              <CaptureMoment
-                :state="captureState"
-                :gated="isGated"
-                variant="pill"
-                @capture="markMoment"
-              />
+            </template>
+            <!-- Capture. Its circle is the cell's size; when it EXPANDS to report an outcome
+                 ("Saved", or a failure) it grows LEFTWARD over the transcript toggle for those few
+                 seconds, never rightward over ↺15 — the skip is the control you are reaching for
+                 while listening, the transcript toggle is not. -->
+            <template #left-inner="{ size }">
+              <div class="relative" :class="size.replace('lp-tap', '')">
+                <CaptureMoment
+                  class="absolute right-0 top-0 z-10"
+                  :state="captureState"
+                  :gated="isGated"
+                  variant="pill"
+                  @capture="markMoment"
+                />
               </div>
             </template>
-            <template #corner-right>
-              <!-- Output routing, on the FULL player too (operator 2026-09-23: "we need such a
-                   control somewhere else, not only when the player is small"). The mini-player is
-                   where you notice audio went astray; this is where you go to do something about
-                   it. Self-hides when the platform reports no route available.
-
-                   The queue button that used to sit beside it is GONE (operator 2026-09-27): it
-                   opened the queue panel, which the masthead link already does from everywhere, and
-                   it made this row read as a grab-bag instead of a transport. The queue action that
-                   is specific to this episode moved up beside the heart. -->
-              <RouteButton class="h-11 w-11" />
+            <!-- Output routing, on the FULL player too (operator 2026-09-23). Self-hides when the
+                 platform reports no route; its cell stays, so speed does not slide inward. -->
+            <template #right-inner="{ size }">
+              <RouteButton :size-class="size" />
             </template>
           </PlayerControls>
           <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
@@ -1717,7 +1670,7 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Middle: synced transcript. The mobile show/hide toggle lives in the floating controls
-           panel (PlayerControls #corner slot) so it's reachable at any scroll position. -->
+           panel (PlayerControls #left-outer slot) so it's reachable at any scroll position. -->
       <div ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70dvh] lg:flex-col">
         <!-- Transcript body — opt-in on mobile (toggled), always shown on desktop. `lg:contents`
              dissolves this wrapper at lg so the transcript keeps flowing inside the flex column
@@ -1870,67 +1823,6 @@ onBeforeUnmount(() => {
       </div>
       </dialog>
 
-      <!--
-        Episode summary — opened from the control on the artwork, never laid over it.
-
-        A native <dialog> for the same reason the panel above is one: the browser supplies focus
-        trapping, Escape, an inert background and the right accessibility tree. Capped at 80dvh with
-        the prose scrolling INSIDE, so a long summary is reachable to its end — the specific failure
-        of the old overlay, which clipped to the hero's fixed square and trailed off in an ellipsis.
-      -->
-      <dialog
-        ref="summaryDialog"
-        data-testid="episode-summary-dialog"
-        :aria-label="t('player.summaryRegion')"
-        class="m-auto max-h-[80dvh] w-[min(34rem,calc(100vw-2rem))] rounded-2xl border border-border bg-canvas p-0 text-canvas-foreground backdrop:bg-black/60"
-        @close="summaryOpen = false"
-        @click="onSummaryBackdropClick"
-      >
-        <!-- Content only while open. A <dialog> renders its children regardless, so without this
-             the whole summary sits in the DOM (and in the accessibility tree) behind a closed
-             dialog — the thing this change exists to stop. -->
-        <!--
-          No title bar. "Episode summary" over a rule, above the episode's own headline, was two
-          headings and a border spent saying what the content already says — real estate on a
-          phone, where the dialog is capped at 80dvh and every row costs prose.
-
-          The close sits on the headline's line instead, and that row is `sticky` inside the
-          scroller: dropping the bar must not put the only way out at the top of text the reader
-          has scrolled past. `aria-label` on the <dialog> still names the region for assistive
-          tech, so removing the visible <h2> costs nothing there.
-        -->
-        <div v-if="summaryOpen" class="max-h-[80dvh] overflow-y-auto px-5 pb-5">
-          <div class="sticky top-0 flex items-start justify-between gap-3 bg-canvas pb-2 pt-4">
-            <!--
-              A visible "Summary" label (#2004 item 16) — it NAMES the panel, it is not content.
-              Under it used to sit the thematic `summary_title` ("AI Psychosis: Agents, Claws, and
-              the Skill-Issue Frontier"), which is neither the episode title nor the summary, and
-              made the panel read as though the wrong thing had opened.
-            -->
-            <div class="min-w-0">
-              <p class="lp-kicker" data-testid="summary-label">{{ t('player.summaryOpen') }}</p>
-            </div>
-            <button
-              type="button"
-              data-testid="episode-summary-close"
-              :aria-label="t('player.summaryClose')"
-              class="lp-nav shrink-0"
-              @click="summaryOpen = false"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-          <!-- The full prose, and nothing beside it. It was a quote-styled block indented behind a
-               rule because it sat BELOW the bullets; it is the panel's content now, so it reads as
-               body text. -->
-          <p
-            class="mt-2 whitespace-pre-line text-sm leading-relaxed text-canvas-foreground"
-            data-testid="episode-summary-text"
-          >
-            {{ summaryText }}
-          </p>
-        </div>
-      </dialog>
     </div>
   </section>
 </template>

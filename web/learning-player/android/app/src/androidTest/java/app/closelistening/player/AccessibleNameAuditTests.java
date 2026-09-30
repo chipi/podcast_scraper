@@ -328,7 +328,7 @@ public class AccessibleNameAuditTests extends UITestCase {
         // THE INSIGHTS PANEL AND ITS NOTE COMPOSER. `NoteComposer` is one of the components the
         // static guard lists, and no device suite has ever audited the names on the surface it
         // lives on — `NativeCapabilityTests` reaches the composer only to assert a mic exists.
-        audit("player ▸ Insights", Journey.tap(Arrays.asList("Insights", "✦ Insights"), true, 15_000), findings);
+        audit("player ▸ Episode notes", Journey.tap(Arrays.asList("Episode notes", "✦ Episode notes"), true, 15_000), findings);
         // Notes are the LAST section of a long panel. Scrolling to the textarea's aria-label
         // ("Your notes" = notes.title) rather than the placeholder, because aria-label wins over
         // placeholder here — matching 'Add a note…' finds nothing, on both platforms.

@@ -35,6 +35,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { RouteLocationRaw } from 'vue-router'
+import { TRANSPORT_BUTTON_SIZE } from '../player/transportGeometry'
 
 const props = withDefaults(
   defineProps<{
@@ -84,9 +85,9 @@ const shape = computed(() => {
   // circles beside it — recreating the exact crush item 9 fixed, for four seconds, at the moment of
   // failure. The row does not wrap, so the control has to bound itself.
   if (expanded.value)
-    return 'inline-flex max-w-[9rem] items-center gap-1.5 truncate rounded-full px-3 h-11 text-sm font-bold'
+    return 'inline-flex max-w-[9rem] items-center gap-1.5 truncate rounded-full px-3 h-10 sm:h-11 text-sm font-bold'
   return props.variant === 'pill'
-    ? 'flex h-11 w-11 items-center justify-center rounded-full border border-border'
+    ? `flex ${TRANSPORT_BUTTON_SIZE} items-center justify-center rounded-full border border-border`
     : 'rounded-full p-1 text-xl'
 })
 </script>

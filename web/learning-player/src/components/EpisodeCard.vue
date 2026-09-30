@@ -231,10 +231,11 @@ const canExpandSummary = computed(
         v-if="episode.podcast_title && episode.feed_id"
         :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
         class="lp-kicker relative z-30 block truncate no-underline"
+        :title="episode.podcast_title"
       >
         {{ episode.podcast_title }}
       </RouterLink>
-      <span v-else-if="episode.podcast_title" class="lp-kicker block truncate">
+      <span v-else-if="episode.podcast_title" class="lp-kicker block truncate" :title="episode.podcast_title">
         {{ episode.podcast_title }}
       </span>
 

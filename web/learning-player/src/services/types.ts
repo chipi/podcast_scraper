@@ -648,7 +648,9 @@ export interface YourWeekGraphRef {
 }
 
 /** One item in a Your Week section. Shapes vary by section kind, so most fields are optional;
- *  `episode_slug` + `episode_title` are always present, `quote`/`t_ms` only on `revisit`. */
+ *  `episode_slug` + `episode_title` are always present, `quote`/`t_ms`/`highlight_id` only on
+ *  `revisit` — a section the API still sends (the email is built from it) but Home does not render
+ *  (2026-09-30), so the app reads none of those three fields. */
 export interface YourWeekItem {
   episode_slug: string
   /** Route-backfilled from the catalog; absent only when a slug no longer resolves (card falls

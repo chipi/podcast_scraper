@@ -116,7 +116,8 @@ describe('YourWeek section', () => {
     // The four-row version distinguished USER-empty rows (blank because you follow nothing — so
     // they linked) from SYSTEM-empty ones (they fill as you listen — so they explained). That
     // distinction is subsumed rather than lost: one line, and the single action that actually
-    // starts the digest, with copy naming both inputs ("as you follow shows and mark moments").
+    // starts the digest. The copy names follows only: marking moments fed the revisit rail, which
+    // is not shown here any more (2026-09-30).
     const { wrapper } = mountIt({ signedIn: true, resp: EMPTY })
     await flushPromises()
     const firstRun = wrapper.find('[data-testid="yourweek-firstrun"]')
@@ -135,8 +136,7 @@ describe('YourWeek section', () => {
     const { wrapper } = mountIt({ signedIn: true, resp: RESP })
     await flushPromises()
     expect(wrapper.text()).toContain(en.home.yourWeek)
-    expect(wrapper.text()).toContain('Episode A')
-    expect(wrapper.text()).toContain('A memorable line.')
+    expect(wrapper.text()).toContain('Episode B')
     expect(wrapper.text()).toContain(en.home.yourWeekShowMore)
     // section labels appear only in the full layout
     expect(wrapper.text()).not.toContain(en.home.yourWeekSection.new_in_follows)
@@ -175,17 +175,47 @@ describe('YourWeek section', () => {
   })
 
   it('uses the item artwork as the card backdrop when present', async () => {
-    const { wrapper } = mountIt({ signedIn: true, resp: RESP })
+    const withArt: YourWeekResponse = {
+      ...RESP,
+      sections: RESP.sections.map((s) =>
+        s.kind === 'new_in_follows'
+          ? { ...s, items: s.items.map((i) => ({ ...i, image_url: 'https://img.example/ep-b.jpg' })) }
+          : s,
+      ),
+    }
+    const { wrapper } = mountIt({ signedIn: true, resp: withArt })
     await flushPromises()
     const art = wrapper.find('img')
     expect(art.exists()).toBe(true)
-    expect(art.attributes('src')).toBe('https://img.example/ep-a.jpg')
+    expect(art.attributes('src')).toBe('https://img.example/ep-b.jpg')
+  })
+
+  it('does NOT show the revisit section, in either layout (operator 2026-09-30)', async () => {
+    // "What's new" is new episodes. Due highlights live in Home's own "Highlights to revisit"
+    // section (RevisitRail), with its reviewed / stop / unsave actions; showing them here too put
+    // the same highlights on Home twice. The server still sends the section — the email uses it.
+    for (const layout of ['compact', 'full'] as const) {
+      const { wrapper } = mountIt({ signedIn: true, resp: RESP, layout })
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('Episode A')
+      expect(wrapper.text()).not.toContain('A memorable line.')
+      expect(wrapper.text()).not.toContain(en.home.revisitTitle) // the old rail's label
+      expect(wrapper.findAll('a').some((a) => (a.attributes('href') ?? '').includes('revisit='))).toBe(false)
+      wrapper.unmount()
+    }
+  })
+
+  it('a digest holding ONLY revisit shows the first-run line, not an empty rail', async () => {
+    const onlyRevisit: YourWeekResponse = { ...RESP, sections: [RESP.sections[0]] }
+    const { wrapper } = mountIt({ signedIn: true, resp: onlyRevisit })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="yourweek-firstrun"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="yourweek-toggle"]').exists()).toBe(false)
   })
 
   it('respects a saved full layout and shows per-section labels', async () => {
     const { wrapper } = mountIt({ signedIn: true, resp: RESP, layout: 'full' })
     await flushPromises()
-    expect(wrapper.text()).toContain(en.home.yourWeekSection.revisit)
     expect(wrapper.text()).toContain(en.home.yourWeekSection.new_in_follows)
     expect(wrapper.text()).toContain(en.home.yourWeekSection.trending_in_your_corpus)
     // trending cards carry a (route-backfilled) episode title — never blank
@@ -219,33 +249,5 @@ describe('YourWeek section', () => {
     await wrapper.get('[data-testid="yourweek-toggle"]').trigger('click')
     expect(setSpy).toHaveBeenCalledWith('lp.yourweek.layout', 'full')
     expect(wrapper.text()).toContain(en.home.yourWeekSection.new_in_follows)
-  })
-})
-
-describe('Your Week links advance the spaced ladder (#35)', () => {
-  // Consuming revisit through Your Week used to advance nothing — the only advance path in the
-  // product was the inbox's dismiss button — so the same cards came back every week. The card now
-  // carries ?revisit=<id> and the PLAYER marks on arrival, the same mechanism the digest email and
-  // the inbox jump link use.
-
-  it("a user's own capture links with ?revisit", async () => {
-    const { wrapper } = mountIt({ signedIn: true, resp: RESP })
-    await flushPromises()
-    const href =
-      wrapper.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/ep-a'))
-        ?.attributes('href') ?? ''
-    expect(href).toContain('revisit=h-a')
-    expect(href).toContain('t=10')
-  })
-
-  it('an item with no highlight_id links without one', async () => {
-    // Auto-picks and the follows/trending rows have no ladder behind them; a marker there would
-    // record a review against a highlight that does not exist.
-    const { wrapper } = mountIt({ signedIn: true, resp: RESP })
-    await flushPromises()
-    const href =
-      wrapper.findAll('a').find((a) => (a.attributes('href') ?? '').includes('/episode/ep-b'))
-        ?.attributes('href') ?? ''
-    expect(href).not.toContain('revisit')
   })
 })

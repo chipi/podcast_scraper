@@ -36,6 +36,7 @@ import HighlightToggle from "./HighlightToggle.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
+import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
 import { isNative, openExternal, saveAndShareText } from "../services/native"
@@ -615,79 +616,38 @@ watch(() => auth.isAuthenticated, loadCaptures)
              with the ✕, and a two-line episode title in it would either clip or push the close
              control around. -->
         <section class="mb-5" data-testid="kp-episode-dossier">
-          <p v-if="episode.podcast_title" class="lp-kicker mb-0.5 text-muted">
+          <p v-if="episode.podcast_title" class="lp-kicker lp-show-name mb-0.5 text-muted" :title="episode.podcast_title">
             {{ episode.podcast_title }}
           </p>
           <h2 class="font-display text-xl font-bold leading-tight text-canvas-foreground">
             {{ episode.title }}
           </h2>
           <!-- Host + guest only. "Mentioned" people are already in the Topics & People chips and
-               would turn a two-name line into a crowd. -->
-          <p v-if="dossierPeople.length" class="mt-1 text-sm text-muted">
-            <span v-for="(p, i) in dossierPeople" :key="p.id">
-              <span v-if="i > 0"> · </span>{{ p.name }}
-              <span class="lp-kicker">{{ roleLabel(p.role ?? undefined) }}</span>
-            </span>
-          </p>
-        </section>
+               would turn the room into a crowd.
 
-        <!--
-          SEARCH, not "Ask" (operator 2026-09-27: "Ask episode doesn't feel right here").
-
-          It was labelled Ask and it runs `searchEpisode()`, rendering ranked transcript chunks —
-          `hit.text`, with `kp.noResults` when empty. There is no synthesis endpoint in the app:
-          `app_search.py` exposes `GET /search` and nothing else. So the label promised an answer
-          that nothing in the stack could produce, which is the whole of why it "didn't feel right".
-
-          Renamed rather than built, deliberately and on the operator's call. Making it answer means
-          a new backend route, per-question gateway cost, and deterministic fixtures to keep CI
-          airgapped (LLMs in CI are banned). That is its own piece of work, not a label fix.
-
-          The three sibling keys — `searching`, `searchError`, `noResults` — already said "search".
-          Only the two user-facing ones lied, and the i18n KEYS were renamed too so the code stops
-          carrying the fiction.
-        -->
-        <form class="mb-5" @submit.prevent="runSearch">
-          <label class="sr-only" for="kp-ask">{{ t("kp.searchAction") }}</label>
-          <div class="lp-search flex gap-2">
-            <input
-              id="kp-ask"
-              ref="searchInput"
-              v-model="q"
-              type="search"
-              :placeholder="t('kp.searchPlaceholder')"
-              class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
-            >
-              {{ t("kp.searchAction") }}
-            </button>
-          </div>
-          <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
-          <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
-          <ul v-else-if="results.length" class="mt-3 flex flex-col gap-2">
-            <li
-              v-for="hit in results"
-              :key="hit.doc_id"
-              class="rounded-xl border border-border p-3"
-            >
-              <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
-              <button
-                v-if="hitStartSeconds(hit) != null"
-                type="button"
-                class="mt-1 font-mono text-xs text-accent"
-                @click="emit('seek', hitStartSeconds(hit) as number)"
+               Each with their photo (operator 2026-09-30) — the same ProfileAvatar, and so the same
+               crop, as Top voices; initials when the enricher has no photo. A tap opens the person
+               exactly as their chip below does (replace-in-panel, ‹ Back), so the two ways in stack
+               identically. An episode-scoped person has no corpus-wide card: shown, not tappable. -->
+          <ul v-if="dossierPeople.length" class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+            <li v-for="p in dossierPeople" :key="p.id">
+              <component
+                :is="p.episode_scoped ? 'span' : 'button'"
+                :type="p.episode_scoped ? undefined : 'button'"
+                class="flex items-center gap-2 text-left"
+                :aria-label="p.episode_scoped ? undefined : t('kp.openEntity', { term: p.name })"
+                data-testid="kp-dossier-person"
+                @click="p.episode_scoped ? undefined : (cardTarget = { kind: 'person', id: p.id })"
               >
-                ▶ {{ formatTime(hitStartSeconds(hit) as number) }}
-              </button>
+                <ProfileAvatar :name="p.name" :src="p.image_url" :size="32" />
+                <span class="flex flex-col leading-tight">
+                  <span class="text-sm font-medium text-canvas-foreground">{{ p.name }}</span>
+                  <span class="lp-kicker text-muted">{{ roleLabel(p.role ?? undefined) }}</span>
+                </span>
+              </component>
             </li>
           </ul>
-          <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
-            {{ t("kp.noResults") }}
-          </p>
-        </form>
+        </section>
 
         <p v-if="!hasAnything" class="text-sm text-muted">{{ t("kp.empty") }}</p>
 
@@ -814,6 +774,68 @@ watch(() => auth.isAuthenticated, loadCaptures)
             />
           </div>
         </Teleport>
+
+        <!--
+          SEARCH, not "Ask" (operator 2026-09-27: "Ask episode doesn't feel right here").
+
+          It was labelled Ask and it runs `searchEpisode()`, rendering ranked transcript chunks —
+          `hit.text`, with `kp.noResults` when empty. There is no synthesis endpoint in the app:
+          `app_search.py` exposes `GET /search` and nothing else. So the label promised an answer
+          that nothing in the stack could produce, which is the whole of why it "didn't feel right".
+
+          Renamed rather than built, deliberately and on the operator's call. Making it answer means
+          a new backend route, per-question gateway cost, and deterministic fixtures to keep CI
+          airgapped (LLMs in CI are banned). That is its own piece of work, not a label fix.
+
+          The three sibling keys — `searching`, `searchError`, `noResults` — already said "search".
+          Only the two user-facing ones lied, and the i18n KEYS were renamed too so the code stops
+          carrying the fiction.
+
+          Placed AFTER the summary and the download row, above the key points (operator
+          2026-09-30): the panel opens on what the episode is — who is in it and what it says —
+          and search is for digging into it once you know.
+        -->
+        <form class="mb-5" @submit.prevent="runSearch">
+          <label class="sr-only" for="kp-ask">{{ t("kp.searchAction") }}</label>
+          <div class="lp-search flex gap-2">
+            <input
+              id="kp-ask"
+              ref="searchInput"
+              v-model="q"
+              type="search"
+              :placeholder="t('kp.searchPlaceholder')"
+              class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+            >
+              {{ t("kp.searchAction") }}
+            </button>
+          </div>
+          <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
+          <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
+          <ul v-else-if="results.length" class="mt-3 flex flex-col gap-2">
+            <li
+              v-for="hit in results"
+              :key="hit.doc_id"
+              class="rounded-xl border border-border p-3"
+            >
+              <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
+              <button
+                v-if="hitStartSeconds(hit) != null"
+                type="button"
+                class="mt-1 font-mono text-xs text-accent"
+                @click="emit('seek', hitStartSeconds(hit) as number)"
+              >
+                ▶ {{ formatTime(hitStartSeconds(hit) as number) }}
+              </button>
+            </li>
+          </ul>
+          <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
+            {{ t("kp.noResults") }}
+          </p>
+        </form>
 
         <!--
         The digest, under the summary and above the insights. Its own labelled block rather than

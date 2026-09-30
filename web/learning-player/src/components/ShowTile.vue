@@ -149,7 +149,9 @@ const art = (): string | null => showArtwork(props.show)
       by the content.
     -->
     <div class="mt-1 flex-1 text-xs font-bold leading-tight">
-      {{ show.title ?? show.feed_id }}
+      <span class="lp-show-name lp-show-name--4" :title="show.title ?? show.feed_id">{{
+        show.title ?? show.feed_id
+      }}</span>
     </div>
     <!-- Stretched link, LAST so it does not cover the controls above it in the stacking order.
          It carries the show name as its accessible name, because it has no text of its own. -->

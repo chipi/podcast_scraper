@@ -69,7 +69,6 @@
     "yourWeekShowMore": "Show more",
     "yourWeekShowLess": "Show less",
     "yourWeekSection": {
-      "revisit": "Highlights to revisit",
       "new_in_follows": "New in your follows",
       "new_in_interests": "New in topics & people you follow",
       "trending_in_your_corpus": "Trending in what you've heard"
@@ -120,7 +119,7 @@
     "discoverySortLabel": "Sort: {mode} (tap to switch)",
     "yourWeekFindShows": "Find shows →",
     "momentumHint": "twice as often as in recent weeks",
-    "yourWeekFirstRunLine": "Your weekly digest fills as you follow shows and mark moments.",
+    "yourWeekFirstRunLine": "Your weekly digest fills as you follow shows, topics and people.",
     "staleForced": "Offline mode is on — showing what you saved.",
     "staleNetwork": "You're offline — showing what you saved.",
     "staleServer": "We can't reach your account right now — showing what you saved.",
@@ -403,13 +402,9 @@
     "syncEarlier": "Shift transcript earlier",
     "syncLater": "Shift transcript later",
     "syncReset": "Reset transcript sync",
-    "summaryRegion": "Episode summary",
-    "summaryOpen": "Summary",
-    "summaryOpenHint": "Read this episode's summary",
     "moreActions": "More actions",
     "markPlayed": "Mark as played",
     "markUnplayed": "Mark as unplayed",
-    "summaryClose": "Close summary",
     "relatedEpisodes": "More like this",
     "recapKicker": "You just finished",
     "recapNotes": "We took notes for you",
@@ -425,7 +420,7 @@
     "recapRegion": "Episode recap"
   },
   "kp": {
-    "exportKicker": "Episode notes",
+    "exportKicker": "Download notes",
     "exportMarkdownShort": "Markdown",
     "exportPdfShort": "PDF",
     "exportNotesMarkdown": "Download these episode notes as Markdown",
@@ -433,7 +428,7 @@
     "exportClose": "Close notes",
     "exportShare": "Print or share",
     "exportFailed": "Couldn't open the notes.",
-    "title": "Insights",
+    "title": "Episode notes",
     "searchAction": "Search",
     "searchPlaceholder": "Search this episode…",
     "searching": "Searching…",
