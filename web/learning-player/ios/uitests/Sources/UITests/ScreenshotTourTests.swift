@@ -115,7 +115,7 @@ final class ScreenshotTourTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
     frame("t13-episode")
-    if Journey.tap(app, labels: ["Insights"], contains: true, timeout: 12) {
+    if Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 12) {
       sleep(4)
       frame("t14-episode-insights")
       if Journey.tap(app, labels: ["Key points"], contains: true, timeout: 8) {
@@ -188,7 +188,7 @@ final class ScreenshotTourTests: UITestCase {
 
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(5)
-    _ = Journey.tap(app, labels: ["Insights"], contains: true, timeout: 10)
+    _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 10)
     sleep(2)
     _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 8)
     sleep(2)
@@ -215,7 +215,7 @@ final class ScreenshotTourTests: UITestCase {
     func openTopicSheet() -> Bool {
       AppSession.openEpisode(app, slug: episodeSlug)
       sleep(5)
-      _ = Journey.tap(app, labels: ["Insights"], contains: true, timeout: 10)
+      _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 10)
       sleep(2)
       _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 8)
       sleep(2)

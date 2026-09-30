@@ -92,20 +92,21 @@ public class AppJourneyTests extends UITestCase {
                 + Journey.labelledInventory(16),
                 Journey.find(EPISODE_TITLE, true, 20_000));
 
-        // The Insights panel — entry point is "✦ Insights" (kp.title). The ✦ is a separate
-        // text node on iOS but on Android the whole label lands as one string, so contains is
-        // the safe match.
-        boolean tapped = Journey.tap("Insights", true, 15_000);
+        // The Episode notes panel — entry point is "✦ Episode notes" (kp.title). The ✦ is a
+        // separate text node on iOS but on Android the whole label lands as one string, so
+        // contains is the safe match.
+        boolean tapped = Journey.tap("Episode notes", true, 15_000);
         if (tapped) {
             Journey.sleep(4_000);
         } else {
-            Journey.scrollTo("Insights", true);
+            Journey.scrollTo("Episode notes", true);
             Journey.sleep(2_000);
         }
-        // The panel's own section header (kp.title = 'Insights') must now be on screen.
-        assertNotNull("the Insights panel section header did not appear. On screen: "
+        // The panel's own title (kp.title = 'Episode notes') must now be on screen. The opener pill
+        // is v-if'd away while the panel is open, so this match can only be the panel.
+        assertNotNull("the Episode notes panel title did not appear. On screen: "
                 + Journey.labelledInventory(80),
-                Journey.find("Insights", true, 10_000));
+                Journey.find("Episode notes", true, 10_000));
     }
 
     // ------------------------------------------------------------------ 03 topic + storyline
@@ -244,11 +245,11 @@ public class AppJourneyTests extends UITestCase {
         Journey.sleep(6_000);
 
         // Three steps required before the person button is reachable:
-        //   1. Open the knowledge panel (closed on a fresh launch) via the Insights entry.
+        //   1. Open the knowledge panel (closed on a fresh launch) via the Episode notes entry.
         //   2. Expand the "Topics & People" accordion (kp.tags) — collapsed by default, only
         //      section headers in the tree until opened.
         //   3. Scroll the person control into view — offscreen web content is not in the tree.
-        Journey.tap("Insights", true, 15_000);
+        Journey.tap("Episode notes", true, 15_000);
         Journey.sleep(3_000);
 
         // The accordion REMEMBERS its state between tests. Tap only when the person controls
@@ -514,7 +515,7 @@ public class AppJourneyTests extends UITestCase {
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
 
-        boolean panelOpened = Journey.tap("Insights", true, 15_000);
+        boolean panelOpened = Journey.tap("Episode notes", true, 15_000);
         if (!panelOpened) {
             fail("could not open the knowledge panel. On screen: " + Journey.labelledInventory(80));
         }

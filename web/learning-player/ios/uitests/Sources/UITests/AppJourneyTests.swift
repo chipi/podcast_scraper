@@ -86,11 +86,11 @@ final class AppJourneyTests: UITestCase {
       "episode page did not render its title"
     )
 
-    // The knowledge panel's Insights section — a tab/section header labelled "Insights".
-    if Journey.tap(app, labels: ["Insights"], contains: true, timeout: 15) {
+    // The knowledge panel — opened by the "✦ Episode notes" pill (kp.title).
+    if Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15) {
       sleep(4)
     } else {
-      _ = Journey.scrollTo(app, labels: ["Insights"])
+      _ = Journey.scrollTo(app, labels: ["Episode notes"])
       sleep(2)
     }
     Journey.inventory(app, "episode-insights")
@@ -177,12 +177,12 @@ final class AppJourneyTests: UITestCase {
     // lives behind the "Topics & People" section.
     // The knowledge panel is CLOSED on a fresh launch — "Topics & People" only exists once it is
     // open. (This passed the first time only because an earlier test in the same run had already
-    // opened it.) Open the panel from the player's "✦ Insights" entry point first.
+    // opened it.) Open the panel from the player's "✦ Episode notes" entry point first.
     // Three steps, all required: open the knowledge panel (closed on a fresh launch), EXPAND the
     // "Topics & People" accordion (its sections render collapsed — only the headers are in the
     // tree), then scroll the control into view. Offscreen web content is not in the accessibility
     // tree at all, so a plain `find` cannot see it and `tap`'s own scroll never triggers.
-    _ = Journey.tap(app, labels: ["Insights"], contains: true, timeout: 15)
+    _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15)
     sleep(3)
     // The accordion REMEMBERS its state between tests, so a blind tap can collapse a section that
     // a previous test left open — which is how this passed alone and failed in a full run. Tap only
@@ -432,7 +432,7 @@ final class AppJourneyTests: UITestCase {
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
 
-    guard Journey.tap(app, labels: ["Insights"], contains: true, timeout: 15) else {
+    guard Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 15) else {
       XCTFail("could not open the knowledge panel"); return
     }
     sleep(3)
