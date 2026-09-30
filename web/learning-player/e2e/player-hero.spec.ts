@@ -32,6 +32,13 @@ test('phone: the hero is 5:4 and the whole transport is above the tab bar', asyn
     times.y + times.height,
     `the timestamps end at ${Math.round(times.y + times.height)}px, under the tab bar at ${Math.round(nav.y)}px`,
   ).toBeLessThanOrEqual(nav.y)
+
+  // The timeline reads scrubber → density strip → times (UXS-011): the two strips annotate the
+  // same span and belong together; the numbers label their ends.
+  const scrub = (await page.locator('input[type="range"]').first().boundingBox())!
+  const density = (await page.getByTestId('player-insight-density').boundingBox())!
+  expect(scrub.y).toBeLessThan(density.y)
+  expect(density.y).toBeLessThan(times.y)
 })
 
 test('desktop: the hero stays square', async ({ page }, testInfo) => {
