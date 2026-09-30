@@ -302,3 +302,72 @@ class TestInsightRankingAndTagging:
         out = insights_from_gi(gi)
         assert "insight:b" not in {i.id for i in out}
         assert [i.id for i in out] == ["insight:d", "insight:a"]
+
+
+def _unnamed_episode_gi() -> dict:
+    """The #2198 shape: ChinaTalk 0df8ed52 — 44 grounded insights, naming resolved nobody."""
+
+    def ins(iid: str, voice: str, tier: int, salience: float) -> dict:
+        return {
+            "id": iid,
+            "type": "Insight",
+            "properties": {
+                "text": f"text of {iid}",
+                "grounded": True,
+                "surfaceable": False,
+                "speaker_voice_type": voice,
+                "tier": tier,
+                "routing_tag": "connect",
+                "salience": salience,
+            },
+        }
+
+    return {
+        "nodes": [
+            ins("insight:unknown-core", "unknown", 3, 0.9),
+            ins("insight:unidentified-useful", "unidentified", 2, 0.7),
+            ins("insight:advert", "commercial", 3, 0.95),
+            ins("insight:unknown-minor", "unknown", 1, 0.4),
+        ],
+        "edges": [],
+    }
+
+
+class TestUnattributedFallbackForTheEpisodePanel:
+    """#2198: naming failing must not empty an episode's insights panel — and nothing more."""
+
+    def test_default_keeps_the_gate(self) -> None:
+        """Every surface that does not opt in (auto-picks, recaps, share cards, MCP) keeps it."""
+        assert insights_from_gi(_unnamed_episode_gi()) == []
+
+    def test_an_episode_with_no_named_insight_shows_its_unnamed_ones(self) -> None:
+        out = insights_from_gi(_unnamed_episode_gi(), unattributed_fallback=True)
+        assert [i.id for i in out] == ["insight:unknown-core", "insight:unidentified-useful"]
+        assert all(i.attributed is False for i in out)
+
+    def test_an_advert_read_is_never_shown(self) -> None:
+        ids = [i.id for i in insights_from_gi(_unnamed_episode_gi(), unattributed_fallback=True)]
+        assert "insight:advert" not in ids
+
+    def test_a_tier_that_could_never_surface_is_not_shown(self) -> None:
+        """MINOR stays out even when named (route-and-tag: SURFACE needs tier >= USEFUL)."""
+        ids = [i.id for i in insights_from_gi(_unnamed_episode_gi(), unattributed_fallback=True)]
+        assert "insight:unknown-minor" not in ids
+
+    def test_one_named_surface_insight_suppresses_the_fallback(self) -> None:
+        """Unnamed insights are NOT shown beside named ones — naming them is #2200's job."""
+        gi = _unnamed_episode_gi()
+        gi["nodes"].append(
+            {
+                "id": "insight:named",
+                "type": "Insight",
+                "properties": {"text": "named", "grounded": True, "routing_tag": "surface"},
+            }
+        )
+        out = insights_from_gi(gi, unattributed_fallback=True)
+        assert [i.id for i in out] == ["insight:named"]
+        assert out[0].attributed is True
+
+    def test_a_named_insight_is_attributed_by_default(self) -> None:
+        out = insights_from_gi(_gi())
+        assert out and all(i.attributed is True for i in out)

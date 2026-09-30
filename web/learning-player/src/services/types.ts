@@ -274,6 +274,9 @@ export interface Insight {
    *  start moment, so the take links to `/episode/:slug?t=<start_ms/1000>`. Absent elsewhere. */
   episode_slug?: string | null
   start_ms?: number | null
+  /** #2198 — false when no named person said it. The server sends such insights ONLY as the
+   *  episode panel's fallback when an episode has no attributed insight; absent = true. */
+  attributed?: boolean
   quotes: Quote[]
 }
 

@@ -469,6 +469,25 @@ describe("KnowledgePanel — #1191 route-and-tag surfacing", () => {
     })
     expect(w.text()).not.toContain("only connect")
   })
+
+  it("#2198: shows an unattributed insight the server sent as the fallback, and says so", () => {
+    // ChinaTalk 0df8ed52: 44 grounded insights, naming resolved nobody, the panel was empty.
+    const w = mountPanel({
+      insights: [
+        insight({ id: "u", text: "UUU said by an unnamed voice", routing_tag: "connect", attributed: false }),
+      ],
+    })
+    expect(w.text()).toContain("UUU said by an unnamed voice")
+    expect(w.find('[data-testid="insight-unattributed"]').exists()).toBe(true)
+  })
+
+  it("#2198: a named insight carries no 'speaker not identified' label", () => {
+    const w = mountPanel({
+      insights: [insight({ id: "n", text: "NNN named", routing_tag: "surface" })],
+    })
+    expect(w.text()).toContain("NNN named")
+    expect(w.find('[data-testid="insight-unattributed"]').exists()).toBe(false)
+  })
 })
 
 describe("Topics & People render in full (#2004 item 15)", () => {

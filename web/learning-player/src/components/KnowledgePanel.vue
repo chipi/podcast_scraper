@@ -388,8 +388,13 @@ function insightTypeLabel(ins: { insight_type?: string | null }): string {
 // compat. Server returns them salience-sorted; we preserve order and cap at gi_surface_default_limit
 // (8) — the eval showed ranks 6-8 are as good as the top-5, so 8 (not 6) is the fold.
 const INSIGHT_COLLAPSED = 8
+// #2198: `attributed === false` insights are routed `connect` (no named speaker) yet shown — the
+// server sends them only as the fallback for an episode whose speakers were never named, so they
+// never appear beside named ones. Without this an episode with 44 grounded insights showed none.
 const surfaceInsights = computed(() =>
-  props.insights.filter((i) => i.routing_tag == null || i.routing_tag === "surface")
+  props.insights.filter(
+    (i) => i.routing_tag == null || i.routing_tag === "surface" || i.attributed === false
+  )
 )
 // Per-type filter (IN.3): null = all. Chips render only for the types actually present.
 const insightTypeFilter = ref<string | null>(null)
@@ -1067,6 +1072,15 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   — {{ speakerLabel(ins.quotes[0].speaker) }}
                 </span>
               </blockquote>
+              <!-- #2198: said, but by a voice we could not name. Say so, rather than implying the
+                   episode's host or guest said it. -->
+              <p
+                v-if="ins.attributed === false"
+                class="lp-kicker mt-2"
+                data-testid="insight-unattributed"
+              >
+                {{ t("kp.speakerNotIdentified") }}
+              </p>
             </li>
           </ul>
           <button

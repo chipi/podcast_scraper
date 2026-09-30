@@ -300,7 +300,12 @@ def episode_insights(
     if not row.has_gi:
         return AppInsightsResponse(episode_slug=slug, insights=[])
     artifact = load_json_artifact(root, row.gi_relative_path)
-    return AppInsightsResponse(episode_slug=slug, insights=insights_from_gi(artifact, limit=limit))
+    # #2198: an episode whose speakers were never named still shows its insights, marked
+    # unattributed, instead of an empty panel. Only this endpoint (and its stats count) opts in.
+    return AppInsightsResponse(
+        episode_slug=slug,
+        insights=insights_from_gi(artifact, limit=limit, unattributed_fallback=True),
+    )
 
 
 def _episode_notes_doc(request: Request, slug: str, user: User):
@@ -421,7 +426,13 @@ def episode_stats(
     root, row = _resolve(request, slug)
     insights = 0
     if row.has_gi:
-        insights = len(insights_from_gi(load_json_artifact(root, row.gi_relative_path)))
+        # Same projection as the insights endpoint, so an episode whose insights are all
+        # unattributed does not count as zero while its panel shows them (#2198).
+        insights = len(
+            insights_from_gi(
+                load_json_artifact(root, row.gi_relative_path), unattributed_fallback=True
+            )
+        )
 
     reach = _episode_reach(getattr(request.app.state, "app_data_dir", None), slug)
     return EpisodeStatsResponse(slug=slug, insights=insights, **reach)

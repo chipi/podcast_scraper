@@ -254,6 +254,13 @@ class AppInsight(BaseModel):
     start_ms: int | None = Field(
         default=None, description="Supporting quote's start (ms) — the moment to jump to (#2032)."
     )
+    attributed: bool = Field(
+        default=True,
+        description=(
+            "False when no named person said it (#2198): shown only as an episode panel's fallback "
+            "when the episode has no attributed insight, and rendered as 'speaker not identified'."
+        ),
+    )
     quotes: list[AppQuote] = Field(default_factory=list)
 
 

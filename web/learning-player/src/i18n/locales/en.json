@@ -466,7 +466,8 @@
     "keyPoints": "Key points",
     "jumpToMoment": "Jump to this moment in the episode ({time})",
     "filterByType": "Filter insights by type",
-    "filterAll": "All"
+    "filterAll": "All",
+    "speakerNotIdentified": "Speaker not identified"
   },
   "interests": {
     "title": "Choose your interests",

@@ -82,7 +82,9 @@ def _speaker_name(artifact: Any, person_id: Any) -> str | None:
     return None
 
 
-def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsight]:
+def insights_from_gi(
+    artifact: Any, *, limit: int | None = None, unattributed_fallback: bool = False
+) -> list[AppInsight]:
     """Return surfaceable insights from a GI artifact dict, ranked for display.
 
     ADR-135/#1191: insights are sorted by ``salience`` descending (the route-and-tag ranking) so a
@@ -90,7 +92,18 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
     suspenders with the value gate). ``limit`` caps the result to the top-N after sorting (e.g.
     ``gi_surface_default_limit``); ``None`` returns all. Ties and pre-3.1 artifacts (no
     ``salience``) fall back to extraction order, so the projection is unchanged for old corpora.
+
+    ``unattributed_fallback`` (#2198) is for ONE surface: an episode's own insights panel. When the
+    episode has no attributed insight the panel would show, it returns the insights whose speaker
+    we could not name instead — ``attributed=False``, never advert reads, only tiers that would
+    have been ``surface`` had the voice been named. Measured 2026-09-30: 111 of 2,002 served
+    episodes had grounded insights and an EMPTY panel because naming resolved nobody. Every other
+    surface (auto-picks, recaps, notes, share cards, MCP) keeps the gate: publishing an
+    unattributed stance as a highlight is what the gate exists to prevent. Showing unnamed insights
+    beside named ones is NOT wanted — the fix for those is naming them (#2200).
     """
+    from podcast_scraper.gi.value_gate import TIER_USEFUL
+
     if not isinstance(artifact, dict):
         return []
     nodes = artifact.get("nodes")
@@ -117,6 +130,7 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
             spoken_by[frm] = to
 
     out: list[AppInsight] = []
+    fallback: list[AppInsight] = []
     for node in nodes:
         if not isinstance(node, dict) or node.get("type") != "Insight":
             continue
@@ -135,8 +149,17 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
         # They stay in the artifact: a FACT is still a fact, and the corpus needs them for
         # CONNECT — story threads across episodes never needed a speaker. This gate is about
         # what we PUBLISH as somebody's insight, not about what we keep.
-        if props.get("surfaceable") is False:
-            continue
+        unattributed = props.get("surfaceable") is False
+        if unattributed:
+            if not unattributed_fallback:
+                continue
+            # Never an advert read, and never a tier that would not have reached a surface even
+            # with a named speaker (``_apply_route_and_tag``: SURFACE needs tier >= USEFUL).
+            if _opt_str(props.get("speaker_voice_type")) == "commercial":
+                continue
+            tier_raw = _opt_int(props.get("tier"))
+            if tier_raw is not None and tier_raw < TIER_USEFUL:
+                continue
         # ADR-135/#1191: a `drop`-tagged insight (FILLER) is not published on any surface.
         if _opt_str(props.get("routing_tag")) == "drop":
             continue
@@ -172,7 +195,7 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
 
         grounded_prop = props.get("grounded")
         grounded = bool(grounded_prop) if isinstance(grounded_prop, bool) else bool(quote_models)
-        out.append(
+        (fallback if unattributed else out).append(
             AppInsight(
                 id=str(insight_id) if insight_id is not None else "",
                 text=text,
@@ -184,9 +207,15 @@ def insights_from_gi(artifact: Any, *, limit: int | None = None) -> list[AppInsi
                 rank=_opt_int(props.get("rank")),
                 routing_tag=_opt_str(props.get("routing_tag")),
                 tier=_opt_int(props.get("tier")),
+                attributed=not unattributed,
                 quotes=quote_models,
             )
         )
+
+    # The panel shows `surface`-tagged insights (and untagged pre-3.1 ones). Only when NONE of those
+    # exist does the unattributed fallback apply — see the docstring.
+    if unattributed_fallback and not any(i.routing_tag in (None, "surface") for i in out):
+        out.extend(fallback)
 
     # ADR-135/#1191: rank for display. Stable sort by salience desc keeps extraction order for ties
     # and for pre-3.1 artifacts (salience None -> 0.0), so old corpora project identically.
