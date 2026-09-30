@@ -49,6 +49,21 @@ CLEANED_SUFFIX = ".cleaned"
 #: canonical, English ad-free.
 EN_SUFFIX = ".en"
 
+#: The pre-naming render: the screenplay as it stood when only the diarizer had spoken, with
+#: anonymous ``SPEAKER_NN`` labels (D-40).
+#:
+#: WHY IT IS KEPT. With naming moved after translation (D-34) the sequence is diarize → write
+#: anonymous → translate → name → re-render, and the naming re-render overwrites ``.txt``. That
+#: destroys the only human-readable view of what the pipeline saw BEFORE it decided who was
+#: speaking, which is the first thing anyone debugging a naming failure wants. It is
+#: reconstructible from ``.segments.json``'s ``speaker`` field — the frozen voice id, which naming
+#: never touches; only ``speaker_label`` is updated — so this is cheapness and clarity rather than
+#: recoverability.
+#:
+#: ``.txt`` keeps exactly today's meaning: the canonical NAMED source transcript. None of the ~30
+#: modules that read it change.
+ANON_SUFFIX = ".anon"
+
 PathLike = Union[str, "os.PathLike[str]"]
 
 
@@ -70,6 +85,12 @@ def adfree_transcript_relpath(transcript_relpath: str) -> str:
     """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.adfree.txt``."""
     base, ext = os.path.splitext(transcript_relpath)
     return f"{base}{ADFREE_SUFFIX}{ext or '.txt'}"
+
+
+def anon_transcript_relpath(transcript_relpath: str) -> str:
+    """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.anon.txt`` (D-40)."""
+    base, ext = os.path.splitext(transcript_relpath)
+    return f"{base}{ANON_SUFFIX}{ext or '.txt'}"
 
 
 def english_transcript_relpath(transcript_relpath: str) -> str:
@@ -144,7 +165,7 @@ def _canonical_relpath(transcript_relpath: str) -> str:
     changed = True
     while changed:
         changed = False
-        for suffix in (ADFREE_SUFFIX, CLEANED_SUFFIX, EN_SUFFIX):
+        for suffix in (ADFREE_SUFFIX, CLEANED_SUFFIX, EN_SUFFIX, ANON_SUFFIX):
             if base.lower().endswith(suffix):
                 base = base[: -len(suffix)]
                 changed = True
