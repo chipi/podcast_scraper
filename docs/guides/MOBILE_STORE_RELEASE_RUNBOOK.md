@@ -220,11 +220,12 @@ Consequences worth knowing: the two apps have **separate storage**, so the dev b
 out with no downloads; `IOS_BUNDLE_ID` and the UI-test suite default to the `.dev` id (override with
 `LP_UITEST_BUNDLE_ID`); and the `podcast-dev` delivery tenant's `apns_bundle_id` must match it.
 
-**Android has no equivalent split yet** — debug and release share `app.closelistening.player`, and
-because they are signed by different keys `adb install -r` fails with
-`INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The only way forward is uninstalling the Play build, which
-takes its data with it. Fixing it needs an `applicationIdSuffix ".dev"` plus a matching Firebase
-client, since `google-services.json` is keyed by package name.
+**Android has no equivalent split yet (#2208)** — debug and release share
+`app.closelistening.player`, and because they are signed by different keys `adb install -r` fails
+with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The only way forward is uninstalling the Play build,
+which takes its data with it. Fixing it needs an `applicationIdSuffix ".dev"` plus a matching
+Firebase client, since `google-services.json` is keyed by package name — so the console step has
+to come first or every Android build breaks.
 
 ## Beta testers need accounts
 
