@@ -16,16 +16,26 @@ fragment- to sentence-matching. Where a fixture defect USED to supply the mutati
 an absence of spanning ids — the test now constructs it, because "clean" and "broken instrument"
 report the same number.
 
-* 40 episodes across 9 feeds, 4-6 episodes each;
-* exactly 2 topic clusters, BOTH covering all 40 episodes;
+* 41 episodes across 10 feeds, 1-6 episodes each;
+* exactly 2 topic clusters, BOTH covering all 41 episodes;
 * the picker's offered options therefore produce **1** distinct feed — decorative;
-* a discriminating band (2 <= n <= 60% coverage) holds **27** tokens whose top 12 produce **10**
-  distinct feeds. NOTE: this was quoted as 8 until 2026-08-19. That figure was measured while tie
-  ordering was hash-dependent, so it was never stable — with ties broken by token it is 10. The
-  conclusion it supports (1 distinct feed from the picker's own options) is unchanged and in fact
-  a wider gap;
-* the discover pool window (4 * 12 = 48) still EXCEEDS the corpus at 40, so the pool is
+* a discriminating band (2 <= n <= 60% coverage) holds **45** tokens whose top 12 produce **11**
+  distinct feed sets. NOTE: this was quoted as 8 until 2026-08-19. That figure was measured while
+  tie ordering was hash-dependent, so it was never stable — with ties broken by token it is 10,
+  and 11 since p10. The conclusion it supports (1 distinct feed from the picker's own options) is
+  unchanged and in fact a wider gap;
+* the discover pool window (4 * 12 = 48) still EXCEEDS the corpus at 41, so the pool is
   everything and the relevance leg never runs — the blind spot that motivated the epic.
+
+**2026-09-30 — the corpus gained a language.** `p10` is p01's Spanish counterpart: the same
+trail-building show, same host, one episode. Six size assertions here were literals and failed
+at once; they are counted from disk now, because "the walk found the corpus" is a claim about
+the audit not skipping anything, not about the number 40. The changes that are NOT bookkeeping:
+Maya is pooled across THREE shows rather than two (two of the three are the same human, one is
+not, which is why span reports a candidate and not a merge), and the feed imbalance got worse —
+minimum 1 episode, 7 of 10 feeds sparse — because a show in a new language arrives with one
+episode. The analysis layer stays English throughout (D-38), so p10's topics and summary are
+English and sit in the same token space as every other episode's.
 
 That last one is why these assertions are worth having. A tool that reported "pool reaches 100%"
 without also reporting "because the window is larger than the corpus" would be actively
@@ -49,6 +59,23 @@ from podcast_scraper.capability_audit import (
 pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 CORPUS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "app-validation-corpus" / "v3"
+
+
+def _corpus_episodes_on_disk() -> int:
+    """Episodes the corpus actually holds, counted from disk.
+
+    The size assertions below used to be literals (40 episodes, 9 feeds). Adding the Spanish
+    show made six of them fail at once, and every one of those failures was a number to bump
+    rather than a defect — which is worse than noise, because a suite that cries wolf on a
+    legitimate corpus change trains you to bump numbers without reading them. Counted from
+    disk, "the walk found the corpus" asserts what it says: the audit saw everything there is,
+    and did not silently skip an episode or a show.
+    """
+    return len(list(CORPUS.glob("feeds/*/run_*/metadata/*.metadata.json")))
+
+
+def _corpus_feeds_on_disk() -> int:
+    return len([p for p in (CORPUS / "feeds").glob("*") if p.is_dir()])
 
 
 @pytest.fixture(scope="module")
@@ -78,8 +105,8 @@ class TestTheWalkItself:
         }
 
     def test_it_found_the_corpus(self, report) -> None:
-        assert report.episodes == 40
-        assert report.feeds == 9
+        assert report.episodes == _corpus_episodes_on_disk()
+        assert report.feeds == _corpus_feeds_on_disk()
 
 
 class TestPoolReachability:
@@ -91,7 +118,7 @@ class TestPoolReachability:
         pool = report.sections["pool_reachability"]
         assert pool["recency_window"] == DEFAULT_FEED_LIMIT * 4
         assert pool["pool_is_whole_corpus"] is True
-        assert pool["recency_reach"] == 40
+        assert pool["recency_reach"] == report.episodes
         assert pool["unreachable_without_a_match"] == 0
 
     def test_the_warning_reaches_the_summary(self, report) -> None:
@@ -113,10 +140,18 @@ class TestPickerDiscrimination:
         # 42, not 27: episodes carry their own topics since the per-feed cap was removed and
         # `_episode_topics_for` started reading the authored primary/secondary. More tokens land
         # in the band because more tokens are episode-specific — which is the point of the band.
-        assert picker["band_candidates"] == 42
+        #
+        # 45 since p10: the Spanish show pushed three topics (`soil-erosion`, `endurance-sport`,
+        # `land-stewardship`) from one episode past the band's 2-episode floor. Kept a literal
+        # unlike the size counts above, because this one is a claim about the corpus's
+        # DISCRIMINATING POWER — the thing the band exists to measure — not about how many files
+        # are on disk. A drop here is a real regression and must not be absorbed by a formula.
+        assert picker["band_candidates"] == 45
         # 10, not the 8 quoted before 2026-08-19 — see the module docstring. The old figure came
-        # from a hash-dependent top-12, so it was never reproducible.
-        assert picker["band_distinct_feeds"] == 10
+        # from a hash-dependent top-12, so it was never reproducible. 11 since p10: this
+        # counts DISTINCT FEED SETS, not feeds, so a show whose topics overlap p01's while
+        # its episode does not can add a set without adding a feed.
+        assert picker["band_distinct_feeds"] == 11
 
     def test_no_band_token_covers_more_than_the_ceiling(self, report) -> None:
         """The band is only meaningful if its own bound holds."""
@@ -195,6 +230,21 @@ class TestTheBandIsNotAutomaticallyOfferable:
             "person:a-correspondent" in text
         ), "the band's actual contents must be visible; a bare count reads as 'offer these'"
 
+    def test_the_report_lists_every_token_it_claims_a_feed_count_for(self, report) -> None:
+        """The listing must cover the whole set the distinct-feed count is computed over.
+
+        It did not. The renderer measured `band_top` (12 tokens), said "its top 12 produce N
+        distinct feed(s)", then listed a second `[:8]` slice of it — so two of the tokens the
+        sentence described were invisible. That is not cosmetic: the unofferable entries this
+        class exists to surface sit low in the band, and adding the 41st episode pushed
+        `person:a-correspondent` from 8th to 10th. The warning would have vanished while the
+        count above it still read as a recommendation, and nothing would have failed.
+        """
+        picker = report.sections["picker_discrimination"]
+        text = format_report(report)
+        for entry in picker["band_top"]:
+            assert f"`{entry['token']}` — {entry['episodes']} ep," in text, entry["token"]
+
 
 class TestClusterStructure:
     def test_both_clusters_are_universal(self, report) -> None:
@@ -213,12 +263,17 @@ class TestCorpusShape:
         Was 9 feeds x 4. The per-feed cap that made it uniform is gone, so the shape is now
         4/4/4/4/5/5/6/4/4 — 6 of 9 feeds below the <5 sparse rule rather than all 9. The finding
         is unchanged in kind: two thirds of the corpus cannot support a per-feed mean.
+
+        p10 makes the imbalance WORSE, not better: the Spanish show carries one episode, so the
+        minimum drops from 4 to 1 and 7 of 10 feeds are now sparse. That is the honest shape of
+        a corpus gaining a language — the first show in a new language arrives with one episode —
+        and it sharpens the finding rather than diluting it.
         """
         shape = report.sections["corpus_shape"]
-        assert shape["feeds"] == 9
-        assert shape["episodes_per_feed_min"] == 4
+        assert shape["feeds"] == _corpus_feeds_on_disk()
+        assert shape["episodes_per_feed_min"] == 1
         assert shape["episodes_per_feed_max"] == 6
-        assert shape["feeds_with_fewer_than_5"] == 6
+        assert shape["feeds_with_fewer_than_5"] == 7
 
     def test_every_episode_has_a_publish_date(self, report) -> None:
         """Recency decays from publish dates; an undated episode would silently skew the spread."""
@@ -344,9 +399,9 @@ class TestGraphCoverage:
 
     def test_the_fixture_is_fully_covered(self, report) -> None:
         cov = report.sections["graph_coverage"]
-        assert cov["episodes"] == 40
-        assert cov["with_kg"] == 40
-        assert cov["with_gi"] == 40
+        assert cov["episodes"] == report.episodes
+        assert cov["with_kg"] == report.episodes
+        assert cov["with_gi"] == report.episodes
         assert cov["kg_share"] == 1.0
 
     def test_the_warning_is_absent_when_coverage_is_complete(self, report) -> None:
@@ -412,7 +467,7 @@ class TestContentQuality:
 
     def test_the_corpus_is_clean(self, report) -> None:
         cq = report.sections["content_quality"]
-        assert cq["episodes"] == 40
+        assert cq["episodes"] == report.episodes
         assert cq["transcript_echo"] == 0
         assert cq["prompt_example_leak"] == 0
         assert cq["defects"] == 0
@@ -661,42 +716,66 @@ class TestSingleWordEntitiesAreJudgedByFeedSpan:
 
     def test_the_fixture_case_is_the_benign_one(self, report) -> None:
         ident = report.sections["entity_identity"]
-        ident = report.sections["entity_identity"]
         assert ident["single_word_names"] == 9
         # WAS 0. The corpus gained a real spanning case when the per-feed cap stopped dropping
         # p06_e05/e06: both are hosted by "Maya", and so is all of p01. Two different people are
         # now pooled under `person:maya` across two shows — the precision failure this section
         # exists to measure, which the fixture previously could not exhibit at all.
+        #
+        # THREE shows since p10: the Spanish counterpart of p01 is the same show with the same
+        # host, so `person:maya` is now one token over p01, p06 and p10. Two of those three are
+        # genuinely the same human and one is not, which is exactly why a bare span count is a
+        # candidate for a human to judge rather than a merge instruction.
         assert ident["single_word_spanning_feeds"] == 1
         worst = ident["single_word_worst"][0]
         assert worst["token"] == "person:maya"
-        assert worst["feeds"] == 2
+        assert worst["feeds"] == 3
+        assert worst["feed_ids"] == ["p01", "p06", "p10"]
 
     def test_the_warning_fires_on_the_spanning_case(self, report) -> None:
         assert "pooled under one followable token" in format_report(report)
 
-    def test_the_warning_stays_silent_when_nothing_spans(self, tmp_path) -> None:
+    def test_the_span_names_the_shows_not_just_the_count(self, report) -> None:
+        """A count says a pooled token exists; only the ids say where to go and look."""
+        assert "`person:maya` — 7 ep across 3 feed(s) (p01, p06, p10)" in format_report(report)
+
+    def test_the_warning_stays_silent_when_nothing_spans(self, report, tmp_path) -> None:
         """A warning that always prints is not a warning.
 
         The fixture used to prove this for free by having no spanning ids. It has one now, so the
-        quiet case is constructed: drop the two episodes that put Maya in a second show and the
+        quiet case is constructed: confine every pooled first-name token to a single show and the
         warning must disappear. Asserting only the loud case would leave "always warns"
         indistinguishable from "correctly warns".
+
+        The shows to drop are DERIVED from the measurement's own `feed_ids`, not named as literal
+        episode ids. The previous version hardcoded `p06_e05/e06` — correct when Maya spanned two
+        shows, silently wrong the moment p10 put her in a third, and its failure message ("the
+        span measurement is not actually keyed on the episodes that produce it") then accused the
+        measurement of the staleness that was in the test. A corpus that gains a show must not be
+        able to make this pass for the wrong reason, or fail for one.
         """
         import shutil
 
+        spanning = [
+            r for r in report.sections["entity_identity"]["single_word_worst"] if r["feeds"] > 1
+        ]
+        assert spanning, "fixture has no spanning single-word id, so the quiet case proves nothing"
+        # Keep each pooled token's first show, drop the rest. What remains is still a multi-feed
+        # corpus — the benign case from the class docstring, not a one-feed corpus where nothing
+        # CAN span and the measure would look correct even if it were broken.
+        drop = {feed for r in spanning for feed in r["feed_ids"][1:]}
+        assert drop, "nothing to drop"
+
         corpus = tmp_path / "v3"
         shutil.copytree(CORPUS, corpus)
-        removed = 0
-        for meta in corpus.rglob("p06_e0[56].*"):
-            meta.unlink()
-            removed += 1
-        assert removed, "expected p06_e05/e06 artifacts to remove"
+        for feed in sorted(drop):
+            shutil.rmtree(corpus / "feeds" / feed)
 
         quiet = measure(corpus)
+        assert quiet.feeds > 1, "the quiet corpus must keep several feeds, or spanning is vacuous"
         assert quiet.sections["entity_identity"]["single_word_spanning_feeds"] == 0, (
-            "Maya still spans two feeds after removing p06_e05/e06 — the span measurement is "
-            "not actually keyed on the episodes that produce it"
+            f"a single-word id still spans feeds after dropping {sorted(drop)} — the span "
+            "measurement is not actually keyed on the feeds it reports"
         )
         assert "pooled under one followable token" not in format_report(quiet)
 
@@ -1106,10 +1185,14 @@ class TestRankingCalibration:
 
     def test_significance_normalisation_numbers(self, report) -> None:
         sig = report.sections["ranking_calibration"]["significance"]
-        assert sig["feeds"] == 9
+        assert sig["feeds"] == _corpus_feeds_on_disk()
+        # Must agree with `corpus_shape`, which measures the same property by a different route.
+        # Pinned to that section rather than to a literal 7 so the two can never drift into
+        # disagreeing about how many feeds are sparse.
+        assert sig["sparse_feeds"] == report.sections["corpus_shape"]["feeds_with_fewer_than_5"]
         assert (
-            sig["sparse_feeds"] == 6
-        ), "6 of 9 feeds hold fewer than 5 episodes — a mean over 4 is still noise"
+            sig["sparse_feeds"] == 7
+        ), "7 of 10 feeds hold fewer than 5 episodes — a mean over 4 is still noise"
         assert sig["feed_mean_min"] <= sig["feed_mean_median"] <= sig["feed_mean_max"]
         # The over-reward question is answered by comparing where sparse feeds land vs their size.
         assert 0.0 <= sig["sparse_top_share"] <= 1.0

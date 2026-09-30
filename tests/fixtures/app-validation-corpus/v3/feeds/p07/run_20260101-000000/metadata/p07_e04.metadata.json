@@ -22,6 +22,8 @@
   "episode": {
     "duration_seconds": 77,
     "episode_id": "ep-362f5d463b877d2c",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2025-12-24T00:00:00",
     "title": "Macro as Risk Management"
   },
@@ -31,24 +33,26 @@
     ],
     "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
     "feed_id": "p07",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p07.webp",
+    "image_url": "http://localhost/images/p07.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2025-12-24T00:00:00",
     "title": "The Long View",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p07.webp",
-    "image_url": "http://localhost/images/p07.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Macro is risk management at scale — the core job is avoiding the wrong side of a regime change rather than predicting every move correctly.",
+      "Macro is risk management at scale \u2014 the core job is avoiding the wrong side of a regime change rather than predicting every move correctly.",
       "A regime change named in advance is one that can be positioned for; anything short of that is just hoping.",
-      "The economy is a system, not a set of levers — pulling one lever moves three others, so interventions never act in isolation.",
+      "The economy is a system, not a set of levers \u2014 pulling one lever moves three others, so interventions never act in isolation.",
       "Back-tested calls showed misses consistently came from treating a correlated system as if its parts were independent.",
       "A macro book and a power grid are both systems of correlated risk, making macro analysis and sustainability work the same discipline under different vocabulary.",
-      "Systems thinking and risk management are one discipline rather than two — the underlying logic of correlated risk carries across domains."
+      "Systems thinking and risk management are one discipline rather than two \u2014 the underlying logic of correlated risk carries across domains."
     ],
-    "raw_text": "Macro is risk management at scale — the core job is avoiding the wrong side of a regime change rather than predicting every move correctly. A regime change named in advance is one that can be positioned for; anything short of that is just hoping.",
+    "raw_text": "Macro is risk management at scale \u2014 the core job is avoiding the wrong side of a regime change rather than predicting every move correctly. A regime change named in advance is one that can be positioned for; anything short of that is just hoping.",
     "title": "Macro as Risk Management: Reading the Economy as a System"
   }
 }

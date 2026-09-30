@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 182,
     "episode_id": "ep-d428e906f5affc60",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-01-05T00:00:00",
     "title": "Corrections, Trust, and the Long Game"
   },
@@ -36,24 +38,26 @@
     ],
     "description": "NPR-shape public-radio conversations.",
     "feed_id": "p08",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
+    "image_url": "http://localhost/images/p08.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2026-01-05T00:00:00",
     "title": "Public Hour",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p08.webp",
-    "image_url": "http://localhost/images/p08.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "A correction is a reliability signal rather than a failure — a pattern observed at teams using BBC and NPR.",
+      "A correction is a reliability signal rather than a failure \u2014 a pattern observed at teams using BBC and NPR.",
       "Ignoring corrections as a reliability signal carries a delayed cost; teams that do so end up rebuilding it from scratch a year later.",
       "Managing the risk of being wrong in public is its own discipline, a pattern observed holding across three different teams.",
       "Framing reliability around the risk of being wrong in public matters because it reveals which trade-offs are actually being made.",
-      "Risk management cross-cuts every other reliability concern — its trade-offs touch everything else rather than sitting in a separate silo.",
-      "Adoption works best through small experiments rather than wholesale change — pick one idea, run it for two weeks, and treat the rest as iteration."
+      "Risk management cross-cuts every other reliability concern \u2014 its trade-offs touch everything else rather than sitting in a separate silo.",
+      "Adoption works best through small experiments rather than wholesale change \u2014 pick one idea, run it for two weeks, and treat the rest as iteration."
     ],
-    "raw_text": "A correction is a reliability signal rather than a failure — a pattern observed at teams using BBC and NPR. Ignoring corrections as a reliability signal carries a delayed cost; teams that do so end up rebuilding it from scratch a year later.",
+    "raw_text": "A correction is a reliability signal rather than a failure \u2014 a pattern observed at teams using BBC and NPR. Ignoring corrections as a reliability signal carries a delayed cost; teams that do so end up rebuilding it from scratch a year later.",
     "title": "Reliability and the Risk of Being Wrong in Public"
   }
 }

@@ -132,7 +132,23 @@ class TestTheCommittedCorporaStillNeedRegenerating:
             "and assert the language is present instead."
         )
 
-    def test_the_app_corpus_still_carries_the_raw_tag(self) -> None:
+    def test_the_app_corpus_IS_regenerated_and_normalized(self) -> None:
+        """REGENERATED 2026-09-30, so this is the tightened assertion the class docstring asked
+        for — it used to assert the corpus still stored the raw `en-us`.
+
+        Two things changed in the rebuild, and only one of them was the point:
+
+        * `p10` arrived, so the corpus carries `es` as well as English — the first non-English
+          episode in it.
+        * every ENGLISH episode went `en-us` -> `en`. That was pending, not new: the generator
+          gained `normalize_language_tag` during Phase 0 and committed artifacts are not
+          retroactively altered, so the corpus had been carrying a pre-normalisation shape.
+          Rebuilding it for p10 is what finally applied it.
+
+        The normalised form is the one the whole system reasons about — `whisper_utils` checks
+        `language.lower() in ("en", "english")`, so `en-us` reads as NOT English (D-21), which is
+        the exact bug normalisation exists to prevent.
+        """
         import json
 
         root = REPO / "tests/fixtures/app-validation-corpus/v3"
@@ -142,7 +158,21 @@ class TestTheCommittedCorporaStillNeedRegenerating:
             (json.loads(m.read_text(encoding="utf-8")).get("feed") or {}).get("language")
             for m in metas
         }
-        assert stored == {"en-us"}, (
-            f"the app corpus's stored language changed to {stored} — regenerated? Then delete "
-            "this test; S0.5's contract test asserts the served value either way."
-        )
+        assert stored == {"en", "es"}, f"the app corpus's stored languages are {stored}"
+        assert not any(
+            s and "-" in s for s in stored
+        ), f"a raw regional subtag survived normalisation: {stored}"
+
+    def test_the_app_corpus_keeps_the_RAW_tag_beside_the_normalized_one(self) -> None:
+        """`language_raw` is what makes the corpus auditable: it distinguishes a feed that
+        declared `es-ES` from one that declared `es`, and normalisation would otherwise destroy
+        that. §3.1's whole point is being able to tell a measured corpus from a defaulted one."""
+        import json
+
+        root = REPO / "tests/fixtures/app-validation-corpus/v3"
+        raws = {
+            (json.loads(m.read_text(encoding="utf-8")).get("feed") or {}).get("language_raw")
+            for m in sorted(root.glob("feeds/*/**/metadata/*.metadata.json"))
+        }
+        assert "es-ES" in raws, f"p10's raw tag is missing: {sorted(r for r in raws if r)}"
+        assert "en-us" in raws, f"the English raw tags are missing: {sorted(r for r in raws if r)}"

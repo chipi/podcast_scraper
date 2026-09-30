@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 393,
     "episode_id": "ep-4a1a673a7005a6b5",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2024-03-04T00:00:00",
     "title": "On-Call That Doesn't Break People"
   },
@@ -36,26 +38,28 @@
     ],
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2025-03-09T00:00:00",
     "title": "Practical Systems",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
-    "image_url": "http://localhost/images/p02.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "A good on-call rotation is designed so that waking up is rare — a pattern observed holding across three different teams, including teams using Notion and Datadog.",
+      "A good on-call rotation is designed so that waking up is rare \u2014 a pattern observed holding across three different teams, including teams using Notion and Datadog.",
       "Alerting should be action-oriented rather than informational; a page only earns its place if it tells the responder something to do.",
-      "Error budgets work when they change behavior rather than existing as a reporting metric — the framing matters because it reveals which trade-offs a team is actually making.",
+      "Error budgets work when they change behavior rather than existing as a reporting metric \u2014 the framing matters because it reveals which trade-offs a team is actually making.",
       "Outside of Sentry-class tooling, the failure mode is harder to spot; once that visibility gap is internalized, the remaining on-call design decisions get easier.",
-      "Adopting Sentry in the incident flow makes the trade-off visible — ignoring it leads teams to rebuild the same capability from scratch a year later.",
+      "Adopting Sentry in the incident flow makes the trade-off visible \u2014 ignoring it leads teams to rebuild the same capability from scratch a year later.",
       "PagerDuty's incident response model assumes someone owns the page; the second-order effect of unclear ownership is the part most people miss.",
-      "Systems thinking cross-cuts every on-call decision — alerting, error budgets, and page ownership are interdependent trade-offs rather than isolated choices.",
-      "Running one idea for two weeks and then iterating beats attempting a wholesale on-call redesign — the recommended starting point for improving a rotation."
+      "Systems thinking cross-cuts every on-call decision \u2014 alerting, error budgets, and page ownership are interdependent trade-offs rather than isolated choices.",
+      "Running one idea for two weeks and then iterating beats attempting a wholesale on-call redesign \u2014 the recommended starting point for improving a rotation."
     ],
-    "raw_text": "A good on-call rotation is designed so that waking up is rare — a pattern observed holding across three different teams, including teams using Notion and Datadog. Alerting should be action-oriented rather than informational; a page only earns its place if it tells the responder something to do.",
+    "raw_text": "A good on-call rotation is designed so that waking up is rare \u2014 a pattern observed holding across three different teams, including teams using Notion and Datadog. Alerting should be action-oriented rather than informational; a page only earns its place if it tells the responder something to do.",
     "title": "Designing On-Call Rotation for Reliability"
   }
 }

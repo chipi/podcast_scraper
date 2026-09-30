@@ -118,6 +118,13 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         return getattr(self.cfg, "translate_model", None)
 
     def is_configured(self) -> bool:
+        """Both an endpoint AND a model, because either alone cannot translate anything.
+
+        A DEPLOYMENT question, not a policy one — there is no flag asking whether we want to
+        translate (D-41). When this is False the stage records
+        `REASON_NO_TRANSLATOR`/"translator_not_configured", which names the missing thing
+        instead of implying somebody switched a feature off.
+        """
         return bool(getattr(self.cfg, "translate_api_base", None) and self.translate_model)
 
     # -- lifecycle -------------------------------------------------------------------------
@@ -512,6 +519,12 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             logger.debug("translate: metrics recorder failed", exc_info=True)
 
     def cleanup(self) -> None:
+        """Nothing to release: the model is served remotely, so this process holds no GPU state.
+
+        Present because the provider protocol requires it. Deliberately not `pass` with no
+        explanation — "empty" and "unimplemented" look identical otherwise, and the next reader
+        would wonder which one this is.
+        """
         return None
 
 

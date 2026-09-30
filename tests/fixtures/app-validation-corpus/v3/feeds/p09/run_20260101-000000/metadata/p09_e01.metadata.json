@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 214,
     "episode_id": "ep-1abf911df5bea2c3",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2025-05-12T00:00:00",
     "title": "Systems Thinking, Two Years Later"
   },
@@ -36,24 +38,26 @@
     ],
     "description": "Recurring guests from other shows revisit their positions.",
     "feed_id": "p09",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2026-07-16T00:00:00",
     "title": "Cross-Show",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
-    "image_url": "http://localhost/images/p09.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Two years of systems-thinking work breeds humility about leverage points rather than confidence in them — a lesson observed at teams using Bloomberg and IPCC.",
+      "Two years of systems-thinking work breeds humility about leverage points rather than confidence in them \u2014 a lesson observed at teams using Bloomberg and IPCC.",
       "Ignoring the lessons of leverage points leads to rebuilding from scratch a year later; internalizing them makes the rest of the decisions easier.",
-      "Reliability and sustainability share more vocabulary than is commonly admitted — their overlap is where systems thinking intersects with sustainability work.",
+      "Reliability and sustainability share more vocabulary than is commonly admitted \u2014 their overlap is where systems thinking intersects with sustainability work.",
       "The second-order effect is the part most people miss, and it deserves attention over first-order outcomes.",
       "Trade-offs around reliability cross-cut every other theme in systems thinking rather than standing as an isolated concern.",
-      "Running one idea for two weeks offers a practical starting point — the rest is iteration rather than upfront perfection."
+      "Running one idea for two weeks offers a practical starting point \u2014 the rest is iteration rather than upfront perfection."
     ],
-    "raw_text": "Two years of systems-thinking work breeds humility about leverage points rather than confidence in them — a lesson observed at teams using Bloomberg and IPCC. Ignoring the lessons of leverage points leads to rebuilding from scratch a year later; internalizing them makes the rest of the decisions easier.",
+    "raw_text": "Two years of systems-thinking work breeds humility about leverage points rather than confidence in them \u2014 a lesson observed at teams using Bloomberg and IPCC. Ignoring the lessons of leverage points leads to rebuilding from scratch a year later; internalizing them makes the rest of the decisions easier.",
     "title": "Systems Thinking: Leverage Points, Sustainability, and Reliability"
   }
 }

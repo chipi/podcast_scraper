@@ -78,6 +78,13 @@ class UnitRecord:
         return self.status == UNIT_OK
 
     def to_dict(self) -> Dict[str, Any]:
+        """One unit's ledger row. `error` appears only when there is one.
+
+        `content_key` is the field that makes the ledger a resume index rather than a log: the
+        memory is keyed on the unit's TEXT and deliberately not on the model (D-33), so a model
+        change does not invalidate work already done. `model` is recorded for provenance, which
+        is a different job from keying.
+        """
         out: Dict[str, Any] = {
             "unit_id": self.unit_id,
             "turn_id": self.turn_id,
@@ -95,6 +102,13 @@ class UnitRecord:
 
     @classmethod
     def from_dict(cls, raw: Dict[str, Any]) -> "UnitRecord":
+        """Read a ledger row back, defaulting an unreadable status to FAILED.
+
+        Every field is coerced and nothing raises, because this parses an artifact from a
+        previous run: a ledger that cannot be read must cost us a re-translation, never the run.
+        A missing status becoming FAILED is the safe direction — it re-does work rather than
+        skipping it.
+        """
         return cls(
             unit_id=str(raw.get("unit_id") or ""),
             turn_id=str(raw.get("turn_id") or ""),
@@ -167,6 +181,13 @@ class TranslationDocument:
         return {u.content_key: u for u in self.units if u.ok and u.content_key}
 
     def to_dict(self) -> Dict[str, Any]:
+        """The whole ledger, with the unit tallies computed rather than stored.
+
+        `units_total` and `units_failed` are derived here on every write so they cannot drift
+        from the `units` list beside them — the completeness gate (RFC-124 §5.3) reads them, and
+        a stored counter that disagreed with its own list would let an incomplete translation
+        pass as complete.
+        """
         return {
             "version": self.version,
             "episode_slug": self.episode_slug,
@@ -185,6 +206,12 @@ class TranslationDocument:
 
     @classmethod
     def from_dict(cls, raw: Dict[str, Any]) -> "TranslationDocument":
+        """Read a ledger back for resume. The derived tallies are recomputed, not trusted.
+
+        `units_total`/`units_failed` are absent from the constructor for that reason: they are
+        written by `to_dict` and re-derived from `units` on load, so a hand-edited or truncated
+        file cannot assert a completeness it does not have.
+        """
         return cls(
             version=str(raw.get("version") or TRANSLATION_SCHEMA_VERSION),
             episode_slug=raw.get("episode_slug"),
@@ -201,16 +228,29 @@ class TranslationDocument:
 
 # --- paths ---------------------------------------------------------------------------------
 def translation_json_path(rel_transcript_path: str, effective_output_dir: str) -> str:
+    """Absolute path of the ledger beside the transcript it describes.
+
+    Derived from the CANONICAL transcript path — the suffix STACK (`.en`, `.adfree`, `.cleaned`,
+    `.anon`) is only valid when built from the canonical name, so handing this an
+    already-suffixed path yields a ledger for an episode that does not exist.
+    """
     base, _ = os.path.splitext(os.path.join(effective_output_dir, rel_transcript_path))
     return base + ".translation.json"
 
 
 def english_text_relpath(rel_transcript_path: str) -> str:
+    """The `.en` render's relpath, keeping the source's extension.
+
+    Takes the CANONICAL relpath: `.en` is the first suffix in the stack, so building it from a
+    path that already carries one produces `foo.en.en.txt`. That is the bug that cost translated
+    episodes their embeddings once, when a name was derived from an already-suffixed path.
+    """
     base, ext = os.path.splitext(rel_transcript_path)
     return f"{base}.en{ext or '.txt'}"
 
 
 def english_segments_relpath(rel_transcript_path: str) -> str:
+    """Relpath of the English segments sidecar. Always `.json`, whatever the transcript was."""
     base, _ = os.path.splitext(rel_transcript_path)
     return f"{base}.en.segments.json"
 
@@ -232,6 +272,12 @@ def write_translation_json(
 def load_translation_json(
     rel_transcript_path: str, effective_output_dir: str
 ) -> Optional[TranslationDocument]:
+    """The previous run's ledger, or None if there is not a readable one.
+
+    None for both "no file" and "unreadable file", on purpose: the caller's next move is the
+    same either way — translate the units — and distinguishing them would only offer a chance to
+    treat a corrupt ledger as authoritative.
+    """
     path = translation_json_path(rel_transcript_path, effective_output_dir)
     try:
         with open(path, "r", encoding="utf-8") as fh:

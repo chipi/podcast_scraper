@@ -79,6 +79,12 @@ class UnitSentence:
     char_end: int
 
     def to_dict(self) -> Dict[str, Any]:
+        """One sentence with its char span into the unit's text.
+
+        The span is carried, not recomputed downstream, because the sentence is the alignment
+        ATOM while the unit is only context (RFC-124 §5.1) — re-splitting the text later could
+        produce different boundaries and silently break the alignment.
+        """
         return {
             "sent_id": self.sent_id,
             "text": self.text,
@@ -118,6 +124,12 @@ class TranslationUnit:
         return "\n".join(f"{i}. {s.text}" for i, s in enumerate(self.sentences, start=1))
 
     def to_dict(self) -> Dict[str, Any]:
+        """One translation unit: its sentences, its turn, and whether it is a backchannel.
+
+        `speaker_label` is the anonymous label rather than a resolved name, because units are
+        built BEFORE naming (D-34) — a unit that carried a person's name would be asserting an
+        identity nothing has decided yet.
+        """
         out: Dict[str, Any] = {
             "unit_id": self.unit_id,
             "turn_id": self.turn_id,

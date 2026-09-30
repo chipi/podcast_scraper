@@ -7,12 +7,13 @@
         {
           "person_id": "person:maya",
           "person_label": "maya",
-          "total": 6,
+          "total": 7,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W14": 1,
             "2024-W31": 1,
             "2024-W51": 1,
+            "2026-W04": 1,
             "2026-W16": 1,
             "2026-W25": 1
           }
@@ -191,6 +192,15 @@
           }
         },
         {
+          "person_id": "person:liam-verbeek",
+          "person_label": "liam verbeek",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2026-W04": 1
+          }
+        },
+        {
           "person_id": "person:marco-silva",
           "person_label": "marco silva",
           "total": 2,
@@ -250,14 +260,6 @@
           }
         },
         {
-          "person_id": "person:liam-verbeek",
-          "person_label": "liam verbeek",
-          "total": 1,
-          "weekly_counts": {
-            "2024-W01": 1
-          }
-        },
-        {
           "person_id": "person:nadia-sereni",
           "person_label": "nadia sereni",
           "total": 1,
@@ -294,7 +296,7 @@
         {
           "topic_id": "topic:expert-interviews",
           "topic_label": "expert interviews",
-          "total": 40,
+          "total": 41,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W10": 1,
@@ -330,6 +332,7 @@
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 3,
+            "2026-W04": 1,
             "2026-W16": 1,
             "2026-W25": 1,
             "2026-W29": 1
@@ -338,7 +341,7 @@
         {
           "topic_id": "topic:lifelong-learning",
           "topic_label": "lifelong learning",
-          "total": 40,
+          "total": 41,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W10": 1,
@@ -374,6 +377,7 @@
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 3,
+            "2026-W04": 1,
             "2026-W16": 1,
             "2026-W25": 1,
             "2026-W29": 1
@@ -382,7 +386,7 @@
         {
           "topic_id": "topic:risk-management",
           "topic_label": "risk management",
-          "total": 30,
+          "total": 31,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W10": 1,
@@ -412,6 +416,7 @@
             "2025-W38": 1,
             "2025-W52": 1,
             "2026-W02": 2,
+            "2026-W04": 1,
             "2026-W29": 1
           }
         },
@@ -498,6 +503,18 @@
           }
         },
         {
+          "topic_id": "topic:endurance-sport",
+          "topic_label": "endurance sport",
+          "total": 5,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W14": 1,
+            "2024-W31": 1,
+            "2024-W51": 1,
+            "2026-W04": 1
+          }
+        },
+        {
           "topic_id": "topic:personal-finance",
           "topic_label": "personal finance",
           "total": 5,
@@ -507,6 +524,18 @@
             "2025-W09": 1,
             "2025-W27": 1,
             "2025-W37": 1
+          }
+        },
+        {
+          "topic_id": "topic:soil-erosion",
+          "topic_label": "soil erosion",
+          "total": 5,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2024-W14": 1,
+            "2024-W18": 1,
+            "2024-W37": 1,
+            "2026-W04": 1
           }
         },
         {
@@ -529,17 +558,6 @@
             "2025-W12": 1,
             "2025-W27": 1,
             "2026-W02": 1
-          }
-        },
-        {
-          "topic_id": "topic:endurance-sport",
-          "topic_label": "endurance sport",
-          "total": 4,
-          "weekly_counts": {
-            "2024-W01": 1,
-            "2024-W14": 1,
-            "2024-W31": 1,
-            "2024-W51": 1
           }
         },
         {
@@ -573,17 +591,6 @@
             "2024-W37": 1,
             "2025-W01": 1,
             "2025-W28": 1
-          }
-        },
-        {
-          "topic_id": "topic:soil-erosion",
-          "topic_label": "soil erosion",
-          "total": 4,
-          "weekly_counts": {
-            "2024-W01": 1,
-            "2024-W14": 1,
-            "2024-W18": 1,
-            "2024-W37": 1
           }
         },
         {
@@ -674,6 +681,15 @@
           }
         },
         {
+          "topic_id": "topic:land-stewardship",
+          "topic_label": "land stewardship",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2026-W04": 1
+          }
+        },
+        {
           "topic_id": "topic:marine-biology",
           "topic_label": "marine biology",
           "total": 2,
@@ -689,6 +705,15 @@
           "weekly_counts": {
             "2024-W37": 1,
             "2025-W01": 1
+          }
+        },
+        {
+          "topic_id": "topic:trail-building",
+          "topic_label": "trail building",
+          "total": 2,
+          "weekly_counts": {
+            "2024-W01": 1,
+            "2026-W04": 1
           }
         },
         {
@@ -761,14 +786,6 @@
           "total": 1,
           "weekly_counts": {
             "2026-W02": 1
-          }
-        },
-        {
-          "topic_id": "topic:land-stewardship",
-          "topic_label": "land stewardship",
-          "total": 1,
-          "weekly_counts": {
-            "2024-W01": 1
           }
         },
         {
@@ -860,14 +877,6 @@
           }
         },
         {
-          "topic_id": "topic:trail-building",
-          "topic_label": "trail building",
-          "total": 1,
-          "weekly_counts": {
-            "2024-W01": 1
-          }
-        },
-        {
           "topic_id": "topic:underwater-photography",
           "topic_label": "underwater photography",
           "total": 1,
@@ -919,6 +928,7 @@
         "2025-W38",
         "2025-W52",
         "2026-W02",
+        "2026-W04",
         "2026-W16",
         "2026-W25",
         "2026-W29"
@@ -959,38 +969,6 @@
       },
       {
         "monthly_counts": {
-          "2024-01": 1,
-          "2024-03": 1,
-          "2024-04": 2,
-          "2024-05": 1,
-          "2024-07": 1,
-          "2024-08": 1,
-          "2024-09": 2,
-          "2024-10": 1,
-          "2024-11": 0,
-          "2024-12": 3,
-          "2025-01": 1,
-          "2025-02": 1,
-          "2025-03": 2,
-          "2025-04": 2,
-          "2025-05": 1,
-          "2025-06": 0,
-          "2025-07": 2,
-          "2025-08": 1,
-          "2025-09": 3,
-          "2025-12": 1,
-          "2026-01": 2,
-          "2026-04": 0,
-          "2026-06": 0,
-          "2026-07": 1
-        },
-        "topic_id": "topic:risk-management",
-        "topic_label": "risk management",
-        "total": 30,
-        "velocity_last_over_6mo": 0.8571
-      },
-      {
-        "monthly_counts": {
           "2024-01": 0,
           "2024-03": 1,
           "2024-04": 1,
@@ -1027,31 +1005,31 @@
           "2024-03": 1,
           "2024-04": 2,
           "2024-05": 1,
-          "2024-07": 2,
+          "2024-07": 1,
           "2024-08": 1,
           "2024-09": 2,
-          "2024-10": 2,
-          "2024-11": 1,
+          "2024-10": 1,
+          "2024-11": 0,
           "2024-12": 3,
           "2025-01": 1,
-          "2025-02": 2,
-          "2025-03": 3,
+          "2025-02": 1,
+          "2025-03": 2,
           "2025-04": 2,
           "2025-05": 1,
-          "2025-06": 1,
-          "2025-07": 3,
+          "2025-06": 0,
+          "2025-07": 2,
           "2025-08": 1,
           "2025-09": 3,
           "2025-12": 1,
           "2026-01": 3,
-          "2026-04": 1,
-          "2026-06": 1,
+          "2026-04": 0,
+          "2026-06": 0,
           "2026-07": 1
         },
-        "topic_id": "topic:expert-interviews",
-        "topic_label": "expert interviews",
-        "total": 40,
-        "velocity_last_over_6mo": 0.6
+        "topic_id": "topic:risk-management",
+        "topic_label": "risk management",
+        "total": 31,
+        "velocity_last_over_6mo": 0.75
       },
       {
         "monthly_counts": {
@@ -1075,15 +1053,47 @@
           "2025-08": 1,
           "2025-09": 3,
           "2025-12": 1,
-          "2026-01": 3,
+          "2026-01": 4,
+          "2026-04": 1,
+          "2026-06": 1,
+          "2026-07": 1
+        },
+        "topic_id": "topic:expert-interviews",
+        "topic_label": "expert interviews",
+        "total": 41,
+        "velocity_last_over_6mo": 0.5455
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 1,
+          "2024-04": 2,
+          "2024-05": 1,
+          "2024-07": 2,
+          "2024-08": 1,
+          "2024-09": 2,
+          "2024-10": 2,
+          "2024-11": 1,
+          "2024-12": 3,
+          "2025-01": 1,
+          "2025-02": 2,
+          "2025-03": 3,
+          "2025-04": 2,
+          "2025-05": 1,
+          "2025-06": 1,
+          "2025-07": 3,
+          "2025-08": 1,
+          "2025-09": 3,
+          "2025-12": 1,
+          "2026-01": 4,
           "2026-04": 1,
           "2026-06": 1,
           "2026-07": 1
         },
         "topic_id": "topic:lifelong-learning",
         "topic_label": "lifelong learning",
-        "total": 40,
-        "velocity_last_over_6mo": 0.6
+        "total": 41,
+        "velocity_last_over_6mo": 0.5455
       },
       {
         "monthly_counts": {
@@ -1151,6 +1161,38 @@
       },
       {
         "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 1,
+          "2024-05": 0,
+          "2024-07": 1,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 1,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:endurance-sport",
+        "topic_label": "endurance sport",
+        "total": 5,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
           "2024-01": 0,
           "2024-03": 0,
           "2024-04": 0,
@@ -1178,6 +1220,38 @@
         },
         "topic_id": "topic:personal-finance",
         "topic_label": "personal finance",
+        "total": 5,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 1,
+          "2024-05": 1,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 1,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:soil-erosion",
+        "topic_label": "soil erosion",
         "total": 5,
         "velocity_last_over_6mo": 0.0
       },
@@ -1242,38 +1316,6 @@
         },
         "topic_id": "topic:dialogue",
         "topic_label": "dialogue",
-        "total": 4,
-        "velocity_last_over_6mo": 0.0
-      },
-      {
-        "monthly_counts": {
-          "2024-01": 1,
-          "2024-03": 0,
-          "2024-04": 1,
-          "2024-05": 0,
-          "2024-07": 1,
-          "2024-08": 0,
-          "2024-09": 0,
-          "2024-10": 0,
-          "2024-11": 0,
-          "2024-12": 1,
-          "2025-01": 0,
-          "2025-02": 0,
-          "2025-03": 0,
-          "2025-04": 0,
-          "2025-05": 0,
-          "2025-06": 0,
-          "2025-07": 0,
-          "2025-08": 0,
-          "2025-09": 0,
-          "2025-12": 0,
-          "2026-01": 0,
-          "2026-04": 0,
-          "2026-06": 0,
-          "2026-07": 0
-        },
-        "topic_id": "topic:endurance-sport",
-        "topic_label": "endurance sport",
         "total": 4,
         "velocity_last_over_6mo": 0.0
       },
@@ -1370,38 +1412,6 @@
         },
         "topic_id": "topic:safety-practices",
         "topic_label": "safety practices",
-        "total": 4,
-        "velocity_last_over_6mo": 0.0
-      },
-      {
-        "monthly_counts": {
-          "2024-01": 1,
-          "2024-03": 0,
-          "2024-04": 1,
-          "2024-05": 1,
-          "2024-07": 0,
-          "2024-08": 0,
-          "2024-09": 1,
-          "2024-10": 0,
-          "2024-11": 0,
-          "2024-12": 0,
-          "2025-01": 0,
-          "2025-02": 0,
-          "2025-03": 0,
-          "2025-04": 0,
-          "2025-05": 0,
-          "2025-06": 0,
-          "2025-07": 0,
-          "2025-08": 0,
-          "2025-09": 0,
-          "2025-12": 0,
-          "2026-01": 0,
-          "2026-04": 0,
-          "2026-06": 0,
-          "2026-07": 0
-        },
-        "topic_id": "topic:soil-erosion",
-        "topic_label": "soil erosion",
         "total": 4,
         "velocity_last_over_6mo": 0.0
       },
@@ -1695,6 +1705,38 @@
       },
       {
         "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:land-stewardship",
+        "topic_label": "land stewardship",
+        "total": 2,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
           "2024-01": 0,
           "2024-03": 0,
           "2024-04": 0,
@@ -1754,6 +1796,38 @@
         },
         "topic_id": "topic:reef-conservation",
         "topic_label": "reef conservation",
+        "total": 2,
+        "velocity_last_over_6mo": 0.0
+      },
+      {
+        "monthly_counts": {
+          "2024-01": 1,
+          "2024-03": 0,
+          "2024-04": 0,
+          "2024-05": 0,
+          "2024-07": 0,
+          "2024-08": 0,
+          "2024-09": 0,
+          "2024-10": 0,
+          "2024-11": 0,
+          "2024-12": 0,
+          "2025-01": 0,
+          "2025-02": 0,
+          "2025-03": 0,
+          "2025-04": 0,
+          "2025-05": 0,
+          "2025-06": 0,
+          "2025-07": 0,
+          "2025-08": 0,
+          "2025-09": 0,
+          "2025-12": 0,
+          "2026-01": 1,
+          "2026-04": 0,
+          "2026-06": 0,
+          "2026-07": 0
+        },
+        "topic_id": "topic:trail-building",
+        "topic_label": "trail building",
         "total": 2,
         "velocity_last_over_6mo": 0.0
       },
@@ -2042,38 +2116,6 @@
         },
         "topic_id": "topic:labor-markets",
         "topic_label": "labor markets",
-        "total": 1,
-        "velocity_last_over_6mo": 0.0
-      },
-      {
-        "monthly_counts": {
-          "2024-01": 1,
-          "2024-03": 0,
-          "2024-04": 0,
-          "2024-05": 0,
-          "2024-07": 0,
-          "2024-08": 0,
-          "2024-09": 0,
-          "2024-10": 0,
-          "2024-11": 0,
-          "2024-12": 0,
-          "2025-01": 0,
-          "2025-02": 0,
-          "2025-03": 0,
-          "2025-04": 0,
-          "2025-05": 0,
-          "2025-06": 0,
-          "2025-07": 0,
-          "2025-08": 0,
-          "2025-09": 0,
-          "2025-12": 0,
-          "2026-01": 0,
-          "2026-04": 0,
-          "2026-06": 0,
-          "2026-07": 0
-        },
-        "topic_id": "topic:land-stewardship",
-        "topic_label": "land stewardship",
         "total": 1,
         "velocity_last_over_6mo": 0.0
       },
@@ -2426,38 +2468,6 @@
         },
         "topic_id": "topic:stage-directions",
         "topic_label": "stage directions",
-        "total": 1,
-        "velocity_last_over_6mo": 0.0
-      },
-      {
-        "monthly_counts": {
-          "2024-01": 1,
-          "2024-03": 0,
-          "2024-04": 0,
-          "2024-05": 0,
-          "2024-07": 0,
-          "2024-08": 0,
-          "2024-09": 0,
-          "2024-10": 0,
-          "2024-11": 0,
-          "2024-12": 0,
-          "2025-01": 0,
-          "2025-02": 0,
-          "2025-03": 0,
-          "2025-04": 0,
-          "2025-05": 0,
-          "2025-06": 0,
-          "2025-07": 0,
-          "2025-08": 0,
-          "2025-09": 0,
-          "2025-12": 0,
-          "2026-01": 0,
-          "2026-04": 0,
-          "2026-06": 0,
-          "2026-07": 0
-        },
-        "topic_id": "topic:trail-building",
-        "topic_label": "trail building",
         "total": 1,
         "velocity_last_over_6mo": 0.0
       },

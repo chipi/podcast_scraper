@@ -65,6 +65,13 @@ class NamingOutcome:
         return self.status in (STATUS_NAMED, STATUS_UNRESOLVED)
 
     def to_metrics(self) -> Dict[str, Any]:
+        """The naming stage's run-summary row.
+
+        `voices` and `named` are both emitted: voices found and voices RESOLVED are different
+        numbers, and a stage that found three speakers and named none is a different outcome
+        from one that found none at all. `reason` carries why for every non-named status, so a
+        skip never has to be inferred from a zero.
+        """
         return {
             "status": self.status,
             "voices": self.voices,

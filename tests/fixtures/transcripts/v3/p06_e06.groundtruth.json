@@ -16,6 +16,7 @@
     "Maya": "Samantha",
     "Liam": "Ralph"
   },
+  "voice_pitch_shift": {},
   "cameo": null,
   "transcript_sha256": "768c0d9c3f5f8691bf6bc633717d71bc707e18c3c429cc274086f0393e8a8c3a",
   "audio_sha256": "827f57d0c9403869c049b20e718bf04c5e4b1c2bc36c13465bf4d2a7e6739adc",

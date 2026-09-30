@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 329,
     "episode_id": "ep-a89e6a42509c9af0",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2024-11-07T00:00:00",
     "title": "On Drifting (a meandering conversation)"
   },
@@ -36,24 +38,26 @@
     ],
     "description": "Dialogue-heavy, meandering long-form interviews.",
     "feed_id": "p06",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
+    "image_url": "http://localhost/images/p06.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2026-06-20T00:00:00",
     "title": "The Drift",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p06.webp",
-    "image_url": "http://localhost/images/p06.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Conversations capture something essays cannot — the way dialogue actually unfolds in real time — and the second-order effect of that difference is what most people miss.",
+      "Conversations capture something essays cannot \u2014 the way dialogue actually unfolds in real time \u2014 and the second-order effect of that difference is what most people miss.",
       "The texture of dialogue is the work rather than a byproduct of it; ignoring that means rebuilding it from scratch a year later.",
-      "Long-form is not a length but a posture — internalizing that distinction makes the rest of the decisions easier, a pattern observed at teams using Substack.",
+      "Long-form is not a length but a posture \u2014 internalizing that distinction makes the rest of the decisions easier, a pattern observed at teams using Substack.",
       "Outside of Patreon-class tooling, the failure mode is harder to spot, so the framing matters because it reveals which trade-offs are being made.",
-      "The trade-offs around long form cross-cut every other theme — dialogue, cultural drift, and platform choice — rather than standing as a separate concern.",
+      "The trade-offs around long form cross-cut every other theme \u2014 dialogue, cultural drift, and platform choice \u2014 rather than standing as a separate concern.",
       "Practical adoption favors running one idea for two weeks rather than overhauling everything at once; the rest is iteration."
     ],
-    "raw_text": "Conversations capture something essays cannot — the way dialogue actually unfolds in real time — and the second-order effect of that difference is what most people miss. The texture of dialogue is the work rather than a byproduct of it; ignoring that means rebuilding it from scratch a year later.",
+    "raw_text": "Conversations capture something essays cannot \u2014 the way dialogue actually unfolds in real time \u2014 and the second-order effect of that difference is what most people miss. The texture of dialogue is the work rather than a byproduct of it; ignoring that means rebuilding it from scratch a year later.",
     "title": "Dialogue, Long-Form, and Cultural Drift"
   }
 }

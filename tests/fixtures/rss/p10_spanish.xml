@@ -26,24 +26,40 @@
 
     <itunes:author>Maya Koster</itunes:author>
     <itunes:explicit>no</itunes:explicit>
-    <itunes:image href="/images/p01_cover.svg"/>
+    <itunes:image href="/images/p10_cover.svg"/>
 
     <!--
-      NO <item> ON PURPOSE.
+      ONE ITEM, ADDED 2026-09-30 (V.6b).
 
-      This fixture exists to exercise CHANNEL-level <language> parsing (S0.1a / #2172), which
-      needs no episode at all. It first carried an item declaring `p10_e01` with an enclosure,
-      and tests/integration/infrastructure/test_fixture_mapping.py correctly failed: it asserts
-      every RSS-declared episode has matching audio AND a transcript, and neither exists for a
-      feed whose whole purpose is a two-word metadata check.
+      This channel carried NO <item> for its first two weeks, deliberately: it existed to
+      exercise channel-level <language> parsing (S0.1a / #2172), which needs no episode, and
+      test_fixture_mapping.py correctly rejected an item with no audio behind it.
 
-      Adding a 4th audio fixture + transcript just to satisfy that would be the tail wagging the
-      dog; adding this feed to a skip list would weaken an invariant that is doing its job. An
-      item-less channel is the honest shape — a real feed with zero episodes is also a state the
-      parser must survive.
+      The item exists now because the audio and transcript do. `p10_e01` is the SPANISH
+      counterpart of `p01_e01` — same show, same Maya, same Liam Verbeek, same two sponsor reads
+      — so anything the pipeline does differently here is attributable to language and not to
+      content. It is also the transcript every measurement in this arc was taken on (V.6a's
+      hazards, S2.10's 174 requests, ADR-157's chars/token floor), which until now lived only in
+      a session scratchpad.
 
-      V.6a (#2186) is where a Spanish feed WITH episodes belongs, and it brings its own
-      transcript + segments (and audio in V.6b).
+      THE GUEST'S VOICE IS PITCH-SHIFTED, and FIXTURES_SPEC.md explains why: macOS ships exactly
+      two Spanish voices and both are female, 11 Hz apart in median F0 against the English
+      control pair's 98 Hz — close enough that a diarizer would merge them, leaving the episode
+      with no guest and therefore no position-bearing insights. The shift reproduces the English
+      fixture's geometry instead (host 169.6 Hz, guest 77.4, ad 89.6, against p01_e01's 176.4 /
+      73.0 / 90.0).
+
+      `es` is ENABLED as of 2026-09-30, so this feed is now one the pipeline processes.
     -->
+    <item>
+      <title>Episodio 1: Construyendo Senderos Que Duran (con Liam Verbeek)</title>
+      <guid isPermaLink="false">p10_e01</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Maya conversa con el constructor de senderos Liam Verbeek sobre drenaje, trazado, y cómo mantener los senderos rodables durante el invierno.</description>
+      <enclosure url="/audio/p10_e01.mp3" length="3267229" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:06:48</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
   </channel>
 </rss>

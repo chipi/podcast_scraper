@@ -516,9 +516,9 @@ def test_golden_catches_the_adfree_fallback_being_deleted(
         """Keep the English head and the FIRST source-language candidate, dropping the fallback.
 
         Truncating to ``got[:1]`` — what this did before S2.1b — now also removes the English
-        head's successor, so all 80 episodes break instead of the 40 that actually depend on the
-        fallback, and the number stops meaning anything. An injected fault has to be the one the
-        test names, and nothing else.
+        head's successor, so EVERY episode breaks instead of only the app-corpus ones that
+        actually depend on the fallback, and the number stops meaning anything. An injected
+        fault has to be the one the test names, and nothing else.
         """
         got = real(relpath, purpose=purpose, include_cleaned=include_cleaned)
         english = [c for c in got if ".en." in c]
@@ -528,9 +528,23 @@ def test_golden_catches_the_adfree_fallback_being_deleted(
     monkeypatch.setattr(tr, "text_relpath_candidates", first_source_choice_only)
     moved = _moved_fields(_build(), _committed())
     assert moved, "deleting the fallback moved nothing — the golden is not load-bearing"
-    # Every ANALYSIS reader loses the raw fallback on the corpus with no ad-free bodies.
+    # EVERY episode in the app corpus loses the raw fallback, because none of them has an
+    # ad-free body. Counted from the corpus rather than written as a literal: it was `40` and
+    # went stale the moment `p10` landed, which says nothing about the resolver and everything
+    # about the number being hardcoded. The claim is "all of them", so assert that.
+    expected = len(
+        [
+            m
+            for m in (_REPO / "tests/fixtures/app-validation-corpus/v3").glob(
+                "feeds/*/**/metadata/*.metadata.json"
+            )
+        ]
+    )
     assert "A1A2_gi_kg" in moved
-    assert moved["A1A2_gi_kg"] == 40
+    assert moved["A1A2_gi_kg"] == expected, (
+        f"{moved['A1A2_gi_kg']} episodes moved but the app corpus has {expected} — the fault "
+        "injected here should break every one of them"
+    )
 
 
 def test_the_english_branch_is_inert_on_this_corpus(monkeypatch: pytest.MonkeyPatch) -> None:

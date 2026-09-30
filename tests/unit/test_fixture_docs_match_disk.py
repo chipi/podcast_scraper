@@ -51,15 +51,20 @@ def _documented_counts() -> dict[int, str]:
 
 
 def test_spec_reconciles_exactly_three_counts() -> None:
-    """46 files / 40 episodes / 38 generated.
+    """47 files / 41 episodes / 38 generated.
 
     There used to be a fourth, 36, which was the built corpus under a default
     ``--max-episodes-per-feed 4``. Removing that default collapsed it into 40, so a
     table that still lists four counts is describing a flag that no longer exists.
+
+    46/40 became 47/41 on 2026-09-30 when `p10_e01` landed — the Spanish counterpart of `p01`.
+    The **38 did not move**: that row counts what `build_v3_fixtures.py` generates, and p10's
+    transcript is hand-written like `p06_e05` and `p06_e06`, so it subtracts from 41 rather than
+    adding to 38.
     """
     counts = _documented_counts()
-    assert sorted(counts) == [38, 40, 46], (
-        "the spec's count table changed shape; it should reconcile 46/40/38 "
+    assert sorted(counts) == [38, 41, 47], (
+        "the spec's count table changed shape; it should reconcile 47/41/38 "
         f"and it now lists {sorted(counts)}"
     )
 
@@ -84,9 +89,13 @@ def test_documented_episode_count_matches_disk() -> None:
     assert (
         episodes == documented
     ), f"disk has {episodes} canonical pNN_eNN episodes; FIXTURES_SPEC.md says {documented}"
-    assert f"**{episodes} episodes across 9 shows.**" in _README.read_text(
+    # The SHOW count is derived too, not hardcoded. It was a literal `9` and went stale the
+    # moment `p10` landed — which is the same failure this whole file exists to catch, one level
+    # up: a number written into a test instead of read from disk.
+    shows = len({e.split("_", 1)[0] for e in _canonical_episodes()})
+    assert f"**{episodes} episodes across {shows} shows.**" in _README.read_text(
         "utf-8"
-    ), f"README.md's headline episode count disagrees with disk ({episodes})"
+    ), f"README.md's headline disagrees with disk ({episodes} episodes across {shows} shows)"
 
 
 def test_generator_defines_the_documented_number_of_episodes() -> None:

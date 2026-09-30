@@ -58,6 +58,9 @@
       "p09_e03.txt",
       "p09_e04.txt"
     ],
+    "app-validation-corpus/v3::p10": [
+      "p10_e01.txt"
+    ],
     "viewer-validation-corpus/v3::p01": [],
     "viewer-validation-corpus/v3::p02": [],
     "viewer-validation-corpus/v3::p03": [],
@@ -1381,6 +1384,39 @@
       "B1_player_segments_resolved": "transcripts/p09_e04.segments.json",
       "B2_viewer_text_route": "p09_e04.txt",
       "C_summary_faithfulness": "transcripts/p09_e04.txt"
+    },
+    "app-validation-corpus/v3::feeds/p10/run_20260101-000000/metadata/p10_e01.metadata.json": {
+      "A10_gi_load_evidence": "transcripts/p10_e01.txt",
+      "A1A2_gi_kg": {
+        "has_segments": true,
+        "has_text": true,
+        "is_adfree": false,
+        "ref": "transcripts/p10_e01.txt"
+      },
+      "A3_speaker_record": {
+        "named": [
+          "Ad",
+          "Liam Verbeek",
+          "Maya"
+        ],
+        "num_speakers": 3
+      },
+      "A4_search_indexer": "transcripts/p10_e01.txt",
+      "A5_gi_repair_text": "p10_e01.txt",
+      "A6_gi_repair_segments": {
+        "count": 49,
+        "shape": "raw"
+      },
+      "A8_m0009_sidecar": "transcripts/p10_e01.segments.json",
+      "A9_capability_audit_opening_variant": "raw",
+      "B1_player_segments_order": [
+        "transcripts/p10_e01.en.segments.json",
+        "transcripts/p10_e01.segments.json",
+        "transcripts/p10_e01.adfree.segments.json"
+      ],
+      "B1_player_segments_resolved": "transcripts/p10_e01.segments.json",
+      "B2_viewer_text_route": "p10_e01.txt",
+      "C_summary_faithfulness": "transcripts/p10_e01.txt"
     },
     "viewer-validation-corpus/v3::feeds/p01/metadata/p01_e01.metadata.json": {
       "A10_gi_load_evidence": "transcripts/p01_e01.adfree.txt",

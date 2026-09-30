@@ -27,6 +27,7 @@
               "ep-60d667843dc40fca",
               "ep-6351d18dc6f1ff70",
               "ep-64ef09a7ee543045",
+              "ep-7072d2e85dcd5233",
               "ep-8aa4d883afa10fa4",
               "ep-916dab1698f88aec",
               "ep-919c77e84ad37664",
@@ -96,6 +97,7 @@
             "episode_ids": [
               "ep-0d9100843ee555f8",
               "ep-60d667843dc40fca",
+              "ep-7072d2e85dcd5233",
               "ep-db8f44d2e07a22bd",
               "ep-de59d003651d9e5d"
             ],
@@ -108,7 +110,7 @@
         "super_theme_label": "Managing risk across domains"
       }
     ],
-    "episode_count": 40,
+    "episode_count": 41,
     "merge_threshold": 2.0,
     "method": "cooccurrence_lift",
     "min_pair_episode_count": 2,

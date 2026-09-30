@@ -1,0 +1,57 @@
+{
+  "callbacks": [],
+  "episode_id": "p10_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "es-ES",
+  "host_accent": "es-ES",
+  "host_canonical_name": "Maya",
+  "podcast_id": "p10",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p10:Liam",
+  "primary_guest_canonical_name": "Liam Verbeek",
+  "primary_guest_surface_in_transcript": "Liam Verbeek",
+  "primary_topic": "topic:trail-building",
+  "publish_date": "2026-01-19",
+  "publish_offset_days": 749,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:land-stewardship"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Strava",
+      "kind": "template_opening",
+      "line_index": 10
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 64
+    }
+  ],
+  "summary": {
+    "bullets": [
+      "Drainage is the highest-leverage design decision on any trail; ignoring it means rebuilding the trail from scratch a year later.",
+      "The most common mistake new builders make is digging too steep a grade \u2014 once that lands, the rest of the design decisions get easier.",
+      "Bench cuts on sidehills are not optional: the shortcut on day one becomes the washout in year three.",
+      "Soil structure matters more than people assume, a pattern that held across three separate crews.",
+      "Land-stewardship conversations belong before the first dig, because the framing exposes which trade-offs a project is making.",
+      "Machine-built versus hand-built trail is a position Liam Verbeek has revised rather than held from the outset."
+    ],
+    "raw_text": "Drainage is the highest-leverage design decision on any trail \u2014 ignore it and the trail gets rebuilt from scratch a year later. Liam Verbeek walks through the grade mistakes new builders make, why bench cuts on sidehills are not optional, and why land-stewardship conversations have to happen before the first dig.",
+    "title": "Drainage First: Building Trails That Last"
+  },
+  "surface_forms": [
+    {
+      "canonical_id": "p10:Liam",
+      "kind": "canonical",
+      "surface": "Liam Verbeek"
+    }
+  ]
+}

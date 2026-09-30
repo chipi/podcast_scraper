@@ -29,6 +29,11 @@ class TranslationProviderUnavailable(RuntimeError):
 
 
 def translation_provider_name(cfg: config.Config) -> str:
+    """The configured provider id, or the default when none is set.
+
+    Read through `getattr` rather than off the dataclass so a config written by an older run
+    still resolves — this is called on resume paths that load persisted configs.
+    """
     return str(getattr(cfg, "translate_provider", None) or DEFAULT_PROVIDER)
 
 

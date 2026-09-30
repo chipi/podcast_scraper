@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 364,
     "episode_id": "ep-8aa4d883afa10fa4",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2025-02-28T00:00:00",
     "title": "The Bessent Tape"
   },
@@ -36,25 +38,27 @@
     ],
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "p05",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
+    "image_url": "http://localhost/images/p05.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2025-09-11T00:00:00",
     "title": "Long Horizon Notes",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p05.webp",
-    "image_url": "http://localhost/images/p05.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Macro is mostly about not being on the wrong side of a regime change — positioning around structural shifts matters more than calling individual price moves.",
+      "Macro is mostly about not being on the wrong side of a regime change \u2014 positioning around structural shifts matters more than calling individual price moves.",
       "Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
-      "Risk you can articulate is risk you can manage — a pattern observed holding across three different teams, and one that makes downstream decisions easier once internalized.",
+      "Risk you can articulate is risk you can manage \u2014 a pattern observed holding across three different teams, and one that makes downstream decisions easier once internalized.",
       "Reliability of expectations is the underrated piece of macro analysis, with the second-order effect being the part most people miss.",
       "Systems thinking applies because the dollar is a system, not a price; ignoring that means rebuilding the analysis from scratch a year later.",
       "Trade-offs around systems thinking cut across risk management and macro policy, and framing matters because it reveals which trade-offs are actually being made.",
-      "Practical starting point: pick one idea and run it for two weeks rather than overhauling everything at once — the rest is iteration."
+      "Practical starting point: pick one idea and run it for two weeks rather than overhauling everything at once \u2014 the rest is iteration."
     ],
-    "raw_text": "Macro is mostly about not being on the wrong side of a regime change — positioning around structural shifts matters more than calling individual price moves. Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
+    "raw_text": "Macro is mostly about not being on the wrong side of a regime change \u2014 positioning around structural shifts matters more than calling individual price moves. Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
     "title": "Macro Policy, Regime Change, and the Dollar as a System"
   }
 }

@@ -11,6 +11,9 @@ episode — the diarization/speaker eval's source of truth (not parsed at eval t
 - ``expected_diarized_voices``  humans + ad voices — what a correct diarizer should DETECT
 - ``type``                   monologue (1) | interview (2) | panel (>=3)
 - ``failure_modes``          from the transcript's ``#fixture-v3: failure_modes=...`` annotation
+- ``voice_pitch_shift``     speaker -> post-synthesis pitch factor, when one was applied. A
+                            shifted voice is not the voice it came from, and this field is what
+                            stops the ``voice_map`` above from implying it is.
 - ``voice_map``              speaker (incl ``Ad``) -> the say voice it is rendered with, from the
                              ONE-VOICE-PER-PERSON map (FIXTURES_SPEC.md) — records EXACTLY who
                              sounds like what
@@ -59,6 +62,7 @@ def _load_audio_generator():
 _t2m = _load_audio_generator()
 _voice_for = _t2m.get_voice_for_speaker
 _transcript_language = _t2m.transcript_language
+_pitch_shift_for = _t2m.pitch_shift_for
 
 
 def _sha256(path: str) -> str | None:
@@ -144,6 +148,13 @@ def build_groundtruth(transcript_path: str) -> dict:
     # sounds like what, so a language-blind lookup makes it a lie rather than a gap.
     language = _transcript_language(open(transcript_path, "r", encoding="utf-8").read())
     voice_map = {spk: _voice_for(spk, language) for spk in voiced}
+    # A pitch-shifted voice is NOT the voice it was synthesised from, and this field's stated
+    # job is to record exactly who sounds like what. `Paulina` alone would have a reader expect
+    # her native 164.9 Hz when the fixture actually carries her at 77.4 Hz. See
+    # `VOICE_PITCH_SHIFT` in transcripts_to_mp3.py for why the shift exists at all.
+    pitch_shifts = {
+        spk: shift for spk in voiced if (shift := _pitch_shift_for(spk, language)) is not None
+    }
     # Cameo detail: when tagged ``cameo``, the cameo is the briefest human voice (one
     # short turn) — record who + which voice so evals know the brief-3rd-voice target.
     cameo = None
@@ -169,6 +180,9 @@ def build_groundtruth(transcript_path: str) -> dict:
         "failure_modes": modes,
         # --- fixture reality-check (#1170): the sidecar is the full per-episode spec ---
         "voice_map": voice_map,
+        # Empty for every fixture that uses its voices natively, which is all of them but the
+        # Spanish one.
+        "voice_pitch_shift": pitch_shifts,
         "cameo": cameo,
         "transcript_sha256": _sha256(transcript_path),
         "audio_sha256": _sha256(audio_path),

@@ -164,6 +164,17 @@ def _apply_plan(payload: Dict[str, Any], plan: Dict[Any, Any]) -> None:
 
 
 class BackfillFeedLanguageMigration(Migration):
+    """Replace the run-config language on pre-#2172 artifacts with the show's declared one.
+
+    Every artifact written before #2172 carries whatever language the RUN was configured with,
+    which for a non-English show is simply wrong. The declared `<language>` on the feed is the
+    measurement, so this fetches it and writes it down with `language_source: "rss"`.
+
+    It skips any episode carrying a per-feed operator override. An override is a human decision
+    that outranks the feed, and stamping `"rss"` over it would not just lose the value — it would
+    record a provenance that never happened.
+    """
+
     id = "0015_backfill_feed_language"
     to_version = "2.7.9"
     description = (
@@ -173,6 +184,13 @@ class BackfillFeedLanguageMigration(Migration):
     )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Fetch each show's declared language and write it onto the show and its episodes.
+
+        Counts per feed rather than globally, so a single show whose RSS is unreachable is
+        reported as that show failing instead of as a lower overall success rate. Feeds with no
+        URL, no declared language, or a failed fetch are each listed separately — they need
+        different fixes, and one "skipped" bucket would hide that.
+        """
         timeout = float(ctx.options.get("fetch_timeout") or DEFAULT_FETCH_TIMEOUT)
         served, _superseded = select_served_artifacts(ctx.corpus_root, ".metadata.json")
         urls, episodes, unparsable = _shows_and_episodes(served)

@@ -1,10 +1,14 @@
 [codespell]
 skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git
-ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress
+ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist
 # canonicalizations: legitimate plural (a count of host-identity canonicalization steps, RFC-109); codespell false-positives -izations plurals
 # covert: real word ("a covert vLLM shim" — hidden/disguised, ADR-147); not a typo of "convert"
 # disjointness: real word ("vendor disjointness" — the state of being disjoint, ADR-149/JUDGING.md); not a typo
 # mot: local variable name (max_output_tokens abbrev, gemini_provider.py); not a typo of "not"
+# ist: German for "is" — a member of the `_MARKERS["de"]` function-word set in
+# search/query_language.py, which detects a query's language from words that are common in
+# one language and rare in English. Every list there is deliberately foreign vocabulary, so
+# more of these will arrive as languages are added; not a typo of "is".
 # Carin / Hart: people's names (Carin Zissis, Americas Quarterly; Emily Hart, Colombia Calling) —
 # measured evidence for the remove-only feed-host rule (#2075); not a typo of "Caring"
 # Empress: a real title, in the worked example for the matched-bracket rule in

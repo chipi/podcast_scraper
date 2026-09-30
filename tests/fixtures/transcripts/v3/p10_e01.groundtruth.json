@@ -1,0 +1,29 @@
+{
+  "fixture": "p10_e01",
+  "podcast": "Sesiones de Sendero — Episodio",
+  "episode": "Construyendo Senderos Que Duran",
+  "type": "interview",
+  "speakers": [
+    "Maya",
+    "Liam Verbeek"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Maya": "Monica",
+    "Liam Verbeek": "Paulina",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {
+    "Liam Verbeek": 0.45
+  },
+  "cameo": null,
+  "transcript_sha256": "eef6efedf13f823ed2991b5a1af257cb8922c7fc1fbf34029ac8a54df12fea80",
+  "audio_sha256": "193092dcbea66e1d9e684a7d6390068205386f831d07e85a943ee89269756444",
+  "rttm_sha256": "8e0e6e181631ae19b0a4758cd162f29fd026b546bf135f79fbc6e274e54b75a8"
+}

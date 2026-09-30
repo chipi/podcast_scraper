@@ -217,6 +217,55 @@ SPANISH_SPEAKER_VOICE_MAP: dict[str, str] = {
 #: the canonical map above.
 VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {"es": SPANISH_SPEAKER_VOICE_MAP}
 
+#: Post-synthesis pitch shift, per ``(language, speaker)``. A factor below 1.0 lowers the voice.
+#:
+#: WHY THIS EXISTS, and why it is legitimate rather than a hack. Voices must be far enough apart
+#: that a diarizer attributes each passage to the right speaker — the whole point of fixture
+#: audio. macOS ships exactly TWO Spanish voices and both are female:
+#:
+#:     Monica  es_ES  175.8 Hz          <- Maya, the host
+#:     Paulina es_MX  164.9 Hz          <- 11 Hz away, sd 27 and 21: the distributions overlap
+#:     (English control: Samantha 177.8 / Ralph 79.8 = 98 Hz apart)
+#:
+#: At 11 Hz a diarizer merges them into one voice, the episode loses its guest, and with it every
+#: SPOKEN_BY edge and every position-bearing insight — a fixture that fails for a reason with
+#: nothing to do with the pipeline. The additional Spanish voices Apple offers (Jorge, Juan,
+#: Diego, all male) install through a path that did not work on this machine: the UI reported
+#: success while `mobileassetd` recorded no voice download, every voice-asset directory stayed
+#: empty, and both the legacy `say` registry and AVSpeechSynthesizer still saw only two.
+#:
+#: So the separation is created instead of sourced. Fixture audio is synthetic BY CONSTRUCTION —
+#: it is `say` output, and the corpus already tunes its acoustics with `--rate`. Shifting the
+#: pitch of synthesised audio is the same kind of knob, and it preserves the Spanish phonemes
+#: exactly, because it is the same synthesis resampled rather than a different voice reading
+#: Spanish badly.
+#:
+#: 0.45 is chosen to reproduce the ENGLISH fixture's geometry, measured turn-by-turn from the
+#: finished mp3s against each RTTM:
+#:
+#:     p01_e01 (English)   Samantha 176.4   Ralph 73.0    Zarvox 90.0
+#:     p10_e01 (Spanish)   Monica   169.6   shifted 77.1  Zarvox 90.0
+#:
+#: The first attempt used 0.55, which put the guest at 91.9 Hz — a 78 Hz gain over the host, but
+#: **2 Hz from Zarvox**, the ad voice. The English fixture keeps 17 Hz there (Ralph 73 vs Zarvox
+#: 90), so 0.55 traded one collision for another. 0.45 lands the guest at 77.1 Hz: ~92 Hz from
+#: the host and ~13 Hz from the ad voice, which is the working corpus's own shape.
+#:
+#: Duration is unchanged (6.87 s -> 6.86 s measured): `atempo` restores the tempo `asetrate`
+#: changes. That matters beyond sounding right — the RTTM is built from these aiff durations, so
+#: a shift that moved them would make the diarization reference disagree with its own audio.
+#:
+#: If a real Spanish male voice is ever installed, delete the entry and point
+#: ``SPANISH_SPEAKER_VOICE_MAP["Liam Verbeek"]`` at it — one line, then regenerate.
+VOICE_PITCH_SHIFT: dict[tuple[str, str], float] = {("es", "Liam Verbeek"): 0.45}
+
+
+def pitch_shift_for(speaker: str, language: str) -> float | None:
+    """The post-synthesis pitch factor for this speaker in this language, or ``None``."""
+    key = ((language or "en").split("-")[0].lower(), speaker.strip())
+    return VOICE_PITCH_SHIFT.get(key)
+
+
 # Hash-based fallback for speakers not in SPEAKER_VOICE_MAP. Order matters
 # for stability — appending is safe; reordering or deleting changes
 # previously generated fallback assignments. Picked for clear distinction
@@ -367,12 +416,73 @@ def parse_segments(raw: str, host_name: str) -> list[tuple[str, str]]:
     return merged
 
 
-def say_to_aiff(text: str, out_aiff: Path, voice: str, rate: int | None) -> None:
+def say_to_aiff(
+    text: str,
+    out_aiff: Path,
+    voice: str,
+    rate: int | None,
+    pitch: float | None = None,
+) -> None:
     cmd = ["say", "-o", str(out_aiff), "-v", voice]
     if rate is not None:
         cmd += ["-r", str(rate)]
     cmd += [text]
     run(cmd)
+    if pitch is not None:
+        _apply_pitch_shift(out_aiff, pitch)
+
+
+def _apply_pitch_shift(aiff: Path, factor: float) -> None:
+    """Lower (or raise) the pitch of a rendered turn IN PLACE, keeping its duration.
+
+    ``asetrate`` changes pitch and tempo together; ``atempo`` puts the tempo back, so the turn
+    lasts as long as it did. That matters beyond sounding right: the RTTM is built from these
+    aiff durations, so a shift that changed them would make the diarization reference disagree
+    with the audio it describes.
+
+    See ``VOICE_PITCH_SHIFT`` for why a fixture voice is shifted at all.
+    """
+    import shutil as _shutil
+
+    ff = _shutil.which("ffmpeg") or "/usr/local/bin/ffmpeg"
+    tmp = aiff.with_suffix(".shifted.aiff")
+    # Read the real sample rate rather than assuming one: `say` picks it per voice.
+    probe = subprocess.run(
+        [
+            ff.replace("ffmpeg", "ffprobe"),
+            "-v",
+            "error",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "stream=sample_rate",
+            "-of",
+            "default=nw=1:nk=1",
+            str(aiff),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    try:
+        sr = int((probe.stdout or "").strip().splitlines()[0])
+    except (ValueError, IndexError):
+        sr = 22050
+    run(
+        [
+            ff,
+            "-y",
+            "-i",
+            str(aiff),
+            "-af",
+            f"asetrate={sr}*{factor},aresample={sr},atempo={1 / factor:.6f}",
+            "-ar",
+            str(sr),
+            "-ac",
+            "1",
+            str(tmp),
+        ]
+    )
+    tmp.replace(aiff)
 
 
 # ---------------------------------------------------------------- Gemini TTS
@@ -654,9 +764,10 @@ def render_say_fixture(
         turns: list[tuple[str, float]] = []
         for i, (speaker, text) in enumerate(segments, start=1):
             voice = get_voice_for_speaker(speaker, language)
+            pitch = pitch_shift_for(speaker, language)
             safe_speaker = re.sub(r"[^A-Za-z0-9_]", "_", speaker)[:24] or "spk"
             out_aiff = td_path / f"{stem}_{i:03d}_{safe_speaker}.aiff"
-            say_to_aiff(text.strip(), out_aiff, voice=voice, rate=rate)
+            say_to_aiff(text.strip(), out_aiff, voice=voice, rate=rate, pitch=pitch)
             aiffs.append(out_aiff)
             turns.append((voice, aiff_duration(out_aiff)))
         write_rttm(stem, turns, rttm_path)

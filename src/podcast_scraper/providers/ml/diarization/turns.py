@@ -80,6 +80,12 @@ class Sentence:
     timing: str
 
     def to_dict(self) -> Dict[str, Any]:
+        """The on-disk sentence row, `timing` included.
+
+        `timing` travels with every sentence on purpose: it is what tells a consumer whether
+        these millisecond bounds are word-anchored or interpolated across the segment. Dropping
+        it from the wire format would leave the numbers looking equally precise.
+        """
         return {
             "sent_id": self.sent_id,
             "char_start": self.char_start,
@@ -108,6 +114,12 @@ class Turn:
     voice_type: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
+        """The on-disk turn row.
+
+        Both the anonymous `speaker_label` and the resolved `speaker` are emitted, never one or
+        the other: naming runs after translation (D-34), so an artifact written before naming
+        has to be able to say "this is SPEAKER_01 and nobody has resolved it yet".
+        """
         out: Dict[str, Any] = {
             "turn_id": self.turn_id,
             "speaker_label": self.speaker_label,
@@ -133,6 +145,12 @@ class Turns:
     version: str = "1.0"
 
     def to_dict(self) -> Dict[str, Any]:
+        """The whole artifact: a schema version and the turns, in order.
+
+        The version is first and always written, because `turns` sits outside
+        `CANONICAL_STAGE_ORDER` (the one acknowledged exception to D-39) and so cannot rely on
+        the pipeline's stage contract to describe its shape.
+        """
         return {"version": self.version, "turns": [t.to_dict() for t in self.turns]}
 
 

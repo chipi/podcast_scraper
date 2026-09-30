@@ -81,7 +81,16 @@ class TestOverTheRealFixtureCorpora:
 
     REPO = Path(__file__).resolve().parents[3]
 
-    def test_app_validation_carries_en_us_and_is_served_as_en(self) -> None:
+    def test_app_validation_stores_normalized_languages_and_serves_them(self) -> None:
+        """The corpus was regenerated 2026-09-30: it stores `en`/`es` now, not the raw `en-us`,
+        and it carries its first non-English episode (`p10`, Spanish).
+
+        This test used to assert `{"en-us"}` stored and `{"en"}` served — the interesting part
+        being that the two differed. They no longer do, because the generator normalises. So
+        what is worth asserting moved: that the SERVED value is normalised whatever is stored,
+        and that a non-English episode is served as its own language rather than flattened to
+        English.
+        """
         root = self.REPO / "tests/fixtures/app-validation-corpus/v3"
         metas = sorted(root.glob("feeds/*/**/metadata/*.metadata.json"))
         assert metas, "fixture corpus missing"
@@ -89,15 +98,24 @@ class TestOverTheRealFixtureCorpora:
             (json.loads(m.read_text(encoding="utf-8")).get("feed") or {}).get("language")
             for m in metas
         }
-        assert stored == {"en-us"}, f"the fixture's premise changed: {stored}"
+        assert stored == {"en", "es"}, f"the fixture's premise changed: {stored}"
 
         rows = build_catalog_rows(root)
         assert rows, "catalog scan found nothing"
-        assert {r.feed_language for r in rows} == {"en"}
-        assert {r.episode_language for r in rows} == {"en"}
+        assert {r.feed_language for r in rows} == {"en", "es"}
+        assert {r.episode_language for r in rows} == {"en", "es"}
 
         feeds = aggregate_feeds(rows)
-        assert {f["language"] for f in feeds} == {"en"}
+        assert {f["language"] for f in feeds} == {"en", "es"}
+
+    def test_the_spanish_feed_is_served_as_SPANISH_not_flattened(self) -> None:
+        """One episode in one language, so the aggregate must not average it away. Serving a
+        Spanish show as English is how a listener gets a feed they cannot understand."""
+        root = self.REPO / "tests/fixtures/app-validation-corpus/v3"
+        rows = [r for r in build_catalog_rows(root) if r.feed_id == "p10"]
+        assert rows, "p10 is not in the catalog"
+        assert {r.feed_language for r in rows} == {"es"}
+        assert {r.episode_language for r in rows} == {"es"}
 
     def test_viewer_validation_has_no_language_and_stays_none(self) -> None:
         root = self.REPO / "tests/fixtures/viewer-validation-corpus/v3"

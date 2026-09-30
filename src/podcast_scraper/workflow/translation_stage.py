@@ -110,6 +110,12 @@ class TranslationOutcome:
         return self.status in (STATUS_TRANSLATED, STATUS_FAILED)
 
     def to_metrics(self) -> Dict[str, Any]:
+        """The translation stage's run-summary row.
+
+        `language_source` travels beside `source_language` because the pair is the claim: `es`
+        from the feed's own tag and `es` from a profile default are the same value with very
+        different standing, and only the first makes the corpus a measured one.
+        """
         out: Dict[str, Any] = {
             "status": self.status,
             "source_language": self.source_language,

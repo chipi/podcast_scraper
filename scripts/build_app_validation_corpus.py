@@ -99,6 +99,12 @@ APP_SHOWS: list[tuple[str, str]] = [
     ("p06_edge_cases", "p06"),  # The Drift — low-grounding dialogue
     ("p08_solar", "p08"),  # Public Hour — NPR-shape / zero_host_ner
     ("p09_biohacking", "p09"),  # Cross-Show — recurring-guest web
+    # The SPANISH counterpart of p01 (#2169). Same show, same Maya, same Liam Verbeek, same two
+    # sponsor reads — only the language differs, which is what makes it a control: anything the
+    # pipeline does differently here is attributable to language and not to content. Its feed
+    # declares <language>es-ES</language> and `es` is enabled as of 2026-09-30, so this is a
+    # show the pipeline processes rather than a metadata fixture.
+    ("p10_spanish", "p10"),  # Sesiones de Sendero — Spanish
 ]
 
 # p06/p08/p09 RSS fixtures are themed for other shows (edge_cases / solar /
@@ -614,9 +620,29 @@ CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
     "p06": ["long-form", "systems thinking"],
     "p08": ["public radio", "risk management"],
     "p09": ["systems thinking", "risk management"],
+    # p10 is p01's Spanish counterpart — the same trail-building show, so the same
+    # umbrellas. It is NOT a language variant of the entry: nothing here branches on
+    # language, and the analysis layer these topics live on is English either way
+    # (D-38). Adding the show without this entry left it holding only SHARED_UMBRELLAS,
+    # which dropped `risk management` from one episode and so cost `tc:managing-risk`
+    # its corpus-wide coverage — the interests picker went from two offerable options
+    # to one. Silently, because a `.get(show, [])` has no opinion about a missing show.
+    "p10": ["endurance sport", "risk management"],
 }
 # Shared umbrellas injected into every show so clusters are genuinely multi-member.
 SHARED_UMBRELLAS: list[str] = ["lifelong learning", "expert interviews"]
+
+#: Every wired show MUST declare its umbrellas. The map is keyed by show and read with
+#: ``.get(..., [])``, so a new show in APP_SHOWS without an entry builds a corpus that
+#: is quietly less discriminating than the one the capability audit measures. Checked at
+#: import so the build cannot start, rather than at the end when the artifacts are written.
+_SHOWS_WITHOUT_UMBRELLAS = [sdir for _stem, sdir in APP_SHOWS if sdir not in CROSS_CUTTING_TOPICS]
+if _SHOWS_WITHOUT_UMBRELLAS:
+    raise SystemExit(
+        "CROSS_CUTTING_TOPICS is missing an entry for: "
+        + ", ".join(_SHOWS_WITHOUT_UMBRELLAS)
+        + " — add the show's two umbrella topics (see the comment above the map)."
+    )
 
 
 def _episode_subtitle(transcript_path: Path, fallback: str) -> str:
@@ -1288,7 +1314,12 @@ def main() -> int:
         default=Path("tests/fixtures/transcripts") / default_version,
     )
     p.add_argument("--output", type=Path, default=Path("tests/fixtures/app-validation-corpus"))
-    p.add_argument("--max-feeds", type=int, default=9)
+    # Defaults to every show in APP_SHOWS. It was a literal 9 while APP_SHOWS held nine, so
+    # adding `p10` silently excluded it — the corpus built 40 episodes from 41 on disk, the
+    # exact shape the `--max-episodes-per-feed` comment below describes: "a cap you have to
+    # ask for cannot do that to you". Derived from the list now, so a new show cannot be
+    # dropped by a stale number.
+    p.add_argument("--max-feeds", type=int, default=len(APP_SHOWS))
     # No default cap. It used to default to 4, which was a silent no-op while every
     # show had four episodes — and then silently started EXCLUDING when p02/p05 grew
     # to five and p06 to six. Four episodes with transcript, audio and ground truth
