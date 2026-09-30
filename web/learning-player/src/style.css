@@ -66,6 +66,35 @@
     color: var(--lp-muted);
   }
 
+  /* A show's name wherever space is tight — ONE safety net, capped at two lines with an ellipsis.
+     Show titles are the raw RSS title and some are paragraphs: "BRAVE Southeast Asia Tech:
+     Singapore, Indonesia, Vietnam, Philippines, Thailand & Malaysia Startups, Founders & Venture
+     Capital VC (English)" ran eleven lines down the player (operator 2026-09-30). The cap is visual
+     only: the full text stays in the DOM for screen readers and search, and call sites set `title`
+     so a long-press / hover shows it. `overflow-wrap: anywhere` keeps a single unbroken token from
+     pushing the line wider than its column. `display` is set here because the clamp needs a box;
+     that is why this is its own class rather than part of `.lp-kicker`, which also dresses inline
+     labels. */
+  .lp-show-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  /* The show page heading: three lines, because it is the one place the name has room to be read. */
+  .lp-show-name--3 {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+  /* Show tiles: loose enough that no ordinary name is cut (#2004 un-clipped them for exactly that),
+     tight enough that a paragraph cannot stretch a whole grid row. */
+  .lp-show-name--4 {
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+  }
+
   /* `.lp-kicker--muted` was RETIRED in #2013 and deliberately not replaced.
      It existed (#1963) to mute the kicker in dense repeating lists, because an accent kicker on
      every row "stops being emphasis and becomes the background colour of the page". That diagnosis

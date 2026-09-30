@@ -1290,13 +1290,14 @@ onBeforeUnmount(() => {
           <RouterLink
             v-if="episode.podcast_title && episode.feed_id"
             :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-            class="lp-kicker min-w-0 no-underline"
+            class="lp-kicker lp-show-name min-w-0 no-underline"
+            :title="episode.podcast_title"
           >
             {{ episode.podcast_title }}
           </RouterLink>
           <!-- Offline (or for an entry downloaded before feed_id was captured) there is no show
                page to link to — show the name unlinked rather than hiding it. -->
-          <span v-else-if="episode.podcast_title" class="lp-kicker min-w-0">{{
+          <span v-else-if="episode.podcast_title" class="lp-kicker lp-show-name min-w-0" :title="episode.podcast_title">{{
             episode.podcast_title
           }}</span>
           <span v-else />

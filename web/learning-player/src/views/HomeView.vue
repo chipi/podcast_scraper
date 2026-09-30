@@ -494,7 +494,7 @@ async function loadContinue(): Promise<void> {
         <h1 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
           {{ resumeTop.detail.title }}
         </h1>
-        <p class="mt-1 text-sm text-muted">{{ resumeTop.detail.podcast_title }}</p>
+        <p class="lp-show-name mt-1 text-sm text-muted" :title="resumeTop.detail.podcast_title ?? undefined">{{ resumeTop.detail.podcast_title }}</p>
         <div class="mt-3 h-1 rounded bg-overlay">
           <div
             class="h-1 rounded bg-accent"
@@ -608,7 +608,7 @@ async function loadContinue(): Promise<void> {
             <div class="mt-1 line-clamp-2 text-sm font-bold leading-tight">
               {{ it.detail.title }}
             </div>
-            <div class="lp-kicker mt-0.5">{{ it.detail.podcast_title }}</div>
+            <div class="lp-kicker lp-show-name mt-0.5" :title="it.detail.podcast_title ?? undefined">{{ it.detail.podcast_title }}</div>
           </RouterLink>
         </li>
       </ul>
@@ -768,7 +768,7 @@ async function loadContinue(): Promise<void> {
             <div
               class="relative flex min-h-[12rem] flex-col justify-end p-5 sm:min-h-[16rem] sm:p-6"
             >
-              <span class="lp-kicker text-grounded">{{ wnFeatured.podcast_title }}</span>
+              <span class="lp-kicker lp-show-name text-grounded" :title="wnFeatured.podcast_title ?? undefined">{{ wnFeatured.podcast_title }}</span>
               <h3 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight">
                 {{ wnFeatured.title }}
               </h3>
@@ -816,7 +816,7 @@ async function loadContinue(): Promise<void> {
               <span v-else class="h-11 w-11 shrink-0 rounded-lg bg-elevated" aria-hidden="true" />
               <span class="min-w-0 flex-1">
                 <span class="block font-bold leading-tight">{{ ep.title }}</span>
-                <span class="lp-kicker mt-0.5 block">{{ ep.podcast_title }}</span>
+                <span class="lp-kicker lp-show-name mt-0.5" :title="ep.podcast_title ?? undefined">{{ ep.podcast_title }}</span>
               </span>
               <span
                 class="shrink-0 text-muted transition group-hover:text-accent"

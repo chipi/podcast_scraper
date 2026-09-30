@@ -4,7 +4,7 @@
  * Header derives the show title + total from the first page (no separate feed endpoint in
  * the MVP). Cards reuse EpisodeCard.
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useClampedProse } from '../composables/useClampedProse'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -75,6 +75,32 @@ watch(
 function toggleDesc(): void {
   descExpanded.value = !descExpanded.value
 }
+// The show NAME is capped at three lines (`.lp-show-name--3`), because some RSS titles are
+// paragraphs (operator 2026-09-30). Phones show no `title` tooltip, so the full name has to be
+// reachable by a tap: when the cap is actually cutting it, "Show more" appears even for a show whose
+// description fits, and expanding lifts the cap along with the description's.
+const titleEl = ref<HTMLElement | null>(null)
+const titleClamped = ref(false)
+function measureTitle(): void {
+  const el = titleEl.value
+  if (!el || descExpanded.value) return
+  titleClamped.value = el.scrollHeight - el.clientHeight > 1
+}
+let titleRo: ResizeObserver | null = null
+watch(
+  titleEl,
+  (next) => {
+    titleRo?.disconnect()
+    titleRo = null
+    if (!next || typeof ResizeObserver === 'undefined') return
+    titleRo = new ResizeObserver(() => measureTitle())
+    titleRo.observe(next)
+  },
+  { flush: 'post', immediate: true },
+)
+onBeforeUnmount(() => titleRo?.disconnect())
+// Collapsing re-applies the cap; measure again once it has laid out.
+watch(descExpanded, () => void nextTick(() => measureTitle()))
 // Hide-played toggle (SD.9) — reads the PLAYED state, which since 2026-09-23 means marked by
 // hand OR listened to the end. Reading the hand-marked list alone, this hid almost nothing.
 const completed = useCompletedStore()
@@ -327,7 +353,13 @@ watch(() => props.feedId, reset)
            icons stack, which on a phone left a block of dead space beside the picture. -->
       <div class="lp-media-body">
         <h1 class="font-display text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-          <template v-if="showTitle">{{ showTitle }}</template>
+          <span
+            v-if="showTitle"
+            ref="titleEl"
+            :class="descExpanded ? '' : 'lp-show-name lp-show-name--3'"
+            :title="showTitle"
+            data-testid="podcast-title"
+          >{{ showTitle }}</span>
           <!-- Placeholder, not the feed id: same height as the real heading so nothing jumps when
                the name lands. `aria-hidden` keeps a screen reader from announcing a shimmer bar. -->
           <span
@@ -359,7 +391,7 @@ watch(() => props.feedId, reset)
         <!-- A toggle IFF the text is actually cut off (measured against the window, not a char or
              line count) so medium descriptions that overflow the column still get "Show more". -->
         <button
-          v-if="show?.description && (descClamped || descExpanded)"
+          v-if="descExpanded || titleClamped || (show?.description && descClamped)"
           type="button"
           class="lp-media-foot w-fit pt-1 text-xs font-bold text-accent"
           @click="toggleDesc"

@@ -615,7 +615,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
              with the ✕, and a two-line episode title in it would either clip or push the close
              control around. -->
         <section class="mb-5" data-testid="kp-episode-dossier">
-          <p v-if="episode.podcast_title" class="lp-kicker mb-0.5 text-muted">
+          <p v-if="episode.podcast_title" class="lp-kicker lp-show-name mb-0.5 text-muted" :title="episode.podcast_title">
             {{ episode.podcast_title }}
           </p>
           <h2 class="font-display text-xl font-bold leading-tight text-canvas-foreground">

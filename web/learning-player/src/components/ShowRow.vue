@@ -119,7 +119,8 @@ const canExpand = computed(() => !!description.value && (descClipped.value || de
            row for a clamp to protect. The stretched ::after makes the whole row open the show. -->
       <RouterLink
         :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
-        class="block font-display text-lg font-bold leading-snug text-canvas-foreground no-underline after:absolute after:inset-0 sm:text-xl"
+        class="lp-show-name lp-show-name--3 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline after:absolute after:inset-0 sm:text-xl"
+        :title="title"
         >{{ title }}</RouterLink
       >
       <!-- Who makes it and what it is filed under, between the title and the description: it belongs
