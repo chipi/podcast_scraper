@@ -8,8 +8,8 @@ import { signInIsolated } from './helpers'
  * routing — so what needs covering is where you ENTER from and which tab reads as "you are here".
  *
  * Unit tests already pin the tab list and the ownership map. What only a browser can show is the
- * part that actually bit before: the masthead magnifier is hidden below the `sm` breakpoint by a
- * media query, and jsdom does not evaluate media queries. A mounted test passes either way — which
+ * part that actually bit before: the masthead icons are hidden below the `sm` breakpoint by a
+ * media query (the magnifier too, since 2026-09-30), and jsdom does not evaluate media queries. A mounted test passes either way — which
  * is exactly how #1588 (search unreachable from most of the app) happened the first time. These run
  * on `mobile-chrome` AND `desktop-chrome`, so the breakpoint is exercised from both sides.
  */
@@ -26,18 +26,24 @@ test('the phone tab bar has three destinations and Search is not one of them', a
   }
 })
 
-test('search is reachable from the masthead on any screen, at any width (#1588)', async ({
-  page,
-}, testInfo) => {
+test('search is reachable from any screen, at any width (#1588)', async ({ page }, testInfo) => {
   await signInIsolated(page, 'sid-masthead', testInfo)
 
   // Deliberately NOT Home: #1588 was that search was unreachable from the catalogue, the player, the
   // library and show pages. Home has its own Ask box, so testing there would prove nothing.
   await page.goto('/library')
   const mast = page.getByTestId('masthead-search')
-  await expect(mast).toBeVisible()
-
-  await mast.click()
+  if (testInfo.project.name === 'mobile-chrome') {
+    // Phone: no magnifier in the header (2026-09-30, no room for it). The Discover tab is the way
+    // in, and it is on this screen too.
+    await expect(mast).toBeHidden()
+    await page.getByTestId('bottom-nav-browse').click()
+    await page.getByTestId('browse-search-input').fill('risk')
+    await page.getByTestId('browse-search-submit').click()
+  } else {
+    await expect(mast).toBeVisible()
+    await mast.click()
+  }
   await expect(page).toHaveURL(/\/search/)
 })
 

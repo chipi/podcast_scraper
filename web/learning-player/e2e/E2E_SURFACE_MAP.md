@@ -89,13 +89,14 @@ Header brand (→ **home**) + `<nav>` of [NavIconLink](../src/components/NavIcon
 (`data-testid="masthead-search"`), **Browse** (`data-testid="masthead-browse"`, catalog), **Library**, and a profile link when signed
 in; **Sign in** / **Sign up** links when signed out.
 
-**Search is the one icon visible at EVERY width** — the others are `hidden … sm:flex`, desktop-only,
-because on a phone the bottom bar covers them. Search left the bottom bar for Discovery
-(operator 2026-09-20), so the masthead magnifier became its only always-available control. #1588
-existed because search had ONE entry point and was unreachable from the catalogue, player, library
-and show pages; putting this icon back inside the desktop-only span re-opens that bug on phones
-while desktop still looks correct. `touch-affordances.test.ts` guards it as a SOURCE check, because
-the breakage is a media query and jsdom does not evaluate one.
+**All the masthead icon links are desktop-only** (`hidden … sm:flex`), Search included since
+2026-09-30: on a phone the header had no room for the magnifier ("Close Listening" ran under it at
+360px). A phone reaches search from the **Discover** tab's box (`browse-search-input`), which is on
+every screen one tap away, and from Home's box. #1588 existed because search had ONE entry point and
+was unreachable from the catalogue, player, library and show pages; what keeps it closed on a phone
+is now the Discover tab + its box, and `touch-affordances.test.ts` guards exactly that pair as a
+SOURCE check (a media query is invisible to jsdom). `search-in-discovery.spec.ts` checks it in a
+real browser at both widths.
 
 The phone bar ([BottomNav](../src/components/BottomNav.vue), `sm:hidden`) now carries **three** tabs:
 **Home** · **Discover** · **Library**.

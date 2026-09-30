@@ -82,7 +82,8 @@ final class ScreenshotTourTests: UITestCase {
     frame("t01-home")
 
     if Journey.openTab(app, "Discover") { sleep(5); frame("t02-discover") }
-    if Journey.openTab(app, "Search") { sleep(4); frame("t03-search") }
+    // Search from Discover's box: phones have no Search tab and no header magnifier (2026-09-30).
+    if Journey.searchFromDiscover(app, "risk") { sleep(4); frame("t03-search") }
 
     // --- library, every tab -------------------------------------------------------------------
     if Journey.openTab(app, "Library") {

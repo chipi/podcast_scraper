@@ -40,9 +40,8 @@ describe('BottomNav (#1594)', () => {
   it('offers three destinations; Profile is in the masthead and Search folded into Discovery', async () => {
     // Browse got its own tab (#14): it is the destination that unifies the catalogue, topic and
     // people indexes. Profile left the bar for the masthead avatar (2026-09-09). Search left it for
-    // Discovery (operator 2026-09-20) — it IS a discovery surface, and it keeps the masthead
-    // magnifier, Discovery's own box and Home's Ask box, so it gained entry points rather than
-    // losing them.
+    // Discovery (operator 2026-09-20) — it IS a discovery surface, and it keeps Discovery's own box,
+    // Home's Ask box and (desktop only) the masthead magnifier.
     const w = await mountNav()
     expect(w.findAll('[data-testid^="bottom-nav-"]')).toHaveLength(3)
     for (const name of ['home', 'browse', 'library']) {

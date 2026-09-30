@@ -1004,13 +1004,13 @@ the destination that gathers" the discovery surfaces; before it, `search` owned
 `['search', 'catalog', 'podcast']`. #14 inverted the parent and left search outside. Search is a
 discovery surface, so it now sits under the gatherer with the rest.
 
-Search gained entry points rather than losing them — three, up from two:
+Search gained entry points rather than losing them:
 
 | Entry point | Where | Notes |
 | --- | --- | --- |
-| Masthead magnifier | Every screen, **every width** | The only always-available control now. The other masthead icons are desktop-only |
-| Discovery's search box | `/browse`, between Trending shows and Trends | Same `lp-search` control as Home's, not a second dialect of it |
+| Discovery's search box | `/browse`, between Trending shows and Trends | Same `lp-search` control as Home's, not a second dialect of it. **On a phone this is the always-available way in**: the Discover tab is on every screen, one tap away |
 | Home's "Ask" box | Home | Unchanged |
+| Masthead magnifier | **Desktop only** (`sm:` and up) | Desktop has no bottom bar, so the magnifier is its route to search from any screen. It was visible at every width from 2026-09-20 to 2026-09-30; it left the phone header because there was no room for it: "Close Listening" ran under it at 360px |
 
 **What this knowingly overrules.** `BottomNav` holds that "a wrong 'you are here' is worse than
 none" — the reason the player lights no tab at all. Someone who searches from Home's Ask box now

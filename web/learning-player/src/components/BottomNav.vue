@@ -70,10 +70,10 @@ function tabLabel(name: string): string {
  * destination isn't reachable from two navs at once.
  *
  * Search is NO LONGER a tab either (operator 2026-09-20) — it is part of Discovery. It keeps three
- * entry points, which is MORE than the two it had as a tab: the masthead magnifier (visible at every
- * width, so reachable from any screen — the #1588 requirement), Discovery's own search box, and
- * Home's "Ask" box. Removing a nav entry for search without the masthead icon would re-open #1588,
- * which existed precisely because search had one entry point and was unreachable elsewhere.
+ * entry points: Discovery's own search box, Home's "Ask" box, and on desktop the masthead magnifier.
+ * On a phone the Discover TAB is what keeps it reachable from any screen (the #1588 requirement):
+ * the magnifier left the phone header on 2026-09-30 for lack of room. Removing Discover from this
+ * bar, or its search box, would re-open #1588 on phones.
  */
 const TABS = [
   { name: 'home', label: 'nav.home' },

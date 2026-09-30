@@ -28,9 +28,10 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-/** Discovery's search box (operator 2026-09-20). Same target as Home's Ask box and the masthead
- *  magnifier — one capability, three doors. Blank submits are ignored rather than routing to an
- *  empty result page. */
+/** Discovery's search box (operator 2026-09-20). Same target as Home's Ask box and the desktop
+ *  masthead magnifier. On a phone it is THE always-reachable search (the magnifier left the phone
+ *  header 2026-09-30): the Discover tab is on every screen. Blank submits are ignored rather than
+ *  routing to an empty result page. */
 const searchQuery = ref('')
 /* This view is kept-alive, so setup runs once and the box kept whatever you last typed — you
    returned to Discovery and found a stale query sitting in it, which reads as the app having

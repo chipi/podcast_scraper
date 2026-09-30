@@ -242,31 +242,41 @@ describe("affordances survive on touch", () => {
 })
 
 /**
- * Guardrail (#1588, operator 2026-09-20) — search must stay reachable on a phone.
+ * Guardrail (#1588) — search must stay reachable on a phone, from any screen.
  *
  * #1588 existed because search had ONE entry point and was unreachable from the catalogue, player,
- * library or a show page. Folding search into Discovery removed its bottom-nav tab, so the masthead
- * magnifier is now the only always-available search control. If it slips back inside the
- * `hidden … sm:flex` span it vanishes on phones and #1588 is live again — silently, because the
- * desktop layout would still look correct.
+ * library or a show page. What guarantees it on a phone has changed twice: first a bottom-nav tab,
+ * then (2026-09-20) the masthead magnifier at every width, and since 2026-09-30 the Discover TAB and
+ * its search box — the magnifier left the phone header because "Close Listening" ran under it. The
+ * Discover tab is on every phone screen, so its box is one tap from anywhere. These checks pin that
+ * pair; if either goes, a phone has no always-reachable search and #1588 is live again — silently,
+ * because desktop keeps its magnifier and still looks right.
  *
  * A static source check for the same reason as the rest of this file: the breakage is a media
  * query, and jsdom does not evaluate one, so a mounted test would pass either way.
  */
 describe("search survives the loss of its tab (#1588)", () => {
-  it("the masthead search link sits OUTSIDE the desktop-only icon span", () => {
+  it("phones reach search through the Discover tab's own search box", () => {
+    const dir = path.dirname(fileURLToPath(import.meta.url))
+    const nav = readFileSync(path.join(dir, "..", "components", "BottomNav.vue"), "utf8")
+    const tabs = nav.slice(nav.indexOf("const TABS"), nav.indexOf("] as const"))
+    expect(tabs, "the Discover (browse) tab is what makes search reachable on a phone").toContain(
+      "'browse'",
+    )
+    const browse = readFileSync(path.join(dir, "..", "views", "BrowseView.vue"), "utf8")
+    expect(browse, "Discovery must carry its search box").toContain(
+      'data-testid="browse-search-input"',
+    )
+  })
+
+  it("the masthead magnifier is desktop-only (no room for it in a phone header)", () => {
     const searchAt = appSrc.indexOf('data-testid="masthead-search"')
     expect(searchAt, "masthead search link not found in App.vue").toBeGreaterThan(-1)
-
     const desktopOnlyAt = appSrc.indexOf('class="hidden items-center gap-1.5 sm:flex"')
     expect(desktopOnlyAt, "desktop-only icon span not found in App.vue").toBeGreaterThan(-1)
-
-    // Before the span opens => not inside it => visible at every width.
-    expect(
-      searchAt,
-      "the masthead search icon must not be inside the `hidden … sm:flex` span: it is the only " +
-        "always-available search control now that Search is not a bottom-nav tab",
-    ).toBeLessThan(desktopOnlyAt)
+    expect(searchAt, "the magnifier must sit inside the desktop-only span").toBeGreaterThan(
+      desktopOnlyAt,
+    )
   })
 
   it("the bottom nav no longer carries a Search tab", () => {

@@ -23,13 +23,21 @@ final class ProdTourTests: UITestCase {
     Journey.shot(self, "p01-landing")
     Journey.inventory(app, "prod-landing")
 
-    for (i, tab) in ["Discover", "Search", "Library", "Home"].enumerated() {
+    // No "Search" tab on a phone (and no header magnifier since 2026-09-30): search is Discover's box,
+    // run after the tabs below.
+    for (i, tab) in ["Discover", "Library", "Home"].enumerated() {
       if Journey.openTab(app, tab) {
         sleep(6)
         Journey.shot(self, String(format: "p0%d-%@", 2 + i, tab.lowercased()))
       } else {
         print("=====PROD_TAB_MISS \(tab)=====")
       }
+    }
+    if Journey.searchFromDiscover(app, "risk") {
+      sleep(6)
+      Journey.shot(self, "p05-search")
+    } else {
+      print("=====PROD_TAB_MISS search=====")
     }
 
     // A show from the featured rail — the deepest read-only surface reachable signed out.
