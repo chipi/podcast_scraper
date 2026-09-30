@@ -3,13 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
-import type { YourWeekItem } from '../services/types'
 import YourWeekCard from './YourWeekCard.vue'
 
 /**
- * The card's links advance the spaced ladder (#35). Moved here from YourWeek.test.ts when Home
- * stopped showing the digest's revisit section (2026-09-30): the card keeps the behaviour, so it
- * keeps the test, at the level where the behaviour lives.
+ * The card opens the episode, title-forward. It carried a quote, a timestamp and `?revisit=` for
+ * REVISIT items until Home stopped showing that section (2026-09-30); the items Home shows now
+ * (new in follows / interests, trending) have none of those, so the card is a plain episode link.
  */
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -17,36 +16,29 @@ const router = createRouter({
   routes: [{ path: '/episode/:slug', name: 'player', component: { template: '<div/>' } }],
 })
 
-function hrefOf(item: YourWeekItem): string {
-  const w = mount(YourWeekCard, { props: { item }, global: { plugins: [i18n, router] } })
-  return w.find('a').attributes('href') ?? ''
-}
-
-describe('YourWeekCard links', () => {
-  it("a user's own capture links with ?revisit and its moment", () => {
-    const href = hrefOf({
-      episode_slug: 'ep-a',
-      episode_title: 'Episode A',
-      highlight_id: 'h-a',
-      deep_link: '/episode/ep-a?t=10&revisit=h-a',
-      t_ms: 10000,
-      graph_refs: [],
+describe('YourWeekCard', () => {
+  it('links to the episode and shows its title', () => {
+    const w = mount(YourWeekCard, {
+      props: {
+        item: {
+          episode_slug: 'ep-b',
+          episode_title: 'Episode B',
+          deep_link: '/episode/ep-b',
+          graph_refs: [{ id: 'topic:y', kind: 'topic', label: 'Topic Y' }],
+        },
+      },
+      global: { plugins: [i18n, router] },
     })
-    expect(href).toContain('/episode/ep-a')
-    expect(href).toContain('revisit=h-a')
-    expect(href).toContain('t=10')
+    expect(w.find('a').attributes('href')).toBe('/episode/ep-b')
+    expect(w.text()).toContain('Episode B')
+    expect(w.text()).toContain('Topic Y')
   })
 
-  it('an item with no highlight_id links without one', () => {
-    // Auto-picks and follows/trending rows have no ladder behind them; a marker there would record
-    // a review against a highlight that does not exist.
-    const href = hrefOf({
-      episode_slug: 'ep-b',
-      episode_title: 'Episode B',
-      deep_link: '/episode/ep-b',
-      graph_refs: [],
+  it('falls back to the lead graph label when the episode title is missing', () => {
+    const w = mount(YourWeekCard, {
+      props: { item: { episode_slug: 'gone', deep_link: '/episode/gone', graph_refs: [{ id: 'topic:z', kind: 'topic', label: 'Topic Z' }] } },
+      global: { plugins: [i18n, router] },
     })
-    expect(href).toContain('/episode/ep-b')
-    expect(href).not.toContain('revisit')
+    expect(w.text()).toContain('Topic Z')
   })
 })

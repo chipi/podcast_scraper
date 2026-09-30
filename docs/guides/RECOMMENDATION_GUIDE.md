@@ -236,8 +236,11 @@ to personalise against, "newest first" is the honest answer.
 Captures come back on a ladder: **2 days → 7 → 30 → 90**. A highlight is due when
 `now − last_seen ≥ ladder[times_shown]`.
 
-Three surfaces show revisit content — the Revisit tab, the Your Week card, and the digest email —
-and all three now apply **the same graph gate**: a capture whose episode has no knowledge graph is
+Three surfaces show revisit content — the Revisit tab, Home's "Highlights to revisit" section
+(`RevisitRail`, which reads the same `/resurfacing` list as the tab), and the digest email — and all
+three apply **the same graph gate**. (Home's Your Week card showed revisit items too, until
+2026-09-30; the API still returns them in `/your-week`, but Home no longer renders that section.)
+The gate: a capture whose episode has no knowledge graph is
 withheld everywhere. Previously the tab showed captures the other two silently dropped, which read
 as a bug and made an empty Your Week impossible to explain from inside the app.
 

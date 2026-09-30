@@ -291,9 +291,9 @@ states keep "Ask your library" one glance away). WIP aids, not shipped assets.
 Home-surface components this document governs, named so the surface-map guard can tie each rendered
 piece to its design home:
 
-- **`YourWeekCard`** — one "Your Week" digest item: quote-forward for a revisit, title-forward for a
-  new listen, with an artwork backdrop + gradient scrim where available; links to the player at the
-  captured timestamp.
+- **`YourWeekCard`** — one "Your Week" digest item: title-forward, with an artwork backdrop +
+  gradient scrim where available; links to the episode. (It was quote-forward for revisit items and
+  linked to the captured moment until 2026-09-30, when Home stopped showing the revisit section.)
 - **`TrendingSparkChips`** — the trending topics as compact rows (theme-colour swatch, label,
   ×velocity, a mini sparkline), storylines grouped by hue, collapsed to top-N on mobile.
 - **`TrendWindowTabs`** — the segmented 1M·3M·6M·1Y control (RFC-103 R2) that picks the window over

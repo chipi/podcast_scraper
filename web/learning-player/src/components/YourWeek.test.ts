@@ -199,7 +199,7 @@ describe('YourWeek section', () => {
       await flushPromises()
       expect(wrapper.text()).not.toContain('Episode A')
       expect(wrapper.text()).not.toContain('A memorable line.')
-      expect(wrapper.text()).not.toContain(en.home.yourWeekSection.revisit)
+      expect(wrapper.text()).not.toContain(en.home.revisitTitle) // the old rail's label
       expect(wrapper.findAll('a').some((a) => (a.attributes('href') ?? '').includes('revisit='))).toBe(false)
       wrapper.unmount()
     }

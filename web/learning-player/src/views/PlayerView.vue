@@ -1221,7 +1221,7 @@ watch(() => auth.isAuthenticated, () => {
   ensureCaptureLoaded()
   markRevisitFromQuery() // auth resolved after mount — the arrival still counts
 })
-// Navigating between revisit items without unmounting the player (Your Week → card → card) changes
+// Navigating between revisit items without unmounting the player (one ?revisit link → the next) changes
 // only the query, so the mount hook never re-runs. Each new id is its own arrival.
 watch(() => route.query.revisit, markRevisitFromQuery)
 /**

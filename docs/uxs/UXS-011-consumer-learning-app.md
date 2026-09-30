@@ -633,6 +633,12 @@ here and re-pointing it would have deleted that from Home to answer a different 
 "what did I play recently" question has its own answers — Browse's **Played** filter and the queue
 panel's Recently played — and Home deliberately did NOT gain a third (operator's call: rename only).
 
+**It is Home's ONLY revisit surface (2026-09-30).** Your Week used to render the digest's `revisit`
+section as a rail under "What's new" too, so the same due highlights appeared on Home twice — once as
+episode cards under a heading that promised new episodes, once here with the actions that belong to
+them. Home now drops that section from Your Week; the API still sends it, because the digest email
+and the push nudge are built from the same payload and keep their revisit content.
+
 Tapping goes to the **Revisit tab, scrolled to that capture** (`?focus=<id>`, briefly ringed), not
 to the player: from Home the user is deciding what to do with a capture, and the three outcomes
 live on that card. Jumping to the player would also mark it reviewed on arrival (#35) — deciding

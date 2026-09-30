@@ -578,10 +578,11 @@ describe('a failure must not be reported as an absence (Player #6)', () => {
 })
 
 describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
-  // Marking on ARRIVAL rather than on click is what lets one mechanism serve all three surfaces:
-  // the inbox jump link, the Your Week card and the digest email all just carry the marker. Before
-  // this the only advance path in the product was the inbox's dismiss button, so anyone who
-  // consumed revisit through Your Week or the email was re-sent the same five items every week.
+  // Marking on ARRIVAL rather than on click is what lets one mechanism serve every link that carries
+  // the marker — the inbox jump link and the digest email (Home's Your Week card did too until
+  // 2026-09-30, when Home stopped showing the digest's revisit section). Before this the only advance
+  // path in the product was the inbox's dismiss button, so anyone who consumed revisit through a
+  // link was re-sent the same five items every week.
 
   // Every mount is tracked and torn down. Not tidiness — the first version of these tests leaked
   // mounted PlayerViews, and a leaked instance still holds a `route.query.revisit` watcher plus
