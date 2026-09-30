@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 
 from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+from ..utils import filesystem
 
 logger = logging.getLogger(__name__)
 
@@ -546,7 +547,47 @@ def _transcript_beside(meta_abs: Path) -> Optional[str]:
         candidate = transcripts_dir / f"{base}{ext}"
         if candidate.is_file():
             return str(candidate)
-    return None
+    return _transcript_named_by_pointer(meta_abs, base, transcripts_dir)
+
+
+def _transcript_named_by_pointer(meta_abs: Path, base: str, transcripts_dir: Path) -> Optional[str]:
+    """The transcript this record's ``transcript_file_path`` names, if it is THIS episode's.
+
+    THE EXACT-STEM LOOKUP MISSES WHENEVER THE TITLE WAS TRUNCATED. The metadata filename cuts the
+    title at ``WHISPER_TITLE_MAX_CHARS``; the transcript filename does not. So
+    ``0004 - The Tungsten Market Is Warning o_<run>.metadata.json`` sits beside
+    ``0004 - The Tungsten Market Is Warning of an Upcoming War_<run>.txt`` and the exact stem finds
+    nothing. Measured on prod 2026-09-29: 167 of 2,002 served episodes, every one with its
+    transcript on disk and ``rederive_only`` refusing it as "found metadata but no transcript".
+
+    The pointer is not trusted on its own (#2082: 147 records named ANOTHER episode's transcript).
+    It is accepted only when it stays in this run's ``transcripts/``, has an accepted extension, and
+    :func:`~podcast_scraper.utils.filesystem.names_the_same_episode` agrees — the same rule
+    ``stages.scraping._transcript_beside_metadata`` applies, so both resolvers refuse the same
+    corrupt pointers.
+    """
+    try:
+        data = json.loads(meta_abs.read_text(encoding="utf-8"))
+        rel = str(((data or {}).get("content") or {}).get("transcript_file_path") or "").strip()
+    except (OSError, ValueError):
+        return None
+    if not rel:
+        return None
+    pointed = meta_abs.parent.parent / rel
+    if pointed.parent.resolve() != transcripts_dir.resolve():
+        return None
+    name = pointed.name
+    if name.endswith((".adfree.txt", ".cleaned.txt")):
+        return None
+    for ext in (".txt", ".vtt", ".srt"):
+        if name.endswith(ext):
+            pointed_stem = name[: -len(ext)]
+            break
+    else:
+        return None
+    if not filesystem.names_the_same_episode(base, pointed_stem):
+        return None
+    return str(pointed) if pointed.is_file() else None
 
 
 def _all_corpus_entries_for_guid(corpus_root: str, guid: str) -> List[CorpusMetadataEntry]:
