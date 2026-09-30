@@ -143,6 +143,10 @@ platform :ios do
   # signing assets, verified by creating one.
   PROFILE_NAME = "Close Listening Player AppStore"
 
+  # The TestFlight group builds are handed to. Internal: no Beta App Review, available to
+  # testers as soon as processing finishes (5-15 min), capped at 100 App Store Connect users.
+  INTERNAL_GROUP = "Internal Testers"
+
   def signing_xcargs(team)
     "-allowProvisioningUpdates " \
     "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
@@ -235,6 +239,11 @@ platform :ios do
       # who get it immediately without waiting on Beta App Review.
       skip_waiting_for_build_processing: true,
       distribute_external: false,
+      # Assign the build to the internal group on upload. WITHOUT THIS the upload succeeds, Apple
+      # processes the build, and no phone can install it — the build sits unassigned in TestFlight
+      # and every tester's app shows nothing. It is the quietest way a "successful release" reaches
+      # nobody. The group is created by scripts/tools (ASC API); the account had zero groups.
+      groups: [INTERNAL_GROUP],
     )
 
     UI.success(

@@ -16,6 +16,12 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<!-- Export compliance, answered once here instead of per-upload in the ASC web UI.
+	     false = only Apple's exempt encryption (HTTPS/TLS via the OS). The app bundles no
+	     cryptography of its own. Without this key every TestFlight build is held as
+	     "Missing Compliance" until a human answers in a browser. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
