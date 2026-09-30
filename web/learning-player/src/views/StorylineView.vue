@@ -18,6 +18,7 @@ import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
 import NoteComposer from "../components/NoteComposer.vue"
+import TopVoices from "../components/TopVoices.vue"
 // ASYNC: EntityCard → EntityCardBody → TopicCardContent → StorylineCard → this file is a cycle, so
 // the resolve is deferred to first open. Same reason TopicCardContent defers EntityCard.
 const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
@@ -252,20 +253,16 @@ function goBack(): void {
         <EntityEpisodeList :episodes="episodes" />
       </section>
 
-      <!-- People involved (SL.2). Standalone page only (redundant with the topic card in overlay). -->
-      <section v-if="people.length" class="mt-6">
-        <h2 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h2>
-        <div class="flex flex-wrap gap-1.5">
-          <RouterLink
-            v-for="p in people"
-            :key="p.id"
-            :to="{ name: 'person', params: { id: p.id } }"
-            class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person no-underline transition hover:bg-elevated"
-            @click="openEntity('person', p.id, $event)"
-            >{{ p.name }}</RouterLink
-          >
-        </div>
-      </section>
+      <!-- Top voices (SL.2) — the SAME grid the topic card shows (operator 2026-09-30): it was
+           "Related people" as plain chips here, the same people from the same `related_people`
+           drawn a second way. Standalone page only (redundant with the topic card in overlay). -->
+      <TopVoices
+        class="mt-6"
+        :people="people"
+        :heading-level="2"
+        :route-for="(id) => ({ name: 'person', params: { id } })"
+        @open="(id, e) => openEntity('person', id, e)"
+      />
 
       <!-- Notes on this storyline (SL.3). Shown in the sheet too (operator 2026-09-16): the sheet is
            no longer a preview of the page, it IS the page's content, so withholding notes here was

@@ -445,7 +445,8 @@ listed alongside collections in the Library Collections tab.
 A storyline (topics discussed together — co-occurrence) is a full **page** (`/storyline/:id`,
 keyed by the anchor topic id), not a sheet: same detail template as the topic/person page — back on
 its own row, title + follow-storyline on one row, then the member topics (ordered), top episodes,
-the people involved, and notes. There is no storyline endpoint; the anchor topic's card carries it,
+the people involved — as **Top voices**, the topic card's own avatar grid (`TopVoices`, UXS-013),
+not chips — and notes. There is no storyline endpoint; the anchor topic's card carries it,
 so the route param is the anchor topic id. See UXS-013 §Vocabulary — the backend calls this a
 "theme cluster", which is the opposite of what a reader means by theme.
 
