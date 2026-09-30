@@ -28,35 +28,12 @@ set -euo pipefail
 REPO_DIR="${REPO_DIR:-/srv/podcast-scraper}"
 SELECTED="${SELECTED:-podcast operator player}"
 SHM="${SHM_DIR:-/dev/shm}"
+# The "what is broken" rules are shared with the read-only prod_recovery_check.sh, so the check
+# can never report something this script would not fix. Sourced from beside this file (the
+# workflow copies both to /tmp).
+# shellcheck source=scripts/ops/prod_health_lib.sh
+. "$(dirname "${BASH_SOURCE[0]}")/prod_health_lib.sh"
 cd "$REPO_DIR"
-
-container_tag() {
-    docker inspect --format '{{.Config.Image}}' "$1" 2>/dev/null \
-        | grep -oE 'sha-[0-9a-f]{7}' | head -1 || true
-}
-
-has_secret_mounts() {
-    docker inspect --format '{{range .Mounts}}{{.Destination}} {{end}}' "$1" 2>/dev/null \
-        | grep -q '/run/secrets/'
-}
-
-# "name|service" for each container of a project that needs recreating. Status strings look like
-# "Exited (127) 9 hours ago" / "Restarting (1) 3 seconds ago" / "Up 2 minutes (healthy)".
-broken_containers() {
-    local proj="$1" name svc status
-    docker ps -a --filter "label=com.docker.compose.project=${proj}" \
-        --format '{{.Names}}|{{.Label "com.docker.compose.service"}}|{{.Status}}' 2>/dev/null \
-        | while IFS='|' read -r name svc status; do
-            case "$status" in
-                Exited*|Restarting*|Created*) echo "${name}|${svc}" ;;
-                *)
-                    if [ "$proj" = compose ] && [ "$svc" = api ] && ! has_secret_mounts "$name"; then
-                        echo "${name}|${svc}"
-                    fi
-                    ;;
-            esac
-        done
-}
 
 rc=0
 for s in $SELECTED; do
@@ -93,14 +70,14 @@ for s in $SELECTED; do
             ;;
     esac
 
-    broken="$(broken_containers "$proj" || true)"
+    broken="$(prod_broken_containers "$proj" || true)"
     if [ -z "$broken" ]; then
         echo "  ${proj}: nothing down — skipping"
         continue
     fi
 
     while IFS='|' read -r name svc; do
-        tag="$(container_tag "$name")"
+        tag="$(prod_container_tag "$name")"
         if [ -z "$tag" ]; then
             echo "::warning::${name}: no sha- tag on the container; skipping rather than guessing an image"
             rc=1
