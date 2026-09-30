@@ -327,15 +327,24 @@ publisher-supplied transcripts, and every `relabel_only` / `rediarize_only` / `r
 Retries use a `translate_only` reprocess mode rather than a new per-episode pending queue: the pipeline
 has no asynchronous per-episode state machine, and inventing one is larger than this feature needs.
 
-> **`translate_only` DOES NOT EXIST (2026-09-30).** The reprocess modes that exist are
-> `relabel_only`, `rediarize_only` and `retranscript_only` (`config.py:381`). Nothing in `src/`
-> implements this one, so every retry path this RFC attributes to it is currently unactionable —
-> the three places below that name it, the `translation_pending` recovery in §5.2, and the
-> rejected-alternative argument in §8 that rests on it covering retries. It is also the explicit
-> re-translation path D-33 now depends on: because the translation memory is content-keyed and
-> deliberately NOT model-keyed, an upgraded translator only takes effect through an explicit
-> re-translation, and there is no command for one. Until it is built, recovery means deleting the
-> English artifact set by hand. The
+> **`translate_only` EXISTS AS OF 2026-09-30.** It did not when this RFC was written, so every
+> retry path attributed to it — the three mentions below, the `translation_pending` recovery in
+> §5.2, and §8's rejected-alternative argument that rests on it covering retries — was
+> unactionable for the whole arc.
+>
+> It is deliberately thin: discard the `.en.*` set, then take the relabel path, which reloads the
+> on-disk transcript and its frozen `SPEAKER_NN` diarization and re-renders the source with
+> ANONYMOUS labels (naming is deferred for a non-English episode, D-34) — which is exactly what
+> the translator must be given. The seam then re-translates, names from the fresh English render,
+> and cascades GI/KG. No audio, no ASR, no re-diarize.
+>
+> **TWO OPERATIONS WEAR THE NAME**, and conflating them was the trap. A RETRY (the default) KEEPS
+> the content-keyed translation memory, so the units that already succeeded cost no GPU and only
+> the missing ones are sent — that is the whole point of keying by content. A RE-TRANSLATION after
+> a MODEL change needs the memory GONE, because it is deliberately not model-keyed (D-33: keying
+> on the model would make editing a config string trigger a corpus-wide GPU spend on the next
+> relabel). `--fresh-translation` / `translation_discard_memory` is that second operation, and it
+> is what closes D-33's "an upgrade takes effect only through an explicit purge". The
 honest cost of that choice is that a translation-service outage needs an operator-run reprocess, so the
 "95% reach English analysis without manual retry" metric holds only when the service is up — state it
 that way rather than claiming otherwise.
@@ -892,11 +901,14 @@ Phase names match PRD-047 and the arc notes; slice ids (S0.x, S2.x) refer to the
   `multilingual_ingest`" until 2026-09-30; that flag was removed as redundant with the per-language
   gate — see the arc notes, D-41.)
 - **Phase 3**: source verification and the operator worklist. (~~The read-time Positions gate ships in
-  Phase 2 with the markers.~~ **It did not, and no Phase 2 slice owns it — 2026-09-30.** There is no
-  such gate in `src/`; a translated claim reaches Position surfaces like any other, carrying S2.11's
-  provenance block with nothing acting on it. Whether to gate is an open product decision: hiding
-  costs a translated episode its whole Position contribution, showing ships unverified
-  cross-language claims. See MULTILINGUAL_ARC_V2 §2.)
+  Phase 2 with the markers.~~ **THIS LINE IS STALE — corrected 2026-09-30.** There is no Positions
+  gate, in Phase 2 or anywhere, and that is a settled decision rather than an omission: **D-5 was
+  withdrawn on 2026-09-28** — "a gate whose only possible v1 behaviour is 'hide every translated
+  claim forever' is not caution, it is spending GPU to produce data nobody can see" — and **D-37**
+  states the position directly: a translated episode has full standing on every surface, exactly as
+  an English one. We believe the translation; quality is what v2 is *about*, and hiding output is
+  not a substitute for it. The gate's design survives in MULTILINGUAL_ARC_V2 §V2-A.3, next to the
+  verifier that could actually release it.)
 - **Phase 4**: language toggle, original-text reveal, language filters, flag lifecycle and rollback.
 
 **Success criteria:**

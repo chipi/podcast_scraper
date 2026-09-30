@@ -296,6 +296,24 @@ def run_naming_stage(
         )
 
     english_body = "\n".join(str(seg.get("text") or "") for seg, _v in aligned).strip()
+
+    # S2.4's title decision: read the TRANSLATED episode title when the translation stage
+    # produced one. The roster reads the title for host/guest context and for NER candidate
+    # discovery, so handing it the SOURCE title while every per-voice sample is English is the
+    # same silent mismatch `naming_text` exists to prevent one level down — both are strings, and
+    # the roster would simply resolve fewer voices.
+    #
+    # Falls back to the source title rather than to nothing: a missing title costs the roster its
+    # role context entirely, which is worse than a title in the wrong language.
+    #
+    # The SHOW name is never translated and is not read here (ADR-157: the model renames it).
+    ledger = _load_json(
+        os.path.join(root, os.path.splitext(transcript_relpath)[0] + ".translation.json")
+    )
+    if isinstance(ledger, dict):
+        translated_title = str(ledger.get("title_en") or "").strip()
+        if translated_title:
+            episode_title = translated_title
     try:
         resolved = resolve_names_on_result(
             {"segments": [dict(seg) for seg, _v in aligned], "text": english_body},

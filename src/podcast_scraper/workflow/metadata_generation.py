@@ -4859,6 +4859,11 @@ def generate_episode_metadata(  # noqa: C901
         episode_id=episode_id,
         feed_id=feed_id,
         run_id=_resolved_run_id(cfg),
+        # S2.4's title decision: the EPISODE title goes through the translator so the roster
+        # reads it in English (§5.4 C-6). The SHOW name deliberately does not — ADR-157 measured
+        # the model renaming `Sesiones de Sendero` to `Trail Sessions`, and a show's name is its
+        # identity on every surface, in search, and in every listener's saved library.
+        episode_title=getattr(episode, "title", None),
     )
 
     # D-34 / S2.6: naming, now that the English render exists. A no-op for every episode whose

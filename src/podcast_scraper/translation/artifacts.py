@@ -126,6 +126,21 @@ class TranslationDocument:
     #: ``status`` reads ``translated`` (it is derived from unit outcomes) while no `.en.*`
     #: exists, and the API repeats that.
     english_withdrawn: bool = False
+    #: The EPISODE title in English, when it was translated (S2.4's title decision).
+    #:
+    #: THE EPISODE TITLE IS TRANSLATED; THE SHOW NAME IS NOT. The deployed model turns
+    #: `Sesiones de Sendero` into `Trail Sessions` (ADR-157's evidence), and a show's name is its
+    #: identity — renaming it would change what the feed IS on every surface, in search, and in
+    #: every person's saved library. An EPISODE title is a description of that episode's content,
+    #: which is exactly the kind of thing translation is for, and §5.4 C-6 needs it in English:
+    #: the roster reads the title and description for host/guest context and for NER candidate
+    #: discovery, so a Spanish title feeding an English NER is the §5.2 hazard (recall 2/2,
+    #: precision 67% -> 18%) pointed at the one input naming trusts most.
+    #:
+    #: ``None`` means it was not translated — an English episode, or a title that failed. The
+    #: naming stage falls back to the source title in that case rather than passing nothing,
+    #: because a missing title costs the roster its role context entirely.
+    title_en: Optional[str] = None
 
     @property
     def failed_units(self) -> List[UnitRecord]:
@@ -164,6 +179,7 @@ class TranslationDocument:
             "units_total": len(self.units),
             "units_failed": len(self.failed_units),
             "english_withdrawn": self.english_withdrawn,
+            "title_en": self.title_en,
             "units": [u.to_dict() for u in self.units],
         }
 
@@ -179,6 +195,7 @@ class TranslationDocument:
             source=dict(raw.get("source") or {}),
             units=[UnitRecord.from_dict(u) for u in (raw.get("units") or [])],
             english_withdrawn=bool(raw.get("english_withdrawn")),
+            title_en=raw.get("title_en"),
         )
 
 

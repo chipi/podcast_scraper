@@ -377,8 +377,12 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
 #   relabel_only   - re-resolves speaker names on the frozen diarization; no audio, no ASR.
 #   rediarize_only - downloads audio and re-diarizes, aligning to the EXISTING ASR text.
 #   retranscript_only - re-fetches the PUBLISHER transcript and re-parses it; no audio at all.
+#   translate_only - re-translates from the on-disk source transcript, then re-names from the
+#     fresh English render. No audio, no ASR, no re-diarize.
 # None can consume an ASR credential, so requiring one is a barrier, not a safeguard.
-STAGES_THAT_NEVER_TRANSCRIBE = frozenset({"relabel_only", "rediarize_only", "retranscript_only"})
+STAGES_THAT_NEVER_TRANSCRIBE = frozenset(
+    {"relabel_only", "rediarize_only", "retranscript_only", "translate_only"}
+)
 
 # TWO PREDICATES, AND CONFLATING THEM COST 48 EPISODES.
 #
@@ -4273,6 +4277,7 @@ class Config(BaseModel):
         "relabel_only",
         "rediarize_only",
         "retranscript_only",
+        "translate_only",
     ] = Field(
         default="full",
         alias="pipeline_stage",
@@ -4293,11 +4298,36 @@ class Config(BaseModel):
             "then relabel. For episodes whose stored transcript lost its speaker structure on "
             "the way in (the WebVTT `<v Speaker N>` spans the cue parser used to strip); the "
             "text was never wrong, only its speakers. No audio, no ASR, no GPU.\n"
+            "  translate_only  — RE-TRANSLATE from the on-disk source transcript, then re-resolve "
+            "speaker names from the fresh English render and cascade GI/KG. No audio, no ASR, no "
+            "re-diarize. This is the retry path RFC-124 §5.2 names for a `translation_pending` "
+            "episode and for a partial failure: the content-keyed translation memory (D-33) is "
+            "KEPT, so already-translated units cost no GPU and only the missing ones are sent. "
+            "Pair with --fresh-translation to discard that memory when the MODEL changed — see "
+            "`translation_discard_memory`.\n"
             "  audio_only      — transcribe + media only, no metadata/summary/GI/KG.\n"
             "  download_only   — download + cache raw audio, then stop.\n"
             "  enrich_only     — DEPRECATED alias for rederive_only. Renamed because it "
             "collided with the unrelated corpus-level `enrich` command (topic clusters, "
             "co-appearance); it is still accepted and normalised, with a warning."
+        ),
+    )
+    translation_discard_memory: bool = Field(
+        default=False,
+        alias="translation_discard_memory",
+        description=(
+            "With `pipeline_stage=translate_only`, also delete `<base>.translation.json` — the "
+            "content-keyed translation memory (D-33) — so every unit is sent to the translator "
+            "again.\n\n"
+            "WHY IT IS A SEPARATE SWITCH. Two different operations wear the same name. A RETRY "
+            "(the default) wants the memory: a `translation_pending` episode or a partial failure "
+            "resumes the units that are missing and pays no GPU for the ones that succeeded, "
+            "which is the whole point of keying the memory by content. A RE-TRANSLATION wants it "
+            "gone: the model or its revision changed, and the memory is deliberately NOT "
+            "model-keyed — D-33 records why, because keying on the model would make editing a "
+            "config string trigger a corpus-wide GPU spend on the next relabel. So an upgrade "
+            "takes effect only through an explicit purge, and this is it.\n\n"
+            "Ignored for every other pipeline_stage."
         ),
     )
     audio_cache_enabled: bool = Field(
@@ -4947,6 +4977,16 @@ class Config(BaseModel):
             message = (
                 "pipeline_stage=relabel_only: re-resolving speaker names on the existing "
                 "diarization (no audio, no re-ASR, no re-diarize)."
+            )
+        elif stage == "translate_only":
+            # Same routing trick as relabel_only: transcribe_missing=true only so the episode
+            # reaches the transcription stage, where the reprocess dispatch intercepts it and
+            # loads the existing transcript from disk. No audio is downloaded for this stage.
+            merged["transcribe_missing"] = True
+            message = (
+                "pipeline_stage=translate_only: re-translating from the on-disk source "
+                "transcript, then re-resolving names from the fresh English render "
+                "(no audio, no re-ASR, no re-diarize)."
             )
         elif stage == "rediarize_only":
             # v2.2: DOWNLOAD audio + RE-DIARIZE with the profile's diarizer, align the fresh

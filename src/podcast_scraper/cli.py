@@ -749,6 +749,22 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--fresh-translation",
+        action="store_true",
+        dest="translation_discard_memory",
+        help=(
+            "With --pipeline-stage translate_only, ALSO discard the content-keyed translation "
+            "memory (`<base>.translation.json`), so every unit is sent to the translator again. "
+            "Two different operations wear the name translate_only: a RETRY (the default) keeps "
+            "the memory and resumes only the units that are missing or failed, costing no GPU "
+            "for the rest; a RE-TRANSLATION after a MODEL change needs the memory gone, because "
+            "it is deliberately not model-keyed (D-33 — keying on the model would make editing a "
+            "config string trigger a corpus-wide GPU spend on the next relabel). Without this "
+            "flag a re-translation after a model change reuses every cached unit and changes "
+            "nothing. Ignored for every other pipeline stage."
+        ),
+    )
+    parser.add_argument(
         "--reprocess-existing-only",
         action="store_true",
         dest="reprocess_existing_only",
@@ -1858,6 +1874,7 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
             "relabel_only",
             "rediarize_only",
             "retranscript_only",
+            "translate_only",
             "enrich_only",  # deprecated alias for rederive_only
         ),
         default=None,
@@ -1876,6 +1893,10 @@ def _add_pipeline_stage_arguments(parser: argparse.ArgumentParser) -> None:
             "retranscript_only: RE-FETCH the publisher's own transcript, re-parse it with the "
             "fixed cue parser, then relabel — for episodes whose stored transcript lost its "
             "speaker spans on the way in; no audio, no ASR, no GPU. "
+            "translate_only: RE-TRANSLATE from the on-disk source transcript, then re-resolve "
+            "names from the fresh English render and cascade GI/KG; no audio, no ASR, no "
+            "re-diarize. The content-keyed translation memory is KEPT so only missing units are "
+            "sent — add --fresh-translation to discard it after a model change. "
             "audio_only: transcribe + media only. "
             "download_only: download + cache raw audio, then stop. "
             "enrich_only: DEPRECATED alias for rederive_only (renamed because it collided with "

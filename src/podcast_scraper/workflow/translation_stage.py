@@ -192,6 +192,7 @@ def run_translation_stage(
     episode_id: Optional[str] = None,
     feed_id: Optional[str] = None,
     run_id: Optional[str] = None,
+    episode_title: Optional[str] = None,
 ) -> TranslationOutcome:
     """Decide, record, and credit the deadline. Never raises into metadata generation.
 
@@ -226,6 +227,7 @@ def run_translation_stage(
                 outcome,
                 transcript_relpath=transcript_relpath,
                 effective_output_dir=effective_output_dir,
+                episode_title=episode_title,
             )
         except Exception as exc:  # noqa: BLE001 - see the docstring: never raise into metadata
             # "Never raises into metadata generation" was false: `create_translation_provider`
@@ -358,12 +360,62 @@ def _load_source_transcript(effective_output_dir: str, transcript_relpath: str) 
     return text, raw if isinstance(raw, list) else []
 
 
+def _translate_title(
+    cfg: Any, provider: Any, episode_title: Optional[str], source_language: str
+) -> Optional[str]:
+    """The EPISODE title in English, or ``None`` (S2.4's title decision).
+
+    THE SHOW NAME IS NOT TRANSLATED and is not passed here. ADR-157 measured the model turning
+    `Sesiones de Sendero` into `Trail Sessions`; a show's name is its identity, so renaming it
+    would change what the feed IS on every surface, in search, and in every listener's saved
+    library. An episode title describes that episode's content, which is what translation is
+    for, and §5.4 C-6 needs it in English because the roster reads it for host/guest context and
+    NER candidate discovery.
+
+    BEST EFFORT, ALWAYS. A title is one short unit and it is not part of the completeness gate:
+    a failure costs the roster some context and the naming stage falls back to the source title.
+    It must never cost the episode its translation, which is why every exception is swallowed
+    here rather than propagated into the unit loop's accounting.
+    """
+    title = (episode_title or "").strip()
+    if not title:
+        return None
+    try:
+        from ..translation.units import TranslationUnit, UnitSentence
+
+        unit = TranslationUnit(
+            unit_id="title",
+            turn_id="title",
+            speaker_label="",
+            # char_start/char_end are 0 because a title has no span in the screenplay — it is
+            # not part of the transcript body at all. Nothing resolves a span against this unit:
+            # it never enters `doc.units`, so `resolve_units_for_span` cannot see it and no
+            # claim can be provenanced to it.
+            sentences=[UnitSentence(sent_id="title.s01", text=title, char_start=0, char_end=0)],
+        )
+        result = provider.translate_unit(unit, source_language=source_language)
+        sentences = result.get("sentences") or []
+        if result.get("alignment") in ("sentence", "unit") and sentences:
+            out = str(sentences[0].get("en_text") or "").strip()
+            if out:
+                logger.info("    translated the episode title: %r -> %r", title, out)
+                return out
+        logger.info("    the episode title did not translate; naming will read the source title")
+    except Exception:  # noqa: BLE001 - see the docstring
+        logger.warning(
+            "    translating the episode title failed; naming will read the source title",
+            exc_info=True,
+        )
+    return None
+
+
 def _translate_episode(
     cfg: Any,
     outcome: TranslationOutcome,
     *,
     transcript_relpath: str,
     effective_output_dir: str,
+    episode_title: Optional[str] = None,
 ) -> TranslationOutcome:
     """Pack, translate, write the ledger, and write the English render only when complete.
 
@@ -524,6 +576,20 @@ def _translate_episode(
                 prompt_sha256=(meta.get("prompt") or {}).get("sha256"),
             )
         )
+
+    # S2.4's TITLE DECISION: the EPISODE title is translated, the SHOW name is not.
+    #
+    # The show's name is its identity. ADR-157 measured the model turning `Sesiones de Sendero`
+    # into `Trail Sessions`, and renaming a show would change what the feed IS on every surface,
+    # in search, and in every listener's saved library. An episode title is a description of that
+    # episode's content, which is what translation is for — and §5.4 C-6 needs it in English,
+    # because the roster reads the title for host/guest context and for NER candidate discovery.
+    # Passing a Spanish title to an English NER points the §5.2 hazard (recall 2/2, precision
+    # 67% -> 18%) at the one input naming trusts most.
+    #
+    # Best-effort by design: a failed title costs the roster some context, and the naming stage
+    # falls back to the source title. It must never cost the episode its translation.
+    doc.title_en = _translate_title(cfg, provider, episode_title, language)
 
     write_translation_json(doc, transcript_relpath, effective_output_dir)
     en_rel = write_english_artifacts(

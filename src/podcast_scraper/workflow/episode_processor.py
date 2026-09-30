@@ -455,7 +455,9 @@ def download_media_for_transcription(
     # retranscript_only takes the same exit for the same reason: its input is the publisher's
     # transcript URL over the network, and downloading the audio it will never open would make
     # the cheap repair as expensive as the one it exists to avoid.
-    if cfg.pipeline_stage in ("relabel_only", "retranscript_only"):
+    # translate_only likewise: its input is the on-disk SOURCE transcript, and the whole point of
+    # the mode is that a re-translation costs no ASR and no audio.
+    if cfg.pipeline_stage in ("relabel_only", "retranscript_only", "translate_only"):
         speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
         return TranscriptionJob(  # type: ignore[no-any-return]
             idx=episode.idx,
@@ -3714,7 +3716,93 @@ def _maybe_dispatch_reprocess_stage(
         return _refetch_and_reparse_transcript(
             job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
         )
+    if cfg.pipeline_stage == "translate_only":
+        return _retranslate_existing_transcript(
+            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        )
     return None
+
+
+def _retranslate_existing_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> Optional[tuple[bool, Optional[str], int]]:
+    """``pipeline_stage=translate_only``: discard the English render, then take the relabel path.
+
+    RFC-124 §5.2 names this as the retry for a `translation_pending` episode and for a partial
+    failure. It is deliberately thin, because the work it needs already exists in order:
+
+    1. delete the `.en.*` set here, so the translation stage sees an untranslated episode;
+    2. hand off to `_relabel_existing_transcript`, which loads the on-disk transcript and its
+       frozen `SPEAKER_NN` diarization and re-runs naming — and for a non-English episode that
+       naming is DEFERRED (D-34), so the re-rendered source carries anonymous labels again,
+       which is exactly what the translator must be given;
+    3. `generate_episode_metadata` then re-translates at the seam, names from the fresh English
+       render, and cascades GI/KG.
+
+    So no audio, no ASR, no re-diarize — and the content-keyed memory means the units that
+    already succeeded are not sent again.
+
+    ``translation_discard_memory`` ALSO removes `<base>.translation.json`. That is the other
+    operation wearing this name: the model changed, and the memory is deliberately not
+    model-keyed (D-33), so an upgrade takes effect only through an explicit purge. Without the
+    flag a re-translation after a model change would reuse every cached unit and change nothing.
+    """
+    from .transcript_resolution import _canonical_relpath
+
+    txt_path = _existing_transcript_for(job, effective_output_dir, "translate_only")
+    if txt_path is None:
+        _record_unresolved_transcript(job, cfg, pipeline_metrics, "translate_only")
+        return False, None, 0
+
+    # The English derivatives sit BESIDE the existing transcript, which lives in the old run's
+    # directory rather than the new `effective_output_dir` this invocation created — the same
+    # thing `_relabel_existing_transcript` documents about overwriting in place. So the
+    # invalidation is rooted at the transcript's own parent, not at the run dir.
+    root = str(txt_path.parent.parent)
+    canonical = _canonical_relpath(os.path.relpath(str(txt_path), root))
+    _invalidate_english_artifacts(canonical, root)
+
+    if bool(getattr(cfg, "translation_discard_memory", False)):
+        from ..translation.artifacts import translation_json_path
+
+        mem_path = translation_json_path(canonical, root)
+        mem_rel = os.path.relpath(mem_path, root)
+        try:
+            os.remove(mem_path)
+            logger.info(
+                "    [%s] translate_only: discarded the translation memory %s — every unit "
+                "will be sent again",
+                job.idx,
+                mem_rel,
+            )
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            # A memory that cannot be deleted is a re-translation that will silently reuse it,
+            # so say so rather than proceeding as if the purge happened.
+            logger.error(
+                "    [%s] translate_only: could not discard the translation memory %s (%s) — "
+                "the re-translation WILL reuse the cached units",
+                job.idx,
+                mem_rel,
+                exc,
+            )
+    else:
+        logger.info(
+            "    [%s] translate_only: keeping the content-keyed translation memory; only the "
+            "units that are missing or failed will be sent (use --fresh-translation to discard "
+            "it after a model change)",
+            job.idx,
+        )
+
+    return _relabel_existing_transcript(
+        job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    )
 
 
 def _maybe_speech_coverage_failover(
