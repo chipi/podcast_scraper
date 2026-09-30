@@ -2,7 +2,8 @@
 /**
  * "Your Week" — the in-app personal digest (#1412), the highlight of the home page.
  *
- * The SAME rollup the email sends (revisit + new-in-follows + trending-in-your-corpus), served
+ * The SAME rollup the email sends (new-in-follows + new-in-interests + trending-in-your-corpus;
+ * the email's revisit section is left to Home's own RevisitRail — see `sections`), served
  * live and decoupled from email consent — so turning the email off never loses the capability;
  * the email is just the edge for when you don't visit.
  *
@@ -35,7 +36,13 @@ const section = useSectionState<YourWeekResponse | null>(null, { cacheKey: 'home
 const data = computed(() => section.data.value)
 const layout = ref<'compact' | 'full'>('compact')
 
-const sections = computed(() => data.value?.sections ?? [])
+// The digest's `revisit` section is NOT shown here (operator 2026-09-30). This block is "what's
+// new", and revisit is the answer to a different question — "what did I want to remember" — which
+// Home already answers in its own section, `RevisitRail`, with the actions that belong to it
+// (reviewed / stop / unsave). Showing it here too put the same due highlights on Home twice, under
+// one heading that read as new episodes. The SERVER still sends it: the digest email and the push
+// nudge are built from the same payload and keep their revisit content.
+const sections = computed(() => (data.value?.sections ?? []).filter((s) => s.kind !== 'revisit'))
 const nonEmptySections = computed(() => sections.value.filter((s) => s.items.length > 0))
 
 /** Everything waiting across the digest's sections — what the kicker counts. */

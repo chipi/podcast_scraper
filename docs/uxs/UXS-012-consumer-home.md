@@ -171,11 +171,9 @@ corpus, a brand-new account and **a total API outage** render the same page.
   there is no action available. Hide; an empty shell is noise. *Storylines, Trending topics,
   Trending shows, Momentum, Recommended.*
 - **User-empty** — empty because of an action the user has not taken yet. **Render, and the empty
-  state must carry that action** — not a description of it, the action itself. *"Your Week" shows a
-  first-run row per digest section — as of #1836 there
-  are **four** rows (`new_in_follows`, `new_in_interests`, `revisit`, `trending_in_your_corpus`), the
-  two actionable ones (`new_in_follows`, `new_in_interests`) linking out because they are fixable
-  today.*
+  state must carry that action** — not a description of it, the action itself. *"Your Week" shows
+  one first-run line (#1978 replaced the per-section rows) — "fills as you follow shows, topics and
+  people" — carrying the one action that starts it, a link to the Shows index.*
 
 A section that merely *describes* what the user could do is the failure mode this rule exists to
 prevent: it makes the reader go and find the control it is telling them about.
@@ -196,8 +194,12 @@ header cannot outlive its content.
 
 ### `YourWeek` — the personal digest, in-app
 
-The same rollup the weekly email sends (revisit + new-in-follows + trending-in-your-corpus), served
-live and **decoupled from email consent** — turning the email off must never cost the capability;
+The same rollup the weekly email sends (new-in-follows + new-in-interests + trending-in-your-corpus),
+served live and **decoupled from email consent**. The email's **revisit** section is deliberately NOT
+shown here (2026-09-30): this block is "what's new", and due highlights have their own Home section,
+`RevisitRail` ("Highlights to revisit"), with the reviewed / stop / unsave actions that belong to them
+— showing them in both put the same highlights on Home twice. The server still sends the section, so
+the email and the push nudge keep it — turning the email off must never cost the capability;
 the email is only the edge for someone who does not visit. Two layouts behind a per-user synced
 preference: `compact` (one rail of the week's top items) and `full` (a labelled rail per section),
 flipped inline with "Show more / Show less". Hidden entirely when signed out or when nothing is due
