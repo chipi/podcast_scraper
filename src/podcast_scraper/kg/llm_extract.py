@@ -175,6 +175,56 @@ KG_RESPONSE_TOKENS = 2048
 _ENTITY_NAME_MAX_CHARS = 500
 
 
+_PERSON_PLACEHOLDER = re.compile(
+    r"(?i)^(?:speaker[ _-]?\d+|unknown[ _-]?(?:guest|speaker|host)[ _-]?\d*)$"
+)
+_PERSON_CONJUNCTION = re.compile(r"(?i)\s(?:and|&)\s")
+#: A single token with a dot INSIDE it, e.g. ``Latent.Space``. Only applied to split fragments.
+_DOMAIN_TOKEN = re.compile(r"^[^\s.]+(?:\.[^\s.]+)+$")
+
+
+def person_entity_names(name: str) -> List[str]:
+    """The person(s) one extracted PERSON entity really names — possibly none, possibly several.
+
+    Measured on prod 2026-09-30 (#2197), the extractor returns things as ``entity_kind: person``
+    that are not one person, and each became a followable person node:
+
+    - a pair or list: ``Kahneman and Tversky``, ``Romer and Romer``, ``Himmelstein, Wohlhandler,
+      and Warren`` (16 episodes) — split, one person each;
+    - a year: ``2017`` — no letters, not a person: dropped;
+    - a diarization label: ``SPEAKER_01``, ``unknown_guest_1`` — a voice we failed to name, not a
+      person anyone mentioned: dropped.
+
+    A split happens ONLY when the name contains a conjunction (`` and `` / `` & ``). A bare comma
+    is how titles are written — ``Mary, Queen of Scots``, ``Thomas Howard, 4th Duke of Norfolk`` —
+    and splitting those would invent people. The split itself is
+    :func:`~podcast_scraper.speaker_detectors.hosts.split_author_names`, so a suffix stays with
+    its name (``Martin Luther King, Jr.``).
+
+    A split fragment that is an organisation (``has_org_markers``) or a domain-shaped single token
+    (``Latent.Space``) is dropped, and repeats collapse (``Romer and Romer`` -> ``Romer``). Checked
+    against all 6,926 KG person names served on prod: every change it makes is one of the classes
+    above; no real name is split.
+    """
+    from podcast_scraper.speaker_detectors.hosts import has_org_markers, split_author_names
+
+    text = (name or "").strip()
+    if not text or _PERSON_PLACEHOLDER.match(text) or not any(ch.isalpha() for ch in text):
+        return []
+    if not _PERSON_CONJUNCTION.search(text):
+        return [text]
+    parts: List[str] = []
+    for part in split_author_names(text):
+        if not any(ch.isalpha() for ch in part) or has_org_markers(part):
+            continue
+        if _DOMAIN_TOKEN.match(part) or part in parts:
+            continue
+        parts.append(part)
+    if len(split_author_names(text)) < 2:
+        return [text]
+    return parts
+
+
 def clean_entity_display_name(name: Optional[str]) -> str:
     """Strip extractor punctuation debris from an entity's DISPLAY name (#2055).
 
@@ -547,18 +597,17 @@ def parse_kg_graph_response(
                 continue
             ek_raw = item.get("entity_kind")
             ek_in = ek_raw if isinstance(ek_raw, str) else None
-            erow: Dict[str, str] = {
-                "name": name,  # already cleaned above (#2055)
-                # Never None: an unplaceable kind becomes `object` rather than being dropped or
-                # guessed as a person (#2057).
-                "entity_kind": _normalize_entity_kind(ek_in),
-            }
+            # Never None: an unplaceable kind becomes `object` rather than being dropped or
+            # guessed as a person (#2057).
+            kind = _normalize_entity_kind(ek_in)
+            names = person_entity_names(name) if kind == ENTITY_KIND_PERSON else [name]
             edesc = item.get("description")
-            if isinstance(edesc, str):
-                ed = _truncate_kg_description(edesc)
+            ed = _truncate_kg_description(edesc) if isinstance(edesc, str) else None
+            for one in names:
+                erow: Dict[str, str] = {"name": one, "entity_kind": kind}
                 if ed:
                     erow["description"] = ed
-            entities_out.append(erow)
+                entities_out.append(erow)
 
     if max_topics is not None and max_topics >= 1:
         topics_out = topics_out[: int(max_topics)]
