@@ -1070,8 +1070,15 @@ design home:
 - **`ProfileAvatar`** — the account's picture: initials on a name-derived hue until the server
   exposes an OAuth photo on `/me` (deferred). Used in the Profile identity header and the masthead
   top-right profile link. It also renders **person** photos (the web enricher's hosted portraits)
-  wherever a person is listed and the surface opts in — the key-voices rail and a topic's Top
-  voices today — falling back to the same initials mark when a person has no hosted photo.
+  wherever a person is listed and the surface opts in — the key-voices rail, Top voices (topic
+  card and storyline page), the Trends people list and the person card — falling back to the same
+  initials mark when a person has no hosted photo. **The crop is anchored near the top**
+  (`object-position: 50% 10%`, 2026-09-30), not centred: portraits are taller than wide, and a
+  centred square crop took the top of the head off in 35 of 43 real prod portraits. 10% was chosen
+  by measurement — face + eye detection over those photos, a sweep of 0–50%, and the rendered
+  circles checked by eye — leaving 4 marginal cuts (three under 8px; one source photo whose face
+  touches the top edge, which no position can frame). The loop is re-runnable:
+  `scripts/dev/avatar_crop_eval/`.
 - **`AvatarCropModal`** — square crop-on-upload for the account picture. A picked photo opens this
   modal to pan + zoom within a circular frame before upload (portraits/landscapes rarely fill a
   circle well); on save it renders the framed region to a 512×512 PNG and uploads that cropped
