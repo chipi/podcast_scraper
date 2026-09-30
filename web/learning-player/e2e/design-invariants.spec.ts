@@ -371,25 +371,25 @@ test.describe('design invariants', () => {
     await expect(play).toBeVisible()
 
     const m = await page.evaluate(() => {
-      const btn = document.querySelector('button[aria-label="Play"], button[aria-label="Pause"]') as HTMLElement
-      const row = btn.closest('div')!.parentElement as HTMLElement
+      const row = document.querySelector('[data-testid="player-transport"]') as HTMLElement
+      const card = row.parentElement as HTMLElement
       const kids = Array.from(row.querySelectorAll('button'))
-        // VISIBLE controls only. The row's composition is breakpoint-dependent — the corner slot
-        // holding the transcript toggle and capture is `lg:hidden`, so on a desktop viewport those
-        // buttons are in the DOM with a zero-size rect. Measuring them asserts 0 >= 44 and fails
-        // for a control that is not on screen, which is what this test did on its first CI run.
+        // VISIBLE controls only. The row's composition is breakpoint-dependent — on `lg` the cells
+        // holding the transcript toggle and capture are `invisible` (kept, so the mirror holds),
+        // and a control can self-hide (output route). Measuring one that is not on screen asserts
+        // 0 >= 44, which is what this test did on its first CI run.
         .filter((k) => {
           const b = k.getBoundingClientRect()
-          return b.width > 0 && b.height > 0
+          return b.width > 0 && b.height > 0 && getComputedStyle(k).visibility !== 'hidden'
         })
         .map((k) => {
           const b = k.getBoundingClientRect()
           const after = getComputedStyle(k, '::after')
           // `lp-tap` grows the hit box past the ink; where it is absent the ink IS the hit box.
           const hit = parseFloat(after.width) || b.width
-          return { label: k.getAttribute('aria-label') || '?', hit, cx: b.left + b.width / 2 }
+          return { label: k.getAttribute('aria-label') || '?', hit, cx: b.left + b.width / 2, w: b.width }
         })
-      return { overflow: row.scrollWidth - row.clientWidth, kids }
+      return { overflow: Math.max(row.scrollWidth - row.clientWidth, card.scrollWidth - card.clientWidth), kids }
     })
 
     // FOUR, the desktop row: skip back, play, skip forward, speed. The queue-panel button that made
@@ -417,6 +417,57 @@ test.describe('design invariants', () => {
           'hit areas overlap, so a tap on one can fire the other.',
       ).toBeGreaterThanOrEqual(44)
     }
+  })
+
+  /**
+   * The transport row is a MIRROR (operator 2026-09-30: "things have to be like in the mirror
+   * completely"). Every secondary control is the same size, and each one's twin sits the same
+   * distance from play on the other side. It had drifted to four sizes and three gap widths.
+   *
+   * Pairs are matched by name, not by position, so a missing control cannot make an asymmetric row
+   * pass by pairing the wrong two. The output-route button self-hides in a browser with no route,
+   * so its pair (capture) is only checked when both are on screen.
+   */
+  test('the transport row mirrors around play: one size, equal distances', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-chrome', 'the full mirror is the phone row')
+    await signInIsolated(page, 'invariants-transport-mirror', testInfo)
+    await page.goto('/podcast/p05')
+    await page.getByText('Index Investing Without the Myths').first().click()
+    await expect(page.getByTestId('player-transport')).toBeVisible()
+    await expect(page.getByTestId('transcript-toggle')).toBeVisible()
+
+    const m = await page.evaluate(() => {
+      const row = document.querySelector('[data-testid="player-transport"]') as HTMLElement
+      const box = (el: Element | null) => {
+        if (!el) return null
+        const b = el.getBoundingClientRect()
+        if (b.width === 0 || getComputedStyle(el).visibility === 'hidden') return null
+        return { cx: b.left + b.width / 2, w: b.width, h: b.height }
+      }
+      const q = (sel: string) => box(row.querySelector(sel))
+      return {
+        play: q('button[aria-label="Play"], button[aria-label="Pause"]')!,
+        pairs: [
+          ['transcript', q('[data-testid="transcript-toggle"]'), 'speed', q('button[aria-label="Playback speed"]')],
+          ['capture', q('[data-testid="capture-moment"]'), 'output', q('[data-testid="route-picker"]')],
+          ['back 15', q('button[aria-label="Skip back 15 seconds"]'), 'forward 30', q('button[aria-label="Skip forward 30 seconds"]')],
+        ] as const,
+      }
+    })
+
+    let checked = 0
+    const sizes: number[] = []
+    for (const [ln, l, rn, r] of m.pairs) {
+      if (l) sizes.push(l.w)
+      if (r) sizes.push(r.w)
+      if (!l || !r) continue
+      checked++
+      const dl = m.play.cx - l.cx
+      const dr = r.cx - m.play.cx
+      expect(Math.abs(dl - dr), `${ln} is ${dl.toFixed(1)}px left of play, ${rn} ${dr.toFixed(1)}px right`).toBeLessThanOrEqual(1)
+    }
+    expect(checked, 'fewer than two mirrored pairs on screen — this assertion would be vacuous').toBeGreaterThanOrEqual(2)
+    expect(Math.max(...sizes) - Math.min(...sizes), `secondary controls differ in size: ${sizes.join(', ')}px`).toBeLessThanOrEqual(0.5)
   })
 
   /**

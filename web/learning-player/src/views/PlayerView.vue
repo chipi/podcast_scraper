@@ -1616,17 +1616,18 @@ onBeforeUnmount(() => {
             @skip="player.skip"
             @cycle-rate="player.cycleRate"
           >
-            <!-- Transcript toggle: a compact icon pill pinned to the LEFT of the controls row,
-                 mirroring the speed pill on the right. Adds zero height (absolute in the existing
-                 row). A CC-style transport affordance — accent when the transcript is open, plus a
-                 tooltip. Mobile only (desktop shows the transcript as the side column). -->
-            <template #corner>
-              <div class="flex items-center gap-1.5">
+            <!-- The transport is a mirror (PlayerControls): these fill the cells either side of the
+                 skips, at the size the row hands them, so every control matches its twin. Left =
+                 CONTENT actions (read it, keep it); right = PLAYBACK (output route, then speed). -->
+            <!-- Transcript toggle — a CC-style affordance, accent while the transcript is open.
+                 Mobile only in effect: on `lg` the transcript is the side column and this cell is
+                 kept but invisible. -->
+            <template #left-outer="{ size }">
               <button
                 v-if="segments.length"
                 type="button"
-                class="flex h-11 w-11 items-center justify-center rounded-full border border-border transition"
-                :class="transcriptOpen ? 'bg-accent text-accent-foreground' : 'text-muted hover:bg-overlay'"
+                class="flex items-center justify-center rounded-full border border-border transition"
+                :class="[size, transcriptOpen ? 'bg-accent text-accent-foreground' : 'text-muted hover:bg-overlay']"
                 :aria-expanded="transcriptOpen"
                 :aria-label="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
                 :title="transcriptOpen ? t('player.hideTranscript') : t('player.showTranscript')"
@@ -1640,29 +1641,26 @@ onBeforeUnmount(() => {
                   <path d="M7 10.5h7M7 14h10" />
                 </svg>
               </button>
-              <!-- Capture, beside the transcript toggle. The grouping is the point: this corner is
-                   CONTENT actions (read it, keep it) and the right corner is PLAYBACK actions
-                   (speed, queue). Putting capture on the right would have been one free slot and no
-                   rule. -->
-              <CaptureMoment
-                :state="captureState"
-                :gated="isGated"
-                variant="pill"
-                @capture="markMoment"
-              />
+            </template>
+            <!-- Capture. Its circle is the cell's size; when it EXPANDS to report an outcome
+                 ("Saved", or a failure) it grows LEFTWARD over the transcript toggle for those few
+                 seconds, never rightward over ↺15 — the skip is the control you are reaching for
+                 while listening, the transcript toggle is not. -->
+            <template #left-inner="{ size }">
+              <div class="relative" :class="size.replace('lp-tap', '')">
+                <CaptureMoment
+                  class="absolute right-0 top-0 z-10"
+                  :state="captureState"
+                  :gated="isGated"
+                  variant="pill"
+                  @capture="markMoment"
+                />
               </div>
             </template>
-            <template #corner-right>
-              <!-- Output routing, on the FULL player too (operator 2026-09-23: "we need such a
-                   control somewhere else, not only when the player is small"). The mini-player is
-                   where you notice audio went astray; this is where you go to do something about
-                   it. Self-hides when the platform reports no route available.
-
-                   The queue button that used to sit beside it is GONE (operator 2026-09-27): it
-                   opened the queue panel, which the masthead link already does from everywhere, and
-                   it made this row read as a grab-bag instead of a transport. The queue action that
-                   is specific to this episode moved up beside the heart. -->
-              <RouteButton class="h-11 w-11" />
+            <!-- Output routing, on the FULL player too (operator 2026-09-23). Self-hides when the
+                 platform reports no route; its cell stays, so speed does not slide inward. -->
+            <template #right-inner="{ size }">
+              <RouteButton :size-class="size" />
             </template>
           </PlayerControls>
           <p v-else class="rounded-2xl border border-border bg-surface p-4 text-muted">
@@ -1672,7 +1670,7 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Middle: synced transcript. The mobile show/hide toggle lives in the floating controls
-           panel (PlayerControls #corner slot) so it's reachable at any scroll position. -->
+           panel (PlayerControls #left-outer slot) so it's reachable at any scroll position. -->
       <div ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70dvh] lg:flex-col">
         <!-- Transcript body — opt-in on mobile (toggled), always shown on desktop. `lg:contents`
              dissolves this wrapper at lg so the transcript keeps flowing inside the flex column

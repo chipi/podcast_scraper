@@ -4,9 +4,10 @@
  * PlayerView owns the <audio> element. Scrubber = an accessible range input; skip ±15/30s;
  * speed cycles through the PRD rate set.
  */
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import type { InsightMarker } from "../player/insightMarkers"
+import { TRANSPORT_BUTTON_SIZE } from "../player/transportGeometry"
 import { formatTime, PLAYBACK_RATES } from "../player/transcriptSync"
 
 const props = defineProps<{
@@ -54,6 +55,35 @@ const densityBands = computed(() => {
 function onScrub(ev: Event): void {
   emit("seek", Number((ev.target as HTMLInputElement).value))
 }
+
+/**
+ * The density strip SEEKS, like the scrubber above it (operator 2026-09-30: "it's more just a
+ * chart ... when I tap on it, I go to that place"). It shows where the substance is, so tapping a
+ * dark stretch has to take you there. Tap to jump; press and drag to scrub.
+ *
+ * Pointer only, on purpose: the range input directly above is the keyboard and screen-reader
+ * control for the same timeline, so the strip stays an image to assistive tech rather than a
+ * second, unlabelled slider.
+ */
+const densityDragging = ref(false)
+function seekFromPointer(ev: PointerEvent): void {
+  const el = ev.currentTarget as HTMLElement
+  const rect = el.getBoundingClientRect()
+  if (rect.width <= 0 || max.value <= 0) return
+  const frac = Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width))
+  emit("seek", Math.round(frac * max.value))
+}
+function onDensityDown(ev: PointerEvent): void {
+  densityDragging.value = true
+  ;(ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId)
+  seekFromPointer(ev)
+}
+function onDensityMove(ev: PointerEvent): void {
+  if (densityDragging.value) seekFromPointer(ev)
+}
+function onDensityUp(): void {
+  densityDragging.value = false
+}
 </script>
 
 <template>
@@ -66,91 +96,81 @@ function onScrub(ev: Event): void {
        screen. -->
   <div class="rounded-2xl border border-border bg-surface px-2 pb-3 pt-2 sm:p-4">
     <!--
-      Play is DEAD-CENTRE, and the row FITS a phone without shrinking any 44px target (operator
-      2026-09-13; #2004 item 9). Three groups: an equal-width `flex-1 min-w-0` side, the centre
-      transport (↺15 / play / 30↻), an equal-width `flex-1 min-w-0` side.
+      A MIRROR (operator 2026-09-30): seven cells — three equal cells, play, three equal cells — and
+      every secondary control the same size (TRANSPORT_BUTTON_SIZE), so each button on the left has
+      its twin at the same distance on the right:
 
-      Why `flex-1 min-w-0` and not `justify-between`: `justify-between` distributes the GAPS, so an
-      uneven pair of side clusters (the right holds queue + speed, the left transcript + capture)
-      leaves the play button off-centre — the report was "speed exits the right edge while the left
-      has space". Two equal `flex-1` sides centre the middle group as a UNIT; `min-w-0` drops the
-      `min-width:auto` content floor so each side renders at exactly free/2 rather than at its own
-      content width, which is what makes the centring pixel-exact (measured: play centre == row
-      centre at both 390px and 412px). The side groups justify start / end so the outermost controls
-      still hug the card edges.
+        transcript · capture · ↺15 · PLAY · 30↻ · output · speed
 
-      Nothing drops below a 44px HIT area (#1594): skip buttons keep a 44px hit box via `lp-tap`
-      over 40px ink; the play button is 56px on phones. `design-invariants.spec` guards fit
-      (overflow <= 0), the 44px floor, and >44px pitch so a future edit cannot silently re-clip it.
-      `lg:` collapses to a simple centred flow since the corner slot is `lg:hidden` there.
+      It was a flex row of three groups with their own gaps (6px / 8px / 4px) and four button sizes
+      (44 / 44 / 40 / 32px), so nothing lined up with its partner. A grid fixes the POSITIONS, not
+      just the sizes: an absent control (no transcript, no output route on this platform) leaves its
+      cell empty instead of sliding its neighbour inward.
+
+      `minmax(0, 1fr)` side cells split what play leaves over exactly evenly, so play is dead-centre
+      by construction. Hit areas stay 44px (`lp-tap`); `design-invariants.spec` guards the fit, the
+      44px floor, and a >= 44px pitch. On `lg` the left-hand content moves out (the transcript is a
+      side column, capture sits in the masthead) but its cells stay, so the mirror holds there too.
     -->
-    <div class="flex items-center gap-1 sm:gap-2 lg:justify-center lg:gap-6">
-      <div class="flex min-w-0 flex-1 items-center justify-start gap-1 sm:gap-2 lg:hidden lg:flex-none">
-        <slot name="corner" />
-      </div>
-      <!-- One geometry for every secondary control (#1965): a ghost circle. The row used to be six
-           different shapes in a line — rounded-square icon, bare text, filled circle, bare text,
-           circle icon, pill — with two of them having no container at all. The play button stays
+    <div
+      class="grid grid-cols-[repeat(3,minmax(0,1fr))_auto_repeat(3,minmax(0,1fr))] items-center justify-items-center"
+      data-testid="player-transport"
+    >
+      <div class="lg:invisible"><slot name="left-outer" :size="TRANSPORT_BUTTON_SIZE" /></div>
+      <div class="lg:invisible"><slot name="left-inner" :size="TRANSPORT_BUTTON_SIZE" /></div>
+      <!-- One geometry for every secondary control (#1965): a ghost circle. The play button stays
            the only FILLED shape, so it reads as the primary by contrast rather than by size alone. -->
-      <!-- Centre group: the transport proper. Its own group so the equal-width sides centre it as a
-           unit, rather than five evenly-spread children. -->
-      <div class="flex items-center gap-2 sm:gap-4">
-        <button
-          type="button"
-          class="lp-tap flex h-10 w-10 items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:h-11 sm:w-11 sm:text-base"
-          :aria-label="t('player.back15')"
-          @click="emit('skip', -15)"
+      <button
+        type="button"
+        class="flex items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:text-base"
+        :class="TRANSPORT_BUTTON_SIZE"
+        :aria-label="t('player.back15')"
+        @click="emit('skip', -15)"
+      >
+        ↺15
+      </button>
+      <button
+        type="button"
+        class="mx-1 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition active:scale-95 sm:mx-2 sm:h-16 sm:w-16"
+        :aria-label="playing ? t('player.pause') : t('player.play')"
+        @click="emit('toggle')"
+      >
+        <!-- Crisp SVG icons, perfectly centred, identical visual weight in both states. -->
+        <svg
+          v-if="!playing"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          class="h-7 w-7"
+          aria-hidden="true"
         >
-          ↺15
-        </button>
-        <button
-          type="button"
-          class="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground transition active:scale-95 sm:h-16 sm:w-16"
-          :aria-label="playing ? t('player.pause') : t('player.play')"
-          @click="emit('toggle')"
-        >
-          <!-- Crisp SVG icons, perfectly centred, identical visual weight in both states. -->
-          <svg
-            v-if="!playing"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            class="h-7 w-7"
-            aria-hidden="true"
-          >
-            <path
-              d="M8 5.14v13.72a1 1 0 0 0 1.53.85l10.4-6.86a1 1 0 0 0 0-1.7L9.53 4.29A1 1 0 0 0 8 5.14z"
-            />
-          </svg>
-          <svg v-else viewBox="0 0 24 24" fill="currentColor" class="h-7 w-7" aria-hidden="true">
-            <rect x="6.5" y="5" width="4.2" height="14" rx="1.4" />
-            <rect x="13.3" y="5" width="4.2" height="14" rx="1.4" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          class="lp-tap flex h-10 w-10 items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:h-11 sm:w-11 sm:text-base"
-          :aria-label="t('player.forward30')"
-          @click="emit('skip', 30)"
-        >
-          30↻
-        </button>
-      </div>
-      <div class="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-2 lg:flex-none">
-        <!-- Right affordance next to speed (e.g. the queue button) — pinned with speed so both add
-             no row height and don't tilt the centred transport. -->
-        <slot name="corner-right" />
-        <!-- Speed stays at h-11 (exactly the 44px minimum): it is the outermost control, and its
-             right edge now sits flush to the card's inner edge at 390px (measured). Shrinking it
-             below 44px would regress tappability for no space the row still needs. -->
-        <button
-          type="button"
-          class="flex h-11 w-11 items-center justify-center rounded-full border border-border text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
-          :aria-label="t('player.speed')"
-          @click="emit('cycle-rate')"
-        >
-          {{ rate }}×
-        </button>
-      </div>
+          <path
+            d="M8 5.14v13.72a1 1 0 0 0 1.53.85l10.4-6.86a1 1 0 0 0 0-1.7L9.53 4.29A1 1 0 0 0 8 5.14z"
+          />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" fill="currentColor" class="h-7 w-7" aria-hidden="true">
+          <rect x="6.5" y="5" width="4.2" height="14" rx="1.4" />
+          <rect x="13.3" y="5" width="4.2" height="14" rx="1.4" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="flex items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:text-base"
+        :class="TRANSPORT_BUTTON_SIZE"
+        :aria-label="t('player.forward30')"
+        @click="emit('skip', 30)"
+      >
+        30↻
+      </button>
+      <div><slot name="right-inner" :size="TRANSPORT_BUTTON_SIZE" /></div>
+      <button
+        type="button"
+        class="flex items-center justify-center rounded-full border border-border text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
+        :class="TRANSPORT_BUTTON_SIZE"
+        :aria-label="t('player.speed')"
+        @click="emit('cycle-rate')"
+      >
+        {{ rate }}×
+      </button>
     </div>
     <!-- Position bar UNDER the play buttons (operator): the transport leads, then the TIMELINE —
          the scrubber with the insight-density strip directly beneath it, annotating the same span —
@@ -168,11 +188,24 @@ function onScrub(ev: Event): void {
       @input="onScrub"
     />
     <!-- Insight density (#1140 "skip guide"): a tick per insight at its moment; clusters show where
-         the substance is. Data-viz, not a control, so it stays off the accent (#2013): grounded
-         ticks read foreground, opacity = confidence (the "weight"). -->
+         the substance is, and a tap goes there (see `seekFromPointer`). It stays off the accent
+         (#2013) — the scrubber is the accent control; grounded ticks read foreground, opacity =
+         confidence (the "weight"). -->
+    <!-- The hit area is taller than the 10px strip: `py-2` puts the strip 8px under the scrubber
+         (the gap it had as `mt-2`) and `-mb-2` gives the bottom padding back to the times row. A
+         fingertip on a 10px band would miss it as often as not. `touch-pan-y` lets a vertical
+         swipe that starts here still scroll the page; a horizontal one scrubs. -->
     <div
       v-if="(markers?.length ?? 0) > 0"
-      class="relative mt-2 h-2.5 w-full"
+      class="-mb-2 cursor-pointer touch-pan-y py-2"
+      data-testid="player-density-seek"
+      @pointerdown="onDensityDown"
+      @pointermove="onDensityMove"
+      @pointerup="onDensityUp"
+      @pointercancel="onDensityUp"
+    >
+    <div
+      class="pointer-events-none relative h-2.5 w-full"
       role="img"
       data-testid="player-insight-density"
       :aria-label="t('player.insightDensity', { count: markers?.length ?? 0 })"
@@ -195,6 +228,7 @@ function onScrub(ev: Event): void {
         :style="{ left: m.pct + '%', opacity: m.weight }"
         data-testid="player-density-tick"
       />
+    </div>
     </div>
     <div class="mt-1 flex justify-between font-mono text-xs text-muted tabular-nums" data-testid="player-times">
       <span>{{ formatTime(currentTime) }}</span>
