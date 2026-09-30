@@ -3082,6 +3082,33 @@ def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
         settings[f"{ns}_api_base"] = _endpoint_to_env_template(ner.endpoint)
 
 
+def _emit_translation_routing(
+    preset: "ProfilePreset", settings: Dict[str, Any], dgx_tailnet_host: Optional[str]
+) -> None:
+    """Gate V (#2169): route the translation endpoint + model from the preset into the settings.
+
+    A helper rather than two inline ``if``s for the reason the other ``_emit_*`` functions are
+    helpers — ``resolve_profile_to_settings`` sits at the complexity limit, and two branches took
+    it over (25 -> 27).
+
+    WHY IT HAD TO BE EMITTED AT ALL. Both fields were declared on ``ProfilePreset`` and listed in
+    ``REGISTRY_GOVERNED_FIELDS``, and neither was governed: this resolver never produced them, and
+    ``materialize_profiles.governed_settings`` narrows with ``if k in resolved``, so the drift
+    check skipped them. Measured 2026-09-30 — ``translate_model: totally/unsanctioned-model`` in
+    ``prod_dgx_full.yaml`` gave *"All 18 registry-governed profiles match the registry."* ADR-157
+    asserted the opposite as fact, on the strength of the declaration.
+
+    Emitted only when set, like every other optional field here: a cloud profile with no
+    translator should not grow two empty keys across 16 YAMLs.
+    """
+    if preset.translate_api_base:
+        settings["translate_api_base"] = resolve_endpoint(
+            preset.translate_api_base, dgx_tailnet_host
+        )
+    if preset.translate_model:
+        settings["translate_model"] = preset.translate_model
+
+
 def resolve_profile_to_settings(
     name: str,
     dgx_tailnet_host: Optional[str] = None,
@@ -3283,6 +3310,8 @@ def resolve_profile_to_settings(
             settings["deepgram_diarization_model"] = dia.model
         else:  # pyannote / local
             settings["diarization_model"] = dia.model
+
+    _emit_translation_routing(preset, settings, dgx_tailnet_host)
 
     settings["_profile_preset"] = preset.name
     settings["_transcription_research_ref"] = tx.research_ref

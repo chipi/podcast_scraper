@@ -193,6 +193,17 @@ calling it internally and publishing its output is covered by §4.3.
 - `translate_api_base` / `translate_model` are **registry-governed**, so a profile cannot silently
   route translation somewhere unsanctioned, and the acceptance harness redirects the endpoint so a
   fixture run cannot dial the real DGX.
+
+  > **THIS WAS FALSE WHEN WRITTEN, AND IS TRUE AS OF 2026-09-30.** Both fields were declared on
+  > `ProfilePreset` and listed in `REGISTRY_GOVERNED_FIELDS`, which is what the claim was based
+  > on — but `resolve_profile_to_settings` never emitted them, and `governed_settings` narrows
+  > with `if k in resolved`. So the drift check skipped them entirely. Measured: setting
+  > `translate_model: totally/unsanctioned-model` in `prod_dgx_full.yaml` and running
+  > `profiles-check` reported *"All 18 registry-governed profiles match the registry."* Being on
+  > the governed list is not the same as being governed, and the difference was invisible because
+  > the check's success message names a count of profiles rather than of fields. The resolver now
+  > emits them, and `check_every_governed_field_is_emitted` fails any governed field the resolver
+  > produces for no preset — these three were the only ones.
 - The 27B stays available if quality proves insufficient, but it would force a swap-based serving
   model rather than co-residency.
 
