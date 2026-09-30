@@ -126,6 +126,7 @@ function ago(createdAt: number, now = Math.floor(Date.now() / 1000)): string {
             class="flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-overlay"
             :class="n.read ? 'opacity-70' : ''"
             data-testid="notification-item"
+            :data-read="n.read ? 'true' : 'false'"
             @click="openItem(n)"
           >
             <span

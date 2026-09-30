@@ -78,3 +78,43 @@ test('Your Week renders the follows rollup after the user follows a show', async
   await yourWeek.getByTestId('yourweek-toggle').click()
   await expect(yourWeek.getByText('New in your follows')).toBeVisible()
 })
+
+/**
+ * Your Week never shows the digest's `revisit` section (UXS-012, 2026-09-30).
+ *
+ * The same payload feeds the email digest, which keeps its revisit content; on Home that section
+ * repeated what the RevisitRail already shows. A fresh corpus account has no highlight old enough to
+ * resurface, so the real response carries no revisit section — the check would pass vacuously. The
+ * real response is therefore fetched and a revisit section ADDED to it (the focused-mock exception
+ * `long-show-title.spec.ts` makes), and the follows section beside it must still render.
+ */
+test('Your Week drops the revisit section even when the digest carries one', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'your-week-no-revisit', testInfo)
+  const resp = await page.request.get('/api/app/episodes?page_size=50')
+  const items = (await resp.json()).items as Array<{ feed_id: string; has_kg?: boolean }>
+  const seed = items.find((e) => e.has_kg) ?? items[0]
+  expect((await page.request.post('/api/app/library', { data: { feed_id: seed.feed_id } })).ok()).toBeTruthy()
+
+  const REVISIT_TITLE = 'REVISIT ITEM THAT MUST NOT RENDER'
+  await page.route('**/api/app/your-week', async (route) => {
+    const real = await route.fetch()
+    const body = await real.json()
+    body.sections = [
+      ...(body.sections ?? []),
+      {
+        kind: 'revisit',
+        items: [{ episode_slug: 'x', episode_title: REVISIT_TITLE, deep_link: '/', quote: 'q', t_ms: 0 }],
+      },
+    ]
+    await route.fulfill({ response: real, json: body })
+  })
+
+  await page.goto('/')
+  const yourWeek = page.getByTestId('your-week')
+  await expect(yourWeek).toBeVisible()
+  await yourWeek.getByTestId('yourweek-toggle').click()
+  await expect(yourWeek.getByText('New in your follows')).toBeVisible()
+  await expect(page.getByText(REVISIT_TITLE)).toHaveCount(0)
+})
