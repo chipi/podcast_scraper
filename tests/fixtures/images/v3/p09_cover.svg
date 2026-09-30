@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="The Long View: Biohacking">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#D9524C"/>
-      <stop offset="55%" stop-color="#D9524C" stop-opacity="0.55"/>
-      <stop offset="100%" stop-color="#2A1030"/>
+      <stop offset="0%" stop-color="#997CAC"/>
+      <stop offset="55%" stop-color="#997CAC" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#422050"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.72" cy="0.22" r="0.75">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.30"/>
@@ -15,12 +15,12 @@
     </linearGradient>
   </defs>
 
-  <rect width="600" height="600" fill="#2A1030"/>
+  <rect width="600" height="600" fill="#422050"/>
   <rect width="600" height="600" fill="url(#bg)"/>
   <rect width="600" height="600" fill="url(#glow)"/>
 
   <!-- Subject mark: the part that still reads at 120px. -->
-  <g transform="translate(300 34) scale(2.32)" fill="none" stroke="#FFFFFF" stroke-opacity="0.92"
+  <g transform="translate(300 34) scale(2.24)" fill="none" stroke="#FFFFFF" stroke-opacity="0.92"
      stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" color="#FFFFFF">
     <g transform="translate(-50 0)"><path d="M8 34 q14 -14 28 0 t28 0 t28 0"/><path d="M8 56 q14 -14 28 0 t28 0 t28 0"/><path d="M8 78 q14 -14 28 0 t28 0 t28 0"/></g>
   </g>
