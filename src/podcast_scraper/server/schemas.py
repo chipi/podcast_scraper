@@ -639,6 +639,15 @@ class AppTopicCard(BaseModel):
     related_people: list[AppEntity] = Field(
         default_factory=list, description="People co-occurring most often (descending)."
     )
+    conversation_arc_weeks: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Weeks in the topic's conversation arc (GET /topics/{id}/conversation-arc), so a "
+            "client can decide whether to show the arc before fetching it. 0 when no insight "
+            "is ABOUT the topic, and always 0 under scope=mine (the arc is corpus-wide)."
+        ),
+    )
 
 
 class AppTopicPerspective(BaseModel):

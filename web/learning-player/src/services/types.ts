@@ -827,6 +827,9 @@ export interface TopicCard {
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]
+  /** Weeks in the topic's conversation arc (#2202), so the card knows before fetching it. Absent
+   *  from a server older than the field. Always 0 under scope=mine. */
+  conversation_arc_weeks?: number
 }
 
 /** One speaker's take on a topic — their grounded insights (#1146). */

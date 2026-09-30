@@ -207,7 +207,7 @@ listed after it, with the reason it is not automatable rather than merely undone
 | **Insight density** (`player-insight-density`, `player-density-*`) | `knowledge-bands.spec.ts` |
 | **Knowledge panel** (`knowledge-panel`, `kp-*`) | `knowledge-bands.spec.ts` |
 | **EntityCard storyline link** (`ec-storyline-link`) — the topic card's single "Part of a storyline" link; opens the storyline overlay (`storyline-card`) ON TOP, where Follow-storyline (`storyline-follow`) now lives | `entity-and-rails-invariants.spec.ts` |
-| **Topic conversation arc** (`topic-conversation-arc`, `tca-bar-*`) | `entity-and-rails-invariants.spec.ts` |
+| **Topic conversation arc** (`topic-conversation-arc`, `tca-bar-*`, placeholder `topic-arc-loading`) — shown only when the topic card's `conversation_arc_weeks` is 2 or more (#2202). A topic with no arc (`topic:broadcast-format`) or a single week (`topic:code-switching`) never shows the placeholder and never REQUESTS the arc; `topic:risk-management` draws it | `entity-and-rails-invariants.spec.ts` |
 | **Trending shows rail** (`trending-shows-rail`, `trending-show-card`) | `entity-and-rails-invariants.spec.ts` (invariant — see below) |
 | **Storyline page** — `StorylineView` (`storyline-view`, `storyline-follow`, route `storyline`). Its people are the topic card's **Top voices** grid (`ec-top-voices` / `ec-top-voice`, shared `TopVoices`; real person links on the page) — "Related people" chips until 2026-09-30. Reached by opening a storyline from the Discover explorer (`/browse`, `discovery-row`) or via the deep link `/browse?trends=storyline` (`discovery-row`). | `storyline.spec.ts` |
 | **Episode action row** — `EpisodeActions` (`episode-actions`) | `episode-actions.spec.ts` |

@@ -196,6 +196,23 @@ rule strictly — every position carries its source, and an ungrounded claim is 
 A bar series of a topic's presence across the corpus timeline. Same restraint as the trend sparks:
 shape over precision.
 
+**Shown only where there is an arc worth drawing** (2026-09-30, #2202). A week counts only when an
+insight is ABOUT the topic (a GI `ABOUT` edge), and most topics an episode merely mentions have
+none. On the fixture corpus 33 of 50 topics have no arc and 10 more have a single week. So:
+
+- The topic card carries `conversation_arc_weeks`, and the section decides BEFORE drawing
+  anything. With fewer than two weeks there is no section, no placeholder and no arc request. It
+  used to draw a loading placeholder for every topic and then remove it for most of them, which
+  read as a section that appears and vanishes.
+- One week is a bar, not a trend, so a single-week arc is not shown either. That rule also holds
+  when the count is absent (an older server): whatever loads is drawn only at two weeks or more.
+- With two or more weeks it loads and draws as before, placeholder included. The card and the
+  arc route share one scan through a 30-second memo, so the up-front count costs no second
+  corpus walk.
+
+Whether insights should be linked to more of an episode's topics (so more topics have an arc) is
+the data question in #2202, not a UI one.
+
 ### `ShowActivityChart` — a show's publishing rhythm
 
 Episodes over time on a show page. It answers "is this alive?" — a question a listener asks before

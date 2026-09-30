@@ -199,7 +199,7 @@ function searchLibrary(): void {
        at the foot of the page, below the episode list, which put the two time-series charts about
        this topic at opposite ends of a long scroll. They answer the same question at different
        resolutions — how much, and how it changed — so they read as a pair or not at all. -->
-  <TopicConversationArc :id="topic.id" />
+  <TopicConversationArc :id="topic.id" :known-weeks="topic.conversation_arc_weeks" />
 
   <!-- Semantically SIMILAR topics. Distinct from the storyline below, which is co-occurrence
        (#1603). Chips drill in place via the back stack.

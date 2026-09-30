@@ -160,3 +160,50 @@ describe('a failed section says WHAT failed (#2004 item 12)', () => {
     expect(w.text()).toContain(en.section.error)
   })
 })
+
+describe('the card decides up front whether there is an arc (#2202)', () => {
+  function mountKnown(knownWeeks: number | undefined) {
+    return mount(TopicConversationArc, {
+      props: { id: 'topic:ai', knownWeeks },
+      global: { plugins: [i18n] },
+    })
+  }
+
+  it('a topic the card says has no arc never fetches and never shows a placeholder', async () => {
+    const spy = vi.spyOn(api, 'getTopicConversationArc').mockResolvedValue(RESP)
+    const w = mountKnown(0)
+    // Checked BEFORE the load settles as well as after: the defect was a placeholder that showed
+    // and then vanished, so its absence has to hold on the very first render.
+    expect(w.find('[data-testid="topic-arc-loading"]').exists()).toBe(false)
+    await flushPromises()
+    expect(spy).not.toHaveBeenCalled()
+    expect(w.html()).not.toContain('topic-arc')
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+  })
+
+  it('a single-week arc is not shown: one bar is not a trend', async () => {
+    const spy = vi.spyOn(api, 'getTopicConversationArc').mockResolvedValue(RESP)
+    const w = mountKnown(1)
+    await flushPromises()
+    expect(spy).not.toHaveBeenCalled()
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+  })
+
+  it('a topic with two or more weeks loads and draws its arc', async () => {
+    vi.spyOn(api, 'getTopicConversationArc').mockResolvedValue(RESP)
+    const w = mountKnown(2)
+    expect(w.find('[data-testid="topic-arc-loading"]').exists()).toBe(true)
+    await flushPromises()
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(true)
+  })
+
+  it('without the count (an older server) a single week that comes back is still not drawn', async () => {
+    vi.spyOn(api, 'getTopicConversationArc').mockResolvedValue({
+      topic_id: 'topic:ai',
+      weeks: [RESP.weeks[0]],
+    })
+    const w = mountKnown(undefined)
+    await flushPromises()
+    expect(w.find('[data-testid="topic-conversation-arc"]').exists()).toBe(false)
+  })
+})

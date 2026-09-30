@@ -9,6 +9,7 @@ operator relational API (the consumer/operator boundary stays clean). Mounted un
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import Counter
 from pathlib import Path
 from typing import Literal, TypeVar
@@ -215,7 +216,7 @@ async def topic_conversation_arc_route(
     root = str(corpus_root_or_503(request))
     tid = cil_queries.canonical_cil_entity_id(topic_id.strip())
     # Blocking os.walk + per-episode JSON reads — keep it off the event loop (audit #3).
-    raw = await asyncio.to_thread(cil_queries.topic_conversation_arc, root, root, tid)
+    raw = await asyncio.to_thread(_conversation_arc, root, tid)
     return AppTopicConversationArcResponse(
         topic_id=tid,
         weeks=[CilTopicConversationArcWeek(**w) for w in raw],
@@ -238,6 +239,29 @@ async def entity_search(
     return AppEntitySearchResponse(query=q, entity=entity)
 
 
+# The conversation arc is an uncached corpus-wide scan (``topic_timeline`` walks every episode
+# bundle). The topic card needs its WEEK COUNT up front — so the card can decide whether the arc
+# section exists before drawing it, rather than drawing a placeholder that then vanishes for most
+# topics (#2202) — and the arc route needs the weeks themselves a moment later. Memoized per
+# (corpus, topic) for a short window so the two requests share ONE scan. Brief staleness is fine:
+# the arc only moves when the corpus is re-ingested.
+_CONVERSATION_ARC_TTL_SECONDS = 30.0
+_conversation_arc_cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
+
+
+def _conversation_arc(root: str, topic_id: str) -> list[dict]:
+    from podcast_scraper.server import cil_queries
+
+    key = (root, topic_id)
+    now = time.monotonic()
+    cached = _conversation_arc_cache.get(key)
+    if cached is not None and now - cached[0] < _CONVERSATION_ARC_TTL_SECONDS:
+        return cached[1]
+    weeks = cil_queries.topic_conversation_arc(root, root, topic_id)
+    _conversation_arc_cache[key] = (now, weeks)
+    return weeks
+
+
 @router.get("/topics/{topic_id}", response_model=AppTopicCard)
 async def topic_card(
     request: Request,
@@ -250,10 +274,19 @@ async def topic_card(
     404 when the topic appears in no episode's KG. ``scope=mine`` (P3 #1122) restricts the
     episodes-about to the user's heard∪captured set; auth-gated (401 signed out).
     """
+    from podcast_scraper.server import cil_queries
+
     root = corpus_root_or_503(request)
-    card = await asyncio.to_thread(build_topic_card, root, topic_id.strip())
+    arc_id = cil_queries.canonical_cil_entity_id(topic_id.strip())
+    # Built side by side: the arc scan runs while the card is assembled, not after it.
+    built: tuple[AppTopicCard | None, list[dict]] = await asyncio.gather(
+        asyncio.to_thread(build_topic_card, root, topic_id.strip()),
+        asyncio.to_thread(_conversation_arc, str(root), arc_id),
+    )
+    card, arc = built
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown topic id.")
     if scope == "mine":
-        card = _scope_to_corpus(card, _user_set(request, user))
-    return card
+        # The arc is corpus-wide with no per-user cut; under "My corpus" the card shows none.
+        return _scope_to_corpus(card, _user_set(request, user))
+    return card.model_copy(update={"conversation_arc_weeks": len(arc)})

@@ -45,6 +45,33 @@ test("the topic view renders the entity body, its arc and its theme members", as
   await expect(storyline).not.toBeEmpty()
 })
 
+/**
+ * The arc section exists only where there is an arc worth drawing (#2202 options 1 + 3).
+ *
+ * Most topics have no insight ABOUT them and so no arc (33 of the fixture's 50); ten more have a
+ * single week, and one bar is not a trend. The card now carries `conversation_arc_weeks`, so for
+ * these the section is decided before anything is drawn. Proved by the REQUEST: a topic the card
+ * rules out never asks for its arc, so a placeholder cannot appear and then vanish.
+ */
+for (const [topic, why] of [
+  ["topic:broadcast-format", "no insight is about it"],
+  ["topic:code-switching", "a single week"],
+] as const) {
+  test(`no arc section, and no arc request, for a topic with ${why}`, async ({ page }, testInfo) => {
+    await signInIsolated(page, `topic-no-arc-${topic.split(":")[1]}`, testInfo)
+    const arcRequests: string[] = []
+    page.on("request", (r) => {
+      if (r.url().includes("/conversation-arc")) arcRequests.push(r.url())
+    })
+    await page.goto(`/topic/${encodeURIComponent(topic)}`)
+    await expect(page.getByRole("heading").first()).toBeVisible()
+    await page.waitForLoadState("networkidle")
+    expect(arcRequests, "the card said there is no arc, yet the arc was fetched").toEqual([])
+    await expect(page.getByTestId("topic-arc-loading")).toHaveCount(0)
+    await expect(page.getByTestId("topic-conversation-arc")).toHaveCount(0)
+  })
+}
+
 test("a storyline follow on the entity card writes an interest", async ({ page }, testInfo) => {
   await signInIsolated(page, "entity-storyline", testInfo)
   await page.goto(`/topic/${encodeURIComponent(TOPIC)}`)

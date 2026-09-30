@@ -14,8 +14,28 @@ import { useSectionState } from '../composables/useSectionState'
 import { getTopicConversationArc } from '../services/api'
 import type { TopicConversationArcWeek } from '../services/types'
 
-const props = defineProps<{ id: string; scope?: 'all' | 'mine' }>()
+const props = defineProps<{
+  id: string
+  scope?: 'all' | 'mine'
+  /**
+   * How many weeks the arc has, from the topic card (`conversation_arc_weeks`, #2202). When known,
+   * the section decides BEFORE drawing anything: most topics have no insight ABOUT them and so no
+   * arc (66% of the fixture corpus), and drawing a loading placeholder for them only to remove it
+   * a moment later was the "section that vanishes" report. Undefined from a server that predates
+   * the field — then the section loads as before and applies the same rule to what comes back.
+   */
+  knownWeeks?: number
+}>()
 const { t } = useI18n()
+
+/**
+ * One week is a bar, not a trend (#2202 option 3): an arc needs at least two weeks to show a shape
+ * over time, so a single-week topic shows no arc section at all.
+ */
+const MIN_ARC_WEEKS = 2
+const knownTooShort = computed(
+  () => props.knownWeeks !== undefined && props.knownWeeks < MIN_ARC_WEEKS,
+)
 
 /**
  * `useSectionState` so a failed fetch is not indistinguishable from a topic with no dated
@@ -34,14 +54,16 @@ async function load(): Promise<void> {
   const mine = requestSeq.value + 1
   requestSeq.value = mine
   await section.load(async () => {
-    if (props.scope === 'mine') return []
+    if (props.scope === 'mine' || knownTooShort.value) return []
     const r = await getTopicConversationArc(props.id)
     if (mine !== requestSeq.value) throw new Error('superseded')
     return r.weeks
   })
 }
 
-watch([() => props.id, () => props.scope], () => void load(), { immediate: true })
+watch([() => props.id, () => props.scope, () => props.knownWeeks], () => void load(), {
+  immediate: true,
+})
 
 const maxVolume = computed(() => Math.max(1, ...weeks.value.map((w) => w.volume)))
 const totalInsights = computed(() => weeks.value.reduce((n, w) => n + w.volume, 0))
@@ -58,7 +80,9 @@ const SENT_CLASS: Record<'negative' | 'neutral' | 'positive', string> = {
   <!-- The heading stays visible when this fails, so the error names what broke (#2004 item 12).
        See TopicPerspectives for the full reasoning — both render into the same slot on a topic
        page, and an unlabelled box could have been either. -->
-  <section v-if="section.isError.value" class="mb-4" data-testid="topic-arc-error">
+  <!-- `knownTooShort` gates the error and loading states too: a topic the card already knows has
+       no arc must never flash a placeholder, not even for the tick the empty load takes. -->
+  <section v-if="!knownTooShort && section.isError.value" class="mb-4" data-testid="topic-arc-error">
     <h3 class="lp-section mb-2">{{ t('ec.conversationArc') }}</h3>
     <SectionStatus :phase="section.phase.value" @retry="load()" />
   </section>
@@ -72,19 +96,19 @@ const SENT_CLASS: Record<'negative' | 'neutral' | 'positive', string> = {
     that is indistinguishable from a section that comes and goes at random.
 
     The comment that used to justify having no skeleton said "this sits inside an already-loading
-    card". True of the card, false of this: `topic_conversation_arc` reuses `topic_timeline`, a
-    corpus-wide scan that tags every insight with sentiment and rolls it up by ISO week, and it is
-    NOT cached — unlike episode reach, which memoises for 30s precisely because it is a big scan.
-    The card finishes long before this does, so "already loading" described a state that had ended.
+    card". `topic_conversation_arc` reuses `topic_timeline`, a corpus-wide scan that tags every
+    insight with sentiment and rolls it up by ISO week. Since #2202 the card waits for that scan to
+    learn the week count, and this request then reads the same result from a 30s memo; but a card
+    from an older server still does not, so the placeholder stays for the case that needs it.
 
     Same heading in all three states, so the box never changes identity as it resolves.
   -->
-  <section v-else-if="section.isLoading.value" class="mb-4" data-testid="topic-arc-loading">
+  <section v-else-if="!knownTooShort && section.isLoading.value" class="mb-4" data-testid="topic-arc-loading">
     <h3 class="lp-section mb-2">{{ t('ec.conversationArc') }}</h3>
     <SectionStatus :phase="section.phase.value" @retry="load()" />
   </section>
 
-  <section v-else-if="weeks.length" class="mb-4" data-testid="topic-conversation-arc">
+  <section v-else-if="weeks.length >= MIN_ARC_WEEKS" class="mb-4" data-testid="topic-conversation-arc">
     <div class="mb-2 flex items-baseline justify-between gap-2">
       <h3 class="lp-section">{{ t('ec.conversationArc') }}</h3>
       <span class="text-xs text-muted">

@@ -262,3 +262,53 @@ def test_topic_conversation_arc_route(tmp_path: Path) -> None:
     wk = body["weeks"][0]
     assert wk["week"] == "2024-W03"
     assert wk["volume"] == 2 and wk["positive"] == 1 and wk["negative"] == 1
+
+
+def test_topic_card_carries_conversation_arc_week_count(tmp_path: Path) -> None:
+    """The card says up front how many weeks its arc has (#2202), matching the arc route."""
+    _two_episode_corpus(tmp_path)
+    _write_arc_bundle(tmp_path, "0101-a", "2024-01-15", "i1", "positive")
+    _write_arc_bundle(tmp_path, "0102-b", "2024-03-04", "i2", "negative")
+    client = _client(tmp_path)
+    card = client.get("/api/app/topics/topic:ai").json()
+    arc = client.get("/api/app/topics/topic:ai/conversation-arc").json()
+    assert len(arc["weeks"]) == 2
+    assert card["conversation_arc_weeks"] == 2
+
+
+def test_topic_card_arc_weeks_zero_when_no_insight_is_about_the_topic(tmp_path: Path) -> None:
+    """KG-mentioned but no insight ABOUT it — the common case (#2202): the card says 0."""
+    _two_episode_corpus(tmp_path)
+    card = _client(tmp_path).get("/api/app/topics/topic:ai").json()
+    assert card["episode_count"] == 2
+    assert card["conversation_arc_weeks"] == 0
+
+
+def test_topic_card_mine_scope_reports_no_arc(tmp_path: Path) -> None:
+    """The arc is corpus-wide with no per-user cut, so "My corpus" never offers it."""
+    _two_episode_corpus(tmp_path)
+    _write_arc_bundle(tmp_path, "0101-a", "2024-01-15", "i1", "positive")
+    body = _client(tmp_path).get("/api/app/topics/topic:ai", params={"scope": "mine"}).json()
+    assert body["conversation_arc_weeks"] == 0
+
+
+def test_topic_card_and_arc_route_share_one_scan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The arc is an uncached corpus-wide walk; the card's count must not double it."""
+    from podcast_scraper.server import cil_queries
+
+    _two_episode_corpus(tmp_path)
+    _write_arc_bundle(tmp_path, "0101-a", "2024-01-15", "i1", "positive")
+    real = cil_queries.topic_conversation_arc
+    calls: list[str] = []
+
+    def counting(*args: object, **kwargs: object) -> list[dict]:
+        calls.append(str(args[2]))
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(cil_queries, "topic_conversation_arc", counting)
+    client = _client(tmp_path)
+    client.get("/api/app/topics/topic:ai")
+    client.get("/api/app/topics/topic:ai/conversation-arc")
+    assert calls == ["topic:ai"]
