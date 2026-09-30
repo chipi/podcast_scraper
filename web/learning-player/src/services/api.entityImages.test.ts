@@ -153,3 +153,34 @@ describe('topic card top voices', () => {
     )
   })
 })
+
+describe('trending people photos', () => {
+  // The sixth instance of this defect (2026-09-30): Discover → Trends → People showed initials on
+  // device for every person, while each person's own card showed the photo.
+  it('absolutises image_url on trending rows, and leaves photo-less rows alone', async () => {
+    const { getTrending } = await import('./api')
+    mockFetch({
+      items: [
+        { entity_id: 'person:m', kind: 'person', label: 'M', image_url: '/api/app/persons/person%3Am/photo' },
+        { entity_id: 'person:n', kind: 'person', label: 'N', image_url: null },
+      ],
+    })
+    const rows = await getTrending('person')
+    expect(rows[0].image_url).toBe('https://closelistening.app/api/app/persons/person%3Am/photo')
+    expect(rows[1].image_url).toBeNull()
+  })
+})
+
+describe('episode entities', () => {
+  it('absolutises a person photo if the endpoint ever carries one', async () => {
+    const { getEntities } = await import('./api')
+    mockFetch({
+      episode_slug: 'e',
+      persons: [{ id: 'person:p', label: 'P', image_url: '/api/app/persons/person%3Ap/photo' }],
+      orgs: [],
+      topics: [],
+    })
+    const resp = await getEntities('e')
+    expect(resp.persons[0].image_url).toBe('https://closelistening.app/api/app/persons/person%3Ap/photo')
+  })
+})
