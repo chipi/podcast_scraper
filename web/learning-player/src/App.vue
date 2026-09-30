@@ -496,7 +496,7 @@ const mainBottomPadding = computed(() =>
   <div class="min-h-dvh bg-canvas text-canvas-foreground font-sans">
     <!-- dvh (not vh) avoids the iOS 100vh over-report; safe-area top so the nav clears the
          notch / Dynamic Island, and side insets for landscape rounded corners. -->
-    <header class="border-b border-border px-5 pb-2 pt-[max(0.55rem,env(safe-area-inset-top))] pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]">
+    <header class="border-b border-border px-4 pb-2 pt-[max(0.55rem,env(safe-area-inset-top))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:px-5 sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))]">
       <div class="mx-auto flex max-w-6xl items-center justify-between gap-3">
       <RouterLink :to="{ name: 'home' }" class="flex min-w-0 items-center gap-2 no-underline">
         <BrandGlyph class="h-7 w-auto shrink-0 sm:h-9" />
@@ -509,7 +509,7 @@ const mainBottomPadding = computed(() =>
           <span class="block whitespace-nowrap font-display text-[21px] font-extrabold leading-tight tracking-tight sm:text-2xl">{{ t('app.title') }}</span>
         </span>
       </RouterLink>
-      <nav class="text-sm flex items-center gap-1 sm:gap-1.5">
+      <nav class="text-sm flex items-center gap-0 sm:gap-1.5">
         <!--
           Icon links are DESKTOP-only (#1594 follow-up).
 
