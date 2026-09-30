@@ -48,7 +48,7 @@ final class NativeOnlySurfacesTests: UITestCase {
   // MARK: - 1. Up next carries the download control in the row
 
   func testUpNextShowsTheDownloadControlWithoutOpeningTheOverflow() throws {
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.terminate()
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
@@ -165,7 +165,7 @@ final class NativeOnlySurfacesTests: UITestCase {
     // The state half. A control that says "Download for offline" about a file already on disk is
     // the same failure as the Played filter matching nothing: the app holding the answer and
     // showing the opposite.
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.terminate()
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
@@ -197,7 +197,7 @@ final class NativeOnlySurfacesTests: UITestCase {
      * Settings and Settings is behind the guard: sign out first and there is no way back in to
      * flip it.
      */
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.terminate()
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
@@ -239,7 +239,7 @@ final class NativeOnlySurfacesTests: UITestCase {
      * Offline that is the only door; online it would be a back-door. So online it must redirect to
      * the landing — where you can actually sign in — and this test is the boundary, not a smoke test.
      */
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.terminate()
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))

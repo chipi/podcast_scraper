@@ -27,7 +27,7 @@ final class OfflineAutoAdvanceTests: UITestCase {
   /// Per-suite isolation (#2091) would give it an empty account and the seed would be invisible.
   override var accountIdentity: String { Self.sharedSeededIdentity }
   func testBootsAndPlaysADownloadedEpisodeWithNoNetwork() throws {
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.terminate()
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))

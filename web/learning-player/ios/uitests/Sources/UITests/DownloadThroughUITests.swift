@@ -32,7 +32,7 @@ final class DownloadThroughUITests: UITestCase {
   private let second = (slug: "p06-5416bc0968", title: "The Conversation About Conversations")
 
   func testDownloadsTwoEpisodesThroughTheUIAndQueuesThem() throws {
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     // Cold: launch() on a running app only ACTIVATES it, so a previous run could leave this one
     // deep inside a player page and the first Browse tap would be a no-op.

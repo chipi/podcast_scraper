@@ -2196,7 +2196,12 @@ app-e2e-api-down:
 # ios/App.xcodeproj: it drives the installed app by bundle id, so ``npx cap add ios`` (which
 # rewrites bundle ids across the app's project file) can never break it.
 IOS_SIM ?= iPhone 17
-IOS_BUNDLE_ID ?= app.closelistening.player
+# The DEBUG bundle id, because every local install path below builds Debug (simulator at
+# `ios-sim-install`, physical device at `ios-device-install`). Debug ships
+# `app.closelistening.player.dev` so a local build sits BESIDE the TestFlight app on a real phone
+# instead of replacing it — iOS identifies an app by bundle id alone, so sharing the shipped id
+# means the newer install wins and the other disappears (operator hit this, 2026-09-30).
+IOS_BUNDLE_ID ?= app.closelistening.player.dev
 IOS_UITESTS_DIR = $(APP_DIR)/ios/uitests
 # WORKTREE-SCOPED, for the same reason the e2e container and volumes are: this machine runs several
 # worktrees of this repo, and `/tmp/lp-ios-dd` was shared by all of them. Two worktrees building iOS
@@ -2914,7 +2919,7 @@ ios-app-install: ios-origin-up ios-dd-check
 	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
 	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
 	@# Prove the installed bundle is the one we meant — the failure mode above is silent otherwise.
-	@app=$$(xcrun simctl get_app_container booted app.closelistening.player) && \
+	@app=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID)) && \
 		if grep -qF "127.0.0.1:$(IOS_ORIGIN_PORT)/api/app" "$$app/public/assets/"*.js; then \
 			echo "✓ installed bundle points at the single origin (api + audio)"; \
 		else \
@@ -3297,7 +3302,7 @@ ios-device-install:
 	fi; \
 	echo "--> installing on $$udid"; \
 	xcrun devicectl device install app --device "$$udid" "$$app"
-	@echo "OK: app.closelistening.player installed. It talks to the api in $(APP_DIR)/.env.mobile."
+	@echo "OK: $(IOS_BUNDLE_ID) installed. It talks to the api in $(APP_DIR)/.env.mobile."
 
 # Android debug APK — the counterpart to `ios-device-install` (operator 2026-09-18).
 #

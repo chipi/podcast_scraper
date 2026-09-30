@@ -399,7 +399,7 @@ enum Journey {
 
   /// Launch the installed app and wait for first paint + boot revalidation.
   static func launch() -> XCUIApplication {
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.launch()
     _ = app.wait(for: .runningForeground, timeout: 30)
     sleep(7) // boot paints the device snapshot, then revalidates; assert after that lands

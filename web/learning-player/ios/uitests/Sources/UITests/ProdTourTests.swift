@@ -14,7 +14,7 @@ import XCTest
 final class ProdTourTests: UITestCase {
 
   func testTourProdSignedOut() {
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.terminate()
     app.launch()
     _ = app.wait(for: .runningForeground, timeout: 30)
