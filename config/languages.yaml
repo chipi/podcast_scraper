@@ -8,7 +8,7 @@
 # `enabled` is the gate. A language that is present here but not enabled is a language we have
 # described, not one we ingest: an episode resolving to it is SKIPPED with a reason (S0.8),
 # never transcribed as English. A language absent entirely is the same outcome by a different
-# route. Only `en` is enabled today.
+# route. `en` and `es` are enabled today.
 #
 # `wer` is Whisper large-v3 FLEURS word error rate, %, from the published table (§6.2). It is
 # recorded to inform sequencing, NOT as a gate — the tiers below are ordered by editorial
@@ -30,11 +30,21 @@ languages:
   es:
     name: Spanish
     tier: 1
-    enabled: false
+    enabled: true
     script: latin
     wer: 3.0
-    # The exercise language for local fixtures (D-30). Enabling it is a separate decision
-    # from using it to build them.
+    # ENABLED 2026-09-30, the first language after English. `enabled` is the only gate there is
+    # (D-41: there is no feature flag), so this line is what makes a Spanish episode ingest,
+    # translate, and reach summary/GI/KG. Lowest WER of the tier-1 set (3.0 against English's
+    # 4.2) and the language the whole arc was built and measured against — V.6a's hazards,
+    # S2.10's 174 timed requests, ADR-157's model choice.
+    #
+    # What has to be true for this to be safe, and is: translation is deployed and reachable
+    # (`:8005`, ADR-157); the §5.3 completeness gate withholds `.en.*` from an incomplete
+    # translation so no English stage ever reads Spanish; naming runs AFTER translation (D-34)
+    # so guests are named and positions exist; ad excision runs on the English render, not the
+    # Spanish source (S2.7); and both chunk layers are indexed so a Spanish query reaches the
+    # episode (RFC-124 §6.2).
   it:
     name: Italian
     tier: 1

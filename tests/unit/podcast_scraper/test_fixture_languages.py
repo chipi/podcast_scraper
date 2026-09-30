@@ -66,10 +66,20 @@ class TestTheRssFixtures:
             "lowercase-only normalizer"
         )
 
-    def test_spanish_is_a_fixture_not_a_rollout(self) -> None:
-        """The language is parsed and recorded; it is NOT ingested. If this ever fails, someone
-        enabled `es` and the skip path (S0.8) stopped covering this fixture."""
-        assert is_language_enabled("es") is False
+    def test_spanish_is_ENABLED_now_so_this_fixture_is_ingested(self) -> None:
+        """Inverted 2026-09-30. This test used to assert `es` was disabled — "the language is
+        parsed and recorded; it is NOT ingested" — which was the right assertion while Spanish
+        was only a metadata fixture.
+
+        `es` is enabled now, so this feed is a feed the pipeline processes, and the thing worth
+        pinning is the opposite: that S0.8 no longer refuses it. The refusal path is still
+        covered, by a language that IS still disabled.
+        """
+        assert is_language_enabled("es") is True
+        assert is_language_enabled("de") is False, (
+            "the S0.8 refusal path needs at least one described-but-disabled language to be "
+            "testable at all"
+        )
 
 
 class TestTheGeneratorsWriteIt:

@@ -106,14 +106,23 @@ class TestResolveLanguage:
 class TestRegistry:
     """``config/languages.yaml`` — the gate on which languages we ingest (#2174)."""
 
-    def test_only_english_is_enabled_today(self) -> None:
+    def test_exactly_english_and_spanish_are_enabled_today(self) -> None:
+        """`es` was enabled 2026-09-30, the first language after English.
+
+        Pinned as an EXACT set rather than "at least these", because `enabled` is the only gate
+        there is (D-41: there is no feature flag) — so a language appearing here is a language
+        the pipeline will ingest, translate and publish. That must be a deliberate edit with the
+        arc's safety conditions met, never a side effect of touching the registry.
+        """
         from podcast_scraper.languages import is_language_enabled, language_registry
 
         reg = language_registry()
         assert reg, "registry failed to load — every language would read as not-enabled"
-        assert [c for c, e in reg.items() if e.enabled] == ["en"]
+        assert sorted(c for c, e in reg.items() if e.enabled) == ["en", "es"]
         assert is_language_enabled("en") is True
-        for code in ("es", "de", "ru", "ja", "ar"):
+        assert is_language_enabled("es") is True
+        # Still described, still not ingested — the distinction the registry exists to carry.
+        for code in ("de", "ru", "ja", "ar"):
             assert is_language_enabled(code) is False, code
 
     def test_all_three_tiers_are_described(self) -> None:
