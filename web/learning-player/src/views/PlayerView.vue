@@ -1376,10 +1376,14 @@ onBeforeUnmount(() => {
         <!-- Hero artwork (UXS-014/UXS-011 §43): the Ask/Insights actions + the summary sit over
              the top of the image; a live-intelligence band ("Zone D") owns the bottom — see below
              for why that moved out of the top row entirely. -->
-        <!-- Hero stays 1:1 (operator). Pixels for the transport are saved from the masthead above
-             (smaller title, tighter margins), not by cropping the square. -->
+        <!-- Hero is 5:4 on PHONES, 1:1 from `lg` (operator 2026-09-30, superseding "hero stays 1:1").
+             The masthead and the gaps around the transport had already been tightened, and on an
+             iPhone the timestamps were still ~30pt under the tab bar: a full-width square is ~360pt
+             of a ~600pt usable screen. 5:4 gives back ~70pt, which puts the whole transport —
+             buttons, scrubber, density strip, timestamps — on screen. Desktop has the height, and
+             keeps the square. -->
         <div
-          class="group relative mt-2 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-elevated"
+          class="group relative mt-2 aspect-[5/4] w-full overflow-hidden rounded-2xl border border-border bg-elevated lg:aspect-square"
         >
           <img
             v-if="artwork"

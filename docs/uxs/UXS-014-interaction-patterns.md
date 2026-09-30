@@ -551,13 +551,16 @@ Do not add a dialog to an action you could simply reverse.
 
 ## Player hero (artwork zone)
 
-The Player masthead is a **hero**: a fixed-square artwork carrying overlays, so layout height is
-constant regardless of content length.
+The Player masthead is a **hero**: a fixed-aspect artwork carrying overlays, so layout height is
+constant regardless of content length. **5:4 on phones, 1:1 from `lg`** (2026-09-30): at a
+full-width square the hero took ~360pt of an iPhone's ~600pt usable height, and the transport's
+scrubber and timestamps fell under the tab bar even after the gaps around them were tightened; 5:4
+gives back ~70pt and puts the whole transport on screen. Desktop has the height and keeps the square.
 
 - **Summary** is revealed on demand: hidden by default (clean artwork), it **slides up + fades in on
   hover/focus** over a darker legibility gradient (`from-black/95 via-black/85 to-black/40`, white
   text) so it stays readable even over bright artwork. Always shown on touch (no hover). Full text,
-  never clamped — the fixed-square hero stabilises height regardless.
+  never clamped — the fixed-aspect hero stabilises height regardless.
 - **Live intelligence** ("Insight now / Speaking now") sits top-left; the **per-episode reach**
   cluster (listeners · opens · Insights + a tiny opens-over-time `Sparkline`) sits top-right. The
   Insights score opens the panel — no duplicate "Ask" entry (Ask lives inside the panel).
