@@ -34,7 +34,6 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..languages import transcription_language
 from ..languages_guard import is_english_text_language
 
 logger = logging.getLogger(__name__)
@@ -74,8 +73,20 @@ class NamingOutcome:
         }
 
 
-def naming_is_deferred(cfg: Any) -> bool:
+def naming_is_deferred(cfg: Any, *, feed_language: Optional[str] = None) -> bool:
     """Whether THIS episode's naming waits for a translation (D-34).
+
+    ``feed_language`` is the feed's declared tag, passed when the caller has the feed object in
+    hand. It exists because `run_translation_stage` takes one and this did not, and the two
+    stages MUST resolve the language from the same input: a caller that passed the tag to
+    translation but not onto the config got translation running and naming silently skipping —
+    a translated episode with anonymous labels, so no guest, no SPOKEN_BY edge and no
+    position-bearing insights. Exactly the failure D-34 exists to prevent, reached by a
+    different route, and silent because `not_deferred` is also a legitimate state.
+
+    Measured in the first real translation run (2026-09-30): translation reported
+    `source_language=es (rss)` and produced a complete English set, while naming in the same
+    process reported `not_deferred` with zero voices.
 
     True only when the episode is non-English **and** a translator is deployed. Both halves
     matter, and for different reasons:
@@ -90,9 +101,13 @@ def naming_is_deferred(cfg: Any) -> bool:
     This is the same predicate `decide_translation` uses to reach `pending`, and it must stay
     that way: if the two disagree, an episode either gets named twice or never.
     """
+    from ..languages import resolve_config_language
     from ..translation.factory import is_translation_configured
 
-    language = transcription_language(cfg)
+    # The SAME resolution `decide_translation` performs, from the same inputs. Both go through
+    # `resolve_config_language` so an explicit tag wins over the config field, and neither can
+    # answer differently from the other.
+    _raw, language, _source = resolve_config_language(cfg, feed_language=feed_language)
     if is_english_text_language(language):
         return False
     return bool(is_translation_configured(cfg))
@@ -228,6 +243,7 @@ def run_naming_stage(
     episode_id: Optional[str] = None,
     feed_id: Optional[str] = None,
     run_id: Optional[str] = None,
+    feed_language: Optional[str] = None,
 ) -> NamingOutcome:
     """Resolve the voices from the ENGLISH render and re-render both transcripts named (D-34).
 
@@ -251,7 +267,7 @@ def run_naming_stage(
 
     started = time.monotonic()
 
-    if not naming_is_deferred(cfg):
+    if not naming_is_deferred(cfg, feed_language=feed_language):
         return NamingOutcome(
             status=STATUS_NOT_DEFERRED,
             reason="naming already ran inside diarization for this episode",

@@ -281,3 +281,88 @@ class TestThePureHelpers:
         out, changed = relabel_segments(rows, {"SPEAKER_01": "Marcus Webb"})
         assert changed == 1
         assert out[1]["speaker_label"] == "Marcus Webb"
+
+
+class TestBothStagesResolveTheLanguageTheSameWay:
+    """Found by the FIRST REAL translation run (2026-09-30), not by any test.
+
+    `run_translation_stage` accepted a `feed_language` argument and `run_naming_stage` did not,
+    so the only way naming could see the feed's tag was `cfg.feed_declared_language`. Production
+    sets that field in `run_pipeline`, so the two agreed there — but a caller that passed the tag
+    to translation without it being on the config got:
+
+        TRANSLATION: translated  source_language=es (rss)  units=47 failed=0  english_ready=True
+        NAMING:      not_deferred  voices=0  renamed={}
+
+    A complete English set, and an episode left with anonymous labels. No guest, no SPOKEN_BY
+    edge, no position-bearing insights — the exact failure D-34 exists to prevent, reached by a
+    different route. And SILENT, because `not_deferred` is a legitimate state meaning "naming
+    already ran inside diarization".
+
+    This is the second time in this arc that one question answered through two channels has bitten
+    (the first: `transcription_language` vs the metadata writer, #2172). Both stages resolve
+    through `resolve_config_language` from the same inputs now.
+    """
+
+    def test_both_stages_accept_the_feeds_language(self) -> None:
+        import inspect
+
+        from podcast_scraper.workflow.naming_stage import run_naming_stage
+        from podcast_scraper.workflow.translation_stage import run_translation_stage
+
+        for fn in (run_translation_stage, run_naming_stage):
+            assert "feed_language" in inspect.signature(fn).parameters, fn.__name__
+
+    def test_the_tag_alone_is_enough_to_defer(self, tmp_path: Path) -> None:
+        """The config carries the profile default `en` and nothing else — exactly the shape the
+        real run had. The tag must be sufficient."""
+        from podcast_scraper.workflow.naming_stage import naming_is_deferred
+
+        cfg = config.Config(
+            rss="https://e.com/f.xml",
+            language="en",
+            translate_api_base="http://translator.invalid:8005/v1",
+            translate_model="google/translategemma-12b-it",
+        )
+        assert naming_is_deferred(cfg) is False, "control: nothing says this is Spanish"
+        assert naming_is_deferred(cfg, feed_language="es-ES") is True
+
+    def test_the_two_stages_agree_on_every_shape(self, tmp_path: Path) -> None:
+        """The property that matters, asserted directly: for the same inputs, "translation is
+        owed" and "naming is deferred" must never disagree."""
+        from podcast_scraper.workflow.naming_stage import naming_is_deferred
+        from podcast_scraper.workflow.translation_stage import decide_translation
+
+        for language, feed, translator in (
+            ("en", None, True),
+            ("en", "es-ES", True),
+            ("es", None, True),
+            ("en", "es-ES", False),
+            ("en", "en-US", True),
+        ):
+            kw: dict[str, Any] = {"rss": "https://e.com/f.xml", "language": language}
+            if translator:
+                kw["translate_api_base"] = "http://translator.invalid:8005/v1"
+                kw["translate_model"] = "google/translategemma-12b-it"
+            cfg = config.Config(**kw)  # type: ignore[arg-type]
+            owed = (
+                decide_translation(cfg, feed_language=feed, transcript_relpath=REL).status
+                == "pending"
+            )
+            deferred = naming_is_deferred(cfg, feed_language=feed)
+            assert owed == deferred, (
+                f"language={language} feed={feed} translator={translator}: translation "
+                f"owed={owed} but naming deferred={deferred} — one of them will run against "
+                "the wrong assumption"
+            )
+
+    def test_the_seam_passes_it_to_BOTH(self) -> None:
+        """Asserted on the source, because the seam is inside a 200-line function that also
+        writes metadata. It is the line whose absence produced the real-run failure."""
+        src = (
+            Path(__file__).resolve().parents[3]
+            / "src/podcast_scraper/workflow/metadata_generation.py"
+        ).read_text(encoding="utf-8")
+        assert (
+            src.count('feed_language=getattr(feed, "language", None),') >= 2
+        ), "translation and naming must both receive the feed's tag at the seam"

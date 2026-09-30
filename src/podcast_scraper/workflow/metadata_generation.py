@@ -4878,6 +4878,11 @@ def generate_episode_metadata(  # noqa: C901
         cfg,
         transcript_relpath=transcript_file_path or "",
         effective_output_dir=output_dir,
+        # THE SAME tag translation got, four lines up. The two stages must resolve the language
+        # from the same input: passing it to one and not the other is how the first real
+        # translation run ended with a complete English set and naming reporting
+        # `not_deferred` — a translated episode with anonymous labels, silently.
+        feed_language=getattr(feed, "language", None),
         # The same two channels `apply_diarization_to_result` receives: the guests detection
         # found, and the hosts the feed's own blurb states. They are CANDIDATES — the roster may
         # only match a name from this closed list onto a voice, never author one (#876).

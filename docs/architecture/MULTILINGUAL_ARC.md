@@ -290,6 +290,7 @@ feed is added.
 | **S2.10** | ~~Cost and capacity measurement~~ | **DONE 2026-09-30, measured on the real service.** **Latency**, 174 requests: p50 **5.6 s**, p95 **13.0 s**, p99 **143 s**, max **145 s** per unit at concurrency 1. **Throughput**: 4.1 tok/s at concurrency 1 vs 5.0 at concurrency 4 — parallelism buys almost nothing, so the co-resident GPU is the constraint, not request concurrency; there is no reason to fan out wider. **Unit size dominates everything**: 580 words took 141 s, 1,740 words timed out at 240 s (3/3, deterministic), 4,060 words silently returned its first sentence. **Wall time per episode** (RFC-124 OQ3's cap, now settable): a real 47-turn episode packs to ~133 sentences; at p50 5.6 s per unit that is **~8 min** serial, and p95 13 s puts the tail at **~29 min** — so a cap of 45 min with the ADR-122 breaker for endpoint failures is the shape the data supports. **Storage delta**: **~104 KiB per episode** (`.en.txt` + `.en.segments.json` at one cue per sentence + `.en.adfree.*` + `translation.json`), against 21 KiB of source text artifacts — **4.9x** the text, and negligible beside audio. **Cost is a measured zero** (local GPU), which is why the manifest records per-episode UNITS and TOKENS instead: cost alone would record nothing. Raw data: `docs/wip/2169-TRANSLATE-MEASUREMENT.jsonl`. | S2.3 | S | closed |
 | **S2.11** | Translation provenance on every claim | The `translation` block (`translated`, `source_language`, `unit_ids`, `en_sha256`) written into node `properties` via `resolve_units_for_span`, by **every** writer of `gi.json` — the artifact builder, `add_spoken_by_edges(replace=True)` and `gi/repair.py`. | S2.5 | M | closed |
 | **S2.14** | English-only NLP cannot run on non-English text | A guard at the naming and sniff-gate entry points: refuse (or skip with a reason) when the text's resolved language is not `en`. **Defence in depth, and the failure it catches is silent.** If translation ran correctly nothing non-English ever reaches these stages — but a skipped translation, a stage run out of order, or a reprocess with the wrong flag would feed Spanish to English NER, and the measured result (§5.2) is not an absence but *four phantom people* surviving `_looks_like_person`, each minted as a person node with a `SPOKEN_BY` edge and position claims. A missing name is visible; a phantom person is not. Same shape as S0.7's English-only transcription guard, and for the same reason. | S2.4 | S | closed — reachable as of 2026-09-30; it was not before |
+| **V.7** | ~~First real translation — Pass A, translation only~~ | **DONE 2026-09-30, on the live `:8005`.** The first time any real translator produced a `.en.*` set. 47 units, **0 failed, 0 retries, 0 unit-fallbacks — every unit sentence-aligned**; **3.4 min** wall against S2.10's ~8 min prediction; served-model verification ON (ADR-143/144) and it passed; storage **4.4x** the source text against the predicted 4.9x. Ad detection on the English render: **5 patterns against 0 on the Spanish source** (ADR-157 predicted 2 vs 0), 742 ad chars excised. D-42's title decision validated on first contact — `Construyendo Senderos Que Duran` came back as `Building Trails That Last.`, which is the English original's title verbatim apart from a trailing period the model adds. Naming resolved **both** people from the English render (Maya Koster from the feed's author tag, Liam Verbeek from the English self-intro) and correctly left the ad voice unnamed. **THREE FINDINGS, none of which any test had caught** — see §9. | S2.11 | S | closed |
 | **S2.13** | Phase 2 gate | **NOT RUN. EVERY SLICE IS NOW DONE** (S2.1a, S2.1b, S2.2, S2.3, S2.4, S2.5, S2.6, S2.7, S2.8, S2.9, S2.10, S2.11, S2.14 — S2.12 was deleted, see §8). **The per-slice status cells in this table were stale until 2026-09-30**: seven slices shipped and were still marked open, and several notes referenced a `multilingual_ingest` flag that no longer exists (D-41). What the gate still needs: **(1)** ~~D-34~~ **DONE 2026-09-30** — naming runs after translation, zero diff on the naming golden; **(2)** one real end-to-end run — every test to date stubs the provider, so no real translator has produced a `.en.*` set; **(3)** ~~the `:8005` tailnet ACL applied~~ **DONE 2026-09-30** — the operator applied it; measured from the laptop, `/health` answers 200 in 7.4 ms; **(4)** an index rebuild to measure keyword recall (Docker-only on this machine), which now also has to cover the **source-language chunk layer** added for RFC-124 §6.2; **(5)** ~~the title decision S2.4 left open~~ **DONE — D-42**; **(6)** the full suite with a frozen tree. | S2.1b–S2.11 | M | This is the ship |
 
 ---
@@ -712,6 +713,43 @@ Two questions dissolved rather than being answered: the non-diarized-episode cat
 Record new open questions here as they appear; do not let a settled decision drift back into this list.
 
 ## 9. Running notes
+
+**2026-09-30 — PASS A: the first real translation end to end, and three findings no test had.**
+47 units against the live `:8005`, translation only (summary/GI/KG deliberately skipped — they hit
+`prod-vllm` on a box currently in its pre-wedge memory zone, homelab #81). Everything the design
+predicted held: 0 failed units, 0 retries, every unit sentence-aligned, 3.4 min against a ~8 min
+prediction, 4.4x storage against 4.9x, ad detection 5 patterns on the English render against 0 on
+the Spanish source, and D-42's title decision producing the English original's title verbatim.
+What the run found is what matters:
+
+1. **NAMING SILENTLY SKIPPED, and the episode was left with anonymous labels.**
+   `run_translation_stage` took a `feed_language` argument and `run_naming_stage` did not, so
+   naming could only see the feed's tag through `cfg.feed_declared_language`. `run_pipeline` sets
+   that field, so production agreed — but this run passed the tag to translation only, and got
+   `TRANSLATION: translated, source_language=es (rss), english_ready=True` beside
+   `NAMING: not_deferred, voices=0`. A complete English set with no guest, no SPOKEN_BY edge and
+   no position-bearing insights: **the exact failure D-34 exists to prevent, reached by a
+   different route**, and silent because `not_deferred` is a legitimate state. Both stages resolve
+   through `resolve_config_language` from the same inputs now, and a test asserts they agree on
+   every shape. **This is the SECOND time one question answered through two channels has bitten
+   this arc** — the first was `transcription_language` vs the metadata writer (#2172), and that
+   one also produced two different answers from one config.
+
+2. **The model translates the SHOW NAME inside the transcript body, and D-42 does not cover
+   that.** `Sesiones de Sendero` became `Trail Sessions` twice in the body. D-42 governs the
+   title FIELD and deliberately leaves the show name alone there — but the name spoken inside an
+   episode goes through the translator like any other words. For a real Spanish show whose name
+   IS Spanish, that mints an English name that does not exist, and GI/KG read the body: an
+   Organization or Topic node could be created for a show nobody calls that. Not yet decided; it
+   needs either a do-not-translate list seeded from the feed title, or acceptance with the reason
+   recorded.
+
+3. **Terminology drifts across units, because each unit is translated independently.**
+   `construcción de senderos` came back as "trail building" once and "trail construction" six
+   times in the same episode. Inherent to turn-bounded units with no cross-unit context (RFC-124
+   §5.1 chose the unit as the translation CONTEXT precisely to bound cost), and it is a quality
+   effect rather than a defect — but it is the kind of thing that makes an entity resolve to two
+   different Topic nodes, so it belongs in the v2 quality work rather than being discovered there.
 
 **2026-09-29 — the translator measured: the dangerous failures REPORT SUCCESS.** 174 real requests against TranslateGemma on the DGX (47 turn-bounded units from the V.6a Spanish transcript + 11 deliberate outliers; two passes at concurrency 1, one at 4). The resilience design had been aimed at failures that announce themselves. Measured, those are almost absent — **1 of 58 units hard-failed** (a 1,740-word unit, timeout, 3/3 passes, deterministic). What actually threatens the corpus are outputs that come back `finish_reason: stop`, non-empty, and wrong:
 
