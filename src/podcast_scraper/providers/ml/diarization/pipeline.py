@@ -542,6 +542,7 @@ def resolve_names_on_result(
     episode_description: Optional[str] = None,
     detection_ran: Optional[bool] = None,
     naming_text: Optional[str] = None,
+    anonymous_only: bool = False,
 ) -> dict:
     """Diarization's second half: decide who each voice IS, and render the labels.
 
@@ -556,6 +557,15 @@ def resolve_names_on_result(
     string, and on the translated path both have to be English — defaulting to ``result["text"]``
     would hand the roster the SOURCE language while every per-voice sample was English, which
     fails silently: both are strings, and the roster would just resolve fewer voices.
+
+    ``anonymous_only`` resolves NOTHING: every voice keeps its raw ``SPEAKER_NN`` id, while the
+    diagnostics, the roster shape and every provenance field come out exactly as they otherwise
+    would. It is what a DEFERRED episode gets (D-34) — one whose naming waits for a translation —
+    and it has to be a hard guarantee rather than a hope. The roster would probably name nothing
+    from Spanish prose anyway, since the cues are English, but "probably" is not good enough
+    here: if it named one voice, the transcript would reach the translator with a NAME in the
+    label position, `align_english_to_voices` would refuse that cue, and the episode would end up
+    permanently unnamed instead. The deferral is load-bearing, so it is explicit.
 
     Never raises. A voice we cannot name costs an unnamed voice; a voice we name WRONGLY puts
     words in a real person's mouth (#876), and those are not symmetric.
@@ -647,16 +657,21 @@ def resolve_names_on_result(
     real_voice_texts = {
         v: t for v, t in _voice_texts_from_aligned(adfree_aligned).items() if v in cleaning.real
     }
-    llm_voice_names, llm_voice_roles = _resolve_voices_via_llm(
-        cfg,
-        stated_names=candidates,
-        voice_texts=real_voice_texts,
-        known_hosts=known_hosts,
-        ordered_turns=ordered_turns,
-        episode_title=episode_title,
-        episode_description=episode_description,
-        intro_block=intro_block,
-    )
+    # A deferred episode never reaches the LLM either: it would be billed to produce names that
+    # are about to be thrown away, on text in the wrong language.
+    llm_voice_names: Dict[str, str] = {}
+    llm_voice_roles: Dict[str, str] = {}
+    if not anonymous_only:
+        llm_voice_names, llm_voice_roles = _resolve_voices_via_llm(
+            cfg,
+            stated_names=candidates,
+            voice_texts=real_voice_texts,
+            known_hosts=known_hosts,
+            ordered_turns=ordered_turns,
+            episode_title=episode_title,
+            episode_description=episode_description,
+            intro_block=intro_block,
+        )
 
     _md_named = list(metadata_named or ())
 
@@ -676,6 +691,28 @@ def resolve_names_on_result(
     def _run_roster(
         names: Optional[Dict[str, str]], roles: Optional[Dict[str, str]]
     ) -> SpeakerRoster:
+        if anonymous_only:
+            # Every naming INPUT emptied, so the roster can only produce raw voice ids — while
+            # still doing its cleaning/typing work, so the diagnostics and the cameo/commercial
+            # classification a deferred episode carries are the real ones.
+            return resolve_speaker_roster(
+                diarization,
+                None,
+                detected_guests=(),
+                known_hosts=(),
+                voice_texts=None,
+                ordered_turns=None,
+                ad_intervals=ad_intervals,
+                metadata_named=(),
+                stated_voice_names=None,
+                llm_voice_names=None,
+                llm_voice_roles=None,
+                cleaning=cleaning,
+                recurring_text=recurring_text,
+                diarization_provider=dz_provider,
+                profile=_labeling_profile,
+                episode_text=None,
+            )
         return resolve_speaker_roster(
             diarization,
             transcript_text,
@@ -769,6 +806,24 @@ def resolve_names_on_result(
     return enriched_result
 
 
+def _naming_is_deferred(cfg: config.Config) -> bool:
+    """Whether this episode's naming waits for a translation (D-34).
+
+    Imported lazily and defensively: `workflow.naming_stage` reaches back into this module for
+    `resolve_names_on_result`, and a provider package must not hard-depend on the workflow
+    package at import time. A failure to answer means "do not defer", which is the pre-D-34
+    behaviour — the safe direction, because naming in place is recoverable by a relabel while a
+    permanently anonymous episode is not.
+    """
+    try:
+        from ....workflow.naming_stage import naming_is_deferred
+
+        return bool(naming_is_deferred(cfg))
+    except Exception:  # noqa: BLE001 - see the docstring
+        logger.debug("could not decide naming deferral; naming in place", exc_info=True)
+        return False
+
+
 def apply_diarization_to_result(
     result: dict,
     audio_path: str,
@@ -820,6 +875,14 @@ def apply_diarization_to_result(
     if got is None:
         return result
     diarization, aligned = got
+    # D-34: a non-English episode with a translator deployed gets ANONYMOUS labels here, and is
+    # named later from the English render by `workflow/naming_stage.py`. Decided here rather
+    # than at each of the eleven call sites — all of them want the same answer, and the risk of
+    # this change is a half-migration where one path still names from the source.
+    #
+    # The transcript reaching the translator MUST carry voice ids in the label position: the
+    # English render copies each source turn's label verbatim (D-24), and that copied label is
+    # the only route back from an English sentence to the voice that spoke it.
     return resolve_names_on_result(
         result,
         cfg,
@@ -832,4 +895,5 @@ def apply_diarization_to_result(
         episode_title=episode_title,
         episode_description=episode_description,
         detection_ran=detection_ran,
+        anonymous_only=_naming_is_deferred(cfg),
     )

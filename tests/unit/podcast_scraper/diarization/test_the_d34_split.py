@@ -206,7 +206,114 @@ class TestTheSignaturesDoNotDriftApart:
         from every current caller — the shape that made S2.14's guard dead for a whole arc."""
         composed = set(inspect.signature(apply_diarization_to_result).parameters)
         naming = set(inspect.signature(resolve_names_on_result).parameters)
-        # `naming_text`, `diarization` and `aligned` are the split's own arguments; everything
-        # else the naming half takes must be reachable from the composed entry point.
-        internal = {"diarization", "aligned", "naming_text"}
+        # The split's OWN arguments, which the composed entry point supplies or decides rather
+        # than accepting: `diarization`/`aligned` are what the align half produced,
+        # `naming_text` is the English body on the translated path, and `anonymous_only` is the
+        # D-34 deferral that `apply_diarization_to_result` answers for every caller at once.
+        # Everything else the naming half takes must be reachable from the entry point.
+        internal = {"diarization", "aligned", "naming_text", "anonymous_only"}
         assert (naming - internal) <= composed, sorted((naming - internal) - composed)
+
+
+class TestTheDeferral:
+    """`anonymous_only` has to be a hard guarantee, not a hope.
+
+    The roster would probably name nothing from Spanish prose — the cues are English — but
+    "probably" is not good enough. If it named ONE voice, the transcript would reach the
+    translator with a name in the label position, `align_english_to_voices` would refuse that
+    cue, and the episode would end up PERMANENTLY unnamed instead of temporarily anonymous. The
+    deferral is load-bearing, so it is explicit and tested.
+    """
+
+    def test_anonymous_only_resolves_NOTHING(self, tmp_path: Any) -> None:
+        """Same input that names Dana Reyes above — here it must name nobody."""
+        result, dz = _inputs()
+        got = diarize_and_align(
+            result, "/nonexistent.mp3", _cfg(tmp_path), precomputed_diarization=dz
+        )
+        assert got is not None
+        diarization, aligned = got
+        out = resolve_names_on_result(
+            result,
+            _cfg(tmp_path),
+            diarization,
+            aligned,
+            None,
+            detection_ran=True,
+            anonymous_only=True,
+        )
+        labels = {str(s.get("speaker_label")) for s in out["segments"]}
+        assert all(lab.startswith("SPEAKER_") for lab in labels), sorted(labels)
+
+    def test_the_control_case_DOES_name(self, tmp_path: Any) -> None:
+        """Without which the test above would pass on a fixture that names nobody anyway."""
+        result, dz = _inputs()
+        got = diarize_and_align(
+            result, "/nonexistent.mp3", _cfg(tmp_path), precomputed_diarization=dz
+        )
+        assert got is not None
+        diarization, aligned = got
+        out = resolve_names_on_result(
+            result, _cfg(tmp_path), diarization, aligned, None, detection_ran=True
+        )
+        labels = {str(s.get("speaker_label")) for s in out["segments"]}
+        assert any(not lab.startswith("SPEAKER_") for lab in labels), sorted(labels)
+
+    def test_it_still_produces_the_full_shape(self, tmp_path: Any) -> None:
+        """A deferred episode is not a degraded one: the diagnostics and every provenance field
+        come out as they otherwise would, so nothing downstream has to special-case it."""
+        result, dz = _inputs()
+        got = diarize_and_align(
+            result, "/nonexistent.mp3", _cfg(tmp_path), precomputed_diarization=dz
+        )
+        assert got is not None
+        diarization, aligned = got
+        out = resolve_names_on_result(
+            result,
+            _cfg(tmp_path),
+            diarization,
+            aligned,
+            None,
+            detection_ran=True,
+            anonymous_only=True,
+        )
+        assert out.get("speaker_diagnostics")
+        assert out.get("diarization_num_speakers") == 2
+        assert "diarization_model_name" in out
+        assert "diarization_speech_seconds" in out
+        assert all("speaker" in s for s in out["segments"]), "the frozen voice id must be there"
+
+    def test_the_composed_call_defers_for_a_translated_episode(self, tmp_path: Any) -> None:
+        """End to end through the entry point every one of the eleven call sites uses."""
+        result, dz = _inputs()
+        cfg = config.Config(
+            rss="https://example.com/f.xml",
+            output_dir=str(tmp_path),
+            language="es",
+            speaker_resolution_llm=False,
+            translate_api_base="http://translator.invalid:8005/v1",
+            translate_model="google/translategemma-12b-it",
+        )
+        out = apply_diarization_to_result(
+            result, "/nonexistent.mp3", cfg, None, precomputed_diarization=dz, detection_ran=True
+        )
+        labels = {str(s.get("speaker_label")) for s in out["segments"]}
+        assert all(lab.startswith("SPEAKER_") for lab in labels), (
+            f"a deferred episode reached the translator with a name in the label position: "
+            f"{sorted(labels)} — `align_english_to_voices` would refuse those cues and the "
+            "episode would end up permanently unnamed"
+        )
+
+    def test_an_ENGLISH_episode_is_named_in_place(self, tmp_path: Any) -> None:
+        """The 678-episode corpus must not move onto the deferred path."""
+        result, dz = _inputs()
+        out = apply_diarization_to_result(
+            result,
+            "/nonexistent.mp3",
+            _cfg(tmp_path),
+            None,
+            precomputed_diarization=dz,
+            detection_ran=True,
+        )
+        labels = {str(s.get("speaker_label")) for s in out["segments"]}
+        assert any(not lab.startswith("SPEAKER_") for lab in labels), sorted(labels)
