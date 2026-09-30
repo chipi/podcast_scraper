@@ -210,11 +210,18 @@ platform :ios do
       app_identifier: "app.closelistening.player",
       initial_build_number: 0,
     )
-    increment_build_number(
-      xcodeproj: File.join(APP_DIR, "App", "App.xcodeproj"),
-      build_number: (latest + 1).to_s,
-    )
-    UI.message("Building build number #{latest + 1} (previous TestFlight build: #{latest}).")
+    build_number = (latest + 1).to_s
+    UI.message("Building build number #{build_number} (previous TestFlight build: #{latest}).")
+    # The number is passed to xcodebuild as a build SETTING, not written into the project.
+    #
+    # `increment_build_number` shells out to agvtool, which rewrites Info.plist in place and
+    # replaces `$(CURRENT_PROJECT_VERSION)` with the literal number. After one run the plist no
+    # longer interpolates anything, so EVERY later build ships that same number and App Store
+    # Connect rejects the upload as a duplicate — after the whole archive has already uploaded.
+    # Observed on the first real ship, 2026-09-30: build 1 was hardcoded into the plist.
+    #
+    # Overriding the setting leaves the repo untouched and still derives the number from
+    # TestFlight, so a re-run after a failure cannot collide either.
 
     build_app(
       workspace: WORKSPACE,
@@ -229,21 +236,31 @@ platform :ios do
       # update via the ASC API key — Xcode has no signed-in account on this machine, so without
       # them xcodebuild errors "No Accounts" and falls back to a wildcard profile. gym itself has
       # no api_key option, hence passing the credential through to xcodebuild directly here.
-      xcargs: signing_xcargs(team),
+      xcargs: "#{signing_xcargs(team)} CURRENT_PROJECT_VERSION=#{build_number}",
       export_options: signing_export_options(team),
     )
 
     upload_to_testflight(
       api_key: api_key,
-      # Skip the App Store review submission — this is a TestFlight build for internal testers,
-      # who get it immediately without waiting on Beta App Review.
-      skip_waiting_for_build_processing: true,
+      # No Beta App Review: internal testers get the build as soon as Apple finishes processing.
       distribute_external: false,
-      # Assign the build to the internal group on upload. WITHOUT THIS the upload succeeds, Apple
-      # processes the build, and no phone can install it — the build sits unassigned in TestFlight
-      # and every tester's app shows nothing. It is the quietest way a "successful release" reaches
-      # nobody. The group is created by scripts/tools (ASC API); the account had zero groups.
+      # Hand the build to the internal group, so it is installable rather than merely uploaded.
       groups: [INTERNAL_GROUP],
+      changelog: "Build #{build_number} from #{git_branch} (#{last_git_commit[:abbreviated_commit_hash]}).",
+
+      # WAIT for processing (the default), even though it costs 5-15 minutes of lane time.
+      #
+      # `skip_waiting_for_build_processing: true` returns the moment the bytes are uploaded — and
+      # a build that has not finished processing CANNOT be assigned to a group, so fastlane
+      # silently drops `groups:` and `changelog:`. The lane prints "Uploaded" and "finished
+      # successfully", Apple validates the build, and it reaches nobody: testers open TestFlight
+      # and see an empty list. Exactly that happened on the first real ship (2026-09-30, build 1),
+      # which had to be attached to the group by hand through the API afterwards.
+      #
+      # Waiting is what makes the lane a RELEASE rather than an upload. Unattended automation is
+      # the whole point here, and an unattended run that needs someone to finish it by hand is
+      # worse than a slow one.
+      skip_waiting_for_build_processing: false,
     )
 
     UI.success(
