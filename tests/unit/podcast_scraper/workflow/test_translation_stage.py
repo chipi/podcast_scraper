@@ -22,8 +22,8 @@ from podcast_scraper.workflow import processing_manifest as pm
 from podcast_scraper.workflow.translation_stage import (
     decide_translation,
     REASON_ALREADY_ENGLISH,
-    REASON_FLAG_OFF,
     REASON_NO_TRANSCRIPT,
+    REASON_NO_TRANSLATOR,
     REASON_TRANSLATOR_READY,
     run_translation_stage,
     STATUS_PENDING,
@@ -37,6 +37,19 @@ REL = "transcripts/01 - ep.txt"
 
 
 def _cfg(**kw: Any) -> config.Config:
+    """A config with a translator DEPLOYED, unless a test says otherwise.
+
+    Since `multilingual_ingest` was removed (2026-09-30) the only thing standing between a
+    non-English episode and a pending translation is whether an endpoint exists, so the endpoint
+    is the default here and its absence is what a test opts into via `_cfg_no_translator`.
+    """
+    kw.setdefault("translate_api_base", "http://translator.invalid:8005/v1")
+    kw.setdefault("translate_model", "google/translategemma-12b-it")
+    return config.Config(rss="https://example.com/feed.xml", **kw)
+
+
+def _cfg_no_translator(**kw: Any) -> config.Config:
+    """No endpoint: a language was enabled with nothing deployed to serve it."""
     return config.Config(rss="https://example.com/feed.xml", **kw)
 
 
@@ -48,18 +61,28 @@ class TestTheDecision:
         assert got.source_language == "en"
         assert got.ran is False
 
-    def test_a_non_english_episode_with_the_flag_off_records_its_language_anyway(self) -> None:
-        """The population the rollout is sized against.
+    def test_no_translator_deployed_records_the_language_anyway(self) -> None:
+        """A `multilingual_ingest` flag used to sit here, and it was removed (2026-09-30).
 
-        Short-circuiting on the flag first would have been simpler and would have recorded a
-        null language for every episode processed with translation disabled — making "how many
-        episodes would need translating" unanswerable from the corpus, which is precisely the
-        question you need answered BEFORE turning the flag on.
+        WHY THERE IS NO POLICY FLAG. Whether we ingest a language is already decided, per
+        language, by `enabled` in `config/languages.yaml`. This function is only reached for an
+        episode that gate has ALREADY approved, so a second "do we want to translate" switch had
+        exactly one distinct state: an approved non-English episode deliberately left
+        untranslated — a transcript with no intelligence layer, which is what a FAILED
+        translation produces anyway. Its only real effect was that, defaulting to False with no
+        profile setting it, Phase 2 could not run from any committed profile while both DGX
+        profiles wired the translator endpoint.
+
+        What remains is a DEPLOYMENT question, and a False answer is a misconfiguration.
+
+        The language is still recorded, which is the part worth keeping: short-circuiting before
+        resolution would write a null language for every such episode, making "how many episodes
+        are waiting on a translator" unanswerable from the corpus.
         """
-        got = decide_translation(_cfg(language="es"), transcript_relpath=REL)
+        got = decide_translation(_cfg_no_translator(language="es"), transcript_relpath=REL)
         assert got.status == STATUS_SKIPPED
-        assert got.reason == REASON_FLAG_OFF
-        assert got.source_language == "es", "the language must survive the flag being off"
+        assert got.reason == REASON_NO_TRANSLATOR
+        assert got.source_language == "es", "the language must survive having no translator"
 
     def test_a_non_english_episode_with_the_flag_on_is_pending_not_translated(self) -> None:
         """`decide_translation` is PURE — it reports that translation is owed, nothing more.
@@ -68,9 +91,7 @@ class TestTheDecision:
         `run_translation_stage`, which is what turns this into `translated` or `failed`. Keeping
         the decision free of side effects is what lets it be tested exhaustively.
         """
-        got = decide_translation(
-            _cfg(language="es", multilingual_ingest=True), transcript_relpath=REL
-        )
+        got = decide_translation(_cfg(language="es"), transcript_relpath=REL)
         assert got.status == STATUS_PENDING
         assert got.reason == REASON_TRANSLATOR_READY
         assert got.ran is False, "deciding is not doing"
@@ -78,7 +99,7 @@ class TestTheDecision:
     def test_the_feeds_declared_language_beats_the_profile_default_and_says_so(self) -> None:
         """Provenance, not just a value: `rss` means measured, `profile_default` means assumed."""
         got = decide_translation(
-            _cfg(language="en", multilingual_ingest=True),
+            _cfg(language="en"),
             feed_language="es-ES",
             transcript_relpath=REL,
         )
@@ -88,7 +109,7 @@ class TestTheDecision:
 
     def test_an_operator_override_beats_the_feed(self) -> None:
         got = decide_translation(
-            _cfg(language="en", language_override="es", multilingual_ingest=True),
+            _cfg(language="en", language_override="es"),
             feed_language="en-US",
             transcript_relpath=REL,
         )
@@ -96,9 +117,7 @@ class TestTheDecision:
         assert got.language_source == "override"
 
     def test_no_transcript_is_skipped_rather_than_pending(self) -> None:
-        got = decide_translation(
-            _cfg(language="es", multilingual_ingest=True), transcript_relpath=None
-        )
+        got = decide_translation(_cfg(language="es"), transcript_relpath=None)
         assert got.status == STATUS_SKIPPED
         assert got.reason == REASON_NO_TRANSCRIPT
 
@@ -139,12 +158,13 @@ class TestTheLedgerEntry:
     def test_a_non_english_episode_records_it_the_same_way(self, tmp_path: Path) -> None:
         """The same block, a different reason. The SHAPE must not vary by language.
 
-        `flag_off` matters most here: non-English episodes seen while the flag was off are the
-        population the rollout is sized against, and nothing else in the corpus records them.
+        The reason matters most here: a non-English episode with no translator deployed is
+        recorded nowhere else in the corpus, and it is the population that answers "what is
+        waiting on a translator".
         """
         (tmp_path / "transcripts").mkdir()
         run_translation_stage(
-            _cfg(language="es"),
+            _cfg_no_translator(language="es"),
             transcript_relpath=REL,
             effective_output_dir=str(tmp_path),
             episode_id="ep1",
@@ -157,23 +177,23 @@ class TestTheLedgerEntry:
         assert block["method_version"] == "translation-1"
         assert block["cost_usd"] == 0.0
         assert block["metrics"]["status"] == STATUS_SKIPPED
-        assert block["metrics"]["reason"] == REASON_FLAG_OFF
+        assert block["metrics"]["reason"] == REASON_NO_TRANSLATOR
         assert block["metrics"]["source_language"] == "es"
         assert data["episode_id"] == "ep1"
 
     def test_an_unconfigured_translator_is_recorded_as_skipped_not_pending(
         self, tmp_path: Path
     ) -> None:
-        """A non-English episode with the flag ON but no endpoint is a DEFECT, and the ledger
-        has to distinguish it from `flag_off`, which is a decision."""
+        """A non-English episode with no endpoint is a DEFECT, recorded as skipped rather than
+        pending so the ledger does not claim a translation is merely owed."""
         (tmp_path / "transcripts").mkdir()
         got = run_translation_stage(
-            _cfg(language="es", multilingual_ingest=True),
+            _cfg_no_translator(language="es"),
             transcript_relpath=REL,
             effective_output_dir=str(tmp_path),
         )
         assert got.status == STATUS_SKIPPED
-        assert got.reason == "translator_not_configured"
+        assert got.reason == REASON_NO_TRANSLATOR
         data = json.loads((tmp_path / "transcripts" / "01 - ep.manifest.json").read_text())
         assert data["stages"]["translation"]["metrics"]["source_language"] == "es"
 

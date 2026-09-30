@@ -378,10 +378,13 @@ class TestTheFactory:
         with pytest.raises(TranslationProviderUnavailable, match="registry-governed"):
             create_translation_provider(config.Config(rss="https://e.com/f.xml"))
 
-    def test_configured_is_separate_from_wanted(self) -> None:
-        """`multilingual_ingest` says whether we WANT to translate; this says whether we COULD.
-        Keeping them apart is what lets the stage record `flag_off` distinctly from a broken
-        endpoint — one is a decision, the other a defect."""
+    def test_it_asks_about_DEPLOYMENT_not_policy(self) -> None:
+        """The only such question the stage asks, since `multilingual_ingest` was removed.
+
+        Whether we ingest a language is decided per language by `enabled` in
+        `config/languages.yaml`; this asks whether a translator is deployed to serve one that
+        has been enabled. A False is therefore a misconfiguration, not a choice.
+        """
         assert is_translation_configured(_cfg()) is True
         assert is_translation_configured(config.Config(rss="https://e.com/f.xml")) is False
 

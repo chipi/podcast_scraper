@@ -863,8 +863,10 @@ Phase names match PRD-047 and the arc notes; slice ids (S0.x, S2.x) refer to the
   bake-off and its gate report, and the pilot-language fixture.
 - **Phase 2 (S2.1–S2.12)**: reader routing, the stage-order change, the translation stage, the English
   render, ad-free-on-English, naming, reprocess invalidation, the segments API and the translated chip,
-  same-language retrieval, cost measurement, and the trust markers — behind `multilingual_ingest`,
-  which gates **serving** as well as the pipeline, on one operator-chosen feed.
+  same-language retrieval, cost measurement, and the trust markers — gated by `enabled` in
+  `config/languages.yaml`, per language, on one operator-chosen feed. (This said "behind
+  `multilingual_ingest`" until 2026-09-30; that flag was removed as redundant with the per-language
+  gate — see the arc notes, D-41.)
 - **Phase 3**: source verification and the operator worklist. (The read-time Positions gate ships in
   Phase 2 with the markers.)
 - **Phase 4**: language toggle, original-text reveal, language filters, flag lifecycle and rollback.

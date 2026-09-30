@@ -4081,25 +4081,6 @@ class Config(BaseModel):
             "provider construction on exactly the non-English episodes this exists to serve."
         ),
     )
-    multilingual_ingest: bool = Field(
-        default=False,
-        alias="multilingual_ingest",
-        description=(
-            "Translate a non-English episode into English so every intelligence stage keeps "
-            "reading one language (MULTILINGUAL_ARC Phase 2, RFC-124).\n\n"
-            "WHAT IT GATES IS THE PIPELINE, NOT VISIBILITY. There is no per-episode serving "
-            "gate: roughly 32 modules walk the corpus independently and the indexer walks "
-            "metadata directly, so a catalog filter would not stop search, CIL, MCP or digest "
-            "(D-16, withdrawn). Whether a translated episode is PUBLIC is decided by when its "
-            "feed is added to the production feed list, which is config, not code.\n\n"
-            "OFF IS NOT THE SAME AS ABSENT. With this off, a non-English episode is still "
-            "detected and still refused by the English-only transcription guard (S0.7) — it does "
-            "not quietly ingest as English. What the flag adds is the translation stage that "
-            "makes such an episode processable at all.\n\n"
-            "The translation stage records itself in the per-episode manifest either way, so an "
-            "audit can tell a skipped translation from a stage that was never in the pipeline."
-        ),
-    )
     require_transcript_speakers: bool = Field(
         default=False,
         alias="require_transcript_speakers",

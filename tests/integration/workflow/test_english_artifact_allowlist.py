@@ -485,7 +485,14 @@ class TestCompositionVersion:
         from podcast_scraper import config
         from podcast_scraper.workflow.translation_stage import run_translation_stage
 
-        for language, expected_reason in (("en", "already_english"), ("es", "flag_off")):
+        # `flag_off` was the Spanish reason here until `multilingual_ingest` was removed
+        # (2026-09-30). The config below deploys no translator, so the reason is now the
+        # deployment fact rather than a policy one — and the point of the test is unchanged: the
+        # BLOCK is present for both languages, with the shape not varying by language.
+        for language, expected_reason in (
+            ("en", "already_english"),
+            ("es", "translator_not_configured"),
+        ):
             with tempfile.TemporaryDirectory() as d:
                 rel = "transcripts/01 - ep.txt"
                 (Path(d) / "transcripts").mkdir(parents=True)

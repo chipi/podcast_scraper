@@ -91,7 +91,6 @@ def cfg() -> config.Config:
     return config.Config(
         rss="https://example.com/p10.xml",
         language="es",
-        multilingual_ingest=True,
         translate_api_base="http://translator.invalid:8005/v1",
         translate_model="google/translategemma-12b-it",
         translate_verify_served_model=False,

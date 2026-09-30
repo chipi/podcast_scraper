@@ -35,9 +35,16 @@ def translation_provider_name(cfg: config.Config) -> str:
 def is_translation_configured(cfg: config.Config) -> bool:
     """Whether a translator could be built AND has an endpoint and a model to call.
 
-    Separate from ``multilingual_ingest``: the flag says whether we WANT to translate, this says
-    whether we COULD. Keeping them apart is what lets the stage record `flag_off` distinctly from
-    a misconfigured endpoint — one is a decision, the other is a defect.
+    A question about DEPLOYMENT, not policy — and since 2026-09-30 it is the only such question
+    the stage asks. There was a `multilingual_ingest` flag beside it meaning "do we WANT to
+    translate", and it was removed: whether we ingest a language is already decided, per
+    language, by `enabled` in ``config/languages.yaml``, and the flag could only ever be
+    consulted for an episode that gate had ALREADY approved. Its one distinct state — an
+    approved non-English episode deliberately left untranslated — is a transcript with no
+    intelligence layer, which is exactly what a FAILED translation produces anyway.
+
+    So a False here is a misconfiguration: a language was enabled with no translator deployed.
+    The stage records ``translator_not_configured`` for it rather than treating it as a choice.
     """
     return bool(getattr(cfg, "translate_api_base", None) and getattr(cfg, "translate_model", None))
 

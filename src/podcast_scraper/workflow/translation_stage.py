@@ -52,6 +52,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from ..languages import resolve_config_language
+from ..translation.factory import is_translation_configured
 from ..utils.timeout import deadline_credit
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,12 @@ REASON_TRANSLATOR_READY = "ready"
 
 #: Why a translation was skipped. A closed vocabulary so the corpus ledger can GROUP BY it.
 REASON_ALREADY_ENGLISH = "already_english"
-REASON_FLAG_OFF = "flag_off"
+#: No translator endpoint is deployed, so there is nothing to call. A DEFECT when a non-English
+#: language is enabled, not a decision — which is why it is distinct from every other reason
+#: here. It replaced `flag_off`, and the difference matters: `flag_off` said "we chose not to
+#: translate this", which turned out to be a choice nobody could coherently make (see the module
+#: docstring).
+REASON_NO_TRANSLATOR = "translator_not_configured"
 REASON_NO_LANGUAGE = "no_language"
 REASON_NO_TRANSCRIPT = "no_transcript"
 REASON_NOT_IMPLEMENTED = "translator_not_wired"
@@ -148,14 +154,17 @@ def decide_translation(
             reason=REASON_ALREADY_ENGLISH,
         )
 
-    if not getattr(cfg, "multilingual_ingest", False):
-        # A non-English episode with the flag off. Recorded rather than ignored: this is the
-        # population the flag's rollout is sized against.
+    if not is_translation_configured(cfg):
+        # Reaching here means the episode is non-English AND its language is `enabled: true`, so
+        # an operator has already approved ingesting it. Having no translator deployed at that
+        # point is a misconfiguration, not a policy: the episode will get a transcript and then
+        # be blocked out of summary/GI/KG by the §5.3 completeness gate. Recorded so the ledger
+        # can GROUP BY it and an operator sees a cause rather than a silent gap.
         return TranslationOutcome(
             status=STATUS_SKIPPED,
             source_language=language,
             language_source=language_source,
-            reason=REASON_FLAG_OFF,
+            reason=REASON_NO_TRANSLATOR,
         )
 
     if not transcript_relpath:
@@ -376,13 +385,17 @@ def _translate_episode(
         write_english_artifacts,
         write_translation_json,
     )
-    from ..translation.factory import create_translation_provider, is_translation_configured
+    from ..translation.factory import create_translation_provider
     from ..translation.units import pack_units
 
     language = outcome.source_language or ""
     if not is_translation_configured(cfg):
+        # Belt and braces: `decide_translation` already returns SKIPPED for this, so reaching
+        # here means a caller drove the work directly. The CONSTANT, not the bare literal that
+        # used to sit here — the reason vocabulary is documented as closed, and a literal
+        # outside it is how a ledger ends up with two spellings of one state.
         outcome.status = STATUS_SKIPPED
-        outcome.reason = "translator_not_configured"
+        outcome.reason = REASON_NO_TRANSLATOR
         return outcome
 
     # TRANSLATION'S INPUT IS DEFINED, NOT RESOLVED. It reads the SOURCE body at the exact path

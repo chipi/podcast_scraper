@@ -178,8 +178,9 @@ def text_relpath_candidates(
     THE ENGLISH HEAD IS A PURE PREPEND (S2.1b). Each list gains one English candidate at the
     front and its existing tail is untouched, so for an episode with no ``.en.*`` on disk the
     resolved path is exactly what it was before this branch existed. That is why the resolver
-    needs no ``multilingual_ingest`` check: the flag gates whether the English files are ever
-    PRODUCED, and a candidate that does not exist costs one ``is_file()``.
+    needs no feature check at all: whether the English files are ever PRODUCED is decided by the
+    per-language ``enabled`` gate and the translator's availability, and a candidate that does
+    not exist costs one ``is_file()``.
 
     ANALYSIS DOES NOT FALL BACK FROM ``.en.adfree.txt`` TO ``.en.txt``. Doing so would put an
     ad-laden English body into the space GI's offsets index.
