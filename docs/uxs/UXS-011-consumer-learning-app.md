@@ -263,8 +263,10 @@ start. (A serif was tried and rejected during the earlier design phase.)
   guests (mentioned people stay in the chips), each with a 32px `ProfileAvatar` photo and a role
   label. Initials show when there is no photo. Tapping a person opens them in the panel with
   ‹ Back, the same as their chip does. The panel is a single
-  vertical column: Ask · Summary · **Topics & People (one merged, expandable row; chips → corpus
-  search)** · Insights (grounded cards, `●` grounded marker) · More like this.
+  vertical column: episode (title + people) · Summary · Download notes · Search this episode ·
+  Key points · **Topics & People (one merged, expandable row; chips → corpus search)** · Insights
+  (grounded cards, `●` grounded marker) · More like this. Search sits below the summary and the
+  download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
 - **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
   (summary title) + `date · duration` + a grounded **✦ insights icon** that reveals the full
   summary bullets on hover/tap. *No topic pills on the card.* (The oversized faint **numeral** is the
@@ -480,8 +482,8 @@ Each exported capture carries its **kind**, timestamp, speaker, colour, **captur
 people/topics it is about, the user's notes (each with the date it was written, and `edited` only
 when that actually differs), and an **absolute** player link on the timecode, so one click from any
 tool opens the player at that second. Every episode heading carries **date · length · link** and all
-**three** summary fields — headline, the prose the Summary button shows, and the bullets that open
-the insights panel — because the app treats those as three distinct things, not three renderings of
+**three** summary fields — headline, the prose of the panel's Summary section, and the Key points
+bullets — because the app treats those as three distinct things, not three renderings of
 one. Entities are plain names here, not `[[wikilinks]]`:
 this is one flat document, and `[[…]]` renders as broken links for anyone not in Obsidian — who are
 exactly the audience the other export exists for. What does NOT travel: the resurfacing schedule,

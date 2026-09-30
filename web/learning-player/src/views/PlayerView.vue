@@ -10,7 +10,6 @@
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import CloseIcon from "../components/CloseIcon.vue"
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -250,40 +249,6 @@ const loadFailed = ref(false)
 const notDownloaded = ref(false)
 /** The transcript artifact is unreadable, as opposed to not written yet. */
 const transcriptBroken = ref(false)
-
-/**
-/**
- * The episode summary: `summary_text`, the full prose. That is the whole definition.
- *
- * NO FALLBACK to `summary_title`, and no bullets. A summary control that opens something other
- * than the summary is the complaint this panel has now generated three times: it showed a thematic
- * headline plus a bullet list, with the prose pushed below the fold, so tapping "Summary" produced
- * a screen that was not one. `summary_title` is a headline and `summary_bullets` are a structured
- * digest — both are different things, and substituting either is what made this hard to pin down.
- *
- * The control is gated on this being non-empty, so an episode with no prose summary offers no
- * summary rather than offering a stand-in.
- */
-const summaryText = computed(() => episode.value?.summary_text ?? '')
-const summaryOpen = ref(false)
-const summaryDialog = ref<HTMLDialogElement | null>(null)
-
-// Modal on every viewport: a summary is short-form reading the reader opted into, so trapping focus
-// and dimming the page is right here — unlike the Knowledge Panel, which is a docked rail on
-// desktop precisely because it is meant to sit alongside the transcript.
-watch(summaryOpen, (open) => {
-  void nextTick(() => {
-    const d = summaryDialog.value
-    if (!d) return
-    if (open && !d.open) d.showModal()
-    else if (!open && d.open) d.close()
-  })
-})
-
-/** A tap on the backdrop lands on the dialog element itself; the inner container stops the rest. */
-function onSummaryBackdropClick(e: MouseEvent): void {
-  if (e.target === summaryDialog.value) summaryOpen.value = false
-}
 
 // Per-episode reach (UXS-014): anonymous cross-user counts + a daily-opens sparkline.
 const stats = ref<EpisodeStats | null>(null)
@@ -1373,8 +1338,8 @@ onBeforeUnmount(() => {
             class="inline-flex items-center gap-1 rounded-full bg-overlay px-2 py-0.5 text-xs font-bold text-grounded"
           >● {{ t('player.grounded') }}</span>
         </div>
-        <!-- Hero artwork (UXS-014/UXS-011 §43): the Ask/Insights actions + the summary sit over
-             the top of the image; a live-intelligence band ("Zone D") owns the bottom — see below
+        <!-- Hero artwork (UXS-014/UXS-011 §43): the Episode notes action sits over the top of
+             the image; a live-intelligence band ("Zone D") owns the bottom — see below
              for why that moved out of the top row entirely. -->
         <!-- Hero is 5:4 on PHONES, 1:1 from `lg` (operator 2026-09-30, superseding "hero stays 1:1").
              The masthead and the gaps around the transport had already been tightened, and on an
@@ -1444,21 +1409,6 @@ onBeforeUnmount(() => {
                    LABELLED control, not a 💡 emoji tucked into the stats cluster next to
                    listener/open counts (#1595). It used to read "💡 3" — the least legible control
                    on the page, styled like a statistic, for the product's central feature. -->
-              <!-- Summary — sits WITH the other controls now, not alone at the foot of the art. -->
-              <button
-                v-if="summaryText && !panelOpen"
-                type="button"
-                data-testid="player-open-summary"
-                :title="t('player.summaryOpenHint')"
-                :aria-label="t('player.summaryOpenHint')"
-                class="inline-flex shrink-0 items-center gap-1 rounded-full bg-canvas/95 px-2.5 py-1 text-[11px] font-bold text-canvas-foreground backdrop-blur transition hover:bg-canvas"
-                @click="summaryOpen = true"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3 w-3" aria-hidden="true">
-                  <path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round" />
-                </svg>
-                {{ t('player.summaryOpen') }}
-              </button>
               <button
                 v-if="!panelOpen && insights.length"
                 ref="insightsOpener"
@@ -1875,67 +1825,6 @@ onBeforeUnmount(() => {
       </div>
       </dialog>
 
-      <!--
-        Episode summary — opened from the control on the artwork, never laid over it.
-
-        A native <dialog> for the same reason the panel above is one: the browser supplies focus
-        trapping, Escape, an inert background and the right accessibility tree. Capped at 80dvh with
-        the prose scrolling INSIDE, so a long summary is reachable to its end — the specific failure
-        of the old overlay, which clipped to the hero's fixed square and trailed off in an ellipsis.
-      -->
-      <dialog
-        ref="summaryDialog"
-        data-testid="episode-summary-dialog"
-        :aria-label="t('player.summaryRegion')"
-        class="m-auto max-h-[80dvh] w-[min(34rem,calc(100vw-2rem))] rounded-2xl border border-border bg-canvas p-0 text-canvas-foreground backdrop:bg-black/60"
-        @close="summaryOpen = false"
-        @click="onSummaryBackdropClick"
-      >
-        <!-- Content only while open. A <dialog> renders its children regardless, so without this
-             the whole summary sits in the DOM (and in the accessibility tree) behind a closed
-             dialog — the thing this change exists to stop. -->
-        <!--
-          No title bar. "Episode summary" over a rule, above the episode's own headline, was two
-          headings and a border spent saying what the content already says — real estate on a
-          phone, where the dialog is capped at 80dvh and every row costs prose.
-
-          The close sits on the headline's line instead, and that row is `sticky` inside the
-          scroller: dropping the bar must not put the only way out at the top of text the reader
-          has scrolled past. `aria-label` on the <dialog> still names the region for assistive
-          tech, so removing the visible <h2> costs nothing there.
-        -->
-        <div v-if="summaryOpen" class="max-h-[80dvh] overflow-y-auto px-5 pb-5">
-          <div class="sticky top-0 flex items-start justify-between gap-3 bg-canvas pb-2 pt-4">
-            <!--
-              A visible "Summary" label (#2004 item 16) — it NAMES the panel, it is not content.
-              Under it used to sit the thematic `summary_title` ("AI Psychosis: Agents, Claws, and
-              the Skill-Issue Frontier"), which is neither the episode title nor the summary, and
-              made the panel read as though the wrong thing had opened.
-            -->
-            <div class="min-w-0">
-              <p class="lp-kicker" data-testid="summary-label">{{ t('player.summaryOpen') }}</p>
-            </div>
-            <button
-              type="button"
-              data-testid="episode-summary-close"
-              :aria-label="t('player.summaryClose')"
-              class="lp-nav shrink-0"
-              @click="summaryOpen = false"
-            >
-              <CloseIcon />
-            </button>
-          </div>
-          <!-- The full prose, and nothing beside it. It was a quote-styled block indented behind a
-               rule because it sat BELOW the bullets; it is the panel's content now, so it reads as
-               body text. -->
-          <p
-            class="mt-2 whitespace-pre-line text-sm leading-relaxed text-canvas-foreground"
-            data-testid="episode-summary-text"
-          >
-            {{ summaryText }}
-          </p>
-        </div>
-      </dialog>
     </div>
   </section>
 </template>

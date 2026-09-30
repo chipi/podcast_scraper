@@ -406,7 +406,6 @@ Storylines surface in `DiscoveryList` when `kind="storyline"` — each row is `d
 | Insight density | `data-testid="episode-density"` / `player-insight-density`; bands `player-density-band`, ticks `player-density-tick`, segments `density-{early,mid,late,peak}` |
 | Capture | `aria-label` `capture.markMoment` → `capture.marked` |
 | Sync controls | **Hidden** (`SHOW_SYNC_CONTROL=false`) pending a better sync fix — the `player.syncEarlier`/`syncLater`/`syncReset` UI is off; the offset machinery still applies any stored value. |
-| Summary region | `role="region"` `player.summaryRegion` |
 | Episode notes entry | `data-testid="player-open-insights"` — a LABELLED control ("✦ Episode notes"), not the old `💡 N` chip (#1595); specs open the panel by this testid, not by label |
 | Reach chip | `data-testid="player-reach"` — cross-user listeners/opens + sparkline. **Renders only when there is something to show** (#1957): `/episodes/{slug}/stats` withholds `listeners`/`opens` below the k-anonymity floor (#1923) and returns `daily: []` with them, so all three children go false together by design. The wrapper used to render regardless and painted an empty pill. |
 

@@ -649,64 +649,6 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </ul>
         </section>
 
-        <!--
-          SEARCH, not "Ask" (operator 2026-09-27: "Ask episode doesn't feel right here").
-
-          It was labelled Ask and it runs `searchEpisode()`, rendering ranked transcript chunks —
-          `hit.text`, with `kp.noResults` when empty. There is no synthesis endpoint in the app:
-          `app_search.py` exposes `GET /search` and nothing else. So the label promised an answer
-          that nothing in the stack could produce, which is the whole of why it "didn't feel right".
-
-          Renamed rather than built, deliberately and on the operator's call. Making it answer means
-          a new backend route, per-question gateway cost, and deterministic fixtures to keep CI
-          airgapped (LLMs in CI are banned). That is its own piece of work, not a label fix.
-
-          The three sibling keys — `searching`, `searchError`, `noResults` — already said "search".
-          Only the two user-facing ones lied, and the i18n KEYS were renamed too so the code stops
-          carrying the fiction.
-        -->
-        <form class="mb-5" @submit.prevent="runSearch">
-          <label class="sr-only" for="kp-ask">{{ t("kp.searchAction") }}</label>
-          <div class="lp-search flex gap-2">
-            <input
-              id="kp-ask"
-              ref="searchInput"
-              v-model="q"
-              type="search"
-              :placeholder="t('kp.searchPlaceholder')"
-              class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
-            >
-              {{ t("kp.searchAction") }}
-            </button>
-          </div>
-          <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
-          <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
-          <ul v-else-if="results.length" class="mt-3 flex flex-col gap-2">
-            <li
-              v-for="hit in results"
-              :key="hit.doc_id"
-              class="rounded-xl border border-border p-3"
-            >
-              <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
-              <button
-                v-if="hitStartSeconds(hit) != null"
-                type="button"
-                class="mt-1 font-mono text-xs text-accent"
-                @click="emit('seek', hitStartSeconds(hit) as number)"
-              >
-                ▶ {{ formatTime(hitStartSeconds(hit) as number) }}
-              </button>
-            </li>
-          </ul>
-          <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
-            {{ t("kp.noResults") }}
-          </p>
-        </form>
-
         <p v-if="!hasAnything" class="text-sm text-muted">{{ t("kp.empty") }}</p>
 
         <!--
@@ -832,6 +774,68 @@ watch(() => auth.isAuthenticated, loadCaptures)
             />
           </div>
         </Teleport>
+
+        <!--
+          SEARCH, not "Ask" (operator 2026-09-27: "Ask episode doesn't feel right here").
+
+          It was labelled Ask and it runs `searchEpisode()`, rendering ranked transcript chunks —
+          `hit.text`, with `kp.noResults` when empty. There is no synthesis endpoint in the app:
+          `app_search.py` exposes `GET /search` and nothing else. So the label promised an answer
+          that nothing in the stack could produce, which is the whole of why it "didn't feel right".
+
+          Renamed rather than built, deliberately and on the operator's call. Making it answer means
+          a new backend route, per-question gateway cost, and deterministic fixtures to keep CI
+          airgapped (LLMs in CI are banned). That is its own piece of work, not a label fix.
+
+          The three sibling keys — `searching`, `searchError`, `noResults` — already said "search".
+          Only the two user-facing ones lied, and the i18n KEYS were renamed too so the code stops
+          carrying the fiction.
+
+          Placed AFTER the summary and the download row, above the key points (operator
+          2026-09-30): the panel opens on what the episode is — who is in it and what it says —
+          and search is for digging into it once you know.
+        -->
+        <form class="mb-5" @submit.prevent="runSearch">
+          <label class="sr-only" for="kp-ask">{{ t("kp.searchAction") }}</label>
+          <div class="lp-search flex gap-2">
+            <input
+              id="kp-ask"
+              ref="searchInput"
+              v-model="q"
+              type="search"
+              :placeholder="t('kp.searchPlaceholder')"
+              class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              class="rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground"
+            >
+              {{ t("kp.searchAction") }}
+            </button>
+          </div>
+          <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
+          <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
+          <ul v-else-if="results.length" class="mt-3 flex flex-col gap-2">
+            <li
+              v-for="hit in results"
+              :key="hit.doc_id"
+              class="rounded-xl border border-border p-3"
+            >
+              <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
+              <button
+                v-if="hitStartSeconds(hit) != null"
+                type="button"
+                class="mt-1 font-mono text-xs text-accent"
+                @click="emit('seek', hitStartSeconds(hit) as number)"
+              >
+                ▶ {{ formatTime(hitStartSeconds(hit) as number) }}
+              </button>
+            </li>
+          </ul>
+          <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
+            {{ t("kp.noResults") }}
+          </p>
+        </form>
 
         <!--
         The digest, under the summary and above the insights. Its own labelled block rather than
