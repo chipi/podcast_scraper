@@ -950,6 +950,37 @@ def _validate_hosts_with_first_episode(
     return validated_hosts if validated_hosts else feed_hosts
 
 
+def hosts_for_episode(result: HostDetectionResult, episode: Any) -> set[str]:
+    """The hosts to anchor ONE episode on — the feed's hosts, with its OWN authors (#2197).
+
+    When a feed names nobody, the episode-level ``<itunes:author>`` fallback unions the authors of
+    the feed's first episodes into the FEED's host set, and every episode inherits it. On Latent
+    Space one post's authors ("Brandon Anderson, RJ Honicky, and Latent.Space") were seated as the
+    hosts of 9 episodes; the live feed carries that tag on ONE of its 229 items — 170 say only
+    "Latent.Space". Another episode's author is not this episode's host.
+
+    So the fallback's contribution is replaced here by this episode's own authors, through the same
+    gates (``normalize_host_names``, the org and show filters). Everything else in the set — config
+    ``known_hosts``, hosts recurring across the feed — is untouched. Without the fallback (a feed
+    that states its hosts) this returns ``cached_hosts`` unchanged.
+    """
+    hosts = set(result.cached_hosts or ())
+    fallback = set(getattr(result, "episode_author_hosts", frozenset()) or ())
+    if not fallback:
+        return hosts
+    from ...rss import parser as rss_parser
+
+    item = getattr(episode, "item", None)
+    own_raw = rss_parser.extract_episode_authors(item) if item is not None else []
+    own = {
+        a
+        for a in normalize_host_names(own_raw, feed_title=result.feed_title)
+        if not is_network_or_org_author(a)
+    }
+    own = set(drop_non_person_names(sorted(own), result.feed_title))
+    return (hosts - fallback) | own
+
+
 def _fallback_to_episode_authors(
     cfg: config.Config,
     episodes: List[Episode],  # type: ignore[valid-type]
@@ -1320,7 +1351,13 @@ def detect_feed_hosts_and_patterns(
                 )
 
     # Return result with provider instance
-    return HostDetectionResult(cached_hosts, heuristics, speaker_detector, _feed_title(feed))
+    return HostDetectionResult(
+        cached_hosts,
+        heuristics,
+        speaker_detector,
+        _feed_title(feed),
+        episode_author_hosts=frozenset(episode_authors & set(cached_hosts)),
+    )
 
 
 def setup_processing_resources(cfg: config.Config) -> ProcessingResources:

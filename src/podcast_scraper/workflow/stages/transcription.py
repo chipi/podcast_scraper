@@ -11,7 +11,7 @@ import queue
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
 
@@ -26,6 +26,15 @@ from ...utils import filesystem, progress
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from .. import metrics
 from ..episode_processor import transcribe_media_to_text as factory_transcribe_media_to_text
+
+
+def _hosts_for_episode(result: Any, episode: Any) -> Set[str]:
+    """Late import: ``processing`` imports this module's siblings at load time."""
+    from .processing import hosts_for_episode
+
+    return hosts_for_episode(result, episode)
+
+
 from ..helpers import update_metric_safely
 
 
@@ -215,7 +224,8 @@ def process_transcription_jobs(
             try:
                 # Anchor the diarization roster with the feed-stated hosts (canonicalizes
                 # ASR-garbled host surnames). cached_hosts already merges feed + config hosts.
-                job.feed_hosts = sorted(host_detection_result.cached_hosts or [])
+                # #2197: this episode's own authors, never another episode's (hosts_for_episode).
+                job.feed_hosts = sorted(_hosts_for_episode(host_detection_result, job.episode))
                 # Stage 2: Use provider if available, otherwise fall back to direct model
                 # For backward compatibility, we pass both provider and model
                 # transcribe_media_to_text will use provider if available
@@ -547,7 +557,8 @@ def process_transcription_jobs_concurrent(  # noqa: C901
         _tx_active_start = time.monotonic()
         try:
             # Anchor the roster with the feed-stated hosts (see the sequential path above).
-            job.feed_hosts = sorted(host_detection_result.cached_hosts or [])
+            # #2197: this episode's own authors, never another episode's (hosts_for_episode).
+            job.feed_hosts = sorted(_hosts_for_episode(host_detection_result, job.episode))
             success, transcript_path, bytes_downloaded = transcribe_media_to_text(
                 job,
                 cfg,

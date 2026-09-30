@@ -62,16 +62,14 @@ def call_generate_metadata(
         pipeline_metrics: Metrics object
     """
     # Build detected_hosts and detected_guests lists
-    detected_hosts = (
-        list(host_detection_result.cached_hosts) if host_detection_result.cached_hosts else None
-    )
+    # #2197: this episode's own hosts — the episode-author fallback contributes THIS episode's
+    # authors, never another episode's (see stages.processing.hosts_for_episode).
+    from .processing import hosts_for_episode
+
+    episode_hosts = hosts_for_episode(host_detection_result, episode)
+    detected_hosts = sorted(episode_hosts) if episode_hosts else None
     detected_guests = (
-        [
-            name
-            for name in detected_names
-            if not host_detection_result.cached_hosts
-            or name not in host_detection_result.cached_hosts
-        ]
+        [name for name in detected_names if not episode_hosts or name not in episode_hosts]
         if detected_names
         else None
     )

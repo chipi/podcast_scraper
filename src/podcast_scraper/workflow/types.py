@@ -8,7 +8,18 @@ from __future__ import annotations
 import queue
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Literal, NamedTuple, Optional, Set, TYPE_CHECKING, TypeAlias
+from typing import (
+    Any,
+    Dict,
+    FrozenSet,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Set,
+    TYPE_CHECKING,
+    TypeAlias,
+)
 
 if TYPE_CHECKING:
     from ..models import Episode, TranscriptionJob
@@ -39,6 +50,10 @@ class HostDetectionResult(NamedTuple):
     #: unaffected, and a missing title simply means that particular guard has no opinion — the
     #: same contract `names_the_show` already has.
     feed_title: Optional[str] = None
+    #: The part of ``cached_hosts`` that came from the episode-level ``<itunes:author>`` fallback
+    #: (feed named nobody). Per-episode consumers swap it for THAT episode's own authors via
+    #: ``stages.processing.hosts_for_episode`` — see there (#2197).
+    episode_author_hosts: FrozenSet[str] = frozenset()
 
 
 @dataclass
