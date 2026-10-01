@@ -5785,4 +5785,12 @@ if __name__ == "__main__":  # pragma: no cover - script entry
         # 3. faulthandler.enable() still provides backtraces for actual segfaults/crashes
         # For debugging actual hangs, use: PYTHONFAULTHANDLER=1 python -m podcast_scraper.cli ...
 
+    # A RUNNING-but-stuck pipeline is a different problem from a crash, and the one prod could not
+    # diagnose (#2207: ~34 CPU-bound minutes, no py-spy in the image). `kill -USR1 <pid>` now writes
+    # every thread's Python stack to stderr — the job log — and the run carries on.
+    import signal
+
+    if hasattr(signal, "SIGUSR1"):
+        faulthandler.register(signal.SIGUSR1, all_threads=True)
+
     raise SystemExit(main())

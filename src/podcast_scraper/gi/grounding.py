@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
+from functools import lru_cache
+from typing import Any, Dict, List, Optional, Tuple
 
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
@@ -58,9 +59,15 @@ def _best_regex_matches(matches: List[Any]) -> Any:
     return max(matches, key=lambda m: (m.end() - m.start(), -m.start()))
 
 
-def _subphrase_span(
+def _subphrase_span_regex(
     transcript: str, qt: str, min_subphrase_words: int
 ) -> Optional[Tuple[int, int]]:
+    """The reference matcher: one regex scan of the whole transcript per (start, end) sub-phrase.
+
+    Correct, and O(W² · len(transcript)) when a long quote is not verbatim — 12 s for one
+    200-word near-verbatim quote on a 67k-char transcript, measured. `_subphrase_span` returns
+    the same answer from a token index; this stays as its fallback and its parity oracle.
+    """
     words = re.findall(r"\S+", qt)
     if len(words) < 2:
         return None
@@ -79,6 +86,111 @@ def _subphrase_span(
             if best is None or (span_len, -a) > (best[0], -best[1]):
                 best = (span_len, a, b)
             break
+    if best is None:
+        return None
+    return (best[1], best[2])
+
+
+@dataclass(frozen=True)
+class _TokenIndex:
+    """A transcript's whitespace tokens (``\\S+``), lowercased, with offsets and a suffix index."""
+
+    starts: Tuple[int, ...]
+    ends: Tuple[int, ...]
+    lower: Tuple[str, ...]
+    by_suffix: Dict[str, Tuple[int, ...]]
+    length_stable: bool  # lower() never changed a token's length, so offsets carry over
+
+
+@lru_cache(maxsize=4)
+def _token_index(transcript: str) -> _TokenIndex:
+    starts: List[int] = []
+    ends: List[int] = []
+    lower: List[str] = []
+    stable = True
+    by_suffix: Dict[str, List[int]] = {}
+    for k, m in enumerate(re.finditer(r"\S+", transcript)):
+        tok = m.group(0)
+        low = tok.lower()
+        stable = stable and len(low) == len(tok)
+        starts.append(m.start())
+        ends.append(m.end())
+        lower.append(low)
+        for s in range(len(low)):
+            by_suffix.setdefault(low[s:], []).append(k)
+    return _TokenIndex(
+        tuple(starts),
+        tuple(ends),
+        tuple(lower),
+        {s: tuple(v) for s, v in by_suffix.items()},
+        stable,
+    )
+
+
+def _subphrase_span(
+    transcript: str, qt: str, min_subphrase_words: int
+) -> Optional[Tuple[int, int]]:
+    """The longest contiguous sub-phrase of ``qt`` found in ``transcript`` — same answer as
+    `_subphrase_span_regex`, from a token index instead of a regex scan per sub-phrase (#2207).
+
+    The regex ``w_i\\s+…\\s+w_{j-1}`` (IGNORECASE, no anchors) matches where the first word is a
+    SUFFIX of a transcript token, every middle word EQUALS a token, and the last word is a PREFIX
+    of one. So each (quote word, transcript token) start extends along equal tokens once, instead
+    of re-scanning 67k chars for every (i, j): on prod that scan held the single pipeline slot for
+    ~34 minutes on one episode.
+
+    Per start word ``i`` the reference takes the LONGEST ``j`` that matches anywhere, its
+    leftmost-non-overlapping ``finditer`` matches, and the longest (then earliest) of those; then
+    the longest (then earliest) over all ``i``. Reproduced exactly, overlap skipping included.
+    """
+    words = re.findall(r"\S+", qt)
+    if len(words) < 2:
+        return None
+    idx = _token_index(transcript)
+    q = [w.lower() for w in words]
+    if not idx.length_stable or any(len(a) != len(b) for a, b in zip(q, words)):
+        # A case fold that changes length breaks offset arithmetic; the regex is exact.
+        return _subphrase_span_regex(transcript, qt, min_subphrase_words)
+
+    n_tok = len(idx.lower)
+    eff_min = min(min_subphrase_words, len(words))
+    best: Optional[Tuple[int, int, int]] = None  # span_len, start, end
+    for i in range(0, len(words) - eff_min + 1):
+        # Longest L (= j - i) matching at each candidate token k.
+        reach: List[Tuple[int, int]] = []  # (k, max L at k)
+        for k in idx.by_suffix.get(q[i], ()):
+            r = 0
+            while i + 1 + r < len(q) and k + 1 + r < n_tok and idx.lower[k + 1 + r] == q[i + 1 + r]:
+                r += 1
+            # Words i+1 .. i+r equal tokens k+1 .. k+r, so any L <= r+1 matches with an equal
+            # last word; L = r+2 needs the next word to be a PREFIX of the next token.
+            max_l = r + 1
+            if (
+                i + r + 1 < len(q)
+                and k + r + 1 < n_tok
+                and idx.lower[k + r + 1].startswith(q[i + r + 1])
+            ):
+                max_l = r + 2
+            if max_l >= max(eff_min, 2):
+                reach.append((k, max_l))
+        if not reach:
+            continue
+        length = max(ml for _k, ml in reach)
+        # The reference's matches for words[i:i+length]: leftmost, non-overlapping.
+        chosen: Optional[Tuple[int, int, int]] = None
+        prev_end = -1
+        for k, ml in sorted(reach):
+            if ml < length:
+                continue
+            a = idx.ends[k] - len(q[i])
+            if a < prev_end:
+                continue
+            b = idx.starts[k + length - 1] + len(q[i + length - 1])
+            prev_end = b
+            if chosen is None or (b - a, -a) > (chosen[0], -chosen[1]):
+                chosen = (b - a, a, b)
+        if chosen is not None and (best is None or (chosen[0], -chosen[1]) > (best[0], -best[1])):
+            best = chosen
     if best is None:
         return None
     return (best[1], best[2])
