@@ -253,6 +253,7 @@ class EponymousHostsRestoredMigration(Migration):
         return True, "every self-introduced eponymous host holds their seat"
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Restore each self-introduced eponymous host on all surfaces; back up and receipt."""
         root = ctx.corpus_root
         eps = self._episodes(root)
         receipts = []

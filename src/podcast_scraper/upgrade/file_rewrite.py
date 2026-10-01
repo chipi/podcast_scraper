@@ -21,10 +21,12 @@ from .role_ledger import file_sha
 
 
 def dump_json(payload: Any) -> str:
+    """Serialise an artifact the way migrations write them (indented, trailing newline)."""
     return json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
 
 
 def backup_dir(root: Path, tag: str) -> Path:
+    """Where a migration tagged *tag* keeps the pre-write copies of the files it replaced."""
     return Path(root) / ".podcast_scraper" / "upgrade-backups" / tag
 
 

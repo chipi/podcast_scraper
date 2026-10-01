@@ -74,6 +74,7 @@ class ArtworkThumbnailsMigration(Migration):
         return True, f"every stored image has a thumbnail ({len(failed)} undecodable, recorded)"
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Write each missing thumbnail; record undecodable images instead of failing."""
         root = ctx.corpus_root
         missing = self._missing(root)
         written: List[str] = []
