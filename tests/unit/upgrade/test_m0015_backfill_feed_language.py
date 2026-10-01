@@ -280,10 +280,7 @@ class TestRegistration:
         ids = [m.id for m in get_migrations()]
         assert "0015_backfill_feed_language" in ids
         assert ids == sorted(ids), "registry order is lexicographic by id"
-<<<<<<< HEAD:tests/unit/upgrade/test_m0015_backfill_feed_language.py
         assert ids[-1] == "0015_backfill_feed_language"
-=======
-        assert ids[-1] == "0011_backfill_feed_language"
 
 
 class TestItNeverClobbersAnOperatorOverride:
@@ -390,4 +387,3 @@ class TestItNeverClobbersAnOperatorOverride:
         assert _load(overridden)["feed"]["language"] == "pt"
         assert _load(plain)["feed"]["language"] == "es"
         assert _load(plain)["feed"]["language_source"] == "rss"
->>>>>>> f3cacd167 (The RSS <language> never reached the pipeline, and Phase 0's headline rested on it):tests/unit/upgrade/test_m0011_backfill_feed_language.py
