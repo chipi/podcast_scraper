@@ -13,6 +13,7 @@
  * their id (`topic:personal-growth` → "personal growth"), matching ProfileView.
  */
 import { computed, onMounted, ref } from 'vue'
+import { INTEREST_PREFIX, interestKind } from '../utils/interests'
 import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -62,18 +63,23 @@ function arrange(list: string[]): string[] {
   return [...filtered].reverse()
 }
 
-const topics = computed(() => arrange(ids.value.filter((i) => i.startsWith('topic:'))))
-const persons = computed(() => arrange(ids.value.filter((i) => i.startsWith('person:'))))
-// Storylines (thc:) + interest clusters (tc:) — both theme groupings; shown together as "storylines".
+// Grouped by KIND, not by prefix. `interestKind` is the one place that maps a token to what a
+// reader calls it, and asking it here means the wire prefixes can be renamed without touching this
+// file — which matters, because `utils/interests` records that the prefixes are inverted against
+// the product names (`thc:` is a storyline, `tc:` is a theme) and that the rename is deferred.
+// Hand-rolled prefix lists are exactly what that file warns go stale.
+const topics = computed(() => arrange(ids.value.filter((i) => interestKind(i) === 'topic')))
+const persons = computed(() => arrange(ids.value.filter((i) => interestKind(i) === 'person')))
+// Themes and storylines are still shown TOGETHER under "storylines" — unchanged behaviour, now
+// said out loud. They are different things (a theme groups by meaning, a storyline by
+// co-occurrence) and giving the theme its own group is the next step, not this one.
 const storylineTokens = computed(() =>
-  arrange(ids.value.filter((i) => i.startsWith('thc:') || i.startsWith('tc:'))),
+  arrange(ids.value.filter((i) => ['storyline', 'theme'].includes(interestKind(i)))),
 )
 // "Genuinely follows nothing" is about the UNFILTERED set — otherwise a search that matches none of
 // your follows showed "you're not following anything" (Fable-5 review S3). When you DO follow things
 // but a search hid them all, say that instead; a type-chip exclusion just renders nothing (no lie).
-const followsAnything = computed(() =>
-  ids.value.some((i) => /^(topic:|person:|thc:|tc:)/.test(i)),
-)
+const followsAnything = computed(() => ids.value.some((i) => INTEREST_PREFIX.test(i)))
 const isEmpty = computed(() => !followsAnything.value)
 const noSearchMatch = computed(
   () =>

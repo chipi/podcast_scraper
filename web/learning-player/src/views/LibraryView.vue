@@ -5,6 +5,7 @@
  * tabbed; the Saved tab grows a new section as new favourite kinds arrive. Auth-gated.
  */
 import { computed, onActivated, onMounted, ref, watch } from 'vue'
+import { interestKind } from '../utils/interests'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
@@ -373,11 +374,15 @@ const followingAvailableTypes = computed<{ key: string; label: string }[]>(() =>
   const out: { key: string; label: string }[] = []
   if (followedShows.value.length) out.push({ key: 'shows', label: t('library.savedTypeShows') })
   const ids = followingInterests.ids
-  if (ids.some((i) => i.startsWith('topic:')))
+  // By KIND, not by prefix — `interestKind` is the boundary where the wire names stop mattering,
+  // and these chips must keep matching the groups `FollowedInterests` renders.
+  if (ids.some((i) => interestKind(i) === 'topic'))
     out.push({ key: 'topics', label: t('library.savedTypeTopics') })
-  if (ids.some((i) => i.startsWith('person:')))
+  if (ids.some((i) => interestKind(i) === 'person'))
     out.push({ key: 'people', label: t('library.savedTypePeople') })
-  if (ids.some((i) => i.startsWith('thc:') || i.startsWith('tc:')))
+  // Themes ride with storylines here for the same reason they do in `FollowedInterests`: one group
+  // today, and splitting them is the next change rather than this one.
+  if (ids.some((i) => ['storyline', 'theme'].includes(interestKind(i))))
     out.push({ key: 'storylines', label: t('library.savedTypeStorylines') })
   return out
 })
