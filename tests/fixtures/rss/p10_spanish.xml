@@ -24,7 +24,7 @@
     <description>Conversaciones sobre construcción de senderos: drenaje, trazado, y las personas que construyen la ruta. Contraparte en español de Singletrack Sessions.</description>
     <language>es-ES</language>
 
-    <itunes:author>Maya Koster</itunes:author>
+    <itunes:author>Lucía Herrera</itunes:author>
     <itunes:explicit>no</itunes:explicit>
     <itunes:image href="/images/p10_cover.svg"/>
 
@@ -36,7 +36,10 @@
       test_fixture_mapping.py correctly rejected an item with no audio behind it.
 
       The item exists now because the audio and transcript do. `p10_e01` is the SPANISH
-      counterpart of `p01_e01` — same show, same Maya, same Liam Verbeek, same two sponsor reads
+      counterpart of `p01_e01` — the same conversation and the same two sponsor reads, in
+      Spanish and with its own cast (Lucía Herrera, Javier Benavides). It reused p01's
+      Maya and Liam Verbeek until 2026-10-01; giving every language its own people is what
+      lets the fixture exercise naming on names that belong to the language being spoken
       — so anything the pipeline does differently here is attributable to language and not to
       content. It is also the transcript every measurement in this arc was taken on (V.6a's
       hazards, S2.10's 174 requests, ADR-157's chars/token floor), which until now lived only in
@@ -52,10 +55,10 @@
       `es` is ENABLED as of 2026-09-30, so this feed is now one the pipeline processes.
     -->
     <item>
-      <title>Episodio 1: Construyendo Senderos Que Duran (con Liam Verbeek)</title>
+      <title>Episodio 1: Construyendo Senderos Que Duran (con Javier Benavides)</title>
       <guid isPermaLink="false">p10_e01</guid>
       <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
-      <description>Maya conversa con el constructor de senderos Liam Verbeek sobre drenaje, trazado, y cómo mantener los senderos rodables durante el invierno.</description>
+      <description>Lucía Herrera conversa con el constructor de senderos Javier Benavides sobre drenaje, trazado, y cómo mantener los senderos rodables durante el invierno.</description>
       <enclosure url="/audio/p10_e01.mp3" length="3267229" type="audio/mpeg"/>
       <itunes:episode>1</itunes:episode>
       <itunes:duration>00:06:48</itunes:duration>

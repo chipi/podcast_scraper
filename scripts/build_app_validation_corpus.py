@@ -55,7 +55,7 @@ import importlib.util
 import json
 import re
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -165,6 +165,125 @@ def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
     except (OSError, ValueError):
         return None
     return pd if isinstance(pd, str) else None
+
+
+#: Real pipeline summaries, captured as committed INPUTS.
+CAPTURED_SUMMARY_DIR = Path("tests/fixtures/pipeline-summaries")
+
+
+def _captured_summary_for(ep_label: str, version: str) -> dict[str, Any] | None:
+    """A real pipeline summary, replayed from disk instead of regenerated on a GPU.
+
+    WHY THIS EXISTS. A summary produced by `--pipeline-run` used to live in exactly one place:
+    the built `metadata.json`, which is an OUTPUT. So running the builder without that flag —
+    the obvious thing to do after adding a show — silently replaced 38 real summaries with a
+    transcript excerpt, and the only way back was another run of Deepgram plus an LLM gateway
+    over the whole corpus. That happened during the multilingual arc and cost a `git checkout` of
+    the entire corpus directory, which then also reverted an unrelated migration that had been
+    applied to the same files.
+
+    Capturing them as INPUTS makes a plain rebuild reproduce the corpus instead of degrading it.
+    The real run is still the source — this is a recording of one, with its provenance stated in
+    each file — and `--pipeline-run` still wins when a fresh run is supplied, so re-capturing is
+    how the recording gets updated.
+
+    Deliberately NOT stored in the ground truth beside the authored summaries. Ground truth is
+    the reference we wrote; this is output we observed. Merging them would mean a later "does the
+    pipeline still reproduce the reference?" check comparing a model against its own old answer.
+    """
+    path = CAPTURED_SUMMARY_DIR / version / f"{ep_label}.json"
+    if not path.is_file():
+        return None
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    captured = doc.get("summary")
+    if not isinstance(captured, dict) or not str(captured.get("raw_text") or "").strip():
+        return None
+    return captured
+
+
+def _capture_summaries(
+    pipeline_outputs: dict[str, Any], version: str, gt_dir: Path, run_root: Path
+) -> tuple[int, list[str]]:
+    """Write this run's summaries back out as committed fixture INPUTS. Closes the loop.
+
+    The replay in :func:`_captured_summary_for` is only half of it: without a repeatable way to
+    RE-capture, the recording can never be refreshed and the first real run after this one leaves
+    its summaries stranded in a build output again — the exact situation this whole mechanism
+    exists to end.
+
+    Skips any episode with an authored ground-truth summary. That one wins at build time, so
+    capturing beside it would write a file nothing reads, which then drifts from the thing that
+    does. One source per episode.
+
+    Returns ``(written, skipped_episode_labels)``.
+    """
+    out_dir = CAPTURED_SUMMARY_DIR / version
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    written, skipped = 0, []
+    for ep_label, payload in sorted(pipeline_outputs.items()):
+        if not isinstance(payload, dict) or not payload.get("has_summary"):
+            skipped.append(f"{ep_label} (no summary in the run)")
+            continue
+        if _authored_summary_for(ep_label, gt_dir):
+            skipped.append(f"{ep_label} (authored)")
+            continue
+        raw = str(payload.get("raw_text") or "").strip()
+        if not raw:
+            skipped.append(f"{ep_label} (empty)")
+            continue
+        doc = {
+            "episode_id": ep_label,
+            "captured_from": str(run_root),
+            "captured_at": stamp,
+            "provenance": (
+                "captured by build_app_validation_corpus.py --capture-summaries " f"from {run_root}"
+            ),
+            "summary": {
+                "title": payload.get("title"),
+                "raw_text": raw,
+                "bullets": list(payload.get("bullets") or []),
+            },
+        }
+        (out_dir / f"{ep_label}.json").write_text(
+            json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        written += 1
+    return written, skipped
+
+
+def _capture_or_remind(
+    *,
+    capture: bool,
+    pipeline_outputs: dict[str, Any],
+    from_pipeline: list[str],
+    version: str,
+    gt_dir: Path,
+    run_root: Path | None,
+) -> None:
+    """Close the loop, or say loudly that it was left open.
+
+    Lives outside ``main`` because ``main`` is already at the complexity ceiling, and because the
+    decision here — "does this run's output survive the build?" — is one thing worth naming.
+    """
+    if capture and pipeline_outputs and run_root is not None:
+        written, skipped = _capture_summaries(pipeline_outputs, version, gt_dir, run_root)
+        print(f"\n  CAPTURED {written} summaries -> {CAPTURED_SUMMARY_DIR / version}")
+        print("    ^ commit these; later builds replay them with no --pipeline-run.")
+        if skipped:
+            print(f"    skipped {len(skipped)}: {', '.join(skipped[:8])}")
+        return
+    if pipeline_outputs and from_pipeline:
+        # Not an error — but a real run is expensive, and its output is about to exist only in
+        # this build's metadata.json, which is how 38 summaries were lost once already.
+        print(
+            f"\n  NOTE: {len(from_pipeline)} summaries came from this run and were NOT captured."
+            "\n    Re-run with --capture-summaries to commit them as fixture inputs, or the next"
+            "\n    plain build has nothing to replay for them."
+        )
 
 
 def _authored_summary_for(ep_label: str, gt_dir: Path) -> dict[str, Any] | None:
@@ -1350,11 +1469,24 @@ def main() -> int:
         default=None,
         help=(
             "Root of a real pipeline run (the --output-dir it was given). Its summaries and "
-            "measured durations are used instead of the synthesized stand-in, keyed on "
-            "episode.guid. Without this the corpus's 'summary' is the transcript's opening line."
+            "measured durations are used instead of the replayed ones, keyed on episode.guid. "
+            "Without this the corpus replays the captured summaries committed under "
+            "tests/fixtures/pipeline-summaries/."
+        ),
+    )
+    p.add_argument(
+        "--capture-summaries",
+        action="store_true",
+        help=(
+            "Write this run's summaries back to tests/fixtures/pipeline-summaries/<version>/ so "
+            "later builds can replay them without a GPU. Requires --pipeline-run. This is the "
+            "step that turns a one-off run into a committed fixture input — commit what it "
+            "writes."
         ),
     )
     args = p.parse_args()
+    if args.capture_summaries and not args.pipeline_run:
+        sys.exit("--capture-summaries needs --pipeline-run: there is nothing to capture without it")
 
     if not args.rss_dir.is_dir():
         sys.exit(f"--rss-dir does not exist: {args.rss_dir}")
@@ -1378,6 +1510,12 @@ def main() -> int:
     allow_synthesized = bool(args.allow_synthesized_summaries)
     summaries_from_pipeline: list[str] = []
     summaries_synthesized: list[str] = []
+    #: Real pipeline summaries REPLAYED from `tests/fixtures/pipeline-summaries/`. Counted
+    #: apart from `summaries_from_pipeline` because the provenance differs — one is a run
+    #: that happened just now, the other a recording of one that happened in #2147 — even
+    #: though the bytes are equally real. Collapsing them would make the report unable to
+    #: say whether a GPU was involved in THIS build.
+    summaries_replayed: list[str] = []
     #: Hand-written in the ground truth. NOT a stand-in — a stand-in is the transcript's
     #: opening line, which is the v3 defect; an authored summary is the best available
     #: description of an episode no model can summarise (44 words, all of it boilerplate).
@@ -1604,6 +1742,16 @@ def main() -> int:
                 summary_body = pipeline_summary["raw_text"] or episode_title
                 summary_title = pipeline_summary["title"] or episode_title
                 summaries_from_pipeline.append(ep_label)
+            elif captured_summary := _captured_summary_for(ep_label, version):
+                # A real pipeline summary, replayed. Ranks BELOW a live `--pipeline-run` (a fresh
+                # run supersedes a recording of an old one) and ABOVE the stand-in, which is the
+                # whole point: without this, a build with no run degrades 38 episodes.
+                bullets = [str(b) for b in (captured_summary.get("bullets") or [])] or [
+                    episode_title
+                ]
+                summary_body = str(captured_summary["raw_text"])
+                summary_title = str(captured_summary.get("title") or episode_title)
+                summaries_replayed.append(ep_label)
             else:
                 bullets = excerpts["insights"][:3] or [f"Key point {n + 1}" for n in range(3)]
                 # Not insights[0] blindly: for most episodes greeting-filtering has already
@@ -1841,9 +1989,17 @@ def main() -> int:
     # quietly fell back for half its episodes would still claim "we ran the pipeline", and the
     # synthesized stand-in is a greeting, not a summary — so the gap is reported, never implied.
     total_summaries = (
-        len(summaries_from_pipeline) + len(summaries_synthesized) + len(summaries_authored)
+        len(summaries_from_pipeline)
+        + len(summaries_synthesized)
+        + len(summaries_authored)
+        + len(summaries_replayed)
     )
     print(f"\n  summaries — real pipeline: {len(summaries_from_pipeline)}/{total_summaries}")
+    if summaries_replayed:
+        print(
+            f"  summaries — REPLAYED from captured pipeline output: "
+            f"{len(summaries_replayed)}/{total_summaries}"
+        )
     if summaries_authored:
         print(
             f"  summaries — AUTHORED ground truth: {len(summaries_authored)}/{total_summaries}"
@@ -1863,6 +2019,15 @@ def main() -> int:
             )
         else:
             print("    ^ no --pipeline-run was supplied, so every summary is the stand-in.")
+
+    _capture_or_remind(
+        capture=bool(args.capture_summaries),
+        pipeline_outputs=pipeline_outputs,
+        from_pipeline=summaries_from_pipeline,
+        version=version,
+        gt_dir=gt_dir,
+        run_root=args.pipeline_run,
+    )
 
     problems = _audit_built_corpus(out)
     problems += _feed_parity_problems(out, args.rss_dir)
@@ -2078,14 +2243,25 @@ def _synthesized_fallback_problems(
     this". Printing a problem is not the same as refusing to call the build a success.
 
     ``--allow-synthesized-summaries`` is the deliberate escape hatch; there is no accidental one.
-    Without ``--pipeline-run`` there is nothing to fall back FROM, so the stand-in is the expected
-    output rather than a defect.
+
+    THE `ran_pipeline` EXEMPTION IS GONE (2026-10-01). It read: "without --pipeline-run there is
+    nothing to fall back FROM, so the stand-in is the expected output rather than a defect".
+    That was true while a real summary existed only inside the build output. It is false now
+    that they are committed as inputs under `tests/fixtures/pipeline-summaries/`: a plain
+    rebuild replays them, so a stand-in means an episode has NEITHER an authored summary NOR a
+    captured one — a real gap, whatever flags were passed.
+
+    That exemption is also exactly how 38 real summaries got overwritten during the
+    multilingual arc: the obvious command after adding a show degraded the corpus and exited
+    0, because the one guard that would have caught it had excused itself.
     """
-    if not ran_pipeline or not synthesized or allowed:
+    if not synthesized or allowed:
         return []
+    whence = "under --pipeline-run" if ran_pipeline else "with no authored or captured summary"
     return [
-        f"{len(synthesized)}/{total} summaries fell back to the synthesized stand-in under "
-        "--pipeline-run (pass --allow-synthesized-summaries to accept this deliberately)"
+        f"{len(synthesized)}/{total} summaries fell back to the synthesized stand-in "
+        f"{whence} (pass --allow-synthesized-summaries to accept this deliberately): "
+        f"{', '.join(synthesized[:8])}"
     ]
 
 

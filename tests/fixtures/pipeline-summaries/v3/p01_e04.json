@@ -1,0 +1,17 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p01_e04",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Enduro racing is about risk management rather than nerve; a clear framing of risk matters more than bravado on the trail.",
+      "Season-ending crashes are almost never the scary-looking ones; they come from the boring risk you didn't name, which is why overlooked hazards deserve the most attention.",
+      "Naming the risk before it names you removes half the danger, because a risk you can describe is one you can design around.",
+      "A race run should be ridden as a whole system rather than a list of corners, since mistakes come from how one section sets up the next.",
+      "A full season of self-logged crashes showed the causes were always two turns upstream, meaning the root error happens well before the point of failure.",
+      "A race line and a portfolio share the same discipline; both are systems of correlated bets where the real work is managing the interactions rather than individual choices."
+    ],
+    "raw_text": "Enduro racing is about risk management rather than nerve; a clear framing of risk matters more than bravado on the trail. Season-ending crashes are almost never the scary-looking ones; they come from the boring risk you didn't name, which is why overlooked hazards deserve the most attention.",
+    "title": "Enduro Racing as Risk Management"
+  }
+}

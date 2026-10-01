@@ -78,7 +78,11 @@ def _sha256(path: str) -> str | None:
 # Names may contain internal periods ("A. correspondent", "Dr. Elena Fischer");
 # without '.' in the class those speakers are silently dropped, undercounting
 # expected_diarized_voices and mislabelling type (#1170).
-SPEAKER_RE = re.compile(r"^([A-Za-z][A-Za-z .'\-]{0,40}):\s+(.*)$")
+#: Unicode-aware. `[A-Za-z]` cannot see the `í` in `Lucía Herrera`, so she stopped being a
+#: speaker: her 26 turns vanished from the sidecar, `voice_map` came back with the guest and
+#: the ad only, and `expected_diarized_voices` said 2 against an RTTM holding 3. Nothing
+#: errored — an unmatched line is simply not a turn. Same fix as transcripts_to_vtt.py.
+SPEAKER_RE = re.compile(r"^([A-Za-zÀ-ÖØ-Þ][\w .'\-]{0,40}):\s+(.*)$")
 HEADER_PREFIXES = ("podcast:", "episode:", "host:", "guest:", "guests:", "title:", "co-host:")
 FAILURE_RE = re.compile(r"failure_modes\s*=\s*([^\s]+)")
 

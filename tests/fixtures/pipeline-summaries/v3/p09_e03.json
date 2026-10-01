@@ -1,0 +1,16 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p09_e03",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Labor markets are where macro stops being abstract — the point at which economic conditions become concrete realities for workers and households rather than aggregate figures.",
+      "Risk is a household-level variable rather than a portfolio-level one; a pattern observed to hold consistently across three different teams.",
+      "Ignoring the household and labor-market grounding of risk forces teams to rebuild their approach from scratch a year later — a recurring pattern at teams using Bloomberg and BloombergNEF.",
+      "Systems thinking involves trade-offs that cross-cut every other theme, from labor markets to risk management, rather than standing as a separate topic.",
+      "Adoption works best by picking one idea and running it for two weeks rather than overhauling everything at once — the rest is iteration."
+    ],
+    "raw_text": "Labor markets are where macro stops being abstract — the point at which economic conditions become concrete realities for workers and households rather than aggregate figures. Risk is a household-level variable rather than a portfolio-level one; a pattern observed to hold consistently across three different teams.",
+    "title": "Labor Markets, Household Risk, and Systems Thinking"
+  }
+}

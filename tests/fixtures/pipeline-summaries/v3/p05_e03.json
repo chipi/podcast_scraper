@@ -1,0 +1,18 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p05_e03",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Macro is mostly about not being on the wrong side of a regime change — positioning around structural shifts matters more than calling individual price moves.",
+      "Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
+      "Risk you can articulate is risk you can manage — a pattern observed holding across three different teams, and one that makes downstream decisions easier once internalized.",
+      "Reliability of expectations is the underrated piece of macro analysis, with the second-order effect being the part most people miss.",
+      "Systems thinking applies because the dollar is a system, not a price; ignoring that means rebuilding the analysis from scratch a year later.",
+      "Trade-offs around systems thinking cut across risk management and macro policy, and framing matters because it reveals which trade-offs are actually being made.",
+      "Practical starting point: pick one idea and run it for two weeks rather than overhauling everything at once — the rest is iteration."
+    ],
+    "raw_text": "Macro is mostly about not being on the wrong side of a regime change — positioning around structural shifts matters more than calling individual price moves. Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
+    "title": "Macro Policy, Regime Change, and the Dollar as a System"
+  }
+}

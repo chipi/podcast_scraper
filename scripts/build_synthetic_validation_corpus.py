@@ -37,6 +37,7 @@ import json
 import pathlib
 import re
 import sys
+import unicodedata
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -49,7 +50,20 @@ import defusedxml.ElementTree as ET
 
 
 def slug(text: str, max_len: int = 40) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    """Fixture slugifier — must agree with `podcast_scraper.identity.slugify` on any name.
+
+    It did not. `[^a-z0-9]+` turns every non-ASCII character into a HYPHEN, so the corpus's first
+    accented person, `Lucía Herrera`, became `person:luc-a-herrera` while production's slugifier
+    (NFKD, then drop the combining marks) produces `person:lucia-herrera` for the same human. A
+    fixture that disagrees with production about an entity id is worse than no fixture: every
+    identity assertion built on it is testing the disagreement.
+
+    NFKD decomposes `í` into `i` + a combining acute; dropping non-ASCII then leaves the `i`
+    rather than a hole. Pure ASCII input is unaffected, so no existing id moves.
+    """
+    normalized = unicodedata.normalize("NFKD", text)
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[^a-z0-9]+", "-", normalized.lower()).strip("-")
     return s[:max_len] or "x"
 
 
@@ -321,7 +335,9 @@ def parse_diarized_segments(
             continue
         # Drop a leading [mm:ss] / mm:ss timestamp marker if present.
         line = re.sub(r"^\[?\d{1,2}:\d{2}\]?\s*", "", line)
-        m = re.match(r"^([A-Z][A-Za-z0-9 .'\-]{0,40}):\s+(.+)$", line)
+        # Unicode-aware — see transcripts_to_vtt.py: an accented speaker name silently
+        # stops being a speaker, which costs the episode its host rather than erroring.
+        m = re.match(r"^([A-ZÀ-ÖØ-Þ][\w .'\-]{0,40}):\s+(.+)$", line)
         if not m:
             continue
         speaker = m.group(1).strip()

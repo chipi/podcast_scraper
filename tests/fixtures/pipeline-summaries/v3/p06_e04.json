@@ -1,0 +1,17 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p06_e04",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Culture is a system that never sits still — a heuristic grounded in patterns observed at teams using Substack and reportedly holding across three different teams.",
+      "Drift can only be noticed rather than gripped; attempts to control it directly miss how it actually operates.",
+      "Second-order effects are the most overlooked dimension of cultural drift — the part most people miss when reasoning about how culture changes.",
+      "Ignoring cultural drift carries a concrete cost: teams end up rebuilding it from scratch a year later rather than adapting incrementally.",
+      "Systems thinking cross-cuts every aspect of cultural drift — its trade-offs shape the rest of the analysis rather than forming a separate topic.",
+      "Practical adoption favors small experiments over sweeping change — pick one idea, run it for two weeks, and treat the rest as iteration."
+    ],
+    "raw_text": "Culture is a system that never sits still — a heuristic grounded in patterns observed at teams using Substack and reportedly holding across three different teams. Drift can only be noticed rather than gripped; attempts to control it directly miss how it actually operates.",
+    "title": "Cultural Drift: A System That Never Sits Still"
+  }
+}

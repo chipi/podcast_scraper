@@ -1,0 +1,17 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p06_e01",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Conversations capture something essays cannot — the way dialogue actually unfolds in real time — and the second-order effect of that difference is what most people miss.",
+      "The texture of dialogue is the work rather than a byproduct of it; ignoring that means rebuilding it from scratch a year later.",
+      "Long-form is not a length but a posture — internalizing that distinction makes the rest of the decisions easier, a pattern observed at teams using Substack.",
+      "Outside of Patreon-class tooling, the failure mode is harder to spot, so the framing matters because it reveals which trade-offs are being made.",
+      "The trade-offs around long form cross-cut every other theme — dialogue, cultural drift, and platform choice — rather than standing as a separate concern.",
+      "Practical adoption favors running one idea for two weeks rather than overhauling everything at once; the rest is iteration."
+    ],
+    "raw_text": "Conversations capture something essays cannot — the way dialogue actually unfolds in real time — and the second-order effect of that difference is what most people miss. The texture of dialogue is the work rather than a byproduct of it; ignoring that means rebuilding it from scratch a year later.",
+    "title": "Dialogue, Long-Form, and Cultural Drift"
+  }
+}

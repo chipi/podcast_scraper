@@ -1,0 +1,16 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p09_e02",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Macro forecasting is mostly humility plus a few dependable signals rather than elaborate prediction — a pattern observed at teams using BloombergNEF and IPCC and seen holding across three different teams.",
+      "Reliability of data trumps cleverness of model; the framing matters because it reveals which trade-offs a forecaster is actually making.",
+      "Second-order effects are the part of macroeconomics most people miss — first-order reasoning alone leaves the most consequential dynamics unexamined.",
+      "Trade-offs around reliability cross-cut every other aspect of risk management and macroeconomics rather than sitting in a single isolated domain.",
+      "Practical adoption starts small — pick one idea, run it for two weeks, and treat everything after that as iteration rather than a one-time overhaul."
+    ],
+    "raw_text": "Macro forecasting is mostly humility plus a few dependable signals rather than elaborate prediction — a pattern observed at teams using BloombergNEF and IPCC and seen holding across three different teams. Reliability of data trumps cleverness of model; the framing matters because it reveals which trade-offs a forecaster is actually making.",
+    "title": "Macro Forecasting: Humility, Dependable Signals, and Reliable Data"
+  }
+}

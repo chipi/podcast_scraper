@@ -25,7 +25,7 @@
     "transcript_source": "synthetic-app-validation-corpus"
   },
   "episode": {
-    "duration_seconds": 1800,
+    "duration_seconds": 420,
     "episode_id": "ep-c0ab3bfb1ebdab6d",
     "language": "de",
     "language_source": "rss",

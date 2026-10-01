@@ -1,0 +1,15 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p06_e03",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Meaning drifts faster than anyone admits — a pattern observed at teams using Patreon, where the second-order effect is the part most people miss.",
+      "The best conversations refuse to resolve rather than landing on neat conclusions; internalizing that principle makes the rest of the decisions easier.",
+      "Long form is where the trade-offs cross-cut everything else — the dynamics of cultural drift and dialogue converge there rather than staying separate concerns.",
+      "Practical adoption favors a small experiment over wholesale change — pick one idea, run it for two weeks, and treat the rest as iteration."
+    ],
+    "raw_text": "Meaning drifts faster than anyone admits — a pattern observed at teams using Patreon, where the second-order effect is the part most people miss. The best conversations refuse to resolve rather than landing on neat conclusions; internalizing that principle makes the rest of the decisions easier.",
+    "title": "Cultural Drift, Dialogue, and Long Form"
+  }
+}

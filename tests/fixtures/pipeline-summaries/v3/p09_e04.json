@@ -1,0 +1,18 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p09_e04",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Risk lives in the couplings, not the components — the same principle that governs reliability, observed in practice at teams using IPCC.",
+      "The dangerous risks are the slow correlated ones you can name but discount, rather than sudden or unknown threats — a pattern observed holding across three different teams.",
+      "Framing a risk correctly matters because it reveals which trade-offs are being made rather than leaving them implicit.",
+      "Ignoring how risk concentrates in interactions leads to rebuilding the approach from scratch a year later rather than getting it right the first time.",
+      "Risk is a systems property that lives in the interactions, not the parts — a claim grounded in direct measurement rather than a hunch.",
+      "Systems thinking and risk management are one discipline in two vocabularies; the trade-offs around reliability cross-cut both.",
+      "Running one idea for two weeks is the recommended starting point, with everything beyond that treated as iteration."
+    ],
+    "raw_text": "Risk lives in the couplings, not the components — the same principle that governs reliability, observed in practice at teams using IPCC. The dangerous risks are the slow correlated ones you can name but discount, rather than sudden or unknown threats — a pattern observed holding across three different teams.",
+    "title": "Risk Management as a Systems Property"
+  }
+}

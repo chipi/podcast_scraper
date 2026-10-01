@@ -502,7 +502,10 @@ Every path that degrades quality in `build_app_validation_corpus.py` still retur
 
 **v4 requirement:** the build fails on degraded output. `_audit_built_corpus()` now covers the
 content half; the remaining half is failing — or requiring an explicit `--allow-fallback ep1,ep2`
-list — when `summaries_synthesized` is non-empty under `--pipeline-run`.
+list — when `summaries_synthesized` is non-empty. The `--pipeline-run` qualifier was removed
+2026-10-01: real summaries are committed as inputs under `tests/fixtures/pipeline-summaries/`
+and replayed on every build, so a stand-in no longer means "no run was supplied" — it means
+the episode has neither an authored nor a captured summary.
 
 ### 17. The corpora carried no usable language, and the generators are fixed ahead of the data
 

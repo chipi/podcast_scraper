@@ -1,0 +1,17 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p07_e03",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "The word 'sustainability' hides the hard part — it is fundamentally a systems problem in which no single part can be optimized without moving another.",
+      "Fixing emissions in isolation pushes the cost into water, land, or the grid rather than eliminating it; the interactions between parts are the whole story.",
+      "Systems thinking, first and last, means managing the couplings rather than the components — the connections between elements determine outcomes more than any single element does.",
+      "A decade of modeled interventions showed a consistent failure pattern — the ones that failed treated a system as a list of parts rather than an interconnected whole.",
+      "The most dangerous risks are the slow ones that can be named but are discounted — familiarity breeds neglect rather than preparedness.",
+      "Risk management in sustainability is the same discipline as for a portfolio, a power grid, or a reef — name the risk before it names you, and respect the correlations."
+    ],
+    "raw_text": "The word 'sustainability' hides the hard part — it is fundamentally a systems problem in which no single part can be optimized without moving another. Fixing emissions in isolation pushes the cost into water, land, or the grid rather than eliminating it; the interactions between parts are the whole story.",
+    "title": "Sustainability as a Systems Problem: Couplings, Tradeoffs, and Slow Risks"
+  }
+}

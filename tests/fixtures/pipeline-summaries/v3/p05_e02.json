@@ -1,0 +1,18 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p05_e02",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Forward guidance alone is just words without a credible balance-sheet signal — a revised view replacing an earlier belief that forward guidance was sufficient on its own.",
+      "Forward guidance only works if the market believes the central bank will follow through; credibility rather than the announcement itself determines whether guidance moves expectations.",
+      "Reliability of policy signal matters more than the policy itself — framed as the most underrated and contrarian piece of monetary policy, and the lens that cross-cuts every other trade-off.",
+      "Policy decisions look obvious in hindsight and impossible in real time; internalizing that asymmetry makes subsequent decisions easier rather than harder.",
+      "Risk management at the Fed is mostly about not breaking the institution — protecting institutional integrity rather than optimizing any single policy outcome, with second-order effects being the part most people miss.",
+      "Framing matters because it reveals which trade-offs are being made, turning implicit policy choices into explicit ones.",
+      "Iteration beats ambition as a starting point — pick one idea, run it for two weeks, and refine from there."
+    ],
+    "raw_text": "Forward guidance alone is just words without a credible balance-sheet signal — a revised view replacing an earlier belief that forward guidance was sufficient on its own. Forward guidance only works if the market believes the central bank will follow through; credibility rather than the announcement itself determines whether guidance moves expectations.",
+    "title": "Monetary Policy, Forward Guidance, and the Reliability of Policy Signals"
+  }
+}

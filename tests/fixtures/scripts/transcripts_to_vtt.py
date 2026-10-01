@@ -52,7 +52,11 @@ _MARKER = re.compile(r"^\[(?:(\d+):)?(\d{1,2}):(\d{2})\]\s*$")
 
 #: ``Speaker: words`` — the speaker is a short human-ish label, never a sentence. Bounded to keep a
 #: line like "Note: the trail was wet" from being read as a speaker turn.
-_TURN = re.compile(r"^([A-Z][A-Za-z.'’\- ]{0,40}?):\s+(.*\S)\s*$")
+#: Unicode-aware: `[A-Z]` cannot see `Lucía`'s L... it can, but it cannot see `Á`, and
+#: `[A-Za-z]` cannot see the `í`. An unmatched line is not an error here — it is simply
+#: not a turn, so an accented speaker vanished from the VTT with no warning (49 cues ->
+#: 23 when `p10`'s host became `Lucía Herrera`).
+_TURN = re.compile(r"^([A-ZÀ-ÖØ-Þ][\w.'’\- ]{0,40}?):\s+(.*\S)\s*$")
 
 #: Header labels that LOOK like a turn but describe the episode. ``p01_e01_fast.txt`` opens with
 #: ``Host: Maya`` / ``Guest: Liam``; treating those as speech would invent a speaker called "Host".

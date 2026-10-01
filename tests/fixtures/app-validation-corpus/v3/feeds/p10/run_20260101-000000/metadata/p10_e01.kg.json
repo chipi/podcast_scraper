@@ -37,12 +37,12 @@
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "person:maya",
+      "to": "person:lucia-herrera",
       "type": "MENTIONS"
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "person:liam-verbeek",
+      "to": "person:javier-benavides",
       "type": "MENTIONS"
     }
   ],
@@ -119,17 +119,17 @@
       "type": "Topic"
     },
     {
-      "id": "person:maya",
+      "id": "person:lucia-herrera",
       "properties": {
-        "name": "Maya",
+        "name": "Luc\u00eda Herrera",
         "role": "host"
       },
       "type": "Person"
     },
     {
-      "id": "person:liam-verbeek",
+      "id": "person:javier-benavides",
       "properties": {
-        "name": "Liam Verbeek",
+        "name": "Javier Benavides",
         "role": "guest"
       },
       "type": "Person"

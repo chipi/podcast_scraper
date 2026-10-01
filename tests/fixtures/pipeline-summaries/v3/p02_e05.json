@@ -1,0 +1,15 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p02_e05",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Alert fatigue is a signal-to-noise problem rather than a discipline problem — when a team ignores pages, the pages are wrong, not the people.",
+      "Tuning the alerts should come before tuning the humans; fixing the paging system addresses the root cause, whereas pushing responders to try harder does not.",
+      "The share of pages that led to action is the key diagnostic metric — under half signals a noise problem.",
+      "Noise cannot be overcome through willpower; no amount of responder effort compensates for alerts that don't warrant action, so the fix has to live in the alerting itself."
+    ],
+    "raw_text": "Alert fatigue is a signal-to-noise problem rather than a discipline problem — when a team ignores pages, the pages are wrong, not the people. Tuning the alerts should come before tuning the humans; fixing the paging system addresses the root cause, whereas pushing responders to try harder does not.",
+    "title": "Alert Fatigue vs. Real Incidents"
+  }
+}

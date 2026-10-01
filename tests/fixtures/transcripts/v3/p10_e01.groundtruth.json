@@ -4,8 +4,8 @@
   "episode": "Construyendo Senderos Que Duran",
   "type": "interview",
   "speakers": [
-    "Maya",
-    "Liam Verbeek"
+    "Lucía Herrera",
+    "Javier Benavides"
   ],
   "num_human_speakers": 2,
   "has_commercial": true,
@@ -15,15 +15,15 @@
     "none"
   ],
   "voice_map": {
-    "Maya": "Monica",
-    "Liam Verbeek": "Paulina",
+    "Lucía Herrera": "Monica",
+    "Javier Benavides": "Paulina",
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Liam Verbeek": 0.45
+    "Javier Benavides": 0.45
   },
   "cameo": null,
-  "transcript_sha256": "eef6efedf13f823ed2991b5a1af257cb8922c7fc1fbf34029ac8a54df12fea80",
-  "audio_sha256": "24d40784e4627cf881b2fcdb05d68cd39de2d598fda4fd004ed3383106f2f184",
-  "rttm_sha256": "9a560eea3ce12cc9002ecd03011de6362f23c6b6ee3f41eb59d6cb095544b85b"
+  "transcript_sha256": "854da3b97de6baf5eb77465104069356dfcd6110740cec6b3958e7f41cd00144",
+  "audio_sha256": "39b2436386718fa6a66b6282132cd336c0d8b75434a30b954578843fc1df7b01",
+  "rttm_sha256": "3cc581f0c3a6799c68f60d7ed6c72627e41d29f9d9eac321b0214ba3ca32abbe"
 }

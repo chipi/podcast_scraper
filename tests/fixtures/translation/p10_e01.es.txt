@@ -1,5 +1,5 @@
-SPEAKER_00: Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de construcción de senderos, y me acompaña Liam Verbeek, constructor de senderos de la Alianza Cascadia. Liam Verbeek, gracias por estar aquí.
-SPEAKER_01: Gracias, Maya. Con muchas ganas — la construcción de senderos es algo en lo que he pensado bastante.
+SPEAKER_00: Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de construcción de senderos, y me acompaña Javier Benavides, constructor de senderos de la Alianza Cascadia. Javier Benavides, gracias por estar aquí.
+SPEAKER_01: Gracias, Lucía. Con muchas ganas — la construcción de senderos es algo en lo que he pensado bastante.
 SPEAKER_00: Este episodio es patrocinado por Strava. Strava es el hogar de los atletas. Comienza en strava.com/podcast.Cuéntame cómo tomaste la decisión. ¿Cómo encaja RockShox en este panorama?
 SPEAKER_01: Sinceramente, el drenaje es la decisión de diseño con más impacto en cualquier sendero. Lo hemos visto en equipos que usan la Alianza Cascadia. He visto este patrón repetirse en tres equipos distintos.
 SPEAKER_00: Cuéntame cómo tomaste la decisión. ¿Cuál es la versión de la pregunta que de verdad importa?
@@ -42,6 +42,6 @@ SPEAKER_00: ¿Cómo se ve el modo de fallo? ¿Cuál es el aspecto más subestima
 SPEAKER_01: Sinceramente, el error más común de los constructores nuevos es excavar con demasiada pendiente. El marco importa porque te dice qué concesiones estás haciendo.
 SPEAKER_00: Antes de terminar, ¿qué es una cosa que los oyentes pueden probar esta semana?
 SPEAKER_01: Elige una de las ideas que cubrimos y aplícala durante dos semanas. El resto es iteración.
-SPEAKER_00: Y para terminar, un gran agradecimiento a nuestros socios de Linear. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado. Échale un ojo en linear.com.Liam Verbeek, gracias por la conversación.
-SPEAKER_01: Gracias, Maya.
+SPEAKER_00: Y para terminar, un gran agradecimiento a nuestros socios de Linear. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado. Échale un ojo en linear.com.Javier Benavides, gracias por la conversación.
+SPEAKER_01: Gracias, Lucía.
 SPEAKER_00: Eso es todo por el episodio de hoy de Sesiones de Sendero. Nos vemos la próxima.

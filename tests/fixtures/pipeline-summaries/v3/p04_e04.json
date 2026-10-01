@@ -1,0 +1,18 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p04_e04",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Roundtables reveal where photographers actually disagree — surfacing real points of contention across underwater, documentary, and commercial lighting work rather than consensus talking points.",
+      "Frame and light decisions converge across genres; internalizing that convergence makes the rest of the decisions easier and clarifies which trade-offs are being made.",
+      "Practical reliability of gear shows up under crowd-shoot conditions rather than in controlled settings — a pattern observed at teams using Profoto and Peak Design.",
+      "Outside of Profoto-class or Peak Design-class tooling, the failure mode is harder to spot, and the second-order effect is the part most people miss.",
+      "Ignoring gear reliability and genre-convergence dynamics leads to rebuilding a workflow from scratch a year later — a pattern held across three different teams.",
+      "Strobe lighting trade-offs cross-cut every other decision in roundtable photography, making it the point where framing, gear reliability, and genre differences intersect.",
+      "Running one idea for two weeks beats adopting everything at once; the rest is iteration."
+    ],
+    "raw_text": "Roundtables reveal where photographers actually disagree — surfacing real points of contention across underwater, documentary, and commercial lighting work rather than consensus talking points. Frame and light decisions converge across genres; internalizing that convergence makes the rest of the decisions easier and clarifies which trade-offs are being made.",
+    "title": "Roundtable Photography: Where Genres Converge and Photographers Disagree"
+  }
+}

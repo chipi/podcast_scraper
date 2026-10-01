@@ -1,0 +1,18 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p04_e02",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Documentary frames carry the most weight when the photographer is closer than feels comfortable — a principle observed at teams using Profoto and Capture One, with second-order effects most people miss.",
+      "Editing a documentary essay is the second project rather than a finishing step; ignoring that distinction means rebuilding the work from scratch a year later.",
+      "Peak Design slings have changed how a photographer moves through a story, making gear choice part of the reporting process rather than a neutral accessory.",
+      "Adopting Peak Design in a working flow makes trade-offs visible — the framing matters because it reveals which trade-offs are being made.",
+      "Color grading documentary work is an area of changed conviction, a pattern observed holding across three different teams.",
+      "Editing workflow cross-cuts every other trade-off in documentary photography, from proximity to gear to grading.",
+      "Running one idea for two weeks rather than adopting everything at once is the recommended starting point — the rest is iteration."
+    ],
+    "raw_text": "Documentary frames carry the most weight when the photographer is closer than feels comfortable — a principle observed at teams using Profoto and Capture One, with second-order effects most people miss. Editing a documentary essay is the second project rather than a finishing step; ignoring that distinction means rebuilding the work from scratch a year later.",
+    "title": "Documentary Photography: Proximity, Editing, and Gear on Frame & Light"
+  }
+}

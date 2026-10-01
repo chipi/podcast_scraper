@@ -74,8 +74,10 @@ def surface_to_person():
         "Ad": "synthetic:Ad",
         # Hand-made non-English shows. `build_v3_spec()` generates the p01-p09 roster only, so
         # people who exist ONLY in a hand-written fixture have to be named here — the same
-        # reason the cameos above are. p10 needs no entry: it is p01's Spanish counterpart and
-        # reuses Maya and Liam Verbeek, who are already in the roster.
+        # reason the cameos above are. p10 is here too since 2026-10-01: it reused p01's Maya
+        # and Liam Verbeek until then, and now has its own Spanish cast like the other four.
+        "Lucía Herrera": "host:Lucía Herrera",
+        "Javier Benavides": "guest:Javier Benavides",
         "Giulia Ferrara": "host:Giulia Ferrara",
         "Marco Bellini": "guest:Marco Bellini",
         "Camille Dubois": "host:Camille Dubois",
@@ -262,4 +264,14 @@ class TestTheRuleHoldsPerLANGUAGE:
         if not gt.is_file():
             pytest.skip("no Spanish fixture in this tree")
         vm = json.loads(gt.read_text(encoding="utf-8"))["voice_map"]
-        assert vm == {"Maya": "Monica", "Liam Verbeek": "Paulina", "Ad": "Zarvox"}, vm
+        # Its own Spanish cast since 2026-10-01 — it reused p01's Maya and Liam Verbeek before.
+        # `Lucía` is the corpus's first accented speaker name and she is here on purpose: the
+        # sidecar's parser was `[A-Za-z]`-only, so she silently stopped being a speaker and this
+        # map came back as guest + ad alone, with `expected_diarized_voices: 2` against an RTTM
+        # holding 3. An accented name must survive every layer, or "we ingest Spanish" is untrue
+        # at the character level.
+        assert vm == {
+            "Lucía Herrera": "Monica",
+            "Javier Benavides": "Paulina",
+            "Ad": "Zarvox",
+        }, vm

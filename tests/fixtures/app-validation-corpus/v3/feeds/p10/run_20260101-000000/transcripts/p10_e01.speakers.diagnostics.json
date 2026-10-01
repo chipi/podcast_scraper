@@ -7,14 +7,14 @@
     },
     "exposed": [
       {
-        "name": "Maya",
+        "name": "Luc\u00eda Herrera",
         "named": true,
         "role": "host",
         "talk_share": 0.5306,
         "voice_type": "named"
       },
       {
-        "name": "Liam Verbeek",
+        "name": "Javier Benavides",
         "named": true,
         "role": "guest",
         "talk_share": 0.449,

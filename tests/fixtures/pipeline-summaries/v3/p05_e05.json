@@ -1,0 +1,15 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p05_e05",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Leverage feels free until the day it isn't — an insight from a 2016 economist talk that still holds up as a warning about hidden financing risk.",
+      "Most investment blow-ups stem from fine bets financed the wrong way rather than from bad bets — the failure lies in the borrowing, not the underlying asset.",
+      "An index fund owned outright is patient, able to ride out downturns; the same fund on margin can be forced to sell at the worst possible moment.",
+      "Risk sits in the borrowing against an asset rather than in the asset itself — identical holdings carry very different danger depending on how they are financed."
+    ],
+    "raw_text": "Leverage feels free until the day it isn't — an insight from a 2016 economist talk that still holds up as a warning about hidden financing risk. Most investment blow-ups stem from fine bets financed the wrong way rather than from bad bets — the failure lies in the borrowing, not the underlying asset.",
+    "title": "Leverage, Not the Asset, Drives Most Blow-Ups"
+  }
+}

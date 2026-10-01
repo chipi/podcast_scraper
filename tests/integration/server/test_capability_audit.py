@@ -150,7 +150,7 @@ class TestPickerDiscrimination:
         # 46 with it/fr/de/pt: `trail-building` joined the band. The four counterparts
         # carry the same three authored topics as p10, which pushed `soil-erosion` and
         # `land-stewardship` well clear of the floor and lifted trail-building over it.
-        assert picker["band_candidates"] == 46
+        assert picker["band_candidates"] == 45
         # 10, not the 8 quoted before 2026-08-19 — see the module docstring. The old figure came
         # from a hash-dependent top-12, so it was never reproducible. 11 since p10: this
         # counts DISTINCT FEED SETS, not feeds, so a show whose topics overlap p01's while
@@ -462,11 +462,11 @@ class TestEntityIdentity:
         # 29/9, not 26/7: the four episodes the per-feed cap used to drop are in the corpus now,
         # and they bring their own speakers (p06_e05/e06 are hosted by Maya, p02_e05 has a caller).
         #
-        # 37 since it/fr/de/pt: eight new people, two per show. `single_word_names` stays at 9
-        # because every one of them has a surname — which is the point of giving those shows
-        # their own cast rather than reusing Maya and Liam. Had they been reused, this number
-        # would not have moved and `person:maya` would span seven feeds instead of three.
-        assert ident["person_entities"] == 37
+        # 39 since every non-English show got its own cast: ten new people, two per show for
+        # es/it/fr/de/pt. `single_word_names` stays at 9 because all ten have surnames —
+        # which is the point. Had they reused Maya and Liam, this number would not have
+        # moved and `person:maya` would span SEVEN feeds instead of two.
+        assert ident["person_entities"] == 39
         assert ident["single_word_names"] == 9
         assert "person:sam" in ident["single_word_examples"]
 
@@ -764,22 +764,24 @@ class TestSingleWordEntitiesAreJudgedByFeedSpan:
         # now pooled under `person:maya` across two shows — the precision failure this section
         # exists to measure, which the fixture previously could not exhibit at all.
         #
-        # THREE shows since p10: the Spanish counterpart of p01 is the same show with the same
-        # host, so `person:maya` is now one token over p01, p06 and p10. Two of those three are
-        # genuinely the same human and one is not, which is exactly why a bare span count is a
-        # candidate for a human to judge rather than a merge instruction.
+        # BACK TO TWO (2026-10-01). It was three while p10 reused p01's Maya; the Spanish show
+        # has its own host now, as every non-English show does. What remains is the ORIGINAL
+        # case the fixture was valued for: `person:maya` over p01 and p06, where the two are
+        # genuinely different humans sharing a first name. That is a candidate for a person to
+        # judge, not a merge instruction — and it is a cleaner signal than it was at three,
+        # where one of the three was the same human and diluted it.
         assert ident["single_word_spanning_feeds"] == 1
         worst = ident["single_word_worst"][0]
         assert worst["token"] == "person:maya"
-        assert worst["feeds"] == 3
-        assert worst["feed_ids"] == ["p01", "p06", "p10"]
+        assert worst["feeds"] == 2
+        assert worst["feed_ids"] == ["p01", "p06"]
 
     def test_the_warning_fires_on_the_spanning_case(self, report) -> None:
         assert "pooled under one followable token" in format_report(report)
 
     def test_the_span_names_the_shows_not_just_the_count(self, report) -> None:
         """A count says a pooled token exists; only the ids say where to go and look."""
-        assert "`person:maya` — 7 ep across 3 feed(s) (p01, p06, p10)" in format_report(report)
+        assert "`person:maya` — 6 ep across 2 feed(s) (p01, p06)" in format_report(report)
 
     def test_the_warning_stays_silent_when_nothing_spans(self, report, tmp_path) -> None:
         """A warning that always prints is not a warning.

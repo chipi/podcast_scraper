@@ -7,13 +7,12 @@
         {
           "person_id": "person:maya",
           "person_label": "maya",
-          "total": 7,
+          "total": 6,
           "weekly_counts": {
             "2024-W01": 1,
             "2024-W14": 1,
             "2024-W31": 1,
             "2024-W51": 1,
-            "2026-W04": 1,
             "2026-W16": 1,
             "2026-W25": 1
           }
@@ -192,15 +191,6 @@
           }
         },
         {
-          "person_id": "person:liam-verbeek",
-          "person_label": "liam verbeek",
-          "total": 2,
-          "weekly_counts": {
-            "2024-W01": 1,
-            "2026-W04": 1
-          }
-        },
-        {
           "person_id": "person:marco-silva",
           "person_label": "marco silva",
           "total": 2,
@@ -268,6 +258,14 @@
           }
         },
         {
+          "person_id": "person:javier-benavides",
+          "person_label": "javier benavides",
+          "total": 1,
+          "weekly_counts": {
+            "2026-W04": 1
+          }
+        },
+        {
           "person_id": "person:jonas-weisenthal",
           "person_label": "jonas weisenthal",
           "total": 1,
@@ -297,6 +295,22 @@
           "total": 1,
           "weekly_counts": {
             "2026-W25": 1
+          }
+        },
+        {
+          "person_id": "person:liam-verbeek",
+          "person_label": "liam verbeek",
+          "total": 1,
+          "weekly_counts": {
+            "2024-W01": 1
+          }
+        },
+        {
+          "person_id": "person:lucia-herrera",
+          "person_label": "lucia herrera",
+          "total": 1,
+          "weekly_counts": {
+            "2026-W04": 1
           }
         },
         {

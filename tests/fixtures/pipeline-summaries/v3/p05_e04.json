@@ -1,0 +1,17 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p05_e04",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Diversification functions as the closest thing to a free lunch for individual investors — little is given up while removing the biggest way people ruin themselves: one position going to zero at the worst possible time.",
+      "Risk management for individuals is mostly behavioral rather than mathematical; sitting still while a holding gets cut in half is the hard part, and diversification makes that survivable.",
+      "Concentration with deep understanding beats diversification, according to the opposing view — spreading across a hundred names means owning things you can't judge, which amounts to ignorance, evenly distributed rather than safety.",
+      "A portfolio is a system of correlated bets; a handful of deeply understood positions is argued to be more robust because their co-movement is visible, whereas diversifying without understanding hides the correlation until it's the only thing that matters.",
+      "Account data on retail investors showed concentrated accounts had far fatter tails — cited as measured evidence that concentration is how retail investors blow themselves up and diversification is the only real risk control.",
+      "The decisive question is whether an investor's edge survives contact with their own behavior rather than diversify-or-not — concentration compounds a durable edge, while no amount of diversification saves one that doesn't hold up."
+    ],
+    "raw_text": "Diversification functions as the closest thing to a free lunch for individual investors — little is given up while removing the biggest way people ruin themselves: one position going to zero at the worst possible time. Risk management for individuals is mostly behavioral rather than mathematical; sitting still while a holding gets cut in half is the hard part, and diversification makes that survivable.",
+    "title": "Diversification vs. Concentration: Free Lunch or Hiding From Decisions?"
+  }
+}

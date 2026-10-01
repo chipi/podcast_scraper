@@ -61,7 +61,11 @@ def _profiles() -> List[Tuple[Path, Dict[str, Any]]]:
 #: a REPRODUCIBLE artifact: its summaries are committed into the app-validation corpus, and a
 #: corpus half-written by a fallback vendor is not a fixture, it is two fixtures interleaved with
 #: no record of which episode came from where.
-_ONE_PROVIDER_ON_PURPOSE = ("fixture_validation.yaml",)
+_ONE_PROVIDER_ON_PURPOSE = (
+    "fixture_validation.yaml",
+    # Same reason, DGX-served: it produces the committed corpus's summaries, GI and KG.
+    "fixture_validation_dgx.yaml",
+)
 
 
 def _is_measurement_profile(path: Path) -> bool:

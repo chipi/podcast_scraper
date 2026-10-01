@@ -1,0 +1,19 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p07_e01",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Sustainability is a systems-thinking problem before it's an environmental problem — internalizing this makes downstream decisions easier, while ignoring it means rebuilding the approach from scratch a year later.",
+      "The most expensive thing about climate is the optionality lost by delaying rather than the direct cost of acting; the second-order effect of that delay is the part most people miss.",
+      "Risk management at planetary scale looks like reliability engineering at company scale — a pattern observed holding across three different teams using Carbon Trust.",
+      "Carbon accounting needs the rigor that double-entry bookkeeping brought to finance, rather than looser estimation practices.",
+      "Adopting Carbon Trust within a workflow makes trade-offs visible; the framing matters because it reveals which trade-offs are actually being made.",
+      "Project Drawdown is one of the platforms where the systems-thinking pattern shows up cleanly, alongside Carbon Trust and IEA as reference points for teams.",
+      "Reliability trade-offs cross-cut every other sustainability decision, making reliability a unifying lens rather than a separate concern.",
+      "Running one idea for two weeks is the recommended starting point — progress comes from iteration rather than comprehensive upfront adoption."
+    ],
+    "raw_text": "Sustainability is a systems-thinking problem before it's an environmental problem — internalizing this makes downstream decisions easier, while ignoring it means rebuilding the approach from scratch a year later. The most expensive thing about climate is the optionality lost by delaying rather than the direct cost of acting; the second-order effect of that delay is the part most people miss.",
+    "title": "Sustainability as a Systems-Thinking Problem"
+  }
+}

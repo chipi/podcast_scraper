@@ -29,10 +29,36 @@ Learning Player e2e fixture and was realigned (RFC-097) so every read surface �
   non-English feed. Its analysis layer is ENGLISH like every other episode's (D-38), so
   its topics and summary sit in the same token space; only the transcript, title and
   `language` are Spanish.
-- **A rebuild is not a no-op.** The committed tree was built with `--pipeline-run`, which supplies
-  real summaries and measured durations. Rebuilding without it silently substitutes the synthesized
-  stand-in: summaries revert to the transcript's opening line and every duration becomes 1800s —
-  the two defects `FIXTURES_SPEC.md` §3 and §9 record as fixed.
+- **A rebuild is safe now, and it was not before (2026-10-01).** Real summaries used to exist in
+  exactly one place — the built `metadata.json`, an OUTPUT — so running the builder without
+  `--pipeline-run` silently replaced 38 of them with the transcript's opening line, and the only
+  way back was another Deepgram + LLM run over the whole corpus. That happened during the
+  multilingual arc and cost a `git checkout` of this directory, which then also reverted an
+  unrelated migration applied to the same files.
+
+  Those summaries are committed as INPUTS now, under `tests/fixtures/pipeline-summaries/v3/`, and
+  the builder replays them. Verified: a plain `python scripts/build_app_validation_corpus.py`
+  reproduces all 45 summaries exactly (38 replayed + 7 authored, 0 stand-ins). Precedence is
+  authored ground truth → a live `--pipeline-run` → the captured replay → the stand-in, and the
+  stand-in is now a BUILD FAILURE rather than the expected output: an episode reaching it has
+  neither an authored nor a captured summary, which is a real gap whatever flags were passed.
+
+  **The loop, in two commands.** A real run is rare and expensive; replaying it is neither.
+
+  ```bash
+  # ONCE, after a genuine pipeline run — turns its output into committed fixture inputs
+  python scripts/build_app_validation_corpus.py --pipeline-run <run-dir> --capture-summaries
+  git add tests/fixtures/pipeline-summaries/      # this is the step that closes the loop
+
+  # EVERY time after that — no GPU, no run, no loss
+  python scripts/build_app_validation_corpus.py
+  ```
+
+  Supplying `--pipeline-run` WITHOUT `--capture-summaries` is allowed and prints a reminder: those
+  summaries exist only in this build's output, which is how 38 of them were lost once.
+
+  Durations are unaffected either way — they are measured from the mp3s by `build_corpus_feeds.py`,
+  not from a run.
 - **Summaries:** **38 of 45 are real pipeline output**; the other seven are AUTHORED ground truth.
   `p06_e05` and `p06_e06` are 44 and 46 words, so their only sentence long enough to survive
   excerpt filtering is also the transcript's opening — an echo is structurally guaranteed and no

@@ -84,22 +84,6 @@
         "topic_id": "topic:soil-erosion"
       },
       {
-        "consensus_score": 0.81275,
-        "contradiction": 0.075547,
-        "cosine": 0.81275,
-        "insight_a_id": "insight:consensus:topic-reliability:person-nora",
-        "insight_a_text": "With reliability, the durable wins come from managing the whole system, not one-off bets.",
-        "insight_b_id": "insight:consensus:topic-reliability:person-daniel-cho",
-        "insight_b_text": "Agreed \u2014 reliability rewards a systems view; the edge is in the process, not any single call.",
-        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
-        "model_version": "v2",
-        "person_a_id": "person:nora",
-        "person_a_name": "Nora",
-        "person_b_id": "person:daniel-cho",
-        "person_b_name": "Daniel Cho",
-        "topic_id": "topic:reliability"
-      },
-      {
         "consensus_score": 0.86975,
         "contradiction": 0.041606,
         "cosine": 0.86975,
@@ -114,6 +98,22 @@
         "person_b_id": "person:liam-verbeek",
         "person_b_name": "Liam Verbeek",
         "topic_id": "topic:endurance-sport"
+      },
+      {
+        "consensus_score": 0.81275,
+        "contradiction": 0.075547,
+        "cosine": 0.81275,
+        "insight_a_id": "insight:consensus:topic-reliability:person-nora",
+        "insight_a_text": "With reliability, the durable wins come from managing the whole system, not one-off bets.",
+        "insight_b_id": "insight:consensus:topic-reliability:person-daniel-cho",
+        "insight_b_text": "Agreed \u2014 reliability rewards a systems view; the edge is in the process, not any single call.",
+        "model_id": "all-MiniLM-L6-v2+deberta-v3-small",
+        "model_version": "v2",
+        "person_a_id": "person:nora",
+        "person_a_name": "Nora",
+        "person_b_id": "person:daniel-cho",
+        "person_b_name": "Daniel Cho",
+        "topic_id": "topic:reliability"
       },
       {
         "consensus_score": 0.87025,

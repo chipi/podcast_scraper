@@ -1,0 +1,17 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p09_e01",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Two years of systems-thinking work breeds humility about leverage points rather than confidence in them — a lesson observed at teams using Bloomberg and IPCC.",
+      "Ignoring the lessons of leverage points leads to rebuilding from scratch a year later; internalizing them makes the rest of the decisions easier.",
+      "Reliability and sustainability share more vocabulary than is commonly admitted — their overlap is where systems thinking intersects with sustainability work.",
+      "The second-order effect is the part most people miss, and it deserves attention over first-order outcomes.",
+      "Trade-offs around reliability cross-cut every other theme in systems thinking rather than standing as an isolated concern.",
+      "Running one idea for two weeks offers a practical starting point — the rest is iteration rather than upfront perfection."
+    ],
+    "raw_text": "Two years of systems-thinking work breeds humility about leverage points rather than confidence in them — a lesson observed at teams using Bloomberg and IPCC. Ignoring the lessons of leverage points leads to rebuilding from scratch a year later; internalizing them makes the rest of the decisions easier.",
+    "title": "Systems Thinking: Leverage Points, Sustainability, and Reliability"
+  }
+}

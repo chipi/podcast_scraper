@@ -611,20 +611,23 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # test surface with deliberate shapes (three-items-newest-first, 1-minute fast episodes)
         # and between them advertise only 26 of the corpus's episodes — p07 and p08 just one each
         # — so a real pipeline run over them cannot rebuild the corpus. These can.
-        "corpus_p01": "p01_corpus.xml",
-        "corpus_p02": "p02_corpus.xml",
-        "corpus_p03": "p03_corpus.xml",
-        "corpus_p04": "p04_corpus.xml",
-        "corpus_p05": "p05_corpus.xml",
-        "corpus_p06": "p06_corpus.xml",
-        "corpus_p07": "p07_corpus.xml",
-        "corpus_p08": "p08_corpus.xml",
-        "corpus_p09": "p09_corpus.xml",
+        # Discovered from disk, NOT listed. This was nine literal entries plus a
+        # `f"corpus_p0{n}" for n in range(1, 10)` slug builder — which stopped at nine and would
+        # have produced `corpus_p010` for a tenth show anyway. The corpus grew to fourteen shows
+        # when the non-English fixtures landed, and a feed the server does not route is a feed a
+        # pipeline run cannot read, which is the same failure this block's own comment describes
+        # the e2e fixtures having.
+        **{
+            f"corpus_{p.name.split('_')[0]}": p.name
+            for p in sorted(Path(__file__).resolve().parents[2].glob("fixtures/rss/p*_corpus.xml"))
+        },
     }
 
     # The corpus feed slugs, in corpus order — so callers can request the whole corpus without
     # hardcoding the list (scripts/tools/run_e2e_mock_server.py --corpus uses this).
-    CORPUS_PODCASTS: tuple[str, ...] = tuple(f"corpus_p0{n}" for n in range(1, 10))
+    CORPUS_PODCASTS: tuple[str, ...] = tuple(
+        sorted(k for k in PODCAST_RSS_MAP if k.startswith("corpus_"))
+    )
 
     # Fast mode RSS mapping (uses shorter episodes for faster tests)
     PODCAST_RSS_MAP_FAST = {

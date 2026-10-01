@@ -1,0 +1,19 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p07_e02",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Employment data is noisier than headlines suggest — internalizing that noise makes downstream macroeconomic decisions easier, and its second-order effects are the part most people miss.",
+      "Systems thinking in macro means watching feedback loops rather than point estimates; ignoring those loops forces a rebuild from scratch a year later.",
+      "Risk management at the central-bank level looks like reliability engineering — a pattern observed across three different teams and among teams using IEA and IPCC.",
+      "Framing determines which trade-offs are being made, so explicit framing surfaces choices that would otherwise stay hidden.",
+      "Adopting Project Drawdown within an analytical flow makes the underlying trade-off visible rather than implicit.",
+      "The trade-offs around risk management cross-cut every other theme in macroeconomics, from employment data to feedback-loop analysis.",
+      "Outside of Carbon Trust-class tooling, the failure mode is harder to spot — weaker tooling obscures where macro analysis breaks down.",
+      "Running one idea for two weeks is the recommended starting point; the rest is iteration."
+    ],
+    "raw_text": "Employment data is noisier than headlines suggest — internalizing that noise makes downstream macroeconomic decisions easier, and its second-order effects are the part most people miss. Systems thinking in macro means watching feedback loops rather than point estimates; ignoring those loops forces a rebuild from scratch a year later.",
+    "title": "Macroeconomics Through Systems Thinking and Risk Management"
+  }
+}

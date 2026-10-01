@@ -37,12 +37,12 @@
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "insight:4a7829d1ecd7a240",
+      "to": "insight:8530bd959049146c",
       "type": "HAS_INSIGHT"
     },
     {
       "from": "episode:ep-7072d2e85dcd5233",
-      "to": "insight:39c4e0298a242b8e",
+      "to": "insight:4c2ac001e9540607",
       "type": "HAS_INSIGHT"
     },
     {
@@ -51,28 +51,28 @@
       "type": "HAS_INSIGHT"
     },
     {
-      "from": "quote:10b5af113bf9d667",
-      "to": "person:maya",
+      "from": "quote:c677231446d5e6c4",
+      "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:4a7829d1ecd7a240",
-      "to": "quote:10b5af113bf9d667",
+      "from": "insight:8530bd959049146c",
+      "to": "quote:c677231446d5e6c4",
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "quote:669784fde6f404df",
-      "to": "person:liam-verbeek",
+      "from": "quote:710b8bd8068511a4",
+      "to": "person:javier-benavides",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:39c4e0298a242b8e",
-      "to": "quote:669784fde6f404df",
+      "from": "insight:4c2ac001e9540607",
+      "to": "quote:710b8bd8068511a4",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "quote:a256a9bb0f35d3c1",
-      "to": "person:maya",
+      "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
@@ -82,27 +82,27 @@
     },
     {
       "from": "quote:92ffe253e6c0f722",
-      "to": "person:maya",
+      "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:4a7829d1ecd7a240",
+      "from": "insight:8530bd959049146c",
       "to": "quote:92ffe253e6c0f722",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "quote:0ab04b9f1c9b61a3",
-      "to": "person:liam-verbeek",
+      "to": "person:javier-benavides",
       "type": "SPOKEN_BY"
     },
     {
-      "from": "insight:39c4e0298a242b8e",
+      "from": "insight:4c2ac001e9540607",
       "to": "quote:0ab04b9f1c9b61a3",
       "type": "SUPPORTED_BY"
     },
     {
       "from": "quote:746439bb155558ad",
-      "to": "person:maya",
+      "to": "person:lucia-herrera",
       "type": "SPOKEN_BY"
     },
     {
@@ -111,18 +111,18 @@
       "type": "SUPPORTED_BY"
     },
     {
-      "from": "insight:4a7829d1ecd7a240",
-      "to": "person:maya",
+      "from": "insight:8530bd959049146c",
+      "to": "person:lucia-herrera",
       "type": "MENTIONS_PERSON"
     },
     {
-      "from": "insight:39c4e0298a242b8e",
-      "to": "person:liam-verbeek",
+      "from": "insight:4c2ac001e9540607",
+      "to": "person:javier-benavides",
       "type": "MENTIONS_PERSON"
     },
     {
       "from": "insight:98d76468c6e817a1",
-      "to": "person:maya",
+      "to": "person:lucia-herrera",
       "type": "MENTIONS_PERSON"
     }
   ],
@@ -132,7 +132,7 @@
     {
       "id": "episode:ep-7072d2e85dcd5233",
       "properties": {
-        "duration_ms": 1800000,
+        "duration_ms": 436000,
         "feed_id": "p10",
         "podcast_id": "p10",
         "publish_date": "2026-01-19T00:00:00",
@@ -190,24 +190,24 @@
       "type": "Topic"
     },
     {
-      "id": "insight:4a7829d1ecd7a240",
+      "id": "insight:8530bd959049146c",
       "properties": {
         "episode_id": "ep-7072d2e85dcd5233",
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de construcci\u00f3n de senderos, y me acompa\u00f1a Liam Verbeek, constructor de senderos de la Alianza Cascadia. Liam Verbeek, gracias por estar aqu\u00ed."
+        "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de construcci\u00f3n de senderos, y me acompa\u00f1a Javier Benavides, constructor de senderos de la Alianza Cascadia. Javier Benavides, gracias por e\u2026"
       },
       "type": "Insight"
     },
     {
-      "id": "insight:39c4e0298a242b8e",
+      "id": "insight:4c2ac001e9540607",
       "properties": {
         "episode_id": "ep-7072d2e85dcd5233",
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Gracias, Maya. Con muchas ganas \u2014 la construcci\u00f3n de senderos es algo en lo que he pensado bastante."
+        "text": "Gracias, Luc\u00eda. Con muchas ganas \u2014 la construcci\u00f3n de senderos es algo en lo que he pensado bastante."
       },
       "type": "Insight"
     },
@@ -223,20 +223,20 @@
       "type": "Insight"
     },
     {
-      "id": "person:maya",
+      "id": "person:lucia-herrera",
       "properties": {
-        "name": "Maya"
+        "name": "Luc\u00eda Herrera"
       },
       "type": "Person"
     },
     {
-      "id": "quote:10b5af113bf9d667",
+      "id": "quote:c677231446d5e6c4",
       "properties": {
-        "char_end": 205,
-        "char_start": 6,
+        "char_end": 222,
+        "char_start": 15,
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-01",
-        "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de construcci\u00f3n de senderos, y me acompa\u00f1a Liam Verbeek, constructor de senderos de la Alianza Cascadia. Liam Verbeek, gracias por estar aqu\u00ed.",
+        "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de construcci\u00f3n de senderos, y me acompa\u00f1a Javier Benavides, constructor de senderos de la Alianza Cascadia. Javier Benavides, gracias por estar aqu\u00ed.",
         "timestamp_end_ms": 6000,
         "timestamp_start_ms": 0,
         "transcript_ref": "transcripts/p10_e01.txt"
@@ -244,20 +244,20 @@
       "type": "Quote"
     },
     {
-      "id": "person:liam-verbeek",
+      "id": "person:javier-benavides",
       "properties": {
-        "name": "Liam Verbeek"
+        "name": "Javier Benavides"
       },
       "type": "Person"
     },
     {
-      "id": "quote:669784fde6f404df",
+      "id": "quote:710b8bd8068511a4",
       "properties": {
-        "char_end": 320,
-        "char_start": 220,
+        "char_end": 342,
+        "char_start": 241,
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-02",
-        "text": "Gracias, Maya. Con muchas ganas \u2014 la construcci\u00f3n de senderos es algo en lo que he pensado bastante.",
+        "text": "Gracias, Luc\u00eda. Con muchas ganas \u2014 la construcci\u00f3n de senderos es algo en lo que he pensado bastante.",
         "timestamp_end_ms": 12000,
         "timestamp_start_ms": 6000,
         "transcript_ref": "transcripts/p10_e01.txt"
@@ -267,8 +267,8 @@
     {
       "id": "quote:a256a9bb0f35d3c1",
       "properties": {
-        "char_end": 434,
-        "char_start": 327,
+        "char_end": 465,
+        "char_start": 358,
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-01",
         "text": "Este episodio es patrocinado por Strava. Strava es el hogar de los atletas. Comienza en strava.com/podcast.",
@@ -281,8 +281,8 @@
     {
       "id": "quote:92ffe253e6c0f722",
       "properties": {
-        "char_end": 508,
-        "char_start": 434,
+        "char_end": 539,
+        "char_start": 465,
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-01",
         "text": "Cu\u00e9ntame c\u00f3mo tomaste la decisi\u00f3n. \u00bfC\u00f3mo encaja RockShox en este panorama?",
@@ -295,8 +295,8 @@
     {
       "id": "quote:0ab04b9f1c9b61a3",
       "properties": {
-        "char_end": 724,
-        "char_start": 523,
+        "char_end": 759,
+        "char_start": 558,
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-02",
         "text": "Sinceramente, el drenaje es la decisi\u00f3n de dise\u00f1o con m\u00e1s impacto en cualquier sendero. Lo hemos visto en equipos que usan la Alianza Cascadia. He visto este patr\u00f3n repetirse en tres equipos distintos.",
@@ -309,8 +309,8 @@
     {
       "id": "quote:746439bb155558ad",
       "properties": {
-        "char_end": 823,
-        "char_start": 731,
+        "char_end": 867,
+        "char_start": 775,
         "episode_id": "ep-7072d2e85dcd5233",
         "speaker_id": "person:speaker-01",
         "text": "Cu\u00e9ntame c\u00f3mo tomaste la decisi\u00f3n. \u00bfCu\u00e1l es la versi\u00f3n de la pregunta que de verdad importa?",

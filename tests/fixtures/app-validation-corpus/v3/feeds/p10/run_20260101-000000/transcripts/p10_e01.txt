@@ -1,47 +1,47 @@
-Maya: Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de construcción de senderos, y me acompaña Liam Verbeek, constructor de senderos de la Alianza Cascadia. Liam Verbeek, gracias por estar aquí.
-Liam Verbeek: Gracias, Maya. Con muchas ganas — la construcción de senderos es algo en lo que he pensado bastante.
-Maya: Este episodio es patrocinado por Strava. Strava es el hogar de los atletas. Comienza en strava.com/podcast.Cuéntame cómo tomaste la decisión. ¿Cómo encaja RockShox en este panorama?
-Liam Verbeek: Sinceramente, el drenaje es la decisión de diseño con más impacto en cualquier sendero. Lo hemos visto en equipos que usan la Alianza Cascadia. He visto este patrón repetirse en tres equipos distintos.
-Maya: Cuéntame cómo tomaste la decisión. ¿Cuál es la versión de la pregunta que de verdad importa?
-Liam Verbeek: Sí, mira — el error más común de los constructores nuevos es excavar con demasiada pendiente. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
-Maya: Quiero profundizar en eso. ¿Dónde se cruzan la erosión del suelo y la construcción de senderos?
-Liam Verbeek: Claro. Las conversaciones sobre gestión del territorio tienen que ocurrir antes de la primera excavación. Lo hemos visto en equipos que usan RockShox. El marco importa porque te dice qué concesiones estás haciendo.
-Maya: Cuéntame más sobre eso.
-Liam Verbeek: Y cuando los equipos adoptan Spoke & Wrench en ese flujo, la concesión se vuelve visible — si ignoras eso, acabas reconstruyéndolo desde cero un año después.
-Maya: Cuéntame cómo tomaste la decisión. ¿Dónde se cruzan la erosión del suelo y la construcción de senderos?
-Liam Verbeek: Claro. Los cortes en banco en las laderas no son opcionales. El atajo del primer día es el deslave del tercer año. Y el efecto de segundo orden es la parte que casi todos pasan por alto.
-Maya: Ese es un marco útil. ¿Cuál es la versión de la pregunta que de verdad importa?
-Liam Verbeek: Sí, mira — la estructura del suelo importa más de lo que la gente cree. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patrón repetirse en tres equipos distintos.
-Maya: ¿Cómo se ve el modo de fallo? ¿Cuál es el ángulo estructural al que la mayoría de los oyentes no tiene acceso?
-Liam Verbeek: Déjame darte la versión que de verdad creo. Cambié de opinión sobre los senderos hechos a máquina frente a los hechos a mano. He visto este patrón repetirse en tres equipos distintos.
-Maya: Cuéntame más sobre eso.
-Liam Verbeek: Y cuando los equipos adoptan la Alianza Cascadia en ese flujo, la concesión se vuelve visible — si ignoras eso, acabas reconstruyéndolo desde cero un año después.
-Maya: Volvemos enseguida, después de una breve pausa publicitaria.
+Lucía Herrera: Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de construcción de senderos, y me acompaña Javier Benavides, constructor de senderos de la Alianza Cascadia. Javier Benavides, gracias por estar aquí.
+Javier Benavides: Gracias, Lucía. Con muchas ganas — la construcción de senderos es algo en lo que he pensado bastante.
+Lucía Herrera: Este episodio es patrocinado por Strava. Strava es el hogar de los atletas. Comienza en strava.com/podcast.Cuéntame cómo tomaste la decisión. ¿Cómo encaja RockShox en este panorama?
+Javier Benavides: Sinceramente, el drenaje es la decisión de diseño con más impacto en cualquier sendero. Lo hemos visto en equipos que usan la Alianza Cascadia. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Cuéntame cómo tomaste la decisión. ¿Cuál es la versión de la pregunta que de verdad importa?
+Javier Benavides: Sí, mira — el error más común de los constructores nuevos es excavar con demasiada pendiente. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
+Lucía Herrera: Quiero profundizar en eso. ¿Dónde se cruzan la erosión del suelo y la construcción de senderos?
+Javier Benavides: Claro. Las conversaciones sobre gestión del territorio tienen que ocurrir antes de la primera excavación. Lo hemos visto en equipos que usan RockShox. El marco importa porque te dice qué concesiones estás haciendo.
+Lucía Herrera: Cuéntame más sobre eso.
+Javier Benavides: Y cuando los equipos adoptan Spoke & Wrench en ese flujo, la concesión se vuelve visible — si ignoras eso, acabas reconstruyéndolo desde cero un año después.
+Lucía Herrera: Cuéntame cómo tomaste la decisión. ¿Dónde se cruzan la erosión del suelo y la construcción de senderos?
+Javier Benavides: Claro. Los cortes en banco en las laderas no son opcionales. El atajo del primer día es el deslave del tercer año. Y el efecto de segundo orden es la parte que casi todos pasan por alto.
+Lucía Herrera: Ese es un marco útil. ¿Cuál es la versión de la pregunta que de verdad importa?
+Javier Benavides: Sí, mira — la estructura del suelo importa más de lo que la gente cree. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: ¿Cómo se ve el modo de fallo? ¿Cuál es el ángulo estructural al que la mayoría de los oyentes no tiene acceso?
+Javier Benavides: Déjame darte la versión que de verdad creo. Cambié de opinión sobre los senderos hechos a máquina frente a los hechos a mano. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Cuéntame más sobre eso.
+Javier Benavides: Y cuando los equipos adoptan la Alianza Cascadia en ese flujo, la concesión se vuelve visible — si ignoras eso, acabas reconstruyéndolo desde cero un año después.
+Lucía Herrera: Volvemos enseguida, después de una breve pausa publicitaria.
 Ad: El episodio de hoy cuenta con el patrocinio de Stripe. Stripe simplifica los pagos, ya sea que gestiones un marketplace o un negocio de suscripciones. Visita stripe.com/podcast para una prueba gratuita.
-Maya: Bienvenidos de nuevo al programa.¿Cómo se ve el modo de fallo? ¿Dónde se cruzan la erosión del suelo y la construcción de senderos?
-Liam Verbeek: Así lo veo yo. El drenaje es la decisión de diseño con más impacto en cualquier sendero. Lo hemos visto en equipos que usan Shimano. Si ignoras eso, acabas reconstruyéndolo desde cero un año después.
-Maya: Cuéntame cómo tomaste la decisión. ¿Cómo encaja RockShox en este panorama?
-Liam Verbeek: Sí, mira — el error más común de los constructores nuevos es excavar con demasiada pendiente. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
-Maya: Cuestiona la sabiduría convencional por mí. ¿Qué es algo que solías creer sobre esto y que has revisado?
-Liam Verbeek: Déjame darte la versión que de verdad creo. Las conversaciones sobre gestión del territorio tienen que ocurrir antes de la primera excavación. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patrón repetirse en tres equipos distintos.
-Maya: Eso cuadra.
-Liam Verbeek: Fuera de las herramientas del nivel de la Alianza Cascadia, el modo de fallo es más difícil de detectar. Y el efecto de segundo orden es la parte que casi todos pasan por alto.
-Maya: ¿Cuál es la heurística a la que siempre vuelves? ¿Cuál es la versión de la pregunta que de verdad importa?
-Liam Verbeek: Se reduce a esto: los cortes en banco en las laderas no son opcionales. El atajo del primer día es el deslave del tercer año. He visto este patrón repetirse en tres equipos distintos.
-Maya: ¿Cómo se ve el modo de fallo? ¿Cuál es el aspecto más subestimado de la construcción de senderos?
-Liam Verbeek: Déjame darte la versión que de verdad creo. La estructura del suelo importa más de lo que la gente cree. Lo hemos visto en equipos que usan la Alianza Cascadia. He visto este patrón repetirse en tres equipos distintos.
-Maya: Quiero profundizar en eso. ¿Cómo encaja Shimano en este panorama?
-Liam Verbeek: Sí, mira — cambié de opinión sobre los senderos hechos a máquina frente a los hechos a mano. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
-Maya: ¿Dónde deja de funcionar eso?
-Liam Verbeek: Fuera de las herramientas del nivel de RockShox, el modo de fallo es más difícil de detectar. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
-Maya: Cambiemos de tema — quiero dedicar el último tramo a la gestión del territorio.
-Liam Verbeek: Ahí es donde la conversación se pone interesante, porque las concesiones alrededor de la gestión del territorio atraviesan todo lo que hemos cubierto.
-Maya: Quiero profundizar en eso. ¿Cuál es el ángulo contrario al que la mayoría de los oyentes no tiene acceso?
-Liam Verbeek: Se reduce a esto: el drenaje es la decisión de diseño con más impacto en cualquier sendero. Lo hemos visto en equipos que usan RockShox. Si ignoras eso, acabas reconstruyéndolo desde cero un año después.
-Maya: ¿Cómo se ve el modo de fallo? ¿Cuál es el aspecto más subestimado de la construcción de senderos?
-Liam Verbeek: Sinceramente, el error más común de los constructores nuevos es excavar con demasiada pendiente. El marco importa porque te dice qué concesiones estás haciendo.
-Maya: Antes de terminar, ¿qué es una cosa que los oyentes pueden probar esta semana?
-Liam Verbeek: Elige una de las ideas que cubrimos y aplícala durante dos semanas. El resto es iteración.
-Maya: Y para terminar, un gran agradecimiento a nuestros socios de Linear. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado. Échale un ojo en linear.com.Liam Verbeek, gracias por la conversación.
-Liam Verbeek: Gracias, Maya.
-Maya: Eso es todo por el episodio de hoy de Sesiones de Sendero. Nos vemos la próxima.
+Lucía Herrera: Bienvenidos de nuevo al programa.¿Cómo se ve el modo de fallo? ¿Dónde se cruzan la erosión del suelo y la construcción de senderos?
+Javier Benavides: Así lo veo yo. El drenaje es la decisión de diseño con más impacto en cualquier sendero. Lo hemos visto en equipos que usan Shimano. Si ignoras eso, acabas reconstruyéndolo desde cero un año después.
+Lucía Herrera: Cuéntame cómo tomaste la decisión. ¿Cómo encaja RockShox en este panorama?
+Javier Benavides: Sí, mira — el error más común de los constructores nuevos es excavar con demasiada pendiente. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
+Lucía Herrera: Cuestiona la sabiduría convencional por mí. ¿Qué es algo que solías creer sobre esto y que has revisado?
+Javier Benavides: Déjame darte la versión que de verdad creo. Las conversaciones sobre gestión del territorio tienen que ocurrir antes de la primera excavación. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Eso cuadra.
+Javier Benavides: Fuera de las herramientas del nivel de la Alianza Cascadia, el modo de fallo es más difícil de detectar. Y el efecto de segundo orden es la parte que casi todos pasan por alto.
+Lucía Herrera: ¿Cuál es la heurística a la que siempre vuelves? ¿Cuál es la versión de la pregunta que de verdad importa?
+Javier Benavides: Se reduce a esto: los cortes en banco en las laderas no son opcionales. El atajo del primer día es el deslave del tercer año. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: ¿Cómo se ve el modo de fallo? ¿Cuál es el aspecto más subestimado de la construcción de senderos?
+Javier Benavides: Déjame darte la versión que de verdad creo. La estructura del suelo importa más de lo que la gente cree. Lo hemos visto en equipos que usan la Alianza Cascadia. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Quiero profundizar en eso. ¿Cómo encaja Shimano en este panorama?
+Javier Benavides: Sí, mira — cambié de opinión sobre los senderos hechos a máquina frente a los hechos a mano. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
+Lucía Herrera: ¿Dónde deja de funcionar eso?
+Javier Benavides: Fuera de las herramientas del nivel de RockShox, el modo de fallo es más difícil de detectar. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
+Lucía Herrera: Cambiemos de tema — quiero dedicar el último tramo a la gestión del territorio.
+Javier Benavides: Ahí es donde la conversación se pone interesante, porque las concesiones alrededor de la gestión del territorio atraviesan todo lo que hemos cubierto.
+Lucía Herrera: Quiero profundizar en eso. ¿Cuál es el ángulo contrario al que la mayoría de los oyentes no tiene acceso?
+Javier Benavides: Se reduce a esto: el drenaje es la decisión de diseño con más impacto en cualquier sendero. Lo hemos visto en equipos que usan RockShox. Si ignoras eso, acabas reconstruyéndolo desde cero un año después.
+Lucía Herrera: ¿Cómo se ve el modo de fallo? ¿Cuál es el aspecto más subestimado de la construcción de senderos?
+Javier Benavides: Sinceramente, el error más común de los constructores nuevos es excavar con demasiada pendiente. El marco importa porque te dice qué concesiones estás haciendo.
+Lucía Herrera: Antes de terminar, ¿qué es una cosa que los oyentes pueden probar esta semana?
+Javier Benavides: Elige una de las ideas que cubrimos y aplícala durante dos semanas. El resto es iteración.
+Lucía Herrera: Y para terminar, un gran agradecimiento a nuestros socios de Linear. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado. Échale un ojo en linear.com.Javier Benavides, gracias por la conversación.
+Javier Benavides: Gracias, Lucía.
+Lucía Herrera: Eso es todo por el episodio de hoy de Sesiones de Sendero. Nos vemos la próxima.

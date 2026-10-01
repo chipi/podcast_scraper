@@ -5,12 +5,12 @@
   "failure_modes": [],
   "guest_accent": "es-ES",
   "host_accent": "es-ES",
-  "host_canonical_name": "Maya",
+  "host_canonical_name": "Luc\u00eda Herrera",
   "podcast_id": "p10",
   "position_arc": null,
-  "primary_guest_canonical_id": "p10:Liam",
-  "primary_guest_canonical_name": "Liam Verbeek",
-  "primary_guest_surface_in_transcript": "Liam Verbeek",
+  "primary_guest_canonical_id": "p10:Javier",
+  "primary_guest_canonical_name": "Javier Benavides",
+  "primary_guest_surface_in_transcript": "Javier Benavides",
   "primary_topic": "topic:trail-building",
   "publish_date": "2026-01-19",
   "publish_offset_days": 749,
@@ -42,16 +42,16 @@
       "Bench cuts on sidehills are not optional: the shortcut on day one becomes the washout in year three.",
       "Soil structure matters more than people assume, a pattern that held across three separate crews.",
       "Land-stewardship conversations belong before the first dig, because the framing exposes which trade-offs a project is making.",
-      "Machine-built versus hand-built trail is a position Liam Verbeek has revised rather than held from the outset."
+      "Machine-built versus hand-built trail is a position Javier Benavides has revised rather than held from the outset."
     ],
-    "raw_text": "Drainage is the highest-leverage design decision on any trail \u2014 ignore it and the trail gets rebuilt from scratch a year later. Liam Verbeek walks through the grade mistakes new builders make, why bench cuts on sidehills are not optional, and why land-stewardship conversations have to happen before the first dig.",
+    "raw_text": "Drainage is the highest-leverage design decision on any trail \u2014 ignore it and the trail gets rebuilt from scratch a year later. Javier Benavides walks through the grade mistakes new builders make, why bench cuts on sidehills are not optional, and why land-stewardship conversations have to happen before the first dig.",
     "title": "Drainage First: Building Trails That Last"
   },
   "surface_forms": [
     {
-      "canonical_id": "p10:Liam",
+      "canonical_id": "p10:Javier",
       "kind": "canonical",
-      "surface": "Liam Verbeek"
+      "surface": "Javier Benavides"
     }
   ]
 }

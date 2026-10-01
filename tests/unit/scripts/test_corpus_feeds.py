@@ -27,9 +27,27 @@ SCRIPT = ROOT / "scripts" / "build_corpus_feeds.py"
 RSS_DIR = ROOT / "tests" / "fixtures" / "rss"
 _ITUNES_NS = "{http://www.itunes.com/dtds/podcast-1.0.dtd}"
 
-# build_app_validation_corpus.py builds 9 shows x --max-episodes-per-feed 4.
-CORPUS_SHOWS = 9
-MIN_EPISODES_PER_SHOW = 4
+#: Derived from the transcripts on disk, not written down.
+#:
+#: These were `CORPUS_SHOWS = 9` and `MIN_EPISODES_PER_SHOW = 4`, from a time when the corpus was
+#: nine shows of four episodes. Both stopped being true: there are fourteen shows, and the five
+#: non-English ones carry ONE episode each. The floor in particular encoded an assumption the
+#: corpus had outgrown — "a show has at least four episodes" — and would have reported the new
+#: languages as a defect when what they are is a corpus that grew in shows rather than episodes.
+#:
+#: What the original defect actually was: `p07` and `p08` advertised one episode each while
+#: HOLDING four, so a pipeline run could not rebuild them. That is a FEED-vs-CORPUS disagreement,
+#: not a minimum — and it is still caught below, now stated as the thing it is.
+
+
+def _episodes_on_disk_by_show() -> dict[str, int]:
+    """show id -> canonical `pNN_eNN` transcripts present, which is what a feed must advertise."""
+    out: dict[str, int] = {}
+    for txt in (ROOT / "tests" / "fixtures" / "transcripts" / _version()).glob("p*_e*.txt"):
+        m = re.fullmatch(r"(p\d+)_e\d+", txt.stem)
+        if m:
+            out[m.group(1)] = out.get(m.group(1), 0) + 1
+    return out
 
 
 def _version() -> str:
@@ -38,6 +56,17 @@ def _version() -> str:
 
 def _load():
     spec = importlib.util.spec_from_file_location("_corpus_feeds", SCRIPT)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _load_builder():
+    """The corpus builder module, for identity checks against its APP_SHOWS."""
+    spec = importlib.util.spec_from_file_location(
+        "_app_corpus_builder", ROOT / "scripts" / "build_app_validation_corpus.py"
+    )
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -56,20 +85,29 @@ def _items(path: Path) -> list[ET.Element]:
 class TestCoverage:
     def test_one_feed_per_show(self) -> None:
         paths = _corpus_feed_paths()
-        assert (
-            len(paths) == CORPUS_SHOWS
-        ), f"expected {CORPUS_SHOWS} corpus feeds, found {[p.name for p in paths]}"
+        expected = _episodes_on_disk_by_show()
+        assert {p.name.split("_")[0] for p in paths} == set(expected), (
+            f"a show on disk has no corpus feed, or vice versa: feeds={[p.name for p in paths]} "
+            f"shows={sorted(expected)}"
+        )
 
-    def test_every_show_covers_the_corpus_depth(self) -> None:
-        """The original defect: p07 and p08 advertised ONE episode each."""
-        thin = {
-            path.name: len(_items(path))
+    def test_every_show_advertises_exactly_what_it_holds(self) -> None:
+        """The original defect: p07 and p08 advertised ONE episode each while holding four.
+
+        Compared against the TRANSCRIPTS, not against a floor. A floor of four would now fail the
+        five non-English shows for having one episode — which is not a defect, it is what a show
+        in a new language looks like when it starts. What makes a run unable to rebuild the
+        corpus is the feed and the corpus DISAGREEING, at any depth.
+        """
+        expected = _episodes_on_disk_by_show()
+        wrong = {
+            path.name: (len(_items(path)), expected.get(path.name.split("_")[0]))
             for path in _corpus_feed_paths()
-            if len(_items(path)) < MIN_EPISODES_PER_SHOW
+            if len(_items(path)) != expected.get(path.name.split("_")[0])
         }
-        assert not thin, (
-            f"these feeds advertise fewer than the corpus's {MIN_EPISODES_PER_SHOW} episodes per "
-            f"show, so a pipeline run cannot rebuild it: {thin}"
+        assert not wrong, (
+            "these feeds disagree with the transcripts on disk (advertised, actual), so a "
+            f"pipeline run cannot rebuild the corpus from them: {wrong}"
         )
 
     def test_every_episode_has_transcript_and_audio(self) -> None:
@@ -139,14 +177,23 @@ class TestGenerator:
         ), f"committed corpus feeds are stale:\n{result.stdout}\n{result.stderr}"
 
     def test_shows_match_the_corpus_builder(self) -> None:
-        """If APP_SHOWS gains a show, these feeds must too — else it silently has no episodes."""
+        """If APP_SHOWS gains a show, these feeds must too — else it silently has no episodes.
+
+        They cannot diverge any more: `build_corpus_feeds.SHOWS` IS `APP_SHOWS`, imported rather
+        than copied beside it. It used to be a duplicate with a comment promising it "mirrors"
+        the builder, and the promise broke the moment p10..p14 were added — the feeds described
+        a 40-episode corpus while the builder built a 45-episode one, which is the exact failure
+        this script exists to prevent. Asserting identity is what is left worth asserting.
+        """
         mod = _load()
-        builder = (ROOT / "scripts" / "build_app_validation_corpus.py").read_text(encoding="utf-8")
-        for _stem, show in mod.SHOWS:
-            assert (
-                f'"{show}"' in builder
-            ), f"{show} is in build_corpus_feeds.SHOWS but not the builder"
-        assert len(mod.SHOWS) == CORPUS_SHOWS
+        builder_mod = _load_builder()
+        assert list(mod.SHOWS) == list(builder_mod.APP_SHOWS), (
+            "build_corpus_feeds.SHOWS is no longer the builder's APP_SHOWS — if the import was "
+            "replaced by a copy, the two will drift again"
+        )
+        assert len(mod.SHOWS) == len(
+            _episodes_on_disk_by_show()
+        ), f"{len(mod.SHOWS)} shows wired, {len(_episodes_on_disk_by_show())} on disk"
 
 
 _differs_beyond_decoder_rounding = _load()._differs_beyond_decoder_rounding

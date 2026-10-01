@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Sesiones de Sendero</title>
+    <link>http://localhost/</link>
+    <description>Conversaciones sobre construcción de senderos: drenaje, trazado, y las personas que construyen la ruta. Contraparte en español de Singletrack Sessions.</description>
+    <language>es-ES</language>
+
+    <itunes:author>Lucía Herrera</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p10_cover.svg"/>
+
+    <item>
+      <title>Construyendo Senderos Que Duran</title>
+      <guid isPermaLink="false">p10_e01</guid>
+      <pubDate>Mon, 19 Jan 2026 00:00:00 +0000</pubDate>
+      <description>Lucía Herrera conversa con el constructor de senderos Javier Benavides sobre drenaje, trazado, y cómo mantener los senderos rodables durante el invierno.</description>
+      <enclosure url="/audio/p10_e01.mp3" length="3488957" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p10_e01.vtt" type="text/vtt"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:07:16</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

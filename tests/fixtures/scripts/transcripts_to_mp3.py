@@ -57,9 +57,9 @@ PODCAST_HOSTS: dict[str, str] = {
     "p07": "Alex Morgan",  # The Long View - Sustainability
     "p08": "Alex Morgan",  # The Long View - Solar Energy
     "p09": "Alex Morgan",  # The Long View - Biohacking
-    # Sesiones de Sendero — the SPANISH counterpart of p01 (#2169 / V.6b). Same show, same
-    # people; only the language differs, which is the entire point of the fixture.
-    "p10": "Maya",
+    # Sesiones de Sendero — the SPANISH counterpart of p01 (#2169 / V.6b). Same conversation,
+    # its own people since 2026-10-01 — see SPANISH_SPEAKER_VOICE_MAP for why.
+    "p10": "Lucía Herrera",
     # it / fr / de / pt, 2026-10-01. The CONTENT is parallel to p01 and p10 — the same
     # trail-building conversation — so a translation can be compared across five languages
     # against one known meaning. The PEOPLE are not: reusing Maya and Liam would have put one
@@ -216,11 +216,19 @@ SPEAKER_VOICE_MAP: dict[str, str] = {
 # has nothing to do with the pipeline. See FIXTURES_SPEC.md; unblocking needs Jorge/Juan/Diego
 # installed through System Settings, which has no shell path.
 SPANISH_SPEAKER_VOICE_MAP: dict[str, str] = {
-    # Maya @es-ES (host) — the show declares <language>es-ES</language>, so the host takes the
-    # es_ES voice and the guest the es_MX one.
-    "Maya": "Monica",
-    # Liam Verbeek @es-MX (guest)
-    "Liam Verbeek": "Paulina",
+    # The show declares <language>es-ES</language>, so the host takes the es_ES voice and the
+    # guest the es_MX one.
+    #
+    # Its OWN people since 2026-10-01, as p11..p14 always had. p10 was first built reusing p01's
+    # Maya and Liam Verbeek, which made language the only variable — useful then, wrong to keep:
+    # `person:maya` spanning three feeds is a precision-failure signal, and a corpus of English
+    # names cannot show how naming handles names belonging to the language being spoken.
+    #
+    # `Benavides` carries a b AND a v, which are one phoneme in Spanish — the same hazard that
+    # turned "Liam Verbeek" into "Liam Berbeek" in a measured ASR run. `Lucía` carries an accent
+    # through every layer.
+    "Lucía Herrera": "Monica",
+    "Javier Benavides": "Paulina",
 }
 
 #: it / fr / de / pt, 2026-10-01. Measured median F0 for every voice below, each reading its own
@@ -305,7 +313,7 @@ VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {
 #: a shift that moved them would make the diarization reference disagree with its own audio.
 #:
 #: If a real Spanish male voice is ever installed, delete the entry and point
-#: ``SPANISH_SPEAKER_VOICE_MAP["Liam Verbeek"]`` at it — one line, then regenerate.
+#: ``SPANISH_SPEAKER_VOICE_MAP["Javier Benavides"]`` at it — one line, then regenerate.
 #: it / de / pt use 0.40, chosen the same way and from a measured sweep rather than by copying
 #: the Spanish 0.45. Each guest, and where it lands against its host and against Zarvox (89.9 Hz,
 #: the ad voice in every language):
@@ -329,7 +337,7 @@ VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {
 #: question for the diarizer, not for this table — measured against the real pyannote service,
 #: not assumed.
 VOICE_PITCH_SHIFT: dict[tuple[str, str], float] = {
-    ("es", "Liam Verbeek"): 0.45,
+    ("es", "Javier Benavides"): 0.45,
     ("it", "Marco Bellini"): 0.40,
     ("de", "Stefan Brandt"): 0.40,
     ("pt", "Rafael Vasconcelos"): 0.40,

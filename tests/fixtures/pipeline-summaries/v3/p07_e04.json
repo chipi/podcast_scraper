@@ -1,0 +1,17 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p07_e04",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Macro is risk management at scale — the core job is avoiding the wrong side of a regime change rather than predicting every move correctly.",
+      "A regime change named in advance is one that can be positioned for; anything short of that is just hoping.",
+      "The economy is a system, not a set of levers — pulling one lever moves three others, so interventions never act in isolation.",
+      "Back-tested calls showed misses consistently came from treating a correlated system as if its parts were independent.",
+      "A macro book and a power grid are both systems of correlated risk, making macro analysis and sustainability work the same discipline under different vocabulary.",
+      "Systems thinking and risk management are one discipline rather than two — the underlying logic of correlated risk carries across domains."
+    ],
+    "raw_text": "Macro is risk management at scale — the core job is avoiding the wrong side of a regime change rather than predicting every move correctly. A regime change named in advance is one that can be positioned for; anything short of that is just hoping.",
+    "title": "Macro as Risk Management: Reading the Economy as a System"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p01_e03",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec; the pattern held across three different teams working with Spoke & Wrench and Shimano.",
+      "Chain wear is the single best leading indicator of how soon cassettes will need replacing, which makes it the metric worth watching rather than waiting for a cassette to fail.",
+      "Suspension service intervals are a risk-management decision rather than a routine chore, and ignoring them means rebuilding the suspension from scratch a year later.",
+      "A bike should feel quiet and predictable so the rider's attention stays on the trail; internalizing that goal makes the rest of the maintenance decisions easier.",
+      "Framing maintenance through these principles matters because it reveals which trade-offs are being made, and the second-order effects are the part most people miss.",
+      "Risk management cross-cuts every drivetrain and maintenance decision, from creak diagnosis to service scheduling.",
+      "Practical adoption starts small: pick one idea, such as chain-wear checks or re-torquing to spec, run it for two weeks, and iterate from there."
+    ],
+    "raw_text": "Most mystery creaks are solved by cleaning contact surfaces and re-torquing to spec; the pattern held across three different teams working with Spoke & Wrench and Shimano. Chain wear is the single best leading indicator of how soon cassettes will need replacing, which makes it the metric worth watching rather than waiting for a cassette to fail.",
+    "title": "Drivetrain Mechanics: Creaks, Chain Wear, and Suspension Service"
+  }
+}

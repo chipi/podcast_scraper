@@ -1,0 +1,108 @@
+# Produce the --pipeline-run tree the app-validation corpus borrows from — on the DGX, and with
+# REAL GI and KG rather than the builder's synthesized ones.
+#
+# Relationship to `fixture_validation.yaml`: same transcript handling, different everything else.
+# That profile is lean on purpose — it generates a summary and nothing more, because the corpus
+# builder synthesized GI/KG itself and a run's graph would have changed nothing in the committed
+# tree. This one exists because that decision was revisited (2026-10-01): a fixture carrying a
+# real model's insights and graph is a better rehearsal of production than one carrying a
+# deterministic stand-in for them.
+#
+# NO ASR, and this is the part not to "simplify" later. The corpus feeds advertise an authored
+# `.vtt` twin beside every episode, so `transcribe_missing: false` plus `prefer_types` makes every
+# episode take the transcript-DOWNLOAD path. Re-deriving these transcripts with Whisper would
+# measure the transcriber, not produce a fixture — and it is not hypothetical: a measured run over
+# the Spanish fixture turned "Liam Verbeek" into "Liam Berbeek", "Gracias, Maya" into "Gracias,
+# Mario", and dropped the entire 33-word Stripe midroll. Every speaker name, every sponsor-block
+# line index and every RTTM in this corpus is keyed to the AUTHORED text.
+#
+# DGX, not the gateway. `fixture_validation` routes to LiteLLM and Opus, on the stated grounds
+# that a committed reference is worth a few dollars once. The trade here is deliberate and
+# Marko's: the DGX is owned hardware, free to run, and exercises the serving path the product
+# actually ships on.
+#
+# TEMPERATURE 0 EVERYWHERE. The output of this run is COMMITTED. At any sampling temperature a
+# regeneration diffs for no reason, and the fixture stops being a fixed point — which is the same
+# reasoning `fixture_validation` records for its own `litellm_temperature: 0.0`.
+
+transcription:
+  primary: whisper
+transcribe_missing: false
+prefer_types: ["text/vtt", ".vtt"]
+diarize: false
+screenplay: true
+
+# --- LLM work, all of it on the DGX ---
+summary_provider: vllm
+llm_pipeline_mode: staged
+vllm_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8003/v1
+vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+vllm_insight_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
+vllm_temperature: 0.0
+vllm_verify_served_model: true
+
+# --- translation, because five of the fourteen shows are not in English ---
+#
+# NOT optional, and not a detail. p10..p14 carry Spanish, Italian, French, German and Portuguese
+# transcripts, and the analysis layer is built on the ENGLISH RENDER (D-38) — so the chain for
+# those shows is: authored transcript -> translate -> summary/GI/KG on the English.
+#
+# Handing the summariser the source-language transcript instead is not a smaller version of this;
+# it is the V.6a hazard, where English NLP over non-English text is confidently wrong rather than
+# blind. Measured on the Spanish fixture: the sniff gate OVER-counted (98 vs 65) and naming
+# shipped four phantom people past `_looks_like_person`. A summary built on that is a fluent
+# description of things nobody said.
+#
+# `language: en` below stays the PROFILE DEFAULT and must lose to each feed's declared tag —
+# that is the whole point of `feed_declared_language` (D-41: the enabled-language list is the
+# gate, there is no separate flag). If it ever wins, the symptom is an English-looking summary of
+# a Spanish episode, which is exactly what this block exists to prevent.
+translate_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1
+translate_model: google/translategemma-12b-it
+translate_verify_served_model: true
+
+generate_metadata: true
+generate_summaries: true
+
+# ON, unlike `fixture_validation`. This is the whole reason this profile exists.
+generate_gi: true
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+quote_extraction_provider: vllm
+# The value gate self-grades with the same model that wrote the insights. For a committed
+# artifact that is a score nobody independently produced, so it stays off and the insights are
+# captured as the model wrote them.
+gi_value_gate_enabled: false
+
+vector_search: false
+# ON, unlike `fixture_validation`. That profile turns NER off because the corpus builder derives
+# its own roster from the screenplay transcripts and the run's graph was discarded — "a result
+# nothing reads". This profile's whole purpose is that the graph IS read, and with NER off every
+# host comes out as `person:unresolved-<name>-<episode>`: measured on both an English and an
+# Italian episode before the full run, so it is a property of the setting and not of the language.
+# Capturing that would commit a corpus whose every show has a nameless host.
+auto_speakers: true
+enrichment:
+  enabled: false
+  enrichers: {}
+
+# A stalled call should fail and fail over, not hang for the default 30 minutes.
+summarization_timeout: 600
+transcription_timeout: 120
+
+# The default cap is 650 tokens, sized for LED-base; a 30B model's summary JSON on a long episode
+# exceeds it and truncates to finish_reason=length, which lands as an INVALID summary rather than
+# a short one.
+summary_reduce_params:
+  max_new_tokens: 2048
+  min_new_tokens: 100
+
+degradation_policy:
+  continue_on_stage_failure: true
+preprocessing_enabled: true
+cloud_llm_structured_min_output_tokens: 4096
+language: en
+log_level: INFO

@@ -1,0 +1,16 @@
+{
+  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "episode_id": "p06_e02",
+  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "summary": {
+    "bullets": [
+      "Dialogue-heavy formats trade grounding for texture — a pattern observed holding across three different teams rather than a one-off impression.",
+      "Sometimes the point of a conversation is not having a point; aimlessness can be a deliberate feature of long form rather than a failure mode.",
+      "The same dynamics show up at teams using Patreon and teams using Substack — the trade-off follows the format rather than the platform.",
+      "Cultural drift cross-cuts every other trade-off in long-form dialogue, making it the point where the conversation gets most interesting.",
+      "Running one idea for two weeks beats trying everything at once — the rest is iteration."
+    ],
+    "raw_text": "Dialogue-heavy formats trade grounding for texture — a pattern observed holding across three different teams rather than a one-off impression. Sometimes the point of a conversation is not having a point; aimlessness can be a deliberate feature of long form rather than a failure mode.",
+    "title": "Long Form, Dialogue, and Cultural Drift"
+  }
+}
