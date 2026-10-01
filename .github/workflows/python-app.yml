@@ -1531,7 +1531,20 @@ jobs:
   coverage-unified:
     runs-on: ubuntu-latest
     needs: [detect-changes, security-quality, test-unit, test-integration, test-integration-fast, test-e2e, test-e2e-fast, viewer-e2e]  # Python tests + Playwright before merge report
-    if: always() && needs.detect-changes.outputs.python == 'true'
+    # `!cancelled()`, NOT `always()`. This job combines coverage from eight upstream jobs, and
+    # `always()` made it run even when every one of them was CANCELLED — which is what concurrency
+    # does the moment a newer commit lands on main. With no artifacts to combine it then fails for
+    # its own reasons, and that `failure` is indistinguishable from a real coverage regression:
+    # on 2026-10-01 three commits landed on main within four minutes and the CI Gate went RED
+    # reporting `coverage-unified (failure)` while nothing was actually broken. A gate that cries
+    # wolf is worse than no gate.
+    #
+    # Every other `always()` job here already guards with `needs.<job>.result == 'success'`, so a
+    # cancelled upstream SKIPS them; this was the only one without such a guard.
+    #
+    # `!cancelled()` keeps the behaviour `always()` was chosen for — report coverage even when a
+    # test job FAILED — and drops only the case where the inputs cannot exist.
+    if: ${{ !cancelled() && needs.detect-changes.outputs.python == 'true' }}
     steps:
     - uses: actions/checkout@v7
       with:
