@@ -45,7 +45,9 @@ vi.mock('@capacitor/preferences', () => ({
   },
 }))
 
-const subscribePush = vi.fn(async () => ({ count: 1 }))
+// Typed with its argument: the module forwards the subscription, and the assertions read it back
+// from `mock.calls[0][0]` — a zero-arg mock made both of those a type error under vue-tsc.
+const subscribePush = vi.fn(async (_subscription: unknown) => ({ count: 1 }))
 vi.mock('../services/api', () => ({
   subscribePush: (s: unknown) => subscribePush(s as never),
   unsubscribePush: vi.fn(async () => undefined),
