@@ -1,4 +1,4 @@
-"""m0011: fetch each show's declared language and backfill it (#2173 / slice S0.1b).
+"""m0015: fetch each show's declared language and backfill it (#2173 / slice S0.1b).
 
 The migration fetches, so every test here stubs ``_fetch_language``. What is actually under test
 is the CONVERGENCE contract — which states keep the migration pending and which do not — because
@@ -14,7 +14,7 @@ from typing import Any, cast, Dict, Optional, Tuple
 import pytest
 
 from podcast_scraper.upgrade.migration import MigrationContext
-from podcast_scraper.upgrade.migrations import m0015_backfill_feed_language as m0011
+from podcast_scraper.upgrade.migrations import m0015_backfill_feed_language as m0015
 from podcast_scraper.upgrade.migrations.m0015_backfill_feed_language import (
     BackfillFeedLanguageMigration,
 )
@@ -58,7 +58,7 @@ def _stub_fetch(monkeypatch: pytest.MonkeyPatch, answers: Dict[str, Any]) -> Non
             return None, value[4:]
         return value, ""
 
-    monkeypatch.setattr(m0011, "_fetch_language", fake)
+    monkeypatch.setattr(m0015, "_fetch_language", fake)
 
 
 def _load(path: Path) -> Dict[str, Any]:
@@ -199,7 +199,7 @@ class TestWhatItWrites:
             calls.append(url)
             return "it-IT", ""
 
-        monkeypatch.setattr(m0011, "_fetch_language", counting)
+        monkeypatch.setattr(m0015, "_fetch_language", counting)
         res = BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
 
         assert len(calls) == 1, f"one fetch per SHOW, not per episode: {calls}"
@@ -267,20 +267,28 @@ class TestVerify:
         def explode(url: str, timeout: float) -> Tuple[Optional[str], str]:
             raise AssertionError("verify must not fetch")
 
-        monkeypatch.setattr(m0011, "_fetch_language", explode)
+        monkeypatch.setattr(m0015, "_fetch_language", explode)
         ok, _msg = mig.verify(_ctx(tmp_path))
         assert ok
 
 
 class TestRegistration:
-    def test_it_is_registered_and_ordered_last(self) -> None:
-        """An unregistered migration never runs — the quietest possible failure."""
+    def test_it_is_registered_and_ordered_after_0014(self) -> None:
+        """An unregistered migration never runs — the quietest possible failure.
+
+        Position asserted RELATIVE to 0014, not as "last". 0014's test asserted last and went
+        red the moment this migration landed, for a change that said nothing about it; repeating
+        that here would just hand the same trap to 0016.
+        """
         from podcast_scraper.upgrade.registry import get_migrations
 
         ids = [m.id for m in get_migrations()]
         assert "0015_backfill_feed_language" in ids
         assert ids == sorted(ids), "registry order is lexicographic by id"
-        assert ids[-1] == "0015_backfill_feed_language"
+        assert (
+            ids.index("0015_backfill_feed_language")
+            == ids.index("0014_eponymous_hosts_restored") + 1
+        )
 
 
 class TestItNeverClobbersAnOperatorOverride:
