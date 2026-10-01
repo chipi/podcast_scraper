@@ -235,6 +235,7 @@ const savedByKind = (kind: string) => computed(() => filteredEntities.value.filt
 const savedShowEntities = savedByKind('show')
 const savedTopicEntities = savedByKind('topic')
 const savedStorylineEntities = savedByKind('storyline')
+const savedThemeEntities = savedByKind('theme')
 const savedPersonEntities = savedByKind('person')
 
 /**
@@ -244,11 +245,17 @@ const savedPersonEntities = savedByKind('person')
  * `useFollowedShows` makes.
  */
 /**
- * The non-show kinds, in the order they render: topics, then storylines, then PEOPLE LAST
+ * The non-show kinds, in the order they render: topics, then the two groupings, then PEOPLE LAST
  * (operator 2026-09-17). Shows are not here — they render above Episodes with artwork.
+ *
+ * This list is the ONLY thing that puts a saved kind on the page, and it was hardcoded to three.
+ * A saved theme was accepted by the API, stored, counted by its filter chip — and rendered
+ * nowhere, because no group named it. The chip would have appeared above a section that did not
+ * exist.
  */
 const savedEntityGroups = computed(() => [
   { kind: 'topic', labelKey: 'library.savedTypeTopics', items: savedTopicEntities.value },
+  { kind: 'theme', labelKey: 'library.savedTypeThemes', items: savedThemeEntities.value },
   { kind: 'storyline', labelKey: 'library.savedTypeStorylines', items: savedStorylineEntities.value },
   { kind: 'person', labelKey: 'library.savedTypePeople', items: savedPersonEntities.value },
 ])
