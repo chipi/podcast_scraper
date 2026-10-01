@@ -19,7 +19,12 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
-import xml.etree.ElementTree as ET
+
+# defusedxml, matching `build_synthetic_validation_corpus.py` (whose fields this writes) and
+# `rss/parser.py`. The input is checked-in fixtures, so the real risk is nil — but the repo
+# parses XML through the safe parser everywhere, bandit B314 enforces it, and a `# nosec`
+# here would be the one file that opts out of a convention for no reason.
+import defusedxml.ElementTree as ET
 
 sys.path.insert(0, "src")
 from podcast_scraper.languages import normalize_language_tag  # noqa: E402
@@ -34,6 +39,7 @@ def declared_language(feed_id: str) -> tuple[str, str] | None:
     for xml in sorted(RSS.glob(f"{feed_id}_*.xml")):
         try:
             ch = ET.parse(xml).getroot().find("channel")
+        # defusedxml re-exports the stdlib parse error, so a malformed fixture is still caught.
         except ET.ParseError:
             continue
         if ch is None:
