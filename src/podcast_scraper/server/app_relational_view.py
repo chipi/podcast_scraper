@@ -48,6 +48,7 @@ from podcast_scraper.server.schemas import (
     AppPersonCard,
     AppPersonShow,
     AppPersonWeb,
+    AppThemeCard,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -430,6 +431,102 @@ def build_person_card(
         related_people=related_people,
         related_topics=related_topics,
         web=_person_web(root, person_id),
+    )
+
+
+def build_theme_card(
+    root: Path,
+    theme_id: str,
+    *,
+    rows: Sequence[CatalogEpisodeRow] | None = None,
+    top_k: int = _DEFAULT_TOP_K,
+) -> AppThemeCard | None:
+    """Project a THEME (a `tc:` similarity cluster) to a card, or ``None`` when it has no episodes.
+
+    A theme is a grouping, not an entity — it is never a node on an episode — so it cannot be built
+    the way a topic card is. ``build_topic_card`` matches a topic node by id and a `tc:` id matches
+    nothing, which is why routing a theme at ``/api/app/topics/{id}`` produced an empty page.
+
+    The episode list is the UNION across every member topic, de-duplicated by episode id. That
+    merge is the point of the page: a similarity cluster exists because searching one member misses
+    the others, so a list showing one member's episodes would not answer the question the grouping
+    poses. ``related_people`` is likewise counted across the whole union, so the "top voices" of a
+    theme are the people who recur across it rather than within one member.
+    """
+    cluster_map: ClusterMap = theme_map_by_topic(root)
+    storyline_map: ClusterMap = storyline_map_by_topic(root)
+
+    # `theme_map_by_topic` is topic -> cluster; invert it rather than re-reading the artifact, so
+    # there is one parser for `topic_clusters.json` and the two views cannot disagree about
+    # membership.
+    label = ""
+    member_ids: list[str] = []
+    for tid, info in cluster_map.items():
+        if info.get("cluster_id") != theme_id:
+            continue
+        member_ids.append(tid)
+        if not label:
+            raw = info.get("cluster_label")
+            if isinstance(raw, str) and raw.strip():
+                label = raw.strip()
+    if not member_ids:
+        return None
+
+    # De-duplicate by episode id: a member topic's episodes overlap heavily with its siblings' —
+    # that overlap is WHY they cluster — so without this the list repeats the same episode once per
+    # member it mentions.
+    seen_eps: set[str] = set()
+    about: list[CatalogEpisodeRow] = []
+    people_by_id: dict[str, AppEntity] = {}
+    person_counts: Counter[str] = Counter()
+    episodes_per_member: Counter[str] = Counter()
+    labels: dict[str, str] = {}
+
+    for tid in member_ids:
+        for row, persons, topics in _topic_episodes(root, tid, rows):
+            match = next((t for t in topics if t.id == tid), None)
+            if match is None:
+                continue
+            episodes_per_member[tid] += 1
+            labels.setdefault(tid, match.label)
+            # `metadata_relative_path` — the row's non-optional natural key. `episode_id` is
+            # `Optional[str]` on CatalogEpisodeRow, so keying on it needs a fallback, and an
+            # `id(row)` fallback would silently de-duplicate nothing (every row object is distinct).
+            # This avoids the question entirely. NOT a bug that was observed: the fixture's rows all
+            # carry an episode_id, so both keys de-duplicate correctly here.
+            key = row.metadata_relative_path
+            if key in seen_eps:
+                continue
+            seen_eps.add(key)
+            about.append(row)
+            for p in persons:
+                people_by_id[p.id] = p
+                person_counts[p.id] += 1
+
+    if not about:
+        return None
+
+    related_people = with_photos(
+        [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
+    )
+    # Members ordered by how much of the corpus each carries — the first row is the member a reader
+    # is most likely to recognise, which is what makes the grouping legible at a glance.
+    ordered = sorted(member_ids, key=lambda t: (-episodes_per_member[t], t))
+    members = [
+        _enrich_topic(
+            AppTopic(id=tid, label=labels.get(tid) or tid.split(":", 1)[-1]),
+            cluster_map,
+            storyline_map,
+        )
+        for tid in ordered
+    ]
+    return AppThemeCard(
+        id=theme_id,
+        label=label or theme_id.split(":", 1)[-1].replace("-", " "),
+        member_topics=members,
+        episode_count=len(about),
+        episodes=_sorted_episode_cards(root, about),
+        related_people=related_people,
     )
 
 

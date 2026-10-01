@@ -593,6 +593,38 @@ class AppOrgCard(BaseModel):
     )
 
 
+class AppThemeCard(BaseModel):
+    """Theme card (GET /api/app/themes/{theme_id}).
+
+    A **theme** is a set of topics that MEAN the same thing — cosine similarity over topic
+    embeddings, from ``topic_clusters.json``. It is a GROUPING, not an entity: it never appears as
+    a node on an episode, which is why it cannot be served by the topic card. Asking
+    ``/api/app/topics/tc:something`` returned an empty page for exactly that reason.
+
+    ``episodes`` is the UNION across every member topic, de-duplicated — that merge is the whole
+    reason a theme has a page. Searching one member misses the others, which is the problem a
+    similarity grouping exists to solve; a list showing only one member's episodes would not solve
+    it. (The storyline page still shows its ANCHOR topic's episodes rather than a union; it has the
+    same gap and is not fixed here.)
+    """
+
+    id: str = Field(description="Theme id — the cluster's graph_compound_parent_id (tc:{slug}).")
+    label: str = Field(description="Canonical theme label.")
+    member_topics: list[AppTopic] = Field(
+        default_factory=list, description="The topics in this theme, by descending episode count."
+    )
+    episode_count: int = Field(
+        default=0, ge=0, description="Distinct episodes across ALL member topics."
+    )
+    episodes: list[AppEpisodeSummary] = Field(
+        default_factory=list, description="Episodes discussing ANY member topic, newest first."
+    )
+    related_people: list[AppEntity] = Field(
+        default_factory=list,
+        description="People co-occurring most often across the theme's episodes (descending).",
+    )
+
+
 class AppTopicCard(BaseModel):
     """Topic card (PRD-043 FR3; GET /api/app/topics/{id}).
 

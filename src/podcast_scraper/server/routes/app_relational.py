@@ -21,6 +21,7 @@ from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
     build_org_card,
     build_person_card,
+    build_theme_card,
     build_topic_card,
     build_topic_perspectives,
     resolve_entity,
@@ -32,6 +33,7 @@ from podcast_scraper.server.schemas import (
     AppEntitySearchResponse,
     AppOrgCard,
     AppPersonCard,
+    AppThemeCard,
     AppTopicCard,
     AppTopicConversationArcResponse,
     AppTopicPerspectivesResponse,
@@ -260,6 +262,32 @@ def _conversation_arc(root: str, topic_id: str) -> list[dict]:
     weeks = cil_queries.topic_conversation_arc(root, root, topic_id)
     _conversation_arc_cache[key] = (now, weeks)
     return weeks
+
+
+@router.get("/themes/{theme_id}", response_model=AppThemeCard)
+async def theme_card(
+    request: Request,
+    theme_id: str,
+    user: User = Depends(get_current_user),
+) -> AppThemeCard:
+    """Theme card: the member topics, their MERGED episodes, and the people across them.
+
+    A theme is a grouping of topics that mean the same thing, not an entity — it is never a node on
+    an episode. It therefore needs its own endpoint: ``/topics/{id}`` builds a card by matching a
+    topic node by id, so a `tc:` id matched nothing and the page rendered empty.
+
+    No ``scope`` parameter, deliberately. The topic card's ``scope=mine`` narrows to the user's
+    heard set; a theme page answers "what is this grouping, across the corpus", and a
+    personally-filtered union would quietly answer a different question. Add it when a surface
+    actually asks.
+
+    404 when the theme id is unknown or none of its members appear in any episode's KG.
+    """
+    root = corpus_root_or_503(request)
+    card = await asyncio.to_thread(build_theme_card, root, theme_id.strip())
+    if card is None:
+        raise HTTPException(status_code=404, detail="Unknown theme id.")
+    return card
 
 
 @router.get("/topics/{topic_id}", response_model=AppTopicCard)

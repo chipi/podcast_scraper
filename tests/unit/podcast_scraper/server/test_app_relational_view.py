@@ -699,3 +699,97 @@ class TestRankingProjection:
         ]
         out = _rank_for_display([_node_to_app_insight(n) for n in nodes])
         assert [i.id for i in out] == ["x", "y"]
+
+
+# --- theme cards (#2193 follow-up) ---------------------------------------------------------------
+#
+# A theme is a GROUPING of topics that mean the same thing, not an entity — it is never a node on an
+# episode. `build_topic_card` matches a topic node by id, so a `tc:` id matched nothing and the
+# theme page rendered empty. These cover the behaviour that justifies a separate builder.
+
+
+class TestThemeCardMergesAcrossItsMembers:
+    """The union is the point: a similarity grouping exists because one member misses the others."""
+
+    FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
+    THEME = "tc:show-themes"
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_fixture(self) -> None:
+        if not self.FIXTURE.is_dir():
+            pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
+
+    def test_episode_list_exceeds_every_single_member(self) -> None:
+        """The whole justification for the page, asserted as a number.
+
+        Measured on this fixture: members sum to 84 episodes WITH overlap, the de-duplicated union
+        is 40, and the largest single member carries 30. A reader on that member's topic page sees
+        30; the theme shows 40. If this ever equals the largest member, the merge has regressed to
+        "show one member's episodes" and the page has no reason to exist.
+        """
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        assert len(card.member_topics) > 1, "a single-member theme cannot demonstrate a merge"
+
+        per_member = []
+        for m in card.member_topics:
+            tc = build_topic_card(self.FIXTURE, m.id)
+            per_member.append(tc.episode_count if tc else 0)
+
+        assert card.episode_count > max(per_member), (
+            f"union {card.episode_count} is not larger than the biggest member {max(per_member)} — "
+            "the episodes are not being merged across the theme"
+        )
+        assert card.episode_count < sum(per_member), (
+            f"union {card.episode_count} equals the sum {sum(per_member)} — duplicates are not "
+            "being removed, so an episode mentioning two members is listed twice"
+        )
+
+    def test_episode_count_matches_the_list_it_describes(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        assert card.episode_count == len(card.episodes)
+
+    def test_episodes_are_distinct(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        # `slug`, not `episode_id` — AppEpisodeSummary has no `episode_id`, and asserting on a
+        # missing attribute fails with AttributeError, which reads exactly like a real duplicate.
+        slugs = [e.slug for e in card.episodes]
+        assert len(slugs) == len(set(slugs)), "the same episode appears twice in a theme's list"
+
+    def test_members_are_ordered_by_corpus_weight(self) -> None:
+        """First row is the member a reader is most likely to recognise."""
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        counts = []
+        for m in card.member_topics:
+            tc = build_topic_card(self.FIXTURE, m.id)
+            counts.append(tc.episode_count if tc else 0)
+        assert counts == sorted(counts, reverse=True), f"members out of order: {counts}"
+
+    def test_carries_the_canonical_label_not_the_slug(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        assert card.label and card.label != card.id
+
+    def test_unknown_theme_is_none_so_the_route_404s(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        assert build_theme_card(self.FIXTURE, "tc:no-such-theme") is None
+
+    def test_a_topic_id_is_not_a_theme(self) -> None:
+        """Passing a `topic:` id must not accidentally build a one-member theme."""
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        assert build_theme_card(self.FIXTURE, "topic:risk-management") is None
