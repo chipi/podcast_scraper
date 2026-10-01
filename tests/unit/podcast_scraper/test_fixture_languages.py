@@ -125,23 +125,55 @@ class TestTheCommittedCorporaStillNeedRegenerating:
     carry their old shape. These tests document the current state rather than asserting the
     desired one — and they will FAIL when the corpora are regenerated, which is the signal to
     delete them and tighten the assertions above.
+
+    BOTH CORPORA NOW CARRY LANGUAGE (2026-10-01), so this class no longer records a gap in the
+    data — it records the one that is left, in the GENERATOR. See the viewer test below.
     """
 
-    def test_the_viewer_corpus_still_has_no_language(self) -> None:
+    def test_the_viewer_corpus_carries_the_declared_language(self) -> None:
+        """Tightened as the class docstring asked, rather than deleted.
+
+        The viewer corpus had NO `feed.language` on any of its 40 episodes, so the S0.4 audit
+        reported the whole corpus as "not enabled in the registry" — while the app corpus, which
+        was regenerated, looked fine. #2185.
+
+        WRITTEN SURGICALLY, NOT BY REGENERATING, and that is the finding worth keeping: re-running
+        `build_synthetic_validation_corpus.py` is not a safe way to apply a field to this corpus.
+        Its `base_date` is `datetime.utcnow()`, so every run shifts all 40 publish dates and the
+        graph nodes derived from them — 131 of 332 files differ on a no-op rerun, almost none of it
+        about language — and it would DELETE 18 git-tracked `.app/users/*` files (profiles,
+        preferences, graph events) that the viewer e2e reads and the generator does not produce.
+        Making the generator deterministic is the other half of #2185.
+        """
         import json
 
         root = REPO / "tests/fixtures/viewer-validation-corpus/v3"
         metas = sorted(root.glob("feeds/*/**/metadata/*.metadata.json"))
         assert metas
-        have = [
+        missing = [
             m.name
             for m in metas
-            if "language" in (json.loads(m.read_text(encoding="utf-8")).get("feed") or {})
+            if not (json.loads(m.read_text(encoding="utf-8")).get("feed") or {}).get("language")
         ]
-        assert not have, (
-            "the viewer corpus now carries a feed language — regenerated? Then delete this test "
-            "and assert the language is present instead."
+        assert not missing, (
+            f"{len(missing)} viewer-corpus episode(s) still carry no feed language, so the S0.4 "
+            f"audit reports them as not enabled: {missing[:5]}"
         )
+
+    def test_the_viewer_corpus_records_the_RAW_tag_and_its_source(self) -> None:
+        """`en-us` normalized to `en` with `language_source: rss` — the same shape the app corpus
+        carries, so one audit reads both corpora identically."""
+        import json
+
+        root = REPO / "tests/fixtures/viewer-validation-corpus/v3"
+        feeds = [
+            json.loads(m.read_text(encoding="utf-8")).get("feed") or {}
+            for m in sorted(root.glob("feeds/*/**/metadata/*.metadata.json"))
+        ]
+        assert feeds
+        assert {f.get("language") for f in feeds} == {"en"}
+        assert {f.get("language_raw") for f in feeds} == {"en-us"}
+        assert {f.get("language_source") for f in feeds} == {"rss"}
 
     def test_the_app_corpus_IS_regenerated_and_normalized(self) -> None:
         """REGENERATED 2026-09-30, so this is the tightened assertion the class docstring asked

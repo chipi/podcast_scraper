@@ -37,6 +37,8 @@
   },
   "episode": {
     "episode_id": "f6f1df34-2251-5301-b1c7-68ee8468bf65",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-09-20",
     "title": "Singletrack Sessions \u2014 Episode 3"
   },
@@ -45,6 +47,9 @@
   "feed": {
     "description": "Mountain biking talk: trails, technique, gear, and the people who build the ride.",
     "feed_id": "sha256:9265a36310974b0f8bb67afe62f6990162e72baf2b090ed6492175b6f7e746ea",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "title": "Singletrack Sessions",
     "url": "http://localhost/"
   },

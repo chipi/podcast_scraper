@@ -37,6 +37,8 @@
   },
   "episode": {
     "episode_id": "01835c28-431e-5b5a-adbb-5ec01411a299",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-09-21",
     "title": "The Drift \u2014 Episode 3"
   },
@@ -45,6 +47,9 @@
   "feed": {
     "description": "Dialogue-heavy, meandering long-form interviews.",
     "feed_id": "sha256:c21ee2c669d9f68490326aaac0645ef2e98d795fde06720b8cbbc82428e3b6af",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "title": "The Drift",
     "url": "http://localhost/"
   },
