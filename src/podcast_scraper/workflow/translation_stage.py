@@ -366,8 +366,18 @@ def _load_source_transcript(effective_output_dir: str, transcript_relpath: str) 
     return text, raw if isinstance(raw, list) else []
 
 
+#: How many of the episode's opening sentences ride along as context for the title.
+#: Two is enough to establish the subject and keeps the unit small — a title unit is sent per
+#: episode and must stay cheap.
+_TITLE_CONTEXT_SENTENCES = 2
+
+
 def _translate_title(
-    cfg: Any, provider: Any, episode_title: Optional[str], source_language: str
+    cfg: Any,
+    provider: Any,
+    episode_title: Optional[str],
+    source_language: str,
+    context_sentences: Optional[list] = None,
 ) -> Optional[str]:
     """The EPISODE title in English, or ``None`` (S2.4's title decision).
 
@@ -382,6 +392,21 @@ def _translate_title(
     a failure costs the roster some context and the naming stage falls back to the source title.
     It must never cost the episode its translation, which is why every exception is swallowed
     here rather than propagated into the unit loop's accounting.
+
+    THE TITLE TRAVELS WITH CONTEXT (2026-10-01). It used to be sent as a unit holding ONE
+    sentence, which is this module's own contract read backwards: "the unit is the translation
+    CONTEXT; the sentence is the alignment atom". A one-sentence unit has no context by
+    construction, and a title is the shortest, most ambiguous string in the episode.
+
+    Measured: the German fixture's `Wege Bauen, Die Bleiben` came back as "Building bridges,
+    creating connections that last" — both nouns invented — while the same conversation in es,
+    it, fr and pt all produced the correct "Building Trails That Last." `Wege bauen` in isolation
+    is genuinely ambiguous between literal path-building and the English idiom; the body never
+    had the problem because its units carry neighbouring sentences.
+
+    So the episode's opening sentences ride along in the same unit and only the FIRST translated
+    sentence is taken. No extra request, no new provider API — the mechanism was already there
+    and the title simply was not using it.
     """
     title = (episode_title or "").strip()
     if not title:
@@ -389,6 +414,16 @@ def _translate_title(
     try:
         from ..translation.units import TranslationUnit, UnitSentence
 
+        # The title FIRST, so `sentences[0]` is the answer; the context after it, purely to tell
+        # the model what the episode is about. Only the first result is read — the rest are
+        # translated and discarded, which is the cost of the fix and is one short unit's worth.
+        sents = [UnitSentence(sent_id="title.s01", text=title, char_start=0, char_end=0)]
+        for i, ctx in enumerate(context_sentences or [], start=2):
+            ctx_text = str(ctx or "").strip()
+            if ctx_text:
+                sents.append(
+                    UnitSentence(sent_id=f"title.s{i:02d}", text=ctx_text, char_start=0, char_end=0)
+                )
         unit = TranslationUnit(
             unit_id="title",
             turn_id="title",
@@ -397,7 +432,7 @@ def _translate_title(
             # not part of the transcript body at all. Nothing resolves a span against this unit:
             # it never enters `doc.units`, so `resolve_units_for_span` cannot see it and no
             # claim can be provenanced to it.
-            sentences=[UnitSentence(sent_id="title.s01", text=title, char_start=0, char_end=0)],
+            sentences=sents,
         )
         result = provider.translate_unit(unit, source_language=source_language)
         sentences = result.get("sentences") or []
@@ -595,7 +630,20 @@ def _translate_episode(
     #
     # Best-effort by design: a failed title costs the roster some context, and the naming stage
     # falls back to the source title. It must never cost the episode its translation.
-    doc.title_en = _translate_title(cfg, provider, episode_title, language)
+    # The episode's opening sentences go with the title — see `_translate_title`. Taken from the
+    # SOURCE units (the model translates source -> English in one pass), and from the first unit
+    # that carries any, so a leading backchannel ("Sí.") does not become the whole context.
+    _title_context: list[str] = []
+    for _u in units:
+        for _s in getattr(_u, "sentences", []) or []:
+            _text = str(getattr(_s, "text", "") or "").strip()
+            if len(_text) >= 20:
+                _title_context.append(_text)
+            if len(_title_context) >= _TITLE_CONTEXT_SENTENCES:
+                break
+        if len(_title_context) >= _TITLE_CONTEXT_SENTENCES:
+            break
+    doc.title_en = _translate_title(cfg, provider, episode_title, language, _title_context)
 
     write_translation_json(doc, transcript_relpath, effective_output_dir)
     en_rel = write_english_artifacts(

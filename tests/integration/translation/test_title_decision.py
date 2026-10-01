@@ -280,3 +280,55 @@ class TestTheShowNameIsNotTranslated:
 
         doc = _translate_title.__doc__ or ""
         assert "SHOW NAME IS NOT TRANSLATED" in doc
+
+
+class TestTheTitleTravelsWithContext:
+    """A one-sentence unit has no context, and a title is the shortest string in the episode.
+
+    MEASURED, not theorised. Sent alone, the German fixture's `Wege Bauen, Die Bleiben` came back
+    from the live model as "Building bridges, creating connections that last" — both nouns
+    invented — while the same conversation in es/it/fr/pt produced the correct "Building Trails
+    That Last." With the episode's opening sentences in the same unit it became "Building Paths
+    That Last.", and all four others were unchanged.
+
+    This module's own contract is "the unit is the translation CONTEXT; the sentence is the
+    alignment atom" — the title simply was not using the mechanism that already existed.
+    """
+
+    def test_context_sentences_ride_in_the_same_unit(self) -> None:
+        provider = _Provider()
+        _translate_title(
+            _cfg(),
+            provider,
+            "Wege Bauen, Die Bleiben",
+            "de",
+            [
+                "Heute sprechen wir über Wegebau und Entwässerung auf steilen Hängen.",
+                "Bankette am Hang sind nicht optional.",
+            ],
+        )
+        # The provider records source_text; the context must be IN the text it was given.
+        sent = provider.seen[-1]
+        assert "Wege Bauen" in sent, sent
+        assert "Entwässerung" in sent, "the context sentence never reached the model"
+
+    def test_the_title_is_the_FIRST_sentence_so_the_answer_is_unambiguous(self) -> None:
+        """Only `sentences[0]` is read back, so the title must be sent first."""
+        provider = _Provider()
+        _translate_title(
+            _cfg(), provider, "Wege Bauen", "de", ["Ein Kontextsatz der lang genug ist."]
+        )
+        unit_text = provider.seen[-1]
+        assert unit_text.index("Wege Bauen") < unit_text.index("Kontextsatz")
+
+    def test_no_context_still_works(self) -> None:
+        """Context is additive — an episode with none must behave exactly as before."""
+        provider = _Provider()
+        assert _translate_title(_cfg(), provider, "Sesiones de Sendero", "es", None) == provider.out
+        assert _translate_title(_cfg(), provider, "Sesiones de Sendero", "es", []) == provider.out
+
+    def test_blank_context_sentences_are_dropped(self) -> None:
+        """A whitespace-only sentence would add an alignment slot carrying nothing."""
+        provider = _Provider()
+        _translate_title(_cfg(), provider, "Wege Bauen", "de", ["", "   ", "Echter Kontext hier."])
+        assert provider.seen[-1].count("\n") <= 2, provider.seen[-1]
