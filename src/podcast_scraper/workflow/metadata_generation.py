@@ -993,6 +993,25 @@ def _read_speaker_diagnostics(
     return data if isinstance(data, dict) else {}
 
 
+def _self_introduced_names(
+    output_dir: Optional[str], transcript_file_path: Optional[str]
+) -> List[str]:
+    """Names a diarized voice introduced ITSELF with, per the roster's own diagnostics."""
+    if not output_dir or not transcript_file_path:
+        return []
+    diagnostics = _read_speaker_diagnostics(output_dir, transcript_file_path)
+    return [
+        str(v["resolved_name"])
+        for v in diagnostics.get("voices") or []
+        if isinstance(v, dict) and v.get("source") == SELF_INTRO_SOURCE and v.get("resolved_name")
+    ]
+
+
+#: The roster source for a name a voice introduced ITSELF with ("I'm Peter Attia") — the one
+#: evidence that a name which also begins the show's title is the host, not the show.
+SELF_INTRO_SOURCE = "self_intro"
+
+
 def _clean_record_name(name: Any) -> str:
     """A name as the record stores it: stripped, internal whitespace collapsed."""
     return " ".join(str(name or "").split())
@@ -1113,13 +1132,6 @@ def _build_speaker_record(
     _votes = votes_for_output_dir(output_dir)
     if isinstance(_votes, KindVotes):
         placed = [sp for sp in placed if not _votes.calls_organisation(sp.name)]
-    if feed_title:
-        # The SHOW is not a person on it (#2064). The graph already refuses it, so a record that
-        # placed it would list a speaker no surface casts. A transcript still labelled with the
-        # show's name is then reported by the sync check (LABEL_NOT_PLACED) — a roster to re-run.
-        from ..speaker_detectors.hosts import names_the_show
-
-        placed = [sp for sp in placed if not names_the_show(sp.name, feed_title)]
     diagnostics = _read_speaker_diagnostics(output_dir, transcript_file_path)
     method_by_voice: Dict[str, str] = {}
     for v in diagnostics.get("voices") or []:
@@ -1127,6 +1139,23 @@ def _build_speaker_record(
             method_by_voice[str(v["voice"])] = str(v["source"])
     for sp in placed:
         sp.source = next((method_by_voice[v] for v in sp.voices if v in method_by_voice), "roster")
+    if feed_title:
+        # The SHOW is not a person on it (#2064). The graph already refuses it, so a record that
+        # placed it would list a speaker no surface casts. A transcript still labelled with the
+        # show's name is then reported by the sync check (LABEL_NOT_PLACED) — a roster to re-run.
+        #
+        # UNLESS THE VOICE SAID IT. A show is named after its host often enough ("The Peter Attia
+        # Drive"), and a title-prefix rule cannot tell that host from "Machine Learning Street".
+        # A self-introduction can: measured on prod, Peter Attia's voice named itself on all 40
+        # episodes (source `self_intro`) and not one of the real show-name labels did (MLST,
+        # Trivium China, Africa Tech Summit, Turkey Book — all `known_hosts` / `llm_resolution`).
+        from ..speaker_detectors.hosts import names_the_show
+
+        placed = [
+            sp
+            for sp in placed
+            if sp.source == SELF_INTRO_SOURCE or not names_the_show(sp.name, feed_title)
+        ]
     unplaced = _unplaced_speakers(
         placed,
         diagnostics=diagnostics,
@@ -1309,12 +1338,12 @@ def _speaker_lists_for_graph(
 
         return names_the_show(name, feed_title)
 
-    def _take(name: Optional[str], role: str) -> None:
+    def _take(name: Optional[str], role: str, source: Optional[str] = None) -> None:
         clean = (name or "").strip()
         key = clean.lower()
         if not clean or key in seen:
             return
-        if _is_the_show(clean):
+        if _is_the_show(clean) and source != SELF_INTRO_SOURCE:
             logger.info(
                 "speaker %r names the show %r — not publishing it as a %s (#2064)",
                 clean,
@@ -1341,7 +1370,7 @@ def _speaker_lists_for_graph(
         rl = (getattr(sp, "role", "") or "").strip().lower()
         # A voice with no usable role is treated as a host — matching
         # `_build_speakers_from_diarized_segments`, so the two cannot disagree.
-        _take(nm, rl if rl in ("host", "guest") else "host")
+        _take(nm, rl if rl in ("host", "guest") else "host", getattr(sp, "source", None))
     return hosts, guests
 
 
@@ -4938,6 +4967,7 @@ def generate_episode_metadata(  # noqa: C901
                     # 53 SPOKEN_BY edges came to point at a Person named `Machine Learning
                     # Street`. Pass it or the guard does nothing.
                     feed_title=getattr(feed, "title", None),
+                    self_introduced_names=_self_introduced_names(output_dir, transcript_file_path),
                 )
                 if _gi_probe is not None:
                     gi_cost = _gi_probe.gi_cost_usd

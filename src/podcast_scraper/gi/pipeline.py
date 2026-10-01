@@ -957,6 +957,21 @@ def _label_names_the_show(label: str, feed_title: Optional[str]) -> bool:
     return names_the_show(label, feed_title)
 
 
+def _introduced_itself(label: str, self_introduced_names: Optional[List[str]]) -> bool:
+    """Did a voice introduce ITSELF with *label*? Then it is the host the show is named after.
+
+    "The Peter Attia Drive": the title-prefix rule reads "Peter Attia" as the show; his own voice
+    says otherwise (measured on prod: 40 of 40 episodes, roster source `self_intro`, against 0 for
+    every real show-name label).
+    """
+    from ..identity.slugify import canonical_person_name
+
+    key = (canonical_person_name(label) or label).casefold()
+    return any(
+        (canonical_person_name(n) or n).casefold() == key for n in (self_introduced_names or ())
+    )
+
+
 def _label_is_an_organisation(label: str, kind_votes: Optional[Any]) -> bool:
     """True when the corpus's KG extraction decisively calls *label* an organisation (#2220)."""
     from ..speaker_detectors.entity_kind_votes import KindVotes
@@ -972,6 +987,7 @@ def _resolve_quote_speaker(
     transcript_segments: Optional[List[Dict[str, Any]]],
     feed_title: Optional[str] = None,
     kind_votes: Optional[Any] = None,
+    self_introduced_names: Optional[List[str]] = None,
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """``(person_id, friendly_name, voice_type)`` for a quote's speaker.
 
@@ -1004,7 +1020,9 @@ def _resolve_quote_speaker(
         )
         return None, friendly_voice_label("unknown"), "unknown"
     if speaker_label:
-        if _label_names_the_show(speaker_label, feed_title):
+        if _label_names_the_show(speaker_label, feed_title) and not _introduced_itself(
+            speaker_label, self_introduced_names
+        ):
             # THE SHOW DID NOT SPEAK — but a VOICE did, and the two facts are separable.
             #
             # Dropping the attribution entirely was the first version of this, and it threw away
@@ -1831,6 +1849,7 @@ def build_artifact(
     prefilled_insights: Optional[List[Dict[str, Any]]] = None,
     feed_id: Optional[str] = None,
     feed_title: Optional[str] = None,
+    self_introduced_names: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Build a GIL artifact for one episode.
 
@@ -2044,6 +2063,7 @@ def build_artifact(
                 insight_tiers=insight_tiers,
                 feed_title=feed_title,
                 kind_votes=_kind_votes,
+                self_introduced_names=self_introduced_names,
             )
         except GILGroundingUnsatisfiedError:
             raise
@@ -2088,6 +2108,7 @@ def build_artifact(
             feed_id=feed_id,
             feed_title=feed_title,
             kind_votes=_kind_votes,
+            self_introduced_names=self_introduced_names,
         )
     except Exception:
         # The insights exist but the artifact could not be assembled. Emitting an EMPTY artifact
@@ -2188,6 +2209,7 @@ def _artifact_from_multi_insight(
     insight_tiers: Optional[List[int]] = None,
     feed_title: Optional[str] = None,
     kind_votes: Optional[Any] = None,
+    self_introduced_names: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -2433,6 +2455,7 @@ def _artifact_from_multi_insight(
                 transcript_segments if use_segments else None,
                 feed_title,
                 kind_votes,
+                self_introduced_names,
             )
             if quote_voice_type:
                 speaker_label = None  # not a person — nothing to mint
