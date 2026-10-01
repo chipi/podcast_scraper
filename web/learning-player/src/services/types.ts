@@ -359,7 +359,7 @@ export interface EntitiesResponse {
  * Saveable favorite kinds. `insight` is NOT one — an insight is a capture, saved via the
  * highlights path, never a favorite (RFC-121 / #1593).
  */
-export type FavoriteKind = "episode" | "person" | "topic" | "show" | "storyline"
+export type FavoriteKind = "episode" | "person" | "topic" | "show" | "storyline" | "theme"
 
 /** Body for PUT /api/app/favorites — denormalized so the Library renders without re-fetching. */
 export interface FavoriteAdd {
@@ -455,6 +455,7 @@ export type NoteTarget =
   | "topic"
   | "person"
   | "storyline"
+  | "theme"
 
 /** A free-text note (GET/POST/PATCH/DELETE /api/app/notes — the Note schema). */
 export interface Note {
@@ -524,6 +525,9 @@ export type CollectionItemKind =
   | "topic"
   | "person"
   | "link"
+  // Groupings — as collectable as the topics they group.
+  | "storyline"
+  | "theme"
 
 /** A typed reference to add to a collection. */
 export interface CollectionItemRef {
@@ -813,14 +817,19 @@ export interface OrgCard {
 }
 
 /**
- * Theme card (GET /api/app/themes/{id} — AppThemeCard).
+ * A GROUPING of topics — a theme or a storyline (AppClusterCard).
  *
- * A theme groups topics that MEAN the same thing. It is not an entity — it never appears as a node
- * on an episode — which is why it has its own endpoint rather than riding on the topic card.
- * `episodes` is the UNION across every member, de-duplicated: that merge is the page's reason to
- * exist, since searching one member misses the others.
+ * One shape for both, because a reader meets one kind of object: a set of topics with members,
+ * episodes and voices. They differ only in how membership is decided — a THEME groups topics that
+ * MEAN the same thing, a STORYLINE groups topics that keep coming up TOGETHER — and that
+ * difference is a sentence on the page, not a different type.
+ *
+ * Neither is an entity: neither is ever a node on an episode, which is why each has its own
+ * endpoint rather than riding on the topic card. `episodes` is the UNION across every member,
+ * de-duplicated — that merge is the reason these pages exist, since looking at one member misses
+ * the others.
  */
-export interface ThemeCard {
+export interface ClusterCard {
   id: string
   label: string
   member_topics: Topic[]

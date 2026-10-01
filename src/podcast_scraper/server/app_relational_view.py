@@ -48,7 +48,7 @@ from podcast_scraper.server.schemas import (
     AppPersonCard,
     AppPersonShow,
     AppPersonWeb,
-    AppThemeCard,
+    AppClusterCard,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -434,39 +434,43 @@ def build_person_card(
     )
 
 
-def build_theme_card(
+def _build_cluster_card(
     root: Path,
-    theme_id: str,
+    cluster_id: str,
     *,
+    group_map: ClusterMap,
+    id_key: str,
+    label_key: str,
     rows: Sequence[CatalogEpisodeRow] | None = None,
     top_k: int = _DEFAULT_TOP_K,
-) -> AppThemeCard | None:
-    """Project a THEME (a `tc:` similarity cluster) to a card, or ``None`` when it has no episodes.
+) -> tuple[str, list[AppTopic], list[CatalogEpisodeRow], list[AppEntity]] | None:
+    """Members, merged episodes and people for a GROUPING of topics — themes and storylines alike.
 
-    A theme is a grouping, not an entity — it is never a node on an episode — so it cannot be built
-    the way a topic card is. ``build_topic_card`` matches a topic node by id and a `tc:` id matches
-    nothing, which is why routing a theme at ``/api/app/topics/{id}`` produced an empty page.
+    Both are groupings rather than entities: neither is ever a node on an episode, so neither can be
+    built the way a topic card is (``build_topic_card`` matches a topic node by id, and a `tc:` or
+    `thc:` id matches nothing). The only difference between them is which map they come from and
+    what the keys are called — `tc:` groups topics that MEAN the same thing, `thc:` groups topics
+    that keep coming up TOGETHER — so the projection is shared and the callers supply the map.
 
-    The episode list is the UNION across every member topic, de-duplicated by episode id. That
-    merge is the point of the page: a similarity cluster exists because searching one member misses
-    the others, so a list showing one member's episodes would not answer the question the grouping
-    poses. ``related_people`` is likewise counted across the whole union, so the "top voices" of a
-    theme are the people who recur across it rather than within one member.
+    The episode list is the UNION across every member, de-duplicated. That merge is the point:
+    a grouping exists because looking at one member misses the others, so a list showing a single
+    member's episodes would not answer the question the grouping poses. ``related_people`` is
+    counted across the whole union too, so a grouping's top voices are the people who recur across
+    it rather than inside one member.
     """
     cluster_map: ClusterMap = theme_map_by_topic(root)
     storyline_map: ClusterMap = storyline_map_by_topic(root)
 
-    # `theme_map_by_topic` is topic -> cluster; invert it rather than re-reading the artifact, so
-    # there is one parser for `topic_clusters.json` and the two views cannot disagree about
-    # membership.
+    # The maps are topic -> cluster; invert rather than re-reading the artifact, so one parser owns
+    # membership and the two views cannot disagree about it.
     label = ""
     member_ids: list[str] = []
-    for tid, info in cluster_map.items():
-        if info.get("cluster_id") != theme_id:
+    for tid, info in group_map.items():
+        if info.get(id_key) != cluster_id:
             continue
         member_ids.append(tid)
         if not label:
-            raw = info.get("cluster_label")
+            raw = info.get(label_key)
             if isinstance(raw, str) and raw.strip():
                 label = raw.strip()
     if not member_ids:
@@ -520,13 +524,86 @@ def build_theme_card(
         )
         for tid in ordered
     ]
-    return AppThemeCard(
+    resolved = label or cluster_id.split(":", 1)[-1].replace("-", " ")
+    return resolved, members, about, related_people
+
+
+def build_theme_card(
+    root: Path,
+    theme_id: str,
+    *,
+    rows: Sequence[CatalogEpisodeRow] | None = None,
+    top_k: int = _DEFAULT_TOP_K,
+) -> AppClusterCard | None:
+    """A THEME (`tc:`) — topics that MEAN the same thing. See :func:`_build_cluster_card`."""
+    built = _build_cluster_card(
+        root,
+        theme_id,
+        group_map=theme_map_by_topic(root),
+        id_key="cluster_id",
+        label_key="cluster_label",
+        rows=rows,
+        top_k=top_k,
+    )
+    if built is None:
+        return None
+    label, members, about, people = built
+    return AppClusterCard(
         id=theme_id,
-        label=label or theme_id.split(":", 1)[-1].replace("-", " "),
+        label=label,
         member_topics=members,
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
-        related_people=related_people,
+        related_people=people,
+    )
+
+
+def build_storyline_card(
+    root: Path,
+    storyline_id: str,
+    *,
+    rows: Sequence[CatalogEpisodeRow] | None = None,
+    top_k: int = _DEFAULT_TOP_K,
+) -> AppClusterCard | None:
+    """A STORYLINE (`thc:`) — topics that keep coming up TOGETHER.
+
+    Accepts EITHER the storyline's own `thc:` id or one of its member topics' ids. The second form
+    exists because ``/storyline/:id`` routes by ANCHOR TOPIC — there was no storyline endpoint when
+    that page was built, so it derives everything from the anchor's card — and that route must keep
+    working while now getting merged episodes.
+
+    Same shape as a theme card: both are groupings, and a reader should not meet two different
+    objects for what is, to them, the same kind of thing.
+    """
+    smap: ClusterMap = storyline_map_by_topic(root)
+    resolved_id = storyline_id
+    if not any(info.get("storyline_id") == storyline_id for info in smap.values()):
+        # Not a cluster id — try it as a member/anchor topic id.
+        info = smap.get(storyline_id) or {}
+        candidate = info.get("storyline_id")
+        if not isinstance(candidate, str) or not candidate:
+            return None
+        resolved_id = candidate
+
+    built = _build_cluster_card(
+        root,
+        resolved_id,
+        group_map=smap,
+        id_key="storyline_id",
+        label_key="storyline_label",
+        rows=rows,
+        top_k=top_k,
+    )
+    if built is None:
+        return None
+    label, members, about, people = built
+    return AppClusterCard(
+        id=resolved_id,
+        label=label,
+        member_topics=members,
+        episode_count=len(about),
+        episodes=_sorted_episode_cards(root, about),
+        related_people=people,
     )
 
 

@@ -186,6 +186,14 @@ def _resolve_item(item: dict, highlights_by_id: dict[str, dict]) -> CollectionIt
         return CollectionItem(kind=kind, ref=ref, title=_deslug(ref), deep_link=f"/topic/{ref}")
     if kind == "person":
         return CollectionItem(kind=kind, ref=ref, title=_deslug(ref), deep_link=f"/person/{ref}")
+    if kind == "theme":
+        # The theme's own `tc:` id IS the route param.
+        return CollectionItem(kind=kind, ref=ref, title=_deslug(ref), deep_link=f"/theme/{ref}")
+    if kind == "storyline":
+        # `/storyline/:id` takes the ANCHOR TOPIC id, not the `thc:` id — there is no storyline
+        # endpoint, so the page derives everything from the anchor's card. Whatever the caller
+        # collected is what the link carries; collecting from the storyline page passes the anchor.
+        return CollectionItem(kind=kind, ref=ref, title=_deslug(ref), deep_link=f"/storyline/{ref}")
     if kind == "search":
         q = quote(ref, safe="")
         link = f"/search?q={q}" + (f"&scope={quote(str(scope), safe='')}" if scope else "")

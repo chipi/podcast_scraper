@@ -54,7 +54,7 @@ import type {
   SearchResponse,
   SegmentsResponse,
   Storyline,
-  ThemeCard,
+  ClusterCard,
   TopicCard,
   TopicConversationArcResponse,
   TopicPerspectivesResponse,
@@ -386,9 +386,20 @@ export async function getPersonCard(id: string, scope?: "all" | "mine"): Promise
  * No `scope` parameter: the topic card has one, but a personally-filtered union answers a different
  * question than "what is this grouping, across the corpus".
  */
-export async function getThemeCard(id: string): Promise<ThemeCard> {
+export async function getThemeCard(id: string): Promise<ClusterCard> {
+  return withAbsoluteEntityImages(await getJSON<ClusterCard>(`/themes/${encodeURIComponent(id)}`))
+}
+
+/**
+ * Storyline card — same shape, membership decided by co-occurrence instead of similarity.
+ *
+ * Takes the `thc:` id OR an anchor topic id, because `/storyline/:id` routes by anchor topic. This
+ * replaces deriving the page from the anchor's TOPIC card, whose `episodes` are the anchor's alone:
+ * the page said "Discussed in 30 episodes" for a storyline spanning 40.
+ */
+export async function getStorylineCard(id: string): Promise<ClusterCard> {
   return withAbsoluteEntityImages(
-    await getJSON<ThemeCard>(`/themes/${encodeURIComponent(id)}`)
+    await getJSON<ClusterCard>(`/storylines/${encodeURIComponent(id)}`)
   )
 }
 

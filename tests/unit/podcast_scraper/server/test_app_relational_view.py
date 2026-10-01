@@ -793,3 +793,67 @@ class TestThemeCardMergesAcrossItsMembers:
         from podcast_scraper.server.app_relational_view import build_theme_card
 
         assert build_theme_card(self.FIXTURE, "topic:risk-management") is None
+
+
+class TestStorylineCardMergesToo:
+    """The storyline page claimed a union it never had.
+
+    Its episodes came from the ANCHOR topic's card (`build_topic_card` → `card.episodes`), so
+    "Discussed in N episodes" counted one member's corpus and labelled it the storyline's. Measured
+    on this fixture: the anchor carries 30, the storyline spans 40.
+    """
+
+    FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
+    STORYLINE = "thc:managing-risk"
+    ANCHOR = "topic:risk-management"
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_fixture(self) -> None:
+        if not self.FIXTURE.is_dir():
+            pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
+
+    def test_union_beats_the_anchor_the_page_used_to_show(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        anchor = build_topic_card(self.FIXTURE, self.ANCHOR)
+        assert card is not None and anchor is not None
+        assert card.episode_count > anchor.episode_count, (
+            f"storyline union {card.episode_count} is not larger than the anchor's "
+            f"{anchor.episode_count} — the page is still showing one member's episodes"
+        )
+
+    def test_resolves_from_an_anchor_topic_id_too(self) -> None:
+        """`/storyline/:id` routes by anchor topic, so the endpoint must accept one."""
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        by_cluster = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        by_anchor = build_storyline_card(self.FIXTURE, self.ANCHOR)
+        assert by_cluster is not None and by_anchor is not None
+        assert by_anchor.id == by_cluster.id == self.STORYLINE
+        assert by_anchor.episode_count == by_cluster.episode_count
+        assert [m.id for m in by_anchor.member_topics] == [m.id for m in by_cluster.member_topics]
+
+    def test_episodes_are_distinct(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        assert card is not None
+        slugs = [e.slug for e in card.episodes]
+        assert len(slugs) == len(set(slugs))
+
+    def test_unknown_ids_are_none(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        assert build_storyline_card(self.FIXTURE, "thc:no-such-storyline") is None
+        assert build_storyline_card(self.FIXTURE, "topic:not-in-any-storyline") is None
+
+    def test_a_theme_and_a_storyline_do_not_collide(self) -> None:
+        """Both builders read cluster maps keyed by topic; a `tc:` id must not resolve as a storyline."""
+        from podcast_scraper.server.app_relational_view import (
+            build_storyline_card,
+            build_theme_card,
+        )
+
+        assert build_storyline_card(self.FIXTURE, "tc:show-themes") is None
+        assert build_theme_card(self.FIXTURE, self.STORYLINE) is None

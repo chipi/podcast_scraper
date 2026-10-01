@@ -593,8 +593,15 @@ class AppOrgCard(BaseModel):
     )
 
 
-class AppThemeCard(BaseModel):
-    """Theme card (GET /api/app/themes/{theme_id}).
+class AppClusterCard(BaseModel):
+    """A GROUPING of topics — a theme or a storyline.
+
+    One shape for both, because a reader meets one kind of object: a set of topics with
+    members, episodes and voices. They differ only in how membership is decided —
+    `tc:` groups topics that MEAN the same thing, `thc:` groups topics that keep coming up
+    TOGETHER — and that difference is a sentence on the page, not a different schema.
+
+    Served by GET /api/app/themes/{id} and GET /api/app/storylines/{id}.
 
     A **theme** is a set of topics that MEAN the same thing — cosine similarity over topic
     embeddings, from ``topic_clusters.json``. It is a GROUPING, not an entity: it never appears as
@@ -608,10 +615,10 @@ class AppThemeCard(BaseModel):
     same gap and is not fixed here.)
     """
 
-    id: str = Field(description="Theme id — the cluster's graph_compound_parent_id (tc:{slug}).")
-    label: str = Field(description="Canonical theme label.")
+    id: str = Field(description="The cluster's graph_compound_parent_id (tc:… or thc:…).")
+    label: str = Field(description="Canonical label for the grouping.")
     member_topics: list[AppTopic] = Field(
-        default_factory=list, description="The topics in this theme, by descending episode count."
+        default_factory=list, description="Member topics, by descending episode count."
     )
     episode_count: int = Field(
         default=0, ge=0, description="Distinct episodes across ALL member topics."
@@ -835,7 +842,7 @@ class FavoriteAdd(BaseModel):
     path, so a ``kind=insight`` PUT fails validation with a 422 (RFC-121 / #1593).
     """
 
-    kind: Literal["episode", "person", "topic", "show", "storyline"] = Field(
+    kind: Literal["episode", "person", "topic", "show", "storyline", "theme"] = Field(
         description="Saveable kind."
     )
     ref: str = Field(description="Stable id within the kind (episode→slug; entity→id).")
@@ -855,7 +862,9 @@ class FavoriteAdd(BaseModel):
 class AppFavoriteEntity(BaseModel):
     """A saved non-episode favorite (show / topic / person / storyline) — snapshot from the save."""
 
-    kind: Literal["person", "topic", "show", "storyline"] = Field(description="Entity kind.")
+    kind: Literal["person", "topic", "show", "storyline", "theme"] = Field(
+        description="Entity kind."
+    )
     ref: str = Field(description="Stable entity id.")
     label: str = Field(description="Display name.")
     sublabel: str | None = Field(default=None, description="Secondary label (role / count).")
@@ -1015,9 +1024,9 @@ class HighlightsResponse(BaseModel):
 class NoteCreate(BaseModel):
     """Body for POST /api/app/notes — attach free text to a highlight, insight, or episode."""
 
-    target: Literal["highlight", "insight", "episode", "show", "topic", "person", "storyline"] = (
-        Field(description="What the note is on.")
-    )
+    target: Literal[
+        "highlight", "insight", "episode", "show", "topic", "person", "storyline", "theme"
+    ] = Field(description="What the note is on.")
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Note body.")
     client_id: str | None = Field(
@@ -1039,9 +1048,9 @@ class Note(BaseModel):
     """A saved note (response item)."""
 
     id: str = Field(description="Opaque note id.")
-    target: Literal["highlight", "insight", "episode", "show", "topic", "person", "storyline"] = (
-        Field(description="What the note is on.")
-    )
+    target: Literal[
+        "highlight", "insight", "episode", "show", "topic", "person", "storyline", "theme"
+    ] = Field(description="What the note is on.")
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(description="Note body.")
     created_at: int = Field(description="Unix time created.")
@@ -1588,9 +1597,21 @@ class CollectionsResponse(BaseModel):
 class CollectionItemBody(BaseModel):
     """POST /api/app/collections/{id}/items body — a typed reference (RFC-119)."""
 
-    kind: Literal["highlight", "episode", "show", "search", "topic", "person", "link"] = Field(
-        description="What is being pinned."
-    )
+    kind: Literal[
+        "highlight",
+        "episode",
+        "show",
+        "search",
+        "topic",
+        "person",
+        "link",
+        # Groupings. A collection is "things I want to come back to", and a theme or a
+        # storyline is as collectable as the topic it groups — the topic was collectable and
+        # neither grouping was, which made the action set differ by page for no reason a
+        # reader could see.
+        "storyline",
+        "theme",
+    ] = Field(description="What is being pinned.")
     ref: str = Field(
         min_length=1,
         description="highlight id / episode slug / feed_id / topic:/person: id / query / url.",

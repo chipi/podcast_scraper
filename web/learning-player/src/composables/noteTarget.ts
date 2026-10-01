@@ -45,6 +45,10 @@ export function noteRoute(
       return { name: "podcast", params: { feedId: id } }
     case "storyline":
       return { name: "storyline", params: { id } }
+    // A theme's note carries the theme's own `tc:` id, which IS the route param — no anchor-topic
+    // indirection, unlike the storyline above.
+    case "theme":
+      return { name: "theme", params: { id } }
     case "highlight":
     case "insight": {
       // Both hang off an episode rather than having a page. Resolve through the highlight so the

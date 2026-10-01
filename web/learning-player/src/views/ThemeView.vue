@@ -25,7 +25,10 @@ import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
+import AddToCollectionButton from "../components/AddToCollectionButton.vue"
+import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
+import NoteComposer from "../components/NoteComposer.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import TopVoices from "../components/TopVoices.vue"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
@@ -123,12 +126,12 @@ function goBack(): void {
       <h1 class="mt-2 line-clamp-2 font-display text-2xl font-extrabold tracking-tight">
         {{ label || "…" }}
       </h1>
-      <!-- No Save (heart) and no notes, unlike the storyline page. `FavoriteKind` and `NoteTarget`
-           are contracts the SERVER validates and neither admits "theme", so wiring those buttons
-           here would offer the reader an action the API rejects. Adding the kind end to end is its
-           own change; Follow works today because a theme is followed by its `tc:` token, which the
-           interests store already carries. -->
+      <!-- The same action set as the topic and storyline pages: Save, Share, Follow. These were
+           absent while `FavoriteKind` / `NoteTarget` did not admit "theme" — the buttons would have
+           offered an action the API rejects. Both contracts now carry it end to end. -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
+        <FavoriteButton :item="{ kind: 'theme', ref: id, label: label || id }" />
+        <AddToCollectionButton :item="{ kind: 'theme', ref: id }" variant="pill" />
         <ShareMenu :model="shareModel" />
         <FollowButton
           v-if="auth.isAuthenticated"
@@ -190,6 +193,9 @@ function goBack(): void {
         :heading-level="2"
         :route-for="(pid) => ({ name: 'person', params: { id: pid } })"
       />
+
+      <!-- Notes, like the storyline and topic pages. Keyed by the theme's own id. -->
+      <NoteComposer target="theme" :target-id="id" />
     </template>
   </section>
 </template>

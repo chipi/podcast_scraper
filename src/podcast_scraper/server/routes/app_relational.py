@@ -21,6 +21,7 @@ from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
     build_org_card,
     build_person_card,
+    build_storyline_card,
     build_theme_card,
     build_topic_card,
     build_topic_perspectives,
@@ -33,7 +34,7 @@ from podcast_scraper.server.schemas import (
     AppEntitySearchResponse,
     AppOrgCard,
     AppPersonCard,
-    AppThemeCard,
+    AppClusterCard,
     AppTopicCard,
     AppTopicConversationArcResponse,
     AppTopicPerspectivesResponse,
@@ -264,12 +265,37 @@ def _conversation_arc(root: str, topic_id: str) -> list[dict]:
     return weeks
 
 
-@router.get("/themes/{theme_id}", response_model=AppThemeCard)
+@router.get("/storylines/{storyline_id}", response_model=AppClusterCard)
+async def storyline_card(
+    request: Request,
+    storyline_id: str,
+    user: User = Depends(get_current_user),
+) -> AppClusterCard:
+    """Storyline card: the member topics, their MERGED episodes, and the people across them.
+
+    Accepts EITHER the storyline's own `thc:` id or one of its member topics' ids. The second form
+    keeps ``/storyline/:id`` working — that page routes by ANCHOR TOPIC, because it was built before
+    any storyline endpoint existed and derived everything from the anchor's topic card.
+
+    That derivation is what this replaces. The topic card's ``episodes`` are the ANCHOR's episodes,
+    so the storyline page said "Discussed in 30 episodes" when the storyline actually spans 40 —
+    it was showing one member's corpus and calling it the storyline's.
+
+    404 when the id names neither a storyline nor a topic inside one.
+    """
+    root = corpus_root_or_503(request)
+    card = await asyncio.to_thread(build_storyline_card, root, storyline_id.strip())
+    if card is None:
+        raise HTTPException(status_code=404, detail="Unknown storyline id.")
+    return card
+
+
+@router.get("/themes/{theme_id}", response_model=AppClusterCard)
 async def theme_card(
     request: Request,
     theme_id: str,
     user: User = Depends(get_current_user),
-) -> AppThemeCard:
+) -> AppClusterCard:
     """Theme card: the member topics, their MERGED episodes, and the people across them.
 
     A theme is a grouping of topics that mean the same thing, not an entity — it is never a node on

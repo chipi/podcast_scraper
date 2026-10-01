@@ -12,7 +12,7 @@ import { computed, ref, watch, defineAsyncComponent } from "vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
-import { getTopicCard } from "../services/api"
+import { getStorylineCard } from "../services/api"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
@@ -22,6 +22,7 @@ import TopVoices from "../components/TopVoices.vue"
 // ASYNC: EntityCard → EntityCardBody → TopicCardContent → StorylineCard → this file is a cycle, so
 // the resolve is deferred to first open. Same reason TopicCardContent defers EntityCard.
 const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
+import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
@@ -82,16 +83,20 @@ async function load(anchorTopicId: string): Promise<void> {
   loading.value = true
   failed.value = false
   try {
-    const card = await getTopicCard(anchorTopicId)
-    label.value = card.storyline_label ?? card.label
-    storylineId.value = card.storyline_id ?? null
-    // Anchor + its theme siblings = the storyline's topics; de-dupe (the API may include the anchor).
-    const members: Member[] = [
-      { id: card.id, label: card.label },
-      ...(card.storyline_sibling_topics ?? []).map((tp) => ({ id: tp.id, label: tp.label })),
-    ]
-    const seen = new Set<string>()
-    topics.value = members.filter((tp) => tp.id && !seen.has(tp.id) && seen.add(tp.id))
+    // The STORYLINE endpoint, not the anchor's topic card.
+    //
+    // This page used to derive everything from `getTopicCard(anchor)`: its members from
+    // `storyline_sibling_topics`, and its episodes from `card.episodes` — which are the ANCHOR's
+    // episodes, not the storyline's. So it said "Discussed in 30 episodes" for a storyline that
+    // spans 40, showing one member's corpus under the storyline's name. `/storylines/:id` returns
+    // the de-duplicated UNION across every member, which is what the heading always claimed.
+    //
+    // The route still passes an anchor TOPIC id (there was no endpoint when it was built); the
+    // endpoint accepts either that or the `thc:` id.
+    const card = await getStorylineCard(anchorTopicId)
+    label.value = card.label
+    storylineId.value = card.id
+    topics.value = card.member_topics.map((tp) => ({ id: tp.id, label: tp.label }))
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
   } catch {
@@ -186,6 +191,7 @@ function goBack(): void {
              other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
         <!-- Share (card / link / text) — #2036. -->
+        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" variant="pill" />
         <ShareMenu :model="shareModel" />
         <FollowButton
           v-if="auth.isAuthenticated && storylineId"
