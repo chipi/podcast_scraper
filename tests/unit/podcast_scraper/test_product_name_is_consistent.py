@@ -64,9 +64,49 @@ def _declarations() -> dict[str, str]:
     plist = _read("ios/App/App/Info.plist")
     m = re.search(r"<key>CFBundleDisplayName</key>\s*<string>([^<]+)</string>", plist)
     assert m, "Info.plist has no CFBundleDisplayName"
-    out["ios CFBundleDisplayName"] = m.group(1)
+    declared = m.group(1).strip()
+    # Info.plist may name a BUILD SETTING rather than the literal, because Debug and Release ship
+    # different display names ("CL Dev" vs the product name) so that a local build sits beside the
+    # TestFlight one instead of replacing it. Resolve it against Release — the shipped build is the
+    # one whose name has to agree with every other surface.
+    out["ios CFBundleDisplayName"] = _resolve_ios_setting(declared, configuration="Release")
 
     return out
+
+
+_SETTING_REF = re.compile(r"^\$\((?P<name>[A-Z0-9_]+)\)$")
+
+
+def _resolve_ios_setting(value: str, *, configuration: str) -> str:
+    """``value`` as the named Xcode configuration resolves it; returned unchanged if it is literal."""
+    ref = _SETTING_REF.match(value)
+    if not ref:
+        return value
+    setting = ref.group("name")
+    found = _build_setting(setting, configuration=configuration)
+    assert found is not None, (
+        f"Info.plist asks for $({setting}) but no XCBuildConfiguration named {configuration!r} "
+        f"defines it — the shipped display name would be EMPTY."
+    )
+    return found
+
+
+def _build_setting(setting: str, *, configuration: str) -> str | None:
+    """A build setting's value in one configuration of the App target, or None.
+
+    Parsed rather than read with a single regex because `project.pbxproj` holds several
+    `XCBuildConfiguration` blocks per name — the project-level one and the target-level one — and
+    only the target defines this. Taking the first match would read whichever Xcode wrote first.
+    """
+    pbx = _read("ios/App/App.xcodeproj/project.pbxproj")
+    for block in pbx.split("isa = XCBuildConfiguration;")[1:]:
+        head = block.split("/* End XCBuildConfiguration section */")[0]
+        if not re.search(rf"name = {re.escape(configuration)};", head):
+            continue
+        m = re.search(rf'{re.escape(setting)} = "?([^";\n]+)"?;', head)
+        if m:
+            return m.group(1).strip()
+    return None
 
 
 def test_every_surface_declares_the_same_product_name() -> None:
@@ -93,3 +133,28 @@ def test_the_playback_notification_reads_the_resource() -> None:
     assert not re.search(
         r'setContentTitle\("', svc
     ), "PlaybackService hardcodes a notification title — use R.string.app_name"
+
+
+def test_the_ios_debug_build_does_not_claim_the_shipped_name() -> None:
+    """Debug must be distinguishable from the store build on a home screen holding both.
+
+    iOS identifies an app by bundle id alone, so the two coexist only because Debug has its own
+    (`app.closelistening.player.dev`). Once they do, two icons both labelled with the product name
+    are indistinguishable — which is the state this guards against. Giving Debug the shipped name
+    back would not fail any build; it would just make the operator uninstall the wrong one.
+    """
+    release = _build_setting("APP_DISPLAY_NAME", configuration="Release")
+    debug = _build_setting("APP_DISPLAY_NAME", configuration="Debug")
+    assert release and debug, "both configurations must define APP_DISPLAY_NAME"
+    assert debug != release, (
+        f"Debug and Release both display {release!r}. Debug ships a separate bundle id, so both "
+        "apps can be installed at once and there would be no way to tell them apart."
+    )
+
+    release_id = _build_setting("PRODUCT_BUNDLE_IDENTIFIER", configuration="Release")
+    debug_id = _build_setting("PRODUCT_BUNDLE_IDENTIFIER", configuration="Debug")
+    assert release_id and debug_id, "both configurations must define PRODUCT_BUNDLE_IDENTIFIER"
+    assert debug_id != release_id, (
+        f"Debug and Release share the bundle id {release_id!r}, so installing one REPLACES the "
+        "other on the device — the operator hit exactly this with a TestFlight build (2026-09-30)."
+    )
