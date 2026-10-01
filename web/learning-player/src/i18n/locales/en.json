@@ -108,6 +108,10 @@
     "storylineEpisodeCount": "· {count} episode | · {count} episodes",
     "storylineVoices": "Voices in this storyline",
     "storylineTopicsHeading": "Topics discussed together",
+    "themes": "Themes",
+    "themeSheetEmpty": "Couldn't load the topics in this theme.",
+    "themeSheetLoading": "Loading theme…",
+    "themeTopicsHeading": "Topics that mean the same thing",
     "showMore": "Show {count} more",
     "showLess": "Show less",
     "tabTopics": "Topics",
@@ -492,6 +496,7 @@
     "linkCopied": "Link copied",
     "textCopied": "Copied",
     "kickerShow": "Show",
+    "kickerTheme": "Theme",
     "kickerStoryline": "Storyline"
   },
   "ec": {
@@ -547,6 +552,8 @@
     "follow": "Follow",
     "following": "Following",
     "followHint": "Add to your interests — shapes your recommendations",
+    "followTheme": "Follow theme",
+    "followingTheme": "Following theme",
     "followStoryline": "Follow storyline",
     "followingStoryline": "Following storyline",
     "followStorylineHint": "Follow every topic in this storyline — shapes your recommendations",

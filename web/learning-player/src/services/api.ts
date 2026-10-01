@@ -54,6 +54,7 @@ import type {
   SearchResponse,
   SegmentsResponse,
   Storyline,
+  ThemeCard,
   TopicCard,
   TopicConversationArcResponse,
   TopicPerspectivesResponse,
@@ -376,6 +377,18 @@ export async function getPersonCard(id: string, scope?: "all" | "mine"): Promise
   // scope='mine' = the guest across the episodes the signed-in user has heard (P3 #1122).
   return withAbsoluteEntityImages(
     await getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope })
+  )
+}
+
+/**
+ * Theme card — the member topics, their MERGED episodes, and the people across them.
+ *
+ * No `scope` parameter: the topic card has one, but a personally-filtered union answers a different
+ * question than "what is this grouping, across the corpus".
+ */
+export async function getThemeCard(id: string): Promise<ThemeCard> {
+  return withAbsoluteEntityImages(
+    await getJSON<ThemeCard>(`/themes/${encodeURIComponent(id)}`)
   )
 }
 

@@ -95,7 +95,16 @@ function unfollow(id: string): void {
 }
 
 function openStoryline(id: string): void {
-  // Resolvable → open its full page (F4.5), keyed by the anchor topic; else the chip is display-only.
+  // A THEME goes straight to its own page — its id IS the route param, no lookup needed. Until the
+  // theme page existed this branch did not, so a followed theme sat in this group as a DEAD chip:
+  // `storylineById` only resolves `thc:` storylines, so `anchor_topic_id` was always undefined for
+  // a `tc:` token and the tap did nothing.
+  if (interestKind(id) === 'theme') {
+    void router.push({ name: 'theme', params: { id } })
+    return
+  }
+  // A STORYLINE has no endpoint of its own, so it opens keyed by its anchor topic (F4.5).
+  // Unresolvable → the chip stays display-only.
   const s = storylineById.value.get(id)
   if (s?.anchor_topic_id) void router.push({ name: 'storyline', params: { id: s.anchor_topic_id } })
 }

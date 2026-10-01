@@ -62,10 +62,13 @@ test('cluster-topic', async ({ page }) => {
 
 test('cluster-theme', async ({ page }) => {
   await signIn(page)
-  // NOTE the route: a theme has no page of its own, so it borrows the topic one. That is the
-  // defect this shot is here to show, not a shortcut taken by the test.
-  await page.goto(`/topic/${encodeURIComponent(THEME)}`)
-  await expect(page.getByTestId('topic-view')).toBeVisible()
+  // Its OWN route now, carrying the real `tc:` id. Before this page existed a theme fell through to
+  // `/topic/:id` and rendered empty — the entity card matches a topic NODE by id and a theme is
+  // never a node.
+  await page.goto(`/theme/${encodeURIComponent(THEME)}`)
+  await expect(page.getByTestId('theme-view')).toBeVisible()
+  // The merge is the page's reason to exist, so the shot must not be taken before it lands.
+  await expect(page.getByTestId('episodes-order')).toBeVisible()
   await shoot(page, 'cluster-2-theme')
 })
 

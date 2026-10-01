@@ -61,7 +61,15 @@ const props = withDefaults(
     /**
      * See the component-level doc for the full list. Defaults to `inline`.
      */
-    variant?: "inline" | "overlay" | "icon" | "ec" | "storyline" | "discovery" | "trend-spark"
+    variant?:
+      | "inline"
+      | "overlay"
+      | "icon"
+      | "ec"
+      | "storyline"
+      | "theme"
+      | "discovery"
+      | "trend-spark"
   }>(),
   { busy: false, gated: false, variant: "inline" }
 )
@@ -166,6 +174,29 @@ function srLabel(followKey: string, followingKey: string): string {
   >
     <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
     {{ following ? t("ec.followingStoryline") : t("ec.followStoryline") }}
+    <span v-if="label" class="sr-only"> — {{ label }}</span>
+  </button>
+
+  <!-- ── theme variant ──────────────────────────────────────────────────────── -->
+  <!-- The storyline pill with the theme's words. Reusing `storyline` outright put "Follow
+       storyline" on the theme page, which says the wrong thing about the one distinction the page
+       exists to make. Its own testid so an e2e can tell the two apart. -->
+  <button
+    v-else-if="variant === 'theme'"
+    type="button"
+    data-testid="theme-follow"
+    class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition disabled:opacity-50"
+    :class="
+      following
+        ? 'bg-accent text-accent-foreground'
+        : 'bg-overlay text-canvas-foreground hover:bg-elevated'
+    "
+    :aria-pressed="following"
+    :disabled="busy"
+    @click.prevent.stop="$emit('toggle')"
+  >
+    <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+    {{ following ? t("ec.followingTheme") : t("ec.followTheme") }}
     <span v-if="label" class="sr-only"> — {{ label }}</span>
   </button>
 

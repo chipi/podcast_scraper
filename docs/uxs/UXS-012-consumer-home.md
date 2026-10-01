@@ -239,6 +239,31 @@ storyline followed here appears in Your Week without a second concept. Opening a
 to the full-page `StorylineView` (F4.5) — it replaced the old half-screen `StorylineCard` bottom
 sheet, which was deleted.
 
+### Themes → `ThemeView`
+
+A **theme** is a set of topics that MEAN the same thing (cosine similarity over topic embeddings,
+`tc:`), as against a **storyline**, which is a set of topics that keep coming up TOGETHER
+(co-occurrence, `thc:`). Both are groupings over topics rather than entities, so `ThemeView` is
+modelled on `StorylineView` and differs only where the idea differs — the member heading reads
+"Topics that mean the same thing" against the storyline's "Topics discussed together". That
+sentence is the whole distinction, and making it is the page's job.
+
+`ThemeView` exists because a theme **cannot** be shown on the topic page. The entity card builds
+from a topic NODE matched by id, and a theme is never a node on an episode, so a `tc:` id routed to
+`/topic/:id` rendered an empty page under a "TOPIC" eyebrow. `/theme/:id` carries the theme's REAL
+id — unlike `/storyline/:id`, which takes an anchor topic because no storyline endpoint exists — so
+a theme link survives its biggest member changing.
+
+Its episode list is the **de-duplicated union across every member**, and that merge is the reason
+the page is worth having: a similarity cluster exists precisely because searching one member misses
+the others, so showing one member's episodes would not answer the question the grouping poses.
+Measured on the v3 fixture: 8 members, 84 episodes with overlap, **40 distinct** — where the
+largest single member carries 30.
+
+Not yet: Save (heart) and notes. `FavoriteKind` and `NoteTarget` are server-validated contracts and
+neither admits `theme`, so those controls would offer an action the API rejects. Follow works today,
+because a theme is followed by its `tc:` token and the interests store already carries it.
+
 ## Components
 
 - **`EpisodeCard`** (UXS-011) is reused on **Catalog + search-result episodes**, not Home; *Home's

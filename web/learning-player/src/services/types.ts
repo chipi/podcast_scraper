@@ -812,6 +812,23 @@ export interface OrgCard {
   web?: OrgWeb | null
 }
 
+/**
+ * Theme card (GET /api/app/themes/{id} — AppThemeCard).
+ *
+ * A theme groups topics that MEAN the same thing. It is not an entity — it never appears as a node
+ * on an episode — which is why it has its own endpoint rather than riding on the topic card.
+ * `episodes` is the UNION across every member, de-duplicated: that merge is the page's reason to
+ * exist, since searching one member misses the others.
+ */
+export interface ThemeCard {
+  id: string
+  label: string
+  member_topics: Topic[]
+  episode_count: number
+  episodes: EpisodeSummary[]
+  related_people: Entity[]
+}
+
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */
 export interface TopicCard {
   id: string
