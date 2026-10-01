@@ -41,7 +41,8 @@ export const useCompletedStore = defineStore('completed', {
       const generation = identityEpoch()
       inflightLoad = (async (): Promise<boolean> => {
         try {
-          const fresh = await getCompleted()
+          // `fresh`: a tap made while this is in flight must not be undone by it (serialWrites).
+          const fresh = await writes.fresh(getCompleted)
           if (identityChangedSince(generation)) return false
           this.slugs = fresh
           this.loaded = true

@@ -33,6 +33,8 @@ describe('toggle consistency', () => {
     (_name, src) => {
       expect(src).toContain("from '../services/serialWrites'")
       expect(src).toMatch(/writes\.run\(/)
+      // And its LOAD goes through `fresh`, so a list fetched before a tap cannot undo the tap.
+      expect(src, 'load() must fetch through writes.fresh(...)').toMatch(/writes\.fresh\(/)
     },
   )
 })

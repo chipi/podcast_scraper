@@ -48,7 +48,8 @@ export const useQueueStore = defineStore('queue', {
       const generation = identityEpoch()
       inflightLoad = (async (): Promise<boolean> => {
         try {
-          const fresh = await getQueue()
+          // `fresh`: a tap made while this is in flight must not be undone by it (serialWrites).
+          const fresh = await writes.fresh(getQueue)
           // The account changed while this was in flight — this result belongs to nobody now,
           // and writing it would put A's queue in B's store and B's cache file.
           if (identityChangedSince(generation)) return false

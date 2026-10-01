@@ -43,7 +43,8 @@ export const useLibraryStore = defineStore('library', {
     async load(): Promise<void> {
       const generation = identityEpoch()
       try {
-        const fresh = await getLibrary()
+        // `fresh`: a tap made while this is in flight must not be undone by it (serialWrites).
+        const fresh = await writes.fresh(getLibrary)
         if (identityChangedSince(generation)) return
         this.items = fresh
         this.loaded = true

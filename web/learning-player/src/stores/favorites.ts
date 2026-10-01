@@ -72,7 +72,8 @@ export const useFavoritesStore = defineStore('favorites', {
     async load(): Promise<void> {
       const generation = identityEpoch()
       try {
-        const f = await getFavorites()
+        // `fresh`: a tap made while this is in flight must not be undone by it (serialWrites).
+        const f = await writes.fresh(getFavorites)
         if (identityChangedSince(generation)) return
         this.episodes = f.episodes
         this.entities = f.entities ?? []

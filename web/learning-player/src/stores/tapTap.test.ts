@@ -166,3 +166,46 @@ describe('tap-tap leaves every toggle OFF, and the server saw ON then OFF', () =
     expect(order).toEqual(['on', 'off:srv-1'])
   })
 })
+
+/**
+ * The case the trending.spec flake actually was (trace, 2026-10-01): the store's initial GET is
+ * still in flight when the user taps. It returns the list from BEFORE the tap; adopting it wiped the
+ * tap's flip, so the next tap read "not followed" and sent a second follow instead of an unfollow.
+ * Out-of-order WRITE replies (above) were a real bug too, but not this one.
+ */
+describe('a load in flight does not undo a tap made meanwhile', () => {
+  it('serialWrites.fresh refetches when a write was queued during the fetch', async () => {
+    const w = serialWrites()
+    let calls = 0
+    const first = held<string[]>([])
+    const value = w.fresh(async () => (++calls === 1 ? first.promise() : ['after-write']))
+    void w.run(async () => {})
+    first.release()
+    await expect(value).resolves.toEqual(['after-write'])
+    expect(calls).toBe(2)
+  })
+
+  it('follow (interests): the stale GET does not reset the flip; the next tap UNFOLLOWS', async () => {
+    const calls: string[] = []
+    const stale = held<string[]>([])
+    let gets = 0
+    vi.spyOn(api, 'getUserInterests').mockImplementation(async () => {
+      gets++
+      // First GET answers with the pre-tap list, late; a refetch sees the server after the follow.
+      return gets === 1 ? stale.promise() : ['topic:ai']
+    })
+    vi.spyOn(api, 'addInterest').mockImplementation(async () => (calls.push('add'), ['topic:ai']))
+    vi.spyOn(api, 'removeInterest').mockImplementation(async () => (calls.push('remove'), []))
+    const s = useInterestsStore()
+    const loading = s.load()
+    const tap1 = s.toggle('topic:ai')
+    expect(s.has('topic:ai')).toBe(true)
+    stale.release()
+    await Promise.all([loading, tap1])
+    expect(s.has('topic:ai'), 'the stale load wiped the follow').toBe(true)
+    await s.toggle('topic:ai')
+    expect(calls).toEqual(['add', 'remove'])
+    expect(s.has('topic:ai')).toBe(false)
+  })
+})
+

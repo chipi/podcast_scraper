@@ -120,7 +120,10 @@ export const useCaptureStore = defineStore('capture', {
       // leak). A response that lands after the switch belongs to nobody now, so drop it.
       const generation = identityEpoch()
       try {
-        const [highlights, notes] = await Promise.all([getHighlights(), getNotes()])
+        // `fresh`: a save/unsave made while this is in flight must not be undone by it.
+        const [highlights, notes] = await writes.fresh(() =>
+          Promise.all([getHighlights(), getNotes()]),
+        )
         if (identityChangedSince(generation)) return
         this.highlights = highlights
         this.notes = notes

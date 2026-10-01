@@ -25,6 +25,17 @@ export interface SerialWrites {
    * later write has been queued; check it before adopting a server response or reverting.
    */
   run<T>(write: (isLatest: () => boolean) => Promise<T>): Promise<T>
+  /**
+   * Fetch the store's list so that a tap made WHILE the fetch was in flight is not undone by it.
+   *
+   * A load that started before a tap returns the server's state from before that tap. Adopting it
+   * wiped the tap's on-screen flip, so the NEXT tap read the wrong state and sent the wrong write —
+   * caught in a trace on 2026-10-01: GET /interests landed after the follow's POST had gone out,
+   * reset the button, and the "unfollow" tap sent a second follow. So: if any write was queued
+   * during the fetch, wait for the writes to finish and fetch again; return only a list fetched
+   * with no tap in between. Bounded by the user's own taps.
+   */
+  fresh<T>(fetch: () => Promise<T>): Promise<T>
 }
 
 export function serialWrites(): SerialWrites {
@@ -38,6 +49,14 @@ export function serialWrites(): SerialWrites {
       const run = chain.then(next, next)
       chain = run.catch(() => {})
       return run
+    },
+    async fresh<T>(fetch: () => Promise<T>): Promise<T> {
+      for (;;) {
+        const before = latest
+        const value = await fetch()
+        if (latest === before) return value
+        await chain
+      }
     },
   }
 }

@@ -730,6 +730,10 @@ save-line all follow ONE contract:
    cannot re-light a control the user has since turned off. The newest answer is the server's whole
    list and settles everything before it.
 4. **A refusal reverts, a lost request queues** — the outbox rule every per-user write already had.
+5. **A list that was already loading cannot undo a tap.** A fetch that started before the tap
+   returns the state from before it; the store refetches once the writes settle instead of adopting
+   it (`writes.fresh`). Found in a trace (2026-10-01): the initial GET landed after the follow's
+   POST, reset the button, and the "unfollow" tap sent a second follow.
 
 Before this, five of the six ended a fast tap-tap in the wrong state, and save-insight tried to
 delete a highlight by the id the phone had made up before the server named it. Guarded by

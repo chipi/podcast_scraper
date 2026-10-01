@@ -29,7 +29,8 @@ export const useInterestsStore = defineStore('interests', {
   },
   actions: {
     async load(): Promise<void> {
-      this.ids = await getUserInterests()
+      // `fresh`: a tap made while this is in flight must not be undone by it (serialWrites).
+      this.ids = await writes.fresh(getUserInterests)
       this.loaded = true
     },
     /**
