@@ -404,6 +404,38 @@ def _capture_summaries(
     return written, skipped
 
 
+def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
+    """Write this episode's captured `.en.*` stack beside its source transcript. Returns a count.
+
+    Lives outside ``main`` for the same reason :func:`_capture_or_remind` does — ``main`` is at the
+    flake8 complexity ceiling and two more branches push it over.
+
+    THE WHOLE STACK, VERBATIM. `.en.adfree.txt` is the ANALYSIS base every GI/KG/index reader
+    resolves to, so replaying only `.en.txt` + `.en.segments.json` (the two files the completeness
+    gate reads) recreates the state translation_stage.py warns about: the gate passes,
+    `translation_status` says `translated`, and ANALYSIS falls through the absent ad-free body to
+    the SOURCE text. Reconstructing an ad-free body here instead of replaying one would be
+    inventing fixture content, which is the one thing a captured fixture must not do.
+
+    Absent for English episodes, and that is correct rather than a miss: they have no render and
+    must not be given one (D-38 serves their source body directly). Keyed on a captured render
+    existing, never on the episode's language.
+    """
+    captured = _captured_render_for(ep_label, version)
+    if not captured:
+        return 0
+    stack = captured.get("stack") or {}
+    if not stack:
+        # Pre-stack captures carried only the gate pair; honour them rather than failing a rebuild.
+        (run_tr_dir / f"{ep_label}.en.txt").write_text(
+            str(captured.get("text") or ""), encoding="utf-8"
+        )
+        return 1
+    for suffix, body in sorted(stack.items()):
+        (run_tr_dir / f"{ep_label}.{suffix}").write_text(body, encoding="utf-8")
+    return len(stack)
+
+
 def _capture_or_remind(
     *,
     capture: bool,
@@ -1924,19 +1956,7 @@ def main() -> int:
             # episodes, which is correct: they have no render and must not get one (D-38 serves
             # the source body directly), so this is keyed on a captured render existing, not on
             # the episode's language.
-            _captured_render = _captured_render_for(ep_label, version)
-            if _captured_render:
-                # The whole stack, verbatim as the run wrote it. Writing the files back byte-for
-                # byte is what keeps the ANALYSIS chain intact: `.en.adfree.txt` is the analysis
-                # base every GI/KG/index reader resolves to, and reconstructing it from
-                # `.en.txt` here would be inventing an ad-free body rather than replaying one.
-                _stack = _captured_render.get("stack") or {}
-                for _suffix, _body in sorted(_stack.items()):
-                    (run_tr_dir / f"{ep_label}.{_suffix}").write_text(_body, encoding="utf-8")
-                if not _stack:  # pre-stack captures carried only the two gate files
-                    (run_tr_dir / f"{ep_label}.en.txt").write_text(
-                        str(_captured_render.get("text") or ""), encoding="utf-8"
-                    )
+            _replay_english_stack(run_tr_dir, ep_label, version)
             (run_tr_dir / f"{ep_label}.segments.json").write_text(
                 json.dumps(_raw_canonical_segments(offset_segs), indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
