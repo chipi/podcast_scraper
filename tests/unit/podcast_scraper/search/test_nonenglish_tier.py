@@ -21,9 +21,9 @@ import pytest
 
 from podcast_scraper.search.backend import SegmentDocument
 from podcast_scraper.search.backends.lancedb_backend import (
-    DEFAULT_EMBED_DIM as _EMBED_DIM,
     _segment_nonen_schema,
     _segment_schema,
+    DEFAULT_EMBED_DIM as _EMBED_DIM,
     LANCE_SCHEMA_VERSION,
     LanceDBBackend,
 )
