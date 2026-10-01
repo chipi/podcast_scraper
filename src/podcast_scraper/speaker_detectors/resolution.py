@@ -109,6 +109,35 @@ def _one_edit_apart(a: str, b: str) -> bool:
     return a[i + (len(a) == len(b)) :] == b[i + 1 :]
 
 
+def _edit_distance(a: str, b: str) -> int:
+    """Levenshtein distance, case-insensitive."""
+    a, b = a.lower(), b.lower()
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def _surname_variant(spoken: str, stated: str) -> bool:
+    """Is ``spoken`` an ASR rendering of the stated surname? Never true for the identical string.
+
+    One edit for a 5+-letter surname; two for a 7+-letter one. ASR mangles long names by more than
+    one letter — "Garrett Bernson" for stated Garrett Berntsen left ChinaTalk's guest "NEVER SPOKEN
+    ALOUD" in the prompt, so the model abstained and the episode named nobody (#2200). Measured on
+    prod (2026-10-01, 3,829 stated names, given name required to match): two edits at 7+ letters
+    finds 52 distinct spoken variants in 71 episodes, every one the same person ("Michael Bilbaro",
+    "Mark Gagliotti", "Ryan Knudsen"), and no episode states two different people it could confuse.
+    """
+    if spoken.lower() == stated.lower() or len(stated) < 5:
+        return False
+    if len(stated) < 7:
+        return _one_edit_apart(spoken, stated)
+    return _edit_distance(spoken, stated) <= 2
+
+
 def _mentions_of(name: str, tokens: List[str], exact: "re.Pattern[str]", body: str) -> List[Any]:
     """Exact full-name / surname matches, plus the SPOKEN VARIANTS of the full name (#2075).
 
@@ -116,7 +145,7 @@ def _mentions_of(name: str, tokens: List[str], exact: "re.Pattern[str]", body: s
     transcript says "Jeff Schmidt" and "I'm Tracy Allaway", and the prompt told the model both were
     "NEVER SPOKEN ALOUD" — which it is instructed to read as "almost certainly not in the room".
     A variant counts only as a FULL name: the given name equal or a known nickname
-    (`first_names_match`) AND a 5+-letter surname one edit away. A bare surname stays exact, so a
+    (`first_names_match`) AND a `_surname_variant` of the surname. A bare surname stays exact, so a
     passage about Eric Schmidt is never shown as evidence about Jeffrey Schmid.
     """
     from ..text_normalization import first_names_match
@@ -128,7 +157,7 @@ def _mentions_of(name: str, tokens: List[str], exact: "re.Pattern[str]", body: s
         given, last = m.group(1), m.group(2)
         if not (given.lower() == tokens[0].lower() or first_names_match(tokens[0], given)):
             continue
-        if not _one_edit_apart(last, tokens[-1]):
+        if not _surname_variant(last, tokens[-1]):
             continue
         lo, hi = m.start(1), m.end(2)
         if any(f.start() < hi and lo < f.end() for f in found):
@@ -478,8 +507,8 @@ def resolve_voices_and_roles(
 
     def _stated_match(said: str) -> Optional[str]:
         """The stated name the model meant. Exact first; else the ONE stated name its words are a
-        spoken variant of — same rule as retrieval (given name or nickname, surname one edit, 5+
-        letters). The model copies the spelling it read in the transcript: "Tracy Allaway" for
+        spoken variant of — same rule as retrieval (given name or nickname, `_surname_variant`
+        surname). The model copies the spelling it read in the transcript: "Tracy Allaway" for
         stated `Tracy Alloway` was discarded as an invented name (#2075, measured)."""
         exact = by_stated.get(said.strip().lower())
         if exact is not None:
@@ -497,7 +526,7 @@ def resolve_voices_and_roles(
             and (
                 n.split()[0].lower() == toks[0].lower() or first_names_match(n.split()[0], toks[0])
             )
-            and _one_edit_apart(n.split()[-1], toks[-1])
+            and _surname_variant(toks[-1], n.split()[-1])
         ]
         return hits[0] if len(hits) == 1 else None
 

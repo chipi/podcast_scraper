@@ -50,6 +50,26 @@ class TestRetrieval:
         ]
         assert "the NEXT voice to speak is S1" in retrieve_mentions("Cal Schmid", turns)[0]
 
+    def test_a_long_surname_two_edits_off_is_a_mention(self) -> None:
+        """ChinaTalk shape (#2200): stated `Berntsen`, ASR "Bernson" — two edits. Missing it told
+        the model the guest was "NEVER SPOKEN ALOUD", and the episode named nobody."""
+        turns = [
+            ("S0", "Corin Bernson, last seen on the show. Corin, welcome back."),
+            ("S1", "Thank you. Thanks for having me."),
+        ]
+        hits = retrieve_mentions("Corin Berntsen", turns)
+        assert hits and "the NEXT voice to speak is S1" in hits[0]
+
+    def test_a_short_surname_two_edits_off_is_not_a_mention(self) -> None:
+        """Under 7 letters two edits reach a different surname; the rule stays at one."""
+        assert retrieve_mentions("Ada Brook", [("S0", "We're joined by Ada Brokes today.")]) == []
+
+    def test_three_edits_is_never_a_mention(self) -> None:
+        assert retrieve_mentions("Corin Berntsen", [("S0", "Corin Bornsan joins us.")]) == []
+
+    def test_a_different_given_name_is_not_a_mention(self) -> None:
+        assert retrieve_mentions("Corin Berntsen", [("S0", "Eric Bernson said it.")]) == []
+
     def test_one_passage_is_listed_once(self) -> None:
         hits = retrieve_mentions("Ada Brook", [("S2", "I'm Ada Brook. Follow me at Ada Brook.")])
         assert len(hits) == len(set(hits))
@@ -76,6 +96,12 @@ class TestReadingTheAnswer:
             ["Ada Alloway"], voices, lambda _p: reply, known_hosts=["Ada Alloway"]
         )
         assert got["SPEAKER_00"].name == "Ada Alloway"
+
+    def test_a_long_surname_spelled_two_edits_off_is_that_name(self) -> None:
+        voices = {"SPEAKER_00": "Corin, welcome back.", "SPEAKER_01": "Thanks for having me."}
+        reply = json.dumps({"voices": {"SPEAKER_01": {"name": "Corin Bernson", "role": "guest"}}})
+        got = resolve_voices_and_roles(["Corin Berntsen"], voices, lambda _p: reply)
+        assert got["SPEAKER_01"].name == "Corin Berntsen"
 
     def test_a_name_far_from_every_stated_name_is_still_discarded(self) -> None:
         voices = {"SPEAKER_00": "Welcome.", "SPEAKER_01": "Thanks."}
