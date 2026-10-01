@@ -535,7 +535,7 @@ def test_both_groupings_can_be_collected_and_open(tmp_path: Path) -> None:
 
     refs = {
         "topic": "topic:systems-thinking",
-        "theme": "tc:show-themes",
+        "theme": "tc:safety-practices",
         "storyline": "topic:risk-management",  # /storyline/:id routes by ANCHOR topic
     }
     for kind, ref in refs.items():
@@ -548,7 +548,7 @@ def test_both_groupings_can_be_collected_and_open(tmp_path: Path) -> None:
 
     # The link is the half that makes it a collection rather than a list of words.
     assert by_kind["topic"]["deep_link"] == "/topic/topic:systems-thinking"
-    assert by_kind["theme"]["deep_link"] == "/theme/tc:show-themes"
+    assert by_kind["theme"]["deep_link"] == "/theme/tc:safety-practices"
     assert by_kind["storyline"]["deep_link"] == "/storyline/topic:risk-management"
     for kind in refs:
         assert by_kind[kind]["title"], f"{kind} has no title, so the row renders its raw ref"

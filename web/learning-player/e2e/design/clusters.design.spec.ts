@@ -13,7 +13,7 @@
  * looks like a topic that happens to list a lot of similar topics.
  *
  * The fixture is chosen so all three shots describe the SAME subject from three angles:
- * `topic:risk-management` is a topic, a member of the `tc:show-themes` theme, and the anchor of the
+ * `topic:risk-management` is a topic, a member of the `tc:safety-practices` theme, and the anchor of the
  * `thc:managing-risk` storyline. Any difference between the three images is a difference in how the
  * product presents the three ideas, not in the underlying data — which is the only way to judge
  * whether they are distinguishable.
@@ -28,7 +28,7 @@ const dir = (name: string) =>
 
 /** From `tests/fixtures/app-validation-corpus/v3` — read out of the artifacts, not invented. */
 const TOPIC = 'topic:risk-management'
-const THEME = 'tc:show-themes' //      "Show Themes", 5 members
+const THEME = 'tc:safety-practices' //      "Show Themes", 5 members
 const STORYLINE_ANCHOR = TOPIC //      /storyline/:id takes the ANCHOR TOPIC, not the thc: id
 
 const IDENTITY = 'design'

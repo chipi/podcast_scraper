@@ -712,7 +712,7 @@ class TestThemeCardMergesAcrossItsMembers:
     """The union is the point: a similarity grouping exists because one member misses the others."""
 
     FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
-    THEME = "tc:show-themes"
+    THEME = "tc:safety-practices"
 
     @pytest.fixture(autouse=True)
     def _skip_without_fixture(self) -> None:
@@ -722,14 +722,20 @@ class TestThemeCardMergesAcrossItsMembers:
     def test_episode_list_exceeds_every_single_member(self) -> None:
         """The whole justification for the page, asserted as a number.
 
-        Measured on this fixture: members sum to 84 episodes WITH overlap, the de-duplicated union
-        is 40, and the largest single member carries 30. A reader on that member's topic page sees
-        30; the theme shows 40. If this ever equals the largest member, the merge has regressed to
-        "show one member's episodes" and the page has no reason to exist.
+        Measured on `tc:macroeconomics`: the de-duplicated union is 9 episodes where the largest
+        single member (personal finance) carries 5. A reader on that member's topic page sees 5;
+        the theme shows 9. If this ever equals the largest member, the merge has regressed to "show
+        one member's episodes" and the page has no reason to exist.
+
+        NOT `self.THEME` (`tc:safety-practices`), deliberately: risk management carries 30 of its
+        30 union episodes, so that theme's union EQUALS its biggest member and could never fail
+        this assertion for the right reason. A test that cannot fail is not evidence — and the old
+        hand-authored `tc:show-themes` hid this by bundling eight unrelated topics, which made the
+        merge look dramatic (84 -> 40) for a grouping that should never have existed.
         """
         from podcast_scraper.server.app_relational_view import build_theme_card
 
-        card = build_theme_card(self.FIXTURE, self.THEME)
+        card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
         assert card is not None
         assert len(card.member_topics) > 1, "a single-member theme cannot demonstrate a merge"
 
@@ -855,7 +861,7 @@ class TestStorylineCardMergesToo:
             build_theme_card,
         )
 
-        assert build_storyline_card(self.FIXTURE, "tc:show-themes") is None
+        assert build_storyline_card(self.FIXTURE, "tc:safety-practices") is None
         assert build_theme_card(self.FIXTURE, self.STORYLINE) is None
 
 
@@ -868,7 +874,7 @@ class TestWhatHoldsAStorylineTogether:
 
     FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
     STORYLINE = "thc:managing-risk"
-    THEME = "tc:show-themes"
+    THEME = "tc:safety-practices"
 
     @pytest.fixture(autouse=True)
     def _skip_without_fixture(self) -> None:
@@ -979,14 +985,25 @@ class TestAGroupingMovesOverTime:
         ), "a member called gone is not the most recent one"
 
     def test_a_member_absent_from_the_first_half_is_new(self) -> None:
+        """`tc:macroeconomics`, which has members on both sides of its own median.
+
+        Was `public radio` inside the hand-authored `tc:show-themes`. That theme is gone — it
+        bundled one lead topic per show, so it had members from every corner of the corpus and
+        trivially contained a late arrival. A real cluster has to earn one.
+        """
         from podcast_scraper.server.app_relational_view import build_theme_card
 
-        card = build_theme_card(self.FIXTURE, "tc:show-themes")
+        card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
         assert card is not None
         by_label = {m.label: m for m in card.member_topics}
-        assert by_label["public radio"].trend == "new"
-        # And it must have started LATER than a member that was there from the beginning.
-        assert by_label["public radio"].first_seen > by_label["risk management"].first_seen
+        arrival = by_label["labor markets"]
+        established = by_label["personal finance"]
+        assert arrival.trend == "new"
+        # And it must have started LATER than a member that was there from the beginning. Both
+        # dates are asserted present first: `first_seen` is `str | None`, and comparing an absent
+        # one would be a TypeError dressed up as a failing assertion.
+        assert arrival.first_seen is not None and established.first_seen is not None
+        assert arrival.first_seen > established.first_seen
 
     def test_every_member_reports_the_dates_behind_its_trend(self) -> None:
         from podcast_scraper.server.app_relational_view import build_storyline_card
@@ -1001,7 +1018,7 @@ class TestAGroupingMovesOverTime:
         """A badge on every row is a badge that says nothing."""
         from podcast_scraper.server.app_relational_view import build_theme_card
 
-        card = build_theme_card(self.FIXTURE, "tc:show-themes")
+        card = build_theme_card(self.FIXTURE, "tc:safety-practices")
         assert card is not None
         moved = [m for m in card.member_topics if m.trend != "steady"]
         assert 0 < len(moved) < len(card.member_topics), (
@@ -1018,7 +1035,7 @@ class TestAGroupingMovesOverTime:
         """
         from podcast_scraper.server.app_relational_view import build_theme_card
 
-        card = build_theme_card(self.FIXTURE, "tc:show-themes")
+        card = build_theme_card(self.FIXTURE, "tc:safety-practices")
         assert card is not None
         earliest = min(card.member_topics, key=lambda m: m.first_seen or "9999")
         assert earliest.trend != "new"
@@ -1027,7 +1044,7 @@ class TestAGroupingMovesOverTime:
         """The union, not one member — that is what makes it the GROUPING's perspectives."""
         from podcast_scraper.server.app_relational_view import build_cluster_perspectives
 
-        theme = build_cluster_perspectives(self.FIXTURE, "tc:show-themes", "theme")
+        theme = build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "theme")
         assert theme is not None
         assert theme.perspective_count == len(theme.perspectives) > 0
         # Every take must be attributable and jumpable — a perspective needs an owner, and the
@@ -1069,7 +1086,7 @@ class TestAGroupingMovesOverTime:
         assert as_storyline is not None
         assert as_storyline.topic_label == "Managing risk across domains"
         # A theme id is not a storyline, and must not be quietly accepted as one.
-        assert build_cluster_perspectives(self.FIXTURE, "tc:show-themes", "storyline") is None
+        assert build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "storyline") is None
 
     def test_a_grouping_nobody_speaks_to_is_absent_not_empty(self) -> None:
         """Its members are abstract labels nobody says aloud; the page shows nothing."""

@@ -22,7 +22,7 @@ const dir = (name: string) =>
   `design-results/${VARIANT}/${test.info().project.name}/${name}.png`
 
 /** From `tests/fixtures/app-validation-corpus/v3` — read out of the artifacts, not invented. */
-const THEME = 'tc:show-themes'
+const THEME = 'tc:safety-practices'
 const STORYLINE_ANCHOR = 'topic:risk-management' // `/storyline/:id` routes by anchor topic
 const TOPIC = 'topic:systems-thinking'
 

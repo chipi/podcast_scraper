@@ -39,7 +39,7 @@ for hair in (0.3, 0.4, 0.5):
     print(
         f" hair={hair}: "
         + "  ".join(
-            f"{int(p*100)}%->{evaluate(p,hair)[0]}" for p in [0, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5]
+            f"{int(p * 100)}%->{evaluate(p, hair)[0]}" for p in [0, 0.1, 0.15, 0.2, 0.25, 0.3, 0.5]
         )
     )
 print("\ncut at the CURRENT 50% (head top), per photo:")
