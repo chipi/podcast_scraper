@@ -11,6 +11,7 @@ import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, OrgCard, Topic } from "../services/types"
+import { personName } from "../utils/personName"
 import EntityEpisodeList from "./EntityEpisodeList.vue"
 
 const props = defineProps<{ org: OrgCard }>()
@@ -130,7 +131,7 @@ function searchLibrary(): void {
         class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
         @click="emit('open', { kind: 'person', id: p.id })"
       >
-        {{ p.name }}
+        {{ personName(p.name) }}
       </button>
     </div>
   </section>

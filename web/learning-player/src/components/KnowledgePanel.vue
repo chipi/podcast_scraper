@@ -36,6 +36,7 @@ import HighlightToggle from "./HighlightToggle.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityCardBody from "./EntityCardBody.vue"
+import { personName } from "../utils/personName"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
@@ -635,13 +636,13 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 :is="p.episode_scoped ? 'span' : 'button'"
                 :type="p.episode_scoped ? undefined : 'button'"
                 class="flex items-center gap-2 text-left"
-                :aria-label="p.episode_scoped ? undefined : t('kp.openEntity', { term: p.name })"
+                :aria-label="p.episode_scoped ? undefined : t('kp.openEntity', { term: personName(p.name) })"
                 data-testid="kp-dossier-person"
                 @click="p.episode_scoped ? undefined : (cardTarget = { kind: 'person', id: p.id })"
               >
-                <ProfileAvatar :name="p.name" :src="p.image_url" :size="32" />
+                <ProfileAvatar :name="personName(p.name)" :src="p.image_url" :size="32" />
                 <span class="flex flex-col leading-tight">
-                  <span class="text-sm font-medium text-canvas-foreground">{{ p.name }}</span>
+                  <span class="text-sm font-medium text-canvas-foreground">{{ personName(p.name) }}</span>
                   <span class="lp-kicker text-muted">{{ roleLabel(p.role ?? undefined) }}</span>
                 </span>
               </component>

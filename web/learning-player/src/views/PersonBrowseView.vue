@@ -12,6 +12,7 @@ import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import TrendingSparkChips from "../components/TrendingSparkChips.vue"
+import { personName } from "../utils/personName"
 import TrendWindowTabs from "../components/TrendWindowTabs.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import {
@@ -41,7 +42,9 @@ const loading = ref(true)
 const trendingRows = computed<RisingTopic[]>(() =>
   trending.value.map((e) => ({
     id: e.entity_id,
-    label: e.label,
+    // These rows are PEOPLE — this is the people browser's trending rail — so the label is a
+    // name and gets a name's casing (operator 2026-10-01).
+    label: personName(e.label),
     v: Math.round((e.velocity ?? 0) * 10) / 10,
     total: e.total,
     series: e.series ?? [],
