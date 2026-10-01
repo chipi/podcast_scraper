@@ -262,9 +262,15 @@ export function getEpisode(slug: string): Promise<EpisodeDetail> {
   return getJSON<EpisodeDetail>(`/episodes/${encodeURIComponent(slug)}`)
 }
 
-/** Transcript segments for the sync engine. */
-export function getSegments(slug: string): Promise<SegmentsResponse> {
-  return getJSON<SegmentsResponse>(`/episodes/${encodeURIComponent(slug)}/segments`)
+/** Transcript segments for the sync engine.
+ *
+ *  `lang` selects the ALTERNATIVE rendering, it does not pick the default: omit it and the
+ *  resolver serves English whenever an English render exists (D-38). Pass the episode's source
+ *  tag to read the original against the same audio.
+ */
+export function getSegments(slug: string, lang?: string | null): Promise<SegmentsResponse> {
+  const path = `/episodes/${encodeURIComponent(slug)}/segments`
+  return getJSON<SegmentsResponse>(lang ? `${path}?lang=${encodeURIComponent(lang)}` : path)
 }
 
 /** Origin audio descriptor — the client plays `url` directly (bridge, never rehost). */

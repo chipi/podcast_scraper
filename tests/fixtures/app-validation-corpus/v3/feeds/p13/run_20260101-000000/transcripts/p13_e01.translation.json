@@ -1,0 +1,1011 @@
+{
+  "version": "1.0",
+  "episode_slug": "0001 - Wege Bauen_ Die Bleiben_20261001-124903_0ca7efcd",
+  "source_language": "de",
+  "target_language": "en",
+  "model": "google/translategemma-12b-it",
+  "prompt": {
+    "name": "shared/translation/translategemma_v1",
+    "file": "shared/translation/translategemma_v1.j2",
+    "sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+  },
+  "source": {
+    "transcript_ref": "transcripts/0001 - Wege Bauen_ Die Bleiben_20261001-124903_0ca7efcd.txt",
+    "turns": 47
+  },
+  "status": "translated",
+  "units_total": 47,
+  "units_failed": 0,
+  "english_withdrawn": false,
+  "title_en": "Building Paths That Last.",
+  "units": [
+    {
+      "unit_id": "t0000.u01",
+      "turn_id": "t0000",
+      "content_key": "357fae61aa2da1592534d2caddb1a8d126a649c36d84bde559c8950b192bf9f6",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0000.s01",
+          "en_text": "Welcome back to Path Talks."
+        },
+        {
+          "sent_id": "t0000.s02",
+          "en_text": "Today, we're talking about trail construction, and I'm joined by Stefan Brandt, a trail builder with the Cascadia Alliance."
+        },
+        {
+          "sent_id": "t0000.s03",
+          "en_text": "Stefan Brandt, thank you for being here."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0001.u01",
+      "turn_id": "t0001",
+      "content_key": "a9bd39bd1d905c68e67eaa7904fc179d70f1a465266593b3d52d551642507b14",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0001.s01",
+          "en_text": "Thank you, Katrin."
+        },
+        {
+          "sent_id": "t0001.s02",
+          "en_text": "You're very welcome – road construction is something I've thought a lot about."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0002.u01",
+      "turn_id": "t0002",
+      "content_key": "a9588485feb08bbe56a725d955cce085de2b6f084999bb70671ad226fdfbcd18",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0002.s01",
+          "en_text": "This episode is brought to you by Strava."
+        },
+        {
+          "sent_id": "t0002.s02",
+          "en_text": "Strava is the home of athletes."
+        },
+        {
+          "sent_id": "t0002.s03",
+          "en_text": "Visit strava.com/podcast to get started."
+        },
+        {
+          "sent_id": "t0002.s04",
+          "en_text": "Tell me about how you made that decision."
+        },
+        {
+          "sent_id": "t0002.s05",
+          "en_text": "How does RockShox fit into this picture?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0003.u01",
+      "turn_id": "t0003",
+      "content_key": "a951afa4414d305ae981857daaac4417f921d4d898e10e1bbe098482ccaa979f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0003.s01",
+          "en_text": "To be honest, the way you handle drainage is the design decision that has the biggest impact on every project."
+        },
+        {
+          "sent_id": "t0003.s02",
+          "en_text": "We've seen this with teams that use the Cascadia Alliance."
+        },
+        {
+          "sent_id": "t0003.s03",
+          "en_text": "I've observed this pattern in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0004.u01",
+      "turn_id": "t0004",
+      "content_key": "1e527b5370d65578d60c58047df9c3df46603be505bb1dcb3c3a868359f85187",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0004.s01",
+          "en_text": "Tell me how you made the decision."
+        },
+        {
+          "sent_id": "t0004.s02",
+          "en_text": "What is the core issue that really matters in this question?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0005.u01",
+      "turn_id": "t0005",
+      "content_key": "7b98c039d8fdfbe49c68a270e169a84c06ad66b8959e480a4f78f98d8b88b5f6",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0005.s01",
+          "en_text": "Yes, see – a common mistake that new path builders make is digging with too much of a slope."
+        },
+        {
+          "sent_id": "t0005.s02",
+          "en_text": "Once you understand that, the other decisions become easier."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0006.u01",
+      "turn_id": "t0006",
+      "content_key": "5427cc1bcd69d9748177960633c9c09b875fcff993e129076554fb45be69643c",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0006.s01",
+          "en_text": "I would like to explore this further."
+        },
+        {
+          "sent_id": "t0006.s02",
+          "en_text": "Where do soil erosion and road construction intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0007.u01",
+      "turn_id": "t0007",
+      "content_key": "7fa95bb912a15e53884fbbf85182cf2f7fc6698dba8f4d5ec2c7ada7fed5a12b",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0007.s01",
+          "en_text": "Certainly."
+        },
+        {
+          "sent_id": "t0007.s02",
+          "en_text": "Discussions about land management must take place before any ground is broken."
+        },
+        {
+          "sent_id": "t0007.s03",
+          "en_text": "We've seen this happen with teams that use RockShox products."
+        },
+        {
+          "sent_id": "t0007.s04",
+          "en_text": "The frame is important because it tells you what trade-offs you're making."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0008.u01",
+      "turn_id": "t0008",
+      "content_key": "6169670752ffa37762e59ca7e45858c95726c8925c2d8c4918f70f35df750f1f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0008.s01",
+          "en_text": "Tell me more about it."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0009.u01",
+      "turn_id": "t0009",
+      "content_key": "62bac434795bca801148a90f46c6b977c143029c0d7ad378c94c6f576d8137d2",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0009.s01",
+          "en_text": "And when teams integrate Spoke & Wrench into this process, the trade-offs become clear. If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0010.u01",
+      "turn_id": "t0010",
+      "content_key": "b964b21df4ff207031515e85c421ca8cd3aeba84edb511cfe278656916c543b6",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0010.s01",
+          "en_text": "Tell me about how you made the decision."
+        },
+        {
+          "sent_id": "t0010.s02",
+          "en_text": "Where do soil erosion and road construction intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0011.u01",
+      "turn_id": "t0011",
+      "content_key": "71fd26034ff7607b454b2ba98ad4e9b70cf1b197604816bf654e4a8bd585c9c9",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0011.s01",
+          "en_text": "Certainly."
+        },
+        {
+          "sent_id": "t0011.s02",
+          "en_text": "Bankings on slopes are not optional."
+        },
+        {
+          "sent_id": "t0011.s03",
+          "en_text": "The shortcut is the breakthrough in the third year."
+        },
+        {
+          "sent_id": "t0011.s04",
+          "en_text": "And the second-order effect is the part that almost everyone overlooks."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0012.u01",
+      "turn_id": "t0012",
+      "content_key": "6e6066ba85d6b15edcae2908f74e30a05964df5908d5802d4414b66298715b9f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0012.s01",
+          "en_text": "This is a useful framework."
+        },
+        {
+          "sent_id": "t0012.s02",
+          "en_text": "What is the core issue or the most important aspect of the question?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0013.u01",
+      "turn_id": "t0013",
+      "content_key": "0e596fbb05c8edc301b70905dbf4e58f7120e7388bca8cfff91406e8e544cfaf",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0013.s01",
+          "en_text": "Yes, look – the team structure is more important than people often realize."
+        },
+        {
+          "sent_id": "t0013.s02",
+          "en_text": "We've seen this with teams that use the Spoke & Wrench model."
+        },
+        {
+          "sent_id": "t0013.s03",
+          "en_text": "I've observed this pattern in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0014.u01",
+      "turn_id": "t0014",
+      "content_key": "e0042fd7f4aee5b7f8219b7ab5f491a733466db9da81b548680a3c883ad0c4ac",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0014.s01",
+          "en_text": "What does the error mode look like?"
+        },
+        {
+          "sent_id": "t0014.s02",
+          "en_text": "What is the structural perspective that most listeners do not have access to?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0015.u01",
+      "turn_id": "t0015",
+      "content_key": "7104e94270fc1f5c2d7fd6da0348b5d72ba681d5dbeca37448d3ae6fbaf91487",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0015.s01",
+          "en_text": "Let me share with you the perspective that I truly believe in."
+        },
+        {
+          "sent_id": "t0015.s02",
+          "en_text": "I have changed my opinion about machine-built versus hand-built trails."
+        },
+        {
+          "sent_id": "t0015.s03",
+          "en_text": "I have observed this pattern in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0016.u01",
+      "turn_id": "t0016",
+      "content_key": "6169670752ffa37762e59ca7e45858c95726c8925c2d8c4918f70f35df750f1f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0016.s01",
+          "en_text": "Tell me more about it."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0017.u01",
+      "turn_id": "t0017",
+      "content_key": "d0a8322de0df6911196fb0819e63f2db93c2c9c2215b0499fe7e5029b00df0a5",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0017.s01",
+          "en_text": "And when teams integrate the Cascadia Alliance into this process, the trade-offs become clear. If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0018.u01",
+      "turn_id": "t0018",
+      "content_key": "c9b36ffe25cf09984b413043160af988c866091800b4bb5ad0abb191b16b6574",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0018.s01",
+          "en_text": "We'll be right back after a short commercial break."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0019.u01",
+      "turn_id": "t0019",
+      "content_key": "14da4134c40e27e737270687226c5302b3371a8ef72ca0f146cd562093df0587",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0019.s01",
+          "en_text": "Today's episode is brought to you by Stripe."
+        },
+        {
+          "sent_id": "t0019.s02",
+          "en_text": "Stripe makes payments easy, whether you're running a marketplace or a subscription business."
+        },
+        {
+          "sent_id": "t0019.s03",
+          "en_text": "Visit stripe.com/podcast for a free trial."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0020.u01",
+      "turn_id": "t0020",
+      "content_key": "e2d293958c920b3b6feee9411f567e62152e35ec3cbecf4e5decf7d5328fb504",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0020.s01",
+          "en_text": "Welcome back to the show."
+        },
+        {
+          "sent_id": "t0020.s02",
+          "en_text": "What does the error mode look like?"
+        },
+        {
+          "sent_id": "t0020.s03",
+          "en_text": "Where do soil erosion and road construction intersect?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0021.u01",
+      "turn_id": "t0021",
+      "content_key": "29d63a0c73405dc87faa2c67e2bce036a3a02531b9512d9597035c30708f7e5e",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0021.s01",
+          "en_text": "That's my perspective."
+        },
+        {
+          "sent_id": "t0021.s02",
+          "en_text": "Drainage is the design decision that has the biggest impact on performance, regardless of the route."
+        },
+        {
+          "sent_id": "t0021.s03",
+          "en_text": "We've seen this with teams that use Shimano components."
+        },
+        {
+          "sent_id": "t0021.s04",
+          "en_text": "If you ignore that, you'll have to rebuild everything from scratch a year later."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0022.u01",
+      "turn_id": "t0022",
+      "content_key": "6ec74b4a3019dc10c7ddaebcfb137a83147f040abcd637ca4c6062fd6de5963c",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0022.s01",
+          "en_text": "Tell me about how you made the decision."
+        },
+        {
+          "sent_id": "t0022.s02",
+          "en_text": "How does RockShox fit into this picture?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0023.u01",
+      "turn_id": "t0023",
+      "content_key": "7b98c039d8fdfbe49c68a270e169a84c06ad66b8959e480a4f78f98d8b88b5f6",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0023.s01",
+          "en_text": "Yes, see – a common mistake that new path builders make is digging with too much of a slope."
+        },
+        {
+          "sent_id": "t0023.s02",
+          "en_text": "Once you understand that, the other decisions become easier."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0024.u01",
+      "turn_id": "t0024",
+      "content_key": "d006c6158e90535cd359b7bf2dda16705cbc2b2cd7f9aaa3bddc067039d21086",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0024.s01",
+          "en_text": "Challenge my existing beliefs."
+        },
+        {
+          "sent_id": "t0024.s02",
+          "en_text": "What did you used to believe about this, and how have your views changed since then?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0025.u01",
+      "turn_id": "t0025",
+      "content_key": "b430a4c393029e23e113e64856ac61c69a8b4040ffbc51a374d1867c85b20fc6",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0025.s01",
+          "en_text": "Let me share with you the approach that I truly believe in."
+        },
+        {
+          "sent_id": "t0025.s02",
+          "en_text": "Discussions about land management must take place before any digging begins."
+        },
+        {
+          "sent_id": "t0025.s03",
+          "en_text": "We've seen this with teams that use Spoke & Wrench."
+        },
+        {
+          "sent_id": "t0025.s04",
+          "en_text": "I've observed this pattern in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0026.u01",
+      "turn_id": "t0026",
+      "content_key": "a19e8cabbca882ead002edd5e1dfb3436eee0ac20790781bba368e0506f6dcfe",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0026.s01",
+          "en_text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0027.u01",
+      "turn_id": "t0027",
+      "content_key": "e69fdfdf92c937dcdb446ec2c56b65a160e1d6cc60e2a6194440465efbaf8987",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0027.s01",
+          "en_text": "Outside of the tools available at the Cascadia Alliance level, the error mode is more difficult to identify."
+        },
+        {
+          "sent_id": "t0027.s02",
+          "en_text": "And the second-order effect is the part that almost everyone overlooks."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0028.u01",
+      "turn_id": "t0028",
+      "content_key": "d414e9e0f4c0931f5842c341e6f71ab23d4641715c413b320430da3b9aab6bf6",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0028.s01",
+          "en_text": "What is the guiding principle you always come back to?"
+        },
+        {
+          "sent_id": "t0028.s02",
+          "en_text": "What is the core of the question that really matters?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0029.u01",
+      "turn_id": "t0029",
+      "content_key": "3b2a5cb7717f377bf4da896189e4161ecacb7834bbb10b1a623bb26f9dedf835",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0029.s01",
+          "en_text": "It all boils down to this: curbs on slopes are not optional."
+        },
+        {
+          "sent_id": "t0029.s02",
+          "en_text": "The shortcut is the breakthrough in the third year."
+        },
+        {
+          "sent_id": "t0029.s03",
+          "en_text": "I have observed this pattern in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0030.u01",
+      "turn_id": "t0030",
+      "content_key": "73406f860d321069b58c02b6967998d1fee43f581de4fe621c79d06d6a36f30f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0030.s01",
+          "en_text": "What does the failure mode look like?"
+        },
+        {
+          "sent_id": "t0030.s02",
+          "en_text": "What is the most underestimated aspect of road construction?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0031.u01",
+      "turn_id": "t0031",
+      "content_key": "36a104e87e0c20d0a17cf8327e09cd625f30f94ae630fdb0486c46532e47e9aa",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0031.s01",
+          "en_text": "Let me share with you the framework that I truly believe in."
+        },
+        {
+          "sent_id": "t0031.s02",
+          "en_text": "The underlying structure is more important than people often realize."
+        },
+        {
+          "sent_id": "t0031.s03",
+          "en_text": "We've seen this with teams that utilize the Cascadia Alliance."
+        },
+        {
+          "sent_id": "t0031.s04",
+          "en_text": "I've observed this pattern in three different teams."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0032.u01",
+      "turn_id": "t0032",
+      "content_key": "6020e7bf34753d92de0d8235e7794299af8499a25b491929cc3063f763fb8c1f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0032.s01",
+          "en_text": "I would like to explore this further."
+        },
+        {
+          "sent_id": "t0032.s02",
+          "en_text": "How does Shimano fit into this picture?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0033.u01",
+      "turn_id": "t0033",
+      "content_key": "b17fab93a3dc0d483ff3cce742495fa21bcb83f2df653a7720586549e9c3ce1e",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0033.s01",
+          "en_text": "Yes, look – I've changed my opinion about machine-built versus hand-built roads."
+        },
+        {
+          "sent_id": "t0033.s02",
+          "en_text": "Once you understand that, the other decisions become easier."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0034.u01",
+      "turn_id": "t0034",
+      "content_key": "2294a4650acc66f7f7efb21e5029b545de0ca9890b0593f6ce0cb47b77050693",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0034.s01",
+          "en_text": "Where does it stop working?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0035.u01",
+      "turn_id": "t0035",
+      "content_key": "1017156dd3c5cd09be090db4a86d2631d0d0167a21a525ce075b2765f6a5f73a",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0035.s01",
+          "en_text": "Outside of the tools available at the RockShox level, the error mode is more difficult to identify."
+        },
+        {
+          "sent_id": "t0035.s02",
+          "en_text": "Once you understand that, the remaining decisions become easier."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0036.u01",
+      "turn_id": "t0036",
+      "content_key": "3c6e74e6199c55fe231222278e649d60974f35768df908d8bb289b831d08c799",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0036.s01",
+          "en_text": "Let's change the subject – I would like to dedicate the next section to land management."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0037.u01",
+      "turn_id": "t0037",
+      "content_key": "b79085b5713c5b30a61c89c74a21e3825ca35c1c13725f75e766d87fbf91cf4c",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0037.s01",
+          "en_text": "That's where the conversation becomes interesting, because the considerations surrounding land management permeate everything we've discussed."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0038.u01",
+      "turn_id": "t0038",
+      "content_key": "e4337c5e6912be9293e695ff80559c618eed6d80993898582f8aaa2429a8f77a",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0038.s01",
+          "en_text": "I would like to explore this further."
+        },
+        {
+          "sent_id": "t0038.s02",
+          "en_text": "What is the opposing perspective that most listeners are unable to grasp?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0039.u01",
+      "turn_id": "t0039",
+      "content_key": "55f782edc16d5a314016fdbebd8f286e947f6d49c50cc112e115379eaeddac1d",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0039.s01",
+          "en_text": "Ultimately, the suspension setup is the design choice that has the biggest impact on performance, regardless of the riding style."
+        },
+        {
+          "sent_id": "t0039.s02",
+          "en_text": "We've seen this with teams that use RockShox."
+        },
+        {
+          "sent_id": "t0039.s03",
+          "en_text": "If you ignore this, you'll end up having to rebuild everything from scratch a year later."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0040.u01",
+      "turn_id": "t0040",
+      "content_key": "73406f860d321069b58c02b6967998d1fee43f581de4fe621c79d06d6a36f30f",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0040.s01",
+          "en_text": "What does the failure mode look like?"
+        },
+        {
+          "sent_id": "t0040.s02",
+          "en_text": "What is the most underestimated aspect of road construction?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0041.u01",
+      "turn_id": "t0041",
+      "content_key": "16ea734642af26e93093765ba16666ccf9a06744d8a53a6173236e888f0b7b71",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0041.s01",
+          "en_text": "To be honest, the most common mistake made by new path builders is digging with too much of a slope."
+        },
+        {
+          "sent_id": "t0041.s02",
+          "en_text": "The framework is important because it tells you what considerations you are taking into account."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0042.u01",
+      "turn_id": "t0042",
+      "content_key": "79950da4e59cf98df9fe03aa006ea5866a201d7128a32e96142a6ff87afb5929",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0042.s01",
+          "en_text": "Before we wrap up, what's one thing that listeners can try out this week?"
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0043.u01",
+      "turn_id": "t0043",
+      "content_key": "7c2628215431794a3de1c4dffbb4866046d3e1f4b464eb3b1f5318b8f65fc900",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0043.s01",
+          "en_text": "Choose one of the ideas we discussed and implement it for two weeks."
+        },
+        {
+          "sent_id": "t0043.s02",
+          "en_text": "The rest is iteration."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0044.u01",
+      "turn_id": "t0044",
+      "content_key": "8b2f54e690941a4fbf2a6673dd08e62c1793f6f54b35e2989b90ca9f057beea6",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0044.s01",
+          "en_text": "And finally, a big thank you to our partners at Linear."
+        },
+        {
+          "sent_id": "t0044.s02",
+          "en_text": "Linear is the issue tracker, built for speed – designed for keyboard use."
+        },
+        {
+          "sent_id": "t0044.s03",
+          "en_text": "Visit linear.com."
+        },
+        {
+          "sent_id": "t0044.s04",
+          "en_text": "Stefan Brandt, thank you for the conversation."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0045.u01",
+      "turn_id": "t0045",
+      "content_key": "c824a5ca8a8bb8d53817b2ac86f800f8355d6853c309c5fa0c06586e5ca3596a",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0045.s01",
+          "en_text": "Thank you, Katrin."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    },
+    {
+      "unit_id": "t0046.u01",
+      "turn_id": "t0046",
+      "content_key": "5aeed3fe14f5e92f06d55d7315e2cc9a8b1a6fc2cade471289600e3ccc3acfab",
+      "status": "ok",
+      "alignment": "sentence",
+      "sentences": [
+        {
+          "sent_id": "t0046.s01",
+          "en_text": "That's all for today's episode of \"Path Conversations.\""
+        },
+        {
+          "sent_id": "t0046.s02",
+          "en_text": "Until next time."
+        }
+      ],
+      "attempts": 1,
+      "model": "google/translategemma-12b-it",
+      "prompt_sha256": "b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81"
+    }
+  ]
+}

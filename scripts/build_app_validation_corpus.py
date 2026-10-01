@@ -621,9 +621,17 @@ def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
                 ledger = json.loads(led_path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 ledger = {}
-            if isinstance(ledger, dict):
+            if isinstance(ledger, dict) and ledger:
                 en_title = str(ledger.get("title_en") or "").strip() or None
                 translation_status = ledger.get("status")
+                # THE LEDGER TRAVELS WITH THE RENDER. `translation.json` is not an `.en.*` file,
+                # so the glob above misses it — and it is the artifact the API reads for
+                # `source_language`, `translation_status` and the model. Without it a corpus can
+                # hold a perfect English render that no surface can describe: the transcript
+                # language control asks "is there an original to switch to?", reads the absent
+                # ledger, and renders nothing. Caught by the S3.1 e2e, which saw the English
+                # transcript load with no control beside it.
+                en_stack["translation.json"] = led_path.read_text(encoding="utf-8")
         out[guid] = {
             "title": (summary.get("title") or "").strip() or None,
             "bullets": bullets,

@@ -586,3 +586,56 @@ class TestAScopedTranscriptSearchStillReachesTheSourceLayer:
                 LanceDBBackend.__new__(LanceDBBackend), "insight", keyword=keyword
             )
             assert tables == ["insight"]
+
+
+class TestASearchHitSaysWhichLANGUAGEAndLAYERItCameFrom:
+    """A non-English hit must be identifiable as one, or no client can label it.
+
+    The two layers are now both searchable, which creates a question the response could not
+    answer: a result set mixes an episode's English analysis chunks with its source-language
+    ones, and `metadata` carried neither `language` nor `index_layer`. The transcript language
+    control has to know which it is holding — "search in the original" is not a feature if the
+    answer comes back unlabelled.
+
+    Both are ADDITIVE and absent-by-default, exactly as the index rows are: absent `index_layer`
+    means analysis (right for every row written before the field existed), and absent `language`
+    means the English tier, which stores no language column by design.
+
+    `language` IS A ROW COLUMN; `index_layer` IS NOT, YET. `_segment_nonen_schema` carries
+    `language`, so a real source-layer hit arrives labelled — that is what the language control
+    needs and it is verified end to end on the fixture corpus. `index_layer` currently lives only
+    in the `metadata.json` sidecar: putting it on the row means a `LANCE_SCHEMA_VERSION` bump and
+    a forced rebuild of every corpus, which is not worth doing for a field no surface reads yet.
+    The projection below handles it the moment the column exists, and the test passes it
+    explicitly rather than pretending a real row supplies it.
+    """
+
+    @staticmethod
+    def _row(payload: Dict[str, Any], tier: str = "segment") -> Dict[str, Any]:
+        from podcast_scraper.search.backend import ScoredResult
+        from podcast_scraper.search.hybrid_search import _to_search_result
+
+        base = {"text": "t", "episode_id": "ep1", "show_id": "p10"}
+        result = ScoredResult(
+            doc_id="chunk:x:0",
+            score=1.0,
+            rank=1,
+            payload={**base, **payload},
+            signal="bm25",
+            source_tier=tier,
+        )
+        return _to_search_result(result).metadata
+
+    def test_a_source_layer_hit_carries_its_language_and_layer(self) -> None:
+        """`index_layer` is supplied explicitly here — see the class docstring: it is not a row
+        column yet, so this pins the projection, not the index."""
+        md = self._row({"language": "es", "index_layer": "source"}, tier="segment_nonen")
+        assert md["language"] == "es"
+        assert md["index_layer"] == "source"
+
+    def test_an_english_hit_carries_neither(self) -> None:
+        """Absent, not `"en"`/`"analysis"` — the English tier has no such columns, and inventing
+        values here would claim a provenance the index never recorded."""
+        md = self._row({})
+        assert "language" not in md
+        assert "index_layer" not in md

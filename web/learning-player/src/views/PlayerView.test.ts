@@ -938,3 +938,83 @@ describe('a downloaded episode paints from disk, not from the network', () => {
     expect(w.text()).toContain("Couldn't load this episode.")
   })
 })
+
+describe('S3.1 transcript language control', () => {
+  const SEG = [{ id: 'seg_0000', start: 0, end: 5, text: 'Hello', speaker: 'Host' }]
+
+  /** A translated episode as the API reports it: English served, source recorded (D-38). */
+  function translated(lang: string | null, source: string | null = 'es') {
+    return {
+      version: '1',
+      episode_slug: 'ep-1',
+      segments: SEG,
+      language: lang,
+      source_language: source,
+      machine_translated: lang === 'en',
+      translation_model: lang === 'en' ? 'google/translategemma-12b-it' : null,
+    }
+  }
+
+  it('does not render for an English-native episode', async () => {
+    // `source_language` absent — there is no second rendering, so a toggle would have one position.
+    vi.spyOn(api, 'getSegments').mockResolvedValue(translated('en', null))
+    const w = await mountPlayer()
+    expect(w.find('[data-testid="transcript-language-control"]').exists()).toBe(false)
+  })
+
+  it('renders for a translated episode, with English active by default (D-38)', async () => {
+    vi.spyOn(api, 'getSegments').mockResolvedValue(translated('en'))
+    const w = await mountPlayer()
+    expect(w.find('[data-testid="transcript-language-control"]').exists()).toBe(true)
+    expect(w.find('[data-testid="transcript-lang-en"]').attributes('aria-pressed')).toBe('true')
+    expect(w.find('[data-testid="transcript-lang-source"]').attributes('aria-pressed')).toBe('false')
+  })
+
+  it('asks the API for the SOURCE language and swaps the transcript', async () => {
+    const spy = vi.spyOn(api, 'getSegments').mockResolvedValue(translated('en'))
+    const w = await mountPlayer()
+    spy.mockResolvedValue({
+      ...translated('es'),
+      segments: [{ id: 'seg_0000', start: 0, end: 5, text: 'Hola', speaker: 'Host' }],
+    })
+    await w.find('[data-testid="transcript-lang-source"]').trigger('click')
+    await flushPromises()
+    // The REQUEST carried the source tag — `lang` selects the alternative, it is not the default.
+    expect(spy).toHaveBeenLastCalledWith('ep-1', 'es')
+    expect(w.text()).toContain('Hola')
+    expect(w.find('[data-testid="transcript-lang-source"]').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('goes back to the default with no lang, rather than asking for `en`', async () => {
+    const spy = vi.spyOn(api, 'getSegments').mockResolvedValue(translated('en'))
+    const w = await mountPlayer()
+    spy.mockResolvedValue(translated('es'))
+    await w.find('[data-testid="transcript-lang-source"]').trigger('click')
+    await flushPromises()
+    spy.mockResolvedValue(translated('en'))
+    await w.find('[data-testid="transcript-lang-en"]').trigger('click')
+    await flushPromises()
+    // `null`, not `'en'`: D-38 says the RESOLVER owns the default, and pinning `en` would ask for
+    // a rendering that may not exist instead of taking whatever the episode actually has.
+    expect(spy).toHaveBeenLastCalledWith('ep-1', null)
+  })
+
+  it('keeps the transcript on screen when the switch fails', async () => {
+    const spy = vi.spyOn(api, 'getSegments').mockResolvedValue(translated('en'))
+    const w = await mountPlayer()
+    spy.mockRejectedValue(new api.ApiError(500, 'boom'))
+    await w.find('[data-testid="transcript-lang-source"]').trigger('click')
+    await flushPromises()
+    // A failed switch must not empty the panel, and the toggle snaps back to what IS shown.
+    expect(w.text()).toContain('Hello')
+    expect(w.find('[data-testid="transcript-lang-en"]').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('reports the language ACTUALLY served, not the one requested', async () => {
+    // Asked for English, none exists: the response says `es`, so the original reads as active.
+    vi.spyOn(api, 'getSegments').mockResolvedValue(translated('es'))
+    const w = await mountPlayer()
+    expect(w.find('[data-testid="transcript-lang-source"]').attributes('aria-pressed')).toBe('true')
+    expect(w.find('[data-testid="transcript-lang-en"]').attributes('aria-pressed')).toBe('false')
+  })
+})
