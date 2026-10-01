@@ -4503,6 +4503,20 @@ def _resolve_scope_write_targets(
     return gi_target, kg_target
 
 
+def artwork_store_root(cfg: config.Config, output_dir: str) -> Path:
+    """The root artwork is downloaded under: the CORPUS root whenever the run is part of one.
+
+    Every reader (catalog, ``/api/app/artwork``, ``/api/corpus/binary``, OG cards) resolves
+    ``image_local_relpath`` against the corpus root. Writing under the RUN dir instead stored a
+    fresh copy of every image per run and left every one of them unreachable: on prod
+    (2026-10-01) 0 of 2,002 served episodes resolved local art, and 1.49 GB held 0.78 GB of
+    distinct images (#2204). The relpath is a content hash, so one shared store is safe.
+    """
+    from . import run_index
+
+    return Path(run_index.corpus_root_from_cfg(cfg) or output_dir).expanduser().resolve()
+
+
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -4634,7 +4648,7 @@ def generate_episode_metadata(  # noqa: C901
     if cfg.download_podcast_artwork and not cfg.dry_run:
         from podcast_scraper.utils.corpus_artwork import download_podcast_artwork
 
-        root = Path(output_dir).expanduser().resolve()
+        root = artwork_store_root(cfg, output_dir)
         if feed_image_url and str(feed_image_url).strip():
             rel = download_podcast_artwork(
                 str(feed_image_url).strip(),
