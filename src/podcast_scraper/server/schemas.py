@@ -1432,6 +1432,18 @@ class PushSubscription(BaseModel):
 
     endpoint: str = Field(min_length=1, description="Push service endpoint URL (stable identity).")
     keys: dict[str, str] = Field(default_factory=dict, description="{p256dh, auth} — opaque to us.")
+    #: Which transport this token belongs to; the delivery worker's DispatchingPushSender routes
+    #: on it. Constrained because an unrecognised value is not caught anywhere else: the worker
+    #: raises PermanentDeliveryError("no push sender configured for kind=...") and the envelope
+    #: FAILS, so a client typo would persist a subscription that can never receive anything. 422
+    #: at registration is the only place it is cheap to notice.
+    #:
+    #: Optional because the WEB path posts the raw W3C subscription JSON, which carries no kind;
+    #: the worker defaults a missing value to "webpush" (`apns.py:148`). Native sends it
+    #: explicitly — "fcm" on Android, "apns" on iOS.
+    kind: Literal["webpush", "apns", "fcm"] | None = Field(
+        default=None, description="Transport: webpush (default when absent), apns, or fcm."
+    )
 
 
 class PushUnsubscribeBody(BaseModel):

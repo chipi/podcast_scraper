@@ -413,9 +413,24 @@ web/learning-player/design-results/
 # Vendored third-party gems are a local toolchain, not source.
 web/learning-player/ios/vendor/
 web/learning-player/ios/.bundle/
+# Same for the Android release lanes (#2192).
+web/learning-player/android/vendor/
+web/learning-player/android/.bundle/
 
 # Per-run mock-user state written by the design screenshot config (playwright.design.config.ts).
 web/learning-player/e2e/.design-state/
+
+# --- fastlane / Google Play (Android internal testing, #2192) ---
+# The Play SERVICE ACCOUNT JSON is the Android equivalent of the .p8 below: anyone holding it can
+# upload builds to the account's apps. Same rule — it belongs outside the repo, and this pattern
+# is the backstop for the day someone drops it beside the Fastfile.
+**/fastlane/*.json
+**/fastlane/.env
+# The upload KEYSTORE and its password file. Losing the keystore after publishing means losing the
+# ability to update that listing for ever, so it is backed up out of band and never committed.
+*.jks
+*.keystore
+**/android/keystore.properties
 
 # --- fastlane / App Store Connect (iOS TestFlight) ---
 # The .p8 is an App Store Connect PRIVATE KEY: anyone holding it can upload builds and read

@@ -79,7 +79,7 @@ PYTEST_WORKERS ?= 2
 
 .PHONY: ios-origin-up ios-origin-down ios-origin-check app-e2e-users-reset test-app-ios-sim-download
 .PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
-.PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-device-install
+.PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
 .PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
@@ -2196,7 +2196,12 @@ app-e2e-api-down:
 # ios/App.xcodeproj: it drives the installed app by bundle id, so ``npx cap add ios`` (which
 # rewrites bundle ids across the app's project file) can never break it.
 IOS_SIM ?= iPhone 17
-IOS_BUNDLE_ID ?= app.closelistening.player
+# The DEBUG bundle id, because every local install path below builds Debug (simulator at
+# `ios-sim-install`, physical device at `ios-device-install`). Debug ships
+# `app.closelistening.player.dev` so a local build sits BESIDE the TestFlight app on a real phone
+# instead of replacing it — iOS identifies an app by bundle id alone, so sharing the shipped id
+# means the newer install wins and the other disappears (operator hit this, 2026-09-30).
+IOS_BUNDLE_ID ?= app.closelistening.player.dev
 IOS_UITESTS_DIR = $(APP_DIR)/ios/uitests
 # WORKTREE-SCOPED, for the same reason the e2e container and volumes are: this machine runs several
 # worktrees of this repo, and `/tmp/lp-ios-dd` was shared by all of them. Two worktrees building iOS
@@ -2914,7 +2919,7 @@ ios-app-install: ios-origin-up ios-dd-check
 	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
 	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
 	@# Prove the installed bundle is the one we meant — the failure mode above is silent otherwise.
-	@app=$$(xcrun simctl get_app_container booted app.closelistening.player) && \
+	@app=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID)) && \
 		if grep -qF "127.0.0.1:$(IOS_ORIGIN_PORT)/api/app" "$$app/public/assets/"*.js; then \
 			echo "✓ installed bundle points at the single origin (api + audio)"; \
 		else \
@@ -3098,9 +3103,16 @@ mobile-build-internal:
 mobile-build-release:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
 	@echo "Learning Player mobile build (RELEASE, prod-locked) from $(LP_ENV)..."
+	@# `export MOBILE_RELEASE=1 && npm install && npm run build`, not `MOBILE_RELEASE=1 npm install
+	@# && npm run build` (operator 2026-09-29). A var prefix binds to ONE command, so the original
+	@# set it for `npm install` — which does not read it — and `npm run build`, the only command
+	@# that does, ran without it. `__MOBILE_INTERNAL__` therefore stayed TRUE and every "release"
+	@# build was an internal build wearing a release label: the dev/prod tier switch and the build
+	@# host's private tailnet hostname were in every one of them. The three artifact assertions
+	@# below were written to catch exactly this, and did.
 	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
-		MOBILE_RELEASE=1 npm install && npm run build && npx cap sync
+		export MOBILE_RELEASE=1 && npm install && npm run build && npx cap sync
 	@# The gate credential must not reach a SHIPPED app. `.env.mobile.example` states this as a
 	@# fact ("never baked into a shipped app"), but it is not one: `VITE_PREVIEW_BASIC_AUTH` is a
 	@# build-time substitution, so the literal lands in the bundle and only disappears if the
@@ -3117,6 +3129,31 @@ mobile-build-release:
 			exit 1; \
 		fi; \
 		echo "OK: preview gate credential absent from the release bundle"
+	@# The dev↔prod TIER SWITCH must not reach a shipped app either, for the same reason and with
+	@# the same proof. `tierSwitchEnabled()` folds to false in a release build and the component
+	@# should vanish with it — "should" being the operative word, which is why this is checked
+	@# rather than assumed (operator 2026-09-29: "double check we don't ship that button").
+	@cd $(APP_DIR) && if grep -qF 'tier-switch' dist/assets/*.js 2>/dev/null; then \
+		echo ""; \
+		echo "FAIL: the dev/prod tier switch is present in the RELEASE bundle (dist/)."; \
+		echo "      A tester must not be able to point the app at a private dev API."; \
+		echo "      Expected it to be tree-shaken once __MOBILE_INTERNAL__ folded to false."; \
+		exit 1; \
+	fi; \
+	echo "OK: tier switch absent from the release bundle"
+	@# And the DEV API BASE, which is worse than the button: `resolveDevApiBase` derives it from the
+	@# BUILD HOST's own tailnet name when VITE_DEV_API_BASE is unset, so building on a homelab
+	@# machine bakes a PRIVATE hostname into an artifact bound for a public store. #2009 hit this
+	@# class of problem once already ("baked a private hostname into every bundle").
+	@cd $(APP_DIR) && found=$$(grep -hoE 'https://[a-z0-9.-]+\.ts\.net' dist/assets/*.js 2>/dev/null | sort -u); \
+	if [ -n "$$found" ]; then \
+		echo ""; \
+		echo "FAIL: a private tailnet hostname is present in the RELEASE bundle:"; \
+		echo "      $$found"; \
+		echo "      That address would ship to every tester and into the store listing."; \
+		exit 1; \
+	fi; \
+	echo "OK: no private tailnet hostname in the release bundle"
 
 # --- TestFlight (iOS) -------------------------------------------------------------------
 # Requires App Store Connect credentials in web/learning-player/ios/fastlane/.env — copy
@@ -3125,7 +3162,7 @@ mobile-build-release:
 # which is the one mistake that produces a "working" TestFlight build of yesterday's code.
 IOS_DIR := $(APP_DIR)/ios
 
-.PHONY: ios-fastlane-install ios-testflight-preflight ios-testflight ios-testflight-release
+.PHONY: ios-fastlane-install ios-testflight-preflight ios-testflight-validate ios-testflight ios-testflight-release
 ios-fastlane-install:
 	@command -v bundle >/dev/null || { echo "FAIL: bundler missing — gem install bundler"; exit 1; }
 	@# Install into the project, not the system gem dir. A bare `bundle install` targets
@@ -3138,6 +3175,19 @@ ios-fastlane-install:
 # seconds instead of after a ten-minute archive.
 ios-testflight-preflight:
 	@cd $(IOS_DIR) && bundle exec fastlane preflight
+
+# A DRY RUN of the whole release path (operator 2026-09-30: "do a test to validate all and
+# not push an actual version to TestFlight"). Same release web build, same artifact
+# assertions, same archive + signed app-store export — and it stops there. Nothing leaves the
+# machine, no build number is consumed.
+ios-testflight-validate:
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@if [ -r "$(HOME)/.appstoreconnect/keychain-password" ]; then \
+		security unlock-keychain -p "$$(cat $(HOME)/.appstoreconnect/keychain-password)" \
+			"$(HOME)/Library/Keychains/ios-signing.keychain-db" 2>/dev/null \
+			&& echo "OK: signing keychain unlocked" || true; \
+	fi
+	@cd $(IOS_DIR) && bundle exec fastlane validate
 
 # Build the player and install it straight onto a PAIRED iPhone (operator 2026-09-18).
 #
@@ -3209,10 +3259,28 @@ ios-device-install:
 		echo "      show it as 'available (paired)'."; exit 1; }; \
 	app="$(IOS_DEVICE_DD)/Build/Products/Debug-iphoneos/App.app"; \
 	echo "--> building for device $$udid"; \
+	: "Pass the App Store Connect key to xcodebuild when it is configured."; \
+	: "-allowProvisioningUpdates lets Xcode create the profile it needs, but creating one is a"; \
+	: "PORTAL WRITE and this account has no signed-in Xcode — without the credential the build"; \
+	: "fails with 'No profiles for app.closelistening.player.dev were found'. Debug now uses its"; \
+	: "own bundle id, so the very first run here has to REGISTER that App ID, which is exactly"; \
+	: "the case that needs the key. The fastlane device lane already passes these; this path did"; \
+	: "not. Silently absent when unset, so a developer's own signed-in Xcode still works."; \
+	ASC_AUTH=""; \
+	if [ -n "$$ASC_KEY_ID" ] && [ -n "$$ASC_ISSUER_ID" ] && [ -r "$$ASC_KEY_PATH" ]; then \
+		ASC_AUTH="-authenticationKeyID $$ASC_KEY_ID -authenticationKeyIssuerID $$ASC_ISSUER_ID -authenticationKeyPath $$ASC_KEY_PATH"; \
+	elif [ -f "$(IOS_DIR)/fastlane/.env" ]; then \
+		set -a; . "$(IOS_DIR)/fastlane/.env"; set +a; \
+		if [ -n "$$ASC_KEY_ID" ] && [ -r "$$ASC_KEY_PATH" ]; then \
+			ASC_AUTH="-authenticationKeyID $$ASC_KEY_ID -authenticationKeyIssuerID $$ASC_ISSUER_ID -authenticationKeyPath $$ASC_KEY_PATH"; \
+			echo "    (using the App Store Connect key from ios/fastlane/.env)"; \
+		fi; \
+	fi; \
 	build_once() { \
 		xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 			-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
-			-allowProvisioningUpdates DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
+			-allowProvisioningUpdates $$ASC_AUTH \
+			DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
 			build; \
 	}; \
 	if ! build_once; then \
@@ -3252,7 +3320,7 @@ ios-device-install:
 	fi; \
 	echo "--> installing on $$udid"; \
 	xcrun devicectl device install app --device "$$udid" "$$app"
-	@echo "OK: app.closelistening.player installed. It talks to the api in $(APP_DIR)/.env.mobile."
+	@echo "OK: $(IOS_BUNDLE_ID) installed. It talks to the api in $(APP_DIR)/.env.mobile."
 
 # Android debug APK — the counterpart to `ios-device-install` (operator 2026-09-18).
 #
@@ -3277,13 +3345,30 @@ ios-device-install:
 ANDROID_SDK_DIR ?= $(HOME)/Library/Android/sdk
 ADB ?= $(ANDROID_SDK_DIR)/platform-tools/adb
 ANDROID_APK = $(APP_DIR)/android/app/build/outputs/apk/debug/app-debug.apk
+ANDROID_AAB = $(APP_DIR)/android/app/build/outputs/bundle/release/app-release.aab
+
+# The JDK Gradle runs on (#2191). Pinned HERE rather than inherited from whatever shell invoked
+# make: a build that works only for the person who happened to export JAVA_HOME is a build that
+# fails confusingly for everyone else, CI included.
+#
+# It must be 21, not 17. AGP 8.13's own floor is 17, but a Capacitor plugin pins a toolchain 21
+# requirement — with 17 the build resolves every dependency and THEN dies in
+# `:capacitor-filesystem:compileDebugJavaWithJavac` with "Cannot find a Java installation ...
+# matching {languageVersion=21}", which reads like a missing dependency rather than a wrong JDK.
+#
+# Homebrew is not an option on this box: it dropped Intel x86_64 support in September 2026 and no
+# longer builds bottles for it. The working route is a Temurin tarball unpacked anywhere readable.
+ANDROID_JAVA_HOME ?= $(HOME)/tools/jdk-21.0.12.1+1/Contents/Home
 
 android-build:
 	@$(MAKE) mobile-build-internal
 	@[ -d "$(ANDROID_SDK_DIR)" ] || { echo "FAIL: no Android SDK at $(ANDROID_SDK_DIR)."; \
 		echo "      Install it (Android Studio, or sdkmanager) or set ANDROID_SDK_DIR."; exit 1; }
+	@[ -x "$(ANDROID_JAVA_HOME)/bin/java" ] || { echo "FAIL: no JDK at $(ANDROID_JAVA_HOME)."; \
+		echo "      Gradle needs JDK 21 (a Capacitor plugin pins toolchain 21; 17 is NOT enough)."; \
+		echo "      Unpack a Temurin 21 tarball and set ANDROID_JAVA_HOME."; exit 1; }
 	@rm -f $(ANDROID_APK)
-	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) \
+	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
 		./gradlew assembleDebug --console=plain \
 		|| { echo "FAIL: gradle assembleDebug failed. No APK was produced."; exit 1; }
 	@[ -f $(ANDROID_APK) ] || { echo "FAIL: gradle reported success but there is no APK at"; \
@@ -3298,6 +3383,118 @@ android-build:
 			echo "      Check VITE_API_BASE_URL in $(APP_DIR)/.env.mobile."; exit 1; }
 	@echo "OK: PROD tier targets a hosted api"
 	@echo "OK: $(ANDROID_APK) ($$(du -h $(ANDROID_APK) | cut -f1))"
+
+# The uploadable artifact for Play (#2191 / #2192) — a SIGNED release AAB.
+#
+# Mirrors `ios-testflight`: builds the tester web tier from `.env.mobile.testflight` so an Android
+# beta ships exactly what a TestFlight beta does, and carries no personal gate credential (#2009).
+# Override LP_ENV to build a different tier.
+#
+# Play rejects an unsigned bundle and rejects a duplicate versionCode, so both are checked HERE
+# rather than discovered after a multi-minute upload. versionCode is derived in app/build.gradle
+# (ANDROID_VERSION_CODE, else the git commit count); pass ANDROID_VERSION_CODE to pin it.
+ANDROID_VERSION_CODE ?=
+ANDROID_LP_ENV ?= $(APP_DIR)/.env.mobile.testflight
+
+android-bundle:
+	@test -f $(ANDROID_LP_ENV) || { echo "FAIL: missing $(ANDROID_LP_ENV)."; \
+		echo "      This is the SAME tester-tier env the iOS TestFlight build uses."; \
+		echo "      Copy $(APP_DIR)/.env.mobile.example and fill it (see #2189)."; exit 1; }
+	@# RELEASE, not internal — same reason as ios-testflight, and verified the same way. An
+	@# internal build leaves the tier switch and the build host's tailnet hostname in the bundle,
+	@# and this artifact is bound for Google Play.
+	@$(MAKE) mobile-build-release LP_ENV=$(ANDROID_LP_ENV)
+	@[ -d "$(ANDROID_SDK_DIR)" ] || { echo "FAIL: no Android SDK at $(ANDROID_SDK_DIR)."; exit 1; }
+	@[ -x "$(ANDROID_JAVA_HOME)/bin/java" ] || { echo "FAIL: no JDK at $(ANDROID_JAVA_HOME)."; \
+		echo "      Gradle needs JDK 21 (a Capacitor plugin pins toolchain 21; 17 is NOT enough)."; exit 1; }
+	@# Signing is checked BEFORE the build. app/build.gradle deliberately omits the release signing
+	@# config when the credentials are absent rather than falling back to the debug key — so without
+	@# this check the build "succeeds" and produces an artifact Play will not take.
+	@cd $(APP_DIR)/android && { [ -n "$$ANDROID_KEYSTORE_FILE" ] || [ -f keystore.properties ]; } \
+		|| { echo "FAIL: no release signing configured, so the AAB would be unsigned."; \
+			echo "      Provide either the four ANDROID_KEYSTORE_* / ANDROID_KEY_* env vars, or"; \
+			echo "      $(APP_DIR)/android/keystore.properties (gitignored) with:"; \
+			echo "        storeFile=/absolute/path/to/upload-keystore.jks"; \
+			echo "        storePassword=…  keyAlias=…  keyPassword=…"; \
+			echo "      Create the keystore with:"; \
+			echo "        keytool -genkeypair -v -keystore upload-keystore.jks -alias upload \\"; \
+			echo "          -keyalg RSA -keysize 2048 -validity 10000"; \
+			echo "      BACK IT UP. Losing it means losing the ability to update the listing."; \
+			exit 1; }
+	@rm -f $(ANDROID_AAB)
+	@# -PandroidPushRequired=true pairs with ANDROID_PUSH_NATIVE_READY in usePushSubscription.ts
+	@# (#2157). Now that the client will register for push on Android, an artifact built without
+	@# google-services.json would crash the first time a tester touches the notifications toggle —
+	@# so a missing config is fatal here rather than a warning.
+	@# ANDROID_VERSION_CODE is forwarded EXPLICITLY rather than relying on make exporting a
+	@# command-line variable into a recipe's environment. `android-play` derives it from the Play
+	@# track; empty here means build.gradle falls back to the git commit count, which is the
+	@# pre-#2192 behaviour and still correct for a local build.
+	@cd $(APP_DIR)/android && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
+		ANDROID_VERSION_CODE="$(ANDROID_VERSION_CODE)" \
+		./gradlew bundleRelease -PandroidPushRequired=true --console=plain \
+		|| { echo "FAIL: gradle bundleRelease failed. No AAB was produced."; exit 1; }
+	@[ -f $(ANDROID_AAB) ] || { echo "FAIL: gradle reported success but there is no AAB at"; \
+		echo "      $(ANDROID_AAB)"; exit 1; }
+	@# Same content proof the APK target makes: the bundle must carry THIS web build, not an empty
+	@# assets dir from a sync that never ran. Paths inside an .aab are module-scoped (`base/`).
+	@n=$$(unzip -l $(ANDROID_AAB) 'base/assets/public/assets/*.js' 2>/dev/null | grep -c '\.js$$'); \
+	[ "$$n" -gt 0 ] || { echo "FAIL: the AAB carries no web assets — cap sync did not run."; exit 1; }; \
+	echo "OK: $$n JS chunks packaged"
+	@unzip -p $(ANDROID_AAB) 'base/assets/public/assets/*.js' 2>/dev/null \
+		| grep -qE 'https://[a-z.]+/api/app' \
+		|| { echo "FAIL: the AAB has no https api base — the app would open with no data."; \
+			echo "      Check VITE_API_BASE_URL in $(ANDROID_LP_ENV)."; exit 1; }
+	@echo "OK: targets a hosted api"
+	@echo "OK: $(ANDROID_AAB) ($$(du -h $(ANDROID_AAB) | cut -f1))"
+	@echo "    Upload with: make android-play  (or by hand for the very first upload, #2192)."
+
+# --- Google Play internal testing (#2192) -----------------------------------------------
+#
+# Mirrors the iOS trio (ios-fastlane-install / ios-testflight-preflight / ios-testflight) so the
+# two platforms are operated identically.
+#
+#   make android-fastlane-install    # once per machine
+#   make android-play-preflight      # verify creds + app record; builds nothing, fails in seconds
+#   make android-play                # rebuild the tester bundle, sign it, upload to `internal`
+#
+# NOTE: Play refuses an API upload for a package it has never seen, so the FIRST artifact must be
+# uploaded by hand in the Play Console once. `android-play-preflight` detects and explains that
+# rather than letting the first upload fail with an opaque 404.
+ANDROID_FASTLANE_DIR = $(APP_DIR)/android
+
+android-fastlane-install:
+	@command -v bundle >/dev/null || { echo "FAIL: bundler missing — gem install bundler"; exit 1; }
+	@# Into the project, not the system gem dir — same reasoning as ios-fastlane-install.
+	@cd $(ANDROID_FASTLANE_DIR) && bundle config set --local path vendor/bundle && bundle install
+
+android-play-preflight:
+	@cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane preflight
+
+android-play:
+	@# Ask PLAY for the next free versionCode BEFORE building, instead of letting build.gradle fall
+	@# back to `git rev-list --count HEAD`.
+	@#
+	@# That fallback is monotonic on one branch and nowhere else. Measured 2026-09-30: beta-users
+	@# was 1484 while origin/main was 1468, because main's recent history is squash merges. Upload
+	@# 1484 from a branch, squash-merge it, and main's next release computes 1469 — REJECTED for
+	@# going backwards, after the entire AAB has uploaded. Two worktrees collide the same way.
+	@# Play is the only authority on what has been used, exactly as latest_testflight_build_number
+	@# is on iOS.
+	@#
+	@# Non-fatal when Play cannot be reached (no credential yet, offline): fall through to the git
+	@# count, which is what made a release buildable before the Play account existed. The build is
+	@# then exactly as safe as it was yesterday, and the reason is printed.
+	@code=$$(cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane next_version_code 2>/dev/null | tail -1 | tr -dc '0-9'); \
+	if [ -n "$$code" ]; then \
+		echo "--> Play says the next free versionCode is $$code"; \
+		$(MAKE) android-bundle ANDROID_VERSION_CODE=$$code; \
+	else \
+		echo "WARN: could not read the internal track — falling back to the git commit count."; \
+		echo "      Safe for a first upload; on a branch it can collide with main after a squash."; \
+		$(MAKE) android-bundle; \
+	fi
+	@cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane internal
 
 android-device-install: android-build
 	@[ -x "$(ADB)" ] || { echo "FAIL: no adb at $(ADB). Install platform-tools."; exit 1; }
@@ -3319,10 +3516,28 @@ IOS_DEVICE_UDID ?=
 # Internal build (dev/prod tier switch still available) -> TestFlight. This is the one to use for
 # testing the app on your own device against either tier.
 ios-testflight:
-	@# RFC-120 (#2009): build the internal tier from .env.mobile.testflight (no personal gate
-	@# cred baked) so a TestFlight build never ships your own credential to testers. The gate is
-	@# opened by the shared cl_preview cookie; falls back with a clear error if the file is missing.
-	@$(MAKE) mobile-build-internal LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@# RFC-120 (#2009): build from .env.mobile.testflight (no personal gate cred baked) so a
+	@# TestFlight build never ships your own credential to testers. The gate is opened by the
+	@# shared cl_preview cookie; falls back with a clear error if the file is missing.
+	@#
+	@# RELEASE, not internal (operator 2026-09-29). This used to run `mobile-build-internal`, which
+	@# leaves MOBILE_RELEASE unset — so `__MOBILE_INTERNAL__` stayed TRUE and a TestFlight build
+	@# shipped the dev↔prod tier switch AND the build host's private tailnet hostname. Verified on
+	@# a real artifact: `tier-switch` and `https://homelab.<tailnet>.ts.net` were both present.
+	@# TestFlight is a shipped app in every sense that matters here — it goes to other people's
+	@# phones — so it gets the prod-locked build and its artifact assertions.
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@# Unlock the signing keychain first (#2189). The build account has no login keychain, so
+	@# signing uses a dedicated one created by scripts/tools/setup_signing_keychain.sh. A locked
+	@# keychain fails codesign with "User interaction is not allowed" — which on a headless account
+	@# is unrecoverable without this, and is exactly what would break an unattended release after a
+	@# reboot. Silent no-op when the keychain has not been set up, so the failure stays the clearer
+	@# "no identity found" from xcodebuild rather than a confusing unlock error.
+	@if [ -r "$(HOME)/.appstoreconnect/keychain-password" ]; then \
+		security unlock-keychain -p "$$(cat $(HOME)/.appstoreconnect/keychain-password)" \
+			"$(HOME)/Library/Keychains/ios-signing.keychain-db" 2>/dev/null \
+			&& echo "OK: signing keychain unlocked" || true; \
+	fi
 	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Prod-locked build (tier toggle tree-shaken out, GlitchTip DSN required) -> TestFlight. Use for

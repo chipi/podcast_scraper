@@ -107,11 +107,24 @@ platform :ios do
     build_app(
       workspace: WORKSPACE,
       scheme: SCHEME,
-      configuration: "Release",
+      # DEBUG, not Release. The Debug configuration is what a development build actually is:
+      # automatic signing, `APS_ENVIRONMENT = development`, the muted `AppIcon-Internal`, and its
+      # own bundle id `app.closelistening.player.dev`. Release now pins manual distribution signing
+      # and a production APNs environment for TestFlight, so asking it for a `development` export
+      # was self-contradictory — it would sign with the distribution identity and then try to
+      # export against a development profile.
+      #
+      # The separate bundle id is the point: iOS identifies an app by bundle id alone, so a dev
+      # build sharing `app.closelistening.player` REPLACES the TestFlight one on the home screen
+      # rather than sitting beside it (operator hit exactly this, 2026-09-30). Different id =
+      # both installed, and the muted icon plus the "CL Dev" name say which is which.
+      configuration: "Debug",
       export_method: "development",
       output_directory: File.join(APP_DIR, "build"),
       output_name: "App-dev.ipa",
       clean: true,
+      # Bundle id, icon and display name all come from the Debug configuration now — one source of
+      # truth in the project rather than settings the lane reapplies and Xcode does not.
       xcargs: "-allowProvisioningUpdates " \
               "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
               "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
@@ -123,6 +136,89 @@ platform :ios do
       "Dev IPA: #{File.join(APP_DIR, 'build', 'App-dev.ipa')}\n" \
       "Install: xcrun devicectl device install app --device <UDID> #{File.join(APP_DIR, 'build', 'App-dev.ipa')}"
     )
+  end
+
+  # Manual signing for release archives (2026-09-30).
+  #
+  # Automatic signing cannot archive on this machine: it wants a DEVELOPMENT certificate for the
+  # team, this account has none, and Xcode's offer is to create one "after revoking your existing
+  # certificate" — which would break the operator's laptop. Manual signing with the distribution
+  # certificate and an explicit profile sidesteps that, and is what fastlane `match` does for the
+  # same reason.
+  #
+  # The profile is created + installed by scripts/tools (ASC API); the key has permission to manage
+  # signing assets, verified by creating one.
+  PROFILE_NAME = "Close Listening Player AppStore"
+
+  # The TestFlight group builds are handed to. Internal: no Beta App Review, available to
+  # testers as soon as processing finishes (5-15 min), capped at 100 App Store Connect users.
+  INTERNAL_GROUP = "Internal Testers"
+
+  def signing_xcargs(team)
+    "-allowProvisioningUpdates " \
+    "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
+    "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
+    "-authenticationKeyPath \"#{File.expand_path(ENV['ASC_KEY_PATH'])}\" " \
+    "DEVELOPMENT_TEAM=#{team}"
+    # Manual signing lives in the APP TARGET's Release config, not here. Passed as xcargs it
+    # applies to EVERY target including the Pods frameworks, which reject it outright:
+    # "CapacitorApp does not support provisioning profiles". Frameworks are signed by the app that
+    # embeds them, so only the app target may name a profile.
+  end
+
+  def signing_export_options(team)
+    {
+      teamID: team,
+      signingStyle: "manual",
+      provisioningProfiles: { "app.closelistening.player" => PROFILE_NAME },
+      # Xcode must NOT rewrite the build number behind the lane's back.
+      #
+      # This option defaults to TRUE for app-store exports: Xcode queries App Store Connect during
+      # `-exportArchive` and silently replaces CFBundleVersion with "latest TestFlight build + 1".
+      # It does work — but it means the archive and the exported .ipa disagree. Measured on
+      # 2026-09-30: the archive was build 1, the .ipa it produced was build 2. The dSYM is filed
+      # under the archive's number while crashes report the .ipa's, and any log line saying which
+      # build was made is wrong.
+      #
+      # Off, the number the lane derived is the number that archives, exports, ships and appears in
+      # TestFlight — one value, decided in one place, printed in the lane output.
+      # CAMEL CASE, deliberately. gym has no option of this name, so it copies the key into the
+      # generated exportOptions plist verbatim — and Xcode only reads
+      # `manageAppVersionAndBuildNumber`. Written snake_case it is accepted by fastlane,
+      # printed in the lane summary, written to the plist, and ignored by Xcode: the export
+      # still renumbered the build (verified 2026-09-30 — archive 1, ipa 2, twice).
+      manageAppVersionAndBuildNumber: false,
+    }
+  end
+
+  desc "Everything `beta` does EXCEPT the upload — archive, export a signed app-store .ipa, stop."
+  desc "Use this to prove the pipeline works without putting a build in front of testers."
+  lane :validate do
+    api_key = asc_key
+    team = team_id
+
+    # No build-number bump. `beta` derives the next number from TestFlight and INCREMENTS the
+    # project file; doing that for a dry run would burn a number and leave the project dirty on a
+    # lane that ships nothing.
+    build_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: File.join(APP_DIR, "build"),
+      output_name: "App-validate.ipa",
+      clean: true,
+      xcargs: signing_xcargs(team),
+      export_options: signing_export_options(team),
+    )
+
+    ipa = File.join(APP_DIR, "build", "App-validate.ipa")
+    UI.success("Signed app-store IPA: #{ipa} (#{(File.size(ipa) / 1_048_576.0).round(1)} MB)")
+    UI.important("NOT uploaded. `fastlane beta` is the lane that ships.")
+    # Prove WHICH identity signed it. A dev-signed archive exports with confusing 403s rather than
+    # an obvious error, which cost a debugging cycle on 2026-09-30 — so this says it out loud.
+    sh("unzip -p '#{ipa}' 'Payload/*.app/embedded.mobileprovision' | " \
+       "security cms -D 2>/dev/null | plutil -extract Name raw - || true")
   end
 
   desc "Build a signed release archive and upload it to TestFlight."
@@ -138,11 +234,18 @@ platform :ios do
       app_identifier: "app.closelistening.player",
       initial_build_number: 0,
     )
-    increment_build_number(
-      xcodeproj: File.join(APP_DIR, "App", "App.xcodeproj"),
-      build_number: (latest + 1).to_s,
-    )
-    UI.message("Building build number #{latest + 1} (previous TestFlight build: #{latest}).")
+    build_number = (latest + 1).to_s
+    UI.message("Building build number #{build_number} (previous TestFlight build: #{latest}).")
+    # The number is passed to xcodebuild as a build SETTING, not written into the project.
+    #
+    # `increment_build_number` shells out to agvtool, which rewrites Info.plist in place and
+    # replaces `$(CURRENT_PROJECT_VERSION)` with the literal number. After one run the plist no
+    # longer interpolates anything, so EVERY later build ships that same number and App Store
+    # Connect rejects the upload as a duplicate — after the whole archive has already uploaded.
+    # Observed on the first real ship, 2026-09-30: build 1 was hardcoded into the plist.
+    #
+    # Overriding the setting leaves the repo untouched and still derives the number from
+    # TestFlight, so a re-run after a failure cannot collide either.
 
     build_app(
       workspace: WORKSPACE,
@@ -157,20 +260,31 @@ platform :ios do
       # update via the ASC API key — Xcode has no signed-in account on this machine, so without
       # them xcodebuild errors "No Accounts" and falls back to a wildcard profile. gym itself has
       # no api_key option, hence passing the credential through to xcodebuild directly here.
-      xcargs: "-allowProvisioningUpdates " \
-              "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
-              "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
-              "-authenticationKeyPath \"#{File.expand_path(ENV['ASC_KEY_PATH'])}\" " \
-              "DEVELOPMENT_TEAM=#{team}",
-      export_options: { teamID: team },
+      xcargs: "#{signing_xcargs(team)} CURRENT_PROJECT_VERSION=#{build_number}",
+      export_options: signing_export_options(team),
     )
 
     upload_to_testflight(
       api_key: api_key,
-      # Skip the App Store review submission — this is a TestFlight build for internal testers,
-      # who get it immediately without waiting on Beta App Review.
-      skip_waiting_for_build_processing: true,
+      # No Beta App Review: internal testers get the build as soon as Apple finishes processing.
       distribute_external: false,
+      # Hand the build to the internal group, so it is installable rather than merely uploaded.
+      groups: [INTERNAL_GROUP],
+      changelog: "Build #{build_number} from #{git_branch} (#{last_git_commit[:abbreviated_commit_hash]}).",
+
+      # WAIT for processing (the default), even though it costs 5-15 minutes of lane time.
+      #
+      # `skip_waiting_for_build_processing: true` returns the moment the bytes are uploaded — and
+      # a build that has not finished processing CANNOT be assigned to a group, so fastlane
+      # silently drops `groups:` and `changelog:`. The lane prints "Uploaded" and "finished
+      # successfully", Apple validates the build, and it reaches nobody: testers open TestFlight
+      # and see an empty list. Exactly that happened on the first real ship (2026-09-30, build 1),
+      # which had to be attached to the group by hand through the API afterwards.
+      #
+      # Waiting is what makes the lane a RELEASE rather than an upload. Unattended automation is
+      # the whole point here, and an unattended run that needs someone to finish it by hand is
+      # worse than a slow one.
+      skip_waiting_for_build_processing: false,
     )
 
     UI.success(

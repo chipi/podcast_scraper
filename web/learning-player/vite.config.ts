@@ -66,7 +66,20 @@ function resolveDevApiBase(): string {
   return ''
 }
 
-const DEV_API_BASE = resolveDevApiBase()
+/**
+ * A RELEASE build gets no dev API base at all (operator 2026-09-29).
+ *
+ * `resolveDevApiBase()` derives this from the BUILD HOST's own tailnet DNS name when
+ * `VITE_DEV_API_BASE` is unset — which is the point on a dev machine, and a leak in anything
+ * shipped: building a store artifact on the homelab baked `https://homelab.<tailnet>.ts.net` into
+ * a bundle bound for TestFlight and Google Play. #2009 hit the same class of problem before
+ * ("baked a private hostname into every bundle").
+ *
+ * Locking the TIER to prod is not enough on its own — the string is a build-time substitution, so
+ * it lands in the bundle whether or not any code path can still reach it. The only way it does not
+ * ship is not to put it there.
+ */
+const DEV_API_BASE = process.env.MOBILE_RELEASE === '1' ? '' : resolveDevApiBase()
 
 // https://vite.dev/config/
 export default defineConfig({

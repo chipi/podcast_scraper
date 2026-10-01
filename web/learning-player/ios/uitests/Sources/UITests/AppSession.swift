@@ -13,6 +13,19 @@ import XCTest
  * sign-in, and then asserted against an app that had just signed itself out. The failure read as
  * "sign-in did not complete" when no sign-in had been attempted at all.
  */
+/// The bundle id of the app under test.
+///
+/// The DEBUG configuration ships `app.closelistening.player.dev`, not the shipped id: iOS
+/// identifies an app by bundle id alone, so a debug build sharing the App Store id REPLACES the
+/// TestFlight one on a real device instead of sitting beside it. These tests drive the debug build,
+/// so they target the debug id.
+///
+/// Overridable via `LP_UITEST_BUNDLE_ID` for the rare run against an installed release build.
+enum AppUnderTest {
+  static let bundleId = ProcessInfo.processInfo.environment["LP_UITEST_BUNDLE_ID"]
+    ?? "app.closelistening.player.dev"
+}
+
 enum AppSession {
   /// How long the answer has to HOLD before it is believed. See `settles`.
   private static let stableForSeconds: TimeInterval = 6

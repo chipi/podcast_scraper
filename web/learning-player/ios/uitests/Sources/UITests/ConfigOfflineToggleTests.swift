@@ -51,7 +51,7 @@ final class ConfigOfflineToggleTests: UITestCase {
   }
 
   func testTogglesForcedOfflineOn() throws {
-    let app = XCUIApplication(bundleIdentifier: "app.closelistening.player")
+    let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.launch()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
     guard startClean(app) else {

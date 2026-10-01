@@ -46,6 +46,11 @@ interface ImportMeta {
 // (so either dev machine works with no setup); '' when not on a tailnet. Override with
 // VITE_DEV_API_BASE when the API is served from a different host than the one you build on.
 declare const __DEV_API_BASE__: string
+// True for an internal (non-release) mobile build; `vite.config.ts` defines it from MOBILE_RELEASE.
+// Declared here so build-gated code can reference the CONSTANT directly rather than through
+// `isInternalBuild()` — Rollup can only eliminate a dead branch when the condition is a literal
+// after substitution, and a cross-module function call is not (see SettingsView's TierSwitch).
+declare const __MOBILE_INTERNAL__: boolean
 declare const __BUILD_SHA__: string
 declare const __BUILD_TIME__: string
 declare const __APP_VERSION__: string

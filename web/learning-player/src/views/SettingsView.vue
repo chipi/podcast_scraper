@@ -12,7 +12,7 @@
  */
 import DeviceSettings from '../components/DeviceSettings.vue'
 import ConnectedAgents from '../components/ConnectedAgents.vue'
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useVoiceInput } from '../composables/useVoiceInput'
@@ -86,6 +86,29 @@ const sha = (__BUILD_SHA__ || '').slice(0, 7)
 const builtAt = formatPublishDate(__BUILD_TIME__, locale.value) ?? __BUILD_TIME__
 const platform = Capacitor.getPlatform() // 'ios' | 'android' | 'web'
 const internal = isInternalBuild()
+
+/**
+ * The dev↔prod tier switch, moved here from the masthead (operator 2026-09-29).
+ *
+ * It belongs beside the build identity it changes — version, sha, platform, target — rather than
+ * in the app's top bar, where it sat on every screen of every internal build and was one mistap
+ * away from pointing a phone at a private dev API.
+ *
+ * Imported DYNAMICALLY behind the RAW build-time constant, which is the part that actually
+ * matters. `vite.config.ts` claimed a release build "tree-shakes the switch out"; it does not,
+ * and never did — a static import plus a runtime `v-if` inside the component puts the component
+ * in the bundle unconditionally and gates only its RENDERING. Verified on a real prod-locked
+ * artifact, where `tier-switch` was still present.
+ *
+ * `__MOBILE_INTERNAL__`, not `isInternalBuild()`: Vite substitutes the constant for a literal, so
+ * the ternary becomes `false ? … : null` and Rollup drops the import as unreachable. The helper
+ * would compute the same answer, but it is a cross-module function call — the bundler cannot see
+ * through it, and the chunk is emitted anyway. Also verified: with the helper the switch got its
+ * own chunk and still shipped; with the constant it is gone.
+ */
+const TierSwitch = __MOBILE_INTERNAL__
+  ? defineAsyncComponent(() => import('../components/TierSwitch.vue'))
+  : null
 const target = getTier() // 'dev' | 'prod'
 
 const copied = ref(false)
@@ -255,6 +278,10 @@ async function openHelp(): Promise<void> {
           </dd>
         </div>
       </dl>
+      <!-- The switch that CHANGES the target shown above, next to the target itself. `component
+           :is` because the import is build-gated to null on a release build; `v-if` on the value,
+           not on `internal`, so there is exactly one condition rather than two that can disagree. -->
+      <component :is="TierSwitch" v-if="TierSwitch" class="mt-4" />
       <button
         type="button"
         class="mt-4 rounded-full border border-border px-4 py-1.5 text-sm font-bold transition hover:bg-overlay"

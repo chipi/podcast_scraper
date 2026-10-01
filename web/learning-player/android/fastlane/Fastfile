@@ -1,0 +1,148 @@
+# Learning Player — Android lanes (#2192).
+#
+# Run from `web/learning-player/android`:
+#
+#   bundle install                     # once
+#   bundle exec fastlane preflight     # verify credentials + the Play app record; builds nothing
+#   bundle exec fastlane internal      # upload the CURRENT AAB to the internal testing track
+#
+# Prefer `make android-play` from the repo root: it rebuilds the web bundle from
+# .env.mobile.testflight, `npx cap sync`s it, produces a SIGNED release AAB, and only then runs
+# this lane. Invoking `fastlane internal` directly uploads whatever AAB happens to be on disk,
+# which may be stale or may not exist.
+#
+# Deliberately mirrors ios/fastlane: a `preflight` that fails in seconds rather than after a
+# multi-minute build, and one upload lane per test channel. Two platforms operated the same way is
+# worth more than each being idiomatic on its own.
+#
+# ## Credentials
+#
+# A Google Play SERVICE ACCOUNT JSON, not a human login — the same reasoning as the iOS App Store
+# Connect API key: a machine credential does not prompt, does not expire with someone's password,
+# and can be scoped.
+#
+#   Google Cloud console → the project linked to Play → IAM → Service accounts → create → keys →
+#   JSON. Then Play Console → Users and permissions → invite that service account and grant it
+#   "Release to testing tracks" (do NOT grant production release rights for this).
+#
+# Set in the environment (see fastlane/.env.example — gitignored):
+#
+#   SUPPLY_JSON_KEY     absolute path to the downloaded service-account .json
+#
+# The JSON is a secret. Store it outside the repo; the gitignore covers *.json under fastlane/ as
+# a backstop, not as the plan.
+#
+# ## The first upload cannot come from here
+#
+# Play will not accept an API upload for a package it has never seen. The FIRST artifact for
+# `app.closelistening.player` has to be uploaded by hand in the Play Console, once. Every upload
+# after that can use this lane. `preflight` says so explicitly rather than letting the first
+# `internal` run fail with an opaque 404.
+
+default_platform(:android)
+
+APP_DIR = File.expand_path("..", __dir__)          # web/learning-player/android
+PACKAGE = "app.closelistening.player"
+AAB = File.join(APP_DIR, "app", "build", "outputs", "bundle", "release", "app-release.aab")
+
+platform :android do
+  # --- helpers ---------------------------------------------------------------
+
+  def json_key
+    path = ENV["SUPPLY_JSON_KEY"].to_s
+    UI.user_error!(
+      "SUPPLY_JSON_KEY is not set.\n" \
+      "  Copy fastlane/.env.example to fastlane/.env and point it at the Play service-account " \
+      "JSON.\n" \
+      "  See the header of this Fastfile for how to create one."
+    ) if path.empty?
+    expanded = File.expand_path(path)
+    UI.user_error!("No Play service-account JSON at #{expanded}") unless File.exist?(expanded)
+    expanded
+  end
+
+  # --- lanes -----------------------------------------------------------------
+
+  desc "Print the next free versionCode for the internal track, and nothing else."
+  desc "Consumed by `make android-play`, which exports it into the gradle build."
+  lane :next_version_code do
+    # WHY THIS EXISTS
+    #
+    # `build.gradle` derives versionCode from `git rev-list --count HEAD` when the env var is
+    # absent. That is monotonic on ONE branch and nowhere else. Measured 2026-09-30: `beta-users`
+    # was 1484 while `origin/main` was 1468, because recent main history is squash merges. So an
+    # upload from a feature branch burns 1484, the squash-merge makes main 1469, and the next
+    # release from main is REJECTED for going backwards — after the whole AAB has uploaded. Two
+    # worktrees collide the same way.
+    #
+    # Play itself is the only authority on "what have we already used", exactly as
+    # `latest_testflight_build_number` is on iOS. Printed bare on stdout so the Makefile can
+    # capture it; every other line fastlane writes goes to stderr.
+    codes = google_play_track_version_codes(
+      package_name: PACKAGE,
+      track: "internal",
+      json_key: json_key,
+    )
+    next_code = (codes.max || 0) + 1
+    UI.message("internal track has #{codes.inspect}; next is #{next_code}")
+    puts next_code
+  end
+
+  desc "Verify the Play credentials + that the app record exists (no build, no upload)."
+  desc "Run this first on a new machine — it fails in seconds instead of after a build."
+  lane :preflight do
+    key = json_key
+    # `validate_play_store_json_key` proves the credential parses and authenticates. It does NOT
+    # prove the service account can see OUR app, which is the other half of the usual failure, so
+    # the track read below does that.
+    validate_play_store_json_key(json_key: key)
+    UI.success("Play service-account JSON authenticates.")
+
+    begin
+      codes = google_play_track_version_codes(
+        package_name: PACKAGE,
+        track: "internal",
+        json_key: key,
+      )
+      UI.success("App record found. internal track version codes: #{codes.inspect}")
+      UI.message("Next upload will be versionCode #{(codes.max || 0) + 1} or higher.")
+    rescue StandardError => e
+      UI.error("Could not read the internal track for #{PACKAGE}.")
+      UI.error("Two things cause this, and they need different fixes:")
+      UI.error("  1. The app record does not exist yet, or has never had a manual first upload.")
+      UI.error("     Play refuses API uploads for a package it has never seen — do ONE upload by")
+      UI.error("     hand in the Play Console, then this lane works forever after.")
+      UI.error("  2. The service account is not invited to this app, or lacks release permission.")
+      UI.error("Underlying error: #{e.message}")
+      raise
+    end
+  end
+
+  desc "Upload the current signed AAB to the internal testing track."
+  lane :internal do
+    key = json_key
+    UI.user_error!(
+      "No AAB at #{AAB}.\n" \
+      "  Build one first: `make android-bundle` from the repo root (it also proves the bundle " \
+      "carries this web build and targets a hosted api)."
+    ) unless File.exist?(AAB)
+
+    UI.message("Uploading #{File.basename(AAB)} (#{(File.size(AAB) / 1_048_576.0).round(1)} MB)")
+    upload_to_play_store(
+      package_name: PACKAGE,
+      json_key: key,
+      aab: AAB,
+      track: "internal",
+      # This repo has no Play listing metadata, screenshots or changelogs under fastlane/metadata,
+      # and supply would otherwise try to sync (and could CLEAR) what is in the console. Uploading
+      # a binary must not be able to rewrite the store listing as a side effect.
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true,
+      # Internal testers get it immediately; there is no staged rollout on this track.
+      release_status: "completed",
+    )
+    UI.success("Uploaded to the internal testing track.")
+  end
+end
