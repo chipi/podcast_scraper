@@ -43,6 +43,7 @@ ORG_MIN_VOTES = 3
 ORG_TO_PERSON_RATIO = 4
 
 _VOTING_ROLE = "mentioned"
+_ROSTER_EDGES = ("HOSTS", "GUESTS_ON")
 _ORG = "Organization"
 _PERSON = "Person"
 
@@ -70,8 +71,17 @@ def votes_from_kg_payloads(payloads: Iterable[Mapping]) -> KindVotes:
     org: Dict[str, int] = {}
     person: Dict[str, int] = {}
     for payload in payloads:
+        # A node the ROSTER put in the graph carries a HOSTS / GUESTS_ON edge (kg/pipeline.py
+        # `_append_pipeline_entities`). Once m0009 demoted one to `mentioned` it looked like an
+        # extraction node and voted Person for the show it is: measured on prod, all 31 Person
+        # votes for "Machine Learning Street" and all 10 for "Trivium China" were these.
+        roster_made = {
+            e.get("from")
+            for e in (payload or {}).get("edges") or []
+            if isinstance(e, dict) and e.get("type") in _ROSTER_EDGES
+        }
         for node in (payload or {}).get("nodes") or []:
-            if not isinstance(node, dict):
+            if not isinstance(node, dict) or node.get("id") in roster_made:
                 continue
             node_type = node.get("type")
             if node_type not in (_ORG, _PERSON):

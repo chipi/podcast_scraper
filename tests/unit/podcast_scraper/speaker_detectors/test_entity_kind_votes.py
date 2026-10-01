@@ -82,6 +82,23 @@ class TestWhoVotes:
         payload = _kg([("Person", "Andreessen Horowitz", "host")] * 53)
         assert votes_from_kg_payloads([payload]).counts == {}
 
+    def test_a_demoted_roster_node_does_not_vote(self) -> None:
+        """m0009 demoted show names to `mentioned`; they kept their HOSTS edge. Measured: all 31
+        Person votes for "Machine Learning Street" were these — the show voting itself a person."""
+        node = {
+            "id": "person:machine-learning-street",
+            "type": "Person",
+            "properties": {"name": "Machine Learning Street", "role": "mentioned"},
+        }
+        edge = {"type": "HOSTS", "from": "person:machine-learning-street", "to": "podcast:mlst"}
+        org_props = {"name": "Machine Learning Street", "role": "mentioned"}
+        org = {"type": "Organization", "properties": org_props}
+        votes = votes_from_kg_payloads(
+            [{"nodes": [node], "edges": [edge]}] * 31 + [{"nodes": [org], "edges": []}] * 17
+        )
+        assert votes.counts[kind_key("Machine Learning Street")] == (17, 0)
+        assert votes.calls_organisation("Machine Learning Street")
+
     def test_object_nodes_do_not_vote(self) -> None:
         payload = _kg([("Object", "Claude Code", "mentioned")] * 6)
         assert votes_from_kg_payloads([payload]).counts == {}
