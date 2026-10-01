@@ -593,6 +593,37 @@ class AppOrgCard(BaseModel):
     )
 
 
+class AppClusterMember(BaseModel):
+    """One topic inside a grouping, with what makes it belong there.
+
+    Not :class:`AppTopic`: that is the shape of a topic ON AN EPISODE and is embedded all over the
+    API, so hanging grouping-only fields off it would carry `episode_count` and `anchor` into every
+    topic list that has no use for either.
+    """
+
+    id: str = Field(description="Canonical topic id (topic:{slug}).")
+    label: str = Field(description="Topic display label.")
+    episode_count: int = Field(
+        default=0, ge=0, description="Episodes of THIS member within the grouping's corpus."
+    )
+    anchor: bool = Field(
+        default=False,
+        description=(
+            "The member holding the grouping together — highest co-occurrence lift. STORYLINES "
+            "only: a theme groups topics that mean the same thing, which is a symmetric relation "
+            "with no centre, so every theme member has anchor=False."
+        ),
+    )
+
+
+class AppClusterPair(BaseModel):
+    """The two members that co-occur most, and how often — a grouping's evidence in one line."""
+
+    a_label: str = Field(description="First member's label.")
+    b_label: str = Field(description="Second member's label.")
+    shared_episode_count: int = Field(ge=1, description="Episodes discussing BOTH.")
+
+
 class AppClusterCard(BaseModel):
     """A GROUPING of topics — a theme or a storyline.
 
@@ -617,8 +648,13 @@ class AppClusterCard(BaseModel):
 
     id: str = Field(description="The cluster's graph_compound_parent_id (tc:… or thc:…).")
     label: str = Field(description="Canonical label for the grouping.")
-    member_topics: list[AppTopic] = Field(
-        default_factory=list, description="Member topics, by descending episode count."
+    member_topics: list[AppClusterMember] = Field(
+        default_factory=list,
+        description=(
+            "Member topics. STORYLINES are ordered by co-occurrence lift — what holds the "
+            "grouping together — rather than by size; THEMES have no such measure (meaning the "
+            "same thing is symmetric) and fall back to episode count."
+        ),
     )
     episode_count: int = Field(
         default=0, ge=0, description="Distinct episodes across ALL member topics."
@@ -628,7 +664,14 @@ class AppClusterCard(BaseModel):
     )
     related_people: list[AppEntity] = Field(
         default_factory=list,
-        description="People co-occurring most often across the theme's episodes (descending).",
+        description="People co-occurring most often across the grouping's episodes (descending).",
+    )
+    strongest_pair: AppClusterPair | None = Field(
+        default=None,
+        description=(
+            "The most co-occurring pair of members. Storylines only: it states WHY the grouping "
+            "exists ('these two keep turning up together'), which is not what a theme claims."
+        ),
     )
 
 

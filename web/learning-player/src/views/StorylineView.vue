@@ -28,9 +28,9 @@ import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
-import type { Entity, EpisodeSummary } from "../services/types"
+import type { ClusterPair, Entity, EpisodeSummary } from "../services/types"
 
-type Member = { id: string; label: string }
+type Member = { id: string; label: string; episodeCount: number; anchor: boolean }
 
 // `embedded` — rendered INSIDE the storyline overlay sheet (StorylineCard) rather than as a
 // standalone route. Drops the back button + page padding/width; the sheet supplies its own chrome.
@@ -78,6 +78,8 @@ const topics = ref<Member[]>([])
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
 const storylineId = ref<string | null>(null)
+/** The most co-occurring pair — the storyline's evidence, in one line. */
+const pair = ref<ClusterPair | null>(null)
 
 async function load(anchorTopicId: string): Promise<void> {
   loading.value = true
@@ -96,7 +98,13 @@ async function load(anchorTopicId: string): Promise<void> {
     const card = await getStorylineCard(anchorTopicId)
     label.value = card.label
     storylineId.value = card.id
-    topics.value = card.member_topics.map((tp) => ({ id: tp.id, label: tp.label }))
+    topics.value = card.member_topics.map((tp) => ({
+      id: tp.id,
+      label: tp.label,
+      episodeCount: tp.episode_count,
+      anchor: tp.anchor,
+    }))
+    pair.value = card.strongest_pair ?? null
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
   } catch {
@@ -222,7 +230,18 @@ function goBack(): void {
     <template v-else>
       <!-- Member topics, an ordered list (SL.1). -->
       <section class="mt-6">
-        <h2 class="lp-section mb-2">{{ t("home.storylineTopicsHeading") }}</h2>
+        <h2 class="lp-section mb-1">{{ t("home.storylineTopicsHeading") }}</h2>
+        <!-- WHY these topics are one storyline, stated as a fact rather than asserted by the
+             heading. One line, under the heading, so it reads as the section's subtitle. -->
+        <p v-if="pair" class="mb-2 text-xs text-muted" data-testid="storyline-pair">
+          {{
+            t("home.storylinePair", {
+              a: pair.a_label,
+              b: pair.b_label,
+              n: pair.shared_episode_count,
+            })
+          }}
+        </p>
         <ol class="flex flex-col">
           <li v-for="(tp, i) in topics" :key="tp.id">
             <RouterLink
@@ -235,6 +254,30 @@ function goBack(): void {
               }}</span>
               <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
                 tp.label
+              }}</span>
+              <!-- The ANCHOR as a mark, not a sentence: the row is already carrying a rank, a
+                   label and a count, and "Anchors this storyline" spelled out would wrap the row
+                   on a phone. The word lives in the accessible name instead. -->
+              <svg
+                v-if="tp.anchor"
+                data-testid="storyline-anchor"
+                class="h-3.5 w-3.5 shrink-0 text-accent"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                role="img"
+                :aria-label="t('home.storylineAnchor')"
+              >
+                <circle cx="8" cy="3" r="1.6" />
+                <path d="M8 4.6V14" />
+                <path d="M4.5 7.5h7" />
+                <path d="M2.5 10.5a5.5 5.5 0 0 0 11 0" />
+              </svg>
+              <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
+                t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
               }}</span>
               <span class="shrink-0 text-muted" aria-hidden="true">›</span>
             </RouterLink>

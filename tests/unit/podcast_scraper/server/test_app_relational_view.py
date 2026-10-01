@@ -857,3 +857,93 @@ class TestStorylineCardMergesToo:
 
         assert build_storyline_card(self.FIXTURE, "tc:show-themes") is None
         assert build_theme_card(self.FIXTURE, self.STORYLINE) is None
+
+
+class TestWhatHoldsAStorylineTogether:
+    """`lift_to_cluster` and per-member episode sets were computed and never surfaced.
+
+    Episode count says which member is BIGGEST; lift says which one makes the set a storyline.
+    Those are different questions, and the page answered neither — it listed four words.
+    """
+
+    FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
+    STORYLINE = "thc:managing-risk"
+    THEME = "tc:show-themes"
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_fixture(self) -> None:
+        if not self.FIXTURE.is_dir():
+            pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
+
+    def test_members_carry_their_own_episode_count(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        assert card is not None
+        assert all(m.episode_count > 0 for m in card.member_topics)
+        # The shape is the point: two heavyweights then a cliff, invisible without the numbers.
+        assert max(m.episode_count for m in card.member_topics) > 2 * min(
+            m.episode_count for m in card.member_topics
+        )
+
+    def test_exactly_one_anchor_and_it_leads(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        assert card is not None
+        anchors = [m for m in card.member_topics if m.anchor]
+        assert len(anchors) == 1, f"expected one anchor, got {[m.label for m in anchors]}"
+        assert card.member_topics[0].anchor, "the anchor must be the first row it labels"
+
+    def test_ordered_by_lift_not_by_size(self) -> None:
+        """Asserts the ORDER comes from lift. On this fixture the two agree on the sequence, so the
+        check is that the anchor is the highest-lift member rather than the biggest — they happen
+        to coincide here, and the tie-break below is where the two genuinely differ."""
+        from podcast_scraper.search.storylines import storyline_member_lift
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
+        assert card is not None
+        got = [lift[m.id] for m in card.member_topics]
+        assert got == sorted(got, reverse=True), f"members not in lift order: {got}"
+
+    def test_lift_breaks_a_tie_episode_count_cannot(self) -> None:
+        """Two members on the same episode count must still have a defined order, and it is lift's.
+
+        `safety practices` and `endurance sport` both appear in 4 episodes; their lifts are 1.7 and
+        1.5. Ordering by size alone would leave this pair arbitrary.
+        """
+        from podcast_scraper.search.storylines import storyline_member_lift
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
+        assert card is not None
+        tied = [m for m in card.member_topics if m.episode_count == 4]
+        assert len(tied) >= 2, "fixture no longer has a tie; this test needs a new example"
+        assert lift[tied[0].id] > lift[tied[1].id]
+
+    def test_strongest_pair_is_the_storylines_evidence(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        assert card is not None and card.strongest_pair is not None
+        p = card.strongest_pair
+        assert p.shared_episode_count > 0
+        assert p.a_label != p.b_label
+        # It must be the STRONGEST pair, not merely a pair: the top two carry 17 shared episodes
+        # while every other combination is 4 or fewer.
+        assert p.shared_episode_count >= 17
+
+    def test_a_theme_gets_neither_anchor_nor_pair(self) -> None:
+        """The divergence, asserted. "Means the same thing" is symmetric: no centre, no co-occurrence
+        claim. Flagging one member or printing a pair would both say something a theme does not."""
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        assert card.strongest_pair is None
+        assert not any(m.anchor for m in card.member_topics)
+        # Counts still earn their place — they show how much of the theme each member carries.
+        assert all(m.episode_count > 0 for m in card.member_topics)

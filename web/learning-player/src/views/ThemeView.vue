@@ -37,7 +37,7 @@ import type { Entity, EpisodeSummary } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 
-type Member = { id: string; label: string }
+type Member = { id: string; label: string; episodeCount: number }
 
 const props = defineProps<{ id: string }>()
 
@@ -67,7 +67,15 @@ async function load(themeId: string): Promise<void> {
   try {
     const card = await getThemeCard(themeId)
     label.value = card.label
-    topics.value = (card.member_topics ?? []).map((tp) => ({ id: tp.id, label: tp.label }))
+    // No `anchor` and no pair line, unlike the storyline. A theme groups topics that MEAN the same
+    // thing — symmetric, no centre — so flagging one member or claiming a co-occurrence would both
+    // assert something the grouping does not say. The count still earns its place: it shows how
+    // much of the theme each member actually carries.
+    topics.value = (card.member_topics ?? []).map((tp) => ({
+      id: tp.id,
+      label: tp.label,
+      episodeCount: tp.episode_count,
+    }))
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
   } catch {
@@ -165,6 +173,9 @@ function goBack(): void {
               }}</span>
               <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
                 tp.label
+              }}</span>
+              <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
+                t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
               }}</span>
               <span class="shrink-0 text-muted" aria-hidden="true">›</span>
             </RouterLink>

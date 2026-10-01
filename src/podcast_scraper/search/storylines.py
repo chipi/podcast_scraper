@@ -140,6 +140,44 @@ def storyline_map_by_topic(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def storyline_member_lift(corpus_root: Path) -> Dict[str, Dict[str, float]]:
+    """``storyline_id`` -> ``{topic_id: lift_to_cluster}``.
+
+    The enricher computes a per-member co-occurrence lift and nothing reads it. It is the only
+    measure of HOW MUCH a topic belongs to its storyline — episode count says which member is
+    biggest, lift says which one holds the grouping together, and those are different questions.
+    Two members with the same episode count can have different lift, so this is also the only way
+    to break that tie non-arbitrarily.
+
+    Empty when the artifact is missing/invalid, so a caller falls back to size without branching.
+    """
+    payload = _load_storylines_payload(corpus_root)
+    if payload is None:
+        return {}
+    raw = payload.get("clusters")
+    if not isinstance(raw, list):
+        return {}
+    out: Dict[str, Dict[str, float]] = {}
+    for cl in raw:
+        if not isinstance(cl, Mapping):
+            continue
+        gpid = cl.get("graph_compound_parent_id")
+        members = cl.get("members")
+        if not isinstance(gpid, str) or not gpid.strip() or not isinstance(members, list):
+            continue
+        per: Dict[str, float] = {}
+        for m in members:
+            if not isinstance(m, Mapping):
+                continue
+            tid = m.get("topic_id")
+            lift = m.get("lift_to_cluster")
+            if isinstance(tid, str) and tid.strip() and isinstance(lift, (int, float)):
+                per[tid.strip()] = float(lift)
+        if per:
+            out[gpid.strip()] = per
+    return out
+
+
 def _anchor_topic_id(members: list[Any]) -> Optional[str]:
     """Most-central member of a theme cluster — highest ``lift_to_cluster`` (tie: topic_id asc).
 

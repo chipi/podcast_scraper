@@ -19,6 +19,7 @@ from typing import Any, Mapping, Sequence
 
 from podcast_scraper.search.storylines import (
     storyline_map_by_topic,
+    storyline_member_lift,
     storyline_siblings_by_topic,
     top_storylines_by_member_count,
 )
@@ -40,6 +41,9 @@ from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
 )
 from podcast_scraper.server.schemas import (
+    AppClusterCard,
+    AppClusterMember,
+    AppClusterPair,
     AppEntity,
     AppEntityRef,
     AppEpisodeSummary,
@@ -49,7 +53,6 @@ from podcast_scraper.server.schemas import (
     AppPersonCard,
     AppPersonShow,
     AppPersonWeb,
-    AppClusterCard,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -476,9 +479,19 @@ def _build_cluster_card(
     group_map: ClusterMap,
     id_key: str,
     label_key: str,
+    lift: Mapping[str, float] | None = None,
     rows: Sequence[CatalogEpisodeRow] | None = None,
     top_k: int = _DEFAULT_TOP_K,
-) -> tuple[str, list[AppTopic], list[CatalogEpisodeRow], list[AppEntity]] | None:
+) -> (
+    tuple[
+        str,
+        list[AppClusterMember],
+        list[CatalogEpisodeRow],
+        list[AppEntity],
+        AppClusterPair | None,
+    ]
+    | None
+):
     """Members, merged episodes and people for a GROUPING of topics — themes and storylines alike.
 
     Both are groupings rather than entities: neither is ever a node on an episode, so neither can be
@@ -493,9 +506,6 @@ def _build_cluster_card(
     counted across the whole union too, so a grouping's top voices are the people who recur across
     it rather than inside one member.
     """
-    cluster_map: ClusterMap = theme_map_by_topic(root)
-    storyline_map: ClusterMap = storyline_map_by_topic(root)
-
     # The maps are topic -> cluster; invert rather than re-reading the artifact, so one parser owns
     # membership and the two views cannot disagree about it.
     label = ""
@@ -515,6 +525,10 @@ def _build_cluster_card(
     # that overlap is WHY they cluster — so without this the list repeats the same episode once per
     # member it mentions.
     seen_eps: set[str] = set()
+    # Per-member episode keys, so the strongest co-occurring PAIR falls out of the same walk. The
+    # grouping's evidence — "these two keep turning up together" — is otherwise asserted and
+    # never shown.
+    eps_by_member: dict[str, set[str]] = {}
     about: list[CatalogEpisodeRow] = []
     people_by_id: dict[str, AppEntity] = {}
     person_counts: Counter[str] = Counter()
@@ -534,6 +548,7 @@ def _build_cluster_card(
             # This avoids the question entirely. NOT a bug that was observed: the fixture's rows all
             # carry an episode_id, so both keys de-duplicate correctly here.
             key = row.metadata_relative_path
+            eps_by_member.setdefault(tid, set()).add(key)
             if key in seen_eps:
                 continue
             seen_eps.add(key)
@@ -550,17 +565,44 @@ def _build_cluster_card(
     )
     # Members ordered by how much of the corpus each carries — the first row is the member a reader
     # is most likely to recognise, which is what makes the grouping legible at a glance.
-    ordered = sorted(member_ids, key=lambda t: (-episodes_per_member[t], t))
+    # LIFT first when the caller has it. Episode count answers "which member is biggest"; lift
+    # answers "which member makes this a grouping" — only the second explains why the set exists.
+    # It also breaks ties size cannot: two members on 4 episodes each can carry different lift.
+    if lift:
+        ordered = sorted(member_ids, key=lambda t: (-lift.get(t, 0.0), -episodes_per_member[t], t))
+    else:
+        ordered = sorted(member_ids, key=lambda t: (-episodes_per_member[t], t))
     members = [
-        _enrich_topic(
-            AppTopic(id=tid, label=labels.get(tid) or tid.split(":", 1)[-1]),
-            cluster_map,
-            storyline_map,
+        AppClusterMember(
+            id=tid,
+            label=labels.get(tid) or tid.split(":", 1)[-1],
+            episode_count=episodes_per_member[tid],
+            # Only a lift-ordered grouping has an anchor. A theme is symmetric — "means the same
+            # thing" has no centre — so flagging one of its members would invent a hierarchy.
+            anchor=bool(lift) and i == 0,
         )
-        for tid in ordered
+        for i, tid in enumerate(ordered)
     ]
+
+    pair: AppClusterPair | None = None
+    if lift and len(ordered) > 1:
+        best = max(
+            (
+                (len(eps_by_member.get(a, set()) & eps_by_member.get(b, set())), a, b)
+                for i_a, a in enumerate(ordered)
+                for b in ordered[i_a + 1 :]
+            ),
+            default=(0, "", ""),
+        )
+        if best[0] > 0:
+            pair = AppClusterPair(
+                a_label=labels.get(best[1]) or best[1],
+                b_label=labels.get(best[2]) or best[2],
+                shared_episode_count=best[0],
+            )
+
     resolved = label or cluster_id.split(":", 1)[-1].replace("-", " ")
-    return resolved, members, about, related_people
+    return resolved, members, about, related_people, pair
 
 
 def build_theme_card(
@@ -577,12 +619,14 @@ def build_theme_card(
         group_map=theme_map_by_topic(root),
         id_key="cluster_id",
         label_key="cluster_label",
+        # No lift, deliberately: a theme groups topics that MEAN the same thing, which is symmetric.
+        # There is no "most central" member to anchor on and no co-occurrence claim to evidence.
         rows=rows,
         top_k=top_k,
     )
     if built is None:
         return None
-    label, members, about, people = built
+    label, members, about, people, pair = built
     return AppClusterCard(
         id=theme_id,
         label=label,
@@ -590,6 +634,7 @@ def build_theme_card(
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
         related_people=people,
+        strongest_pair=pair,
     )
 
 
@@ -626,12 +671,13 @@ def build_storyline_card(
         group_map=smap,
         id_key="storyline_id",
         label_key="storyline_label",
+        lift=storyline_member_lift(root).get(resolved_id),
         rows=rows,
         top_k=top_k,
     )
     if built is None:
         return None
-    label, members, about, people = built
+    label, members, about, people, pair = built
     return AppClusterCard(
         id=resolved_id,
         label=label,
@@ -639,6 +685,7 @@ def build_storyline_card(
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
         related_people=people,
+        strongest_pair=pair,
     )
 
 

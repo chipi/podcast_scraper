@@ -51,8 +51,8 @@ describe('StorylineView', () => {
       // The MEMBERS now arrive already resolved and ranked, rather than being reassembled in the
       // view from the anchor plus `storyline_sibling_topics`.
       member_topics: [
-        { id: 'topic:energy', label: 'Energy', cluster_id: null, cluster_label: null, cluster_size: 0 },
-        { id: 'topic:grid', label: 'Grid', cluster_id: null, cluster_label: null, cluster_size: 0 },
+        { id: 'topic:energy', label: 'Energy', episode_count: 1, anchor: false },
+        { id: 'topic:grid', label: 'Grid', episode_count: 1, anchor: false },
       ],
       episode_count: 1,
       episodes: [
@@ -103,7 +103,7 @@ describe('StorylineView', () => {
       // A member is required: the view renders its body only once the grouping HAS topics —
       // an empty grouping is the "couldn't load" state, so top voices would never show.
       member_topics: [
-        { id: 'topic:energy', label: 'Energy', cluster_id: null, cluster_label: null, cluster_size: 0 },
+        { id: 'topic:energy', label: 'Energy', episode_count: 1, anchor: false },
       ],
       episode_count: 0,
       episodes: [],
@@ -150,7 +150,7 @@ describe('StorylineView', () => {
       id: storylineId,
       label: 'Energy transition',
       member_topics: [
-        { id: 'topic:energy', label: 'Energy', cluster_id: null, cluster_label: null, cluster_size: 0 },
+        { id: 'topic:energy', label: 'Energy', episode_count: 1, anchor: false },
       ],
       episode_count: 0,
       episodes: [],

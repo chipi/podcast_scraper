@@ -829,13 +829,32 @@ export interface OrgCard {
  * de-duplicated — that merge is the reason these pages exist, since looking at one member misses
  * the others.
  */
+/** One member of a grouping, with what makes it belong there. */
+export interface ClusterMember {
+  id: string
+  label: string
+  /** Episodes of THIS member inside the grouping. */
+  episode_count: number
+  /** Holds the grouping together (highest co-occurrence lift). Storylines only — a theme is symmetric. */
+  anchor: boolean
+}
+
+/** The two members that co-occur most — a storyline's evidence in one line. */
+export interface ClusterPair {
+  a_label: string
+  b_label: string
+  shared_episode_count: number
+}
+
 export interface ClusterCard {
   id: string
   label: string
-  member_topics: Topic[]
+  member_topics: ClusterMember[]
   episode_count: number
   episodes: EpisodeSummary[]
   related_people: Entity[]
+  /** Null for a theme: "means the same thing" makes no co-occurrence claim to evidence. */
+  strongest_pair?: ClusterPair | null
 }
 
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */

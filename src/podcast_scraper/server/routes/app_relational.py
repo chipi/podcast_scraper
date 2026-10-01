@@ -31,10 +31,10 @@ from podcast_scraper.server.app_user_corpus import user_episode_set
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    AppClusterCard,
     AppEntitySearchResponse,
     AppOrgCard,
     AppPersonCard,
-    AppClusterCard,
     AppTopicCard,
     AppTopicConversationArcResponse,
     AppTopicPerspectivesResponse,
