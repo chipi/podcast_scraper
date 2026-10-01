@@ -76,7 +76,7 @@ async function seed(page: Page, ids: { theme: string; storyline: string; topic: 
     // SAVE both groupings. A saved storyline used to render as a row that could not be opened.
     await post(
       '/api/app/favorites',
-      { kind: 'theme', ref: x.theme, label: 'Show Themes' },
+      { kind: 'theme', ref: x.theme, label: 'safety practices' },
       'PUT',
     )
     await post(

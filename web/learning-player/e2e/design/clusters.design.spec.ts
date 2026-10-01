@@ -28,7 +28,7 @@ const dir = (name: string) =>
 
 /** From `tests/fixtures/app-validation-corpus/v3` — read out of the artifacts, not invented. */
 const TOPIC = 'topic:risk-management'
-const THEME = 'tc:safety-practices' //      "Show Themes", 5 members
+const THEME = 'tc:safety-practices' //      "safety practices", 3 members
 const STORYLINE_ANCHOR = TOPIC //      /storyline/:id takes the ANCHOR TOPIC, not the thc: id
 
 const IDENTITY = 'design'

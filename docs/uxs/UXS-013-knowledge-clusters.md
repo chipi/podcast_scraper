@@ -191,6 +191,54 @@ On a topic page: the positions different people take on one topic, grounded in e
 the surface that distinguishes a knowledge layer from a tag cloud, so it is held to the grounding
 rule strictly — every position carries its source, and an ungrounded claim is not shown at all.
 
+#### "What's said across this theme / storyline" (2026-10-01)
+
+The same component now serves all three surfaces via a `kind` prop (`topic` | `theme` |
+`storyline`), reading `/topics/{id}/perspectives`, `/themes/{id}/perspectives` or
+`/storylines/{id}/perspectives` as appropriate.
+
+**Why a grouping needed it.** A theme and a storyline listed their member topics and their
+episodes, and nothing on either page was a sentence anybody had actually said — the reader was left
+to infer what the grouping sounded like from a list of nouns. Four cheaper options were measured and
+rejected first: a derived description ("8 topics, 40 episodes across 9 shows") is the member table
+restated as prose; a name assembled from the top members is rows 1 and 2 of that same table; an
+LLM-written set description fabricates coherence on a weak cluster and cannot report when it is
+doing so. What none of them supply is the thing the member list cannot: a real claim, by a named
+speaker, with a link to the moment they said it.
+
+**Scope is the UNION of the grouping's members**, which is what the grouping IS. A speaker is
+counted once across the whole grouping, so someone arguing the same line under three members is one
+perspective holding three takes — not three perspectives. One corpus walk
+(`cil_queries.topics_perspectives`), with the single-topic path delegating to it so the two cannot
+drift in how they match, attribute or rank.
+
+**Heading.** A topic keeps its count ("4 perspectives"); a grouping says what it is — "What's said
+across this theme" / "…this storyline". On a grouping the count is not the useful fact, and the
+heading is the only copy on those pages asserting that a grouping is something people TALK about
+rather than a list of topics.
+
+**Position: between the member list and the episode list, with nothing in between, on all three
+surfaces** (operator 2026-10-01). It sat at the foot of the grouping pages until then — below an
+episode list that runs thousands of pixels on a phone — so the one section explaining what the
+grouping is about was the last thing on the page, under everything it was meant to explain. The page
+now answers "what is this?" before offering "here is everything in it". On the topic card this meant
+moving it out from under Top voices, where a 2026-09-19 note had placed it; consistency across the
+three won, because these are the three surfaces a reader compares.
+
+**Folding.** A grouping has as many speakers as all its members combined — 11 on the storyline
+fixture, which took the page from ~2,200px to 11,185px. Grouping surfaces show four speakers
+(ranked most-takes-first) behind one `perspectives-more-speakers` control; a topic shows all of
+them, as it always did.
+
+**Absence is honest.** Renders nothing when no member has a speaker-attributable insight. That is
+the normal outcome for a grouping whose members are abstract labels nobody utters aloud
+(`tc:lifelong-learning` is exactly that), and showing nothing beats showing unrelated quotes.
+
+**Known limit.** Ranking is `salience` descending (ADR-135/#1191). Where artifacts carry no
+salience the sort degenerates to `position_hint` ascending — earliest-in-episode first — which
+surfaces greetings rather than claims. Visible on the v3 fixture, whose insights all have
+`salience: null`; **not verified against production**.
+
 ### `TopicConversationArc` — how a topic moved over time
 
 A bar series of a topic's presence across the corpus timeline. Same restraint as the trend sparks:
