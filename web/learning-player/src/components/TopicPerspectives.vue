@@ -13,11 +13,28 @@ import { RouterLink } from "vue-router"
 import SectionStatus from "./SectionStatus.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import { useSectionState } from "../composables/useSectionState"
-import { ApiError, getTopicPerspectives } from "../services/api"
+import {
+  ApiError,
+  getStorylinePerspectives,
+  getThemePerspectives,
+  getTopicPerspectives,
+} from "../services/api"
 import { formatTime } from "../player/transcriptSync"
 import type { TopicPerspective } from "../services/types"
 
-const props = defineProps<{ id: string; scope?: "all" | "mine" }>()
+const props = withDefaults(
+  defineProps<{
+    id: string
+    scope?: "all" | "mine"
+    /**
+     * Which subject these perspectives are about. A THEME or STORYLINE asks the same question of a
+     * GROUPING — the union of its member topics — and gets the same payload back, so the three
+     * share this component rather than growing two near-copies that drift.
+     */
+    kind?: "topic" | "theme" | "storyline"
+  }>(),
+  { kind: "topic" }
+)
 const emit = defineEmits<{ (e: "open", payload: { kind: "person" | "topic"; id: string }): void }>()
 
 const { t } = useI18n()
@@ -52,7 +69,12 @@ async function load(): Promise<void> {
     // the alternative is showing an error over content that was actually available.
     for (let attempt = 0; ; attempt += 1) {
       try {
-        const r = await getTopicPerspectives(props.id, props.scope)
+        const r =
+          props.kind === "theme"
+            ? await getThemePerspectives(props.id)
+            : props.kind === "storyline"
+              ? await getStorylinePerspectives(props.id)
+              : await getTopicPerspectives(props.id, props.scope)
         if (mine !== requestSeq.value) throw new Error("superseded")
         // Normalised HERE too, at the boundary: the section's contract is an array, and handing it
         // `undefined` makes every later reader defend itself.
@@ -80,13 +102,52 @@ async function load(): Promise<void> {
 }
 
 watch(
-  () => [props.id, props.scope] as const,
+  () => [props.id, props.scope, props.kind] as const,
   () => void load(),
   { immediate: true }
 )
 
+/**
+ * On a TOPIC the count is the useful title ("4 perspectives"). On a grouping it is not: the reader
+ * is being told what the page's set of topics sounds like, so the heading names that instead —
+ * and it is the only copy on these pages that says a grouping is a thing people TALK about rather
+ * than a list of topics.
+ */
+const headingTitle = computed(() =>
+  props.kind === "theme"
+    ? t("ec.saidAcrossTheme")
+    : props.kind === "storyline"
+      ? t("ec.saidAcrossStoryline")
+      : t("ec.perspectivesTitle")
+)
+const heading = computed(() =>
+  props.kind === "topic"
+    ? t("ec.perspectives", perspectives.value.length, {
+        named: { count: perspectives.value.length },
+      })
+    : headingTitle.value
+)
+
 // Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle.
 const PREVIEW = 3
+
+/**
+ * How many SPEAKERS a grouping shows before the fold.
+ *
+ * A topic has a handful of speakers and lists them all. A grouping is the union over its members,
+ * so it has as many speakers as all of them combined — the storyline fixture returns 11, and
+ * rendering them took the page from ~2,200px to 11,185px. That is not a section any more, it is the
+ * page. Speakers arrive ranked most-takes-first, so the first few are the ones most engaged with
+ * the grouping and the cut falls in a sensible place.
+ */
+const SPEAKER_FOLD = 4
+const allSpeakers = ref(false)
+const visible = computed(() =>
+  props.kind === "topic" || allSpeakers.value
+    ? perspectives.value
+    : perspectives.value.slice(0, SPEAKER_FOLD)
+)
+const hiddenSpeakers = computed(() => perspectives.value.length - visible.value.length)
 const expanded = ref<Set<string>>(new Set())
 function toggle(personId: string): void {
   const next = new Set(expanded.value)
@@ -111,18 +172,18 @@ function toggle(personId: string): void {
     two components render into this exact slot, and nothing distinguished which one had failed.
     Uses the count-free title, because on error the count is precisely what we do not know.
   -->
-  <section v-if="section.isError.value" class="mb-4" data-testid="topic-perspectives-error">
-    <h3 class="lp-section mb-2">{{ t("ec.perspectivesTitle") }}</h3>
+  <section v-if="section.isError.value" class="mb-4" data-testid="topic-perspectives-error"
+    :data-kind="kind">
+    <h3 class="lp-section mb-2">{{ headingTitle }}</h3>
     <SectionStatus :phase="section.phase.value" @retry="load()" />
   </section>
 
-  <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives">
-    <h3 class="lp-section mb-2">
-      {{ t("ec.perspectives", perspectives.length, { named: { count: perspectives.length } }) }}
-    </h3>
+  <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives"
+    :data-kind="kind">
+    <h3 class="lp-section mb-2">{{ heading }}</h3>
     <ul class="flex flex-col gap-2.5">
       <li
-        v-for="p in perspectives"
+        v-for="p in visible"
         :key="p.person_id"
         class="rounded-lg border border-border bg-overlay p-3"
         data-testid="topic-perspective"
@@ -193,5 +254,20 @@ function toggle(personId: string): void {
         </div>
       </li>
     </ul>
+    <!-- One control for the whole section, under the list — a grouping's speaker count is the thing
+         being folded, not any one speaker's takes (those have their own per-speaker toggle). -->
+    <button
+      v-if="hiddenSpeakers > 0 || allSpeakers"
+      type="button"
+      class="mt-2 text-xs font-semibold text-accent hover:underline"
+      data-testid="perspectives-more-speakers"
+      @click="allSpeakers = !allSpeakers"
+    >
+      {{
+        allSpeakers
+          ? t("ec.perspectiveLess")
+          : t("ec.moreSpeakers", { count: hiddenSpeakers })
+      }}
+    </button>
   </section>
 </template>

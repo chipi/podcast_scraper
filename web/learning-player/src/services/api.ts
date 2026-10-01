@@ -432,10 +432,39 @@ export async function getTopicPerspectives(
   id: string,
   scope?: "all" | "mine"
 ): Promise<TopicPerspectivesResponse> {
-  const resp = await getJSON<TopicPerspectivesResponse>(
-    `/topics/${encodeURIComponent(id)}/perspectives`,
-    { scope }
-  )
+  return perspectivesFrom(`/topics/${encodeURIComponent(id)}/perspectives`, { scope })
+}
+
+/**
+ * The same, for a GROUPING — a theme or a storyline.
+ *
+ * Separate endpoints rather than one with a kind parameter, because the server resolves the id
+ * differently for each: `/storyline/:id` routes by ANCHOR TOPIC, so a bare `topic:` id is a valid
+ * storyline argument, and the same topic is usually a member of a theme too. The path is what
+ * disambiguates.
+ *
+ * No `scope`, matching the grouping card routes: a theme page asks what the grouping is across the
+ * corpus, and a personally-filtered union would quietly answer a different question.
+ */
+export function getThemePerspectives(id: string): Promise<TopicPerspectivesResponse> {
+  return perspectivesFrom(`/themes/${encodeURIComponent(id)}/perspectives`)
+}
+
+export function getStorylinePerspectives(id: string): Promise<TopicPerspectivesResponse> {
+  return perspectivesFrom(`/storylines/${encodeURIComponent(id)}/perspectives`)
+}
+
+/**
+ * Shared projection for all three. The photo rewrite is the load-bearing part: the server returns
+ * `image_url` relative, which resolves against `capacitor://localhost` in the native shell, 404s,
+ * and silently falls back to initials. Keeping it in ONE place means a new perspectives surface
+ * cannot reintroduce that bug by forgetting it.
+ */
+async function perspectivesFrom(
+  path: string,
+  params?: Record<string, string | number | undefined>
+): Promise<TopicPerspectivesResponse> {
+  const resp = await getJSON<TopicPerspectivesResponse>(path, params)
   return {
     ...resp,
     perspectives: (resp.perspectives ?? []).map((p) =>

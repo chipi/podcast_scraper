@@ -30,6 +30,7 @@ import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import NoteComposer from "../components/NoteComposer.vue"
+import TopicPerspectives from "../components/TopicPerspectives.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import TopVoices from "../components/TopVoices.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
@@ -236,6 +237,20 @@ function goBack(): void {
         :people="people"
         :heading-level="2"
         :route-for="(pid) => ({ name: 'person', params: { id: pid } })"
+      />
+
+
+      <!-- What is SAID across the grouping — its members' insights, grouped by speaker, each with
+           a jump-to-moment link. Until this, nothing on either grouping page was a sentence anybody
+           actually uttered: the pages listed member topics and episodes and left the reader to
+           infer what the grouping sounded like. Renders nothing when no member has a
+           speaker-attributable insight, which is the honest outcome for a grouping whose members
+           are abstract labels nobody says aloud. -->
+      <TopicPerspectives
+        class="mt-6"
+        :id="id"
+        kind="theme"
+        @open="(p) => router.push({ name: p.kind, params: { id: p.id } })"
       />
 
       <!-- Notes, like the storyline and topic pages. Keyed by the theme's own id. -->

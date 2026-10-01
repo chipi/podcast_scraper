@@ -849,7 +849,7 @@ class TestStorylineCardMergesToo:
         assert build_storyline_card(self.FIXTURE, "topic:not-in-any-storyline") is None
 
     def test_a_theme_and_a_storyline_do_not_collide(self) -> None:
-        """Both builders read cluster maps keyed by topic; a `tc:` id must not resolve as a storyline."""
+        """Both builders read maps keyed by topic; a `tc:` id must not resolve as a storyline."""
         from podcast_scraper.server.app_relational_view import (
             build_storyline_card,
             build_theme_card,
@@ -937,7 +937,7 @@ class TestWhatHoldsAStorylineTogether:
         assert p.shared_episode_count >= 17
 
     def test_a_theme_gets_neither_anchor_nor_pair(self) -> None:
-        """The divergence, asserted. "Means the same thing" is symmetric: no centre, no co-occurrence
+        """The divergence, asserted. "Means the same thing" is symmetric: no centre, no pair
         claim. Flagging one member or printing a pair would both say something a theme does not."""
         from podcast_scraper.server.app_relational_view import build_theme_card
 
@@ -1022,3 +1022,58 @@ class TestAGroupingMovesOverTime:
         assert card is not None
         earliest = min(card.member_topics, key=lambda m: m.first_seen or "9999")
         assert earliest.trend != "new"
+
+    def test_a_grouping_reports_what_is_said_across_its_members(self) -> None:
+        """The union, not one member — that is what makes it the GROUPING's perspectives."""
+        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+
+        theme = build_cluster_perspectives(self.FIXTURE, "tc:show-themes", "theme")
+        assert theme is not None
+        assert theme.perspective_count == len(theme.perspectives) > 0
+        # Every take must be attributable and jumpable — a perspective needs an owner, and the
+        # point of showing a sentence is being able to go hear it.
+        for p in theme.perspectives:
+            assert p.person_name.strip()
+            assert p.insights, f"{p.person_name} is a perspective with no take"
+            assert all(i.text.strip() for i in p.insights)
+
+    def test_the_union_is_wider_than_any_single_member(self) -> None:
+        """A grouping's speakers are the ones across it, not the biggest member's."""
+        from podcast_scraper.server.app_relational_view import (
+            build_cluster_perspectives,
+            build_topic_perspectives,
+        )
+
+        grouping = build_cluster_perspectives(self.FIXTURE, "thc:managing-risk", "storyline")
+        anchor = build_topic_perspectives(self.FIXTURE, "topic:risk-management")
+        assert grouping is not None and anchor is not None
+        speakers = {p.person_id for p in grouping.perspectives}
+        assert speakers >= {
+            p.person_id for p in anchor.perspectives
+        }, "the storyline lost a speaker its anchor topic has — the union is not a union"
+        assert len(speakers) > len(
+            anchor.perspectives
+        ), "the storyline found nobody beyond its anchor; it is showing one member's page"
+
+    def test_kind_decides_which_grouping_an_anchor_topic_resolves_to(self) -> None:
+        """`/storyline/:id` routes by ANCHOR TOPIC, and that topic is usually in a theme too.
+
+        Resolving against the theme map first served a storyline page the THEME's speakers — the
+        grouping was wrong while the page looked entirely healthy.
+        """
+        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+
+        as_storyline = build_cluster_perspectives(
+            self.FIXTURE, "topic:risk-management", "storyline"
+        )
+        assert as_storyline is not None
+        assert as_storyline.topic_label == "Managing risk across domains"
+        # A theme id is not a storyline, and must not be quietly accepted as one.
+        assert build_cluster_perspectives(self.FIXTURE, "tc:show-themes", "storyline") is None
+
+    def test_a_grouping_nobody_speaks_to_is_absent_not_empty(self) -> None:
+        """Its members are abstract labels nobody says aloud; the page shows nothing."""
+        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+
+        assert build_cluster_perspectives(self.FIXTURE, "tc:lifelong-learning", "theme") is None
+        assert build_cluster_perspectives(self.FIXTURE, "tc:nope", "theme") is None

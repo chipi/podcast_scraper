@@ -15,7 +15,7 @@ import urllib.parse
 from collections import Counter
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence
 
 from podcast_scraper.search.storylines import (
     storyline_map_by_topic,
@@ -36,7 +36,7 @@ from podcast_scraper.server.app_kg_index import (
     iter_kg_entities,
     normalize_label,
 )
-from podcast_scraper.server.cil_queries import topic_perspectives
+from podcast_scraper.server.cil_queries import topic_perspectives, topics_perspectives
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
 )
@@ -787,6 +787,107 @@ def build_topic_card(
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
         related_people=related_people,
+    )
+
+
+def _cluster_member_topic_ids(
+    root: Path, cluster_id: str, kind: Literal["theme", "storyline"]
+) -> tuple[str, list[str]]:
+    """``(label, member topic ids)`` for a grouping. ``("", [])`` when unknown.
+
+    ``kind`` is REQUIRED, not sniffed from the id prefix, because the ids are not sufficient to
+    disambiguate: ``/storyline/:id`` routes by ANCHOR TOPIC, so the storyline route legitimately
+    passes a bare ``topic:`` id — and that same topic is usually a member of a theme as well.
+    Trying the theme map first resolved ``topic:risk-management`` to the THEME "Show Themes" and
+    served a storyline page the wrong grouping's speakers.
+
+    The member-topic second form is kept for storylines for the same reason
+    :func:`build_storyline_card` keeps it: that route has no other id to offer.
+    """
+    group_map, id_key, label_key = (
+        (theme_map_by_topic(root), "cluster_id", "cluster_label")
+        if kind == "theme"
+        else (storyline_map_by_topic(root), "storyline_id", "storyline_label")
+    )
+    resolved = cluster_id
+    if not any(info.get(id_key) == cluster_id for info in group_map.values()):
+        candidate = (group_map.get(cluster_id) or {}).get(id_key)
+        if not isinstance(candidate, str) or not candidate:
+            return "", []
+        resolved = candidate
+    label = ""
+    members: list[str] = []
+    for tid, info in group_map.items():
+        if info.get(id_key) != resolved:
+            continue
+        members.append(tid)
+        if not label:
+            raw = info.get(label_key)
+            if isinstance(raw, str) and raw.strip():
+                label = raw.strip()
+    return label, sorted(members)
+
+
+def build_cluster_perspectives(
+    root: Path,
+    cluster_id: str,
+    kind: Literal["theme", "storyline"],
+    *,
+    mine_slugs: set[str] | None = None,
+) -> AppTopicPerspectivesResponse | None:
+    """What is SAID across a grouping — its members' insights, grouped by speaker.
+
+    The grouping analogue of :func:`build_topic_perspectives`, and the answer to the question the
+    pages could not previously answer: a theme and a storyline listed their member topics and their
+    episodes, but nothing on either page was a sentence anybody actually said.
+
+    Scoped to the UNION of the grouping's member topics, which is what the grouping IS. A speaker
+    is counted once across the whole grouping, so someone who argues the same line under three
+    members is one perspective holding three takes — not three perspectives.
+
+    Returns ``None`` when the grouping has no speaker-attributable insight, which the route turns
+    into a 404 and the client renders as absence. That is the honest outcome for a grouping whose
+    members are abstract labels nobody says aloud, and it is common enough to be the normal case
+    rather than an error.
+    """
+    label, members = _cluster_member_topic_ids(root, cluster_id, kind)
+    if not members:
+        return None
+    keep: set[str] | None = None
+    if mine_slugs is not None:
+        keep = {
+            r.episode_id
+            for r in cached_catalog(root)
+            if r.episode_id and row_to_summary(root, r).slug in mine_slugs
+        }
+    groups = topics_perspectives(str(root), str(root), members, keep_episode_ids=keep)
+    if not groups:
+        return None
+    photos = hosted_photo_urls(root)
+    slug_by_episode = {
+        r.episode_id: row_to_summary(root, r).slug for r in cached_catalog(root) if r.episode_id
+    }
+    perspectives = [
+        AppTopicPerspective(
+            person_id=str(g["person_id"]),
+            person_name=str(g["person_name"]),
+            image_url=photos.get(str(g["person_id"])),
+            insight_count=int(g["insight_count"]),
+            episode_count=int(g["episode_count"]),
+            insights=_rank_for_display(
+                [_node_to_app_insight(n, slug_by_episode) for n in g["insights"]]
+            ),
+        )
+        for g in groups
+    ]
+    # `topic_id` / `topic_label` carry the CLUSTER here. The response shape is shared with the topic
+    # page on purpose — the client renders one component for all three surfaces, and inventing a
+    # parallel schema would buy a second set of types for the same payload.
+    return AppTopicPerspectivesResponse(
+        topic_id=cluster_id,
+        topic_label=label or cluster_id.split(":", 1)[-1],
+        perspective_count=len(perspectives),
+        perspectives=perspectives,
     )
 
 

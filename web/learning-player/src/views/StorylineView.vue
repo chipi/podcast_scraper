@@ -19,6 +19,7 @@ import { useInterestsStore } from "../stores/interests"
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
 import MemberTrendBadge from "../components/MemberTrendBadge.vue"
 import NoteComposer from "../components/NoteComposer.vue"
+import TopicPerspectives from "../components/TopicPerspectives.vue"
 import TopVoices from "../components/TopVoices.vue"
 // ASYNC: EntityCard → EntityCardBody → TopicCardContent → StorylineCard → this file is a cycle, so
 // the resolve is deferred to first open. Same reason TopicCardContent defers EntityCard.
@@ -57,6 +58,22 @@ function openEntity(kind: "topic" | "person", id: string, e?: MouseEvent): void 
   e?.preventDefault()
   entityOpen.value = { kind, id }
 }
+/**
+ * Perspectives emit a payload rather than wrapping a RouterLink, so this view has to route them
+ * itself — and it must honour `embedded`, where every other open in this file resolves into the
+ * overlay instead of navigating. `openEntity` alone would not do: it no-ops on the standalone page
+ * because there a RouterLink normally handles it, and a perspective has no RouterLink to fall back
+ * on. Getting this wrong makes the speaker names inert in the sheet, the same affordance lie the
+ * dimmed theme pills were.
+ */
+function openPerspective(p: { kind: "person" | "topic"; id: string }): void {
+  if (props.embedded) {
+    entityOpen.value = { kind: p.kind, id: p.id }
+    return
+  }
+  void router.push({ name: p.kind, params: { id: p.id } })
+}
+
 // When embedded in the overlay sheet the ✕ lives in THIS header's action row (unified with the
 // topic/person card), so the close intent has to reach StorylineCard. Standalone ignores it.
 const emit = defineEmits<{ (e: "close"): void }>()
@@ -320,6 +337,19 @@ function goBack(): void {
         :heading-level="2"
         :route-for="(id) => ({ name: 'person', params: { id } })"
         @open="(id, e) => openEntity('person', id, e)"
+      />
+
+      <!-- What is SAID across the storyline — its members' insights, grouped by speaker, each with
+           a jump-to-moment link. Until this, nothing on the page was a sentence anybody actually
+           uttered: it listed member topics and episodes and left the reader to infer what the
+           storyline sounded like. Scoped to the UNION of the member topics, which is what the
+           storyline IS — a single member's perspectives would be the anchor topic's page again.
+           Renders nothing when no member has a speaker-attributable insight. -->
+      <TopicPerspectives
+        class="mt-6"
+        :id="id"
+        kind="storyline"
+        @open="openPerspective"
       />
 
       <!-- Notes on this storyline (SL.3). Shown in the sheet too (operator 2026-09-16): the sheet is

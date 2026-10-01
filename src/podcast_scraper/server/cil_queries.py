@@ -1038,6 +1038,40 @@ def topic_perspective_leaders(
     return out[: max(0, limit)]
 
 
+def _attribution_index(
+    gi: dict[str, Any], match_ids: set[str]
+) -> tuple[set[str], dict[str, str], dict[str, str]]:
+    """One pass over an episode's GI edges for the attribution chain.
+
+    Returns ``(insights ABOUT a matching topic, insight -> quote, quote -> person)`` — the three
+    lookups :func:`topics_perspectives` needs to answer "who said this, about what".
+
+    Extracted so the caller stays under the complexity gate: this is a flat edge-type switch and
+    the caller is the grouping/ranking logic, which are two different jobs that were sharing one
+    function body.
+    """
+    about_insights: set[str] = set()
+    insight_quote: dict[str, str] = {}
+    quote_person: dict[str, str] = {}
+    for e in gi.get("edges") or []:
+        if not isinstance(e, dict):
+            continue
+        etype = normalize_gil_edge_type(e.get("type"))
+        if etype == "ABOUT":
+            if _strip_layer_prefixes_for_cil(str(e.get("to"))) in match_ids:
+                fr = e.get("from")
+                if fr is not None:
+                    about_insights.add(str(fr))
+        elif etype == "SUPPORTED_BY":
+            # setdefault, not assignment: an insight may cite several quotes and the FIRST is the
+            # one the display links to. Overwriting here is what made my own scratch version
+            # attribute each insight to its last quote's speaker.
+            insight_quote.setdefault(str(e.get("from")), str(e.get("to")))
+        elif etype == "SPOKEN_BY":
+            quote_person[str(e.get("from"))] = str(e.get("to"))
+    return about_insights, insight_quote, quote_person
+
+
 def topic_perspectives(
     root_path: str,
     anchor_path: str,
@@ -1052,9 +1086,45 @@ def topic_perspectives(
     then group across episodes by person. Returns one entry per speaker with >=1
     attributable insight on the topic, most-insights first. Insights with no resolvable
     speaker are dropped — a perspective needs an owner.
+
+    A thin delegation to :func:`topics_perspectives`, which is the same walk over a SET of
+    topics. One implementation, so the single-topic and grouping paths cannot drift in how
+    they match, attribute or rank.
     """
-    topic = canonical_cil_entity_id(target_topic)
-    equiv = _canonical_equivalents(root_path, topic)
+    return topics_perspectives(
+        root_path,
+        anchor_path,
+        [target_topic],
+        insight_types=insight_types,
+        keep_episode_ids=keep_episode_ids,
+    )
+
+
+def topics_perspectives(
+    root_path: str,
+    anchor_path: str,
+    target_topics: Sequence[str],
+    *,
+    insight_types: tuple[str, ...] | None = None,
+    keep_episode_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """The same, over the UNION of several topics — what a THEME or STORYLINE needs.
+
+    A grouping is a set of topics, so "what is said across it" is the union of its members'
+    perspectives, with each speaker counted ONCE across the whole grouping rather than once per
+    member. A speaker who argues the same line under three members of a storyline is one
+    perspective with three takes, not three perspectives.
+
+    Done in ONE corpus walk. Calling :func:`topic_perspectives` per member would re-read every
+    episode bundle once per member — eight full walks for an eight-member theme — and would then
+    have to re-merge the per-speaker groups anyway.
+    """
+    topics = {canonical_cil_entity_id(t) for t in target_topics if t and t.strip()}
+    if not topics:
+        return []
+    equiv: set[str] = set()
+    for topic in topics:
+        equiv |= _canonical_equivalents(root_path, topic)
     allowed = {x.strip().lower() for x in insight_types if x.strip()} if insight_types else None
     by_person: dict[str, dict[str, Any]] = {}
     person_name: dict[str, str] = {}
@@ -1065,22 +1135,7 @@ def topic_perspectives(
             continue  # scope=mine (#1149): only episodes in the user's heard∪captured set
         match_ids = equiv | _bridge_gi_topic_ids(bridge)
 
-        about_insights: set[str] = set()
-        insight_quote: dict[str, str] = {}
-        quote_person: dict[str, str] = {}
-        for e in gi.get("edges") or []:
-            if not isinstance(e, dict):
-                continue
-            etype = normalize_gil_edge_type(e.get("type"))
-            if etype == "ABOUT":
-                if _strip_layer_prefixes_for_cil(str(e.get("to"))) in match_ids:
-                    fr = e.get("from")
-                    if fr is not None:
-                        about_insights.add(str(fr))
-            elif etype == "SUPPORTED_BY":
-                insight_quote.setdefault(str(e.get("from")), str(e.get("to")))
-            elif etype == "SPOKEN_BY":
-                quote_person[str(e.get("from"))] = str(e.get("to"))
+        about_insights, insight_quote, quote_person = _attribution_index(gi, match_ids)
         if not about_insights:
             continue
 

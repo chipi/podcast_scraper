@@ -24,6 +24,7 @@ from podcast_scraper.server.app_relational_view import (
     build_storyline_card,
     build_theme_card,
     build_topic_card,
+    build_cluster_perspectives,
     build_topic_perspectives,
     resolve_entity,
 )
@@ -314,6 +315,50 @@ async def theme_card(
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown theme id.")
     return card
+
+
+@router.get("/storylines/{storyline_id}/perspectives", response_model=AppTopicPerspectivesResponse)
+async def storyline_perspectives_route(
+    request: Request,
+    storyline_id: str,
+    user: User = Depends(get_current_user),
+) -> AppTopicPerspectivesResponse:
+    """What is SAID across a storyline — its members' insights, grouped by speaker.
+
+    Scoped to the UNION of the storyline's member topics, which is what the storyline is. Accepts
+    the `thc:` id or an anchor topic id, like the card route above and for the same reason.
+
+    404 when no member has a speaker-attributable insight. That is an ABSENCE, not a fault, and it
+    is the normal outcome for a grouping whose members are abstract labels nobody says aloud — the
+    client renders nothing rather than an error.
+    """
+    root = corpus_root_or_503(request)
+    resp = await asyncio.to_thread(
+        build_cluster_perspectives, root, storyline_id.strip(), "storyline"
+    )
+    if resp is None:
+        raise HTTPException(status_code=404, detail="No perspectives for this storyline.")
+    return resp
+
+
+@router.get("/themes/{theme_id}/perspectives", response_model=AppTopicPerspectivesResponse)
+async def theme_perspectives_route(
+    request: Request,
+    theme_id: str,
+    user: User = Depends(get_current_user),
+) -> AppTopicPerspectivesResponse:
+    """What is SAID across a theme — its members' insights, grouped by speaker.
+
+    No ``scope`` parameter, for the same reason the theme card has none: the page asks what the
+    grouping is across the corpus, and a personally-filtered union answers a different question.
+
+    404 when no member has a speaker-attributable insight — an absence, not a fault.
+    """
+    root = corpus_root_or_503(request)
+    resp = await asyncio.to_thread(build_cluster_perspectives, root, theme_id.strip(), "theme")
+    if resp is None:
+        raise HTTPException(status_code=404, detail="No perspectives for this theme.")
+    return resp
 
 
 @router.get("/topics/{topic_id}", response_model=AppTopicCard)
