@@ -230,5 +230,6 @@ def test_below_the_threshold_nothing_is_touched(tmp_path: Path) -> None:
     assert paths["meta"].read_bytes() == before
 
 
-def test_registered_last() -> None:
-    assert [m.id for m in get_migrations()][-1] == "0012_org_speakers_removed"
+def test_registered_after_0011() -> None:
+    ids = [m.id for m in get_migrations()]
+    assert ids.index("0012_org_speakers_removed") == ids.index("0011_shared_artwork_store") + 1

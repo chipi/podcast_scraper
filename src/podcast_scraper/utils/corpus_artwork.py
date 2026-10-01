@@ -96,13 +96,46 @@ def download_podcast_artwork(
         logger.warning("Could not create artwork dir %s: %s", dest_parent, exc)
         return None
 
-    if os.path.isfile(dest_str) and os.path.getsize(dest_str) > 0:
-        return rel_posix
-
-    try:
-        with open(dest_str, "wb") as fh:
-            fh.write(body)
-    except OSError as exc:
-        logger.warning("Could not write artwork %s: %s", dest_str, exc)
-        return None
+    if not (os.path.isfile(dest_str) and os.path.getsize(dest_str) > 0):
+        try:
+            with open(dest_str, "wb") as fh:
+                fh.write(body)
+        except OSError as exc:
+            logger.warning("Could not write artwork %s: %s", dest_str, exc)
+            return None
+    # The serving API mounts the corpus READ-ONLY, so a thumbnail it cannot find is never made
+    # there: it serves the full image instead (measured on prod, 200 KB for a 320px slot). The
+    # writer has write access — make it now. Best effort: a missing thumb only costs bytes.
+    write_thumbnail(Path(corpus_root), dest_str)
     return rel_posix
+
+
+#: Longest edge of a list/card thumbnail (served by ``GET /api/app/artwork?size=thumb``).
+THUMB_MAX_PX = 320
+
+
+def thumbnail_path(corpus_root: Path, original_abs: str) -> Path:
+    """Where the thumbnail of *original_abs* lives: ``corpus-art/derived/thumb/<stem>.jpg``."""
+    stem = os.path.splitext(os.path.basename(original_abs))[0]
+    return Path(corpus_root) / CORPUS_ART_REL_PREFIX / "derived" / "thumb" / f"{stem}.jpg"
+
+
+def write_thumbnail(corpus_root: Path, original_abs: str) -> bool:
+    """Make the thumbnail for *original_abs* if it is missing. ``True`` when it exists after."""
+    dst = thumbnail_path(corpus_root, original_abs)
+    if dst.is_file():
+        return True
+    try:
+        from PIL import Image
+
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        with Image.open(original_abs) as im:
+            img = im.convert("RGB") if im.mode not in ("RGB", "L") else im
+            img.thumbnail((THUMB_MAX_PX, THUMB_MAX_PX))
+            tmp = dst.with_name(dst.name + ".tmp")
+            img.save(tmp, format="JPEG", quality=85, optimize=True)
+        os.replace(tmp, dst)
+        return True
+    except Exception as exc:  # noqa: BLE001 - undecodable / unwritable -> the original is served
+        logger.debug("thumbnail not written for %s: %s", original_abs, exc)
+        return False

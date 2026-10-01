@@ -25,7 +25,11 @@ import os
 from pathlib import Path
 from urllib.parse import quote
 
-from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
+from podcast_scraper.utils.corpus_artwork import (
+    CORPUS_ART_REL_PREFIX,
+    thumbnail_path,
+    write_thumbnail,
+)
 from podcast_scraper.utils.path_validation import (
     resolves_under_root,
     safe_relpath_under_corpus_root,
@@ -33,7 +37,6 @@ from podcast_scraper.utils.path_validation import (
 
 logger = logging.getLogger(__name__)
 
-THUMB_MAX_PX = 320
 _ART_PREFIX = f"{CORPUS_ART_REL_PREFIX}/"
 
 
@@ -70,9 +73,7 @@ def safe_artwork_target(corpus_root: Path, relpath: str) -> str | None:
 
 def _thumb_target(corpus_root: Path, original_abs: str) -> str:
     """Derived-cache path for the thumbnail of ``original_abs`` (always under derived/thumb)."""
-    stem = os.path.splitext(os.path.basename(original_abs))[0]
-    dst = corpus_root / CORPUS_ART_REL_PREFIX / "derived" / "thumb" / f"{stem}.jpg"
-    return os.path.normpath(str(dst))
+    return os.path.normpath(str(thumbnail_path(corpus_root, original_abs)))
 
 
 def ensure_thumbnail(corpus_root: Path, original_abs: str) -> tuple[str, str]:
@@ -82,20 +83,9 @@ def ensure_thumbnail(corpus_root: Path, original_abs: str) -> tuple[str, str]:
     decoded, or the derived cache can't be written (e.g. a read-only corpus).
     """
     dst = _thumb_target(corpus_root, original_abs)
-    if os.path.isfile(dst):
+    if os.path.isfile(dst) or write_thumbnail(corpus_root, original_abs):
         return dst, "image/jpeg"
-    try:
-        from PIL import Image
+    import mimetypes
 
-        with Image.open(original_abs) as im:
-            img = im.convert("RGB") if im.mode not in ("RGB", "L") else im
-            img.thumbnail((THUMB_MAX_PX, THUMB_MAX_PX))
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            img.save(dst, format="JPEG", quality=85, optimize=True)
-        return dst, "image/jpeg"
-    except Exception as exc:  # noqa: BLE001 - any decode/write failure → serve the original
-        logger.debug("thumbnail generation failed for %s: %s", original_abs, exc)
-        import mimetypes
-
-        media_type, _ = mimetypes.guess_type(os.path.basename(original_abs))
-        return original_abs, media_type or "application/octet-stream"
+    media_type, _ = mimetypes.guess_type(os.path.basename(original_abs))
+    return original_abs, media_type or "application/octet-stream"

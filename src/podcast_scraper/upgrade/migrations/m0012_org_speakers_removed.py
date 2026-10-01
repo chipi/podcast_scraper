@@ -46,6 +46,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 from ...speaker_detectors.entity_kind_votes import kind_key, votes_from_kg_payloads
 from ..corpus_selection import select_served_artifacts
 from ..migration import Migration, MigrationContext, MigrationResult
+from ..ownership import created_dirs, match_corpus_owner
 from ..role_ledger import file_sha
 
 MIGRATION_ID = "0012_org_speakers_removed"
@@ -294,6 +295,7 @@ def undo(root: Path) -> Tuple[int, List[str]]:
         tmp = target.with_name(target.name + ".tmp")
         shutil.copyfile(backup, tmp)
         os.replace(tmp, target)
+        match_corpus_owner(root, [target])
         restored += 1
     if restored:
         try:
@@ -373,6 +375,7 @@ class OrgSpeakersRemovedMigration(Migration):
                 tmp = path.with_name(path.name + ".tmp")
                 tmp.write_text(_dump(ep.files[path]), encoding="utf-8")
                 os.replace(tmp, path)
+                match_corpus_owner(root, [path, backup, *created_dirs(backup.parent, root)])
                 receipts.append(
                     {"relpath": rel, "sha_before": sha_before, "sha_after": file_sha(path)}
                 )
@@ -389,6 +392,7 @@ class OrgSpeakersRemovedMigration(Migration):
                     fh.write(json.dumps(row, ensure_ascii=False) + "\n")
                 fh.flush()
                 os.fsync(fh.fileno())
+            match_corpus_owner(root, [_receipts_path(root)])
         verb = "would rewrite" if ctx.dry_run else "rewrote"
         message = f"{verb} {len(touched)} episode(s) for {len(orgs)} org name(s): " + ", ".join(
             f"{k}={v}" for k, v in sorted(totals.items())
