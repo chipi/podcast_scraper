@@ -977,7 +977,7 @@ def hosts_for_episode(result: HostDetectionResult, episode: Any) -> set[str]:
         for a in normalize_host_names(own_raw, feed_title=result.feed_title)
         if not is_network_or_org_author(a)
     }
-    own = set(drop_non_person_names(sorted(own), result.feed_title))
+    own = set(drop_non_person_names(sorted(own), result.feed_title, result.kind_votes))
     return (hosts - fallback) | own
 
 
@@ -1300,7 +1300,10 @@ def detect_feed_hosts_and_patterns(
     #
     # This is the only layer that knows the feed's own title, so it is the only one that can refuse
     # the SHOW; the publish gate catches publishers later but can never catch that.
-    _people = set(drop_non_person_names(sorted(cached_hosts), _feed_title(feed)))
+    from ...speaker_detectors.entity_kind_votes import votes_for_cfg
+
+    kind_votes = votes_for_cfg(cfg)
+    _people = set(drop_non_person_names(sorted(cached_hosts), _feed_title(feed), kind_votes))
     if _people != cached_hosts:
         logger.info(
             "  → dropped non-person host candidate(s): %s",
@@ -1357,6 +1360,7 @@ def detect_feed_hosts_and_patterns(
         speaker_detector,
         _feed_title(feed),
         episode_author_hosts=frozenset(episode_authors & set(cached_hosts)),
+        kind_votes=kind_votes,
     )
 
 
@@ -1919,8 +1923,9 @@ def _detect_speakers_for_episode(
         # reaches the closed candidate list the resolver may bind a voice to — which is how
         # "Machine Learning Street" came to be published as a speaker 26 times by that resolver.
         _feed_t = host_detection_result.feed_title
-        flat_speakers = drop_non_person_names(flat_speakers, _feed_t)
-        host_strings = set(drop_non_person_names(sorted(host_strings), _feed_t))
+        _votes = host_detection_result.kind_votes
+        flat_speakers = drop_non_person_names(flat_speakers, _feed_t, _votes)
+        host_strings = set(drop_non_person_names(sorted(host_strings), _feed_t, _votes))
 
         # THE EPISODE'S OWN DESCRIPTION NAMES ITS HOST, on the shows where nothing else can.
         # "Elena Burger is joined by a16z's Andy McCall" — the guest cue reads what FOLLOWS the

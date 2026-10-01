@@ -54,6 +54,10 @@ class HostDetectionResult(NamedTuple):
     #: (feed named nobody). Per-episode consumers swap it for THAT episode's own authors via
     #: ``stages.processing.hosts_for_episode`` — see there (#2197).
     episode_author_hosts: FrozenSet[str] = frozenset()
+    #: The corpus's KG-extraction person/organisation votes (``entity_kind_votes.KindVotes``), read
+    #: once per run so every candidate filter in it judges against the same evidence (#2220).
+    #: ``None`` outside a corpus — the filters then behave exactly as before.
+    kind_votes: Any = None
 
 
 @dataclass

@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from ..kg.speaker_coherence import same_person
 from .entities import extract_person_entities as _extract_person_entities_direct
+from .entity_kind_votes import KindVotes
 
 logger = logging.getLogger(__name__)
 
@@ -1188,7 +1189,11 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
     return True
 
 
-def drop_non_person_names(names: Iterable[str], feed_title: Optional[str] = None) -> List[str]:
+def drop_non_person_names(
+    names: Iterable[str],
+    feed_title: Optional[str] = None,
+    kind_votes: Optional[KindVotes] = None,
+) -> List[str]:
     """Remove publishers and the show's own name from a list of candidate PEOPLE.
 
     A NAME THAT REACHES `known_hosts` BECOMES A NAME A VOICE MAY BE CALLED, so an organisation in
@@ -1212,6 +1217,10 @@ def drop_non_person_names(names: Iterable[str], feed_title: Optional[str] = None
 
     No *feed_title* means no opinion about the show's name — absence of evidence is not evidence
     that the candidate is the show.
+
+    *kind_votes* (``entity_kind_votes.KindVotes``) adds the corpus's own extraction labels: a name
+    extraction decisively calls an organisation ("The Brazilian Report", "Americas Online") is not
+    a candidate either (#2220). ``None`` — no corpus, or votes unreadable — changes nothing.
     """
     out: List[str] = []
     for raw in names or ():
@@ -1221,6 +1230,15 @@ def drop_non_person_names(names: Iterable[str], feed_title: Optional[str] = None
         if looks_like_publisher(name):
             continue
         if feed_title and names_the_show(name, feed_title):
+            continue
+        # A real KindVotes only. Anything else (a test double, a stale field) answering truthy
+        # would silently drop every candidate — measured: a MagicMock result emptied the guests.
+        if isinstance(kind_votes, KindVotes) and kind_votes.calls_organisation(name):
+            logger.info(
+                "speaker candidate %r dropped: the corpus's KG extraction calls it an "
+                "organisation (#2220)",
+                name,
+            )
             continue
         out.append(name)
     return out
