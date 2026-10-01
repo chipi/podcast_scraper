@@ -506,7 +506,11 @@ const mainBottomPadding = computed(() =>
                larger ember kicker (lp-kicker) below the glyph. -->
           <span class="block whitespace-nowrap pl-[3px] text-[8px] font-bold uppercase leading-none tracking-[0.035em] text-topic sm:hidden">{{ t('app.tagline') }}</span>
           <span class="lp-kicker hidden sm:block">{{ t('app.tagline') }}</span>
-          <span class="block whitespace-nowrap font-display text-[21px] font-extrabold leading-tight tracking-tight sm:text-2xl">{{ t('app.title') }}</span>
+          <!-- 17px below 360px wide (2026-10-01). The wordmark is the system font, so its width
+               depends on the platform: at 21px it cleared the first icon by 11px on macOS/iOS but
+               ran 15px INTO it under CI's Linux fonts (header-symmetry.spec). Linear in font size,
+               so 17px clears by ~18px there and ~40px on Apple fonts; 360px and up keep 21px. -->
+          <span class="block whitespace-nowrap font-display text-[21px] font-extrabold leading-tight tracking-tight max-[359px]:text-[17px] sm:text-2xl">{{ t('app.title') }}</span>
         </span>
       </RouterLink>
       <nav class="text-sm flex items-center gap-0 sm:gap-1.5">
