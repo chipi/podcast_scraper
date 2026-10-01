@@ -128,19 +128,34 @@ class TestOverTheRealFixtureCorpora:
         assert {r.feed_language for r in rows} == {"es"}
         assert {r.episode_language for r in rows} == {"es"}
 
-    def test_viewer_validation_has_no_language_and_stays_none(self) -> None:
+    def test_viewer_validation_serves_the_language_it_now_carries(self) -> None:
+        """Backfilled 2026-10-01 (#2185), so both fixture corpora now exercise the PRESENT case.
+
+        This asserted the opposite — no `feed.language`, served as `None` — because the viewer
+        corpus predated the generator writing it, and the S0.4 audit consequently reported all 40
+        episodes as "not enabled in the registry". It was an honest record of a gap, not a contract.
+
+        THE CONTRACT IT ALSO CARRIED IS NOT LOST. "Absent must not become `en`" is the valuable
+        half, and it is covered directly by `TestNormalization.test_absent_is_none_not_a_default`
+        over a constructed artifact — which is the better home for it anyway, because it does not
+        depend on a fixture happening to lack a field. With both corpora backfilled there is no
+        fixture left in the absent state, so asserting it here would mean keeping a corpus wrong on
+        purpose to test one branch.
+        """
         root = self.REPO / "tests/fixtures/viewer-validation-corpus/v3"
         metas = sorted(root.glob("feeds/*/**/metadata/*.metadata.json"))
         assert metas, "fixture corpus missing"
-        assert all(
-            "language" not in (json.loads(m.read_text(encoding="utf-8")).get("feed") or {})
+        stored = {
+            (json.loads(m.read_text(encoding="utf-8")).get("feed") or {}).get("language")
             for m in metas
-        ), "the fixture's premise changed: it now carries a feed language"
+        }
+        assert stored == {"en"}, f"the viewer corpus's stored languages are {stored}"
 
         rows = build_catalog_rows(root)
         assert rows, "catalog scan found nothing"
-        assert {r.feed_language for r in rows} == {None}
-        assert {r.episode_language for r in rows} == {None}, "absent must not become 'en'"
+        # Served equals stored, the same contract the app-corpus test asserts.
+        assert {r.feed_language for r in rows} == {"en"}
+        assert {r.episode_language for r in rows} == {"en"}
 
 
 class TestTheResponseModelsCarryIt:
