@@ -50,15 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Macro is mostly about not being on the wrong side of a regime change \u2014 positioning around structural shifts matters more than calling individual price moves.",
-      "Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
-      "Risk you can articulate is risk you can manage \u2014 a pattern observed holding across three different teams, and one that makes downstream decisions easier once internalized.",
-      "Reliability of expectations is the underrated piece of macro analysis, with the second-order effect being the part most people miss.",
-      "Systems thinking applies because the dollar is a system, not a price; ignoring that means rebuilding the analysis from scratch a year later.",
-      "Trade-offs around systems thinking cut across risk management and macro policy, and framing matters because it reveals which trade-offs are actually being made.",
-      "Practical starting point: pick one idea and run it for two weeks rather than overhauling everything at once \u2014 the rest is iteration."
+      "Macro policy is primarily about avoiding being on the wrong side of a regime change — a critical insight that determines success or failure in forecasting and positioning.",
+      "Currency intervention can be effective in thin overnight markets, challenging the prior belief that such interventions are always counter-productive.",
+      "Reliability of expectations is the most underrated piece of macro policy — expectations must be stable and predictable to enable effective risk management.",
+      "Risk you can articulate is risk you can manage — the ability to name and describe a risk is essential for mitigating it effectively.",
+      "The dollar functions as a system, not a price — ignoring its systemic nature leads to repeated, costly rework of models and strategies.",
+      "Systems thinking reveals that trade-offs are embedded in every policy decision — the failure mode lies in not recognizing these embedded trade-offs.",
+      "Platforms like Bloomberg and Vanguard enable teams to observe how macro policy plays out — the second-order effect is often missed because it's not visible in the initial design.",
+      "Adopting tools like Vanguard exposes the trade-off between efficiency and adaptability — the real cost is not in the tool, but in the assumptions it embeds."
     ],
-    "raw_text": "Macro is mostly about not being on the wrong side of a regime change \u2014 positioning around structural shifts matters more than calling individual price moves. Currency intervention is not always counter-productive; after 2023, selective intervention in thin overnight markets came to be seen as a legitimate tool rather than a reflexive mistake.",
-    "title": "Macro Policy, Regime Change, and the Dollar as a System"
+    "raw_text": "Macro policy is primarily about avoiding being on the wrong side of a regime change — a critical insight that determines success or failure in forecasting and positioning. Currency intervention can be effective in thin overnight markets, challenging the prior belief that such interventions are always counter-productive.",
+    "title": "Macro Policy, Systems Thinking, and the Reliability of Expectations"
   }
 }

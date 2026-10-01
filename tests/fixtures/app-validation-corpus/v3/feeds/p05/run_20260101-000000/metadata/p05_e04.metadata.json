@@ -50,14 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Diversification functions as the closest thing to a free lunch for individual investors \u2014 little is given up while removing the biggest way people ruin themselves: one position going to zero at the worst possible time.",
-      "Risk management for individuals is mostly behavioral rather than mathematical; sitting still while a holding gets cut in half is the hard part, and diversification makes that survivable.",
-      "Concentration with deep understanding beats diversification, according to the opposing view \u2014 spreading across a hundred names means owning things you can't judge, which amounts to ignorance, evenly distributed rather than safety.",
-      "A portfolio is a system of correlated bets; a handful of deeply understood positions is argued to be more robust because their co-movement is visible, whereas diversifying without understanding hides the correlation until it's the only thing that matters.",
-      "Account data on retail investors showed concentrated accounts had far fatter tails \u2014 cited as measured evidence that concentration is how retail investors blow themselves up and diversification is the only real risk control.",
-      "The decisive question is whether an investor's edge survives contact with their own behavior rather than diversify-or-not \u2014 concentration compounds a durable edge, while no amount of diversification saves one that doesn't hold up."
+      "Diversification functions as a free lunch for individual investors by eliminating the risk of a single position going to zero — a critical buffer against behavioral risk during market stress.",
+      "Concentration with deep understanding creates a more robust portfolio than broad diversification, because it enables visibility into how positions interact and move together.",
+      "Diversification across a hundred names often reflects ignorance rather than safety, as it spreads ignorance evenly rather than managing risk through insight.",
+      "The real risk for individual investors is not concentration itself but the inability to withstand a loss — a behavioral challenge that diversification helps mitigate.",
+      "A concentrated portfolio can compound an investor's edge only if that edge survives the test of personal behavior — otherwise, no diversification will save them.",
+      "Account data shows that concentrated retail portfolios exhibit fatter tails — meaning higher risk of extreme losses — compared to diversified ones.",
+      "The key question isn't whether to diversify, but whether an investor's edge can endure their own emotional response to volatility.",
+      "A system of correlated bets works better when built on a few well-understood positions than on a hundred unfamiliar ones — understanding drives resilience."
     ],
-    "raw_text": "Diversification functions as the closest thing to a free lunch for individual investors \u2014 little is given up while removing the biggest way people ruin themselves: one position going to zero at the worst possible time. Risk management for individuals is mostly behavioral rather than mathematical; sitting still while a holding gets cut in half is the hard part, and diversification makes that survivable.",
-    "title": "Diversification vs. Concentration: Free Lunch or Hiding From Decisions?"
+    "raw_text": "Diversification functions as a free lunch for individual investors by eliminating the risk of a single position going to zero — a critical buffer against behavioral risk during market stress. Concentration with deep understanding creates a more robust portfolio than broad diversification, because it enables visibility into how positions interact and move together.",
+    "title": "Diversification vs. Concentration: The Risk of Decision-Making"
   }
 }

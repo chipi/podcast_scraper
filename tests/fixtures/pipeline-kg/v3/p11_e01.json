@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p11_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:drainage-design",
+      "label": "drainage design"
+    },
+    {
+      "id": "topic:framework-integration",
+      "label": "framework integration"
+    },
+    {
+      "id": "topic:land-management",
+      "label": "land management"
+    },
+    {
+      "id": "topic:machine-vs-hand-built-trails",
+      "label": "machine vs hand-built trails"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:slope-management",
+      "label": "slope management"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "label": "soil erosion"
+    },
+    {
+      "id": "topic:structural-compromise",
+      "label": "structural compromise"
+    },
+    {
+      "id": "topic:switchback-construction",
+      "label": "switchback construction"
+    },
+    {
+      "id": "topic:trail-durability",
+      "label": "trail durability"
+    }
+  ]
+}

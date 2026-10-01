@@ -36,6 +36,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:construction-trade-offs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:drainage-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:failure-mode-identification",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:land-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:machine-vs-hand-built-trails",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:slope-steepness",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:territory-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8dce4ec000757097",
+      "target": "topic:trail-benching",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-8dce4ec000757097",
       "to": "person:camille-dubois",
       "type": "MENTIONS"
@@ -115,6 +160,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:construction-trade-offs",
+      "properties": {
+        "label": "construction trade offs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-mode-identification",
+      "properties": {
+        "label": "failure mode identification",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-management",
+      "properties": {
+        "label": "land management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:machine-vs-hand-built-trails",
+      "properties": {
+        "label": "machine vs hand built trails",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:slope-steepness",
+      "properties": {
+        "label": "slope steepness",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:territory-management",
+      "properties": {
+        "label": "territory management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trail-benching",
+      "properties": {
+        "label": "trail benching",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

@@ -36,6 +36,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:cut-bank-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:drainage-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:excavation-slope",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:land-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:machine-made-vs-handmade",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:soil-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:tool-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7072d2e85dcd5233",
+      "target": "topic:trail-failure-mode",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-7072d2e85dcd5233",
       "to": "person:lucia-herrera",
       "type": "MENTIONS"
@@ -115,6 +160,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cut-bank-design",
+      "properties": {
+        "label": "cut bank design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:excavation-slope",
+      "properties": {
+        "label": "excavation slope",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-management",
+      "properties": {
+        "label": "land management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:machine-made-vs-handmade",
+      "properties": {
+        "label": "machine made vs handmade",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-structure",
+      "properties": {
+        "label": "soil structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tool-integration",
+      "properties": {
+        "label": "tool integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trail-failure-mode",
+      "properties": {
+        "label": "trail failure mode",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

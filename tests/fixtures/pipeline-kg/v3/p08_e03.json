@@ -1,0 +1,31 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p08_e03",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:deadline-pressure",
+      "label": "deadline pressure"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "label": "iteration practice"
+    },
+    {
+      "id": "topic:newsroom-reliability",
+      "label": "newsroom reliability"
+    },
+    {
+      "id": "topic:reliability-system",
+      "label": "reliability system"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:trust-as-asset",
+      "label": "trust as asset"
+    }
+  ]
+}

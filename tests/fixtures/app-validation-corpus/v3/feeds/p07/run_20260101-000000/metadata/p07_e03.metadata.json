@@ -45,14 +45,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "The word 'sustainability' hides the hard part \u2014 it is fundamentally a systems problem in which no single part can be optimized without moving another.",
-      "Fixing emissions in isolation pushes the cost into water, land, or the grid rather than eliminating it; the interactions between parts are the whole story.",
-      "Systems thinking, first and last, means managing the couplings rather than the components \u2014 the connections between elements determine outcomes more than any single element does.",
-      "A decade of modeled interventions showed a consistent failure pattern \u2014 the ones that failed treated a system as a list of parts rather than an interconnected whole.",
-      "The most dangerous risks are the slow ones that can be named but are discounted \u2014 familiarity breeds neglect rather than preparedness.",
-      "Risk management in sustainability is the same discipline as for a portfolio, a power grid, or a reef \u2014 name the risk before it names you, and respect the correlations."
+      "Sustainability is a systems problem requiring holistic management of interdependent components rather than isolated optimizations.",
+      "Optimizing one system element—like emissions—can shift rather than reduce risks to other domains such as water, land, or the grid.",
+      "Systems thinking demands attention to couplings and correlations, not just individual parts, because failures often stem from treating systems as lists of disconnected components.",
+      "Risk management in sustainability involves naming and respecting slow, predictable risks before they materialize, not just reacting to sudden threats.",
+      "The discipline of risk management is consistent across contexts—whether a power grid, reef, or portfolio—because it relies on identifying and correlating potential failures.",
+      "Interventions that ignore system-wide interactions fail because they misrepresent the dynamic relationships between components.",
+      "Effective sustainability requires modeling long-term interactions and feedback loops, not just short-term gains in single metrics.",
+      "Respecting the full system structure—rather than optimizing fragments—enables resilient, adaptive outcomes across environmental and infrastructural domains."
     ],
-    "raw_text": "The word 'sustainability' hides the hard part \u2014 it is fundamentally a systems problem in which no single part can be optimized without moving another. Fixing emissions in isolation pushes the cost into water, land, or the grid rather than eliminating it; the interactions between parts are the whole story.",
-    "title": "Sustainability as a Systems Problem: Couplings, Tradeoffs, and Slow Risks"
+    "raw_text": "Sustainability is a systems problem requiring holistic management of interdependent components rather than isolated optimizations. Optimizing one system element—like emissions—can shift rather than reduce risks to other domains such as water, land, or the grid.",
+    "title": "Sustainability as Systems Thinking"
   }
 }

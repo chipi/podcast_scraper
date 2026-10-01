@@ -1,16 +1,20 @@
 {
-  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "episode_id": "p02_e04",
-  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "summary": {
     "bullets": [
-      "Reliability is a property of the whole system rather than a feature of any one component — perfect services can still produce an outage because the failure lives in how they interact.",
-      "Systems thinking means managing the interactions rather than the boxes; thinking in parts guarantees that interaction-driven failures are missed every time.",
-      "Two years of tagged incidents showed almost none were a single component failing on its own — blunt evidence that outages emerge from component interactions.",
-      "Risk management in production is mostly about naming the risk before it names you; the outage described in advance can be designed around, while the one nobody would say out loud causes the takedown.",
-      "Production risk and portfolio risk are the same discipline — a service mesh and a portfolio are both systems of correlated bets, making the reliability question and the risk question identical in different clothes."
+      "Reliability is a property of the whole system rather than any single component, meaning failures emerge from interactions, not isolated parts.",
+      "The discipline of systems thinking requires managing interactions across components, not just optimizing individual boxes.",
+      "Outages are rarely caused by a single failing component—most incidents stem from how components interact unpredictably.",
+      "Production risk mirrors portfolio risk: both involve managing unknowns by naming them in advance before they cause failure.",
+      "The ability to describe a failure in advance enables designing around it, while unexpected failures are the ones that ultimately cause outages.",
+      "Service meshes and financial portfolios are both systems of correlated bets, where the whole is greater than the sum of its parts.",
+      "Risk management in production is fundamentally about identifying and naming risks before they materialize.",
+      "Reliability and risk are the same question in different clothing—both demand explicit, proactive management of interdependencies."
     ],
-    "raw_text": "Reliability is a property of the whole system rather than a feature of any one component — perfect services can still produce an outage because the failure lives in how they interact. Systems thinking means managing the interactions rather than the boxes; thinking in parts guarantees that interaction-driven failures are missed every time.",
-    "title": "Reliability as Systems Thinking and Risk Management"
+    "raw_text": "Reliability is a property of the whole system rather than any single component, meaning failures emerge from interactions, not isolated parts. The discipline of systems thinking requires managing interactions across components, not just optimizing individual boxes.",
+    "title": "Reliability as a Systemic Property"
   }
 }

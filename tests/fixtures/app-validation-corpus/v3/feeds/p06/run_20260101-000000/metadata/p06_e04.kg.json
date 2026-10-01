@@ -31,6 +31,46 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-3158b8ff3e943b1e",
+      "target": "topic:cultural-stability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-3158b8ff3e943b1e",
+      "target": "topic:day-to-day-mood",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-3158b8ff3e943b1e",
+      "target": "topic:dialogue-and-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-3158b8ff3e943b1e",
+      "target": "topic:drift-detection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-3158b8ff3e943b1e",
+      "target": "topic:iteration-practice",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-3158b8ff3e943b1e",
+      "target": "topic:rebuilding-from-scratch",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-3158b8ff3e943b1e",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-3158b8ff3e943b1e",
+      "target": "topic:substack-teams",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-3158b8ff3e943b1e",
       "to": "person:cam",
       "type": "MENTIONS"
@@ -102,6 +142,70 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cultural-stability",
+      "properties": {
+        "label": "cultural stability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:day-to-day-mood",
+      "properties": {
+        "label": "day to day mood",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue-and-drift",
+      "properties": {
+        "label": "dialogue and drift",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drift-detection",
+      "properties": {
+        "label": "drift detection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "properties": {
+        "label": "iteration practice",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:rebuilding-from-scratch",
+      "properties": {
+        "label": "rebuilding from scratch",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:substack-teams",
+      "properties": {
+        "label": "substack teams",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

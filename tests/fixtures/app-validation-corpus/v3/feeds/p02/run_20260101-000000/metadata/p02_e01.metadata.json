@@ -50,16 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "A good on-call rotation is designed so that waking up is rare \u2014 a pattern observed holding across three different teams, including teams using Notion and Datadog.",
-      "Alerting should be action-oriented rather than informational; a page only earns its place if it tells the responder something to do.",
-      "Error budgets work when they change behavior rather than existing as a reporting metric \u2014 the framing matters because it reveals which trade-offs a team is actually making.",
-      "Outside of Sentry-class tooling, the failure mode is harder to spot; once that visibility gap is internalized, the remaining on-call design decisions get easier.",
-      "Adopting Sentry in the incident flow makes the trade-off visible \u2014 ignoring it leads teams to rebuild the same capability from scratch a year later.",
-      "PagerDuty's incident response model assumes someone owns the page; the second-order effect of unclear ownership is the part most people miss.",
-      "Systems thinking cross-cuts every on-call decision \u2014 alerting, error budgets, and page ownership are interdependent trade-offs rather than isolated choices.",
-      "Running one idea for two weeks and then iterating beats attempting a wholesale on-call redesign \u2014 the recommended starting point for improving a rotation."
+      "A good on-call rotation is designed so that waking up is rare — the goal is minimizing unnecessary disruptions by aligning alerting with actionable outcomes.",
+      "Alerting should be action-oriented rather than reactive, ensuring that every notification demands a specific, meaningful response.",
+      "Error budgets work when they change behavior — their effectiveness lies in driving operational decisions, not just tracking failures.",
+      "The framing of incident response determines the trade-offs teams make, and a clear mental model is essential for consistent decision-making.",
+      "PagerDuty’s incident response model assumes someone owns the page, but this ownership structure often overlooks the second-order effect of overburdening individuals.",
+      "Systems thinking reveals that on-call design is not just about tools but about the underlying assumptions about responsibility and response patterns.",
+      "Sentry-class tooling helps expose failure modes that are otherwise invisible — ignoring them leads to rebuilding systems from scratch later.",
+      "Adopting tools like Linear or Datadog in incident workflows makes trade-offs visible, and failing to internalize them results in repeated, avoidable work."
     ],
-    "raw_text": "A good on-call rotation is designed so that waking up is rare \u2014 a pattern observed holding across three different teams, including teams using Notion and Datadog. Alerting should be action-oriented rather than informational; a page only earns its place if it tells the responder something to do.",
-    "title": "Designing On-Call Rotation for Reliability"
+    "raw_text": "A good on-call rotation is designed so that waking up is rare — the goal is minimizing unnecessary disruptions by aligning alerting with actionable outcomes. Alerting should be action-oriented rather than reactive, ensuring that every notification demands a specific, meaningful response.",
+    "title": "On-Call Rotation and Incident Response: Designing for Reliability"
   }
 }

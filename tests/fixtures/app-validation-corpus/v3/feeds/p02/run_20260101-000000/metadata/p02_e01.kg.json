@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:alerting-actionability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:behavioral-change-through-metrics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:error-budget-effectiveness",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:failure-mode-visibility",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:incident-response-ownership",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:iteration-through-trial",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:on-call-rotation-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:reliability-and-on-call-intersection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:systems-thinking-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4a1a673a7005a6b5",
+      "target": "topic:tooling-impact-on-reliability",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-4a1a673a7005a6b5",
       "to": "person:ethan",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:alerting-actionability",
+      "properties": {
+        "label": "alerting actionability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:behavioral-change-through-metrics",
+      "properties": {
+        "label": "behavioral change through metrics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:error-budget-effectiveness",
+      "properties": {
+        "label": "error budget effectiveness",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-mode-visibility",
+      "properties": {
+        "label": "failure mode visibility",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-response-ownership",
+      "properties": {
+        "label": "incident response ownership",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-through-trial",
+      "properties": {
+        "label": "iteration through trial",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:on-call-rotation-design",
+      "properties": {
+        "label": "on call rotation design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-and-on-call-intersection",
+      "properties": {
+        "label": "reliability and on call intersection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systems-thinking-integration",
+      "properties": {
+        "label": "systems thinking integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-impact-on-reliability",
+      "properties": {
+        "label": "tooling impact on reliability",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

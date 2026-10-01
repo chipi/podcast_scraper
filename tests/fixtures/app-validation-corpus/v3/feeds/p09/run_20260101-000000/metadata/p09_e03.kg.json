@@ -26,6 +26,46 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:bloomberg-data-caveats",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:data-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:ipcc-data-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:iterative-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:labor-market-dynamics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:macroeconomic-abstraction",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:model-rebuilding",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-919c77e84ad37664",
+      "target": "topic:portfolio-level-risk",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-919c77e84ad37664",
       "to": "person:sam",
       "type": "MENTIONS"
@@ -89,6 +129,70 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:bloomberg-data-caveats",
+      "properties": {
+        "label": "bloomberg data caveats",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:data-reliability",
+      "properties": {
+        "label": "data reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:ipcc-data-integration",
+      "properties": {
+        "label": "ipcc data integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iterative-learning",
+      "properties": {
+        "label": "iterative learning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:labor-market-dynamics",
+      "properties": {
+        "label": "labor market dynamics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:macroeconomic-abstraction",
+      "properties": {
+        "label": "macroeconomic abstraction",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:model-rebuilding",
+      "properties": {
+        "label": "model rebuilding",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:portfolio-level-risk",
+      "properties": {
+        "label": "portfolio level risk",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

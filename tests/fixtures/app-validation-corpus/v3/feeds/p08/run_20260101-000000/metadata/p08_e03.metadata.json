@@ -50,15 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "A newsroom is a reliability system with a deadline \u2014 framing journalism this way treats accuracy as an operational discipline rather than an afterthought, a pattern observed at teams using BBC.",
-      "Trust is the only asset a public broadcaster actually owns; everything else is secondary to preserving the audience's confidence in the reporting.",
-      "Ignoring reliability or trust carries a delayed cost \u2014 newsrooms that neglect them end up rebuilding those foundations from scratch a year later rather than maintaining them continuously.",
-      "The second-order effects of treating a newsroom as a reliability system are the part most people miss, extending beyond immediate accuracy to how the organization operates overall.",
-      "Reliability trade-offs cross-cut every other aspect of journalism, making them the central lens rather than a narrow technical concern.",
-      "Framing matters because it reveals which trade-offs are being made \u2014 choosing trust or reliability as the core principle makes those choices explicit rather than defaulted into.",
-      "Practical adoption favors a small experiment over a wholesale overhaul \u2014 pick one idea and run it for two weeks, then iterate."
+      "A newsroom functions as a reliability system with a deadline — its primary operational constraint is not speed but the maintenance of trustworthiness over time.",
+      "Trust is the only asset a public broadcaster actually owns — without it, all other efforts to inform the public are fundamentally undermined.",
+      "The framing of journalism matters because it reveals which trade-offs are being made — especially in how reliability is prioritized across editorial decisions.",
+      "Reliability is not a feature but a foundational condition — ignoring it leads to the need to rebuild credibility from scratch, a process that can take a year or more.",
+      "The second-order effect of prioritizing reliability is often missed: it shapes how teams respond to pressure, risk, and deadline demands across news cycles.",
+      "A key heuristic in journalism is that trust enables sustained public engagement — without it, even accurate reporting fails to resonate or influence.",
+      "The most underrated piece of journalism is not a story or a source but the consistent practice of maintaining reliability as a systemic priority.",
+      "Listeners can test a concept by running it for two weeks — the rest of the process is iteration, not invention."
     ],
-    "raw_text": "A newsroom is a reliability system with a deadline \u2014 framing journalism this way treats accuracy as an operational discipline rather than an afterthought, a pattern observed at teams using BBC. Trust is the only asset a public broadcaster actually owns; everything else is secondary to preserving the audience's confidence in the reporting.",
-    "title": "Journalism as Reliability and Trust"
+    "raw_text": "A newsroom functions as a reliability system with a deadline — its primary operational constraint is not speed but the maintenance of trustworthiness over time. Trust is the only asset a public broadcaster actually owns — without it, all other efforts to inform the public are fundamentally undermined.",
+    "title": "Trust as the Core Asset in Public Broadcasting"
   }
 }

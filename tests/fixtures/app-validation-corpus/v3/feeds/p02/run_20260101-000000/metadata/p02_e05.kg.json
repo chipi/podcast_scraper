@@ -31,6 +31,31 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:actionable-alerts",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:alert-fatigue",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:alert-tuning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:noise-problem",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a05e37624721d37c",
+      "target": "topic:real-incident-detection",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-a05e37624721d37c",
       "to": "person:ethan",
       "type": "MENTIONS"
@@ -107,6 +132,46 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:actionable-alerts",
+      "properties": {
+        "label": "actionable alerts",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:alert-fatigue",
+      "properties": {
+        "label": "alert fatigue",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:alert-tuning",
+      "properties": {
+        "label": "alert tuning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:noise-problem",
+      "properties": {
+        "label": "noise problem",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:real-incident-detection",
+      "properties": {
+        "label": "real incident detection",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

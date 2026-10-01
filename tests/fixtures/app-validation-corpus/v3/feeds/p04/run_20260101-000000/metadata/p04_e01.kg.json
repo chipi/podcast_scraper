@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:backscatter-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:frame-composition",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:iteration-over-innovation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:lighting-trade-offs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:operational-failure-mode",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:platform-specific-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:strobe-positioning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:tooling-class-differences",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:underwater-frame-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-febd9a8f53bf3a3a",
+      "target": "topic:white-balance-correction",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-febd9a8f53bf3a3a",
       "to": "person:leo",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:backscatter-management",
+      "properties": {
+        "label": "backscatter management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-composition",
+      "properties": {
+        "label": "frame composition",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-over-innovation",
+      "properties": {
+        "label": "iteration over innovation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lighting-trade-offs",
+      "properties": {
+        "label": "lighting trade offs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-failure-mode",
+      "properties": {
+        "label": "operational failure mode",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platform-specific-patterns",
+      "properties": {
+        "label": "platform specific patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-positioning",
+      "properties": {
+        "label": "strobe positioning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-class-differences",
+      "properties": {
+        "label": "tooling class differences",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:underwater-frame-design",
+      "properties": {
+        "label": "underwater frame design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:white-balance-correction",
+      "properties": {
+        "label": "white balance correction",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

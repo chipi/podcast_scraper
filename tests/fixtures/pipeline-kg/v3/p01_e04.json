@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p01_e04",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:correlated-bets",
+      "label": "correlated bets"
+    },
+    {
+      "id": "topic:crash-causation-patterns",
+      "label": "crash causation patterns"
+    },
+    {
+      "id": "topic:error-propagation",
+      "label": "error propagation"
+    },
+    {
+      "id": "topic:financial-risk-analogy",
+      "label": "financial risk analogy"
+    },
+    {
+      "id": "topic:performance-through-design",
+      "label": "performance through design"
+    },
+    {
+      "id": "topic:preemptive-risk-naming",
+      "label": "preemptive risk naming"
+    },
+    {
+      "id": "topic:race-line-strategy",
+      "label": "race line strategy"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:systemic-failure",
+      "label": "systemic failure"
+    },
+    {
+      "id": "topic:trail-run-as-a-system",
+      "label": "trail run as a system"
+    }
+  ]
+}

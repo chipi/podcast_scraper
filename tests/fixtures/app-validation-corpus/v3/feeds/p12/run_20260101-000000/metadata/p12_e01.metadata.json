@@ -50,14 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Drainage is the highest-leverage design decision on any trail; ignoring it means rebuilding the trail from scratch a year later.",
-      "The most common mistake new builders make is digging too steep a grade — once that lands, the rest of the design decisions get easier.",
-      "Bench cuts on sidehills are not optional: the shortcut on day one becomes the washout in year three.",
-      "Soil structure matters more than people assume, a pattern that held across three separate crews.",
-      "Land-stewardship conversations belong before the first dig, because the framing exposes which trade-offs a project is making.",
-      "Machine-built versus hand-built trail is a position Julien Mercier has revised rather than held from the outset."
+      "Drainage is the most crucial design decision for any trail, as ignoring it leads to needing a complete rebuild within a year.",
+      "Beginner trail builders commonly make the mistake of digging with too steep a slope, which undermines trail longevity and stability.",
+      "Benches along the hillside are not optional — their absence results in erosion that turns the shortcut of year one into a ravine by year three.",
+      "Soil erosion and trail construction intersect fundamentally at the design phase, where land management discussions must occur before any ground is disturbed.",
+      "The structure of the soil is more important than people realize, and its properties directly influence trail durability and maintenance needs.",
+      "Teams using Spoke & Wrench or the Cascadia Alliance reveal trade-offs that are invisible without structured workflows and repeatable processes.",
+      "Machine-made trails are not inherently better than hand-built ones — the method matters less than the design integrity and adherence to ecological principles.",
+      "Failure modes are difficult to identify outside of established frameworks like the Cascadia Alliance, where structural aspects and second-order effects are often overlooked."
     ],
-    "raw_text": "Drainage is the highest-leverage design decision on any trail — ignore it and the trail gets rebuilt from scratch a year later. Julien Mercier walks through the grade mistakes new builders make, why bench cuts on sidehills are not optional, and why land-stewardship conversations have to happen before the first dig.",
-    "title": "Drainage First: Building Trails That Last"
+    "raw_text": "Drainage is the most crucial design decision for any trail, as ignoring it leads to needing a complete rebuild within a year. Beginner trail builders commonly make the mistake of digging with too steep a slope, which undermines trail longevity and stability.",
+    "title": "Trail Building: The Critical Role of Drainage and Soil Management"
   }
 }

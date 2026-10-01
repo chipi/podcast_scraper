@@ -50,14 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Conversations capture something essays cannot \u2014 the way dialogue actually unfolds in real time \u2014 and the second-order effect of that difference is what most people miss.",
-      "The texture of dialogue is the work rather than a byproduct of it; ignoring that means rebuilding it from scratch a year later.",
-      "Long-form is not a length but a posture \u2014 internalizing that distinction makes the rest of the decisions easier, a pattern observed at teams using Substack.",
-      "Outside of Patreon-class tooling, the failure mode is harder to spot, so the framing matters because it reveals which trade-offs are being made.",
-      "The trade-offs around long form cross-cut every other theme \u2014 dialogue, cultural drift, and platform choice \u2014 rather than standing as a separate concern.",
-      "Practical adoption favors running one idea for two weeks rather than overhauling everything at once; the rest is iteration."
+      "Long-form content is not defined by length but by posture — a mindset that shapes how creators approach writing and conversation.",
+      "The texture of dialogue is the work; ignoring it leads to repeated effort and lost momentum.",
+      "Conversations unfold in ways essays cannot capture — the process itself is a form of cultural drift.",
+      "Failure in dialogue tools often stems from poor framing, which obscures the trade-offs being made.",
+      "Substack teams demonstrate how the right framing enables decisions that feel easier over time.",
+      "The key heuristic is internalizing that long-form is a posture, not a length — this shifts how all other choices are made.",
+      "Outside of Patreon-class tooling, the failure mode is harder to spot because the framing distorts visibility.",
+      "Running an idea for two weeks enables iteration — the real work is in the process, not just the output."
     ],
-    "raw_text": "Conversations capture something essays cannot \u2014 the way dialogue actually unfolds in real time \u2014 and the second-order effect of that difference is what most people miss. The texture of dialogue is the work rather than a byproduct of it; ignoring that means rebuilding it from scratch a year later.",
-    "title": "Dialogue, Long-Form, and Cultural Drift"
+    "raw_text": "Long-form content is not defined by length but by posture — a mindset that shapes how creators approach writing and conversation. The texture of dialogue is the work; ignoring it leads to repeated effort and lost momentum.",
+    "title": "Cultural Drift and the Texture of Dialogue"
   }
 }

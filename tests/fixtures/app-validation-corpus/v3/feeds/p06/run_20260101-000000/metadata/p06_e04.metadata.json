@@ -50,14 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Culture is a system that never sits still \u2014 a heuristic grounded in patterns observed at teams using Substack and reportedly holding across three different teams.",
-      "Drift can only be noticed rather than gripped; attempts to control it directly miss how it actually operates.",
-      "Second-order effects are the most overlooked dimension of cultural drift \u2014 the part most people miss when reasoning about how culture changes.",
-      "Ignoring cultural drift carries a concrete cost: teams end up rebuilding it from scratch a year later rather than adapting incrementally.",
-      "Systems thinking cross-cuts every aspect of cultural drift \u2014 its trade-offs shape the rest of the analysis rather than forming a separate topic.",
-      "Practical adoption favors small experiments over sweeping change \u2014 pick one idea, run it for two weeks, and treat the rest as iteration."
+      "Culture is a system that never sits still—its dynamic nature must be acknowledged rather than resisted.",
+      "Cultural drift cannot be gripped or controlled directly; it must be noticed and responded to through awareness.",
+      "The second-order effect of cultural drift is the part most people overlook, yet it shapes long-term outcomes.",
+      "Dialogue and cultural drift intersect when teams recognize patterns across time, not just in moment-to-moment interactions.",
+      "Systems thinking reveals trade-offs that cross-cut all aspects of cultural and organizational behavior.",
+      "Ignoring cultural drift leads to rebuilding the same structures from scratch a year later.",
+      "Running an idea for two weeks enables iteration and reveals whether it holds across time and context.",
+      "The act of noticing drift—rather than forcing control—is the core skill in navigating cultural change."
     ],
-    "raw_text": "Culture is a system that never sits still \u2014 a heuristic grounded in patterns observed at teams using Substack and reportedly holding across three different teams. Drift can only be noticed rather than gripped; attempts to control it directly miss how it actually operates.",
-    "title": "Cultural Drift: A System That Never Sits Still"
+    "raw_text": "Culture is a system that never sits still—its dynamic nature must be acknowledged rather than resisted. Cultural drift cannot be gripped or controlled directly; it must be noticed and responded to through awareness.",
+    "title": "Cultural Drift and Systems Thinking in Practice"
   }
 }

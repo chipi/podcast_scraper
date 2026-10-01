@@ -50,16 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Two-light setups solve 80% of commercial problems \u2014 once internalized, this heuristic makes the rest of the lighting decisions easier, and its second-order effects are the part most people miss.",
-      "On location, the first decision is always whether to shape the existing light rather than replace it; this framing determines which trade-offs the shoot will involve.",
-      "Frame and light are inseparable \u2014 lighting design choices cannot be evaluated independently of composition, a pattern observed at teams using Peak Design.",
-      "Color temperature mistakes cost more shoots than focus mistakes; ignoring this leads to rebuilding the approach from scratch a year later.",
-      "Outside of Profoto-class tooling, the failure mode is harder to spot \u2014 lesser equipment hides problems rather than surfacing them.",
-      "Adopting Adobe or Capture One in the workflow makes lighting trade-offs visible, turning implicit decisions into explicit ones.",
-      "Trade-offs around frame cross-cut every other lighting design decision, from strobe lighting to shaping existing light.",
-      "Running one idea for two weeks beats trying everything at once \u2014 improvement comes from iteration rather than wholesale change."
+      "Shaping existing light is the first decision on location — the rest of the lighting design follows from that foundational choice.",
+      "Two-light setups solve 80% of commercial lighting problems, making them a reliable default for most scenes.",
+      "Color temperature mistakes cost more shoots than focus mistakes — a subtle but critical error that undermines consistency over time.",
+      "Frame and light are inseparable — the framing reveals the tradeoffs inherent in every lighting decision.",
+      "The framing matters because it tells you which trade-offs you're making — a principle visible when teams adopt Adobe in their workflow.",
+      "Outside of Profoto-class tooling, failure modes are harder to spot — the system hides the consequences of poor choices.",
+      "When teams use Capture One or Peak Design, the trade-offs become visible — the workflow amplifies the impact of framing decisions.",
+      "Pick one idea from the conversation and run it for two weeks — the rest is iteration, not reinvention."
     ],
-    "raw_text": "Two-light setups solve 80% of commercial problems \u2014 once internalized, this heuristic makes the rest of the lighting decisions easier, and its second-order effects are the part most people miss. On location, the first decision is always whether to shape the existing light rather than replace it; this framing determines which trade-offs the shoot will involve.",
-    "title": "Frame & Light: Commercial Lighting Design Heuristics"
+    "raw_text": "Shaping existing light is the first decision on location — the rest of the lighting design follows from that foundational choice. Two-light setups solve 80% of commercial lighting problems, making them a reliable default for most scenes.",
+    "title": "Lighting Design and Framing: The Hidden Tradeoffs"
   }
 }

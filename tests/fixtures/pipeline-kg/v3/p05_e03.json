@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p05_e03",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:currency-intervention",
+      "label": "currency intervention"
+    },
+    {
+      "id": "topic:expectations-reliability",
+      "label": "expectations reliability"
+    },
+    {
+      "id": "topic:macro-policy-tools",
+      "label": "macro policy tools"
+    },
+    {
+      "id": "topic:operational-insight",
+      "label": "operational insight"
+    },
+    {
+      "id": "topic:platform-adoption",
+      "label": "platform adoption"
+    },
+    {
+      "id": "topic:regime-change-risk",
+      "label": "regime change risk"
+    },
+    {
+      "id": "topic:risk-articulation",
+      "label": "risk articulation"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "label": "systems thinking"
+    },
+    {
+      "id": "topic:trade-off-visibility",
+      "label": "trade-off visibility"
+    }
+  ]
+}

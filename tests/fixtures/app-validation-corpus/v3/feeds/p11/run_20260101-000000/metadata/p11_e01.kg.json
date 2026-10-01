@@ -36,6 +36,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:drainage-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:framework-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:land-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:machine-vs-hand-built-trails",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:slope-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:structural-compromise",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:switchback-construction",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-e2231244311ca964",
+      "target": "topic:trail-durability",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-e2231244311ca964",
       "to": "person:giulia-ferrara",
       "type": "MENTIONS"
@@ -115,6 +160,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:framework-integration",
+      "properties": {
+        "label": "framework integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-management",
+      "properties": {
+        "label": "land management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:machine-vs-hand-built-trails",
+      "properties": {
+        "label": "machine vs hand built trails",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:slope-management",
+      "properties": {
+        "label": "slope management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:structural-compromise",
+      "properties": {
+        "label": "structural compromise",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:switchback-construction",
+      "properties": {
+        "label": "switchback construction",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trail-durability",
+      "properties": {
+        "label": "trail durability",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

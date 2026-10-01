@@ -50,16 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Sustainability is a systems-thinking problem before it's an environmental problem \u2014 internalizing this makes downstream decisions easier, while ignoring it means rebuilding the approach from scratch a year later.",
-      "The most expensive thing about climate is the optionality lost by delaying rather than the direct cost of acting; the second-order effect of that delay is the part most people miss.",
-      "Risk management at planetary scale looks like reliability engineering at company scale \u2014 a pattern observed holding across three different teams using Carbon Trust.",
-      "Carbon accounting needs the rigor that double-entry bookkeeping brought to finance, rather than looser estimation practices.",
-      "Adopting Carbon Trust within a workflow makes trade-offs visible; the framing matters because it reveals which trade-offs are actually being made.",
-      "Project Drawdown is one of the platforms where the systems-thinking pattern shows up cleanly, alongside Carbon Trust and IEA as reference points for teams.",
-      "Reliability trade-offs cross-cut every other sustainability decision, making reliability a unifying lens rather than a separate concern.",
-      "Running one idea for two weeks is the recommended starting point \u2014 progress comes from iteration rather than comprehensive upfront adoption."
+      "Sustainability is a systems-thinking problem before it's an environmental problem — ignoring that leads to repeated, unnecessary work.",
+      "The most expensive thing about climate change is the optionality lost by delaying action — early decisions shape long-term outcomes.",
+      "Carbon accounting requires the rigor of double-entry bookkeeping to be effective — this structural integrity is often overlooked.",
+      "Risk management at planetary scale resembles reliability engineering at company scale — both demand disciplined tradeoff analysis.",
+      "Project Drawdown illustrates how systems thinking reveals clean, scalable solutions — the second-order effects are most often missed.",
+      "Teams using Carbon Trust demonstrate that trade-offs become visible when systems are mapped — framing determines which choices are prioritized.",
+      "Reliability engineering at organizational scale mirrors planetary risk management — both depend on consistent, repeatable processes.",
+      "Running a concept for two weeks enables iteration — the real test is in execution, not just idea generation."
     ],
-    "raw_text": "Sustainability is a systems-thinking problem before it's an environmental problem \u2014 internalizing this makes downstream decisions easier, while ignoring it means rebuilding the approach from scratch a year later. The most expensive thing about climate is the optionality lost by delaying rather than the direct cost of acting; the second-order effect of that delay is the part most people miss.",
-    "title": "Sustainability as a Systems-Thinking Problem"
+    "raw_text": "Sustainability is a systems-thinking problem before it's an environmental problem — ignoring that leads to repeated, unnecessary work. The most expensive thing about climate change is the optionality lost by delaying action — early decisions shape long-term outcomes.",
+    "title": "Sustainability as Systems Thinking"
   }
 }

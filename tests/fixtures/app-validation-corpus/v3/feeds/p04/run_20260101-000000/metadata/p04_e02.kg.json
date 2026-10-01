@@ -36,6 +36,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:capture-one-workflow",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:color-grading",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:documentary-essay",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:documentary-frames",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:frame-positioning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:operational-angle",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:peak-design-slings",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:platform-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-fb2bb5f0f4044f1d",
+      "target": "topic:second-order-effect",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-fb2bb5f0f4044f1d",
       "to": "person:leo",
       "type": "MENTIONS"
@@ -115,6 +160,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:capture-one-workflow",
+      "properties": {
+        "label": "capture one workflow",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:color-grading",
+      "properties": {
+        "label": "color grading",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:documentary-essay",
+      "properties": {
+        "label": "documentary essay",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:documentary-frames",
+      "properties": {
+        "label": "documentary frames",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-positioning",
+      "properties": {
+        "label": "frame positioning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-angle",
+      "properties": {
+        "label": "operational angle",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:peak-design-slings",
+      "properties": {
+        "label": "peak design slings",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platform-integration",
+      "properties": {
+        "label": "platform integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "properties": {
+        "label": "second order effect",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

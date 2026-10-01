@@ -1,17 +1,20 @@
 {
-  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "episode_id": "p03_e04",
-  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "summary": {
     "bullets": [
-      "Dive planning is risk management rather than paperwork — it is framed as survival, not an administrative formality new divers can skip.",
-      "Conservative margins define a good plan; it is the gas you don't use and the ascent you don't rush.",
-      "Unnamed risks cause the harm — the incident that hurts you is the one nobody named on the boat, so every hazard gets named before the dive.",
-      "The whole dive should be planned as one system — depth, gas, team, current — because accidents live in how those factors interact rather than in any single number.",
-      "A decade of reviewed incident reports consistently showed the same pattern: accidents emerged from interactions between variables rather than isolated failures.",
-      "A dive plan and a portfolio are the same discipline — systems of correlated risk, where the risk you can describe in advance is the one you can actually control."
+      "Dive planning is fundamentally risk management, not paperwork, because it addresses the gas not used and the ascent not rushed.",
+      "The most harmful incidents are those not anticipated or named on the boat, so all potential failures must be named and planned for in advance.",
+      "A dive is a system of interacting elements—depth, gas, team, current—where accidents arise from their interactions, not isolated numbers.",
+      "Reviewing a decade of incident reports confirms that planning for system-level interactions prevents failures.",
+      "Dive planning and portfolio management share the same discipline: systems of correlated risk that can be controlled only when described in advance.",
+      "The one risk you can describe in advance is the one you can actually control, because description enables anticipation and mitigation.",
+      "Accidents live in the space between elements, not in any single variable, so planning must consider the whole system.",
+      "Underwater stress stems from surprise and lack of rehearsal, not inherent difficulty, so practice transforms alarming situations into manageable ones."
     ],
-    "raw_text": "Dive planning is risk management rather than paperwork — it is framed as survival, not an administrative formality new divers can skip. Conservative margins define a good plan; it is the gas you don't use and the ascent you don't rush.",
+    "raw_text": "Dive planning is fundamentally risk management, not paperwork, because it addresses the gas not used and the ascent not rushed. The most harmful incidents are those not anticipated or named on the boat, so all potential failures must be named and planned for in advance.",
     "title": "Dive Planning as Risk Management"
   }
 }

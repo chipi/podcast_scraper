@@ -50,15 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Roundtables reveal where photographers actually disagree \u2014 surfacing real points of contention across underwater, documentary, and commercial lighting work rather than consensus talking points.",
-      "Frame and light decisions converge across genres; internalizing that convergence makes the rest of the decisions easier and clarifies which trade-offs are being made.",
-      "Practical reliability of gear shows up under crowd-shoot conditions rather than in controlled settings \u2014 a pattern observed at teams using Profoto and Peak Design.",
-      "Outside of Profoto-class or Peak Design-class tooling, the failure mode is harder to spot, and the second-order effect is the part most people miss.",
-      "Ignoring gear reliability and genre-convergence dynamics leads to rebuilding a workflow from scratch a year later \u2014 a pattern held across three different teams.",
-      "Strobe lighting trade-offs cross-cut every other decision in roundtable photography, making it the point where framing, gear reliability, and genre differences intersect.",
-      "Running one idea for two weeks beats adopting everything at once; the rest is iteration."
+      "Roundtables reveal where photographers actually disagree, a dynamic that becomes evident when teams collaborate across genres.",
+      "Frame and light decisions converge across genres, making the rest of the decisions easier once this convergence is internalized.",
+      "Practical reliability of gear shows up under crowd-shoot conditions, a critical test that exposes failure modes most people overlook.",
+      "Failure modes are harder to spot outside of Peak Design-class tooling, and ignoring them leads to rebuilding systems from scratch a year later.",
+      "The second-order effect most people miss is the long-term impact of gear reliability on team workflow and project continuity.",
+      "Strobe lighting trade-offs cross-cut all previous discussions, making it a central point of convergence and disagreement.",
+      "Peak Design is one platform where the practical reliability of gear becomes clearly visible under real-world, high-pressure conditions.",
+      "Running a single idea for two weeks enables meaningful iteration — the best way to test assumptions in practice."
     ],
-    "raw_text": "Roundtables reveal where photographers actually disagree \u2014 surfacing real points of contention across underwater, documentary, and commercial lighting work rather than consensus talking points. Frame and light decisions converge across genres; internalizing that convergence makes the rest of the decisions easier and clarifies which trade-offs are being made.",
-    "title": "Roundtable Photography: Where Genres Converge and Photographers Disagree"
+    "raw_text": "Roundtables reveal where photographers actually disagree, a dynamic that becomes evident when teams collaborate across genres. Frame and light decisions converge across genres, making the rest of the decisions easier once this convergence is internalized.",
+    "title": "Roundtable Photography: Where Photographers Actually Disagree"
   }
 }

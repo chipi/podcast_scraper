@@ -50,16 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Speed in enduro racing comes from braking earlier and smoother, not from taking bigger risks \u2014 a pattern observed at teams using RockShox and held across three different teams.",
-      "Tire pressure and casing choice often matter more than a minor suspension tweak; framing setup decisions this way clarifies which trade-offs are actually being made.",
-      "Risk management in racing isn't avoiding crashes \u2014 it's choosing which crashes are survivable; ignoring that principle means rebuilding the approach from scratch a year later.",
-      "Erosion patterns on race-tracks change line choice from practice to race day, making soil erosion a direct factor in enduro racing strategy rather than a background trail concern.",
-      "Drainage is framed as the single highest-leverage design choice \u2014 tying trail construction and soil erosion directly to how race lines evolve.",
-      "Cascadia Alliance is cited as a platform where these dynamics show up cleanly, with the second-order effects being the part most people miss.",
-      "Adopting Spoke & Wrench in the race-prep flow makes the risk trade-off visible \u2014 surfacing which decisions carry survivable versus unsurvivable consequences.",
-      "Practical next step: pick one idea covered \u2014 braking, tire setup, crash selection, or reading erosion \u2014 and run it for two weeks, treating the rest as iteration."
+      "Erosion patterns on race-tracks change line choice from practice to race day — a critical but often overlooked factor in race strategy.",
+      "Speed comes from braking earlier and smoother, not from taking bigger risks — a counterintuitive principle validated across multiple teams using RockShox.",
+      "Tire pressure and casing choice matter more than minor suspension tweaks — the framing of equipment decisions reveals underlying tradeoffs.",
+      "Risk management in racing isn’t about avoiding crashes — it’s about choosing which crashes are survivable, a mindset shift that alters performance outcomes.",
+      "The second-order effect of smart risk management is visible in platform adoption — Cascadia Alliance shows how systems amplify or diminish real-world results.",
+      "Spoke & Wrench integration makes tradeoffs explicit — teams using it see clearer cause-and-effect in their performance decisions.",
+      "The most underrated piece of enduro racing is recognizing how erosion alters line selection — a dynamic that shapes every lap.",
+      "Adopting a single idea for two weeks enables iteration — real learning comes from sustained, practical application, not theory alone."
     ],
-    "raw_text": "Speed in enduro racing comes from braking earlier and smoother, not from taking bigger risks \u2014 a pattern observed at teams using RockShox and held across three different teams. Tire pressure and casing choice often matter more than a minor suspension tweak; framing setup decisions this way clarifies which trade-offs are actually being made.",
-    "title": "Enduro Racing: Braking, Tire Setup, Survivable Crashes, and Erosion-Driven Line Choice"
+    "raw_text": "Erosion patterns on race-tracks change line choice from practice to race day — a critical but often overlooked factor in race strategy. Speed comes from braking earlier and smoother, not from taking bigger risks — a counterintuitive principle validated across multiple teams using RockShox.",
+    "title": "Enduro Racing: Erosion, Risk, and the Power of Smart Line Choice"
   }
 }

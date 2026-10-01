@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p01_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:bench-cuts",
+      "label": "bench cuts"
+    },
+    {
+      "id": "topic:drainage-design",
+      "label": "drainage design"
+    },
+    {
+      "id": "topic:failure-mode-visibility",
+      "label": "failure mode visibility"
+    },
+    {
+      "id": "topic:grading-aggression",
+      "label": "grading aggression"
+    },
+    {
+      "id": "topic:land-stewardship",
+      "label": "land stewardship"
+    },
+    {
+      "id": "topic:machine-vs-hand-built-trails",
+      "label": "machine vs hand-built trails"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:soil-structure",
+      "label": "soil structure"
+    },
+    {
+      "id": "topic:tooling-platforms",
+      "label": "tooling platforms"
+    },
+    {
+      "id": "topic:trail-longevity",
+      "label": "trail longevity"
+    }
+  ]
+}

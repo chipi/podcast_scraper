@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p07_e03",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:correlated-risks",
+      "label": "correlated risks"
+    },
+    {
+      "id": "topic:coupling-management",
+      "label": "coupling management"
+    },
+    {
+      "id": "topic:discounted-risks",
+      "label": "discounted risks"
+    },
+    {
+      "id": "topic:emissions-optimization",
+      "label": "emissions optimization"
+    },
+    {
+      "id": "topic:modeling-interventions",
+      "label": "modeling interventions"
+    },
+    {
+      "id": "topic:portfolio-risk",
+      "label": "portfolio risk"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:sustainability-interventions",
+      "label": "sustainability interventions"
+    },
+    {
+      "id": "topic:systemic-failure",
+      "label": "systemic failure"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "label": "systems thinking"
+    }
+  ]
+}

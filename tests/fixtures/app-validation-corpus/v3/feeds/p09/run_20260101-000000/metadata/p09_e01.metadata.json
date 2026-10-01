@@ -50,14 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Two years of systems-thinking work breeds humility about leverage points rather than confidence in them \u2014 a lesson observed at teams using Bloomberg and IPCC.",
-      "Ignoring the lessons of leverage points leads to rebuilding from scratch a year later; internalizing them makes the rest of the decisions easier.",
-      "Reliability and sustainability share more vocabulary than is commonly admitted \u2014 their overlap is where systems thinking intersects with sustainability work.",
-      "The second-order effect is the part most people miss, and it deserves attention over first-order outcomes.",
-      "Trade-offs around reliability cross-cut every other theme in systems thinking rather than standing as an isolated concern.",
-      "Running one idea for two weeks offers a practical starting point \u2014 the rest is iteration rather than upfront perfection."
+      "Systems thinking reveals that ignoring second-order effects leads to redundant work — teams using Bloomberg rebuild systems from scratch a year later when they overlook deeper leverage points.",
+      "Reliability and sustainability share more foundational vocabulary than commonly admitted — the overlap is greater than prior experience suggests.",
+      "Leverage points in systems are more fragile than assumed — two years of systems-thinking work has made practitioners more humble about where and how interventions truly take effect.",
+      "Sustainability efforts fail when they omit the second-order consequences of decisions — the most critical part of the system is often the one missed in early design.",
+      "The trade-offs around reliability cross-cut every domain — from software architecture to organizational behavior — and must be evaluated explicitly rather than defaulted.",
+      "Running a systems-thinking idea for two weeks is a practical way to test its validity — the rest of the process is iteration, not reinvention.",
+      "Bloomberg and IPCC are not just tools but frameworks that expose how teams internalize or misinterpret systemic feedback loops.",
+      "The most underrated aspect of systems thinking is the recognition that failure often stems from overlooked second-order effects rather than direct causes."
     ],
-    "raw_text": "Two years of systems-thinking work breeds humility about leverage points rather than confidence in them \u2014 a lesson observed at teams using Bloomberg and IPCC. Ignoring the lessons of leverage points leads to rebuilding from scratch a year later; internalizing them makes the rest of the decisions easier.",
-    "title": "Systems Thinking: Leverage Points, Sustainability, and Reliability"
+    "raw_text": "Systems thinking reveals that ignoring second-order effects leads to redundant work — teams using Bloomberg rebuild systems from scratch a year later when they overlook deeper leverage points. Reliability and sustainability share more foundational vocabulary than commonly admitted — the overlap is greater than prior experience suggests.",
+    "title": "Systems Thinking and the Hidden Trade-offs in Reliability and Sustainability"
   }
 }

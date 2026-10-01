@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p06_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:cultural-drift",
+      "label": "cultural drift"
+    },
+    {
+      "id": "topic:dialogue-texture",
+      "label": "dialogue texture"
+    },
+    {
+      "id": "topic:failure-mode",
+      "label": "failure mode"
+    },
+    {
+      "id": "topic:framing-trade-offs",
+      "label": "framing trade-offs"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "label": "iteration practice"
+    },
+    {
+      "id": "topic:long-form-posture",
+      "label": "long-form posture"
+    },
+    {
+      "id": "topic:operational-angle",
+      "label": "operational angle"
+    },
+    {
+      "id": "topic:platform-tooling",
+      "label": "platform tooling"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "label": "second-order effect"
+    },
+    {
+      "id": "topic:tooling-replacement",
+      "label": "tooling replacement"
+    }
+  ]
+}

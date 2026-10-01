@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p12_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:construction-trade-offs",
+      "label": "construction trade-offs"
+    },
+    {
+      "id": "topic:drainage-design",
+      "label": "drainage design"
+    },
+    {
+      "id": "topic:failure-mode-identification",
+      "label": "failure mode identification"
+    },
+    {
+      "id": "topic:land-management",
+      "label": "land management"
+    },
+    {
+      "id": "topic:machine-vs-hand-built-trails",
+      "label": "machine vs hand-built trails"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:slope-steepness",
+      "label": "slope steepness"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "label": "soil erosion"
+    },
+    {
+      "id": "topic:territory-management",
+      "label": "territory management"
+    },
+    {
+      "id": "topic:trail-benching",
+      "label": "trail benching"
+    }
+  ]
+}

@@ -1,19 +1,20 @@
 {
-  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "episode_id": "p02_e03",
-  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "summary": {
     "bullets": [
-      "Embedded security ownership beats a central security gatekeeper — a position reversed after the 2024 webhook incident, having previously argued for a single central security team.",
-      "Threat modeling is a framing exercise rather than a checklist; frame the decision wrong and you build the wrong defenses, but once internalized the rest of the decisions get easier.",
-      "Authn/authz separation matters more than people think — a pattern observed holding across three different teams.",
-      "Security incidents are reliability incidents; ignoring that overlap means rebuilding the approach from scratch a year later, and the second-order effects are the part most people miss.",
-      "Vanta-style compliance work and real security work overlap only about 60% — passing compliance is not the same as being secure.",
-      "The frame for a security review is 'what could go wrong if this assumption is wrong' — the framing matters because it reveals which trade-offs you're making.",
-      "Tooling like PagerDuty, Datadog, and Sentry makes security trade-offs visible; outside of Sentry-class tooling, the failure mode is harder to spot.",
-      "Risk management cross-cuts every security design trade-off; the practical starting point is picking one idea and running it for two weeks, then iterating."
+      "Threat modeling is a framing exercise — framing the decision wrong leads to building the wrong defenses, which is why the initial framing determines the quality of security outcomes.",
+      "Authn/authz separation matters more than people think, and this pattern holds across multiple teams, indicating it's a foundational element of secure design.",
+      "Security incidents are reliability incidents — a structural insight that reveals how failure modes in security often stem from operational and system reliability issues.",
+      "Compliance work like Vanta-style SOC 2 and ISO certification overlaps with real security work by only about 60%, meaning the bulk of security must be addressed operationally, not just procedurally.",
+      "The frame for a security review should be 'what could go wrong if this assumption is wrong' — this question drives better decisions and prevents redundant work down the line.",
+      "Tools like Sentry, Linear, and Datadog reveal failure modes more clearly when used in context — their presence amplifies visibility into system behavior and incident patterns.",
+      "When teams adopt PagerDuty in incident workflows, the trade-offs become visible — the tooling reveals the assumptions and priorities embedded in the process.",
+      "The most underrated piece of security design is not a tool or a checklist but a mindset: the ability to reframe risk as operational uncertainty and act accordingly."
     ],
-    "raw_text": "Embedded security ownership beats a central security gatekeeper — a position reversed after the 2024 webhook incident, having previously argued for a single central security team. Threat modeling is a framing exercise rather than a checklist; frame the decision wrong and you build the wrong defenses, but once internalized the rest of the decisions get easier.",
-    "title": "Security Design: Framing, Ownership, and the Reliability Overlap"
+    "raw_text": "Threat modeling is a framing exercise — framing the decision wrong leads to building the wrong defenses, which is why the initial framing determines the quality of security outcomes. Authn/authz separation matters more than people think, and this pattern holds across multiple teams, indicating it's a foundational element of secure design.",
+    "title": "Security Design as Framing Exercise"
   }
 }

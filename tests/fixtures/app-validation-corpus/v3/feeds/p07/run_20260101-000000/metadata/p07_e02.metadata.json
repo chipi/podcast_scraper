@@ -50,16 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Employment data is noisier than headlines suggest \u2014 internalizing that noise makes downstream macroeconomic decisions easier, and its second-order effects are the part most people miss.",
-      "Systems thinking in macro means watching feedback loops rather than point estimates; ignoring those loops forces a rebuild from scratch a year later.",
-      "Risk management at the central-bank level looks like reliability engineering \u2014 a pattern observed across three different teams and among teams using IEA and IPCC.",
-      "Framing determines which trade-offs are being made, so explicit framing surfaces choices that would otherwise stay hidden.",
-      "Adopting Project Drawdown within an analytical flow makes the underlying trade-off visible rather than implicit.",
-      "The trade-offs around risk management cross-cut every other theme in macroeconomics, from employment data to feedback-loop analysis.",
-      "Outside of Carbon Trust-class tooling, the failure mode is harder to spot \u2014 weaker tooling obscures where macro analysis breaks down.",
-      "Running one idea for two weeks is the recommended starting point; the rest is iteration."
+      "Systems thinking in macroeconomics means tracking feedback loops rather than relying on point estimates, which enables more resilient decision-making.",
+      "Employment data is noisier than headlines suggest, and ignoring this leads to repeated, unnecessary rework in economic modeling.",
+      "Risk management at the central-bank level resembles reliability engineering, where failure modes emerge from tooling gaps rather than flawed logic.",
+      "The framing of a problem determines which trade-offs become visible — using Project Drawdown reveals the cost of certain policy choices.",
+      "Teams using IPCC or IEA frameworks demonstrate consistent patterns, indicating that structured tools amplify systemic insight.",
+      "Central-bank risk management fails not from poor models but from inadequate tooling outside Carbon Trust-class systems.",
+      "A key heuristic is to test one idea for two weeks — iteration reveals the real impact of a decision rather than theoretical assumptions.",
+      "The most underrated aspect of macroeconomics is not forecasting but managing the trade-offs embedded in risk frameworks."
     ],
-    "raw_text": "Employment data is noisier than headlines suggest \u2014 internalizing that noise makes downstream macroeconomic decisions easier, and its second-order effects are the part most people miss. Systems thinking in macro means watching feedback loops rather than point estimates; ignoring those loops forces a rebuild from scratch a year later.",
-    "title": "Macroeconomics Through Systems Thinking and Risk Management"
+    "raw_text": "Systems thinking in macroeconomics means tracking feedback loops rather than relying on point estimates, which enables more resilient decision-making. Employment data is noisier than headlines suggest, and ignoring this leads to repeated, unnecessary rework in economic modeling.",
+    "title": "Systems Thinking and Risk Management in Macroeconomics"
   }
 }

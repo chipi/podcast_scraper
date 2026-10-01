@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p02_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:alerting-actionability",
+      "label": "alerting actionability"
+    },
+    {
+      "id": "topic:behavioral-change-through-metrics",
+      "label": "behavioral change through metrics"
+    },
+    {
+      "id": "topic:error-budget-effectiveness",
+      "label": "error budget effectiveness"
+    },
+    {
+      "id": "topic:failure-mode-visibility",
+      "label": "failure mode visibility"
+    },
+    {
+      "id": "topic:incident-response-ownership",
+      "label": "incident response ownership"
+    },
+    {
+      "id": "topic:iteration-through-trial",
+      "label": "iteration through trial"
+    },
+    {
+      "id": "topic:on-call-rotation-design",
+      "label": "on-call rotation design"
+    },
+    {
+      "id": "topic:reliability-and-on-call-intersection",
+      "label": "reliability and on-call intersection"
+    },
+    {
+      "id": "topic:systems-thinking-integration",
+      "label": "systems thinking integration"
+    },
+    {
+      "id": "topic:tooling-impact-on-reliability",
+      "label": "tooling impact on reliability"
+    }
+  ]
+}

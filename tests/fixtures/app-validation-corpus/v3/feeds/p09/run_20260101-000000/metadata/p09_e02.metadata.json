@@ -50,13 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Macro forecasting is mostly humility plus a few dependable signals rather than elaborate prediction \u2014 a pattern observed at teams using BloombergNEF and IPCC and seen holding across three different teams.",
-      "Reliability of data trumps cleverness of model; the framing matters because it reveals which trade-offs a forecaster is actually making.",
-      "Second-order effects are the part of macroeconomics most people miss \u2014 first-order reasoning alone leaves the most consequential dynamics unexamined.",
-      "Trade-offs around reliability cross-cut every other aspect of risk management and macroeconomics rather than sitting in a single isolated domain.",
-      "Practical adoption starts small \u2014 pick one idea, run it for two weeks, and treat everything after that as iteration rather than a one-time overhaul."
+      "Macro forecasting is mostly humility plus a few dependable signals—reliability of data trumps cleverness of model.",
+      "The reliability of data determines the quality of forecasts, not the sophistication of the model used.",
+      "Framing matters because it reveals the trade-offs inherent in any forecasting decision.",
+      "Teams using BloombergNEF have demonstrated that consistent, dependable signals outperform complex models over time.",
+      "The second-order effect is often missed: reliable data enables better risk management across economic scenarios.",
+      "Reliability of data trumps cleverness of model—this framing exposes the real trade-offs being made.",
+      "Running a concept for two weeks enables iteration and reveals whether it holds in practice.",
+      "The key insight is not just what you forecast, but how you choose to trust the data."
     ],
-    "raw_text": "Macro forecasting is mostly humility plus a few dependable signals rather than elaborate prediction \u2014 a pattern observed at teams using BloombergNEF and IPCC and seen holding across three different teams. Reliability of data trumps cleverness of model; the framing matters because it reveals which trade-offs a forecaster is actually making.",
-    "title": "Macro Forecasting: Humility, Dependable Signals, and Reliable Data"
+    "raw_text": "Macro forecasting is mostly humility plus a few dependable signals—reliability of data trumps cleverness of model. The reliability of data determines the quality of forecasts, not the sophistication of the model used.",
+    "title": "Macro Forecasting: Humility, Data Reliability, and Dependable Signals"
   }
 }

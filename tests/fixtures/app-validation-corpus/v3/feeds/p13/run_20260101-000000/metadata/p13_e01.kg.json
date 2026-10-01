@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:curb-design-on-slopes",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:drainage-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:failure-mode-identification",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:iteration-through-practice",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:land-management-planning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:machine-vs-hand-built-trails",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:slope-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:structural-trade-offs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-c0ab3bfb1ebdab6d",
+      "target": "topic:tooling-access",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-c0ab3bfb1ebdab6d",
       "to": "person:katrin-vogel",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:curb-design-on-slopes",
+      "properties": {
+        "label": "curb design on slopes",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-mode-identification",
+      "properties": {
+        "label": "failure mode identification",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-through-practice",
+      "properties": {
+        "label": "iteration through practice",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-management-planning",
+      "properties": {
+        "label": "land management planning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:machine-vs-hand-built-trails",
+      "properties": {
+        "label": "machine vs hand built trails",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:slope-management",
+      "properties": {
+        "label": "slope management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:structural-trade-offs",
+      "properties": {
+        "label": "structural trade offs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-access",
+      "properties": {
+        "label": "tooling access",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

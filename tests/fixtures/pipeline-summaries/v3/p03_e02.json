@@ -1,19 +1,20 @@
 {
-  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "episode_id": "p03_e02",
-  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "summary": {
     "bullets": [
-      "Coral bleaching events are not random — a pattern observed repeatedly across three different teams, including those using PADI and DAN, and one that simplifies downstream decisions once internalized.",
-      "Erosion in coastal areas drives sediment plumes, making soil erosion a cross-cutting factor in reef conservation rather than a separate land-based concern.",
-      "Most reef damage from divers comes from anchor strikes rather than fin contact — a finding seen among teams using Suunto and PADI, with second-order effects that most people miss.",
-      "Adopting PADI in a dive workflow makes the underlying trade-off visible, while outside of Suunto-class tooling the failure mode is harder to spot.",
-      "Ignoring a hard-to-spot failure mode early leads to rebuilding from scratch a year later — catching it up front costs far less than retrofitting.",
-      "Framing a reef or erosion problem correctly matters because it reveals which trade-offs are being made rather than leaving them implicit.",
-      "A changed view on shark dives stands as one of the most underrated points in marine biology, with the shift holding consistently across three different teams.",
-      "Running one idea for two weeks and iterating from there serves as the practical starting point rather than attempting a wholesale change at once."
+      "Coral bleaching events are not random — they are driven by predictable environmental stressors that reveal underlying system vulnerabilities.",
+      "Most reef damage from divers stems from anchor strikes rather than fin contact, a critical distinction often overlooked in dive operations.",
+      "Erosion in coastal areas drives sediment plumes that degrade reef ecosystems — a failure mode that becomes visible when teams adopt PADI-certified practices.",
+      "The framing of a problem determines which trade-offs are made — for example, how dive tooling is selected influences the visibility of second-order effects.",
+      "Using Suunto-class tooling outside of standard frameworks makes the failure mode harder to detect, leading to repeated rebuilding efforts down the line.",
+      "Shark dives reveal a shift in perspective: the real issue is not the dive itself but the assumptions embedded in how it's framed.",
+      "Soil erosion is a cross-cutting factor — its impacts on reef health are systemic and interwoven with other conservation challenges.",
+      "The key heuristic is internalizing that coral bleaching is not stochastic — once this is accepted, decision-making becomes more coherent and effective."
     ],
-    "raw_text": "Coral bleaching events are not random — a pattern observed repeatedly across three different teams, including those using PADI and DAN, and one that simplifies downstream decisions once internalized. Erosion in coastal areas drives sediment plumes, making soil erosion a cross-cutting factor in reef conservation rather than a separate land-based concern.",
-    "title": "Surface: Reef Systems, Sediment Plumes, and Diver Impact"
+    "raw_text": "Coral bleaching events are not random — they are driven by predictable environmental stressors that reveal underlying system vulnerabilities. Most reef damage from divers stems from anchor strikes rather than fin contact, a critical distinction often overlooked in dive operations.",
+    "title": "Reef Conservation and Marine Biology: Intersections and Heuristics"
   }
 }

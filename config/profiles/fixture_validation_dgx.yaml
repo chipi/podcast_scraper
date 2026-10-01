@@ -24,6 +24,12 @@
 # TEMPERATURE 0 EVERYWHERE. The output of this run is COMMITTED. At any sampling temperature a
 # regeneration diffs for no reason, and the fixture stops being a fixed point — which is the same
 # reasoning `fixture_validation` records for its own `litellm_temperature: 0.0`.
+#
+# Registry: yaml-only by design — no `profile:` key and no entry in `_profile_presets`, so the
+# drift check skips it. Same opt-out as `fixture_validation` and the `bakeoff_litellm_*` arms:
+# this is a tool for producing a committed artifact, not an operational profile anyone deploys,
+# and a ProfilePreset would put it in the ladder/drift machinery that exists to protect running
+# systems.
 
 transcription:
   primary: whisper

@@ -1,19 +1,20 @@
 {
-  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "episode_id": "p05_e01",
-  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "summary": {
     "bullets": [
-      "Index funds are not a strategy — they're the absence of one; the second-order effect of that framing is the part most people miss.",
-      "Vanguard's structure pioneered low costs, and ignoring that structural foundation means rebuilding it from scratch a year later.",
-      "Framing the market reaction first, then looking at fundamentals, reverses the order most decisions follow — internalizing this sequence makes the rest of the decisions easier.",
-      "Tools like Bloomberg and Morningstar make the framing-first trade-off visible when built into the decision flow rather than bolted on later.",
-      "Risk management for individual investors is mostly behavioral rather than technical — a pattern observed holding across three different teams.",
-      "Small-value tilts are a position that was revised over time, with the change of mind observed in practice at teams using Wealthfront and Vanguard.",
-      "Frame cross-cuts every other trade-off in index investing, which makes it the connective thread rather than a standalone topic.",
-      "Running one idea for two weeks is the recommended starting point — everything beyond that is iteration."
+      "Index funds are not a strategy — they are the absence of one, and the second-order effect most people miss is the structural advantage of low-cost, passive exposure.",
+      "Vanguard's structure pioneered low costs, and ignoring that foundational design leads to rebuilding the same infrastructure from scratch within a year.",
+      "Risk management for individual investors is primarily behavioral — the real challenge is not data or models, but human psychology and decision-making patterns.",
+      "The key to effective investing is framing the market reaction first, then analyzing fundamentals — most decisions reverse the correct sequence and fail as a result.",
+      "Small-value tilts are not universally beneficial; changing one's mind on this point reflects a deeper understanding of market inefficiencies and behavioral biases.",
+      "Using platforms like Bloomberg or Morningstar reveals the trade-off between visibility and repetition — ignoring the flow leads to redundant work down the line.",
+      "Reliability in index investing intersects with consistency of process; the real edge comes from internalizing market dynamics rather than chasing returns.",
+      "Pick one idea from the discussion and run it for two weeks — the rest is iteration, not reinvention."
     ],
-    "raw_text": "Index funds are not a strategy — they're the absence of one; the second-order effect of that framing is the part most people miss. Vanguard's structure pioneered low costs, and ignoring that structural foundation means rebuilding it from scratch a year later.",
-    "title": "Index Investing as the Absence of Strategy"
+    "raw_text": "Index funds are not a strategy — they are the absence of one, and the second-order effect most people miss is the structural advantage of low-cost, passive exposure. Vanguard's structure pioneered low costs, and ignoring that foundational design leads to rebuilding the same infrastructure from scratch within a year.",
+    "title": "The Hidden Mechanics of Index Investing"
   }
 }

@@ -36,6 +36,36 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:deadline-pressure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:iteration-practice",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:newsroom-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:reliability-system",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-b3570c1ceb5eca41",
+      "target": "topic:trust-as-asset",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-b3570c1ceb5eca41",
       "to": "person:a-correspondent",
       "type": "MENTIONS"
@@ -115,6 +145,54 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:deadline-pressure",
+      "properties": {
+        "label": "deadline pressure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "properties": {
+        "label": "iteration practice",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:newsroom-reliability",
+      "properties": {
+        "label": "newsroom reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-system",
+      "properties": {
+        "label": "reliability system",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trust-as-asset",
+      "properties": {
+        "label": "trust as asset",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

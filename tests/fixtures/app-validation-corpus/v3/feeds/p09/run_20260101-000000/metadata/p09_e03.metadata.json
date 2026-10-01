@@ -50,13 +50,16 @@
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Labor markets are where macro stops being abstract \u2014 the point at which economic conditions become concrete realities for workers and households rather than aggregate figures.",
-      "Risk is a household-level variable rather than a portfolio-level one; a pattern observed to hold consistently across three different teams.",
-      "Ignoring the household and labor-market grounding of risk forces teams to rebuild their approach from scratch a year later \u2014 a recurring pattern at teams using Bloomberg and BloombergNEF.",
-      "Systems thinking involves trade-offs that cross-cut every other theme, from labor markets to risk management, rather than standing as a separate topic.",
-      "Adoption works best by picking one idea and running it for two weeks rather than overhauling everything at once \u2014 the rest is iteration."
+      "Labor markets are where macroeconomic concepts stop being abstract and become tangible in practice — a critical insight for teams using financial data platforms like BloombergNEF.",
+      "Risk is fundamentally a household-level variable, not a portfolio-level one, and ignoring this leads to redundant work — teams end up rebuilding systems from scratch within a year.",
+      "Systems thinking reveals trade-offs that cross-cut all aspects of economic analysis, making it essential to evaluate decisions explicitly rather than defaulting to familiar patterns.",
+      "The intersection of risk management and labor markets is best understood through concrete examples where household-level economic behavior drives macro outcomes.",
+      "Failure to recognize that risk is embedded at the household level results in inefficient systems design and repeated effort — a pattern observed across multiple teams.",
+      "One key idea is to pick a concept from the discussion and test it over two weeks, using iteration to refine understanding rather than relying on initial assumptions.",
+      "The most effective insights emerge when teams treat economic variables as interconnected systems rather than isolated data points.",
+      "A core principle is that macroeconomic models must reflect real-world household behavior — not just aggregate portfolio metrics — to avoid being abstract or misaligned with reality."
     ],
-    "raw_text": "Labor markets are where macro stops being abstract \u2014 the point at which economic conditions become concrete realities for workers and households rather than aggregate figures. Risk is a household-level variable rather than a portfolio-level one; a pattern observed to hold consistently across three different teams.",
-    "title": "Labor Markets, Household Risk, and Systems Thinking"
+    "raw_text": "Labor markets are where macroeconomic concepts stop being abstract and become tangible in practice — a critical insight for teams using financial data platforms like BloombergNEF. Risk is fundamentally a household-level variable, not a portfolio-level one, and ignoring this leads to redundant work — teams end up rebuilding systems from scratch within a year.",
+    "title": "Labor Markets and Risk: The Household-Level Variable"
   }
 }

@@ -36,6 +36,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:currency-intervention",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:expectations-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:macro-policy-tools",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:operational-insight",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:platform-adoption",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:regime-change-risk",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:risk-articulation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-8aa4d883afa10fa4",
+      "target": "topic:trade-off-visibility",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-8aa4d883afa10fa4",
       "to": "person:nora",
       "type": "MENTIONS"
@@ -115,6 +160,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:currency-intervention",
+      "properties": {
+        "label": "currency intervention",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expectations-reliability",
+      "properties": {
+        "label": "expectations reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:macro-policy-tools",
+      "properties": {
+        "label": "macro policy tools",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-insight",
+      "properties": {
+        "label": "operational insight",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platform-adoption",
+      "properties": {
+        "label": "platform adoption",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:regime-change-risk",
+      "properties": {
+        "label": "regime change risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-articulation",
+      "properties": {
+        "label": "risk articulation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trade-off-visibility",
+      "properties": {
+        "label": "trade off visibility",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

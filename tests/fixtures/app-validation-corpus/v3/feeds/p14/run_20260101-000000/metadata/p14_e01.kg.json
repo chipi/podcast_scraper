@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:cut-banking",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:drainage-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:land-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:machine-vs-hand-built",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:slope-excavation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:soil-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:team-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:territory-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-28614332add8c2ae",
+      "target": "topic:tooling-impact",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-28614332add8c2ae",
       "to": "person:beatriz-antunes",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cut-banking",
+      "properties": {
+        "label": "cut banking",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-management",
+      "properties": {
+        "label": "land management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:machine-vs-hand-built",
+      "properties": {
+        "label": "machine vs hand built",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:slope-excavation",
+      "properties": {
+        "label": "slope excavation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-structure",
+      "properties": {
+        "label": "soil structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-structure",
+      "properties": {
+        "label": "team structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:territory-management",
+      "properties": {
+        "label": "territory management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-impact",
+      "properties": {
+        "label": "tooling impact",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

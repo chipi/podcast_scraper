@@ -31,6 +31,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:decision-making-under-uncertainty",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:forward-guidance-effectiveness",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:institutional-credibility",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:market-belief-in-policy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:operational-decision-making",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:platforms-in-policy-analysis",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:policy-signal-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:risk-management-at-central-banks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1e526e495918fb27",
+      "target": "topic:trade-off-transparency",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-1e526e495918fb27",
       "to": "person:nora",
       "type": "MENTIONS"
@@ -102,6 +152,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:decision-making-under-uncertainty",
+      "properties": {
+        "label": "decision making under uncertainty",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:forward-guidance-effectiveness",
+      "properties": {
+        "label": "forward guidance effectiveness",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:institutional-credibility",
+      "properties": {
+        "label": "institutional credibility",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:market-belief-in-policy",
+      "properties": {
+        "label": "market belief in policy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-decision-making",
+      "properties": {
+        "label": "operational decision making",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platforms-in-policy-analysis",
+      "properties": {
+        "label": "platforms in policy analysis",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:policy-signal-reliability",
+      "properties": {
+        "label": "policy signal reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management-at-central-banks",
+      "properties": {
+        "label": "risk management at central banks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trade-off-transparency",
+      "properties": {
+        "label": "trade off transparency",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

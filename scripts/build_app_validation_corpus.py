@@ -171,6 +171,80 @@ def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
 CAPTURED_SUMMARY_DIR = Path("tests/fixtures/pipeline-summaries")
 
 
+#: Real extracted topics, captured from a pipeline run — the KG counterpart of
+#: CAPTURED_SUMMARY_DIR.
+CAPTURED_KG_DIR = Path("tests/fixtures/pipeline-kg")
+
+
+def _captured_topics_for(ep_label: str, version: str) -> list[str]:
+    """Topic ids a REAL extraction produced for this episode, replayed from disk.
+
+    ADDED TO the authored topics, never substituted for them, and the distinction is the whole
+    design. Measured over the 44 episodes of the 2026-10-01 run:
+
+        321 distinct topics, 34 on more than one episode, ZERO on every episode
+        the same conversation in six languages shared 2 of its 10 topic ids
+        `topic:second-order-effects` (18 eps) and `topic:second-order-effect` (6 eps) are
+            two topics, split by a trailing `s`
+
+    So extraction has no canonicalisation: one concept becomes many ids, worse across languages
+    but demonstrably not caused by them. That is a real property of the product and a fixture
+    carrying real output SHOULD expose it.
+
+    What it cannot also do is carry the cross-show overlap the interests picker, topic clusters
+    and discover rails need — at this corpus size real extraction produces almost none. Dropping
+    the authored umbrellas to "be more realistic" would not make those surfaces more honest, it
+    would silently leave them with no data and their tests asserting nothing.
+
+    Hence both, and labelled: see `topic_source` on the KG node.
+    """
+    path = CAPTURED_KG_DIR / version / f"{ep_label}.json"
+    if not path.is_file():
+        return []
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    out: list[str] = []
+    for entry in doc.get("topics") or []:
+        tid = str((entry or {}).get("id") or "").strip()
+        if tid.startswith("topic:") and tid not in out:
+            out.append(tid)
+    return out
+
+
+def _add_extracted_topics(kg: dict[str, Any], topic_ids: list[str], episode_id: str) -> int:
+    """Add REAL extracted topics to the KG, marked `topic_source: "extracted"`.
+
+    The authored ones carry no such marker, so the two are always tellable apart in the committed
+    artifact. That matters more than it sounds: a reader who cannot tell which topics a model
+    produced from which a human wrote cannot use this corpus to measure extraction at all, and
+    the mix would quietly become "the fixture's topics" to everyone downstream.
+
+    Returns how many were added.
+    """
+    have = {n.get("id") for n in kg.get("nodes", [])}
+    ep_node = f"episode:{episode_id}"
+    added = 0
+    for tid in topic_ids:
+        if tid in have:
+            continue
+        kg.setdefault("nodes", []).append(
+            {
+                "id": tid,
+                "type": "Topic",
+                "properties": {
+                    "label": tid.split(":", 1)[-1].replace("-", " "),
+                    #: Marks model output. Absent on the authored/umbrella topics.
+                    "topic_source": "extracted",
+                },
+            }
+        )
+        kg.setdefault("edges", []).append({"source": ep_node, "target": tid, "type": "MENTIONS"})
+        added += 1
+    return added
+
+
 def _captured_summary_for(ep_label: str, version: str) -> dict[str, Any] | None:
     """A real pipeline summary, replayed from disk instead of regenerated on a GPU.
 
@@ -1594,6 +1668,11 @@ def main() -> int:
                 for t in CROSS_CUTTING_TOPICS.get(show_dir, []) + SHARED_UMBRELLAS
                 if t not in authored
             ]
+            # Real extracted topics from the committed pipeline run, APPENDED. They carry the
+            # product's actual extraction behaviour — including its lack of canonicalisation —
+            # while the authored ones above keep the cross-show overlap the picker needs. See
+            # `_captured_topics_for` for the measurements behind doing both.
+            extracted = [t for t in _captured_topics_for(ep_label, version) if t not in topics]
             # Insights/quotes from CLEAN diarized utterances (not the raw header block).
             excerpts = _clean_insight_quote_excerpts(diar_segments, topics)
 
@@ -1637,6 +1716,7 @@ def main() -> int:
             )
             # The viewer build_kg emits no Person nodes; add the diarized roster so the
             # consumer entity-card people surface has real data (host/guest).
+            _add_extracted_topics(kg, extracted, episode_id)
             _enrich_kg_with_people(kg, roster)
             # #1148: canonicalize Person ids (speaker-NN → name-slug) so the
             # cross-episode enrichers (guest_coappearance / grounding_rate) work,

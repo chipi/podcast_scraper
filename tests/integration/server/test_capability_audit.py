@@ -150,7 +150,18 @@ class TestPickerDiscrimination:
         # 46 with it/fr/de/pt: `trail-building` joined the band. The four counterparts
         # carry the same three authored topics as p10, which pushed `soil-erosion` and
         # `land-stewardship` well clear of the floor and lifted trail-building over it.
-        assert picker["band_candidates"] == 45
+        #
+        # 75 since the corpus took REAL extracted topics from a pipeline run alongside its
+        # authored ones (2026-10-01). The band is "tokens that discriminate", and model
+        # extraction produces far more of those than feed-wide umbrellas do — so this jump
+        # is the corpus getting better at the thing the band measures.
+        #
+        # It also made a real defect visible at the TOP of the audit's own report: ranks 2
+        # and 12 of `band_top` are `topic:second-order-effects` (18 eps) and
+        # `topic:second-order-effect` (6 eps) — one concept, two tokens, split by a
+        # trailing `s`. Extraction has no canonicalisation step. Keeping this a literal is
+        # what makes that measurable rather than absorbed.
+        assert picker["band_candidates"] == 75
         # 10, not the 8 quoted before 2026-08-19 — see the module docstring. The old figure came
         # from a hash-dependent top-12, so it was never reproducible. 11 since p10: this
         # counts DISTINCT FEED SETS, not feeds, so a show whose topics overlap p01's while
@@ -159,7 +170,7 @@ class TestPickerDiscrimination:
         # now contains more tokens that several shows share (the five trail-building
         # counterparts), so its members discriminate BETWEEN FEEDS slightly less even as
         # the band itself grows. Worth watching rather than smoothing over.
-        assert picker["band_distinct_feeds"] == 10
+        assert picker["band_distinct_feeds"] == 11
 
     def test_no_band_token_covers_more_than_the_ceiling(self, report) -> None:
         """The band is only meaningful if its own bound holds."""

@@ -1,17 +1,20 @@
 {
-  "captured_from": "tests/fixtures/app-validation-corpus/v3 (committed build output)",
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "episode_id": "p06_e04",
-  "provenance": "75c39af26706dd6ae4298645066bbab2ebff71a7 Regenerate the v3 corpus from a real pipeline run, and make the fixture docs assert themselves (#2147)",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
   "summary": {
     "bullets": [
-      "Culture is a system that never sits still — a heuristic grounded in patterns observed at teams using Substack and reportedly holding across three different teams.",
-      "Drift can only be noticed rather than gripped; attempts to control it directly miss how it actually operates.",
-      "Second-order effects are the most overlooked dimension of cultural drift — the part most people miss when reasoning about how culture changes.",
-      "Ignoring cultural drift carries a concrete cost: teams end up rebuilding it from scratch a year later rather than adapting incrementally.",
-      "Systems thinking cross-cuts every aspect of cultural drift — its trade-offs shape the rest of the analysis rather than forming a separate topic.",
-      "Practical adoption favors small experiments over sweeping change — pick one idea, run it for two weeks, and treat the rest as iteration."
+      "Culture is a system that never sits still—its dynamic nature must be acknowledged rather than resisted.",
+      "Cultural drift cannot be gripped or controlled directly; it must be noticed and responded to through awareness.",
+      "The second-order effect of cultural drift is the part most people overlook, yet it shapes long-term outcomes.",
+      "Dialogue and cultural drift intersect when teams recognize patterns across time, not just in moment-to-moment interactions.",
+      "Systems thinking reveals trade-offs that cross-cut all aspects of cultural and organizational behavior.",
+      "Ignoring cultural drift leads to rebuilding the same structures from scratch a year later.",
+      "Running an idea for two weeks enables iteration and reveals whether it holds across time and context.",
+      "The act of noticing drift—rather than forcing control—is the core skill in navigating cultural change."
     ],
-    "raw_text": "Culture is a system that never sits still — a heuristic grounded in patterns observed at teams using Substack and reportedly holding across three different teams. Drift can only be noticed rather than gripped; attempts to control it directly miss how it actually operates.",
-    "title": "Cultural Drift: A System That Never Sits Still"
+    "raw_text": "Culture is a system that never sits still—its dynamic nature must be acknowledged rather than resisted. Cultural drift cannot be gripped or controlled directly; it must be noticed and responded to through awareness.",
+    "title": "Cultural Drift and Systems Thinking in Practice"
   }
 }
