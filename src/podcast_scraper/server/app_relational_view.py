@@ -25,6 +25,7 @@ from podcast_scraper.search.storylines import (
 from podcast_scraper.search.topic_clusters import (
     theme_map_by_topic,
     theme_siblings_by_topic,
+    top_themes_by_member_count,
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -241,6 +242,7 @@ def resolve_entity(
             or index.topic_ref_by_norm.get(norm)
             or index.org_ref_by_norm.get(norm)  # #2031 — orgs now have cards, so search finds them
             or _storyline_ref_by_norm(root).get(norm)
+            or _theme_ref_by_norm(root).get(norm)
         )
     persons_idx: dict[str, AppEntityRef] = {}
     topics_idx: dict[str, AppEntityRef] = {}
@@ -263,10 +265,42 @@ def resolve_entity(
         persons_idx.get(norm)
         or topics_idx.get(norm)
         or orgs_idx.get(norm)
-        # Storylines are corpus-level, not per-episode, so the `rows` subset does not bound them —
-        # the same map serves both paths.
+        # Storylines and themes are corpus-level, not per-episode, so the `rows` subset does not
+        # bound them — the same maps serve both paths.
         or _storyline_ref_by_norm(root).get(norm)
+        or _theme_ref_by_norm(root).get(norm)
     )
+
+
+@lru_cache(maxsize=8)
+def _theme_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
+    """Normalised theme label → ref, from the topic-cluster artifact.
+
+    Themes are resolved here for the same reason storylines are (operator 2026-09-17): a label match
+    in the client cannot rank, cannot see past the endpoint's item cap, and leaves every OTHER
+    consumer of this resolver blind. Until now that is exactly what themes were — a theme label
+    typed verbatim returned nothing.
+
+    LAST in the precedence chain, deliberately. A label can name both a topic and a theme
+    (`Lifelong Learning` is `topic:lifelong-learning` AND `tc:lifelong-learning` in the v3 fixture),
+    and putting themes ahead of topics would silently change where every such query lands today.
+    Going last makes this purely additive: a theme resolves only when nothing narrower claims the
+    label. The cost is that an ambiguous label still opens the topic — the narrower thing wins —
+    which is a ranking decision worth revisiting with real queries rather than guessing now.
+
+    Unlike the storyline map this carries the cluster's OWN `tc:` id, because `/theme/:id` routes by
+    it. The storyline equivalent passes an anchor topic id because `/storyline/:id` routes that way.
+    """
+    out: dict[str, AppEntityRef] = {}
+    for th in top_themes_by_member_count(root, _STORYLINE_INDEX_CAP):
+        label = str(th.get("label") or "").strip()
+        tid = str(th.get("id") or "").strip()
+        if not label or not tid:
+            continue
+        norm = normalize_label(label)
+        if norm:
+            out.setdefault(norm, AppEntityRef(id=tid, kind="theme", label=label))
+    return out
 
 
 @lru_cache(maxsize=8)
@@ -282,10 +316,11 @@ def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
     out: dict[str, AppEntityRef] = {}
     for s in top_storylines_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
         label = str(s.get("label") or "").strip()
-        # The ANCHOR TOPIC id, not the `thc:` id. There is no storyline endpoint — the anchor
-        # topic's card IS the storyline — so `thc:…` is not openable and a client that routed with
-        # it got a 404 (review, 2026-09-17). Every other producer of a storyline destination passes
-        # the anchor: FollowedInterests, PodcastSignalsBand, TopicBrowseView.
+        # The ANCHOR TOPIC id, not the `thc:` id, because `/storyline/:id` ROUTES by anchor topic.
+        # The original reason — "there is no storyline endpoint" — stopped being true when
+        # `/api/app/storylines/{id}` was added; the route still takes an anchor, so this still does.
+        # Every other producer of a storyline destination passes the anchor too: FollowedInterests,
+        # PodcastSignalsBand, TopicBrowseView.
         anchor = str(s.get("anchor_topic_id") or "").strip()
         if not label or not anchor:
             continue

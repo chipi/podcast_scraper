@@ -202,6 +202,9 @@ const NOTE_KIND_ORDER = [
   "topic",
   "person",
   "storyline",
+  // A theme note would have listed but could never be FILTERED to: `availableNoteTypes` only
+  // offers chips for kinds in this list, so an omitted kind silently has no chip.
+  "theme",
 ] as const
 const noteTypes = ref<string[]>([])
 /** The kind in words. Falls back to the raw target so an unknown kind still labels its row. */

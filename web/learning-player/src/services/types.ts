@@ -372,7 +372,7 @@ export interface FavoriteAdd {
 
 /** A saved non-episode favorite (show / topic / person / storyline). */
 export interface FavoriteEntity {
-  kind: "person" | "topic" | "show" | "storyline"
+  kind: "person" | "topic" | "show" | "storyline" | "theme"
   ref: string
   label: string
   sublabel?: string | null
@@ -737,7 +737,7 @@ export interface TrendingEntity {
 export interface EntityRef {
   id: string
   /** `storyline` ids are `thc:{slug}` — the resolver indexes theme clusters too (#2004 follow-up). */
-  kind: "person" | "topic" | "organization" | "storyline"
+  kind: "person" | "topic" | "organization" | "storyline" | "theme"
   label: string
 }
 

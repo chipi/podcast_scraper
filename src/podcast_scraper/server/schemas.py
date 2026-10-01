@@ -409,7 +409,7 @@ class AppEntityRef(BaseModel):
             "(storyline)."
         )
     )
-    kind: Literal["person", "topic", "organization", "storyline"] = Field(
+    kind: Literal["person", "topic", "organization", "storyline", "theme"] = Field(
         description="Which card to open."
     )
     label: str = Field(description="Display name / topic label / storyline label.")

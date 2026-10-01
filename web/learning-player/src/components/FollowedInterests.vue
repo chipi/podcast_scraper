@@ -70,12 +70,14 @@ function arrange(list: string[]): string[] {
 // Hand-rolled prefix lists are exactly what that file warns go stale.
 const topics = computed(() => arrange(ids.value.filter((i) => interestKind(i) === 'topic')))
 const persons = computed(() => arrange(ids.value.filter((i) => interestKind(i) === 'person')))
-// Themes and storylines are still shown TOGETHER under "storylines" — unchanged behaviour, now
-// said out loud. They are different things (a theme groups by meaning, a storyline by
-// co-occurrence) and giving the theme its own group is the next step, not this one.
+// SEPARATE groups. These shared one "Storylines" heading, so a followed theme was labelled a
+// storyline — the same conflation the code carried everywhere a prefix was matched by hand. They
+// are different objects: a theme groups topics that MEAN the same thing, a storyline groups topics
+// that keep coming up TOGETHER, and each now has its own page to open.
 const storylineTokens = computed(() =>
-  arrange(ids.value.filter((i) => ['storyline', 'theme'].includes(interestKind(i)))),
+  arrange(ids.value.filter((i) => interestKind(i) === 'storyline')),
 )
+const themeTokens = computed(() => arrange(ids.value.filter((i) => interestKind(i) === 'theme')))
 // "Genuinely follows nothing" is about the UNFILTERED set — otherwise a search that matches none of
 // your follows showed "you're not following anything" (Fable-5 review S3). When you DO follow things
 // but a search hid them all, say that instead; a type-chip exclusion just renders nothing (no lie).
@@ -87,7 +89,8 @@ const noSearchMatch = computed(
     searchActive.value &&
     !topics.value.length &&
     !persons.value.length &&
-    !storylineTokens.value.length,
+    !storylineTokens.value.length &&
+    !themeTokens.value.length,
 )
 
 function unfollow(id: string): void {
@@ -183,6 +186,39 @@ function openStoryline(id: string): void {
         :count="persons.length"
         @toggle="caps.toggle('people')"
       />
+    </section>
+
+    <section v-if="typeVisible('themes') && themeTokens.length" class="mb-5">
+      <h2 class="lp-section mb-2">
+        {{ t('library.followingThemes') }}
+        <span class="lp-kicker ml-1 font-normal">{{ themeTokens.length }}</span>
+      </h2>
+      <ul class="flex flex-wrap gap-1.5">
+        <li
+          v-for="id in caps.visible('themes', themeTokens, searchActive)"
+          :key="id"
+          class="inline-flex items-center rounded-full bg-overlay"
+        >
+          <!-- Straight to the theme page: a theme's id IS its route param, so there is no anchor
+               lookup to fail the way the storyline one can. -->
+          <button
+            type="button"
+            class="max-w-[14rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-canvas-foreground transition hover:opacity-80"
+            @click="router.push({ name: 'theme', params: { id } })"
+          >
+            {{ labelOf(id) }}
+          </button>
+          <button
+            type="button"
+            class="rounded-r-full py-1 pl-1 pr-2.5 text-xs text-muted transition hover:text-danger"
+            :aria-label="t('library.unfollow', { label: labelOf(id) })"
+            data-testid="unfollow"
+            @click="unfollow(id)"
+          >
+            <CloseIcon />
+          </button>
+        </li>
+      </ul>
     </section>
 
     <section v-if="typeVisible('storylines') && storylineTokens.length">
