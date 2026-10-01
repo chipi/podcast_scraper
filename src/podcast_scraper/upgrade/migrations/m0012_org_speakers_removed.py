@@ -38,20 +38,17 @@ written; ``undo`` restores a file only while it is still exactly what this migra
 from __future__ import annotations
 
 import json
-import os
-import shutil
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from ...speaker_detectors.entity_kind_votes import kind_key, votes_from_kg_payloads
 from ..corpus_selection import select_served_artifacts
+from ..file_rewrite import append_receipts, read_receipts, undo_from_receipts, write_with_backup
 from ..migration import Migration, MigrationContext, MigrationResult
-from ..ownership import created_dirs, match_corpus_owner
-from ..role_ledger import file_sha
 
 MIGRATION_ID = "0012_org_speakers_removed"
 RECEIPTS_FILE = "org_speakers_removed.jsonl"
-BACKUP_DIR = Path(".podcast_scraper") / "upgrade-backups" / "0012"
+BACKUP_TAG = "0012"
 _SPEAKING = ("host", "guest")
 
 
@@ -60,10 +57,6 @@ def _load(path: Path) -> Optional[Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-
-
-def _dump(payload: Any) -> str:
-    return json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
 
 
 def _sibling(meta: Path, suffix: str) -> Path:
@@ -254,57 +247,14 @@ class _Episode:
         return True
 
 
-def _receipts_path(root: Path) -> Path:
-    return root / RECEIPTS_FILE
-
-
 def _read_receipts(root: Path) -> Tuple[Dict[str, Any], List[dict]]:
     """``(header, rows)``; the header carries the frozen org set."""
-    header: Dict[str, Any] = {}
-    rows: List[dict] = []
-    try:
-        lines = _receipts_path(root).read_text(encoding="utf-8").splitlines()
-    except OSError:
-        return header, rows
-    for line in lines:
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if row.get("kind") == "header":
-            header = row
-        else:
-            rows.append(row)
-    return header, rows
+    return read_receipts(root, RECEIPTS_FILE)
 
 
 def undo(root: Path) -> Tuple[int, List[str]]:
     """Restore each file this migration wrote, if still as left. ``(restored, refused)``."""
-    root = Path(root)
-    _header, rows = _read_receipts(root)
-    restored, refused = 0, []
-    for row in rows:
-        target = root / row["relpath"]
-        backup = root / BACKUP_DIR / row["relpath"]
-        if file_sha(target) != row["sha_after"]:
-            refused.append(f"{row['relpath']}: changed since this migration wrote it")
-            continue
-        if not backup.is_file():
-            refused.append(f"{row['relpath']}: no backup")
-            continue
-        tmp = target.with_name(target.name + ".tmp")
-        shutil.copyfile(backup, tmp)
-        os.replace(tmp, target)
-        match_corpus_owner(root, [target])
-        restored += 1
-    if restored:
-        try:
-            from ..state import FilesystemStateStore
-
-            FilesystemStateStore(root).record_reverted(MIGRATION_ID)
-        except Exception:  # noqa: BLE001 — the files are restored; never undo the undo
-            pass
-    return restored, refused
+    return undo_from_receipts(Path(root), RECEIPTS_FILE, BACKUP_TAG, MIGRATION_ID)
 
 
 class OrgSpeakersRemovedMigration(Migration):
@@ -366,33 +316,14 @@ class OrgSpeakersRemovedMigration(Migration):
             if ctx.dry_run:
                 continue
             for path in sorted(ep.changed):
-                rel = str(path.relative_to(root))
-                backup = root / BACKUP_DIR / rel
-                backup.parent.mkdir(parents=True, exist_ok=True)
-                if not backup.exists():
-                    shutil.copyfile(path, backup)
-                sha_before = file_sha(path)
-                tmp = path.with_name(path.name + ".tmp")
-                tmp.write_text(_dump(ep.files[path]), encoding="utf-8")
-                os.replace(tmp, path)
-                match_corpus_owner(root, [path, backup, *created_dirs(backup.parent, root)])
-                receipts.append(
-                    {"relpath": rel, "sha_before": sha_before, "sha_after": file_sha(path)}
-                )
-        if not ctx.dry_run and receipts:
-            with _receipts_path(root).open("a", encoding="utf-8") as fh:
-                fh.write(
-                    json.dumps(
-                        {"kind": "header", "orgs": {k: list(v) for k, v in orgs.items()}},
-                        ensure_ascii=False,
-                    )
-                    + "\n"
-                )
-                for row in receipts:
-                    fh.write(json.dumps(row, ensure_ascii=False) + "\n")
-                fh.flush()
-                os.fsync(fh.fileno())
-            match_corpus_owner(root, [_receipts_path(root)])
+                receipts.append(write_with_backup(root, BACKUP_TAG, path, ep.files[path]))
+        if not ctx.dry_run:
+            append_receipts(
+                root,
+                RECEIPTS_FILE,
+                {"orgs": {k: list(v) for k, v in orgs.items()}},
+                receipts,
+            )
         verb = "would rewrite" if ctx.dry_run else "rewrote"
         message = f"{verb} {len(touched)} episode(s) for {len(orgs)} org name(s): " + ", ".join(
             f"{k}={v}" for k, v in sorted(totals.items())

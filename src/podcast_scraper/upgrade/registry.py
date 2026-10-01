@@ -23,6 +23,7 @@ from .migrations.m0010_canonical_person_names import CanonicalPersonNamesMigrati
 from .migrations.m0011_shared_artwork_store import SharedArtworkStoreMigration
 from .migrations.m0012_org_speakers_removed import OrgSpeakersRemovedMigration
 from .migrations.m0013_artwork_thumbnails import ArtworkThumbnailsMigration
+from .migrations.m0014_eponymous_hosts_restored import EponymousHostsRestoredMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -49,6 +50,7 @@ _MIGRATIONS: List[Migration] = [
     SharedArtworkStoreMigration(),
     OrgSpeakersRemovedMigration(),
     ArtworkThumbnailsMigration(),
+    EponymousHostsRestoredMigration(),
 ]
 
 

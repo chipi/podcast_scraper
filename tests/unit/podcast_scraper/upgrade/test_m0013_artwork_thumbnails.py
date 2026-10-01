@@ -93,5 +93,6 @@ def test_an_undecodable_image_is_recorded_not_fatal(tmp_path: Path) -> None:
     assert ok, msg
 
 
-def test_registered_last() -> None:
-    assert [m.id for m in get_migrations()][-1] == "0013_artwork_thumbnails"
+def test_registered_after_0012() -> None:
+    ids = [m.id for m in get_migrations()]
+    assert ids.index("0013_artwork_thumbnails") == ids.index("0012_org_speakers_removed") + 1
