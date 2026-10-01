@@ -121,5 +121,6 @@ def test_plan_reports_without_writing(tmp_path: Path) -> None:
     assert sorted(str(p) for p in root.rglob("*")) == before
 
 
-def test_registered_last() -> None:
-    assert [m.id for m in get_migrations()][-1] == "0011_shared_artwork_store"
+def test_registered_after_0010() -> None:
+    ids = [m.id for m in get_migrations()]
+    assert ids.index("0011_shared_artwork_store") == ids.index("0010_canonical_person_names") + 1
