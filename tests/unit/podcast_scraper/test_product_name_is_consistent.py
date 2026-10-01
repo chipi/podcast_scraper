@@ -78,7 +78,7 @@ _SETTING_REF = re.compile(r"^\$\((?P<name>[A-Z0-9_]+)\)$")
 
 
 def _resolve_ios_setting(value: str, *, configuration: str) -> str:
-    """``value`` as the named Xcode configuration resolves it; returned unchanged if it is literal."""
+    """``value`` as that Xcode configuration resolves it; unchanged when it is already literal."""
     ref = _SETTING_REF.match(value)
     if not ref:
         return value
