@@ -19,12 +19,12 @@ from fastapi.responses import FileResponse
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
+    build_cluster_perspectives,
     build_org_card,
     build_person_card,
     build_storyline_card,
     build_theme_card,
     build_topic_card,
-    build_cluster_perspectives,
     build_topic_perspectives,
     resolve_entity,
 )
