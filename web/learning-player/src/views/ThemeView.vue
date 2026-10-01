@@ -31,7 +31,9 @@ import FollowButton from "../components/FollowButton.vue"
 import NoteComposer from "../components/NoteComposer.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import TopVoices from "../components/TopVoices.vue"
+import TrendMomentum from "../components/TrendMomentum.vue"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
+import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { getThemeCard } from "../services/api"
 import type { Entity, EpisodeSummary } from "../services/types"
 import { useAuthStore } from "../stores/auth"
@@ -89,6 +91,17 @@ watch(
   (id) => void load(id),
   { immediate: true },
 )
+
+// Momentum, the same band the storyline page carries. `/trending?kind=theme` already exists and
+// the momentum engine already aggregates a weekly series per theme cluster
+// (`app_momentum._add_cluster_series(..., "theme")`) — it was simply never read by a theme surface.
+// Keyed by the route param, because a theme's `tc:` id IS its trending id.
+//
+// This is one of the two diagrams a storyline has, and it belongs on BOTH: "is this getting more
+// attention lately" is a question about any grouping, unlike the anchor and the co-occurrence pair,
+// which only a storyline can answer. Best-effort — no badge when the theme is outside the top set.
+const trendingThemes = useTrendingIndex("theme")
+const momentum = computed(() => trendingThemes.value[props.id] ?? null)
 
 // The route param IS the follow token — a theme is followed by its `tc:` id, the same id the
 // profile stores. No lookup needed, unlike the storyline page which has to learn its cluster id
@@ -150,6 +163,16 @@ function goBack(): void {
         />
       </div>
     </div>
+
+    <!-- Its own full-width row under the actions, matching the storyline page: the pill and the
+         sparkline sit on one bottom-aligned line instead of the sparkline wrapping under the pill. -->
+    <TrendMomentum
+      v-if="momentum"
+      variant="badge"
+      :velocity="momentum.v"
+      :series="momentum.series"
+      class="mt-3 block"
+    />
 
     <p v-if="loading" class="mt-4 text-sm text-muted">{{ t("home.themeSheetLoading") }}</p>
     <p v-else-if="failed || !topics.length" class="mt-4 text-sm text-muted">
