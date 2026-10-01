@@ -16,6 +16,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { formatMonthYear } from '../utils/format'
+
 const props = defineProps<{
   trend?: 'new' | 'growing' | 'steady' | 'fading' | 'gone'
   /** Dates behind the badge, so the title can say WHEN rather than only WHAT. */
@@ -23,7 +25,7 @@ const props = defineProps<{
   lastSeen?: string | null
 }>()
 
-const { t, d } = useI18n()
+const { t, locale } = useI18n()
 
 const LABEL: Record<string, string> = {
   new: 'home.memberNew',
@@ -44,15 +46,7 @@ const tone = computed(() =>
 
 /** A date a reader can read, not an ISO string. Falls back to the raw value if it will not parse. */
 function human(iso?: string | null): string {
-  if (!iso) return ''
-  const parsed = new Date(iso)
-  if (Number.isNaN(parsed.getTime())) return iso
-  try {
-    return d(parsed, 'monthYear')
-  } catch {
-    // The app may not define that date format; the ISO day is still readable.
-    return iso
-  }
+  return formatMonthYear(iso, locale.value) ?? ''
 }
 
 /**

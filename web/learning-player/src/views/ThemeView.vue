@@ -124,9 +124,10 @@ const shareModel = computed<EntityCardModel>(() => {
     kicker: t("share.kickerTheme"),
     title: label.value || props.id,
     stats: parts.join(" · "),
-    // Themes share the storyline accent: both are groupings, and giving them one hue against the
-    // topic's is the colour saying "this is a set, not a thing".
-    accent: accentForKind("storyline"),
+    // A theme owns its hue now. It shared the storyline's violet while "both are groupings" was
+    // the whole rule — which made the two share cards indistinguishable, the same collision the
+    // page eyebrows had. Both are still groupings; the colour now says WHICH.
+    accent: accentForKind("theme"),
     url: typeof window !== "undefined" ? `${window.location.origin}/theme/${props.id}` : null,
   }
 })
@@ -147,7 +148,7 @@ function goBack(): void {
     <!-- Header order matches the storyline and topic pages (UXS-014): kicker, title on its own
          row, then actions on theirs. -->
     <div class="mt-3">
-      <span class="lp-kicker min-w-0 text-accent">{{ t("home.themes") }}</span>
+      <span class="lp-kicker min-w-0 text-theme">{{ t("home.themes") }}</span>
       <h1 class="mt-2 line-clamp-2 font-display text-2xl font-extrabold tracking-tight">
         {{ label || "…" }}
       </h1>

@@ -174,7 +174,7 @@ onMounted(async () => {
                   :class="
                     selected.has(s.id)
                       ? 'border-accent bg-accent text-accent-foreground'
-                      : 'border-theme lp-theme-chip text-surface-foreground'
+                      : 'border-storyline lp-storyline-chip text-surface-foreground'
                   "
                   @click="toggle(s.id)"
                 >

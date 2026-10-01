@@ -34,6 +34,28 @@ export function formatPublishDate(iso: string | null | undefined, locale = 'en')
 }
 
 /**
+ * `YYYY-MM-DD` as month + year — "Sep 2026". Raw string on parse failure.
+ *
+ * For a date that labels a SPAN rather than an event: when a topic joined a grouping, when it was
+ * last seen in one. The day is noise there — a storyline does not start on a Tuesday — and a full
+ * `dateStyle: 'medium'` made the trend tooltips read like timestamps.
+ *
+ * Lives here with the other formatters because `MemberTrendBadge` first reached for vue-i18n's
+ * `d(date, 'monthYear')`, and the app registers no `datetimeFormats` at all — so every tooltip
+ * fell through the catch to a raw ISO string while vue-i18n warned once per badge render.
+ */
+export function formatMonthYear(iso: string | null | undefined, locale = 'en'): string | null {
+  if (!iso) return null
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return iso
+  try {
+    return new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(d)
+  } catch {
+    return iso
+  }
+}
+
+/**
  * A unix-second stamp split into date and time of day, for "when did I last play this".
  *
  * Returned as two PARTS, not one string: it renders under the artwork, in a column as wide as the

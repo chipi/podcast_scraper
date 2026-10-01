@@ -232,11 +232,11 @@ describe("KnowledgePanel", () => {
     const pill = w.get('[data-testid="kp-storyline-link"]')
     expect(pill.text()).toContain("Storyline")
     expect(pill.text()).toContain("sanctions")
-    // Theme-member chips carry the teal fill (lp-theme-chip); the non-member does not.
+    // Theme-member chips carry the teal fill (lp-storyline-chip); the non-member does not.
     const oil = w.findAll("button").find((b) => b.text() === "oil")!
     const zulu = w.findAll("button").find((b) => b.text() === "zulu")!
-    expect(oil.classes()).toContain("lp-theme-chip")
-    expect(zulu.classes()).not.toContain("lp-theme-chip")
+    expect(oil.classes()).toContain("lp-storyline-chip")
+    expect(zulu.classes()).not.toContain("lp-storyline-chip")
   })
 
   it("runs episode-scoped search and renders grounded results", async () => {

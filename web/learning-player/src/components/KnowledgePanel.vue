@@ -921,7 +921,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
               :class="[
                 tag.kind === 'topic' ? 'text-topic' : 'text-person',
                 tag.storylineMember
-                  ? 'lp-theme-chip'
+                  ? 'lp-storyline-chip'
                   : tag.dominant
                   ? 'bg-overlay ring-1 ring-topic hover:bg-elevated'
                   : 'bg-overlay hover:bg-elevated',

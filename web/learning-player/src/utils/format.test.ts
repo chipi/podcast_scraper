@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatPlayedAt, formatDuration, formatPublishDate } from './format'
+import { formatPlayedAt, formatDuration, formatMonthYear, formatPublishDate } from './format'
 
 describe('formatDuration', () => {
   it('returns minutes under an hour', () => {
@@ -49,3 +49,17 @@ describe('formatPlayedAt', () => {
   })
 })
 
+describe('formatMonthYear', () => {
+  it('drops the day — it labels a span, not an event', () => {
+    expect(formatMonthYear('2024-03-10', 'en')).toBe('Mar 2024')
+  })
+
+  it('passes an unparseable value through rather than rendering "Invalid Date"', () => {
+    expect(formatMonthYear('not-a-date', 'en')).toBe('not-a-date')
+  })
+
+  it('returns null for an absent date, like its siblings', () => {
+    expect(formatMonthYear(null)).toBeNull()
+    expect(formatMonthYear(undefined)).toBeNull()
+  })
+})

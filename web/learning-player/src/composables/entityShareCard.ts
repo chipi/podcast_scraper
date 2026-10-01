@@ -27,6 +27,7 @@ const KIND_ACCENT: Record<string, string> = {
   topic: '#8ad2e5', // --lp-topic (dark)
   person: '#e0b354', // --lp-person (dark)
   storyline: '#9d8cff', // violet — distinct from topic
+  theme: '#8aacf3', // periwinkle — BETWEEN topic cyan and storyline violet (--lp-theme)
   organization: '#5fd0a8', // green
 }
 
