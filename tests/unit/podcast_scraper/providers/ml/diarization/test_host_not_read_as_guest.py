@@ -135,6 +135,48 @@ def test_a_real_introduction_is_still_read_and_still_found_after_a_hypothetical(
     assert distinct_self_introductions(text) == [HOST]
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Hello, my name's Tobias Wren, and this is the show.",
+        "Hello, my name’s Tobias Wren and this is the show.",
+        "Welcome to the show. I'm your host for today, Tobias Wren. Very excited.",
+        "Welcome to the show. I'm your host today, Tobias Wren.",
+    ],
+)
+def test_the_contracted_and_for_today_forms_are_self_introductions(text: str) -> None:
+    assert extract_self_introduced_host(text) == HOST
+    assert distinct_self_introductions(text) == [HOST]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "As I walked up to the bar, someone beside me said, hello. My name's Cass Ellery.",
+        'He told me, "I\'m Cass Ellery, and I run the place."',
+        "She says, hi, I'm Cass Ellery.",
+    ],
+)
+def test_reported_speech_is_not_a_self_introduction(text: str) -> None:
+    assert extract_self_introduced_host(text) is None
+    assert distinct_self_introductions(text) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "They asked who he was. So I said, I'm Cass Ellery.",
+        "As you rightly said, my name is Cass Ellery.",
+    ],
+)
+def test_reporting_your_own_words_is_still_your_introduction(text: str) -> None:
+    assert extract_self_introduced_host(text) == "Cass Ellery"
+
+
+def test_my_names_plural_is_not_an_introduction() -> None:
+    assert extract_self_introduced_host("Well, my names Tobias Wren and others call me.") is None
+
+
 def test_host_posing_a_hypothetical_is_not_named_after_it() -> None:
     roster = _roster(
         _GREETING

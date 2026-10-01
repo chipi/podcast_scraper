@@ -353,9 +353,12 @@ def looks_like_publisher(name: str) -> bool:
 # "Welcome to Macro Musings. I am your host, David Beckworth" on 37 voices, none of which this
 # scanner could see. Same guards apply to it as to the contraction — this widens the FORM, not the
 # evidence.
+# "my name's" is "my name is" (Past Present Future opens "Hello, my name's David Runciman" on every
+# episode, and its host was unnamed on all of them), and "your host for today, <Name>" is "your
+# host, <Name>" (#2224 follow-up). Both widen the FORM; the guards below are unchanged.
 _HOST_SELF_INTRO = re.compile(
-    r"\b(?:I'?m|I am|[Mm]y name is)\s+"
-    r"(?:(?:your|the)\s+(?:co-?)?host,?\s+)?"
+    r"\b(?:I'?m|I am|[Mm]y name is|[Mm]y name['’]s)\s+"
+    r"(?:(?:your|the)\s+(?:co-?)?host(?:\s+(?:for\s+)?today)?,?\s+)?"
     r"([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})"
 )
 
@@ -403,10 +406,25 @@ _HYPOTHETICAL_LEAD = re.compile(
     re.IGNORECASE,
 )
 
+# "someone beside me said, hello. My name's Greg." is REPORTED speech — the narrator quoting
+# somebody else (Planet Money), and "he says, I'm Anthony Aguirre" put a caller's name on the
+# guest (MLST).
+# But only somebody ELSE's: "So I said, I'm Jose Pereira" and "As you rightly said, my name is
+# Joshua Chimakula Ngoma" are the speaker naming himself, and stay self-introductions.
+_REPORTED_LEAD = re.compile(
+    r"(?P<who>\b\w+)(?:\s+\w+ly)?\s+(?:said|says|told\s+(?:me|us|him|her)|asked)\b,?\s*[\"“]?\s*"
+    r"(?:(?:hello|hi|hey)\W{0,2})?\s*$",
+    re.IGNORECASE,
+)
+
 
 def _is_hypothetical(head: str, match: "re.Match[str]") -> bool:
-    """True when *match* sits right after a hypothetical lead-in ("let's say", "imagine", "if")."""
-    return bool(_HYPOTHETICAL_LEAD.search(head[max(0, match.start() - 30) : match.start()]))
+    """True when *match* follows a hypothetical ("let's say") or somebody ELSE's reported speech."""
+    before = head[max(0, match.start() - 40) : match.start()]
+    if _HYPOTHETICAL_LEAD.search(before[-30:]):
+        return True
+    reported = _REPORTED_LEAD.search(before)
+    return reported is not None and reported.group("who").lower() not in {"i", "you"}
 
 
 def _branded_intro_matches(head: str, feed_title: Optional[str]) -> List["re.Match[str]"]:
