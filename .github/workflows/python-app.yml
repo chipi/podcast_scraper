@@ -663,6 +663,16 @@ jobs:
         # test:coverage runs vitest with --coverage; thresholds in vite.config.ts
         # fail the job if consumer-app coverage regresses (mirrors viewer-unit).
         npm run test:coverage
+    - name: Type-check the TEST sources
+      # vitest transpiles without type-checking, and `tsconfig.app.json` EXCLUDES
+      # `src/**/*.test.ts` — so until this step nothing in CI ever checked a test file against the
+      # types it claims. `make test-app` has run it locally for a while; CI did not, and the
+      # difference let #2213 merge fully green and break `make test-app` on main immediately
+      # (a `vi.fn(async () => ...)` mock read back via `mock.calls[0][0]`: TS2554 + two TS2493,
+      # fixed in fe9f9787c). A gate that only exists on one developer's machine is not a gate.
+      run: |
+        cd web/learning-player
+        npm run type-check:test
 
   app-e2e:
     runs-on: ubuntu-latest
