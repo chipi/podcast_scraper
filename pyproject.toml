@@ -17,7 +17,8 @@ dependencies = [
   # health checks + the [observability] control plane. A true base dep: the api image installs
   # only `.[search,sentry]`, so httpx must live in core — not only in extras.
   "httpx>=0.28.1,<1.0.0",
-  "urllib3>=2.6.0,<3.0.0",
+  # Floor 2.8.0: pip-audit flagged CVE-2026-97687/97688/97689 in 2.7.0 (2026-10-01).
+  "urllib3>=2.8.0,<3.0.0",
   "rich>=15.0.0,<16.0.0",
   "defusedxml>=0.7.1,<1.0.0",
   "platformdirs>=3.11.0,<5.0.0",
@@ -210,6 +211,10 @@ ml = [
 # Streamlit run comparison UI (RFC-047, Issue #373)
 compare = [
   "streamlit>=1.41.0,<2.0.0",
+  # tornado (pulled by streamlit, no upper bound there) had three advisories in 6.5.8 fixed by
+  # 6.5.9 (pip-audit, 2026-10-01). Security floor so a venv built before the fix resolves past it;
+  # drop when streamlit requires >=6.5.9 itself. Same pattern as the pyjwt floor in [dev].
+  "tornado>=6.5.9",
   "plotly>=6.7.0,<7.0.0",
   "pandas>=2.3.3,<3.0.0",
   "rouge-score>=0.1.2,<1.0.0",

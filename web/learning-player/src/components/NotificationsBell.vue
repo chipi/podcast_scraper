@@ -68,7 +68,7 @@ function ago(createdAt: number, now = Math.floor(Date.now() / 1000)): string {
   <div ref="root" class="relative">
     <button
       type="button"
-      class="group relative inline-flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
+      class="group relative inline-flex h-9 w-8 sm:w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-overlay hover:text-canvas-foreground focus-visible:text-canvas-foreground"
       :aria-label="store.unread ? t('notifications.bellCounted', { n: store.unread }) : t('notifications.bell')"
       :aria-expanded="open"
       aria-haspopup="true"
@@ -126,6 +126,7 @@ function ago(createdAt: number, now = Math.floor(Date.now() / 1000)): string {
             class="flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-overlay"
             :class="n.read ? 'opacity-70' : ''"
             data-testid="notification-item"
+            :data-read="n.read ? 'true' : 'false'"
             @click="openItem(n)"
           >
             <span

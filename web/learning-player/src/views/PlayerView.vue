@@ -1349,6 +1349,7 @@ onBeforeUnmount(() => {
              keeps the square. -->
         <div
           class="group relative mt-2 aspect-[5/4] w-full overflow-hidden rounded-2xl border border-border bg-elevated lg:aspect-square"
+          data-testid="player-hero"
         >
           <img
             v-if="artwork"

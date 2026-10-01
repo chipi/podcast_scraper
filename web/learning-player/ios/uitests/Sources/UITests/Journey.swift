@@ -462,6 +462,22 @@ enum Journey {
     tap(app, labels: [name], timeout: 20)
   }
 
+  /// Run a search the way a phone does: from Discover's own search box.
+  ///
+  /// There is no "Search" tab and, since 2026-09-30, no magnifier in the phone header (no room for
+  /// it). `openTab(app, "Search")` therefore matches nothing and returns false — a tour that used it
+  /// silently lost its search frame. The box is labelled by its sr-only `<label>` ("Ask across every
+  /// episode"); `searchFields` is the fallback because the input is `type="search"`.
+  static func searchFromDiscover(_ app: XCUIApplication, _ query: String) -> Bool {
+    guard openTab(app, "Discover") else { return false }
+    let field = find(app, labels: ["Ask across every episode"], contains: true, timeout: 12)
+      ?? app.searchFields.firstMatch
+    guard field.waitForExistence(timeout: 8) else { return false }
+    field.tap()
+    field.typeText(query + "\n")
+    return true
+  }
+
   /// Dismiss any teleported sheet/popover that is still open.
   ///
   /// The sheets (entity card, storyline, share, colour) render over everything, so one left open

@@ -8,6 +8,10 @@ import { defineStore } from 'pinia'
 import { addInterest, getUserInterests, removeInterest } from '../services/api'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
+import { serialWrites } from '../services/serialWrites'
+
+/** Every toggle write goes through the shared serializer (see `services/serialWrites`). */
+const writes = serialWrites()
 
 interface InterestsState {
   ids: string[]
@@ -25,7 +29,8 @@ export const useInterestsStore = defineStore('interests', {
   },
   actions: {
     async load(): Promise<void> {
-      this.ids = await getUserInterests()
+      // `fresh`: a tap made while this is in flight must not be undone by it (serialWrites).
+      this.ids = await writes.fresh(getUserInterests)
       this.loaded = true
     },
     /**
@@ -74,20 +79,29 @@ export const useInterestsStore = defineStore('interests', {
       const generation = identityEpoch()
       // Optimistic flip so the tap is never swallowed.
       this.ids = wasFollowing ? this.ids.filter((t) => t !== token) : [...this.ids, token]
-      try {
-        const ids = wasFollowing ? await removeInterest(token) : await addInterest(token)
-        if (identityChangedSince(generation)) return
-        this.ids = ids
-        this.loaded = true
-      } catch (err: unknown) {
-        if (identityChangedSince(generation)) return
-        if (isPermanent(err)) {
-          // A refusal is an answer: undo the optimistic flip.
-          this.ids = wasFollowing ? [...this.ids, token] : this.ids.filter((t) => t !== token)
-          return
+      await writes.run(async (isLatest) => {
+        try {
+          const ids = wasFollowing ? await removeInterest(token) : await addInterest(token)
+          if (identityChangedSince(generation)) return
+          // A later tap is already showing its own optimistic state; its response will settle it.
+          if (!isLatest()) return
+          this.ids = ids
+          this.loaded = true
+        } catch (err: unknown) {
+          if (identityChangedSince(generation)) return
+          if (isPermanent(err)) {
+            // A refusal is an answer: undo the optimistic flip — unless a later tap superseded it.
+            if (!isLatest()) return
+            this.ids = wasFollowing
+              ? this.ids.includes(token)
+                ? this.ids
+                : [...this.ids, token]
+              : this.ids.filter((t) => t !== token)
+            return
+          }
+          enqueue(wasFollowing ? { op: 'interest.remove', token } : { op: 'interest.add', token })
         }
-        enqueue(wasFollowing ? { op: 'interest.remove', token } : { op: 'interest.add', token })
-      }
+      })
     },
   },
 })

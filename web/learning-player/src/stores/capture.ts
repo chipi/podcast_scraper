@@ -22,6 +22,7 @@ import {
   unretireHighlight,
 } from '../services/api'
 import { newCaptureId } from '../services/captureIds'
+import { serialWrites } from '../services/serialWrites'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import {
@@ -62,6 +63,20 @@ function ms(seconds: number): number {
  * the server list, never before it. Not in reactive state — a Promise does not belong there.
  */
 let loadPromise: Promise<void> | null = null
+
+/**
+ * Save / unsave writes go through the shared serializer (see `services/serialWrites`), so a quick
+ * save-then-unsave reaches the server in that order and the unsave's answer is the one that counts.
+ *
+ * Two facts the delete needs about the create it may be chasing: the id the SERVER gave the row
+ * (the tap only knew the client id), and whether the server refused the create — then there is
+ * nothing to delete. Before this, a tap-tap sent DELETE /highlights/<client id> while the create was
+ * in flight; the server answered 404, the store read that as a refusal and put the row back, and the
+ * create then landed — the insight the user unsaved stayed saved.
+ */
+const writes = serialWrites()
+const serverIdFor = new Map<string, string>()
+const refusedCreates = new Set<string>()
 
 export const useCaptureStore = defineStore('capture', {
   state: (): CaptureState => ({ highlights: [], notes: [], loaded: false, stale: false, unavailable: false }),
@@ -105,7 +120,10 @@ export const useCaptureStore = defineStore('capture', {
       // leak). A response that lands after the switch belongs to nobody now, so drop it.
       const generation = identityEpoch()
       try {
-        const [highlights, notes] = await Promise.all([getHighlights(), getNotes()])
+        // `fresh`: a save/unsave made while this is in flight must not be undone by it.
+        const [highlights, notes] = await writes.fresh(() =>
+          Promise.all([getHighlights(), getNotes()]),
+        )
         if (identityChangedSince(generation)) return
         this.highlights = highlights
         this.notes = notes
@@ -171,23 +189,29 @@ export const useCaptureStore = defineStore('capture', {
       } as unknown as Highlight
       this.highlights = [...this.highlights, optimistic]
       this.loaded = true
-      try {
-        const saved = await createHighlight(withId)
-        // A response landing after an account switch belongs to nobody now (advisor 1.4).
-        if (identityChangedSince(generation)) return false
-        this.highlights = this.highlights.map((h) => (h.id === client_id ? saved : h))
-        return true
-      } catch (err: unknown) {
-        if (identityChangedSince(generation)) return false
-        // Only a REFUSAL discards the capture. A 502 or a dead socket is not an answer, and
-        // dropping the user's highlight on one would lose it for good.
-        if (isPermanent(err)) {
-          this.highlights = this.highlights.filter((h) => h.id !== client_id)
-          return false
+      return writes.run(async () => {
+        try {
+          const saved = await createHighlight(withId)
+          // A response landing after an account switch belongs to nobody now (advisor 1.4).
+          if (identityChangedSince(generation)) return false
+          serverIdFor.set(client_id, saved.id)
+          // Row-level: replaces only this capture's own row (a no-op if the user already unsaved
+          // it — the delete queued behind this write will remove the server's row).
+          this.highlights = this.highlights.map((h) => (h.id === client_id ? saved : h))
+          return true
+        } catch (err: unknown) {
+          if (identityChangedSince(generation)) return false
+          // Only a REFUSAL discards the capture. A 502 or a dead socket is not an answer, and
+          // dropping the user's highlight on one would lose it for good.
+          if (isPermanent(err)) {
+            refusedCreates.add(client_id)
+            this.highlights = this.highlights.filter((h) => h.id !== client_id)
+            return false
+          }
+          enqueue({ op: 'highlight.create', body: withId })
+          return true
         }
-        enqueue({ op: 'highlight.create', body: withId })
-        return true
-      }
+      })
     },
     /** Delete a highlight, queuing the delete when the request never lands. */
     async _uncapture(id: string): Promise<boolean> {
@@ -207,20 +231,32 @@ export const useCaptureStore = defineStore('capture', {
         enqueue({ op: 'highlight.remove', id })
         return true
       }
-      try {
-        const items = await deleteHighlight(id)
-        if (identityChangedSince(generation)) return false
-        this._sync(items)
-        return true
-      } catch (err: unknown) {
-        if (identityChangedSince(generation)) return false
-        if (isPermanent(err)) {
-          this.highlights = prev
-          return false
+      return writes.run(async (isLatest) => {
+        // The create this delete was chasing has finished by now (writes are serialised). If the
+        // server refused it there is nothing to delete; if it failed in transit it was QUEUED
+        // meanwhile, so withdraw it exactly as the offline case above does.
+        if (refusedCreates.has(id)) return true
+        if (withdrawPendingCreate(id)) {
+          enqueue({ op: 'highlight.remove', id })
+          return true
         }
-        enqueue({ op: 'highlight.remove', id })
-        return true
-      }
+        const target = serverIdFor.get(id) ?? id
+        try {
+          const items = await deleteHighlight(target)
+          if (identityChangedSince(generation)) return false
+          // A whole list: adopt it only when no later tap is showing its own state.
+          if (isLatest()) this._sync(items)
+          return true
+        } catch (err: unknown) {
+          if (identityChangedSince(generation)) return false
+          if (isPermanent(err)) {
+            if (isLatest()) this.highlights = prev
+            return false
+          }
+          enqueue({ op: 'highlight.remove', id: target })
+          return true
+        }
+      })
     },
     /** One-tap "mark this moment" at a content-time position (seconds). */
     async captureMoment(

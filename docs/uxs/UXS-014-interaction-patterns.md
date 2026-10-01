@@ -15,7 +15,7 @@ this spec** — they do not re-invent navigation, layering, or saving.
 | Surface | What | Examples |
 | ------- | ---- | -------- |
 | **Page** | A route; URL-addressable destination | Home, Search, Catalog, Player, **Library** |
-| **Panel** | Persistent, in-layout region; not modal | Insights panel beside the Player |
+| **Panel** | Persistent, in-layout region; not modal | Episode notes panel beside the Player |
 | **Modal** | One dimmed backdrop; teleported to `<body>` | Interests picker, entity card **from Search** |
 | **Sheet** | The mobile form of a panel/modal (bottom, drag-handle) | Insights on mobile |
 
@@ -557,13 +557,14 @@ full-width square the hero took ~360pt of an iPhone's ~600pt usable height, and 
 scrubber and timestamps fell under the tab bar even after the gaps around them were tightened; 5:4
 gives back ~70pt and puts the whole transport on screen. Desktop has the height and keeps the square.
 
-- **Summary** is revealed on demand: hidden by default (clean artwork), it **slides up + fades in on
-  hover/focus** over a darker legibility gradient (`from-black/95 via-black/85 to-black/40`, white
-  text) so it stays readable even over bright artwork. Always shown on touch (no hover). Full text,
-  never clamped — the fixed-aspect hero stabilises height regardless.
-- **Live intelligence** ("Insight now / Speaking now") sits top-left; the **per-episode reach**
-  cluster (listeners · opens · Insights + a tiny opens-over-time `Sparkline`) sits top-right. The
-  Insights score opens the panel — no duplicate "Ask" entry (Ask lives inside the panel).
+- **One way into the episode's notes** (2026-09-30): the labelled **✦ Episode notes** pill at the
+  top of the artwork, beside the per-episode **reach** chip (listeners · opens + a tiny
+  opens-over-time `Sparkline`, withheld below the k-anonymity floor). There is NO summary control
+  on the hero any more. The Summary pill opened a modal holding exactly the prose the panel's
+  Summary section shows, so it was a second entry to a subset of the same thing. The summary lives
+  in the panel, directly under the people in the room.
+- **Live intelligence** (Zone D, "Insight now / Next · in 0:06") owns the BOTTOM band of the artwork,
+  so it never competes with the actions at the top.
 - The **Grounded** chip sits up by the date/meta line, **not** floating over the image.
 
 ## Saved & Library
@@ -715,6 +716,29 @@ rendered piece to its design home:
   Save ≠ Follow — this is the pill; the heart is `FavoriteButton`.
 - **`FollowedInterests`** — the Library section listing followed topics, people and storylines
   grouped by type, each unfollowable inline (the "following" pattern applied to non-show entities).
+
+### Every on/off control behaves the same way (2026-09-30)
+
+Follow (topics, people, storylines), the heart, follow-show, played, queue, and save-insight /
+save-line all follow ONE contract:
+
+1. **It flips on the tap.** No control waits for the server before it changes; the heart used to,
+   and on a slow connection it read as a dead button.
+2. **Writes reach the server one at a time, in the order the user tapped** (the shared
+   `services/serialWrites`). A quick on-then-off sends ON, then OFF, never both at once.
+3. **Only the newest tap's answer counts.** The response to a superseded tap is not adopted, so it
+   cannot re-light a control the user has since turned off. The newest answer is the server's whole
+   list and settles everything before it.
+4. **A refusal reverts, a lost request queues** — the outbox rule every per-user write already had.
+5. **A list that was already loading cannot undo a tap.** A fetch that started before the tap
+   returns the state from before it; the store refetches once the writes settle instead of adopting
+   it (`writes.fresh`). Found in a trace (2026-10-01): the initial GET landed after the follow's
+   POST, reset the button, and the "unfollow" tap sent a second follow.
+
+Before this, five of the six ended a fast tap-tap in the wrong state, and save-insight tried to
+delete a highlight by the id the phone had made up before the server named it. Guarded by
+`src/stores/tapTap.test.ts` (per store, and each fails on the pre-fix code) and
+`src/__checks__/toggle-consistency.test.ts` (any store toggle must write through the serializer).
 
 ## Post-episode recap
 

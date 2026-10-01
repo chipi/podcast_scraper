@@ -31,6 +31,9 @@ test('host and guests lead the panel with photos, and open in the panel with a B
   await expect
     .poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
     .toBe(true)
+  // The crop is anchored near the top, not centred (UXS-011 ProfileAvatar: a centred crop took the
+  // top of the head off most real portraits). Checked on the RESOLVED style, not the class.
+  expect(await photo.evaluate((img) => getComputedStyle(img).objectPosition)).toBe('50% 10%')
 
   // Same path as the person chip: replace-in-panel, with a Back that returns to the notes.
   await people.filter({ hasText: 'Daniel Cho' }).click()
@@ -39,4 +42,44 @@ test('host and guests lead the panel with photos, and open in the panel with a B
   await expect(page.getByTestId('kp-episode-dossier')).toHaveCount(0)
   await back.click()
   await expect(page.getByTestId('kp-episode-dossier')).toBeVisible()
+})
+
+/**
+ * The panel is the episode's notes: one labelled way in, its own title, and an order that opens on
+ * what the episode IS before offering to dig into it (UXS-011 / UXS-014, 2026-09-30).
+ *
+ * Labels are asserted as text here on purpose. Every other spec opens the panel by testid so a
+ * copy change cannot break them; this is the one place that proves the copy the user reads.
+ */
+test('Episode notes: one labelled entry, its own title, and the notes-first order', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'episode-notes-order', testInfo)
+  await page.goto('/')
+  await page.goto('/podcast/p05')
+  await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
+
+  const opener = page.getByTestId('player-open-insights')
+  await expect(opener).toHaveText(/Episode notes/)
+  // The standalone Summary pill is gone: it opened a subset of this panel. By role and name, not by
+  // its old testid — a selector for a testid the app no longer renders proves nothing.
+  await expect(page.getByTestId('player-hero').getByRole('button', { name: /summary/i })).toHaveCount(0)
+
+  await opener.click()
+  const panel = page.getByTestId('knowledge-panel')
+  await expect(panel.getByText('Episode notes', { exact: true }).first()).toBeVisible()
+  await expect(panel.getByTestId('episode-notes-export')).toContainText('Download notes')
+
+  const y = async (l: ReturnType<typeof panel.locator>) => (await l.boundingBox())!.y
+  const order = [
+    await y(panel.getByTestId('kp-episode-dossier')),
+    await y(panel.getByRole('heading', { name: 'Summary', exact: true })),
+    await y(panel.getByTestId('episode-notes-export')),
+    await y(panel.locator('#kp-ask')),
+    await y(panel.getByTestId('summary-bullets')),
+  ]
+  expect(
+    order,
+    'expected episode (title + people) → Summary → Download notes → Search → Key points, top to bottom',
+  ).toEqual([...order].sort((a, b) => a - b))
 })

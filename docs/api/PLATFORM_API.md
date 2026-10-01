@@ -182,7 +182,7 @@ heard∪captured (the _appears-in_ list + `episode_count` are filtered).
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/api/app/persons/{id}?scope=` | Person card `{id, label, episode_count, episodes[…Summary], related_people[], related_topics[]}` (`AppPersonCard`); **404** when the person is in no KG. |
-| GET | `/api/app/topics/{id}?scope=` | Topic card `{id, label, cluster_*, sibling_topics[], episode_count, episodes[…], related_people[]}` (`AppTopicCard`); **404** when absent. |
+| GET | `/api/app/topics/{id}?scope=` | Topic card `{id, label, cluster_*, sibling_topics[], episode_count, episodes[…], related_people[], conversation_arc_weeks}` (`AppTopicCard`); `conversation_arc_weeks` is the week count of `/topics/{id}/conversation-arc` (always 0 under `scope=mine`), so a client can skip an arc that is empty or a single week; **404** when absent. |
 | GET | `/api/app/topics/{id}/conversation-arc` | Topic conversation arc (ADR-108) — `{topic_id, weeks[{week, volume, negative, neutral, positive, avg_compound}]}` (`AppTopicConversationArcResponse`): ISO-week buckets of insight volume × VADER sentiment mix, oldest first. **200 + empty `weeks`** when the topic has no dated insights (never 404). Drives the consumer topic-card weekly-bar surface. |
 | GET | `/api/app/entities/search?q=` | Resolve a query to a person/topic card (exact/near-exact); `{query, entity}` or `entity:null`. |
 
