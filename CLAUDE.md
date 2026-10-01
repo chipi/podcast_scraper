@@ -138,6 +138,23 @@ failure-mode analysis lives in
   confirmation and is usually a scope error. The tell: a search returned
   nothing and I felt confirmed rather than suspicious.
 
+## PROD CORPUS FIXES ARE TEXT-FILE FIXES — NO DGX, NO RELABEL, NO REBUILD
+
+Operator rule, 2026-10-01: everything we fix on prod is fixed **without the
+DGX**. The corpus is text files; fix the text files. Do not offer relabel,
+rederive, rediarize, an LLM call, or a full search-index rebuild as an option,
+a follow-up, or a line in a status report — the operator does not want to hear
+it; it is a last resort only the operator may raise.
+
+The ladder: (1) read-time fix where data is served → (2) deterministic
+migration over the artifacts using evidence already on disk (dry-run, verify,
+undo, corpus-owner ownership) → (3) targeted in-place edits of the affected
+search-index rows → (4) re-run deterministic non-LLM steps (corpus-internal
+enrichers, bridge) for the affected episodes only. A migration is not done
+until every derived surface built from what it changed is consistent:
+enrichment outputs, bridge, search-index rows. If something truly cannot be
+fixed from text on disk, say exactly what evidence is missing and stop there.
+
 ---
 
 This file is a **thin Claude Code-specific overlay**. The canonical rules —
