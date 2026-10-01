@@ -208,6 +208,11 @@ measured by. Neither depends on anything in this arc.
 
 ### Phase 0 — English as a declared language
 
+**STATUS: every slice below is DONE**, shipped on `feat/multilingual-ingest`; the linked issues stay
+open until that branch merges. The `Size` column is the original estimate, kept because it is what
+the sequencing was argued from — it is not a status. Phases −1, 1, 2 and 3 are likewise complete, so
+Gate V's **V.2** is the only open item in the arc, and it is the operator's.
+
 **Ships as one release.** No new models, no GPU, no user-visible chrome — the badge moved to v2 (D-11).
 At the end, "this episode is in English" is something the system parses and checks rather than assumes,
 and the same machinery carries any other language.
@@ -299,7 +304,7 @@ feed is added.
 
 | # | Issue title | Goal | Depends on | Size | Ship alone? |
 | --- | --- | --- | --- | --- | --- |
-| **S3.1** | Transcript language control | **The transcript defaults to English** — the rest of the app (summary, insights, everything) is English, so a source-language transcript by default would be the inconsistent choice. A small control in the transcripts panel switches to the original (D-25). Two things to get right: it must serve the **full-timeline** `ep1.en.txt`, not the ad-free analysis base, or it desyncs from the audio wherever an ad was cut; and it needs a small language affordance in the panel — the badge *component*, whose use as metadata decoration stays v2 (D-26). Backend is already in place — `?lang=` lands with S2.8. | S2.8 | M | Yes |
+| **S3.1** | Transcript language control | **DONE 2026-10-01.** The transcript defaults to English — the rest of the app (summary, insights, everything) is English, so a source-language transcript by default would be the inconsistent choice. A small control in the transcripts panel switches to the original (D-25). Two things to get right: it must serve the **full-timeline** `ep1.en.txt`, not the ad-free analysis base, or it desyncs from the audio wherever an ad was cut; and it needs a small language affordance in the panel — the badge *component*, whose use as metadata decoration stays v2 (D-26). Backend is already in place — `?lang=` lands with S2.8. | S2.8 | M | Yes |
 | **S3.2** | ~~Feature-flag lifecycle and rollback~~ → **Language lifecycle and rollback** | **DONE 2026-10-01 — D-43.** `enabled` gates **ingest and nothing else**: disabling a language that already has published episodes stops new ones and leaves the existing ones fully served. A YAML edit must not silently change what listeners see; filtering reads by language would break D-39; and rollback is an operator action, so it gets a command with a dry run rather than a config state. Withdrawal is `language_withdrawal.py` — it removes the language's **search-index rows only**, leaves the corpus untouched, and is therefore undone by an ordinary reindex. Direct links and library entries keep playing, which is the honest limit and is stated rather than hidden. | S2.13 | S | Yes |
 
 ---
