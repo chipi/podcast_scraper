@@ -254,6 +254,21 @@ from a topic NODE matched by id, and a theme is never a node on an episode, so a
 id — unlike `/storyline/:id`, which takes an anchor topic because no storyline endpoint exists — so
 a theme link survives its biggest member changing.
 
+**Reaching it from a topic** (`ThemeCard`, `ec-theme`). The topic card announced one of its two
+groupings and stayed silent about the other: `cluster_id` / `cluster_label` / `cluster_size` had
+been on the payload since the card existed and nothing rendered them, so the theme appeared only as
+"similar topics" chips — its MEMBERS, without ever naming the thing they are members of — while the
+storyline had a named "Part of a storyline" link all along. A reader therefore met one grouping as
+an object and the other as a loose chip list, which is also why the two ideas were hard to tell
+apart.
+
+`Part of a theme` now sits directly above the storyline link so the pair reads as two different
+claims about the same topic — "means the same thing" against "keeps coming up together". It opens
+`ThemeCard`, a teleported sheet wrapping `ThemeView embedded`, mirroring `StorylineCard` exactly:
+both groupings open with the same gesture, and the sheet is not a route because inside the Knowledge
+Panel (a top-layer `showModal()` dialog) a `router.push` changes the page UNDERNEATH and the tap
+reads as dead — the defect that made the storyline link route-free in the first place.
+
 Its episode list is the **de-duplicated union across every member**, and that merge is the reason
 the page is worth having: a similarity cluster exists precisely because searching one member misses
 the others, so showing one member's episodes would not answer the question the grouping poses.

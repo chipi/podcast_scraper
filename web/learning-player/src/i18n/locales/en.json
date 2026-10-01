@@ -513,6 +513,7 @@
   "ec": {
     "clusterSize": "{count} topic | {count} topics",
     "singleTopic": "Not part of a storyline yet",
+    "themeHeading": "Part of a theme",
     "storylineHeading": "Part of a storyline",
     "person": "Person",
     "topic": "Topic",

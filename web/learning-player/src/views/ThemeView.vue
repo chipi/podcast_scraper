@@ -20,10 +20,11 @@
  * anchor's card carries the cluster. A theme has a real id and a real endpoint, so it uses them: a
  * theme link stays valid even when its biggest member changes, which an anchor-topic link does not.
  */
-import { computed, ref, watch } from "vue"
+import { computed, defineAsyncComponent, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 
+import CloseIcon from "../components/CloseIcon.vue"
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
 import MemberTrendBadge from "../components/MemberTrendBadge.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
@@ -43,7 +44,37 @@ import { useInterestsStore } from "../stores/interests"
 
 type Member = { id: string; label: string; episodeCount: number; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
 
-const props = defineProps<{ id: string }>()
+// `embedded` — rendered INSIDE the theme overlay sheet (ThemeCard) rather than as a page. Same
+// contract as StorylineView: the two are the same kind of object and must behave the same when a
+// topic card opens one on top.
+const props = withDefaults(
+  defineProps<{ id: string; embedded?: boolean; depth?: number }>(),
+  { embedded: false, depth: 0 }
+)
+const emit = defineEmits<{ (e: "close"): void }>()
+
+/**
+ * Inside the SHEET a member topic or person opens as a sheet ON TOP; on the PAGE the links stay
+ * links. Identical to StorylineView — the same gesture has to give the same result whichever
+ * grouping you opened.
+ */
+const entityOpen = ref<{ kind: "topic" | "person"; id: string } | null>(null)
+function openEntity(kind: "topic" | "person", id: string, e?: MouseEvent): void {
+  if (!props.embedded) return // page: let the RouterLink navigate
+  e?.preventDefault()
+  entityOpen.value = { kind, id }
+}
+function openPerspective(p: { kind: "person" | "topic"; id: string }): void {
+  if (props.embedded) {
+    entityOpen.value = { kind: p.kind, id: p.id }
+    return
+  }
+  void router.push({ name: p.kind, params: { id: p.id } })
+}
+
+// ASYNC: EntityCard → EntityCardBody → TopicCardContent → ThemeCard → this file is a cycle, so the
+// resolve is deferred to first open. Same reason StorylineView defers it.
+const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
 
 const { t } = useI18n()
 const router = useRouter()
@@ -140,17 +171,43 @@ function goBack(): void {
 </script>
 
 <template>
-  <section class="mx-auto max-w-3xl px-4 pb-8 pt-4" data-testid="theme-view">
-    <button type="button" class="lp-nav" :aria-label="t('nav.back')" @click="goBack">
+  <section
+    :class="embedded ? '' : 'mx-auto max-w-3xl px-4 pb-8 pt-4'"
+    data-testid="theme-view"
+  >
+    <!-- Back on its own row. Suppressed when embedded — the sheet closes with its own ✕. -->
+    <button
+      v-if="!embedded"
+      type="button"
+      class="lp-nav"
+      :aria-label="t('nav.back')"
+      @click="goBack"
+    >
       <span aria-hidden="true" class="text-base leading-none">‹</span>
       <span>{{ t("nav.back") }}</span>
     </button>
 
     <!-- Header order matches the storyline and topic pages (UXS-014): kicker, title on its own
          row, then actions on theirs. -->
-    <div class="mt-3">
-      <span class="lp-kicker min-w-0 text-theme">{{ t("home.themes") }}</span>
-      <h1 class="mt-2 line-clamp-2 font-display text-2xl font-extrabold tracking-tight">
+    <div :class="embedded ? '' : 'mt-3'">
+      <div class="flex items-start justify-between gap-3">
+        <span class="lp-kicker min-w-0 text-theme">{{ t("home.themes") }}</span>
+        <!-- Close ✕ — embedded only; standalone uses the Back row above. -->
+        <button
+          v-if="embedded"
+          type="button"
+          class="lp-nav shrink-0"
+          :aria-label="t('ec.close')"
+          data-testid="theme-card-close"
+          @click="emit('close')"
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      <h1
+        class="mt-2 line-clamp-2 font-display font-extrabold tracking-tight"
+        :class="embedded ? 'text-xl' : 'text-2xl'"
+      >
         {{ label || "…" }}
       </h1>
       <!-- The same action set as the topic and storyline pages: Save, Share, Follow. These were
@@ -196,6 +253,7 @@ function goBack(): void {
             <RouterLink
               :to="{ name: 'topic', params: { id: tp.id } }"
               class="flex items-center gap-3 border-b border-border py-2 text-canvas-foreground no-underline hover:bg-overlay"
+              @click="openEntity('topic', tp.id, $event)"
             >
               <span class="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted">{{
                 i + 1
@@ -237,6 +295,7 @@ function goBack(): void {
         :people="people"
         :heading-level="2"
         :route-for="(pid) => ({ name: 'person', params: { id: pid } })"
+        @open="(pid, e) => openEntity('person', pid, e)"
       />
 
 
@@ -250,11 +309,22 @@ function goBack(): void {
         class="mt-6"
         :id="id"
         kind="theme"
-        @open="(p) => router.push({ name: p.kind, params: { id: p.id } })"
+        @open="openPerspective"
       />
 
       <!-- Notes, like the storyline and topic pages. Keyed by the theme's own id. -->
       <NoteComposer target="theme" :target-id="id" />
     </template>
+
+    <!-- A topic or person opened from inside this sheet, layered over it. `history-key` MUST differ
+         from the parent sheet's or the two fight over one history entry (see EntityCard). -->
+    <EntityCard
+      v-if="entityOpen"
+      :kind="entityOpen.kind"
+      :id="entityOpen.id"
+      history-key="card2"
+      :depth="depth + 1"
+      @close="entityOpen = null"
+    />
   </section>
 </template>
