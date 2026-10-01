@@ -663,6 +663,16 @@ jobs:
         # test:coverage runs vitest with --coverage; thresholds in vite.config.ts
         # fail the job if consumer-app coverage regresses (mirrors viewer-unit).
         npm run test:coverage
+    - name: Type-check the TEST sources
+      # vitest transpiles without type-checking, and `tsconfig.app.json` EXCLUDES
+      # `src/**/*.test.ts` — so until this step nothing in CI ever checked a test file against the
+      # types it claims. `make test-app` has run it locally for a while; CI did not, and the
+      # difference let #2213 merge fully green and break `make test-app` on main immediately
+      # (a `vi.fn(async () => ...)` mock read back via `mock.calls[0][0]`: TS2554 + two TS2493,
+      # fixed in fe9f9787c). A gate that only exists on one developer's machine is not a gate.
+      run: |
+        cd web/learning-player
+        npm run type-check:test
 
   app-e2e:
     runs-on: ubuntu-latest
@@ -1521,7 +1531,20 @@ jobs:
   coverage-unified:
     runs-on: ubuntu-latest
     needs: [detect-changes, security-quality, test-unit, test-integration, test-integration-fast, test-e2e, test-e2e-fast, viewer-e2e]  # Python tests + Playwright before merge report
-    if: always() && needs.detect-changes.outputs.python == 'true'
+    # `!cancelled()`, NOT `always()`. This job combines coverage from eight upstream jobs, and
+    # `always()` made it run even when every one of them was CANCELLED — which is what concurrency
+    # does the moment a newer commit lands on main. With no artifacts to combine it then fails for
+    # its own reasons, and that `failure` is indistinguishable from a real coverage regression:
+    # on 2026-10-01 three commits landed on main within four minutes and the CI Gate went RED
+    # reporting `coverage-unified (failure)` while nothing was actually broken. A gate that cries
+    # wolf is worse than no gate.
+    #
+    # Every other `always()` job here already guards with `needs.<job>.result == 'success'`, so a
+    # cancelled upstream SKIPS them; this was the only one without such a guard.
+    #
+    # `!cancelled()` keeps the behaviour `always()` was chosen for — report coverage even when a
+    # test job FAILED — and drops only the case where the inputs cannot exist.
+    if: ${{ !cancelled() && needs.detect-changes.outputs.python == 'true' }}
     steps:
     - uses: actions/checkout@v7
       with:
