@@ -614,6 +614,22 @@ class AppClusterMember(BaseModel):
             "with no centre, so every theme member has anchor=False."
         ),
     )
+    first_seen: str | None = Field(
+        default=None, description="Publish date (YYYY-MM-DD) of this member's earliest episode."
+    )
+    last_seen: str | None = Field(
+        default=None, description="Publish date of this member's most recent episode."
+    )
+    trend: Literal["new", "growing", "steady", "fading", "gone"] = Field(
+        default="steady",
+        description=(
+            "How this member's presence changed across the grouping's own timeline, split at its "
+            "MEDIAN episode date. `new` = absent from the earlier half; `gone` = absent from the "
+            "later half; `growing`/`fading` = a meaningful shift either way; `steady` otherwise. "
+            "Self-relative on purpose, so it reads the same on a six-month corpus and a six-year "
+            "one — a fixed window would call every member of a young corpus 'new'."
+        ),
+    )
 
 
 class AppClusterPair(BaseModel):

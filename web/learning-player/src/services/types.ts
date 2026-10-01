@@ -837,6 +837,11 @@ export interface ClusterMember {
   episode_count: number
   /** Holds the grouping together (highest co-occurrence lift). Storylines only — a theme is symmetric. */
   anchor: boolean
+  /** Publish date of this member's earliest / most recent episode (YYYY-MM-DD). */
+  first_seen?: string | null
+  last_seen?: string | null
+  /** How its presence changed across the grouping's own timeline, split at the median episode. */
+  trend?: 'new' | 'growing' | 'steady' | 'fading' | 'gone'
 }
 
 /** The two members that co-occur most — a storyline's evidence in one line. */

@@ -25,6 +25,7 @@ import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
+import MemberTrendBadge from "../components/MemberTrendBadge.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
@@ -35,11 +36,11 @@ import TrendMomentum from "../components/TrendMomentum.vue"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { getThemeCard } from "../services/api"
-import type { Entity, EpisodeSummary } from "../services/types"
+import type { ClusterMember, Entity, EpisodeSummary } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 
-type Member = { id: string; label: string; episodeCount: number }
+type Member = { id: string; label: string; episodeCount: number; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
 
 const props = defineProps<{ id: string }>()
 
@@ -77,6 +78,9 @@ async function load(themeId: string): Promise<void> {
       id: tp.id,
       label: tp.label,
       episodeCount: tp.episode_count,
+      firstSeen: tp.first_seen ?? null,
+      lastSeen: tp.last_seen ?? null,
+      trend: tp.trend,
     }))
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
@@ -197,6 +201,11 @@ function goBack(): void {
               <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
                 tp.label
               }}</span>
+              <MemberTrendBadge
+                :trend="tp.trend"
+                :first-seen="tp.firstSeen"
+                :last-seen="tp.lastSeen"
+              />
               <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
                 t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
               }}</span>

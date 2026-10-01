@@ -947,3 +947,78 @@ class TestWhatHoldsAStorylineTogether:
         assert not any(m.anchor for m in card.member_topics)
         # Counts still earn their place — they show how much of the theme each member carries.
         assert all(m.episode_count > 0 for m in card.member_topics)
+
+
+class TestAGroupingMovesOverTime:
+    """A grouping is not a static set — topics join it, carry it, and drop out.
+
+    The member list said none of that: the same four words in the same order whether a topic had
+    been there since the first episode or arrived last month. These assert the movement is real and
+    that the rules are self-relative, not tied to a fixed window.
+    """
+
+    FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_fixture(self) -> None:
+        if not self.FIXTURE.is_dir():
+            pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
+
+    def test_a_member_that_stopped_appearing_is_gone(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, "thc:managing-risk")
+        assert card is not None
+        by_label = {m.label: m for m in card.member_topics}
+        endurance = by_label["endurance sport"]
+        assert endurance.trend == "gone", f"expected gone, got {endurance.trend}"
+        # `gone` must be justified by the dates it reports, not asserted on its own.
+        assert endurance.last_seen is not None
+        assert endurance.last_seen < max(
+            m.last_seen for m in card.member_topics if m.last_seen
+        ), "a member called gone is not the most recent one"
+
+    def test_a_member_absent_from_the_first_half_is_new(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:show-themes")
+        assert card is not None
+        by_label = {m.label: m for m in card.member_topics}
+        assert by_label["public radio"].trend == "new"
+        # And it must have started LATER than a member that was there from the beginning.
+        assert by_label["public radio"].first_seen > by_label["risk management"].first_seen
+
+    def test_every_member_reports_the_dates_behind_its_trend(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, "thc:managing-risk")
+        assert card is not None
+        for m in card.member_topics:
+            assert m.first_seen and m.last_seen, f"{m.label} has a trend but no dates to justify it"
+            assert m.first_seen <= m.last_seen
+
+    def test_steady_is_the_default_so_badges_stay_rare(self) -> None:
+        """A badge on every row is a badge that says nothing."""
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:show-themes")
+        assert card is not None
+        moved = [m for m in card.member_topics if m.trend != "steady"]
+        assert 0 < len(moved) < len(card.member_topics), (
+            "either nothing moved (no story) or everything did (no signal): "
+            f"{[(m.label, m.trend) for m in card.member_topics]}"
+        )
+
+    def test_the_split_is_the_groupings_own_median_not_a_fixed_window(self) -> None:
+        """A six-month corpus and a six-year one must both read sensibly.
+
+        A fixed "last 12 months" window would brand every member of a young corpus `new`. Asserted
+        by checking that the earliest-starting member is NOT called new — under a fixed recent
+        window on this corpus (which runs to 2026) several members would be.
+        """
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:show-themes")
+        assert card is not None
+        earliest = min(card.member_topics, key=lambda m: m.first_seen or "9999")
+        assert earliest.trend != "new"

@@ -529,6 +529,10 @@ def _build_cluster_card(
     # grouping's evidence — "these two keep turning up together" — is otherwise asserted and
     # never shown.
     eps_by_member: dict[str, set[str]] = {}
+    # Publish dates per member, so "what changed" comes out of the same walk. A grouping is a thing
+    # that MOVES — members join it, carry it for a while, drop out — and a flat list of names cannot
+    # say any of that.
+    dates_by_member: dict[str, list[str]] = {}
     about: list[CatalogEpisodeRow] = []
     people_by_id: dict[str, AppEntity] = {}
     person_counts: Counter[str] = Counter()
@@ -549,6 +553,8 @@ def _build_cluster_card(
             # carry an episode_id, so both keys de-duplicate correctly here.
             key = row.metadata_relative_path
             eps_by_member.setdefault(tid, set()).add(key)
+            if row.publish_date:
+                dates_by_member.setdefault(tid, []).append(str(row.publish_date)[:10])
             if key in seen_eps:
                 continue
             seen_eps.add(key)
@@ -572,17 +578,46 @@ def _build_cluster_card(
         ordered = sorted(member_ids, key=lambda t: (-lift.get(t, 0.0), -episodes_per_member[t], t))
     else:
         ordered = sorted(member_ids, key=lambda t: (-episodes_per_member[t], t))
-    members = [
-        AppClusterMember(
-            id=tid,
-            label=labels.get(tid) or tid.split(":", 1)[-1],
-            episode_count=episodes_per_member[tid],
-            # Only a lift-ordered grouping has an anchor. A theme is symmetric — "means the same
-            # thing" has no centre — so flagging one of its members would invent a hierarchy.
-            anchor=bool(lift) and i == 0,
+    # The split is the grouping's OWN median episode date, not a fixed window: a six-month corpus
+    # and a six-year one should both read sensibly, and "last 12 months" would brand every member of
+    # a young corpus `new`.
+    all_dates = sorted(d for ds in dates_by_member.values() for d in ds)
+    midpoint = all_dates[len(all_dates) // 2] if all_dates else ""
+
+    def _trend(tid: str) -> tuple[str | None, str | None, str]:
+        ds = sorted(dates_by_member.get(tid, []))
+        if not ds or not midpoint:
+            return None, None, "steady"
+        early = sum(1 for d in ds if d < midpoint)
+        late = len(ds) - early
+        if early == 0:
+            state = "new"  # was not here in the first half at all
+        elif late == 0:
+            state = "gone"  # has not appeared since
+        elif late >= early * 2:
+            state = "growing"
+        elif early >= late * 2:
+            state = "fading"
+        else:
+            state = "steady"
+        return ds[0], ds[-1], state
+
+    members = []
+    for i, tid in enumerate(ordered):
+        first, last, state = _trend(tid)
+        members.append(
+            AppClusterMember(
+                id=tid,
+                label=labels.get(tid) or tid.split(":", 1)[-1],
+                episode_count=episodes_per_member[tid],
+                # Only a lift-ordered grouping has an anchor. A theme is symmetric — "means the same
+                # thing" has no centre — so flagging one of its members would invent a hierarchy.
+                anchor=bool(lift) and i == 0,
+                first_seen=first,
+                last_seen=last,
+                trend=state,  # type: ignore[arg-type]  # _trend returns the Literal's values
+            )
         )
-        for i, tid in enumerate(ordered)
-    ]
 
     pair: AppClusterPair | None = None
     if lift and len(ordered) > 1:

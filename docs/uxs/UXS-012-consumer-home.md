@@ -260,6 +260,22 @@ the others, so showing one member's episodes would not answer the question the g
 Measured on the v3 fixture: 8 members, 84 episodes with overlap, **40 distinct** — where the
 largest single member carries 30.
 
+**What changed** (`MemberTrendBadge`). A grouping is not a static set — topics join it, carry it
+for a while, and drop out — and the member list said none of that: the same words in the same order
+whether a topic had been there since the first episode or arrived last month. Each member now
+carries `first_seen`, `last_seen` and a `trend`, and a badge renders only when the member actually
+moved: `new`, `growing`, `fading`, `gone`. `steady` renders nothing, which is most members most of
+the time — a badge on every row is a badge that says nothing.
+
+The split is the grouping's OWN median episode date, never a fixed window: a "last 12 months" rule
+would brand every member of a young corpus `new`. Arriving (`new`/`growing`) takes the accent
+colour, leaving (`fading`/`gone`) the muted one — a direction, not a judgement. A topic leaving a
+storyline is how a storyline moves on.
+
+This applies to BOTH groupings, unlike the anchor and the co-occurrence pair: "has this member's
+presence changed" is a question about any set over time, while those two describe co-occurrence,
+which is what a storyline is made of and what a theme explicitly is not.
+
 Not yet: Save (heart) and notes. `FavoriteKind` and `NoteTarget` are server-validated contracts and
 neither admits `theme`, so those controls would offer an action the API rejects. Follow works today,
 because a theme is followed by its `tc:` token and the interests store already carries it.

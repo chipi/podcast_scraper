@@ -17,6 +17,7 @@ import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
+import MemberTrendBadge from "../components/MemberTrendBadge.vue"
 import NoteComposer from "../components/NoteComposer.vue"
 import TopVoices from "../components/TopVoices.vue"
 // ASYNC: EntityCard → EntityCardBody → TopicCardContent → StorylineCard → this file is a cycle, so
@@ -28,9 +29,9 @@ import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
-import type { ClusterPair, Entity, EpisodeSummary } from "../services/types"
+import type { ClusterMember, ClusterPair, Entity, EpisodeSummary } from "../services/types"
 
-type Member = { id: string; label: string; episodeCount: number; anchor: boolean }
+type Member = { id: string; label: string; episodeCount: number; anchor: boolean; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
 
 // `embedded` — rendered INSIDE the storyline overlay sheet (StorylineCard) rather than as a
 // standalone route. Drops the back button + page padding/width; the sheet supplies its own chrome.
@@ -103,6 +104,9 @@ async function load(anchorTopicId: string): Promise<void> {
       label: tp.label,
       episodeCount: tp.episode_count,
       anchor: tp.anchor,
+      firstSeen: tp.first_seen ?? null,
+      lastSeen: tp.last_seen ?? null,
+      trend: tp.trend,
     }))
     pair.value = card.strongest_pair ?? null
     people.value = card.related_people ?? []
@@ -276,6 +280,11 @@ function goBack(): void {
                 <path d="M4.5 7.5h7" />
                 <path d="M2.5 10.5a5.5 5.5 0 0 0 11 0" />
               </svg>
+              <MemberTrendBadge
+                :trend="tp.trend"
+                :first-seen="tp.firstSeen"
+                :last-seen="tp.lastSeen"
+              />
               <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
                 t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
               }}</span>
