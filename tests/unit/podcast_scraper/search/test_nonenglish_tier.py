@@ -14,12 +14,14 @@ confirmed in this slice.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pytest
 
 from podcast_scraper.search.backend import SegmentDocument
 from podcast_scraper.search.backends.lancedb_backend import (
+    DEFAULT_EMBED_DIM as _EMBED_DIM,
     _segment_nonen_schema,
     _segment_schema,
     LANCE_SCHEMA_VERSION,
@@ -285,12 +287,24 @@ class TestTheQueryPath:
 
         assert "segment_nonen" not in _B()._tables_for_tier("all")
 
-    def test_an_explicit_tier_request_is_honoured_unchanged(self) -> None:
+    def test_an_explicit_tier_request_pulls_in_NO_UNRELATED_tier(self) -> None:
+        """An explicit scope stays a scope — it must not quietly widen to the whole index.
+
+        This asserted `["segment"]` exactly, which read as "honour the request unchanged" and was
+        really "a scoped search cannot see non-English content". The principle was right and its
+        application conflated a PHYSICAL table with a LOGICAL tier: `segment_nonen` is the segment
+        tier's other half, split from it by storage alone, so serving it IS honouring a request
+        for segments. What the scope must still exclude is `insight` and `aux`, and that is what
+        this now says.
+        """
+
         class _B(LanceDBBackend):
             def __init__(self) -> None:
                 pass
 
-        assert _B()._tables_for_tier("segment", keyword=True) == ["segment"]
+        tables = _B()._tables_for_tier("segment", keyword=True)
+        assert set(tables) == {"segment", "segment_nonen"}
+        assert "insight" not in tables and "aux" not in tables
 
     def test_bm25_asks_for_the_keyword_tiers_and_vector_does_not(self) -> None:
         """Driven through `_run`, so the wiring between query type and tier list is what is
@@ -456,3 +470,119 @@ class TestTheEnglishRenderPredicate:
             english_transcript_relpath("transcripts/ep1.en.adfree.txt")
             == "transcripts/ep1.en.adfree.en.txt"
         ), "stacking is real; this name never exists on disk"
+
+
+class TestAReindexDoesNotDELETETheNonEnglishTier:
+    """A full reindex over an EXISTING index must not empty `segments_nonen` (S2.9 regression).
+
+    THE BUG, MEASURED. The rows were written and then deleted, in the same build:
+
+    * `_flush_tier` records the LOGICAL tier it was called with — `segment` — in
+      `overwritten_tiers`. `replace_segments`/`upsert_segments` then write to TWO physical
+      tables, `segments` and `segments_nonen`, because the language split lives inside the
+      backend. Nothing ever put `segment_nonen` in that set.
+    * `_finalize_reindex_clear` computes `pre_existing_tiers - overwritten_tiers` and
+      MVCC-empties the difference, so `segment_nonen` was always in the difference and always
+      cleared — after its rows had been written.
+
+    WHY IT WAS INVISIBLE. A first build (no index on disk yet) takes neither path:
+    `_plan_reindex_clear` returns no reason, so `_finalize_reindex_clear` never runs and the
+    rows survive. The failure needs an index to already exist, which is every reindex in
+    production and no test here. The read path then fails silently too — `segments_nonen` with
+    zero rows gets no FTS index (`create_indices` skips empty tables), so BM25 raises
+    "Cannot perform full text search unless an INVERTED index has been created", and
+    `_run_keyword_only_tier` swallows that at `logger.debug`. Net effect: a verbatim sentence
+    from an episode's own Spanish transcript returned 612 rows, none of them that episode's
+    source layer.
+
+    This is what "an episode findable in the language it was spoken in" (Goal 6) rests on, so
+    it is asserted against a REAL index on disk rather than against the splitter.
+    """
+
+    @staticmethod
+    def _docs() -> List[SegmentDocument]:
+        def doc(doc_id: str, language: Optional[str]) -> SegmentDocument:
+            return SegmentDocument(
+                id=doc_id,
+                text="drenaje y estructura del suelo" if language else "drainage and soil",
+                show_id="p10",
+                episode_id="ep1",
+                start_time=0.0,
+                end_time=5.0,
+                embedding=[0.1] * _EMBED_DIM,
+                language=language,
+            )
+
+        return [doc("ep1_chunk_0", "en"), doc("ep1_chunk_0:src", "es")]
+
+    def _rows(self, path: str, tier: str) -> Optional[int]:
+        backend = LanceDBBackend(path, embed_dim=_EMBED_DIM)
+        table = backend._open_if_exists(tier)
+        return None if table is None else int(table.count_rows())
+
+    def test_the_source_rows_survive_a_reindex_over_an_existing_index(self, tmp_path: Any) -> None:
+        from podcast_scraper.search.two_tier_indexer import _finalize_reindex_clear
+
+        path = str(tmp_path / "lance_index")
+        backend = LanceDBBackend(path, embed_dim=_EMBED_DIM)
+        backend.replace_segments(self._docs())
+        assert self._rows(path, "segment_nonen") == 1, "setup: the source row was not written"
+
+        # Exactly what the build does at the end of a full reindex: every tier that existed
+        # before and was not recorded as overwritten gets MVCC-emptied.
+        pre_existing = set(backend.existing_tier_tables())
+        assert "segment_nonen" in pre_existing
+        _finalize_reindex_clear(Path(path), backend, pre_existing, overwritten_tiers={"segment"})
+
+        assert self._rows(path, "segment_nonen") == 1, (
+            "the reindex emptied the non-English tier — the rows were written by "
+            "replace_segments and then deleted by the finalize clear, so no non-English "
+            "content is searchable on any corpus that already had an index"
+        )
+
+    def test_replacing_segments_counts_as_overwriting_BOTH_physical_tables(self) -> None:
+        """The fix stated as a property, so it cannot regress by someone re-deriving the set.
+
+        `segment` and `segment_nonen` are written by one call and must be bookkept as one unit.
+        """
+        assert "segment_nonen" in LanceDBBackend.physical_tiers_written_with("segment")
+        assert "segment" in LanceDBBackend.physical_tiers_written_with("segment")
+        # A tier with no split is just itself — no special-casing leaks to the other tiers.
+        assert LanceDBBackend.physical_tiers_written_with("insight") == ("insight",)
+
+
+class TestAScopedTranscriptSearchStillReachesTheSourceLayer:
+    """`doc_types=["transcript"]` must not exclude the non-English tier.
+
+    `_tables_for_tier` added the keyword-only tiers ONLY for `tier == "all"`; every scoped
+    request returned `[tier]`. So the episode-level transcript search — the one surface whose
+    entire job is "find this in the transcript" — could never reach non-English content, and a
+    verbatim sentence from a Spanish episode's own body matched nothing in it.
+
+    `segment_nonen` IS a segment tier; that it has no vector column decides which SIGNAL can
+    read it (BM25 only), not which SCOPE it belongs to. Those are different questions and the
+    code was answering the second with the first.
+    """
+
+    def test_a_segment_scoped_keyword_read_includes_the_non_english_tier(self) -> None:
+        tables = LanceDBBackend._tables_for_tier(
+            LanceDBBackend.__new__(LanceDBBackend), "segment", keyword=True
+        )
+        assert "segment_nonen" in tables, (
+            "a transcript-scoped keyword search cannot see non-English content: " f"{tables}"
+        )
+
+    def test_a_segment_scoped_DENSE_read_still_excludes_it(self) -> None:
+        """The vector-less tier has nothing for a dense query to match, so it is not opened."""
+        tables = LanceDBBackend._tables_for_tier(
+            LanceDBBackend.__new__(LanceDBBackend), "segment", keyword=False
+        )
+        assert "segment_nonen" not in tables
+
+    def test_an_insight_scope_is_unaffected(self) -> None:
+        """Only the segment scope has a non-English counterpart; nothing else gains a table."""
+        for keyword in (True, False):
+            tables = LanceDBBackend._tables_for_tier(
+                LanceDBBackend.__new__(LanceDBBackend), "insight", keyword=keyword
+            )
+            assert tables == ["insight"]

@@ -297,6 +297,22 @@ class LanceDBBackend:
         schema = self._SCHEMAS[tier](self.embed_dim)
         return self.db.create_table(self.TABLES[tier], schema=schema)
 
+    #: Logical tier -> every PHYSICAL table a single write to it replaces.
+    #:
+    #: `replace_segments`/`upsert_segments` take one batch and split it across `segments` and
+    #: `segments_nonen`, so a caller that records "I overwrote `segment`" has in fact overwritten
+    #: both. Keeping that fact here, beside the splitter, is what stops the two from drifting:
+    #: a reindex's stale-tier sweep subtracted the logical name only, so `segment_nonen` read as
+    #: never-written and was emptied immediately after its rows were written.
+    _TIERS_WRITTEN_TOGETHER: Dict[str, tuple] = {
+        "segment": ("segment", "segment_nonen"),
+    }
+
+    @classmethod
+    def physical_tiers_written_with(cls, tier: str) -> tuple:
+        """Every physical tier a single write to the logical *tier* replaces (itself included)."""
+        return cls._TIERS_WRITTEN_TOGETHER.get(tier, (tier,))
+
     def has_tier(self, tier: str) -> bool:
         """Whether this index has the tier's table at all.
 
@@ -368,12 +384,25 @@ class LanceDBBackend:
         not because a filter excludes them from dense search, but because they have no vector
         column at all, so a dense query has nothing to match against. The separation is in the
         storage; this just declines to open a table that cannot answer the question asked.
+
+        A SCOPED request gets its counterpart too. This used to return a bare ``[tier]`` for
+        anything but ``"all"``, so `doc_types=["transcript"]` — the episode transcript search,
+        whose whole job is "find this in the transcript" — could never reach `segments_nonen`,
+        and a verbatim sentence from a Spanish episode's own body matched nothing. Having no
+        vector column decides which SIGNAL can read a tier, not which SCOPE it belongs to;
+        `segment_nonen` is a segment tier either way.
         """
         if tier == "all":
             tiers = list(self.DENSE_TIERS)
             if keyword:
                 tiers.extend(self.KEYWORD_ONLY_TIERS)
             return tiers
+        if keyword:
+            return [
+                physical
+                for physical in self.physical_tiers_written_with(tier)
+                if physical == tier or physical in self.KEYWORD_ONLY_TIERS
+            ]
         return [tier]
 
     # --- retrieval -------------------------------------------------------------
@@ -413,7 +442,23 @@ class LanceDBBackend:
             try:
                 return _run_tier(table)
             except Exception as exc:  # noqa: BLE001 — a tier that cannot answer returns nothing
-                logger.debug("keyword-only tier read skipped: %s", exc)
+                # The EXPECTED case is a filter naming a column this tier lacks; that is a
+                # routine skip and stays quiet. Anything else is a real failure of this tier,
+                # and `debug` hid one for exactly as long as it existed: an empty
+                # `segments_nonen` gets no FTS index, so every BM25 read raised "Cannot perform
+                # full text search unless an INVERTED index has been created" and the whole
+                # non-English layer returned nothing, silently, on every query.
+                text = str(exc).lower()
+                expected = "no such column" in text or "column" in text and "not found" in text
+                if expected:
+                    logger.debug("keyword-only tier read skipped (filter column): %s", exc)
+                else:
+                    logger.warning(
+                        "keyword-only tier %r could not answer the query, so NO non-English "
+                        "results are included: %s",
+                        tier,
+                        exc,
+                    )
                 return []
 
         for tier in self._tables_for_tier(query.tier, keyword=query_type == "fts"):
