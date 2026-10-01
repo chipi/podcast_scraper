@@ -588,8 +588,10 @@ def detect_hosts_from_transcript_intro(
 # every consumer (_NAMES sites, _NAME_RE) linear with identical matches on real intros.
 _NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){1,5})"
 _NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME}){{0,9}}"
-# Presenting verbs — what a show's own description says its hosts DO.
-_PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring)s?\b"
+# Presenting verbs — what a show's own description says its hosts DO. `interview` is deliberately
+# absent: on "Join hosts ... Cobus van Staden in South Africa for insightful interviews" it crowns
+# "South Africa", which passes every downstream person-name guard (#2101).
+_PRESENTS = r"(?:explore|explain|discuss|talk|cover|host|present|bring|engage)s?\b"
 #: Patterns safe to run over a TITLE as well as a description.
 _HOST_PHRASES = [
     re.compile(p, re.IGNORECASE)

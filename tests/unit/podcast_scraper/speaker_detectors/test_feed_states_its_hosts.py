@@ -55,6 +55,18 @@ LATENT_SPACE = (
     "Generation, Multimodality, AI Agents, GPU Infra. Past guests include Bret Taylor, Chris "
     "Lattner, George Hotz and Jeremy Howard."
 )
+CONVERSATIONS_WITH_TYLER = (
+    "Tyler Cowen engages today's deepest thinkers in wide-ranging explorations of their work, the "
+    "world, and everything in between. New conversations every other Wednesday. Subscribe wherever "
+    "you get your podcasts."
+)
+CHINA_GLOBAL_SOUTH = (
+    "A weekly discussion on Chinese engagement in the developing world from the news team of The "
+    "China-Global South Project (CGSP). Join hosts Eric Olander in Vietnam and Cobus van Staden in "
+    "South Africa for insightful interviews with scholars, analysts, and journalists from around "
+    "the world. You'll also get regular updates from CGSP's editors in Asia, Africa, and the "
+    "Middle East."
+)
 
 
 class TestTheFeedStatesItsHosts:
@@ -97,6 +109,22 @@ class TestTheFeedStatesItsHosts:
             "Katie Martin",
             "Robert Armstrong",
         }
+
+    def test_engages_is_a_presenting_verb(self) -> None:
+        """ "Tyler Cowen engages today's deepest thinkers..." (#2101).
+
+        Without it the feed's own statement of its host was never read, every episode had no
+        metadata host, and the self-intro "this is Tyler" had nothing to be vouched by.
+        """
+        assert hosts_from_feed_statement("Conversations with Tyler", CONVERSATIONS_WITH_TYLER) == {
+            "Tyler Cowen"
+        }
+
+    def test_engagement_the_noun_does_not_make_a_host(self) -> None:
+        """ "Chinese engagement in the developing world" is a noun, not "Chinese engages"."""
+        hosts = hosts_from_feed_statement("The China-Global South Podcast", CHINA_GLOBAL_SOUTH)
+        assert "South Africa" not in hosts
+        assert not any("Chinese" in h for h in hosts)
 
     def test_the_host_can_be_in_the_title(self) -> None:
         assert hosts_from_feed_statement("Invest Like the Best with Patrick O'Shaughnessy", "") == {
