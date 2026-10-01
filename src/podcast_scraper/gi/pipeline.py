@@ -957,6 +957,13 @@ def _label_names_the_show(label: str, feed_title: Optional[str]) -> bool:
     return names_the_show(label, feed_title)
 
 
+def _label_is_an_organisation(label: str, kind_votes: Optional[Any]) -> bool:
+    """True when the corpus's KG extraction decisively calls *label* an organisation (#2220)."""
+    from ..speaker_detectors.entity_kind_votes import KindVotes
+
+    return isinstance(kind_votes, KindVotes) and kind_votes.calls_organisation(label)
+
+
 def _resolve_quote_speaker(
     gq: Any,
     speaker_label: Optional[str],
@@ -964,6 +971,7 @@ def _resolve_quote_speaker(
     transcript_text: Optional[str],
     transcript_segments: Optional[List[Dict[str, Any]]],
     feed_title: Optional[str] = None,
+    kind_votes: Optional[Any] = None,
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """``(person_id, friendly_name, voice_type)`` for a quote's speaker.
 
@@ -986,6 +994,15 @@ def _resolve_quote_speaker(
     )
     if voice_type:
         return None, friendly_voice_label(voice_type), voice_type
+    if speaker_label and _label_is_an_organisation(speaker_label, kind_votes):
+        # THE SEGMENT LABEL IS THE DURABLE RECORD of who a voice is, and every re-derive reads it
+        # back. Refusing an organisation only at candidate time (#2220) would let a rederive mint
+        # `person:andreessen-horowitz` again from a label written before the rule existed. Treat
+        # it as what it is: a voice we failed to name — no Person, no SPOKEN_BY.
+        logger.info(
+            "speaker label %r is an organisation by corpus vote — unnamed voice", speaker_label
+        )
+        return None, friendly_voice_label("unknown"), "unknown"
     if speaker_label:
         if _label_names_the_show(speaker_label, feed_title):
             # THE SHOW DID NOT SPEAK — but a VOICE did, and the two facts are separable.
@@ -1861,6 +1878,9 @@ def build_artifact(
     pid = podcast_id or "podcast:unknown"
     title = (episode_title or "Episode").strip() or "Episode"
     date_str = _safe_iso_date(publish_date)
+    from ..speaker_detectors.entity_kind_votes import votes_for_cfg
+
+    _kind_votes = votes_for_cfg(cfg) if cfg is not None else None
 
     # #643: when llm_pipeline_mode=mega_bundled/extraction_bundled has already
     # produced insights, short-circuit provider dispatch entirely.
@@ -2023,6 +2043,7 @@ def build_artifact(
                 feed_id=feed_id,
                 insight_tiers=insight_tiers,
                 feed_title=feed_title,
+                kind_votes=_kind_votes,
             )
         except GILGroundingUnsatisfiedError:
             raise
@@ -2066,6 +2087,7 @@ def build_artifact(
             episode_duration_ms=episode_duration_ms,
             feed_id=feed_id,
             feed_title=feed_title,
+            kind_votes=_kind_votes,
         )
     except Exception:
         # The insights exist but the artifact could not be assembled. Emitting an EMPTY artifact
@@ -2165,6 +2187,7 @@ def _artifact_from_multi_insight(
     feed_id: Optional[str] = None,
     insight_tiers: Optional[List[int]] = None,
     feed_title: Optional[str] = None,
+    kind_votes: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -2409,6 +2432,7 @@ def _artifact_from_multi_insight(
                 transcript_text,
                 transcript_segments if use_segments else None,
                 feed_title,
+                kind_votes,
             )
             if quote_voice_type:
                 speaker_label = None  # not a person — nothing to mint

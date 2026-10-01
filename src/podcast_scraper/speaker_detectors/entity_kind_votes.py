@@ -120,6 +120,25 @@ def corpus_kind_votes(corpus_root: str) -> KindVotes:
     return votes
 
 
+def votes_for_output_dir(output_dir: Optional[str]) -> Optional[KindVotes]:
+    """Votes for the corpus a run/feed directory belongs to (``<corpus>/feeds/<slug>/...``).
+
+    For writers that only know where they write, not the run config. ``None`` when the path is not
+    inside a corpus layout — no evidence, no change.
+    """
+    if not output_dir:
+        return None
+    path = Path(output_dir).resolve()
+    for parent in (path, *path.parents):
+        if parent.parent.name == "feeds" and parent.parent.parent.name:
+            try:
+                return corpus_kind_votes(str(parent.parent.parent))
+            except Exception as exc:  # noqa: BLE001 — unreadable votes are no votes
+                logger.warning("entity kind votes unavailable (%s: %s)", type(exc).__name__, exc)
+                return None
+    return None
+
+
 def votes_for_cfg(cfg: object) -> Optional[KindVotes]:
     """The corpus votes for a run's config, or ``None`` outside a corpus (no evidence)."""
     from ..workflow import run_index

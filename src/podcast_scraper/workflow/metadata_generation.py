@@ -1105,6 +1105,14 @@ def _build_speaker_record(
         else (None, None)
     )
     placed: List[SpeakerInfo] = list(diarized or [])
+    # An ORGANISATION BY CORPUS VOTE is not a placed person, even when a segment label written
+    # before #2220 says so: the label is what every re-derive reads back (see
+    # `gi.pipeline._label_is_an_organisation`). Its voice stays raw, i.e. unnamed.
+    from ..speaker_detectors.entity_kind_votes import KindVotes, votes_for_output_dir
+
+    _votes = votes_for_output_dir(output_dir)
+    if isinstance(_votes, KindVotes):
+        placed = [sp for sp in placed if not _votes.calls_organisation(sp.name)]
     if feed_title:
         # The SHOW is not a person on it (#2064). The graph already refuses it, so a record that
         # placed it would list a speaker no surface casts. A transcript still labelled with the
